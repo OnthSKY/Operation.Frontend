@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@/lib/auth/AuthContext";
 import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
 import { AppGlobalSearch } from "@/shared/components/AppGlobalSearch";
@@ -45,6 +46,7 @@ function LocaleToggle() {
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "/";
   const { t } = useI18n();
+  const { logout, user } = useAuth();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
@@ -158,6 +160,18 @@ export function AppShell({ children }: { children: ReactNode }) {
             </svg>
           </button>
           <AppGlobalSearch />
+          {user ? (
+            <span className="hidden max-w-[10rem] truncate text-xs text-zinc-500 sm:inline md:max-w-[14rem]">
+              {user.fullName || user.username}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => logout()}
+            className="shrink-0 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+          >
+            {t("auth.logout")}
+          </button>
           <LocaleToggle />
         </header>
         <main className="flex flex-1 flex-col overflow-auto">

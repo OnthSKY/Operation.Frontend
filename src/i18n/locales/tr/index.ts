@@ -1,4 +1,5 @@
 import type { Messages } from "../en";
+import { auth } from "./auth";
 import { branch } from "./branch";
 import { common } from "./common";
 import { dashboard } from "./dashboard";
@@ -12,6 +13,7 @@ import { warehouse } from "./warehouse";
 export const tr = {
   nav,
   lang,
+  auth,
   common,
   dashboard,
   personnel,

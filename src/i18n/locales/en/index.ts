@@ -1,3 +1,4 @@
+import { auth } from "./auth";
 import { branch } from "./branch";
 import { common } from "./common";
 import { dashboard } from "./dashboard";
@@ -11,6 +12,7 @@ import { warehouse } from "./warehouse";
 export const en = {
   nav,
   lang,
+  auth,
   common,
   dashboard,
   personnel,

@@ -1,5 +1,6 @@
 "use client";
 
+import { AuthProvider } from "@/lib/auth/AuthContext";
 import { I18nProvider } from "@/i18n/context";
 import { AppToastify } from "@/shared/components/AppToastify";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -21,8 +22,10 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <I18nProvider>
       <QueryClientProvider client={client}>
-        {children}
-        <AppToastify />
+        <AuthProvider>
+          {children}
+          <AppToastify />
+        </AuthProvider>
       </QueryClientProvider>
     </I18nProvider>
   );
