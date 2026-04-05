@@ -5,7 +5,10 @@ import {
   useBranchesList,
 } from "@/modules/branch/hooks/useBranchQueries";
 import { fetchBranchDailySummary } from "@/modules/dashboard/api/daily-summary-api";
-import { dashboardSummaryKeys } from "@/modules/dashboard/query-keys";
+import {
+  dashboardOverviewKeys,
+  dashboardSummaryKeys,
+} from "@/modules/dashboard/query-keys";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
@@ -68,6 +71,7 @@ export function useTodayBranchesSummary() {
   const refetch = useCallback(() => {
     void qc.invalidateQueries({ queryKey: branchKeys.list() });
     void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
+    void qc.invalidateQueries({ queryKey: dashboardOverviewKeys.all });
   }, [qc]);
 
   return { today, state, refetch };

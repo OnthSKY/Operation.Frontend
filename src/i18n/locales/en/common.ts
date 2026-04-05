@@ -8,4 +8,7 @@ export const common = {
   retry: "Retry",
   loading: "Loading…",
   required: "Required",
+  comboboxNoMatches: "No matches",
+  actions: "Actions",
+  delete: "Delete",
 } as const;

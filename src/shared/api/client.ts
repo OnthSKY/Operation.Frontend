@@ -1,1 +1,1 @@
-export { apiRequest, ApiError, type ApiRequestInit } from "@/lib/api/base-api";
+export { apiRequest, ApiError } from "@/lib/api/base-api";

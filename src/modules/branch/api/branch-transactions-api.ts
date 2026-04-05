@@ -4,6 +4,11 @@ import type {
   CreateBranchTransactionInput,
 } from "@/types/branch-transaction";
 
+function normalizeCurrency(v: unknown): string {
+  const s = String(v ?? "TRY").trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(s) ? s : "TRY";
+}
+
 export async function fetchBranchTransactions(
   branchId: number,
   date: string
@@ -12,7 +17,21 @@ export async function fetchBranchTransactions(
     branchId: String(branchId),
     date,
   });
-  return apiRequest<BranchTransaction[]>(`/branch-transactions?${q}`);
+  const rows = await apiRequest<
+    Array<
+      Omit<BranchTransaction, "currencyCode"> & {
+        currencyCode?: string;
+        cashAmount?: number | null;
+        cardAmount?: number | null;
+      }
+    >
+  >(`/branch-transactions?${q}`);
+  return rows.map((r) => ({
+    ...r,
+    currencyCode: normalizeCurrency(r.currencyCode),
+    cashAmount: r.cashAmount ?? null,
+    cardAmount: r.cardAmount ?? null,
+  }));
 }
 
 export async function createBranchTransaction(

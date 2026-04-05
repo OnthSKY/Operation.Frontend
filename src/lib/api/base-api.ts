@@ -1,5 +1,4 @@
 import { getApiBaseUrl } from "@/lib/env";
-import { clearAuthTokenCookie, getAuthTokenFromDocumentCookie } from "@/lib/auth/auth-cookie";
 
 export class ApiError extends Error {
   constructor(
@@ -32,46 +31,57 @@ function joinUrl(path: string): string {
   return `${base}${p}`;
 }
 
-export type ApiRequestInit = RequestInit & { skipAuth?: boolean };
-
-function onUnauthorized(): void {
-  clearAuthTokenCookie();
-  if (typeof window !== "undefined") {
-    const path = window.location.pathname;
-    if (!path.startsWith("/login")) {
-      window.location.assign("/login");
-    }
+async function clearSessionOnServer(): Promise<void> {
+  try {
+    await fetch(joinUrl("/auth/logout"), {
+      method: "POST",
+      credentials: "include",
+    });
+  } catch {
+    /* ignore */
   }
 }
 
-export async function apiRequest<T>(
-  path: string,
-  init?: ApiRequestInit
-): Promise<T> {
-  const { skipAuth, ...rest } = init ?? {};
-  const headers = new Headers(rest.headers);
-  if (rest.body && !headers.has("Content-Type")) {
+/** Yanlış şifre (POST login) 401'inde yönlendirme yapılmaz. */
+function shouldSkipUnauthorizedRecovery(path: string, init?: RequestInit): boolean {
+  if (!path.includes("/auth/login")) return false;
+  return (init?.method ?? "GET").toUpperCase() === "POST";
+}
+
+function recoverFromUnauthorized(path: string, init?: RequestInit): void {
+  if (shouldSkipUnauthorizedRecovery(path, init)) return;
+  void (async () => {
+    await clearSessionOnServer();
+    if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+      window.location.assign("/login");
+    }
+  })();
+}
+
+export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers = new Headers(init?.headers);
+  if (init?.body && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
-  if (!skipAuth) {
-    const token = getAuthTokenFromDocumentCookie();
-    if (token) {
-      headers.set("Authorization", `Bearer ${token}`);
-    }
+  const url = joinUrl(path);
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...init,
+      headers,
+      credentials: "include",
+    });
+  } catch {
+    throw new ApiError(0, "network");
   }
-
-  const res = await fetch(joinUrl(path), {
-    ...rest,
-    headers,
-  });
 
   const text = await res.text();
   let parsed: unknown;
   try {
     parsed = text ? JSON.parse(text) : undefined;
   } catch {
-    if (res.status === 401) onUnauthorized();
+    if (res.status === 401) recoverFromUnauthorized(path, init);
     if (!res.ok) {
       throw new ApiError(res.status, text.slice(0, 200) || res.statusText);
     }
@@ -80,13 +90,14 @@ export async function apiRequest<T>(
 
   if (isEnvelope(parsed)) {
     if (!parsed.success) {
+      if (res.status === 401) recoverFromUnauthorized(path, init);
       throw new ApiError(
         res.status,
         (parsed.error && String(parsed.error).trim()) || "Request failed"
       );
     }
     if (!res.ok) {
-      if (res.status === 401) onUnauthorized();
+      if (res.status === 401) recoverFromUnauthorized(path, init);
       throw new ApiError(
         res.status,
         (parsed.error && String(parsed.error).trim()) || res.statusText
@@ -102,7 +113,7 @@ export async function apiRequest<T>(
   }
 
   if (!res.ok) {
-    if (res.status === 401) onUnauthorized();
+    if (res.status === 401) recoverFromUnauthorized(path, init);
     let message = res.statusText || "Request failed";
     if (parsed && typeof parsed === "object") {
       const body = parsed as { message?: string; title?: string; error?: string };

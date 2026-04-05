@@ -1,43 +1,293 @@
+"use client";
+
 import { cn } from "@/lib/cn";
-import { forwardRef, type SelectHTMLAttributes } from "react";
+import { useI18n } from "@/i18n/context";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type Ref,
+} from "react";
 
 export type SelectOption = { value: string; label: string };
 
-export type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & {
+export type SelectProps = {
   label?: string;
   error?: string;
   options: SelectOption[];
+  name: string;
+  value: string;
+  onChange: (event: { target: { value: string; name: string } }) => void;
+  onBlur: React.FocusEventHandler<HTMLInputElement>;
+  disabled?: boolean;
+  className?: string;
+  id?: string;
 };
 
-export const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, id, label, error, options, ...props }, ref) => {
-    const selectId = id ?? props.name;
+function mergeRefs<T>(...refs: (Ref<T> | undefined)[]) {
+  return (node: T | null) => {
+    for (const r of refs) {
+      if (!r) continue;
+      if (typeof r === "function") r(node);
+      else (r as { current: T | null }).current = node;
+    }
+  };
+}
+
+function norm(s: string) {
+  return s.toLocaleLowerCase("tr-TR").normalize("NFD");
+}
+
+export const Select = forwardRef<HTMLInputElement, SelectProps>(
+  function Select(
+    {
+      className,
+      id,
+      label,
+      error,
+      options,
+      name,
+      value,
+      onChange,
+      onBlur,
+      disabled,
+    },
+    ref
+  ) {
+    const { t } = useI18n();
+    const inputId = id ?? name;
+    const listboxId = useId();
+    const containerRef = useRef<HTMLDivElement>(null);
+    const innerRef = useRef<HTMLInputElement>(null);
+    const setInputRef = mergeRefs(ref, innerRef);
+
+    const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState("");
+    const [highlighted, setHighlighted] = useState(0);
+
+    const selectedLabel = useMemo(
+      () => options.find((o) => o.value === value)?.label ?? "",
+      [options, value]
+    );
+
+    const filtered = useMemo(() => {
+      const q = norm(query.trim());
+      if (!q) return options;
+      return options.filter(
+        (o) => norm(o.label).includes(q) || o.value === value
+      );
+    }, [options, query, value]);
+
+    useEffect(() => {
+      if (!open) return;
+      setHighlighted(0);
+    }, [open, query]);
+
+    useEffect(() => {
+      if (!open) return;
+      const onDoc = (e: MouseEvent) => {
+        if (!containerRef.current?.contains(e.target as Node)) {
+          setOpen(false);
+          setQuery("");
+        }
+      };
+      document.addEventListener("mousedown", onDoc);
+      return () => document.removeEventListener("mousedown", onDoc);
+    }, [open]);
+
+    const commit = useCallback(
+      (v: string) => {
+        onChange({ target: { value: v, name } });
+        setOpen(false);
+        setQuery("");
+        innerRef.current?.blur();
+      },
+      [name, onChange]
+    );
+
+    const displayValue = open ? query : selectedLabel;
+
+    const onInputChange = (raw: string) => {
+      if (!open) {
+        setOpen(true);
+        setQuery(raw);
+        return;
+      }
+      setQuery(raw);
+    };
+
+    const openList = useCallback(() => {
+      if (disabled) return;
+      setOpen(true);
+      setQuery("");
+      requestAnimationFrame(() => innerRef.current?.focus());
+    }, [disabled]);
+
+    const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+      if (!open && e.key === "Backspace") {
+        e.preventDefault();
+        openList();
+        return;
+      }
+      if (
+        !open &&
+        e.key.length === 1 &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey
+      ) {
+        e.preventDefault();
+        setOpen(true);
+        setQuery(e.key);
+        return;
+      }
+      if (e.key === "Escape") {
+        if (open) {
+          e.preventDefault();
+          e.stopPropagation();
+          setOpen(false);
+          setQuery("");
+        }
+        return;
+      }
+      if (disabled) return;
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        if (!open) openList();
+        else
+          setHighlighted((i) =>
+            Math.min(i + 1, Math.max(0, filtered.length - 1))
+          );
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        if (open) setHighlighted((i) => Math.max(0, i - 1));
+        return;
+      }
+      if (e.key === "Enter" && open) {
+        e.preventDefault();
+        const opt = filtered[highlighted];
+        if (opt) commit(opt.value);
+        return;
+      }
+      if (e.key === "Tab" && open) {
+        setOpen(false);
+        setQuery("");
+      }
+    };
+
     return (
       <div className="flex w-full flex-col gap-1">
-        {label && selectId && (
+        {label && inputId && (
           <label
-            htmlFor={selectId}
+            htmlFor={inputId}
             className="text-sm font-medium text-zinc-700"
           >
             {label}
           </label>
         )}
-        <select
-          ref={ref}
-          id={selectId}
-          className={cn(
-            "min-h-12 w-full rounded-lg border border-zinc-300 bg-white px-3 text-base text-zinc-900 outline-none ring-zinc-900 focus:border-zinc-900 focus:ring-2",
-            error && "border-red-500 focus:border-red-500 focus:ring-red-500",
-            className
-          )}
-          {...props}
-        >
-          {options.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
+        <div ref={containerRef} className="relative">
+          <div className="relative">
+            <input
+              ref={setInputRef}
+              id={inputId}
+              type="text"
+              role="combobox"
+              aria-expanded={open}
+              aria-controls={listboxId}
+              aria-autocomplete="list"
+              aria-activedescendant={
+                open && filtered[highlighted]
+                  ? `${listboxId}-opt-${highlighted}`
+                  : undefined
+              }
+              disabled={disabled}
+              autoComplete="off"
+              value={displayValue}
+              placeholder={open && query === "" ? selectedLabel : undefined}
+              readOnly={!open}
+              onChange={(e) => onInputChange(e.target.value)}
+              onClick={() => {
+                if (!disabled && !open) openList();
+              }}
+              onFocus={() => {
+                if (!disabled && !open) openList();
+              }}
+              onBlur={(e) => {
+                onBlur(e);
+                window.setTimeout(() => {
+                  if (!containerRef.current?.contains(document.activeElement)) {
+                    setOpen(false);
+                    setQuery("");
+                  }
+                }, 0);
+              }}
+              onKeyDown={onKeyDown}
+              className={cn(
+                "min-h-12 w-full rounded-lg border border-zinc-300 bg-white py-2 pl-3 pr-10 text-base text-zinc-900 outline-none ring-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 read-only:cursor-pointer",
+                error && "border-red-500 focus:border-red-500 focus:ring-red-500",
+                disabled && "cursor-not-allowed bg-zinc-50 opacity-70",
+                className
+              )}
+            />
+            <span
+              className="pointer-events-none absolute inset-y-0 right-0 flex w-10 items-center justify-center text-zinc-500"
+              aria-hidden
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className={cn("transition-transform", open && "rotate-180")}
+              >
+                <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+          </div>
+
+          {open && !disabled ? (
+            <ul
+              id={listboxId}
+              role="listbox"
+              className="absolute z-[100] mt-1 max-h-52 w-full overflow-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg"
+            >
+              {filtered.length === 0 ? (
+                <li className="px-3 py-2.5 text-sm text-zinc-500">
+                  {t("common.comboboxNoMatches")}
+                </li>
+              ) : (
+                filtered.map((o, idx) => (
+                  <li
+                    key={o.value === "" ? "__empty__" : o.value}
+                    id={`${listboxId}-opt-${idx}`}
+                    role="option"
+                    aria-selected={o.value === value}
+                    className={cn(
+                      "cursor-pointer px-3 py-2.5 text-sm text-zinc-900",
+                      idx === highlighted && "bg-zinc-100",
+                      o.value === value && "font-medium"
+                    )}
+                    onMouseEnter={() => setHighlighted(idx)}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => commit(o.value)}
+                  >
+                    {o.label}
+                  </li>
+                ))
+              )}
+            </ul>
+          ) : null}
+        </div>
         {error && <p className="text-sm text-red-600">{error}</p>}
       </div>
     );

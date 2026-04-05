@@ -1,7 +1,15 @@
 export const toast = {
   personnelCreated: "Personnel saved",
+  personnelUpdated: "Personnel updated",
+  personnelDeactivated: "Personnel deactivated",
   advanceCreated: "Advance recorded",
   branchCreated: "Branch saved",
   branchTxCreated: "Branch movement saved",
   loadFailed: "Could not load data",
+  warehouseCreated: "Warehouse added",
+  warehouseDeleted: "Warehouse removed",
+  productCreated: "Product added",
+  productDeleted: "Product removed",
+  warehouseInOk: "Stock in recorded",
+  warehouseOutOk: "Stock out recorded",
 } as const;

@@ -1,12 +1,7 @@
 "use client";
 
 import { apiRequest } from "@/lib/api/base-api";
-import {
-  clearAuthTokenCookie,
-  getAuthTokenFromDocumentCookie,
-  setAuthTokenCookie,
-} from "@/lib/auth/auth-cookie";
-import type { AuthUser, LoginResponseData } from "@/lib/auth/types";
+import type { AuthUser } from "@/lib/auth/types";
 import { useRouter } from "next/navigation";
 import {
   createContext,
@@ -35,16 +30,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const token = getAuthTokenFromDocumentCookie();
-      if (!token) {
-        if (!cancelled) setIsReady(true);
-        return;
-      }
       try {
         const me = await apiRequest<AuthUser>("/auth/me");
         if (!cancelled) setUser(me);
       } catch {
-        clearAuthTokenCookie();
         if (!cancelled) setUser(null);
       } finally {
         if (!cancelled) setIsReady(true);
@@ -56,18 +45,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (username: string, password: string) => {
-    const data = await apiRequest<LoginResponseData>("/auth/login", {
+    const me = await apiRequest<AuthUser>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ username, password }),
-      skipAuth: true,
     });
-    setAuthTokenCookie(data.token);
-    setUser(data.user);
+    setUser(me);
     router.replace("/");
   }, [router]);
 
-  const logout = useCallback(() => {
-    clearAuthTokenCookie();
+  const logout = useCallback(async () => {
+    try {
+      await apiRequest<object | null>("/auth/logout", { method: "POST" });
+    } catch {
+      /* ignore */
+    }
     setUser(null);
     router.replace("/login");
   }, [router]);

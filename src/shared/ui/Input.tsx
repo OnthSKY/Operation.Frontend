@@ -3,11 +3,13 @@ import { forwardRef, type InputHTMLAttributes } from "react";
 
 export type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   label?: string;
+  /** Red asterisk next to label (visual only; use `required` attr for native validation). */
+  labelRequired?: boolean;
   error?: string;
 };
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, id, label, error, ...props }, ref) => {
+  ({ className, id, label, labelRequired, error, ...props }, ref) => {
     const inputId = id ?? props.name;
     return (
       <div className="flex w-full flex-col gap-1">
@@ -17,6 +19,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             className="text-sm font-medium text-zinc-700"
           >
             {label}
+            {labelRequired ? (
+              <span className="ml-0.5 text-red-600" aria-hidden>
+                *
+              </span>
+            ) : null}
           </label>
         )}
         <input

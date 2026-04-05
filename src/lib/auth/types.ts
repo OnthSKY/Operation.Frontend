@@ -5,8 +5,3 @@ export type AuthUser = {
   role: string;
   personnelId: number | null;
 };
-
-export type LoginResponseData = {
-  token: string;
-  user: AuthUser;
-};

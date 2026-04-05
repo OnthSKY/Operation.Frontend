@@ -3,8 +3,9 @@ export type CreateAdvanceInput = {
   branchId: number;
   sourceType?: string;
   amount: number;
+  currencyCode?: string | null;
   advanceDate: string;
-  effectiveDate: string;
+  effectiveYear: number;
   description?: string | null;
 };
 
@@ -14,7 +15,13 @@ export type Advance = {
   branchId: number;
   sourceType: string;
   amount: number;
+  currencyCode: string;
   advanceDate: string;
-  effectiveDate: string;
+  effectiveYear: number;
   description: string | null;
+};
+
+export type AdvanceListItem = Advance & {
+  personnelFullName: string;
+  branchName: string;
 };

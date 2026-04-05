@@ -1,5 +1,5 @@
-import { WarehousePlaceholderScreen } from "@/modules/warehouse/components/WarehousePlaceholderScreen";
+import { WarehouseScreen } from "@/modules/warehouse/components/WarehouseScreen";
 
 export default function WarehousePage() {
-  return <WarehousePlaceholderScreen />;
+  return <WarehouseScreen />;
 }

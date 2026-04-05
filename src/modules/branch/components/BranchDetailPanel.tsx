@@ -1,12 +1,19 @@
 "use client";
 
+import { txCodeLabel } from "@/modules/branch/lib/branch-transaction-options";
 import { useI18n } from "@/i18n/context";
 import { useBranchTransactions } from "@/modules/branch/hooks/useBranchQueries";
+import { AdvancePersonnelModal } from "@/modules/personnel/components/AdvancePersonnelModal";
+import { PersonnelAdvanceHistory } from "@/modules/personnel/components/PersonnelAdvanceHistory";
 import { fetchAdvancesByPersonnel } from "@/modules/personnel/api/advances-api";
-import { personnelKeys } from "@/modules/personnel/hooks/usePersonnelQueries";
+import {
+  personnelKeys,
+  usePersonnelList,
+} from "@/modules/personnel/hooks/usePersonnelQueries";
 import type { Branch } from "@/types/branch";
 import type { Personnel } from "@/types/personnel";
 import { Card } from "@/shared/components/Card";
+import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
@@ -24,14 +31,6 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { AddBranchTransactionModal } from "./AddBranchTransactionModal";
 
-function formatMoney(n: number, dash: string) {
-  if (n == null || Number.isNaN(n)) return dash;
-  return n.toLocaleString(undefined, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  });
-}
-
 type Props = {
   branch: Branch;
   staff: Personnel[];
@@ -39,9 +38,19 @@ type Props = {
 };
 
 export function BranchDetailPanel({ branch, staff, onClose }: Props) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const { data: personnelData = [] } = usePersonnelList();
+  const activePersonnel = useMemo(
+    () => personnelData.filter((p) => !p.isDeleted),
+    [personnelData]
+  );
+
   const [txDate, setTxDate] = useState(() => localIsoDate());
   const [txModalOpen, setTxModalOpen] = useState(false);
+  const [advanceOpen, setAdvanceOpen] = useState(false);
+  const [advanceInitialPersonId, setAdvanceInitialPersonId] = useState<
+    number | null
+  >(null);
 
   const {
     data: transactions = [],
@@ -51,17 +60,33 @@ export function BranchDetailPanel({ branch, staff, onClose }: Props) {
     refetch: refetchTx,
   } = useBranchTransactions(branch.id, txDate);
 
+  const advanceYear = useMemo(() => {
+    const y = Math.trunc(Number(txDate.slice(0, 4)));
+    return Number.isFinite(y) && y >= 1900 ? y : new Date().getFullYear();
+  }, [txDate]);
+
   const advanceQueries = useQueries({
     queries: staff.map((p) => ({
-      queryKey: personnelKeys.advances(p.id, txDate),
-      queryFn: () => fetchAdvancesByPersonnel(p.id, txDate),
+      queryKey: personnelKeys.advances(p.id),
+      queryFn: () => fetchAdvancesByPersonnel(p.id),
     })),
   });
 
   const staffRows = useMemo(() => {
     return staff.map((p, i) => {
       const q = advanceQueries[i];
-      const rows = (q?.data ?? []).filter((a) => a.branchId === branch.id);
+      const allBranch = (q?.data ?? []).filter((a) => a.branchId === branch.id);
+      const rows = allBranch.filter((a) => a.effectiveYear === advanceYear);
+      const codes = [
+        ...new Set(
+          rows.map((a) =>
+            String(a.currencyCode || "TRY")
+              .trim()
+              .toUpperCase()
+          )
+        ),
+      ];
+      const advCurrency = codes.length === 1 ? codes[0] : undefined;
       const total = rows.reduce((s, a) => s + a.amount, 0);
       return {
         personnel: p,
@@ -69,14 +94,46 @@ export function BranchDetailPanel({ branch, staff, onClose }: Props) {
         count: rows.length,
         pending: q?.isPending ?? false,
         failed: q?.isError ?? false,
+        advCurrency,
       };
     });
-  }, [staff, advanceQueries]);
+  }, [staff, advanceQueries, branch.id, advanceYear]);
 
-  const branchAdvanceTotal = useMemo(
-    () => staffRows.reduce((s, r) => s + r.total, 0),
-    [staffRows]
-  );
+  const { branchAdvanceTotal, branchAdvCurrency } = useMemo(() => {
+    const all = staff.flatMap((p, i) => {
+      const q = advanceQueries[i];
+      return (q?.data ?? []).filter(
+        (a) => a.branchId === branch.id && a.effectiveYear === advanceYear
+      );
+    });
+    const codes = [
+      ...new Set(
+        all.map((a) =>
+          String(a.currencyCode || "TRY")
+            .trim()
+            .toUpperCase()
+        )
+      ),
+    ];
+    return {
+      branchAdvanceTotal: all.reduce((s, a) => s + a.amount, 0),
+      branchAdvCurrency: codes.length === 1 ? codes[0] : undefined,
+    };
+  }, [staff, advanceQueries, branch.id, advanceYear]);
+
+  const dayTxCurrency = useMemo(() => {
+    if (!transactions.length) return undefined;
+    const codes = [
+      ...new Set(
+        transactions.map((x) =>
+          String(x.currencyCode || "TRY")
+            .trim()
+            .toUpperCase()
+        )
+      ),
+    ];
+    return codes.length === 1 ? codes[0] : undefined;
+  }, [transactions]);
 
   const incomeTotal = useMemo(
     () =>
@@ -95,6 +152,18 @@ export function BranchDetailPanel({ branch, staff, onClose }: Props) {
   );
 
   const advancesLoading = advanceQueries.some((q) => q.isPending);
+
+  const openAdvance = (personnelId?: number) => {
+    setAdvanceInitialPersonId(
+      personnelId != null && personnelId > 0 ? personnelId : null
+    );
+    setAdvanceOpen(true);
+  };
+
+  const closeAdvance = () => {
+    setAdvanceOpen(false);
+    setAdvanceInitialPersonId(null);
+  };
 
   return (
     <>
@@ -137,7 +206,12 @@ export function BranchDetailPanel({ branch, staff, onClose }: Props) {
               {t("branch.dayIncome")}
             </p>
             <p className="mt-1 text-lg font-semibold text-emerald-800">
-              {formatMoney(incomeTotal, t("personnel.dash"))}
+              {formatMoneyDash(
+                incomeTotal,
+                t("personnel.dash"),
+                locale,
+                dayTxCurrency
+              )}
             </p>
           </div>
           <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
@@ -145,7 +219,12 @@ export function BranchDetailPanel({ branch, staff, onClose }: Props) {
               {t("branch.dayExpense")}
             </p>
             <p className="mt-1 text-lg font-semibold text-red-800">
-              {formatMoney(expenseTotal, t("personnel.dash"))}
+              {formatMoneyDash(
+                expenseTotal,
+                t("personnel.dash"),
+                locale,
+                dayTxCurrency
+              )}
             </p>
           </div>
           <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
@@ -153,7 +232,12 @@ export function BranchDetailPanel({ branch, staff, onClose }: Props) {
               {t("branch.dayNet")}
             </p>
             <p className="mt-1 text-lg font-semibold text-zinc-900">
-              {formatMoney(incomeTotal - expenseTotal, t("personnel.dash"))}
+              {formatMoneyDash(
+                incomeTotal - expenseTotal,
+                t("personnel.dash"),
+                locale,
+                dayTxCurrency
+              )}
             </p>
           </div>
         </div>
@@ -183,6 +267,8 @@ export function BranchDetailPanel({ branch, staff, onClose }: Props) {
                   <TableRow>
                     <TableHeader>{t("branch.txColType")}</TableHeader>
                     <TableHeader>{t("branch.txColAmount")}</TableHeader>
+                    <TableHeader>{t("branch.txColCashCard")}</TableHeader>
+                    <TableHeader>{t("branch.txColMainCategory")}</TableHeader>
                     <TableHeader>{t("branch.txColCategory")}</TableHeader>
                     <TableHeader>{t("branch.txColNote")}</TableHeader>
                   </TableRow>
@@ -204,10 +290,43 @@ export function BranchDetailPanel({ branch, staff, onClose }: Props) {
                         </span>
                       </TableCell>
                       <TableCell className="font-mono">
-                        {formatMoney(row.amount, t("personnel.dash"))}
+                        {formatMoneyDash(
+                          row.amount,
+                          t("personnel.dash"),
+                          locale,
+                          row.currencyCode
+                        )}
+                      </TableCell>
+                      <TableCell className="max-w-[14rem] font-mono text-xs text-zinc-600">
+                        {row.cashAmount != null &&
+                        row.cardAmount != null &&
+                        row.type.toUpperCase() === "IN" ? (
+                          <span>
+                            {t("branch.txCashShort")}:{" "}
+                            {formatMoneyDash(
+                              row.cashAmount,
+                              t("personnel.dash"),
+                              locale,
+                              row.currencyCode
+                            )}
+                            <br />
+                            {t("branch.txCardShort")}:{" "}
+                            {formatMoneyDash(
+                              row.cardAmount,
+                              t("personnel.dash"),
+                              locale,
+                              row.currencyCode
+                            )}
+                          </span>
+                        ) : (
+                          t("personnel.dash")
+                        )}
                       </TableCell>
                       <TableCell className="text-zinc-600">
-                        {row.category ?? t("personnel.dash")}
+                        {txCodeLabel(row.mainCategory, t) || t("personnel.dash")}
+                      </TableCell>
+                      <TableCell className="text-zinc-600">
+                        {txCodeLabel(row.category, t) || t("personnel.dash")}
                       </TableCell>
                       <TableCell className="max-w-[12rem] truncate text-zinc-600">
                         {row.description ?? t("personnel.dash")}
@@ -232,12 +351,14 @@ export function BranchDetailPanel({ branch, staff, onClose }: Props) {
               >
                 {t("branch.openPersonnel")}
               </Link>
-              <Link
-                href="/personnel#personnel-advance"
-                className="inline-flex min-h-11 items-center rounded-lg bg-zinc-900 px-3 text-sm font-medium text-white hover:bg-zinc-800"
+              <Button
+                type="button"
+                className="min-h-11"
+                disabled={activePersonnel.length === 0}
+                onClick={() => openAdvance()}
               >
                 {t("branch.giveAdvance")}
-              </Link>
+              </Button>
             </div>
           </div>
 
@@ -252,7 +373,12 @@ export function BranchDetailPanel({ branch, staff, onClose }: Props) {
                 <p className="text-base font-semibold text-zinc-900">
                   {advancesLoading
                     ? t("common.loading")
-                    : formatMoney(branchAdvanceTotal, t("personnel.dash"))}
+                    : formatMoneyDash(
+                        branchAdvanceTotal,
+                        t("personnel.dash"),
+                        locale,
+                        branchAdvCurrency
+                      )}
                 </p>
               </div>
               <div className="overflow-x-auto">
@@ -262,6 +388,12 @@ export function BranchDetailPanel({ branch, staff, onClose }: Props) {
                       <TableHeader>{t("branch.staffName")}</TableHeader>
                       <TableHeader>{t("branch.staffAdvTotal")}</TableHeader>
                       <TableHeader>{t("branch.staffAdvCount")}</TableHeader>
+                      <TableHeader className="min-w-[14rem] max-w-[20rem]">
+                        {t("branch.staffAdvHistory")}
+                      </TableHeader>
+                      <TableHeader className="w-[1%] whitespace-nowrap">
+                        {t("branch.staffGiveAdvanceRow")}
+                      </TableHeader>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -275,7 +407,12 @@ export function BranchDetailPanel({ branch, staff, onClose }: Props) {
                             ? t("common.loading")
                             : r.failed
                               ? "—"
-                              : formatMoney(r.total, t("personnel.dash"))}
+                              : formatMoneyDash(
+                                  r.total,
+                                  t("personnel.dash"),
+                                  locale,
+                                  r.advCurrency
+                                )}
                         </TableCell>
                         <TableCell>
                           {r.pending
@@ -283,6 +420,28 @@ export function BranchDetailPanel({ branch, staff, onClose }: Props) {
                             : r.failed
                               ? "—"
                               : r.count}
+                        </TableCell>
+                        <TableCell className="max-w-[20rem] align-top">
+                          <PersonnelAdvanceHistory
+                            personnelId={r.personnel.id}
+                            branchIdFilter={branch.id}
+                            variant="inline"
+                            maxDetailRows={6}
+                          />
+                        </TableCell>
+                        <TableCell className="align-top">
+                          {!r.personnel.isDeleted ? (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="min-h-9 whitespace-nowrap px-2 py-1 text-xs"
+                              onClick={() => openAdvance(r.personnel.id)}
+                            >
+                              {t("branch.staffGiveAdvanceRow")}
+                            </Button>
+                          ) : (
+                            <span className="text-xs text-zinc-400">—</span>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -299,6 +458,13 @@ export function BranchDetailPanel({ branch, staff, onClose }: Props) {
         onClose={() => setTxModalOpen(false)}
         branchId={branch.id}
         defaultTransactionDate={txDate}
+      />
+
+      <AdvancePersonnelModal
+        open={advanceOpen}
+        onClose={closeAdvance}
+        personnel={activePersonnel}
+        initialPersonnelId={advanceInitialPersonId}
       />
     </>
   );

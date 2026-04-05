@@ -1,24 +1,34 @@
 "use client";
 
 import { useI18n } from "@/i18n/context";
+import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { useCreateAdvance } from "@/modules/personnel/hooks/usePersonnelQueries";
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
 import type { Personnel } from "@/types/personnel";
+import {
+  formatLocaleAmount,
+  parseLocaleAmount,
+} from "@/shared/lib/locale-amount";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select, type SelectOption } from "@/shared/ui/Select";
-import { useEffect } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import {
+  currencySelectOptions,
+  DEFAULT_CURRENCY,
+} from "@/shared/lib/iso4217-currencies";
+import { useEffect, useMemo } from "react";
+import { useController, useForm, useWatch } from "react-hook-form";
 
 type FormValues = {
   personnelId: string;
   branchId: string;
   sourceType: string;
+  currencyCode: string;
   advanceDate: string;
-  effectiveDate: string;
+  effectiveYear: string;
   amount: string;
   description: string;
 };
@@ -27,6 +37,8 @@ type Props = {
   open: boolean;
   onClose: () => void;
   personnel: Personnel[];
+  /** Açılışta kişi seçili gelsin (tablo/karttan hızlı avans). */
+  initialPersonnelId?: number | null;
 };
 
 const TITLE_ID = "advance-title";
@@ -35,15 +47,18 @@ function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function firstOfCurrentMonthIso(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  return `${y}-${m}-01`;
+function currentCalendarYear(): string {
+  return String(new Date().getFullYear());
 }
 
-export function AdvancePersonnelModal({ open, onClose, personnel }: Props) {
-  const { t } = useI18n();
+export function AdvancePersonnelModal({
+  open,
+  onClose,
+  personnel,
+  initialPersonnelId = null,
+}: Props) {
+  const { t, locale } = useI18n();
+  const { data: branches = [] } = useBranchesList();
   const createAdvance = useCreateAdvance();
   const {
     register,
@@ -58,14 +73,86 @@ export function AdvancePersonnelModal({ open, onClose, personnel }: Props) {
       personnelId: "",
       branchId: "",
       sourceType: "CASH",
+      currencyCode: DEFAULT_CURRENCY,
       advanceDate: todayIsoDate(),
-      effectiveDate: firstOfCurrentMonthIso(),
+      effectiveYear: currentCalendarYear(),
       amount: "",
       description: "",
     },
   });
 
+  const currencyOptions = useMemo(() => currencySelectOptions(), []);
+
+  const branchOptions: SelectOption[] = useMemo(
+    () => [
+      { value: "", label: t("personnel.advanceSelectBranch") },
+      ...branches.map((b) => ({ value: String(b.id), label: b.name })),
+    ],
+    [branches, t]
+  );
+
+  const sourceOptions: SelectOption[] = useMemo(
+    () => [
+      { value: "CASH", label: t("personnel.sourceCash") },
+      { value: "PATRON", label: t("personnel.sourcePatron") },
+      { value: "BANK", label: t("personnel.sourceBank") },
+    ],
+    [t]
+  );
+
+  const { field: personnelField } = useController({
+    name: "personnelId",
+    control,
+    defaultValue: "",
+    rules: { required: t("common.required") },
+  });
+
+  const { field: branchField } = useController({
+    name: "branchId",
+    control,
+    defaultValue: "",
+    rules: {
+      required: t("common.required"),
+      validate: (v) => {
+        const n = Number(v);
+        if (!v || Number.isNaN(n) || n < 1) {
+          return t("personnel.advanceBranchInvalid");
+        }
+        return true;
+      },
+    },
+  });
+
+  const { field: sourceField } = useController({
+    name: "sourceType",
+    control,
+    defaultValue: "CASH",
+    rules: { required: t("common.required") },
+  });
+
+  const { field: currencyField } = useController({
+    name: "currencyCode",
+    control,
+    defaultValue: DEFAULT_CURRENCY,
+    rules: { required: t("common.required") },
+  });
+
+  const { field: amountField } = useController({
+    name: "amount",
+    control,
+    defaultValue: "",
+    rules: {
+      required: t("common.required"),
+      validate: (v) => {
+        const n = parseLocaleAmount(String(v), locale);
+        if (!Number.isFinite(n) || n <= 0) return t("personnel.positiveAmount");
+        return true;
+      },
+    },
+  });
+
   const personnelId = useWatch({ control, name: "personnelId" });
+  const currencyCodeWatch = useWatch({ control, name: "currencyCode" });
   const selectedPersonnel = personnel.find((x) => String(x.id) === personnelId);
 
   useEffect(() => {
@@ -79,24 +166,35 @@ export function AdvancePersonnelModal({ open, onClose, personnel }: Props) {
   }, [personnelId, personnel, setValue]);
 
   useEffect(() => {
+    const base = {
+      branchId: "",
+      sourceType: "CASH",
+      currencyCode: DEFAULT_CURRENCY,
+      advanceDate: todayIsoDate(),
+      effectiveYear: currentCalendarYear(),
+      amount: "",
+      description: "",
+    };
     if (!open) {
-      reset({
-        personnelId: "",
-        branchId: "",
-        sourceType: "CASH",
-        advanceDate: todayIsoDate(),
-        effectiveDate: firstOfCurrentMonthIso(),
-        amount: "",
-        description: "",
-      });
+      reset({ personnelId: "", ...base });
+      return;
     }
-  }, [open, reset]);
+    reset({
+      personnelId:
+        initialPersonnelId != null && initialPersonnelId > 0
+          ? String(initialPersonnelId)
+          : "",
+      ...base,
+    });
+  }, [open, initialPersonnelId, reset]);
 
   useEffect(() => {
     if (!open) return;
-    const id = window.setTimeout(() => setFocus("personnelId"), 80);
+    const field =
+      initialPersonnelId != null && initialPersonnelId > 0 ? "amount" : "personnelId";
+    const id = window.setTimeout(() => setFocus(field), 90);
     return () => window.clearTimeout(id);
-  }, [open, setFocus]);
+  }, [open, initialPersonnelId, setFocus]);
 
   const options: SelectOption[] = [
     { value: "", label: t("personnel.selectPerson") },
@@ -106,22 +204,21 @@ export function AdvancePersonnelModal({ open, onClose, personnel }: Props) {
     })),
   ];
 
-  const sourceOptions: SelectOption[] = [
-    { value: "CASH", label: t("personnel.sourceCash") },
-    { value: "BANK", label: t("personnel.sourceBank") },
-  ];
-
   const onSubmit = handleSubmit(async (values) => {
-    const amount = Number(values.amount);
-    const pid = Number(values.personnelId);
-    const branchId = Number(values.branchId);
-    const person = personnel.find((x) => x.id === pid);
-    if (person?.branchId == null || person.branchId <= 0) {
-      notify.error(t("personnel.advanceNeedsBranch"));
+    const amount = parseLocaleAmount(values.amount, locale);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      notify.error(t("personnel.positiveAmount"));
       return;
     }
-    if (branchId !== person.branchId) {
-      notify.error(t("personnel.branchInvalid"));
+    const pid = Number(values.personnelId);
+    const branchId = Number(values.branchId);
+    if (!Number.isFinite(branchId) || branchId < 1) {
+      notify.error(t("personnel.advanceBranchInvalid"));
+      return;
+    }
+    const effectiveYear = Math.trunc(Number(values.effectiveYear));
+    if (!Number.isFinite(effectiveYear) || effectiveYear < 1900 || effectiveYear > 9999) {
+      notify.error(t("personnel.effectiveYearInvalid"));
       return;
     }
     try {
@@ -130,8 +227,10 @@ export function AdvancePersonnelModal({ open, onClose, personnel }: Props) {
         branchId,
         sourceType: values.sourceType || "CASH",
         amount,
+        currencyCode:
+          values.currencyCode.trim().toUpperCase() || DEFAULT_CURRENCY,
         advanceDate: values.advanceDate,
-        effectiveDate: values.effectiveDate,
+        effectiveYear,
         description: values.description.trim() || undefined,
       });
       notify.success(t("toast.advanceCreated"));
@@ -139,8 +238,9 @@ export function AdvancePersonnelModal({ open, onClose, personnel }: Props) {
         personnelId: "",
         branchId: "",
         sourceType: "CASH",
+        currencyCode: DEFAULT_CURRENCY,
         advanceDate: todayIsoDate(),
-        effectiveDate: firstOfCurrentMonthIso(),
+        effectiveYear: currentCalendarYear(),
         amount: "",
         description: "",
       });
@@ -163,30 +263,34 @@ export function AdvancePersonnelModal({ open, onClose, personnel }: Props) {
         <Select
           label={t("nav.personnel")}
           options={options}
-          {...register("personnelId", { required: t("common.required") })}
+          name={personnelField.name}
+          value={String(personnelField.value ?? "")}
+          onChange={(e) => personnelField.onChange(e.target.value)}
+          onBlur={personnelField.onBlur}
+          ref={personnelField.ref}
           error={errors.personnelId?.message}
         />
-        <Input
+        <Select
           label={t("personnel.branchForAdvance")}
-          type="number"
-          inputMode="numeric"
-          min={1}
-          step={1}
-          readOnly={selectedPersonnel?.branchId != null && selectedPersonnel.branchId > 0}
-          {...register("branchId", {
-            required: t("common.required"),
-            validate: (v) => {
-              const n = Number(v);
-              if (Number.isNaN(n) || n < 1) return t("personnel.branchInvalid");
-              return true;
-            },
-          })}
+          options={branchOptions}
+          name={branchField.name}
+          value={String(branchField.value ?? "")}
+          onChange={(e) => branchField.onChange(e.target.value)}
+          onBlur={branchField.onBlur}
+          ref={branchField.ref}
           error={errors.branchId?.message}
         />
+        {selectedPersonnel?.branchId != null && selectedPersonnel.branchId > 0 ? (
+          <p className="text-xs text-zinc-500">{t("personnel.advanceBranchPrefilledHint")}</p>
+        ) : null}
         <Select
           label={t("personnel.sourceType")}
           options={sourceOptions}
-          {...register("sourceType", { required: true })}
+          name={sourceField.name}
+          value={String(sourceField.value ?? "CASH")}
+          onChange={(e) => sourceField.onChange(e.target.value)}
+          onBlur={sourceField.onBlur}
+          ref={sourceField.ref}
           error={errors.sourceType?.message}
         />
         <Input
@@ -196,25 +300,52 @@ export function AdvancePersonnelModal({ open, onClose, personnel }: Props) {
           error={errors.advanceDate?.message}
         />
         <Input
-          label={t("personnel.effectiveDate")}
-          type="date"
-          {...register("effectiveDate", { required: t("common.required") })}
-          error={errors.effectiveDate?.message}
-        />
-        <Input
-          label={t("personnel.amount")}
+          label={t("personnel.effectiveYear")}
           type="number"
-          inputMode="decimal"
-          step="0.01"
-          min="0"
-          {...register("amount", {
+          inputMode="numeric"
+          min={1900}
+          max={9999}
+          step={1}
+          {...register("effectiveYear", {
             required: t("common.required"),
             validate: (v) => {
-              const n = Number(v);
-              if (Number.isNaN(n) || n <= 0) return t("personnel.positiveAmount");
+              const n = Math.trunc(Number(v));
+              if (!Number.isFinite(n) || n < 1900 || n > 9999) {
+                return t("personnel.effectiveYearInvalid");
+              }
               return true;
             },
           })}
+          error={errors.effectiveYear?.message}
+        />
+        <Select
+          label={t("personnel.advanceCurrency")}
+          options={currencyOptions}
+          name={currencyField.name}
+          value={String(currencyField.value ?? DEFAULT_CURRENCY)}
+          onChange={(e) => currencyField.onChange(e.target.value)}
+          onBlur={currencyField.onBlur}
+          ref={currencyField.ref}
+          error={errors.currencyCode?.message}
+        />
+        <Input
+          label={t("personnel.amount")}
+          inputMode="decimal"
+          autoComplete="off"
+          name={amountField.name}
+          value={amountField.value}
+          onChange={(e) => amountField.onChange(e.target.value)}
+          onBlur={(e) => {
+            const n = parseLocaleAmount(e.target.value, locale);
+            if (Number.isFinite(n) && n > 0) {
+              const code = String(currencyCodeWatch ?? DEFAULT_CURRENCY).trim();
+              amountField.onChange(
+                formatLocaleAmount(n, locale, code || DEFAULT_CURRENCY)
+              );
+            }
+            amountField.onBlur();
+          }}
+          ref={amountField.ref}
           error={errors.amount?.message}
         />
         <Input
@@ -232,8 +363,9 @@ export function AdvancePersonnelModal({ open, onClose, personnel }: Props) {
                 personnelId: "",
                 branchId: "",
                 sourceType: "CASH",
+                currencyCode: DEFAULT_CURRENCY,
                 advanceDate: todayIsoDate(),
-                effectiveDate: firstOfCurrentMonthIso(),
+                effectiveYear: currentCalendarYear(),
                 amount: "",
                 description: "",
               });

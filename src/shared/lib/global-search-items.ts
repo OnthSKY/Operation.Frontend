@@ -32,6 +32,14 @@ export const GLOBAL_SEARCH_ITEMS: GlobalSearchItemDef[] = [
     match: "avans advance ön ödeme prepaid payment borç loan maaş salary ödeme",
   },
   {
+    id: "advances-all",
+    href: "/personnel/advances",
+    titleKey: "personnel.allAdvancesTitle",
+    subtitleKey: "search.subAllAdvances",
+    match:
+      "tüm avanslar all advances liste list kayıtlar records geçmiş history özet",
+  },
+  {
     id: "branch",
     href: "/branch",
     titleKey: "nav.branch",
@@ -45,6 +53,14 @@ export const GLOBAL_SEARCH_ITEMS: GlobalSearchItemDef[] = [
     subtitleKey: "search.subWarehouse",
     match:
       "depo warehouse stok stock envanter inventory malzeme ürün goods storage",
+  },
+  {
+    id: "products",
+    href: "/products",
+    titleKey: "nav.products",
+    subtitleKey: "search.subProducts",
+    match:
+      "ürünler products katalog catalog liste list depo warehouse stok stock sku malzeme",
   },
   {
     id: "income",

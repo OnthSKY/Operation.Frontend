@@ -2,6 +2,14 @@
 
 import { useI18n } from "@/i18n/context";
 import { useCreateBranchTransaction } from "@/modules/branch/hooks/useBranchQueries";
+import {
+  txMainOptions,
+  txSubOptions,
+} from "@/modules/branch/lib/branch-transaction-options";
+import {
+  formatLocaleAmount,
+  parseLocaleAmount,
+} from "@/shared/lib/locale-amount";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
@@ -9,14 +17,22 @@ import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import {
+  currencySelectOptions,
+  DEFAULT_CURRENCY,
+} from "@/shared/lib/iso4217-currencies";
+import { useEffect, useMemo, useRef } from "react";
+import { useController, useForm, useWatch } from "react-hook-form";
 
 type FormValues = {
   type: string;
-  amount: string;
-  transactionDate: string;
+  mainCategory: string;
   category: string;
+  amount: string;
+  amountCash: string;
+  amountCard: string;
+  currencyCode: string;
+  transactionDate: string;
   description: string;
 };
 
@@ -36,47 +52,185 @@ export function AddBranchTransactionModal({
   branchId,
   defaultTransactionDate,
 }: Props) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const createTx = useCreateBranchTransaction();
   const {
+    control,
     register,
     handleSubmit,
+    setValue,
     formState: { errors },
     reset,
+    trigger,
   } = useForm<FormValues>({
     defaultValues: {
       type: "IN",
-      amount: "",
-      transactionDate: defaultTransactionDate ?? localIsoDate(),
+      mainCategory: "",
       category: "",
+      amount: "",
+      amountCash: "",
+      amountCard: "",
+      currencyCode: DEFAULT_CURRENCY,
+      transactionDate: defaultTransactionDate ?? localIsoDate(),
       description: "",
     },
   });
+
+  const currencyOptions = useMemo(() => currencySelectOptions(), []);
+
+  const txType = useWatch({ control, name: "type" });
+  const mainCategoryWatch = useWatch({ control, name: "mainCategory" });
+  const prevType = useRef(txType);
+  const prevMain = useRef(mainCategoryWatch);
 
   useEffect(() => {
     if (!open) return;
     reset({
       type: "IN",
-      amount: "",
-      transactionDate: defaultTransactionDate ?? localIsoDate(),
+      mainCategory: "",
       category: "",
+      amount: "",
+      amountCash: "",
+      amountCard: "",
+      currencyCode: DEFAULT_CURRENCY,
+      transactionDate: defaultTransactionDate ?? localIsoDate(),
       description: "",
     });
+    prevType.current = "IN";
+    prevMain.current = "";
   }, [open, reset, defaultTransactionDate]);
 
-  const onSubmit = handleSubmit(async (values) => {
-    const amount = Number(values.amount.replace(",", "."));
-    if (!Number.isFinite(amount) || amount <= 0) {
-      notify.error(t("branch.txAmountInvalid"));
-      return;
+  useEffect(() => {
+    if (prevType.current !== txType) {
+      setValue("mainCategory", "");
+      setValue("category", "");
+      setValue("amountCash", "");
+      setValue("amountCard", "");
+      prevType.current = txType;
     }
+  }, [txType, setValue]);
+
+  useEffect(() => {
+    if (prevMain.current !== mainCategoryWatch) {
+      setValue("category", "");
+      prevMain.current = mainCategoryWatch;
+    }
+  }, [mainCategoryWatch, setValue]);
+
+  const { field: typeField } = useController({
+    name: "type",
+    control,
+    defaultValue: "IN",
+    rules: { required: t("common.required") },
+  });
+
+  const { field: mainField } = useController({
+    name: "mainCategory",
+    control,
+    defaultValue: "",
+    rules: { required: t("common.required") },
+  });
+
+  const { field: categoryField } = useController({
+    name: "category",
+    control,
+    defaultValue: "",
+    rules: { required: t("common.required") },
+  });
+
+  const amountCashWatch = useWatch({ control, name: "amountCash" });
+  const amountCardWatch = useWatch({ control, name: "amountCard" });
+  const currencyWatch = useWatch({ control, name: "currencyCode" });
+
+  const incomeSplitActive =
+    txType.toUpperCase() === "IN" &&
+    (String(amountCashWatch ?? "").trim() !== "" ||
+      String(amountCardWatch ?? "").trim() !== "");
+
+  const splitTotal = useMemo(() => {
+    if (!incomeSplitActive) return null;
+    const c = parseLocaleAmount(String(amountCashWatch ?? ""), locale);
+    const k = parseLocaleAmount(String(amountCardWatch ?? ""), locale);
+    if (!Number.isFinite(c) || !Number.isFinite(k) || c < 0 || k < 0)
+      return null;
+    return c + k;
+  }, [incomeSplitActive, amountCashWatch, amountCardWatch, locale]);
+
+  const { field: amountField } = useController({
+    name: "amount",
+    control,
+    defaultValue: "",
+    rules: {
+      validate: (v) =>
+        incomeSplitActive || String(v ?? "").trim()
+          ? true
+          : t("common.required"),
+    },
+  });
+
+  useEffect(() => {
+    void trigger("amount");
+  }, [incomeSplitActive, trigger]);
+
+  const { field: currencyField } = useController({
+    name: "currencyCode",
+    control,
+    defaultValue: DEFAULT_CURRENCY,
+    rules: { required: t("common.required") },
+  });
+
+  const regCash = register("amountCash");
+  const regCard = register("amountCard");
+
+  const mainOpts = useMemo(() => txMainOptions(txType, t), [txType, t]);
+  const subOpts = useMemo(
+    () => txSubOptions(mainCategoryWatch, t),
+    [mainCategoryWatch, t]
+  );
+
+  const onSubmit = handleSubmit(async (values) => {
+    const cur = values.currencyCode.trim().toUpperCase() || DEFAULT_CURRENCY;
+    let amount: number;
+    let cashAmount: number | null = null;
+    let cardAmount: number | null = null;
+
+    const splitIncome =
+      values.type.toUpperCase() === "IN" &&
+      (values.amountCash.trim() !== "" || values.amountCard.trim() !== "");
+
+    if (splitIncome) {
+      const c = parseLocaleAmount(values.amountCash, locale);
+      const k = parseLocaleAmount(values.amountCard, locale);
+      if (!Number.isFinite(c) || c < 0 || !Number.isFinite(k) || k < 0) {
+        notify.error(t("branch.txSplitIncomplete"));
+        return;
+      }
+      amount = c + k;
+      if (amount <= 0) {
+        notify.error(t("branch.txAmountInvalid"));
+        return;
+      }
+      cashAmount = c;
+      cardAmount = k;
+    } else {
+      amount = parseLocaleAmount(values.amount, locale);
+      if (!Number.isFinite(amount) || amount <= 0) {
+        notify.error(t("branch.txAmountInvalid"));
+        return;
+      }
+    }
+
     try {
       await createTx.mutateAsync({
         branchId,
         type: values.type,
-        amount,
-        transactionDate: values.transactionDate,
+        mainCategory: values.mainCategory.trim() || null,
         category: values.category.trim() || null,
+        amount,
+        cashAmount,
+        cardAmount,
+        currencyCode: cur,
+        transactionDate: values.transactionDate,
         description: values.description.trim() || null,
       });
       notify.success(t("toast.branchTxCreated"));
@@ -102,23 +256,117 @@ export function AddBranchTransactionModal({
             { value: "IN", label: t("branch.txTypeIn") },
             { value: "OUT", label: t("branch.txTypeOut") },
           ]}
-          {...register("type", { required: true })}
+          name={typeField.name}
+          value={String(typeField.value ?? "IN")}
+          onChange={(e) => typeField.onChange(e.target.value)}
+          onBlur={typeField.onBlur}
+          ref={typeField.ref}
+          error={errors.type?.message}
         />
-        <Input
-          label={t("branch.txAmount")}
-          inputMode="decimal"
-          {...register("amount", { required: t("common.required") })}
-          error={errors.amount?.message}
+        <Select
+          label={t("branch.txMainCategory")}
+          options={mainOpts}
+          name={mainField.name}
+          value={String(mainField.value ?? "")}
+          onChange={(e) => mainField.onChange(e.target.value)}
+          onBlur={mainField.onBlur}
+          ref={mainField.ref}
+          error={errors.mainCategory?.message}
         />
+        <Select
+          label={t("branch.txSubCategory")}
+          options={subOpts}
+          name={categoryField.name}
+          value={String(categoryField.value ?? "")}
+          onChange={(e) => categoryField.onChange(e.target.value)}
+          onBlur={categoryField.onBlur}
+          ref={categoryField.ref}
+          disabled={!mainCategoryWatch}
+          error={errors.category?.message}
+        />
+        <Select
+          label={t("branch.txCurrency")}
+          options={currencyOptions}
+          name={currencyField.name}
+          value={String(currencyField.value ?? DEFAULT_CURRENCY)}
+          onChange={(e) => currencyField.onChange(e.target.value)}
+          onBlur={currencyField.onBlur}
+          ref={currencyField.ref}
+          error={errors.currencyCode?.message}
+        />
+        {txType.toUpperCase() === "IN" && (
+          <>
+            <p className="text-xs text-zinc-500">{t("branch.txAmountSplitHint")}</p>
+            <Input
+              label={t("branch.txAmountCash")}
+              inputMode="decimal"
+              autoComplete="off"
+              name={regCash.name}
+              ref={regCash.ref}
+              onChange={regCash.onChange}
+              onBlur={(e) => {
+                regCash.onBlur(e);
+                const n = parseLocaleAmount(e.target.value, locale);
+                if (Number.isFinite(n) && n >= 0) {
+                  setValue(
+                    "amountCash",
+                    formatLocaleAmount(n, locale, currencyWatch)
+                  );
+                }
+              }}
+            />
+            <Input
+              label={t("branch.txAmountCard")}
+              inputMode="decimal"
+              autoComplete="off"
+              name={regCard.name}
+              ref={regCard.ref}
+              onChange={regCard.onChange}
+              onBlur={(e) => {
+                regCard.onBlur(e);
+                const n = parseLocaleAmount(e.target.value, locale);
+                if (Number.isFinite(n) && n >= 0) {
+                  setValue(
+                    "amountCard",
+                    formatLocaleAmount(n, locale, currencyWatch)
+                  );
+                }
+              }}
+            />
+            {incomeSplitActive && splitTotal != null && (
+              <p className="text-sm font-medium text-zinc-800">
+                {t("branch.txAmount")}:{" "}
+                {formatLocaleAmount(splitTotal, locale, currencyWatch)}
+              </p>
+            )}
+          </>
+        )}
+        {!incomeSplitActive && (
+          <Input
+            label={t("branch.txAmount")}
+            inputMode="decimal"
+            autoComplete="off"
+            name={amountField.name}
+            value={amountField.value}
+            onChange={(e) => amountField.onChange(e.target.value)}
+            onBlur={(e) => {
+              const n = parseLocaleAmount(e.target.value, locale);
+              if (Number.isFinite(n) && n > 0) {
+                amountField.onChange(
+                  formatLocaleAmount(n, locale, currencyField.value)
+                );
+              }
+              amountField.onBlur();
+            }}
+            ref={amountField.ref}
+            error={errors.amount?.message}
+          />
+        )}
         <Input
           type="date"
           label={t("branch.txDateField")}
           {...register("transactionDate", { required: t("common.required") })}
           error={errors.transactionDate?.message}
-        />
-        <Input
-          label={t("branch.txCategory")}
-          {...register("category")}
         />
         <Input
           label={t("branch.txDescription")}

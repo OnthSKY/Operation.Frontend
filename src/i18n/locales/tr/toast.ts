@@ -1,7 +1,15 @@
 export const toast = {
   personnelCreated: "Personel kaydedildi",
+  personnelUpdated: "Personel güncellendi",
+  personnelDeactivated: "Personel pasifleştirildi",
   advanceCreated: "Avans kaydedildi",
   branchCreated: "Şube kaydedildi",
   branchTxCreated: "Şube hareketi kaydedildi",
   loadFailed: "Veri yüklenemedi",
+  warehouseCreated: "Depo eklendi",
+  warehouseDeleted: "Depo silindi",
+  productCreated: "Ürün eklendi",
+  productDeleted: "Ürün silindi",
+  warehouseInOk: "Depo girişi kaydedildi",
+  warehouseOutOk: "Depo çıkışı kaydedildi",
 } as const;
