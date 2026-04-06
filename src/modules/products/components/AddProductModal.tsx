@@ -60,6 +60,8 @@ export function AddProductModal({ open, onClose, descriptionKey }: Props) {
       <form className="mt-4 flex flex-col gap-3" onSubmit={onSubmit}>
         <Input
           label={t("warehouse.productName")}
+          labelRequired
+          required
           {...register("name", { required: t("common.required") })}
           error={errors.name?.message}
           autoComplete="off"

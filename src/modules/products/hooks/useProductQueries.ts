@@ -5,17 +5,28 @@ import { productsRootKey, warehouseRootKey } from "@/modules/stock/query-keys";
 import {
   createProduct,
   fetchProductInventory,
-  fetchProductMovements,
+  fetchProductMovementsPage,
   fetchProductsCatalog,
   softDeleteProduct,
 } from "@/modules/products/api/products-api";
+import type { ProductMovementsPageParams } from "@/types/product";
 
 export const productKeys = {
   all: productsRootKey,
   catalog: () => [...productKeys.all, "catalog"] as const,
   inventory: (id: number) => [...productKeys.all, "inventory", id] as const,
-  movements: (id: number, warehouseId?: number) =>
-    [...productKeys.all, "movements", id, warehouseId ?? "all"] as const,
+  movementsPage: (id: number, params: ProductMovementsPageParams) =>
+    [
+      ...productKeys.all,
+      "movements-paged",
+      id,
+      params.page,
+      params.pageSize,
+      params.warehouseId ?? 0,
+      params.type ?? "",
+      params.dateFrom ?? "",
+      params.dateTo ?? "",
+    ] as const,
 };
 
 export function useProductsCatalog() {
@@ -33,18 +44,15 @@ export function useProductInventory(productId: number | null) {
   });
 }
 
-export function useProductMovements(
+export function useProductMovementsPage(
   productId: number | null,
-  warehouseId?: number | null
+  params: ProductMovementsPageParams,
+  enabled: boolean
 ) {
   return useQuery({
-    queryKey: productKeys.movements(productId ?? 0, warehouseId ?? undefined),
-    queryFn: () =>
-      fetchProductMovements(productId!, {
-        warehouseId: warehouseId ?? undefined,
-        limit: 200,
-      }),
-    enabled: productId != null && productId > 0,
+    queryKey: productKeys.movementsPage(productId ?? 0, params),
+    queryFn: () => fetchProductMovementsPage(productId!, params),
+    enabled: enabled && productId != null && productId > 0,
   });
 }
 

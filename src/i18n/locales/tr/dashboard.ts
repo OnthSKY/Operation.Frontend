@@ -1,6 +1,25 @@
 export const dashboard = {
   title: "Genel bakış",
   subtitle: "Bugünün kasa özeti, personel ve operasyon göstergeleri",
+  storyCardTitle: "Günün özeti",
+  storyCardDesc: "Canlı verilerden tek bakışta özet.",
+  storyLoading: "Özet hazırlanıyor…",
+  storyNarrativeNoBranches:
+    "Henüz şube tanımlı değil; kasa özeti için önce şube ekleyin. Sistemde {{personnelCount}} aktif personel, {{branchTotal}} şube ve {{warehouseCount}} depo kayıtlı.",
+  storyNarrativeOk:
+    "Bugün {{branchCount}} şubenin konsolide kasasında net nakit {{net}}. {{personnelCount}} aktif personel; {{branchTotal}} şube ve {{warehouseCount}} depo tanımlı.",
+  storyNarrativeCashError:
+    "Kasa özeti yüklenemedi; aşağıdaki finans kartlarından yeniden deneyin.",
+  detailedReportsTitle: "Detaylı raporlar",
+  detailedReportsDesc:
+    "Listeler, hareketler ve düzenleme ekranlarına buradan geçin.",
+  reportLinkReportsHub: "Dönem raporları (finans & stok)",
+  reportLinkBranch: "Şubeler ve günlük kasa",
+  reportLinkWarehouse: "Depo stok ve transferler",
+  reportLinkProducts: "Ürün kataloğu ve hareketler",
+  reportLinkPersonnel: "Personel kayıtları",
+  reportLinkAdvances: "Tüm avanslar",
+  reportLinkUsers: "Kullanıcı hesapları",
   income: "Gelir",
   expense: "Gider",
   netCash: "Net nakit",
@@ -30,6 +49,17 @@ export const dashboard = {
   statAdvanceRecordsDesc: "Tüm zamanlar, silinmemiş kayıtlar",
   statAdvanceByCurrency: "Avans toplamları",
   statAdvanceByCurrencyDesc: "Para birimine göre",
+  statRegisterCashWithPersonnel: "Personeldeki kasa nakdi",
+  statRegisterCashWithPersonnelDesc:
+    "Kasa gelirinde «kasa sorumlusunda» işaretlenen fiziksel nakit (tüm zamanlar, para birimine göre)",
+  statRegisterCashByPersonTitle: "Personele göre dağılım",
+  statRegisterCashByPersonDesc:
+    "Kimde hangi para biriminden ne kadar tutuluyor (kasa kaydı hangi şubedeyse ayrı satır)",
+  registerCashHeroTitle: "Kasa sorumlusundaki nakit",
+  registerCashSeeDetail: "Tüm satırları göster",
+  registerCashRegisterBranchLabel: "Kasa kaydı şubesi",
+  registerCashMoreLines: "satır daha",
+  registerCashTxCountLabel: "kasa satırı",
   hireDateLabel: "İşe giriş",
   advanceCountLabel: "Kayıt",
   noData: "Veri yok",

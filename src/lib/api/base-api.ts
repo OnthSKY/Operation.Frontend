@@ -58,9 +58,27 @@ function recoverFromUnauthorized(path: string, init?: RequestInit): void {
   })();
 }
 
+/** Pass via `init.headers` when retrying the same logical mutation with the same key. */
+export function createIdempotencyKey(): string {
+  return crypto.randomUUID();
+}
+
+function ensureIdempotencyKey(headers: Headers, method: string): void {
+  const m = method.toUpperCase();
+  if (m === "GET" || m === "HEAD" || m === "OPTIONS" || m === "TRACE") return;
+  if (headers.has("Idempotency-Key")) return;
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    headers.set("Idempotency-Key", crypto.randomUUID());
+  }
+}
+
 export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
-  if (init?.body && !headers.has("Content-Type")) {
+  const method = (init?.method ?? "GET").toUpperCase();
+  ensureIdempotencyKey(headers, method);
+  const isFormData =
+    typeof FormData !== "undefined" && init?.body != null && init.body instanceof FormData;
+  if (init?.body && !headers.has("Content-Type") && !isFormData) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -103,7 +121,12 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
         (parsed.error && String(parsed.error).trim()) || res.statusText
       );
     }
-    if (parsed.data === undefined && res.status !== 204) {
+    // API: JsonIgnoreCondition.WhenWritingNull → Ok(null) omits `data`; key absent is valid.
+    if (
+      parsed.data === undefined &&
+      res.status !== 204 &&
+      Object.prototype.hasOwnProperty.call(parsed, "data")
+    ) {
       throw new ApiError(
         res.status,
         "Invalid API response: success true but data is missing."

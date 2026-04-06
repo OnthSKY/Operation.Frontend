@@ -20,6 +20,24 @@ export type DashboardCurrencyTotal = {
   recordCount: number;
 };
 
+export type DashboardCashHeldCurrencyTotal = {
+  currencyCode: string;
+  totalAmount: number;
+  transactionCount: number;
+};
+
+export type DashboardCashHeldByPersonRow = {
+  personnelId: number;
+  fullName: string;
+  jobTitle: string;
+  personnelBranchName: string | null;
+  /** Branch where the income line was posted (register context). */
+  registerBranchName?: string | null;
+  currencyCode: string;
+  totalAmount: number;
+  transactionCount: number;
+};
+
 export type DashboardOverview = {
   personnel: {
     activePersonnelCount: number;
@@ -29,6 +47,8 @@ export type DashboardOverview = {
   financeExtras: {
     advanceRecordCount: number;
     advanceTotalsByCurrency: DashboardCurrencyTotal[];
+    registerCashHeldByPersonnelTotalsByCurrency: DashboardCashHeldCurrencyTotal[];
+    registerCashHeldByPersonnelBreakdown: DashboardCashHeldByPersonRow[];
   };
   operations: {
     activeBranchCount: number;

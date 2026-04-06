@@ -32,6 +32,25 @@ export type ProductMovementLine = {
   quantity: number;
   movementDate: string;
   description: string | null;
+  checkedByPersonnelName?: string | null;
+  approvedByPersonnelName?: string | null;
+  hasInvoicePhoto?: boolean;
+};
+
+export type ProductMovementsPaged = {
+  items: ProductMovementLine[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+};
+
+export type ProductMovementsPageParams = {
+  warehouseId?: number;
+  type?: "IN" | "OUT";
+  dateFrom?: string;
+  dateTo?: string;
+  page: number;
+  pageSize: number;
 };
 
 export type ProductCreated = {

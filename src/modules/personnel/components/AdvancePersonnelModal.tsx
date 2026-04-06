@@ -68,6 +68,8 @@ export function AdvancePersonnelModal({
     reset,
     setValue,
     setFocus,
+    getValues,
+    trigger,
   } = useForm<FormValues>({
     defaultValues: {
       personnelId: "",
@@ -96,6 +98,7 @@ export function AdvancePersonnelModal({
       { value: "CASH", label: t("personnel.sourceCash") },
       { value: "PATRON", label: t("personnel.sourcePatron") },
       { value: "BANK", label: t("personnel.sourceBank") },
+      { value: "PERSONNEL_POCKET", label: t("personnel.sourcePersonnelPocket") },
     ],
     [t]
   );
@@ -112,8 +115,9 @@ export function AdvancePersonnelModal({
     control,
     defaultValue: "",
     rules: {
-      required: t("common.required"),
       validate: (v) => {
+        const st = (getValues("sourceType") || "CASH").toUpperCase();
+        if (st !== "CASH") return true;
         const n = Number(v);
         if (!v || Number.isNaN(n) || n < 1) {
           return t("personnel.advanceBranchInvalid");
@@ -152,8 +156,13 @@ export function AdvancePersonnelModal({
   });
 
   const personnelId = useWatch({ control, name: "personnelId" });
+  const sourceTypeWatch = useWatch({ control, name: "sourceType" });
   const currencyCodeWatch = useWatch({ control, name: "currencyCode" });
   const selectedPersonnel = personnel.find((x) => String(x.id) === personnelId);
+
+  useEffect(() => {
+    void trigger("branchId");
+  }, [sourceTypeWatch, trigger]);
 
   useEffect(() => {
     if (!personnelId) return;
@@ -211,11 +220,29 @@ export function AdvancePersonnelModal({
       return;
     }
     const pid = Number(values.personnelId);
-    const branchId = Number(values.branchId);
-    if (!Number.isFinite(branchId) || branchId < 1) {
-      notify.error(t("personnel.advanceBranchInvalid"));
-      return;
+    const st = (values.sourceType || "CASH").toUpperCase();
+    const explicitRaw = String(values.branchId ?? "").trim();
+    const explicitBranch = explicitRaw ? Number(explicitRaw) : NaN;
+    const hasExplicitBranch =
+      Number.isFinite(explicitBranch) && explicitBranch > 0;
+
+    let branchIdForPayload: number | undefined;
+    if (st === "CASH") {
+      if (!hasExplicitBranch) {
+        notify.error(t("personnel.advanceBranchInvalid"));
+        return;
+      }
+      branchIdForPayload = explicitBranch;
+    } else if (hasExplicitBranch) {
+      branchIdForPayload = explicitBranch;
+    } else {
+      const pb = selectedPersonnel?.branchId;
+      if (pb == null || pb <= 0) {
+        notify.error(t("personnel.advanceBranchPickWhenPersonnelHasNoBranch"));
+        return;
+      }
     }
+
     const effectiveYear = Math.trunc(Number(values.effectiveYear));
     if (!Number.isFinite(effectiveYear) || effectiveYear < 1900 || effectiveYear > 9999) {
       notify.error(t("personnel.effectiveYearInvalid"));
@@ -224,7 +251,7 @@ export function AdvancePersonnelModal({
     try {
       await createAdvance.mutateAsync({
         personnelId: pid,
-        branchId,
+        ...(branchIdForPayload != null ? { branchId: branchIdForPayload } : {}),
         sourceType: values.sourceType || "CASH",
         amount,
         currencyCode:
@@ -262,6 +289,7 @@ export function AdvancePersonnelModal({
       <form className="mt-4 flex flex-col gap-3" onSubmit={onSubmit}>
         <Select
           label={t("nav.personnel")}
+          labelRequired
           options={options}
           name={personnelField.name}
           value={String(personnelField.value ?? "")}
@@ -271,7 +299,19 @@ export function AdvancePersonnelModal({
           error={errors.personnelId?.message}
         />
         <Select
+          label={t("personnel.sourceType")}
+          labelRequired
+          options={sourceOptions}
+          name={sourceField.name}
+          value={String(sourceField.value ?? "CASH")}
+          onChange={(e) => sourceField.onChange(e.target.value)}
+          onBlur={sourceField.onBlur}
+          ref={sourceField.ref}
+          error={errors.sourceType?.message}
+        />
+        <Select
           label={t("personnel.branchForAdvance")}
+          labelRequired={(sourceTypeWatch || "CASH").toUpperCase() === "CASH"}
           options={branchOptions}
           name={branchField.name}
           value={String(branchField.value ?? "")}
@@ -283,19 +323,16 @@ export function AdvancePersonnelModal({
         {selectedPersonnel?.branchId != null && selectedPersonnel.branchId > 0 ? (
           <p className="text-xs text-zinc-500">{t("personnel.advanceBranchPrefilledHint")}</p>
         ) : null}
-        <Select
-          label={t("personnel.sourceType")}
-          options={sourceOptions}
-          name={sourceField.name}
-          value={String(sourceField.value ?? "CASH")}
-          onChange={(e) => sourceField.onChange(e.target.value)}
-          onBlur={sourceField.onBlur}
-          ref={sourceField.ref}
-          error={errors.sourceType?.message}
-        />
+        {(sourceTypeWatch || "CASH").toUpperCase() !== "CASH" ? (
+          <p className="text-xs text-zinc-500">
+            {t("personnel.advanceBranchOptionalWhenNotCash")}
+          </p>
+        ) : null}
         <Input
           label={t("personnel.advanceDate")}
           type="date"
+          labelRequired
+          required
           {...register("advanceDate", { required: t("common.required") })}
           error={errors.advanceDate?.message}
         />
@@ -306,6 +343,8 @@ export function AdvancePersonnelModal({
           min={1900}
           max={9999}
           step={1}
+          labelRequired
+          required
           {...register("effectiveYear", {
             required: t("common.required"),
             validate: (v) => {
@@ -320,6 +359,7 @@ export function AdvancePersonnelModal({
         />
         <Select
           label={t("personnel.advanceCurrency")}
+          labelRequired
           options={currencyOptions}
           name={currencyField.name}
           value={String(currencyField.value ?? DEFAULT_CURRENCY)}
@@ -330,6 +370,7 @@ export function AdvancePersonnelModal({
         />
         <Input
           label={t("personnel.amount")}
+          labelRequired
           inputMode="decimal"
           autoComplete="off"
           name={amountField.name}

@@ -3,7 +3,8 @@ import type {
   ProductCreated,
   ProductInventory,
   ProductListItem,
-  ProductMovementLine,
+  ProductMovementsPageParams,
+  ProductMovementsPaged,
 } from "@/types/product";
 
 export async function fetchProductsCatalog(): Promise<ProductListItem[]> {
@@ -14,18 +15,23 @@ export async function fetchProductInventory(productId: number): Promise<ProductI
   return apiRequest<ProductInventory>(`/products/${productId}/inventory`);
 }
 
-export async function fetchProductMovements(
+export async function fetchProductMovementsPage(
   productId: number,
-  options?: { warehouseId?: number; limit?: number }
-): Promise<ProductMovementLine[]> {
+  params: ProductMovementsPageParams
+): Promise<ProductMovementsPaged> {
   const q = new URLSearchParams();
-  if (options?.warehouseId != null && options.warehouseId > 0) {
-    q.set("warehouseId", String(options.warehouseId));
+  q.set("page", String(params.page));
+  q.set("pageSize", String(params.pageSize));
+  if (params.warehouseId != null && params.warehouseId > 0) {
+    q.set("warehouseId", String(params.warehouseId));
   }
-  if (options?.limit != null) q.set("limit", String(options.limit));
-  const qs = q.toString();
-  return apiRequest<ProductMovementLine[]>(
-    `/products/${productId}/movements${qs ? `?${qs}` : ""}`
+  if (params.type === "IN" || params.type === "OUT") {
+    q.set("type", params.type);
+  }
+  if (params.dateFrom?.length === 10) q.set("dateFrom", params.dateFrom);
+  if (params.dateTo?.length === 10) q.set("dateTo", params.dateTo);
+  return apiRequest<ProductMovementsPaged>(
+    `/products/${productId}/movements?${q.toString()}`
   );
 }
 

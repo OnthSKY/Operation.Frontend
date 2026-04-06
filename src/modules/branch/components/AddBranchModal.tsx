@@ -55,6 +55,8 @@ export function AddBranchModal({ open, onClose }: Props) {
       <form className="mt-4 flex flex-col gap-3" onSubmit={onSubmit}>
         <Input
           label={t("branch.fieldName")}
+          labelRequired
+          required
           {...register("name", { required: t("common.required") })}
           error={errors.name?.message}
           autoComplete="organization"

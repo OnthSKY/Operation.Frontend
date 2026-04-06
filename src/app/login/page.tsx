@@ -169,6 +169,9 @@ export default function LoginPage() {
                   className="text-sm font-medium text-zinc-700"
                 >
                   {t("auth.username")}
+                  <span className="ml-0.5 text-red-600" aria-hidden>
+                    *
+                  </span>
                 </label>
                 <input
                   id="login-user"
@@ -186,6 +189,9 @@ export default function LoginPage() {
                   className="text-sm font-medium text-zinc-700"
                 >
                   {t("auth.password")}
+                  <span className="ml-0.5 text-red-600" aria-hidden>
+                    *
+                  </span>
                 </label>
                 <div className="relative">
                   <input

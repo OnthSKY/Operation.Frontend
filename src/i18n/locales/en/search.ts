@@ -1,8 +1,11 @@
 export const search = {
+  subGuide: "App walkthrough and module links",
   subDashboard: "Dashboard — income, expense, net",
   subPersonnel: "Team list",
   subAdvance: "Give advance to staff",
   subAllAdvances: "List every advance record",
+  subSystemUsers: "System accounts (admin)",
+  subReports: "Financial & stock period reports",
   subBranch: "Branches",
   subWarehouse: "Warehouse / stock",
   subProducts: "Product list by warehouse",
@@ -13,4 +16,9 @@ export const search = {
   noResults: "No results",
   open: "Open search",
   shortcutHint: "Shortcut",
+  catBranch: "Branch",
+  catWarehouse: "Warehouse",
+  catPersonnel: "Personnel",
+  catAdvance: "Advance",
+  loadingRecords: "Loading…",
 } as const;

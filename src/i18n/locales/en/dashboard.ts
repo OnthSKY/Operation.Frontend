@@ -1,6 +1,25 @@
 export const dashboard = {
   title: "Overview",
   subtitle: "Today’s cash picture, team, and operations at a glance",
+  storyCardTitle: "Today’s story",
+  storyCardDesc: "A one-glance read from live data.",
+  storyLoading: "Preparing your summary…",
+  storyNarrativeNoBranches:
+    "No branches yet — add a branch to see today’s cash totals. In the system: {{personnelCount}} active people, {{branchTotal}} branches, {{warehouseCount}} warehouses.",
+  storyNarrativeOk:
+    "Across {{branchCount}} branches today, net cash is {{net}}. {{personnelCount}} active people; {{branchTotal}} branches and {{warehouseCount}} warehouses on file.",
+  storyNarrativeCashError:
+    "Today’s cash totals could not be loaded — retry from the finance cards below.",
+  detailedReportsTitle: "Detailed reports",
+  detailedReportsDesc:
+    "Jump to full lists, movements, and editing screens.",
+  reportLinkReportsHub: "Period reports (financial & stock)",
+  reportLinkBranch: "Branches & daily register",
+  reportLinkWarehouse: "Warehouse stock & transfers",
+  reportLinkProducts: "Product catalog & movements",
+  reportLinkPersonnel: "Personnel records",
+  reportLinkAdvances: "All advances",
+  reportLinkUsers: "User accounts",
   income: "Income",
   expense: "Expense",
   netCash: "Net cash",
@@ -30,6 +49,17 @@ export const dashboard = {
   statAdvanceRecordsDesc: "All time, non-deleted entries",
   statAdvanceByCurrency: "Advance totals",
   statAdvanceByCurrencyDesc: "By currency",
+  statRegisterCashWithPersonnel: "Register cash with personnel",
+  statRegisterCashWithPersonnelDesc:
+    "Physical cash marked as held by the named branch lead on income lines (all time, by currency)",
+  statRegisterCashByPersonTitle: "Breakdown by person",
+  statRegisterCashByPersonDesc:
+    "Who holds how much per currency (one row per register branch when the same person spans branches)",
+  registerCashHeroTitle: "Register cash with responsible staff",
+  registerCashSeeDetail: "Show full list",
+  registerCashRegisterBranchLabel: "Register branch",
+  registerCashMoreLines: "more line(s)",
+  registerCashTxCountLabel: "register line(s)",
   hireDateLabel: "Hired",
   advanceCountLabel: "Records",
   noData: "No data",

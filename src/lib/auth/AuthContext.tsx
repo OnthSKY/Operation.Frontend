@@ -1,6 +1,7 @@
 "use client";
 
 import { apiRequest } from "@/lib/api/base-api";
+import { isPersonnelPortalRole } from "@/lib/auth/roles";
 import type { AuthUser } from "@/lib/auth/types";
 import { useRouter } from "next/navigation";
 import {
@@ -50,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: JSON.stringify({ username, password }),
     });
     setUser(me);
-    router.replace("/");
+    router.replace(isPersonnelPortalRole(me.role) ? "/branch" : "/");
   }, [router]);
 
   const logout = useCallback(async () => {

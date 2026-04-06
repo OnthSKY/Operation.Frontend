@@ -9,12 +9,28 @@ export type GlobalSearchItemDef = {
 
 export const GLOBAL_SEARCH_ITEMS: GlobalSearchItemDef[] = [
   {
+    id: "guide",
+    href: "/guide",
+    titleKey: "nav.guide",
+    subtitleKey: "search.subGuide",
+    match:
+      "nasıl kullanırım kullanım kılavuzu yardım help guide walkthrough yönlendirme talimat kullanıcı",
+  },
+  {
     id: "home",
     href: "/",
     titleKey: "nav.home",
     subtitleKey: "search.subDashboard",
     match:
       "dashboard ana özet günlük snapshot income expense gelir gider net kasa özet ekran",
+  },
+  {
+    id: "reports",
+    href: "/reports",
+    titleKey: "nav.reports",
+    subtitleKey: "search.subReports",
+    match:
+      "rapor reports finans financial stok stock dönem period özet kategori şube depo",
   },
   {
     id: "personnel",
@@ -38,6 +54,14 @@ export const GLOBAL_SEARCH_ITEMS: GlobalSearchItemDef[] = [
     subtitleKey: "search.subAllAdvances",
     match:
       "tüm avanslar all advances liste list kayıtlar records geçmiş history özet",
+  },
+  {
+    id: "admin-users",
+    href: "/admin/users",
+    titleKey: "nav.systemUsers",
+    subtitleKey: "search.subSystemUsers",
+    match:
+      "kullanıcılar users admin yönetici hesap account login giriş sistem system yönetimi administration",
   },
   {
     id: "branch",

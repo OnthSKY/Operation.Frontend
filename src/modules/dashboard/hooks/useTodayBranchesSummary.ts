@@ -53,11 +53,20 @@ export function useTodayBranchesSummary() {
     if (failed?.error) return { kind: "error", message: failed.error };
     let totalIncome = 0;
     let totalExpense = 0;
+    let counted = 0;
     for (const q of summaries) {
       const d = q.data;
       if (!d) continue;
+      if (d.hideFinancialTotals) continue;
+      counted++;
       totalIncome += Number(d.totalIncome);
       totalExpense += Number(d.totalExpense);
+    }
+    const allDataReady =
+      summaries.length > 0 &&
+      summaries.every((q) => !q.isPending && q.data != null);
+    if (allDataReady && counted === 0 && branches.length > 0) {
+      return { kind: "empty" };
     }
     return {
       kind: "ok",

@@ -9,7 +9,12 @@ export async function fetchBranchDailySummary(
     branchId: String(branchId),
     date,
   });
-  return apiRequest<BranchDailySummary>(
+  const r = await apiRequest<BranchDailySummary>(
     `/branch-transactions/daily-summary?${q}`
   );
+  return {
+    ...r,
+    registerOwesPersonnelToday: Number(r.registerOwesPersonnelToday ?? 0) || 0,
+    registerOwesPatronToday: Number(r.registerOwesPatronToday ?? 0) || 0,
+  };
 }

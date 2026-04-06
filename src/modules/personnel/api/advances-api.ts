@@ -20,11 +20,13 @@ export async function fetchAdvancesByPersonnel(
   return rows.map((r) => ({
     ...r,
     currencyCode: normalizeCurrency(r.currencyCode),
+    hasLinkedRegisterExpense: Boolean((r as { hasLinkedRegisterExpense?: boolean }).hasLinkedRegisterExpense),
   }));
 }
 
 export type FetchAllAdvancesParams = {
   effectiveYear?: number;
+  personnelId?: number;
   branchId?: number;
   limit?: number;
 };
@@ -38,6 +40,9 @@ export async function fetchAllAdvances(
     Number.isFinite(params.effectiveYear)
   ) {
     q.set("effectiveYear", String(Math.trunc(params.effectiveYear)));
+  }
+  if (params?.personnelId != null && params.personnelId > 0) {
+    q.set("personnelId", String(Math.trunc(params.personnelId)));
   }
   if (params?.branchId != null && params.branchId > 0) {
     q.set("branchId", String(Math.trunc(params.branchId)));
@@ -66,10 +71,18 @@ export async function fetchAllAdvances(
 export async function createAdvance(
   input: CreateAdvanceInput
 ): Promise<Advance> {
-  const body = {
-    ...input,
+  const body: Record<string, unknown> = {
+    personnelId: input.personnelId,
     sourceType: input.sourceType ?? "CASH",
+    amount: input.amount,
+    currencyCode: input.currencyCode ?? undefined,
+    advanceDate: input.advanceDate,
+    effectiveYear: input.effectiveYear,
+    description: input.description ?? undefined,
   };
+  if (input.branchId != null && input.branchId > 0) {
+    body.branchId = input.branchId;
+  }
   return apiRequest<Advance>("/advances", {
     method: "POST",
     body: JSON.stringify(body),

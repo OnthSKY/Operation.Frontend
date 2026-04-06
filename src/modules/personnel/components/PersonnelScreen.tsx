@@ -1,5 +1,7 @@
 "use client";
 
+import { useAuth } from "@/lib/auth/AuthContext";
+import { isPersonnelPortalRole } from "@/lib/auth/roles";
 import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
 import { cn } from "@/lib/cn";
@@ -9,6 +11,9 @@ import { usePersonnelList } from "@/modules/personnel/hooks/usePersonnelQueries"
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Card } from "@/shared/components/Card";
 import { Button } from "@/shared/ui/Button";
+import { EyeIcon } from "@/shared/ui/EyeIcon";
+import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
+import { Tooltip } from "@/shared/ui/Tooltip";
 import {
   Table,
   TableBody,
@@ -17,19 +22,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/Table";
+import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { useHashScroll } from "@/shared/lib/use-hash-scroll";
 import type { Personnel } from "@/types/personnel";
 import Link from "next/link";
-import { useMemo, useState, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AdvancePersonnelModal } from "./AdvancePersonnelModal";
+import { CreatePersonnelSystemUserModal } from "./CreatePersonnelSystemUserModal";
 import { PersonnelAdvanceHistory } from "./PersonnelAdvanceHistory";
+import { PersonnelDetailModal } from "./PersonnelDetailModal";
 import { PersonnelFormModal } from "./PersonnelFormModal";
 import { SoftDeletePersonnelModal } from "./SoftDeletePersonnelModal";
 
-function formatHireDate(p: Personnel, dash: string): string {
+function formatHireDate(p: Personnel, dash: string, locale: Locale): string {
   if (!p.hireDate) return dash;
-  return new Date(p.hireDate + "T12:00:00").toLocaleDateString();
+  return formatLocaleDate(p.hireDate, locale, dash);
 }
 
 function formatSalary(p: Personnel, dash: string, locale: Locale): string {
@@ -89,7 +98,7 @@ function CoinIcon({ className }: { className?: string }) {
   );
 }
 
-function TrashIcon({ className }: { className?: string }) {
+function UserPlusIcon({ className }: { className?: string }) {
   return (
     <svg
       className={className}
@@ -103,57 +112,98 @@ function TrashIcon({ className }: { className?: string }) {
       strokeLinejoin="round"
       aria-hidden
     >
-      <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14zM10 11v6M14 11v6" />
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <line x1="19" y1="8" x2="19" y2="14" />
+      <line x1="22" y1="11" x2="16" y2="11" />
     </svg>
   );
 }
 
 function PersonnelIconActions({
   p,
+  onView,
   onEdit,
   onDeactivate,
   onAdvance,
+  onCreateSystemUser,
+  viewLabel,
   editLabel,
   deactivateLabel,
   advanceLabel,
+  createSystemUserLabel,
 }: {
   p: Personnel;
+  onView?: () => void;
   onEdit: () => void;
   onDeactivate: () => void;
   onAdvance?: () => void;
+  onCreateSystemUser?: () => void;
+  viewLabel?: string;
   editLabel: string;
   deactivateLabel: string;
   advanceLabel?: string;
+  createSystemUserLabel?: string;
 }) {
   return (
     <div className="flex shrink-0 items-center gap-0.5">
-      <button
-        type="button"
-        onClick={onEdit}
-        aria-label={editLabel}
-        className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-zinc-600 transition-colors hover:bg-zinc-200/80 hover:text-zinc-900 active:bg-zinc-300/60"
-      >
-        <PencilIcon />
-      </button>
-      {!p.isDeleted && onAdvance ? (
+      {onView && viewLabel ? (
+        <Tooltip content={viewLabel}>
+          <button
+            type="button"
+            onClick={onView}
+            aria-label={viewLabel}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-zinc-600 transition-colors hover:bg-zinc-200/80 hover:text-zinc-900 active:bg-zinc-300/60"
+          >
+            <EyeIcon />
+          </button>
+        </Tooltip>
+      ) : null}
+      <Tooltip content={editLabel}>
         <button
           type="button"
-          onClick={onAdvance}
-          aria-label={advanceLabel ?? "Advance"}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-emerald-700 transition-colors hover:bg-emerald-50 active:bg-emerald-100"
+          onClick={onEdit}
+          aria-label={editLabel}
+          className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-zinc-600 transition-colors hover:bg-zinc-200/80 hover:text-zinc-900 active:bg-zinc-300/60"
         >
-          <CoinIcon />
+          <PencilIcon />
         </button>
+      </Tooltip>
+      {!p.isDeleted && onCreateSystemUser && createSystemUserLabel ? (
+        <Tooltip content={createSystemUserLabel}>
+          <button
+            type="button"
+            onClick={onCreateSystemUser}
+            aria-label={createSystemUserLabel}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-violet-700 transition-colors hover:bg-violet-50 active:bg-violet-100"
+          >
+            <UserPlusIcon />
+          </button>
+        </Tooltip>
+      ) : null}
+      {!p.isDeleted && onAdvance ? (
+        <Tooltip content={advanceLabel ?? "Advance"}>
+          <button
+            type="button"
+            onClick={onAdvance}
+            aria-label={advanceLabel ?? "Advance"}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-emerald-700 transition-colors hover:bg-emerald-50 active:bg-emerald-100"
+          >
+            <CoinIcon />
+          </button>
+        </Tooltip>
       ) : null}
       {!p.isDeleted ? (
-        <button
-          type="button"
-          onClick={onDeactivate}
-          aria-label={deactivateLabel}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-red-600 transition-colors hover:bg-red-50 active:bg-red-100"
-        >
-          <TrashIcon />
-        </button>
+        <Tooltip content={deactivateLabel}>
+          <button
+            type="button"
+            onClick={onDeactivate}
+            aria-label={deactivateLabel}
+            className={trashIconActionButtonClass}
+          >
+            <TrashIcon />
+          </button>
+        </Tooltip>
       ) : null}
     </div>
   );
@@ -167,10 +217,23 @@ function PassiveBadge({ children }: { children: ReactNode }) {
   );
 }
 
+function hasLinkedSystemUser(p: Personnel): boolean {
+  return p.userId != null && p.userId > 0;
+}
+
 export function PersonnelScreen() {
   const { t, locale } = useI18n();
+  const router = useRouter();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+  const personnelPortal = isPersonnelPortalRole(user?.role);
   useHashScroll();
-  const { data, isPending, isError, error, refetch } = usePersonnelList();
+  useEffect(() => {
+    if (personnelPortal) router.replace("/branch");
+  }, [personnelPortal, router]);
+  const { data, isPending, isError, error, refetch } = usePersonnelList(
+    !personnelPortal
+  );
   const { data: branches = [] } = useBranchesList();
   const branchNameById = useMemo(() => {
     const m = new Map<number, string>();
@@ -193,6 +256,10 @@ export function PersonnelScreen() {
   const [softDeleteTarget, setSoftDeleteTarget] = useState<Personnel | null>(
     null
   );
+  const [systemUserTarget, setSystemUserTarget] = useState<Personnel | null>(
+    null
+  );
+  const [detailPerson, setDetailPerson] = useState<Personnel | null>(null);
 
   const openCreate = () => {
     setFormInitial(null);
@@ -230,6 +297,10 @@ export function PersonnelScreen() {
     setAdvanceOpen(false);
     setAdvanceInitialPersonId(null);
   };
+
+  const openCreateSystemUser = (p: Personnel) => setSystemUserTarget(p);
+  const closeCreateSystemUser = () => setSystemUserTarget(null);
+  const closeDetail = () => setDetailPerson(null);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 pb-[calc(5.75rem+env(safe-area-inset-bottom,0px))] sm:pb-8 lg:max-w-6xl 2xl:max-w-7xl">
@@ -345,11 +416,21 @@ export function PersonnelScreen() {
                       </div>
                       <PersonnelIconActions
                         p={p}
+                        onView={() => setDetailPerson(p)}
+                        viewLabel={t("personnel.viewPersonnelAria")}
                         onEdit={() => openEdit(p)}
                         onDeactivate={() => openSoftDelete(p)}
                         onAdvance={
                           p.isDeleted ? undefined : () => openAdvance(p.id)
                         }
+                        onCreateSystemUser={
+                          isAdmin && !p.isDeleted && !hasLinkedSystemUser(p)
+                            ? () => openCreateSystemUser(p)
+                            : undefined
+                        }
+                        createSystemUserLabel={t(
+                          "personnel.createSystemUserAria"
+                        )}
                         editLabel={t("personnel.editAriaLabel")}
                         deactivateLabel={t(
                           "personnel.softDeactivateAriaLabel"
@@ -381,7 +462,7 @@ export function PersonnelScreen() {
                             p.isDeleted && "text-zinc-600"
                           )}
                         >
-                          {formatHireDate(p, t("personnel.dash"))}
+                          {formatHireDate(p, t("personnel.dash"), locale)}
                         </dd>
                       </div>
                       <div className="flex justify-between gap-3">
@@ -413,6 +494,26 @@ export function PersonnelScreen() {
                             : t("personnel.dash")}
                         </dd>
                       </div>
+                      <div className="flex justify-between gap-3">
+                        <dt className="shrink-0 text-zinc-500">
+                          {t("personnel.tableSystemUser")}
+                        </dt>
+                        <dd
+                          className={cn(
+                            "max-w-[55%] truncate text-right font-medium text-zinc-900",
+                            p.isDeleted && "text-zinc-600"
+                          )}
+                          title={
+                            hasLinkedSystemUser(p) && p.username
+                              ? p.username
+                              : undefined
+                          }
+                        >
+                          {hasLinkedSystemUser(p) && p.username
+                            ? p.username
+                            : t("personnel.systemUserNone")}
+                        </dd>
+                      </div>
                     </dl>
                     <div className="mt-3 border-t border-zinc-200/80 pt-3">
                       <PersonnelAdvanceHistory
@@ -435,6 +536,9 @@ export function PersonnelScreen() {
                       <TableHeader>{t("personnel.tableHireDate")}</TableHeader>
                       <TableHeader>{t("personnel.tableSalary")}</TableHeader>
                       <TableHeader>{t("personnel.tableBranch")}</TableHeader>
+                      <TableHeader className="min-w-[7rem] max-w-[10rem]">
+                        {t("personnel.tableSystemUser")}
+                      </TableHeader>
                       <TableHeader className="min-w-[12rem] max-w-[18rem]">
                         {t("personnel.tableAdvances")}
                       </TableHeader>
@@ -480,7 +584,7 @@ export function PersonnelScreen() {
                             p.isDeleted && "text-zinc-500"
                           )}
                         >
-                          {formatHireDate(p, t("personnel.dash"))}
+                          {formatHireDate(p, t("personnel.dash"), locale)}
                         </TableCell>
                         <TableCell
                           className={cn(
@@ -501,6 +605,21 @@ export function PersonnelScreen() {
                               `#${p.branchId}`)
                             : t("personnel.dash")}
                         </TableCell>
+                        <TableCell
+                          className={cn(
+                            "max-w-[10rem] truncate text-zinc-600",
+                            p.isDeleted && "text-zinc-500"
+                          )}
+                          title={
+                            hasLinkedSystemUser(p) && p.username
+                              ? p.username
+                              : undefined
+                          }
+                        >
+                          {hasLinkedSystemUser(p) && p.username
+                            ? p.username
+                            : t("personnel.systemUserNone")}
+                        </TableCell>
                         <TableCell className="max-w-[18rem] align-top text-zinc-600">
                           <PersonnelAdvanceHistory
                             personnelId={p.id}
@@ -512,11 +631,23 @@ export function PersonnelScreen() {
                           <div className="flex justify-end">
                             <PersonnelIconActions
                               p={p}
+                              onView={() => setDetailPerson(p)}
+                              viewLabel={t("personnel.viewPersonnelAria")}
                               onEdit={() => openEdit(p)}
                               onDeactivate={() => openSoftDelete(p)}
                               onAdvance={
                                 p.isDeleted ? undefined : () => openAdvance(p.id)
                               }
+                              onCreateSystemUser={
+                                isAdmin &&
+                                !p.isDeleted &&
+                                !hasLinkedSystemUser(p)
+                                  ? () => openCreateSystemUser(p)
+                                  : undefined
+                              }
+                              createSystemUserLabel={t(
+                                "personnel.createSystemUserAria"
+                              )}
                               editLabel={t("personnel.editAriaLabel")}
                               deactivateLabel={t(
                                 "personnel.softDeactivateAriaLabel"
@@ -570,6 +701,17 @@ export function PersonnelScreen() {
         onClose={closeAdvance}
         personnel={activePersonnel}
         initialPersonnelId={advanceInitialPersonId}
+      />
+      <CreatePersonnelSystemUserModal
+        open={systemUserTarget != null}
+        onClose={closeCreateSystemUser}
+        personnel={systemUserTarget}
+      />
+      <PersonnelDetailModal
+        open={detailPerson != null}
+        onClose={closeDetail}
+        personnel={detailPerson}
+        branchNameById={branchNameById}
       />
     </div>
   );

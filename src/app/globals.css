@@ -1,5 +1,29 @@
 @import "tailwindcss";
 
+@keyframes ui-button-busy {
+  0%,
+  100% {
+    opacity: 0.88;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes ui-button-busy {
+    0%,
+    100% {
+      opacity: 0.82;
+    }
+    50% {
+      opacity: 0.96;
+    }
+  }
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

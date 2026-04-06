@@ -11,4 +11,9 @@ export const common = {
   comboboxNoMatches: "No matches",
   actions: "Actions",
   delete: "Delete",
+  openDetails: "Details",
+  openDetailsDialog: "Opens the detail dialog",
+  dateDisplayHint:
+    "Dates in tables and lists use month/day/year (example: {{example}}).",
+  imageUploadTooLarge: "Image is too large (max 5 MB).",
 } as const;

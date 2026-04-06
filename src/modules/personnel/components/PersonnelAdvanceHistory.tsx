@@ -3,15 +3,10 @@
 import { useI18n } from "@/i18n/context";
 import { usePersonnelAdvancesAll } from "@/modules/personnel/hooks/usePersonnelQueries";
 import type { Advance } from "@/types/advance";
+import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { cn } from "@/lib/cn";
 import { useMemo } from "react";
-
-function formatAdvanceDay(iso: string): string {
-  const d = iso?.slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return iso ?? "—";
-  return new Date(d + "T12:00:00").toLocaleDateString();
-}
 
 function sortAdvancesDesc(rows: Advance[]): Advance[] {
   return [...rows].sort((a, b) => {
@@ -26,6 +21,7 @@ function sourceAbbrev(t: (k: string) => string, st: string): string {
   const u = st.toUpperCase();
   if (u === "PATRON") return t("personnel.advanceSourceAbbrPatron");
   if (u === "BANK") return t("personnel.advanceSourceAbbrBank");
+  if (u === "PERSONNEL_POCKET") return t("personnel.advanceSourceAbbrPersonnelPocket");
   return t("personnel.advanceSourceAbbrCash");
 }
 
@@ -65,9 +61,9 @@ export function PersonnelAdvanceHistory({
     const top = filtered[0];
     return {
       count: filtered.length,
-      lastLabel: formatAdvanceDay(top.advanceDate),
+      lastLabel: formatLocaleDate(top.advanceDate, locale, "—"),
     };
-  }, [filtered]);
+  }, [filtered, locale]);
 
   if (isPending) {
     return (
@@ -112,13 +108,16 @@ export function PersonnelAdvanceHistory({
           {detailRows.map((a) => (
             <li key={a.id} className="flex flex-wrap justify-between gap-x-2 gap-y-0.5">
               <span className="tabular-nums text-zinc-700">
-                {formatAdvanceDay(a.advanceDate)}
+                {formatLocaleDate(a.advanceDate, locale, "—")}
               </span>
               <span className="font-mono text-zinc-800">
                 {formatMoneyDash(a.amount, "—", locale, a.currencyCode)}
               </span>
               <span className="w-full text-[11px] text-zinc-500 sm:w-auto">
                 {sourceAbbrev(t, a.sourceType)} · {a.effectiveYear}
+                {a.hasLinkedRegisterExpense ? (
+                  <span className="text-emerald-800"> · {t("personnel.advanceRegisterExpenseInBranch")}</span>
+                ) : null}
               </span>
             </li>
           ))}
@@ -157,7 +156,7 @@ export function PersonnelAdvanceHistory({
             >
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <span className="font-medium tabular-nums text-zinc-800">
-                  {formatAdvanceDay(a.advanceDate)}
+                  {formatLocaleDate(a.advanceDate, locale, "—")}
                 </span>
                 <span className="font-mono text-zinc-900">
                   {formatMoneyDash(a.amount, "—", locale, a.currencyCode)}
@@ -172,6 +171,12 @@ export function PersonnelAdvanceHistory({
                     {t("personnel.tableBranch")} #{a.branchId}
                   </>
                 )}
+                {a.hasLinkedRegisterExpense ? (
+                  <span className="text-emerald-800">
+                    {" · "}
+                    {t("personnel.advanceRegisterExpenseInBranch")}
+                  </span>
+                ) : null}
               </p>
               {a.description ? (
                 <p className="text-xs text-zinc-600">{a.description}</p>

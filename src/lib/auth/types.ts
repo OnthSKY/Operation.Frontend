@@ -4,4 +4,6 @@ export type AuthUser = {
   fullName: string;
   role: string;
   personnelId: number | null;
+  /** personnel.branch_id — PERSONNEL kapsamı için */
+  personnelBranchId?: number | null;
 };

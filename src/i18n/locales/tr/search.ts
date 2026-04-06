@@ -1,8 +1,11 @@
 export const search = {
+  subGuide: "Panel kullanımı ve modül yönlendirmesi",
   subDashboard: "Özet — gelir, gider, net",
   subPersonnel: "Personel listesi",
   subAdvance: "Personele avans",
   subAllAdvances: "Tüm avans kayıtları",
+  subSystemUsers: "Sistem kullanıcıları (yönetici)",
+  subReports: "Finans ve stok dönem raporları",
   subBranch: "Şubeler",
   subWarehouse: "Depo / stok",
   subProducts: "Depolara göre ürün listesi",
@@ -13,4 +16,9 @@ export const search = {
   noResults: "Sonuç yok",
   open: "Ara",
   shortcutHint: "Kısayol",
+  catBranch: "Şube",
+  catWarehouse: "Depo",
+  catPersonnel: "Personel",
+  catAdvance: "Avans",
+  loadingRecords: "Yükleniyor…",
 } as const;

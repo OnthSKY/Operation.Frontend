@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@/lib/auth/AuthContext";
 import { useI18n } from "@/i18n/context";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import {
@@ -16,7 +17,11 @@ import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select, type SelectOption } from "@/shared/ui/Select";
-import type { Personnel, PersonnelJobTitle } from "@/types/personnel";
+import type {
+  CreatePersonnelInput,
+  Personnel,
+  PersonnelJobTitle,
+} from "@/types/personnel";
 import { useMemo, useEffect } from "react";
 import { useController, useForm } from "react-hook-form";
 
@@ -25,6 +30,7 @@ const jobTitleValues: PersonnelJobTitle[] = [
   "DRIVER",
   "CRAFTSMAN",
   "WAITER",
+  "CASHIER",
 ];
 
 type FormValues = {
@@ -33,6 +39,10 @@ type FormValues = {
   jobTitle: PersonnelJobTitle;
   salary: string;
   branchId: string;
+  createUser: boolean;
+  userUsername: string;
+  userPassword: string;
+  userPasswordConfirm: string;
 };
 
 type Props = {
@@ -50,6 +60,8 @@ function hireDateForInput(iso: string): string {
 
 export function PersonnelFormModal({ open, onClose, initial }: Props) {
   const { t, locale } = useI18n();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
   const isEdit = initial != null;
   const titleId = isEdit ? "edit-personnel-title" : "add-personnel-title";
 
@@ -89,6 +101,10 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
       jobTitle: "WAITER",
       salary: "",
       branchId: "",
+      createUser: false,
+      userUsername: "",
+      userPassword: "",
+      userPasswordConfirm: "",
     },
   });
 
@@ -111,6 +127,12 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
     rules: { required: t("common.required") },
   });
 
+  const { field: createUserField } = useController({
+    name: "createUser",
+    control,
+    defaultValue: false,
+  });
+
   useEffect(() => {
     if (!open) {
       reset({
@@ -119,6 +141,10 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
         jobTitle: "WAITER",
         salary: "",
         branchId: "",
+        createUser: false,
+        userUsername: "",
+        userPassword: "",
+        userPasswordConfirm: "",
       });
       return;
     }
@@ -132,6 +158,10 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
             ? formatLocaleAmount(initial.salary, locale)
             : "",
         branchId: initial.branchId != null ? String(initial.branchId) : "",
+        createUser: false,
+        userUsername: "",
+        userPassword: "",
+        userPasswordConfirm: "",
       });
     } else {
       reset({
@@ -140,6 +170,10 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
         jobTitle: "WAITER",
         salary: "",
         branchId: "",
+        createUser: false,
+        userUsername: "",
+        userPassword: "",
+        userPasswordConfirm: "",
       });
     }
   }, [open, initial, reset, locale]);
@@ -173,7 +207,7 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
       branchId = n;
     }
 
-    const payload = {
+    const payload: CreatePersonnelInput = {
       fullName: values.fullName.trim(),
       hireDate: values.hireDate,
       jobTitle: values.jobTitle,
@@ -181,13 +215,36 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
       ...(branchId !== undefined ? { branchId } : {}),
     };
 
+    if (!isEdit && isAdmin && values.createUser) {
+      const u = values.userUsername.trim();
+      const p1 = values.userPassword;
+      const p2 = values.userPasswordConfirm;
+      if (!u) {
+        notify.error(t("common.required"));
+        return;
+      }
+      if (p1.length < 8) {
+        notify.error(t("personnel.userPasswordTooShort"));
+        return;
+      }
+      if (p1 !== p2) {
+        notify.error(t("personnel.userPasswordMismatch"));
+        return;
+      }
+      payload.userAccount = { username: u, password: p1 };
+    }
+
     try {
       if (isEdit && initial) {
         await updatePersonnel.mutateAsync({ id: initial.id, ...payload });
         notify.success(t("toast.personnelUpdated"));
       } else {
         await createPersonnel.mutateAsync(payload);
-        notify.success(t("toast.personnelCreated"));
+        notify.success(
+          !isEdit && values.createUser && isAdmin
+            ? t("toast.personnelCreatedWithUser")
+            : t("toast.personnelCreated")
+        );
       }
       reset();
       onClose();
@@ -216,6 +273,7 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
         />
         <Select
           label={t("personnel.fieldJobTitle")}
+          labelRequired
           options={jobTitleOptions}
           name={jobTitleField.name}
           value={String(jobTitleField.value ?? "WAITER")}
@@ -269,6 +327,71 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
           ref={branchField.ref}
           error={errors.branchId?.message}
         />
+        {!isEdit && isAdmin ? (
+          <div className="rounded-xl border border-zinc-200/90 bg-zinc-50/80 p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-zinc-500">
+              {t("personnel.createUserSection")}
+            </p>
+            <label className="mt-3 flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-zinc-300 text-zinc-900"
+                checked={createUserField.value}
+                onChange={(e) => createUserField.onChange(e.target.checked)}
+                onBlur={createUserField.onBlur}
+                ref={createUserField.ref}
+              />
+              <span className="text-sm text-zinc-800">
+                {t("personnel.createUserLabel")}
+              </span>
+            </label>
+            <p className="mt-2 text-xs text-zinc-500">
+              {t("personnel.createUserHint")}
+            </p>
+            {createUserField.value ? (
+              <div className="mt-4 flex flex-col gap-3">
+                <Input
+                  label={t("personnel.fieldUserUsername")}
+                  labelRequired
+                  required
+                  autoComplete="username"
+                  {...register("userUsername", {
+                    required: createUserField.value
+                      ? t("common.required")
+                      : false,
+                  })}
+                  error={errors.userUsername?.message}
+                />
+                <Input
+                  label={t("personnel.fieldUserPassword")}
+                  labelRequired
+                  required
+                  type="password"
+                  autoComplete="new-password"
+                  {...register("userPassword", {
+                    required: createUserField.value
+                      ? t("common.required")
+                      : false,
+                  })}
+                  error={errors.userPassword?.message}
+                />
+                <Input
+                  label={t("personnel.fieldUserPasswordConfirm")}
+                  labelRequired
+                  required
+                  type="password"
+                  autoComplete="new-password"
+                  {...register("userPasswordConfirm", {
+                    required: createUserField.value
+                      ? t("common.required")
+                      : false,
+                  })}
+                  error={errors.userPasswordConfirm?.message}
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <div className="flex flex-col gap-2 border-t border-zinc-100 pt-4 sm:flex-row sm:justify-end">
           <Button
             type="button"

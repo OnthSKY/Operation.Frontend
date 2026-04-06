@@ -1,6 +1,7 @@
 export type CreateAdvanceInput = {
   personnelId: number;
-  branchId: number;
+  /** Required for branch cash (CASH); optional for BANK/PATRON (server uses personnel branch when omitted). */
+  branchId?: number;
   sourceType?: string;
   amount: number;
   currencyCode?: string | null;
@@ -19,6 +20,8 @@ export type Advance = {
   advanceDate: string;
   effectiveYear: number;
   description: string | null;
+  /** Kasadan düşen şube gider satırına bağlı */
+  hasLinkedRegisterExpense?: boolean;
 };
 
 export type AdvanceListItem = Advance & {

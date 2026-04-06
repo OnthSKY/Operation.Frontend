@@ -3,8 +3,16 @@
 import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
 import { cn } from "@/lib/cn";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { isPersonnelPortalRole } from "@/lib/auth/roles";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
-import { useAllAdvancesList } from "@/modules/personnel/hooks/usePersonnelQueries";
+import { fetchAdvancesByPersonnel } from "@/modules/personnel/api/advances-api";
+import {
+  useAllAdvancesList,
+  personnelKeys,
+  usePersonnelList,
+} from "@/modules/personnel/hooks/usePersonnelQueries";
+import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
 import type { AdvanceListItem } from "@/types/advance";
 import { Card } from "@/shared/components/Card";
 import { Button } from "@/shared/ui/Button";
@@ -18,21 +26,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/Table";
+import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import Link from "next/link";
 import { useMemo, useState, type ReactNode } from "react";
-
-function formatAdvanceDay(iso: string): string {
-  const d = iso?.slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return iso ?? "—";
-  return new Date(d + "T12:00:00").toLocaleDateString();
-}
+import { useQuery } from "@tanstack/react-query";
+import { AdvancePersonnelModal } from "./AdvancePersonnelModal";
 
 function sourceAbbrev(t: (k: string) => string, st: string): string {
   const u = st.toUpperCase();
   if (u === "PATRON") return t("personnel.advanceSourceAbbrPatron");
   if (u === "BANK") return t("personnel.advanceSourceAbbrBank");
+  if (u === "PERSONNEL_POCKET") return t("personnel.advanceSourceAbbrPersonnelPocket");
   return t("personnel.advanceSourceAbbrCash");
 }
 
@@ -81,7 +87,7 @@ function AdvanceCard({
       </div>
       <div className="divide-y divide-zinc-100">
         <Field label={t("personnel.advanceDate")}>
-          {formatAdvanceDay(row.advanceDate)}
+          {formatLocaleDate(row.advanceDate, locale, dash)}
         </Field>
         <Field label={t("personnel.sourceType")}>
           {sourceAbbrev(t, row.sourceType)}
@@ -114,7 +120,7 @@ function AdvanceTableRow({
   return (
     <TableRow>
       <TableCell className="whitespace-nowrap text-sm">
-        {formatAdvanceDay(row.advanceDate)}
+        {formatLocaleDate(row.advanceDate, locale, dash)}
       </TableCell>
       <TableCell className="min-w-[8rem] text-sm font-medium text-zinc-900">
         {row.personnelFullName?.trim() || dash}
@@ -143,10 +149,39 @@ function AdvanceTableRow({
 
 export function AllAdvancesScreen() {
   const { t, locale } = useI18n();
+  const { user } = useAuth();
+  const personnelPortal = isPersonnelPortalRole(user?.role);
+  const myPersonnelId = user?.personnelId;
   const { data: branches = [] } = useBranchesList();
+  const { data: personnelRaw = [] } = usePersonnelList(!personnelPortal);
   const [yearInput, setYearInput] = useState("");
+  const [personnelValue, setPersonnelValue] = useState("");
   const [branchValue, setBranchValue] = useState("");
   const [limitInput, setLimitInput] = useState("500");
+  const [advanceOpen, setAdvanceOpen] = useState(false);
+
+  const activePersonnel = useMemo(
+    () => personnelRaw.filter((p) => !p.isDeleted),
+    [personnelRaw]
+  );
+
+  const personnelOptions = useMemo(() => {
+    const rows = personnelRaw
+      .filter((p) => !p.isDeleted)
+      .slice()
+      .sort((a, b) =>
+        personnelDisplayName(a).localeCompare(personnelDisplayName(b), undefined, {
+          sensitivity: "base",
+        })
+      );
+    return [
+      { value: "", label: t("personnel.allAdvancesAnyPersonnel") },
+      ...rows.map((p) => ({
+        value: String(p.id),
+        label: personnelDisplayName(p),
+      })),
+    ];
+  }, [personnelRaw, t]);
 
   const listParams = useMemo(() => {
     const y = yearInput.trim();
@@ -155,6 +190,8 @@ export function AllAdvancesScreen() {
       Number.isFinite(yearParsed) && yearParsed >= 1900 && yearParsed <= 9999
         ? yearParsed
         : undefined;
+    const pe = personnelValue.trim();
+    const pid = pe ? parseInt(pe, 10) : 0;
     const br = branchValue.trim();
     const bid = br ? parseInt(br, 10) : 0;
     const lim = limitInput.trim();
@@ -165,13 +202,58 @@ export function AllAdvancesScreen() {
         : 500;
     return {
       effectiveYear,
+      personnelId: pid > 0 ? pid : undefined,
       branchId: bid > 0 ? bid : undefined,
       limit,
     };
-  }, [yearInput, branchValue, limitInput]);
+  }, [yearInput, personnelValue, branchValue, limitInput]);
 
-  const { data = [], isPending, isError, error, refetch } =
-    useAllAdvancesList(listParams);
+  const allAdvancesQuery = useAllAdvancesList(listParams, !personnelPortal);
+  const ownAdvancesQuery = useQuery({
+    queryKey: personnelKeys.advances(
+      myPersonnelId ?? 0,
+      listParams.effectiveYear
+    ),
+    queryFn: () =>
+      fetchAdvancesByPersonnel(myPersonnelId!, listParams.effectiveYear),
+    enabled:
+      personnelPortal &&
+      myPersonnelId != null &&
+      myPersonnelId > 0,
+  });
+
+  const data: AdvanceListItem[] = useMemo(() => {
+    if (personnelPortal) {
+      const raw = ownAdvancesQuery.data ?? [];
+      const dash = t("personnel.dash");
+      const pname = user?.fullName?.trim() || dash;
+      return raw.map((a) => ({
+        ...a,
+        personnelFullName: pname,
+        branchName:
+          branches.find((b) => b.id === a.branchId)?.name?.trim() || dash,
+      }));
+    }
+    return allAdvancesQuery.data ?? [];
+  }, [
+    personnelPortal,
+    ownAdvancesQuery.data,
+    allAdvancesQuery.data,
+    branches,
+    user?.fullName,
+    t,
+  ]);
+
+  const isPending = personnelPortal
+    ? ownAdvancesQuery.isPending
+    : allAdvancesQuery.isPending;
+  const isError = personnelPortal
+    ? ownAdvancesQuery.isError
+    : allAdvancesQuery.isError;
+  const error = personnelPortal ? ownAdvancesQuery.error : allAdvancesQuery.error;
+  const refetch = personnelPortal
+    ? ownAdvancesQuery.refetch
+    : allAdvancesQuery.refetch;
 
   const branchOptions = useMemo(
     () => [
@@ -188,12 +270,6 @@ export function AllAdvancesScreen() {
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 pb-8 lg:max-w-6xl 2xl:max-w-7xl">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <Link
-            href="/personnel"
-            className="mb-2 inline-block text-sm font-medium text-violet-700 hover:text-violet-900 hover:underline"
-          >
-            ← {t("personnel.allAdvancesBack")}
-          </Link>
           <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
             {t("personnel.allAdvancesTitle")}
           </h1>
@@ -201,13 +277,24 @@ export function AllAdvancesScreen() {
             {t("personnel.allAdvancesDesc")}
           </p>
         </div>
-        <Link href="/personnel" className={cn(secondaryBtn, "shrink-0")}>
-          {t("personnel.heading")}
-        </Link>
+        {!personnelPortal ? (
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              onClick={() => setAdvanceOpen(true)}
+            >
+              {t("personnel.advance")}
+            </Button>
+            <Link href="/personnel" className={cn(secondaryBtn, "shrink-0 text-center")}>
+              {t("personnel.heading")}
+            </Link>
+          </div>
+        ) : null}
       </div>
 
       <Card title={t("personnel.allAdvancesFilters")}>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <Input
             name="effectiveYear"
             label={t("personnel.allAdvancesYearOptional")}
@@ -219,28 +306,42 @@ export function AllAdvancesScreen() {
             value={yearInput}
             onChange={(e) => setYearInput(e.target.value)}
           />
-          <Select
-            name="branchFilter"
-            label={t("personnel.tableBranch")}
-            options={branchOptions}
-            value={branchValue}
-            onChange={(e) => setBranchValue(e.target.value)}
-            onBlur={() => {}}
-          />
-          <Input
-            name="limit"
-            label={t("personnel.allAdvancesLimit")}
-            type="number"
-            inputMode="numeric"
-            min={1}
-            max={1000}
-            value={limitInput}
-            onChange={(e) => setLimitInput(e.target.value)}
-          />
+          {!personnelPortal ? (
+            <>
+              <Select
+                name="personnelFilter"
+                label={t("personnel.tableName")}
+                options={personnelOptions}
+                value={personnelValue}
+                onChange={(e) => setPersonnelValue(e.target.value)}
+                onBlur={() => {}}
+              />
+              <Select
+                name="branchFilter"
+                label={t("personnel.tableBranch")}
+                options={branchOptions}
+                value={branchValue}
+                onChange={(e) => setBranchValue(e.target.value)}
+                onBlur={() => {}}
+              />
+              <Input
+                name="limit"
+                label={t("personnel.allAdvancesLimit")}
+                type="number"
+                inputMode="numeric"
+                min={1}
+                max={1000}
+                value={limitInput}
+                onChange={(e) => setLimitInput(e.target.value)}
+              />
+            </>
+          ) : null}
         </div>
-        <p className="mt-3 text-xs text-zinc-500">
-          {t("personnel.allAdvancesLimitHint")}
-        </p>
+        {!personnelPortal ? (
+          <p className="mt-3 text-xs text-zinc-500">
+            {t("personnel.allAdvancesLimitHint")}
+          </p>
+        ) : null}
       </Card>
 
       <Card title={t("personnel.allAdvancesTableTitle")}>
@@ -303,6 +404,14 @@ export function AllAdvancesScreen() {
           </>
         )}
       </Card>
+
+      {!personnelPortal ? (
+        <AdvancePersonnelModal
+          open={advanceOpen}
+          onClose={() => setAdvanceOpen(false)}
+          personnel={activePersonnel}
+        />
+      ) : null}
     </div>
   );
 }
