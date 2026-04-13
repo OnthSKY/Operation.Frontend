@@ -42,13 +42,13 @@ export function DashboardFinanceTab({
   dash: string;
 }) {
   return (
-            <div role="tabpanel">
+            <div className="min-w-0" role="tabpanel">
           <StoryBlock
             title={t("dashboard.storyFinance")}
             description={t("dashboard.storyFinanceDesc")}
           >
-            <div className="flex flex-col gap-4">
-            <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/50 px-3 py-2.5 sm:px-4">
+            <div className="flex flex-col gap-5">
+            <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/50 px-4 py-3 sm:px-5 sm:py-3.5">
               <p className="text-sm font-semibold text-emerald-950">
                 {t("dashboard.financeScopeRegisterDayTitle")}
               </p>
@@ -56,7 +56,7 @@ export function DashboardFinanceTab({
                 {t("dashboard.financeScopeRegisterDayHint")}
               </p>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
               <div>
                 <Card
                   title={t("dashboard.income")}
@@ -131,7 +131,7 @@ export function DashboardFinanceTab({
             {state.kind === "ok" &&
             state.branchTodayRows.length === 1 &&
             !state.branchTodayRows[0]?.financialHidden ? (
-              <p className="rounded-lg border border-zinc-200/70 bg-zinc-50/60 px-3 py-2.5 text-xs leading-relaxed text-zinc-700">
+              <p className="rounded-xl border border-zinc-200/70 bg-zinc-50/60 px-4 py-3 text-xs leading-relaxed text-zinc-700 sm:px-5">
                 {fillDashboardTemplate(
                   bulkParams.kind !== "day"
                     ? t("dashboard.singleBranchFinanceContextSeason")
@@ -154,7 +154,7 @@ export function DashboardFinanceTab({
             ) : null}
     
             {state.kind === "ok" ? (
-              <p className="mt-3 rounded-lg border border-amber-200/60 bg-amber-50/50 px-3 py-2.5 text-xs leading-relaxed text-amber-950/90">
+              <p className="mt-1 rounded-xl border border-amber-200/60 bg-amber-50/50 px-4 py-3 text-xs leading-relaxed text-amber-950/90 sm:px-5">
                 <span className="font-medium text-amber-950">{t("dashboard.financeKpiNoteTitle")}</span>
                 {" — "}
                 {t("dashboard.financeKpiFootnote")}
@@ -176,8 +176,8 @@ export function DashboardFinanceTab({
             ) : null}
             </div>
     
-            <div className="flex flex-col gap-4 border-t border-zinc-200/80 pt-6">
-            <div className="rounded-xl border border-zinc-200/90 bg-zinc-50/70 px-3 py-2.5 sm:px-4">
+            <div className="flex flex-col gap-5 border-t border-zinc-200/80 pt-6 sm:pt-7">
+            <div className="rounded-xl border border-zinc-200/90 bg-zinc-50/70 px-4 py-3 sm:px-5 sm:py-3.5">
               <p className="text-sm font-semibold text-zinc-900">
                 {t("dashboard.financeScopeIndependentTitle")}
               </p>
@@ -202,8 +202,8 @@ export function DashboardFinanceTab({
                 </Button>
               </Card>
             ) : (
-              <div className="flex flex-col gap-3">
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="flex flex-col gap-4">
+              <div className="grid gap-4 md:grid-cols-2">
                 <Card
                   title={t("dashboard.statAdvanceRecords")}
                   description={t("dashboard.statAdvanceRecordsDesc")}
@@ -257,7 +257,7 @@ export function DashboardFinanceTab({
                 </Card>
               </div>
     
-              <div className="grid gap-3 lg:grid-cols-2">
+              <div className="grid gap-4 lg:grid-cols-2">
                 <Card
                   title={t("dashboard.statRegisterCashWithPersonnel")}
                   description={t("dashboard.statRegisterCashWithPersonnelDesc")}
@@ -319,7 +319,7 @@ export function DashboardFinanceTab({
                           return (
                             <li
                               key={`${row.personnelId}-${row.currencyCode}-${regBr ?? "x"}-${idx}`}
-                              className="flex flex-col gap-0.5 rounded-lg border border-zinc-100 bg-zinc-50/80 px-3 py-2"
+                              className="flex flex-col gap-0.5 rounded-lg border border-zinc-100 bg-zinc-50/80 px-4 py-2.5"
                             >
                               <div className="flex flex-wrap items-baseline justify-between gap-2">
                                 <span className="font-semibold text-zinc-900">

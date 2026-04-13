@@ -19,6 +19,7 @@ import {
 import { registerWarehouseMovement } from "@/modules/warehouse/api/warehouse-movements-api";
 import { transferWarehouseToBranch } from "@/modules/warehouse/api/warehouse-transfer-api";
 import { branchKeys } from "@/modules/branch/hooks/useBranchQueries";
+import { dashboardOverviewKeys } from "@/modules/dashboard/query-keys";
 import type {
   CreateWarehouseInput,
   WarehouseAuditPageParams,
@@ -41,6 +42,7 @@ export const warehouseKeys = {
 
 function invalidateWarehouseQueries(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: warehouseRootKey, exact: false });
+  void qc.invalidateQueries({ queryKey: dashboardOverviewKeys.all });
 }
 
 export function useWarehousesList() {

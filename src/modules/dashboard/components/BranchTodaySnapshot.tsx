@@ -19,7 +19,7 @@ export function BranchTodaySnapshot({
   tableBlurb: string;
 }) {
   return (
-    <div className="rounded-xl border border-emerald-200/50 bg-gradient-to-b from-emerald-50/40 to-white p-3 shadow-sm ring-1 ring-emerald-100/40 sm:p-4">
+    <div className="rounded-xl border border-emerald-200/50 bg-gradient-to-b from-emerald-50/40 to-white p-4 shadow-sm ring-1 ring-emerald-100/40 sm:p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-emerald-950">
@@ -43,20 +43,20 @@ export function BranchTodaySnapshot({
         </Link>
       </div>
 
-      <div className="mt-3 hidden overflow-x-auto sm:block">
+      <div className="mt-4 hidden overflow-x-auto rounded-lg sm:block">
         <table className="w-full min-w-[28rem] border-separate border-spacing-0 text-sm">
           <thead>
             <tr className="text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              <th className="border-b border-zinc-200 pb-2 pr-3">
+              <th className="border-b border-zinc-200 pb-2.5 pl-1 pr-4">
                 {t("dashboard.branchTodayColBranch")}
               </th>
-              <th className="border-b border-zinc-200 pb-2 pr-3 text-right">
+              <th className="border-b border-zinc-200 pb-2.5 pr-4 text-right">
                 {t("dashboard.branchTodayColIncome")}
               </th>
-              <th className="border-b border-zinc-200 pb-2 pr-3 text-right">
+              <th className="border-b border-zinc-200 pb-2.5 pr-4 text-right">
                 {t("dashboard.branchTodayColRegisterOut")}
               </th>
-              <th className="border-b border-zinc-200 pb-2 text-right">
+              <th className="border-b border-zinc-200 pb-2.5 pr-1 text-right">
                 {t("dashboard.branchTodayColNet")}
               </th>
             </tr>
@@ -64,24 +64,24 @@ export function BranchTodaySnapshot({
           <tbody>
             {rows.map((row) => (
               <tr key={row.branchId} className="text-zinc-800">
-                <td className="border-b border-zinc-100 py-2.5 pr-3 font-medium text-zinc-900">
+                <td className="border-b border-zinc-100 py-3 pl-1 pr-4 font-medium text-zinc-900">
                   {row.branchName}
                 </td>
-                <td className="border-b border-zinc-100 py-2.5 pr-3 text-right tabular-nums">
+                <td className="border-b border-zinc-100 py-3 pr-4 text-right tabular-nums">
                   {row.financialHidden ? (
                     <span className="text-zinc-400">—</span>
                   ) : (
                     formatLocaleAmount(row.income, locale)
                   )}
                 </td>
-                <td className="border-b border-zinc-100 py-2.5 pr-3 text-right tabular-nums text-red-800/90">
+                <td className="border-b border-zinc-100 py-3 pr-4 text-right tabular-nums text-red-800/90">
                   {row.financialHidden ? (
                     <span className="text-zinc-400">—</span>
                   ) : (
                     formatLocaleAmount(row.expenseFromRegister, locale)
                   )}
                 </td>
-                <td className="border-b border-zinc-100 py-2.5 text-right tabular-nums font-semibold text-zinc-900">
+                <td className="border-b border-zinc-100 py-3 pr-1 text-right tabular-nums font-semibold text-zinc-900">
                   {row.financialHidden ? (
                     <span className="text-zinc-400">—</span>
                   ) : (
@@ -99,11 +99,11 @@ export function BranchTodaySnapshot({
         ) : null}
       </div>
 
-      <ul className="mt-3 space-y-2 sm:hidden">
+      <ul className="mt-4 space-y-3 sm:hidden">
         {rows.map((row) => (
           <li
             key={row.branchId}
-            className="rounded-xl border border-zinc-200/80 bg-white/90 px-3 py-2.5 shadow-sm"
+            className="rounded-xl border border-zinc-200/80 bg-white/90 px-4 py-3 shadow-sm"
           >
             <p className="text-sm font-semibold text-zinc-900">{row.branchName}</p>
             {row.financialHidden ? (

@@ -1,6 +1,7 @@
 export const nav = {
   home: "Genel bakış",
   reports: "Raporlar",
+  reportsSection: "Raporlar",
   personnel: "Personel yönetimi",
   personnelSection: "Personel yönetimi",
   personnelList: "Personeller",
@@ -46,6 +47,12 @@ export const nav = {
       "Bugünkü gelir, gider ve net nakit özeti ile şubelerin günlük durumu. Patron/şube kasasından akan fişlerin anlık fotoğrafı; kategori ve dönem kırılımı için Raporlar’a geçin.",
     reports:
       "Finansal dönem (gelir–gider kalemleri, kategori yoğunluğu), nakit pozisyonu, şube karşılaştırması, depo/şube stok raporları. “Para nereden geldi, nereye gitti?” ve “hangi şubede stok çok gidiyor?” soruları burada toplanır.",
+    reportsHubFinancial:
+      "Dönem grafikleri ve tablolar: gelir, gider ve net; şube ve ek filtrelerle.",
+    reportsHubCash:
+      "Şubelere göre nakit pozisyonu: çekmece tahmini ve pers./patron net bakiyeleri (rapor tarihi).",
+    reportsHubStock:
+      "Stok özet grafikleri ve tablolar: depo kapsamı, şubeye girişler ve ürün filtreleri.",
     personnelSection:
       "Çalışan tanımı ile patron–personel para hattı: avans ve personel giderlerinin izlenmesi bu bloktadır.",
     personnelList:

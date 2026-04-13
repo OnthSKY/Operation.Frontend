@@ -8,5 +8,8 @@ export function useDashboardOverview() {
   return useQuery({
     queryKey: dashboardOverviewKeys.all,
     queryFn: fetchDashboardOverview,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 }

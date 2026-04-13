@@ -4,7 +4,10 @@ import { useI18n } from "@/i18n/context";
 import { isPersonnelPortalRole } from "@/lib/auth/roles";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
-import { usePersonnelList } from "@/modules/personnel/hooks/usePersonnelQueries";
+import {
+  defaultPersonnelListFilters,
+  usePersonnelList,
+} from "@/modules/personnel/hooks/usePersonnelQueries";
 import type { Branch, BranchSeasonStatus } from "@/types/branch";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Card } from "@/shared/components/Card";
@@ -150,9 +153,15 @@ export function BranchScreen() {
   const searchParams = useSearchParams();
   const personnelPortal = isPersonnelPortalRole(user?.role);
   const { data, isPending, isError, error, refetch } = useBranchesList();
-  const { data: personnelData } = usePersonnelList(!personnelPortal);
+  const { data: personnelListResult } = usePersonnelList(
+    defaultPersonnelListFilters,
+    !personnelPortal
+  );
   const list = useMemo(() => data ?? [], [data]);
-  const personnel = useMemo(() => personnelData ?? [], [personnelData]);
+  const personnel = useMemo(
+    () => personnelListResult?.items ?? [],
+    [personnelListResult]
+  );
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editBranchId, setEditBranchId] = useState<number | null>(null);

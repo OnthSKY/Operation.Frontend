@@ -328,7 +328,7 @@ export function AppGlobalSearch() {
               ])
             : await Promise.all([
                 fetchBranches(),
-                fetchPersonnelList(),
+                fetchPersonnelList().then((r) => r.items),
                 fetchWarehouses(),
                 fetchAllAdvances({ limit: 1000 }),
                 fetchProductsCatalog(),

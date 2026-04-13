@@ -55,14 +55,14 @@ export function DashboardRegisterDayFilterBar({
 
   const modeBtn = (active: boolean) =>
     cn(
-      "min-h-10 flex-1 touch-manipulation rounded-lg px-2 py-2 text-xs font-semibold transition sm:text-sm",
+      "min-h-10 w-full min-w-0 touch-manipulation rounded-lg px-2 py-2 text-center text-xs font-semibold transition sm:text-sm",
       active
         ? "bg-white text-zinc-900 shadow-sm"
         : "text-zinc-600 active:bg-zinc-200/80 hover:text-zinc-900"
     );
 
   return (
-    <div className="sticky top-2 z-[9] rounded-xl border border-zinc-200/90 bg-white/95 p-3 shadow-sm ring-1 ring-zinc-950/[0.04] backdrop-blur-sm sm:p-4">
+    <div className="sticky top-2 z-[9] min-w-0 rounded-xl border border-zinc-200/90 bg-white/95 p-4 shadow-sm ring-1 ring-zinc-950/[0.04] backdrop-blur-sm sm:p-5">
       <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
         {t("dashboard.scopeFilterBarTitle")}
       </p>
@@ -70,7 +70,7 @@ export function DashboardRegisterDayFilterBar({
         {t("dashboard.scopeFilterBarHint")}
       </p>
       <div
-        className="mt-3 flex w-full flex-wrap gap-1 rounded-xl border border-zinc-200/90 bg-zinc-100/85 p-1"
+        className="mt-3 grid w-full min-w-0 grid-cols-2 gap-1 rounded-xl border border-zinc-200/90 bg-zinc-100/85 p-1 sm:grid-cols-4"
         role="group"
         aria-label={t("dashboard.cashFilterModeAria")}
       >

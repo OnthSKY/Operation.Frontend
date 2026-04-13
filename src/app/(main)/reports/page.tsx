@@ -1,5 +1,5 @@
-import { ReportsScreen } from "@/modules/reports/components/ReportsScreen";
+import { redirect } from "next/navigation";
 
 export default function ReportsPage() {
-  return <ReportsScreen />;
+  redirect("/reports/financial");
 }

@@ -25,6 +25,27 @@ const personnelSubNav = [
   },
 ] as const;
 
+const reportsHubSubNav = [
+  {
+    href: "/reports/financial",
+    labelKey: "reports.tabFinancial",
+    icon: "/reports" as const,
+    hintKey: "nav.tooltip.reportsHubFinancial" as const,
+  },
+  {
+    href: "/reports/position",
+    labelKey: "reports.tabCashPosition",
+    icon: "/reports" as const,
+    hintKey: "nav.tooltip.reportsHubCash" as const,
+  },
+  {
+    href: "/reports/stock",
+    labelKey: "reports.tabStock",
+    icon: "/reports" as const,
+    hintKey: "nav.tooltip.reportsHubStock" as const,
+  },
+] as const;
+
 const suppliersSubNav = [
   { href: "/suppliers", labelKey: "nav.suppliers", icon: "/suppliers" as const, hintKey: "nav.tooltip.suppliers" as const },
   {
@@ -425,19 +446,34 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         ) : null}
         {staffFullNav ? (
-          <div className={navItemRow}>
-            <Link
-              href="/reports"
-              onClick={() => setMobileNavOpen(false)}
-              className={`${navLinkBase} min-w-0 px-3 py-2.5 ${
-                pathname.startsWith("/reports") ? navLinkActive : navLinkIdle
-              }`}
-            >
-              <NavGlyph name="/reports" />
-              <span className="min-w-0">{t("nav.reports")}</span>
-            </Link>
-            <div className={navHintCol}>
-              <NavMenuHint hintKey="nav.tooltip.reports" />
+          <div className={navSectionBlock}>
+            <div className={navItemRow}>
+              <p className={navSectionTitle}>{t("nav.reportsSection")}</p>
+              <div className={navHintCol}>
+                <NavMenuHint hintKey="nav.tooltip.reports" />
+              </div>
+            </div>
+            <div className="flex flex-col gap-0.5">
+              {reportsHubSubNav.map((item) => {
+                const subActive = pathname.startsWith(item.href);
+                return (
+                  <div key={item.href} className={navItemRow}>
+                    <Link
+                      href={item.href}
+                      onClick={() => setMobileNavOpen(false)}
+                      className={`${navLinkBase} min-w-0 py-2 pl-4 pr-2 ${
+                        subActive ? navLinkActive : navLinkIdle
+                      }`}
+                    >
+                      <NavGlyph name={item.icon} />
+                      <span className="min-w-0">{t(item.labelKey)}</span>
+                    </Link>
+                    <div className={navHintCol}>
+                      <NavMenuHint hintKey={item.hintKey} />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         ) : null}

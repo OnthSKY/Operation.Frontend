@@ -37,7 +37,7 @@ export function PageContentSection({
       ? "border-b border-violet-200/65 bg-gradient-to-r from-violet-100/80 via-violet-50/50 to-white px-4 py-2.5 sm:px-5 sm:py-3"
       : variant === "surface"
         ? "border-b border-zinc-200/85 bg-zinc-100/90 px-4 py-2.5 sm:px-5 sm:py-3"
-        : "border-b border-zinc-200/85 bg-zinc-50/95 px-3 py-2 sm:px-4 sm:py-2.5";
+        : "border-b border-zinc-200/85 bg-zinc-50/95 px-4 py-2.5 sm:px-5 sm:py-3";
 
   const eyebrowClass = cn(
     "text-[0.68rem] font-bold uppercase tracking-[0.14em]",
@@ -50,7 +50,7 @@ export function PageContentSection({
       ? "min-w-0 bg-gradient-to-br from-violet-50/45 via-white to-zinc-50/85 p-4 sm:p-5"
       : variant === "surface"
         ? "min-w-0 bg-zinc-50/55 p-4 sm:p-5"
-        : "flex min-w-0 flex-col gap-4 p-0";
+        : "flex min-w-0 flex-col gap-4 px-4 pb-6 pt-4 sm:gap-5 sm:px-6 sm:pb-7 sm:pt-5";
 
   return (
     <section className={cn("min-w-0", className)} aria-labelledby={sectionLabelId}>

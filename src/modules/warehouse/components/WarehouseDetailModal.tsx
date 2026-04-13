@@ -6,7 +6,9 @@ import { EditWarehouseModal } from "@/modules/warehouse/components/EditWarehouse
 import { WarehouseOperationsTab } from "@/modules/warehouse/components/WarehouseOperationsTab";
 import { useWarehouseDetail } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import { useI18n } from "@/i18n/context";
+import type { Locale } from "@/i18n/messages";
 import { cn } from "@/lib/cn";
+import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { formatLocaleDateTime } from "@/shared/lib/locale-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
@@ -19,15 +21,17 @@ const TITLE_ID = "warehouse-detail-title";
 function WarehouseDetailMetaCard({
   detail,
   t,
+  locale,
 }: {
   detail: WarehouseDetail;
   t: (key: string) => string;
+  locale: Locale;
 }) {
+  const empty = t("warehouse.detailFieldEmpty");
   const addr = detail.address?.trim();
   const city = detail.city?.trim();
   const mgr = detail.responsibleManagerDisplayName?.trim();
   const master = detail.responsibleMasterDisplayName?.trim();
-  if (!addr && !city && !mgr && !master) return null;
   const cell = (label: string, value: string, wide?: boolean) => (
     <div className={cn("min-w-0", wide && "sm:col-span-2")}>
       <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
@@ -36,11 +40,21 @@ function WarehouseDetailMetaCard({
   );
   return (
     <div className="mb-3 shrink-0 rounded-xl border border-zinc-200/70 bg-zinc-50/90 p-4 shadow-sm shadow-zinc-900/5">
-      <div className="grid gap-4 sm:grid-cols-2">
-        {addr ? cell(t("warehouse.fieldAddress"), addr, true) : null}
-        {city ? cell(t("warehouse.fieldCity"), city) : null}
-        {mgr ? cell(t("warehouse.responsibleManager"), mgr) : null}
-        {master ? cell(t("warehouse.responsibleMaster"), master) : null}
+      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
+        {t("warehouse.detailGeneralTitle")}
+      </p>
+      <div className="mt-3 grid gap-4 sm:grid-cols-2">
+        {cell(t("warehouse.detailWarehouseId"), String(detail.id))}
+        {cell(t("warehouse.createdAtLabel"), formatLocaleDateTime(detail.createdAt, locale))}
+        {cell(t("warehouse.fieldAddress"), addr || empty, true)}
+        {cell(t("warehouse.fieldCity"), city || empty)}
+        {cell(t("warehouse.responsibleManager"), mgr || empty)}
+        {cell(t("warehouse.responsibleMaster"), master || empty)}
+        {cell(t("warehouse.detailProductCountWithStock"), String(detail.productCountWithStock ?? 0))}
+        {cell(
+          t("warehouse.detailTotalOnHandQuantity"),
+          formatLocaleAmount(Number(detail.totalOnHandQuantity ?? 0), locale)
+        )}
       </div>
     </div>
   );
@@ -72,8 +86,6 @@ export function WarehouseDetailModal({ open, warehouseId, onClose, onOpenAddProd
     if (!open) setEditOpen(false);
   }, [open]);
 
-  const fmtCreated = (iso: string) => formatLocaleDateTime(iso, locale);
-
   const tabBtn = (id: Tab, label: string) => (
     <button
       key={id}
@@ -99,11 +111,7 @@ export function WarehouseDetailModal({ open, warehouseId, onClose, onOpenAddProd
       onClose={onClose}
       titleId={TITLE_ID}
       title={detail?.name ?? (detailLoading ? t("common.loading") : t("warehouse.title"))}
-      description={
-        detail && !detailLoading
-          ? `${t("warehouse.createdAtLabel")}: ${fmtCreated(detail.createdAt)}`
-          : undefined
-      }
+      description={undefined}
       closeButtonLabel={t("common.close")}
       wide
       wideFixedHeight
@@ -117,7 +125,7 @@ export function WarehouseDetailModal({ open, warehouseId, onClose, onOpenAddProd
           <p className="text-sm text-zinc-500">{t("common.loading")}</p>
         ) : detail ? (
           <>
-            <WarehouseDetailMetaCard detail={detail} t={t} />
+            <WarehouseDetailMetaCard detail={detail} t={t} locale={locale} />
             <div className="mb-3 flex shrink-0 justify-end">
               <Button type="button" variant="secondary" className="min-h-10" onClick={() => setEditOpen(true)}>
                 {t("warehouse.editWarehouse")}
@@ -139,6 +147,7 @@ export function WarehouseDetailModal({ open, warehouseId, onClose, onOpenAddProd
                   active={open && tab === "ops"}
                   onOpenAddProduct={onOpenAddProduct}
                   onDeleted={onClose}
+                  onOpenMovementsTab={() => setTab("movements")}
                 />
               ) : null}
               {tab === "movements" ? (

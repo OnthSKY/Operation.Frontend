@@ -10,21 +10,27 @@ export function DashboardSummaryTab({
   state,
   onCashRetry,
   sumBranchesFootnote,
+  isPlainTodayView,
+  snapshotDateLabel,
 }: {
   t: (key: string) => string;
   locale: Locale;
   state: SummaryAggregateState;
   onCashRetry: () => void;
   sumBranchesFootnote: string;
+  isPlainTodayView: boolean;
+  snapshotDateLabel: string;
 }) {
   return (
-            <div className="flex flex-col gap-4" role="tabpanel">
+            <div className="flex min-w-0 flex-col gap-4" role="tabpanel">
               <DashboardDayStoryCard
                 t={t}
                 locale={locale}
                 state={state}
                 onCashRetry={onCashRetry}
                 sumBranchesFootnote={sumBranchesFootnote}
+                isPlainTodayView={isPlainTodayView}
+                snapshotDateLabel={snapshotDateLabel}
               />
     
               {state.kind === "empty" ? (

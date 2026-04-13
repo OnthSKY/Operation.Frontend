@@ -182,3 +182,49 @@ export function buildWarehouseStockGroupedSections(
 export function isUncategorizedSection(sectionId: string): boolean {
   return sectionId === UNCAT;
 }
+
+export type WarehouseStockCategoryBreakdownItem = {
+  sectionId: string;
+  title: string;
+  productCount: number;
+  totalQuantity: number;
+};
+
+/** Distinct product (SKU) counts per root or leaf category for positive stock rows. */
+export function buildWarehouseStockCategoryBreakdown(
+  rows: WarehouseProductStockRow[],
+  catalog: ProductListItem[],
+  categories: ProductCategory[],
+  mode: "category" | "subcategory"
+): WarehouseStockCategoryBreakdownItem[] {
+  if (rows.length === 0) return [];
+  const byId = catalogById(catalog);
+  const buckets = new Map<
+    string,
+    { partRows: WarehouseProductStockRow[]; products: Set<number> }
+  >();
+  for (const row of rows) {
+    const k = partitionKey(mode, row, byId, categories);
+    if (!buckets.has(k)) buckets.set(k, { partRows: [], products: new Set() });
+    const b = buckets.get(k)!;
+    b.partRows.push(row);
+    b.products.add(row.productId);
+  }
+  const entries = [...buckets.entries()].map(([key, { partRows, products }]) => {
+    const title = sectionTitleForKey(key, mode, partRows, categories);
+    return {
+      sectionId: key,
+      title,
+      productCount: products.size,
+      totalQuantity: partRows.reduce((s, r) => s + r.quantity, 0),
+      sortKey: key === UNCAT ? "\uffff" : title.toLocaleLowerCase(),
+    };
+  });
+  entries.sort((a, b) => a.sortKey.localeCompare(b.sortKey, undefined, { sensitivity: "base" }));
+  return entries.map(({ sectionId, title, productCount, totalQuantity }) => ({
+    sectionId,
+    title,
+    productCount,
+    totalQuantity,
+  }));
+}

@@ -6,9 +6,24 @@ import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
 import { format, parse } from "date-fns";
 import { enUS, tr as trLocale } from "date-fns/locale";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, type ReactNode } from "react";
 
 type Props = { data: StockReport };
+
+function StockStorySectionCard({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex h-full min-h-[6.5rem] flex-col rounded-xl border border-zinc-200/85 bg-white p-4 shadow-sm ring-1 ring-zinc-100/90">
+      <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-violet-700">{title}</p>
+      <div className="mt-2.5 min-w-0 flex-1 text-sm leading-relaxed text-zinc-800">{children}</div>
+    </div>
+  );
+}
 
 function tpl(s: string, vars: Record<string, string | number>): string {
   return s.replace(/\{\{(\w+)\}\}/g, (_, k: string) => String(vars[k] ?? ""));
@@ -197,13 +212,10 @@ export function ReportStockStory({ data }: Props) {
         </p>
       ) : null}
 
-      <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2">
         {hasWhActivity && busiest && busiest.quantityIn + busiest.quantityOut > 0 ? (
-          <section>
-            <h3 className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-violet-600">
-              {t("reports.stockSecWarehouses")}
-            </h3>
-            <div className="space-y-2 text-sm leading-relaxed text-zinc-800">
+          <StockStorySectionCard title={t("reports.stockSecWarehouses")}>
+            <div className="space-y-2">
               <p>
                 {tpl(t("reports.stockSentenceBusiest"), {
                   name: busiest.warehouseName,
@@ -219,52 +231,48 @@ export function ReportStockStory({ data }: Props) {
                 </p>
               ) : null}
             </div>
-          </section>
+          </StockStorySectionCard>
         ) : null}
 
         {hasFlows && topRoute && topRoute.totalQuantity > 0 ? (
-          <section>
-            <h3 className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-violet-600">
-              {t("reports.stockSecLanes")}
-            </h3>
-            <p className="text-sm leading-relaxed text-zinc-800">
-              {tpl(t("reports.stockSentenceTopLane"), {
-                wh: topRoute.warehouseName,
-                br: topRoute.branchName,
-                qty: fmtQty(topRoute.totalQuantity),
-                lines: topRoute.movementLineCount,
-              })}
-            </p>
-            {flows.length > 1 ? (
-              <ol className="mt-3 space-y-2 border-l-2 border-violet-200 pl-3 text-sm text-zinc-700">
-                {flows.slice(0, 5).map((r, idx) => (
-                  <li
-                    key={`${r.warehouseId}-${r.branchId}-${idx}`}
-                    className="tabular-nums"
-                  >
-                    <span className="font-medium text-zinc-900">
-                      {r.warehouseName}
-                    </span>
-                    <span className="text-zinc-400"> → </span>
-                    <span>{r.branchName}</span>
-                    <span className="text-zinc-500">
-                      {" "}
-                      · {fmtQty(r.totalQuantity)} ({r.movementLineCount}{" "}
-                      {t("reports.stockStoryLinesAbbr")})
-                    </span>
-                  </li>
-                ))}
-              </ol>
-            ) : null}
-          </section>
+          <StockStorySectionCard title={t("reports.stockSecLanes")}>
+            <div>
+              <p>
+                {tpl(t("reports.stockSentenceTopLane"), {
+                  wh: topRoute.warehouseName,
+                  br: topRoute.branchName,
+                  qty: fmtQty(topRoute.totalQuantity),
+                  lines: topRoute.movementLineCount,
+                })}
+              </p>
+              {flows.length > 1 ? (
+                <ol className="mt-3 space-y-2 border-l-2 border-violet-200/90 pl-3 text-sm text-zinc-700">
+                  {flows.slice(0, 5).map((r, idx) => (
+                    <li
+                      key={`${r.warehouseId}-${r.branchId}-${idx}`}
+                      className="tabular-nums"
+                    >
+                      <span className="font-medium text-zinc-900">
+                        {r.warehouseName}
+                      </span>
+                      <span className="text-zinc-400"> → </span>
+                      <span>{r.branchName}</span>
+                      <span className="text-zinc-500">
+                        {" "}
+                        · {fmtQty(r.totalQuantity)} ({r.movementLineCount}{" "}
+                        {t("reports.stockStoryLinesAbbr")})
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              ) : null}
+            </div>
+          </StockStorySectionCard>
         ) : null}
 
         {hasOutbound && topProd && topProd.quantityOut > 0 ? (
-          <section>
-            <h3 className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-violet-600">
-              {t("reports.stockSecProducts")}
-            </h3>
-            <p className="text-sm leading-relaxed text-zinc-800">
+          <StockStorySectionCard title={t("reports.stockSecProducts")}>
+            <p>
               {tpl(t("reports.stockSentenceTopProduct"), {
                 prod:
                   topProd.productName?.trim() ||
@@ -273,21 +281,18 @@ export function ReportStockStory({ data }: Props) {
                 qty: fmtQty(topProd.quantityOut),
               })}
             </p>
-          </section>
+          </StockStorySectionCard>
         ) : null}
 
         {hasBranchInbound && topBr && topBr.totalQuantityReceived > 0 ? (
-          <section>
-            <h3 className="mb-2 text-xs font-bold uppercase tracking-[0.14em] text-violet-600">
-              {t("reports.stockSecBranches")}
-            </h3>
-            <p className="text-sm leading-relaxed text-zinc-800">
+          <StockStorySectionCard title={t("reports.stockSecBranches")}>
+            <p>
               {tpl(t("reports.stockSentenceTopBranch"), {
                 name: topBr.branchName,
                 qty: fmtQty(topBr.totalQuantityReceived),
               })}
             </p>
-          </section>
+          </StockStorySectionCard>
         ) : null}
       </div>
 

@@ -5,7 +5,10 @@ import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { FinancialReportAdvancedFilters } from "@/modules/reports/components/FinancialReportAdvancedFilters";
 import { FinancialReportDetailTables } from "@/modules/reports/components/ReportsDetailTables";
 import { ReportsPatronTabStory } from "@/modules/reports/components/ReportsPatronTabStory";
-import { ReportSeasonYearQuickSelect } from "@/modules/reports/components/ReportSeasonYearQuickSelect";
+import {
+  ReportHubDateRangeControls,
+  type ReportHubRangeLock,
+} from "@/modules/reports/components/ReportHubDateRangeControls";
 import { ReportTablesPageShell } from "@/modules/reports/components/ReportTablesPageShell";
 import {
   addDaysFromIso,
@@ -16,8 +19,6 @@ import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileF
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
-import { Button } from "@/shared/ui/Button";
-import { DateField } from "@/shared/ui/DateField";
 import { Select } from "@/shared/ui/Select";
 import { useEffect, useMemo, useState } from "react";
 
@@ -31,6 +32,7 @@ export function FinancialReportTablesScreen() {
   const [finMainCategory, setFinMainCategory] = useState("");
   const [finCategory, setFinCategory] = useState("");
   const [finExpenseSource, setFinExpenseSource] = useState("");
+  const [dateRangeLock, setDateRangeLock] = useState<ReportHubRangeLock>("manual");
 
   const { data: branches = [] } = useBranchesList();
 
@@ -80,7 +82,7 @@ export function FinancialReportTablesScreen() {
     return m;
   }, [financial.data]);
 
-  const setPreset = (key: "month" | "d30" | "d7") => {
+  const applyDatePreset = (key: "month" | "d30" | "d7") => {
     const today = localIsoDate();
     if (key === "month") {
       setDateFrom(startOfMonthIso());
@@ -102,7 +104,8 @@ export function FinancialReportTablesScreen() {
     finTransactionType !== "" ||
     finMainCategory !== "" ||
     finCategory !== "" ||
-    finExpenseSource !== "";
+    finExpenseSource !== "" ||
+    dateRangeLock !== "manual";
 
   return (
     <ReportTablesPageShell
@@ -134,63 +137,40 @@ export function FinancialReportTablesScreen() {
         collapseLabel={t("common.filtersHide")}
       >
         <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11 touch-manipulation text-xs sm:min-h-10"
-              onClick={() => setPreset("month")}
-            >
-              {t("reports.presetThisMonth")}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11 touch-manipulation text-xs sm:min-h-10"
-              onClick={() => setPreset("d30")}
-            >
-              {t("reports.presetLast30")}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11 touch-manipulation text-xs sm:min-h-10"
-              onClick={() => setPreset("d7")}
-            >
-              {t("reports.presetLast7")}
-            </Button>
-          </div>
-          <ReportSeasonYearQuickSelect
+          <ReportHubDateRangeControls
+            t={t}
             dateFrom={dateFrom}
             dateTo={dateTo}
-            onApplyRange={(f, d) => {
+            rangeLock={dateRangeLock}
+            onUnlockCalendarYear={() => setDateRangeLock("manual")}
+            onPreset={(key) => {
+              setDateRangeLock("preset");
+              applyDatePreset(key);
+            }}
+            onCalendarYearRange={(f, d) => {
+              setDateRangeLock("calendarYear");
               setDateFrom(f);
               setDateTo(d);
             }}
-            className="max-w-full sm:max-w-sm"
+            onDateFromChange={(v) => {
+              setDateRangeLock("manual");
+              setDateFrom(v);
+            }}
+            onDateToChange={(v) => {
+              setDateRangeLock("manual");
+              setDateTo(v);
+            }}
           />
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <DateField
-              label={t("reports.dateFrom")}
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
+          <div className="min-w-0 sm:max-w-md">
+            <Select
+              name="finBranchFilter"
+              label={t("reports.colBranch")}
+              options={finBranchOptions}
+              value={finBranchId}
+              onChange={(e) => setFinBranchId(e.target.value)}
+              onBlur={() => {}}
+              className="min-h-11 sm:min-h-10 sm:text-sm"
             />
-            <DateField
-              label={t("reports.dateTo")}
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-            />
-            <div className="min-w-0 sm:col-span-2">
-              <Select
-                name="finBranchFilter"
-                label={t("reports.colBranch")}
-                options={finBranchOptions}
-                value={finBranchId}
-                onChange={(e) => setFinBranchId(e.target.value)}
-                onBlur={() => {}}
-                className="min-h-11 sm:min-h-10 sm:text-sm"
-              />
-            </div>
           </div>
           <FinancialReportAdvancedFilters
             dateFrom={dateFrom}

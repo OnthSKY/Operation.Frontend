@@ -370,6 +370,7 @@ export const personnel = {
   insuranceBadgePending: "Sigorta bekliyor",
   insuranceStatusStarted: "Başlatıldı",
   insuranceStatusPending: "Başlatılmadı",
+  insuranceStatusFieldLabel: "SGK durumu",
   identitySectionTitle: "Kimlik (isteğe bağlı)",
   identitySectionHint:
     "TC, doğum tarihi, kimlik tipi (eski / yeni çipli) ve isteğe bağlı ön-arka fotoğraf. Kayıtlı personelde kimlik tipi ve fotoğraf değişikliği için listeden Düzenle kullanın. Sigorta dönemlerini personel kaydedildikten sonra detay ekranından ekleyin.",
@@ -483,6 +484,7 @@ export const personnel = {
   editHint:
     "Kayıt güncellenir. İşe başlama tarihi geçmiş dönem bilgisidir; gerektiğinde dikkatli değiştirin.",
   tableAdvances: "Avans",
+  tableCostsAdvancesExpenses: "Avans / gider",
   advanceQuickAria: "Bu personele avans ver",
   advanceHistoryTitle: "Avans geçmişi",
   advanceHistoryLast: "Son",
@@ -491,6 +493,15 @@ export const personnel = {
   advanceHistoryError: "Avans listesi yüklenemedi.",
   advanceHistoryCountSuffix: "kayıt",
   advanceHistoryMore: "daha…",
+  costsSummaryHeadlineCore: "{adv} avans · {exp} gider",
+  costsSummaryCardCounts: "{adv} avans · {exp} gider",
+  costsSummaryTotalAdvancesLabel: "Avans toplamı",
+  costsSummaryTotalExpensesLabel: "Gider toplamı",
+  costsAttributedSummaryEmpty: "Kayıtlı avans veya personele yazılmış gider yok.",
+  costsSummaryExpenseError: "Gider listesi yüklenemedi.",
+  costsSummaryHistoryTitle: "Avans ve giderler",
+  costsSummaryShowDetail: "Detayı göster",
+  costsSummaryHideDetail: "Detayı gizle",
   advanceRegisterExpenseInBranch: "Şube kasa gideri bağlı",
   advanceSourceAbbrCash: "Kasa",
   advanceSourceAbbrPatron: "Patron",
@@ -534,7 +545,15 @@ export const personnel = {
   detailSubtitlePassive: "Bu kayıt pasif.",
   viewPersonnelAria: "Personeli görüntüle",
   detailTabProfile: "Kişi bilgileri",
+  detailTabInsurance: "Sigorta",
+  detailInsuranceProfileHint:
+    "Tarihler, süreç ve dönem kayıtları için «Sigorta» sekmesine geçin.",
   detailTabCosts: "Avans ve giderler",
+  detailCostsGiveAdvance: "Avans ver",
+  detailCostsAddExpense: "Gider ekle",
+  detailCostsColDetail: "Detay",
+  detailCostsCombinedEmpty:
+    "Gösterilecek avans veya gider yok. Sezon yılı veya liste filtrelerini (şube, kaynak) değiştirin.",
   detailTabYearClosures: "Kesilen hesaplar",
   yearClosuresIntro:
     "Bu personel için takvim yılı bazında kapatılmış (kesilmiş) hesap kayıtları. Yanlış kapanışta ilgili yılı yeniden açabilirsiniz.",

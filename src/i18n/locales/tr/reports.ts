@@ -35,14 +35,30 @@ export const reports = {
   patronHubGuideOpenHint: "Daraltmak için tıklayın.",
   patronHubGuideClosedHint:
     "Sistemde kasa, patron cebi, depo ve personel rakamlarını nerede bulacağınızı görmek için açın.",
-  patronHubGuideIntro:
-    "Program veriyi kasa hareketleri, maaş/avans, tedarikçi ödemeleri ve depo hareketleri gibi ayrı yerlerde tutar; tek kutuda «her şey» yoktur. Bu sayfa dönem özeti ve grafik sunar. Günlük satır satır kasa girişi şube ekranındadır; kişi bazlı maaş/avans personel maliyet ekranındadır.",
+  patronHubGuideIntroFinancial:
+    "Bu sekme seçtiğiniz tarihlerde şube kasasına yazılan gelir ve giderlerin özetini ve grafiklerini gösterir. Günlük satır satır kasa fişleri Şubeler ekranındadır; kişi bazlı maaş ve avans Personel maliyetlerindedir.",
+  patronHubGuideIntroCash:
+    "Bu sekme belirttiğiniz güne kadar şubelerde tahmini çekmece nakdini ve kasanın personele / size net borçlarını gösterir. Dönem içi gelir–gider özeti için Finans sekmesine geçin.",
+  patronHubGuideIntroStock:
+    "Bu sekme seçilen tarihler arasında depo giriş–çıkışları ve şubeye giren mal miktarlarını özetler. Raftaki anlık stok ve depo detayı için Depolar sayfasını kullanın.",
   patronHubGuideFlowTitle: "Bu ekranda önerilen sıra",
-  patronHubGuideFlow1: "Üstteki üç sekmeden birini seçin (Finans / Nakit pozisyonu / Stok).",
-  patronHubGuideFlow2: "Hemen altındaki mor kutu: o sekmede nereye bakacağınızı adım adım söyler.",
-  patronHubGuideFlow3:
-    "Sayfanın altındaki «Tam sayfa tablolar» ile çok satır, arama ve sıralama ekranlarına geçin — özet yetiyorsa gerekmez.",
-  patronHubGuideTabsTitle: "Sekmeler hangi soruya cevap verir?",
+  patronHubGuideFlow1Financial:
+    "Üstte dönem tarihlerini ve şube filtresini seçin; gerekirse ek finans filtrelerini açın.",
+  patronHubGuideFlow2Financial:
+    "Hemen altındaki mor kutu: bu sekmede hangi KPI ve grafiklere önce bakacağınızı adım adım anlatır.",
+  patronHubGuideFlow3Financial:
+    "Özet yetmezse «Özet / Tablolar» ile tablo görünümüne veya alttaki tam sayfa linklerine gidin.",
+  patronHubGuideFlow1Cash: "Rapor tarihını ve kapsamı (yalnız açık sezon vb.) üstte ayarlayın.",
+  patronHubGuideFlow2Cash:
+    "Mor kutu: çekmece, personel cebi ve patron kalemlerini hangi sırayla okuyacağınızı söyler.",
+  patronHubGuideFlow3Cash:
+    "Şube satırları için aşağıdaki tabloyu kullanın; daha geniş liste için tam sayfa kasa tablosuna bakın.",
+  patronHubGuideFlow1Stock: "Dönem tarihlerini ve depo / şube filtrelerini üstte ayarlayın.",
+  patronHubGuideFlow2Stock:
+    "Mor kutu: kısa metin özeti ve grafikleri hangi sırayla okuyacağınızı anlatır.",
+  patronHubGuideFlow3Stock:
+    "Miktar detayı için «Tablolar» veya tam sayfa stok tablosuna geçin.",
+  patronHubGuideThisTabTitle: "Bu sekme hangi soruya cevap verir?",
   patronHubGuideTabFinancial:
     "Seçtiğiniz tarihlerde şube kasasına yazılan gelir ve giderlerin özeti; şube ve kategori kırılımı. Grafikler ek filtreleri (para birimi vb.) her zaman uygulamaz — uyarı metnine bakın.",
   patronHubGuideTabCash:
@@ -64,10 +80,37 @@ export const reports = {
   patronHubGuideLinkBranchCompareLabel: "Şube karşılaştırma (tam sayfa)",
   patronHubGuideLinkBranchCompareDesc:
     "Şubeleri aynı dönemde yan yana gelir, gider, net ile kıyaslamak için.",
-  patronHubGuideFooterNote:
+  patronHubGuideLinkFinancialHubLabel: "Finans özeti (hub)",
+  patronHubGuideLinkFinancialHubDesc:
+    "Seçilen dönemde kasaya yazılan gelir, gider ve net trendi.",
+  patronHubGuideLinkCashTablesLabel: "Kasa tablosu (tam sayfa)",
+  patronHubGuideLinkCashTablesDesc:
+    "Nakit pozisyonu ile aynı mantıkta sıralı tablo ve dışa aktarım.",
+  patronHubGuideLinkBranchesStockDesc:
+    "Şubeye mal girişi burada özetlenir; günlük kasa satırları için Şubeler ekranını kullanın.",
+  patronHubGuideLinkStockTablesLabel: "Stok tabloları (tam sayfa)",
+  patronHubGuideLinkStockTablesDesc:
+    "Ürün ve depo kırılımında arama ve sıralama ile incelemek için.",
+  patronHubGuideFooterFinancial:
     "Terimler: «Kasadan gider» çekmeceden çıkan tutardır. Patron veya personel cebiyle ödenenler ayrı izlenir; raporda «ödeme kaynağı» veya patron akışı ile ayırt edilir.",
+  patronHubGuideFooterCash:
+    "Nakit pozisyonu tek bir tarih için «anlıktır»; net borçlar kasa kayıtlarından türetilir, dönem kar–zarar tablosu değildir.",
+  patronHubGuideFooterStock:
+    "Buradaki miktarlar seçilen aralıktaki hareketlerdir; envanter seviyesi ve rafta ne var sorusu için Depolar ekranına bakın.",
   cashPatronTotalsEyebrow: "Öne çıkan toplamlar",
   cashPatronMaxDrawer: "En yüksek çekmece: {{name}}",
+  cashSnapshotPanelTitle: "Kasa özeti",
+  cashSnapshotPanelHint:
+    "Rapor tarihi ve kapsama göre: çekmecedeki tahmini nakit, personele net cebi pozisyonu ve patrona net pozisyon — soldan sağa.",
+  cashSnapshotMoreHint:
+    "Satır bazlı hareket için Şubeler veya aşağıdaki tabloyu kullanın; üstteki filtreler nelerin dahil olduğunu belirler.",
+  cashSnapshotBadgeDrawer: "1 · Çekmece",
+  cashSnapshotBadgePocket: "2 · Personel cebi",
+  cashSnapshotBadgePatron: "3 · Patron",
+  cashSnapshotDescDrawer: "Kasa çekmecesindeki tahmini fiili nakit (dahil şubeler).",
+  cashSnapshotDescPocket:
+    "Kasa ↔ personel cebi neti (pozitifse kasa cebi borçludur).",
+  cashSnapshotDescPatron: "Kasa ↔ patron neti (pozitifse kasa patrona borçludur).",
   tabHint: "Finans: kasa ve şube. Stok: depo ve şubeye sevkiyat.",
   tabCashPosition: "Nakit pozisyonu",
   tabHintCash:
@@ -187,7 +230,14 @@ export const reports = {
   seasonYearPickPlaceholder: "— yıl seçin —",
   seasonYearOption: "{year} tam yıl",
   seasonYearHint:
-    "Başlangıç/bitişi o yılın 1 Oca – 31 Ara olacak şekilde ayarlar; Kasa sekmesindeki «anlık» tarihi de o yılın 31 Aralık’ına çeker. Özel aralık için alttaki tarihleri düzenleyin.",
+    "Tam takvim yılını (1 Oca–31 Ara) seçer; bu modda hazır aralık düğmeleri kapatılır. Tarihleri değiştirmek için alttaki «elle düzenle»yi kullanın. Bu hub’da Kasa rapor tarihi de o yılın 31 Aralık’ına ayarlanır.",
+  dateRangeUnlockManual: "Başlangıç/bitiş tarihlerini elle düzenle",
+  cashFilterPeriodModeLabel: "Rapor tarihi",
+  cashFilterModeCalendarYearEnd: "Takvim yılı (31 Ara)",
+  cashFilterModeCustomAsOf: "Özel tarih",
+  cashFilterPeriodModeHint:
+    "Takvim yılı: yıl sonu anlık görüntü. Özel tarih: istediğiniz güne göre kasa; üstteki yıl listesi bu modda kullanılmaz.",
+  cashCalendarYearQuickPick: "Takvim yılı",
   cashAsOfSeasonYearQuickPick: "Hızlı: yıl sonu anlık görüntü",
   cashAsOfSeasonYearOption: "{year} yıl sonu (31 Ara)",
   cashAsOfSeasonYearHint:

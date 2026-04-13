@@ -10,7 +10,7 @@ export function DashboardReportsTab({
   userRole?: string | null;
 }) {
   return (
-            <section className="flex flex-col gap-3" role="tabpanel">
+            <section className="flex min-w-0 w-full flex-col gap-3" role="tabpanel">
             <div>
               <h2 className="text-lg font-semibold text-zinc-900">
                 {t("dashboard.detailedReportsTitle")}
@@ -19,8 +19,8 @@ export function DashboardReportsTab({
                 {t("dashboard.detailedReportsDesc")}
               </p>
             </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <ReportLinkRow href="/reports">
+            <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+              <ReportLinkRow href="/reports/financial">
                 {t("dashboard.reportLinkReportsHub")}
               </ReportLinkRow>
               <ReportLinkRow href="/reports/branches">

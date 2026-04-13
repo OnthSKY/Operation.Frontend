@@ -304,7 +304,7 @@ export function GeneralOverheadScreen() {
       resolveLocalizedApiError(e, t, { canManageTourismSeasonClosedPolicy: canManageTourismPolicy }),
     [t, canManageTourismPolicy]
   );
-  const [statusFilter, setStatusFilter] = useState<string>("OPEN");
+  const [statusFilter, setStatusFilter] = useState<string>("");
   const poolsQ = useGeneralOverheadPools(
     statusFilter.trim() === "" ? undefined : statusFilter,
     true

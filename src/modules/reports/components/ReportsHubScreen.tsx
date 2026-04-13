@@ -16,9 +16,12 @@ import {
 } from "@/modules/reports/components/ReportsDetailTables";
 import { FinancialReportAdvancedFilters } from "@/modules/reports/components/FinancialReportAdvancedFilters";
 import { ReportStockCharts } from "@/modules/reports/components/ReportStockCharts";
+import { ReportCashAsOfFilterBlock } from "@/modules/reports/components/ReportCashAsOfFilterBlock";
 import { ReportCashPatronHighlights } from "@/modules/reports/components/ReportCashPatronHighlights";
-import { ReportCashSeasonYearEndSelect } from "@/modules/reports/components/ReportCashSeasonYearEndSelect";
-import { ReportSeasonYearQuickSelect } from "@/modules/reports/components/ReportSeasonYearQuickSelect";
+import {
+  ReportHubDateRangeControls,
+  type ReportHubRangeLock,
+} from "@/modules/reports/components/ReportHubDateRangeControls";
 import { ReportsPatronHubGuide } from "@/modules/reports/components/ReportsPatronHubGuide";
 import { ReportsPatronTabStory } from "@/modules/reports/components/ReportsPatronTabStory";
 import {
@@ -37,28 +40,22 @@ import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { Button } from "@/shared/ui/Button";
-import { DateField } from "@/shared/ui/DateField";
 import { Select } from "@/shared/ui/Select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/Table";
 import {
   addDaysFromIso,
   calendarYearRangeIso,
   inferCalendarSeasonYearFromRange,
-  inferYearFromDec31AsOf,
   startOfMonthIso,
 } from "@/modules/reports/lib/report-period-helpers";
+import {
+  REPORTS_HUB_PATH,
+  type ReportsHubTab,
+} from "@/modules/reports/lib/reports-hub-paths";
 import Link from "next/link";
 import { useMemo, useEffect, useState, useCallback } from "react";
 
-const REPORTS_TAB_STORAGE_KEY = "sky-ops-reports-tab";
 const REPORTS_HUB_COLLAPSED_KEY = "sky-ops-reports-hub-collapsed";
-
-type ReportMainTab = "financial" | "cash" | "stock";
-
-function parseStoredReportTab(raw: string | null): ReportMainTab | null {
-  if (raw === "financial" || raw === "cash" || raw === "stock") return raw;
-  return null;
-}
 
 function seasonStatusLabel(t: (key: string) => string, status: string): string {
   const u = status.toUpperCase();
@@ -68,9 +65,16 @@ function seasonStatusLabel(t: (key: string) => string, status: string): string {
   return t("branch.seasonNone");
 }
 
-export function ReportsScreen() {
+const hubTabBtn = (active: boolean) =>
+  `min-h-12 touch-manipulation rounded-lg px-1.5 py-2.5 text-xs font-semibold transition sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm ${
+    active
+      ? "bg-white text-zinc-900 shadow-sm"
+      : "text-zinc-600 active:bg-zinc-200/80 sm:hover:text-zinc-900"
+  }`;
+
+export function ReportsHubScreen({ routeTab }: { routeTab: ReportsHubTab }) {
   const { t, locale } = useI18n();
-  const [tab, setTab] = useState<ReportMainTab>("financial");
+  const tab = routeTab;
   const [tablesHubOpen, setTablesHubOpen] = useState(false);
   const [dateFrom, setDateFrom] = useState(startOfMonthIso);
   const [dateTo, setDateTo] = useState(() => localIsoDate());
@@ -93,6 +97,8 @@ export function ReportsScreen() {
   );
   const [cashAsOfDate, setCashAsOfDate] = useState(() => localIsoDate());
   const [cashOpenSeasonOnly, setCashOpenSeasonOnly] = useState(true);
+  const [cashAsOfMode, setCashAsOfMode] = useState<"calendarYearEnd" | "customDate">("customDate");
+  const [dateRangeLock, setDateRangeLock] = useState<ReportHubRangeLock>("manual");
 
   const { data: branches = [] } = useBranchesList();
   const { data: warehouses = [] } = useWarehousesList();
@@ -195,22 +201,9 @@ export function ReportsScreen() {
 
   useEffect(() => {
     try {
-      const storedTab = parseStoredReportTab(
-        localStorage.getItem(REPORTS_TAB_STORAGE_KEY)
-      );
-      if (storedTab) setTab(storedTab);
       const hubPref = localStorage.getItem(REPORTS_HUB_COLLAPSED_KEY);
       if (hubPref === "1") setTablesHubOpen(false);
       else if (hubPref === "0") setTablesHubOpen(true);
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  const setReportTab = useCallback((next: ReportMainTab) => {
-    setTab(next);
-    try {
-      localStorage.setItem(REPORTS_TAB_STORAGE_KEY, next);
     } catch {
       /* ignore */
     }
@@ -236,7 +229,7 @@ export function ReportsScreen() {
     setFinCategory("");
   }, [finMainCategory]);
 
-  const setPreset = (key: "month" | "d30" | "d7") => {
+  const applyDatePreset = (key: "month" | "d30" | "d7") => {
     const today = localIsoDate();
     if (key === "month") {
       setDateFrom(startOfMonthIso());
@@ -264,7 +257,8 @@ export function ReportsScreen() {
     stockWarehouseId !== "" ||
     stockBranchId !== "" ||
     warehouseScopeFiltersActive(stockScope) ||
-    (tab === "cash" && !cashOpenSeasonOnly);
+    (tab === "cash" && (!cashOpenSeasonOnly || cashAsOfMode === "calendarYearEnd")) ||
+    ((tab === "financial" || tab === "stock") && dateRangeLock !== "manual");
 
   const branchTrendMap = useMemo(() => {
     const m = new Map<string, number>();
@@ -327,52 +321,37 @@ export function ReportsScreen() {
         }
         main={
           <>
-            <ReportsPatronHubGuide />
+            <ReportsPatronHubGuide tab={routeTab} />
 
       <div
         className="grid grid-cols-3 gap-1 rounded-xl bg-zinc-100/80 p-1"
         role="tablist"
         aria-label={t("reports.reportTypePickerAria")}
       >
-        <button
-          type="button"
+        <Link
+          href={REPORTS_HUB_PATH.financial}
           role="tab"
           aria-selected={tab === "financial"}
-          onClick={() => setReportTab("financial")}
-          className={`min-h-12 touch-manipulation rounded-lg px-1.5 py-2.5 text-xs font-semibold transition sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm ${
-            tab === "financial"
-              ? "bg-white text-zinc-900 shadow-sm"
-              : "text-zinc-600 active:bg-zinc-200/80 sm:hover:text-zinc-900"
-          }`}
+          className={`flex items-center justify-center text-center ${hubTabBtn(tab === "financial")}`}
         >
           {t("reports.tabFinancial")}
-        </button>
-        <button
-          type="button"
+        </Link>
+        <Link
+          href={REPORTS_HUB_PATH.cash}
           role="tab"
           aria-selected={tab === "cash"}
-          onClick={() => setReportTab("cash")}
-          className={`min-h-12 touch-manipulation rounded-lg px-1.5 py-2.5 text-xs font-semibold transition sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm ${
-            tab === "cash"
-              ? "bg-white text-zinc-900 shadow-sm"
-              : "text-zinc-600 active:bg-zinc-200/80 sm:hover:text-zinc-900"
-          }`}
+          className={`flex items-center justify-center text-center ${hubTabBtn(tab === "cash")}`}
         >
           {t("reports.tabCashPosition")}
-        </button>
-        <button
-          type="button"
+        </Link>
+        <Link
+          href={REPORTS_HUB_PATH.stock}
           role="tab"
           aria-selected={tab === "stock"}
-          onClick={() => setReportTab("stock")}
-          className={`min-h-12 touch-manipulation rounded-lg px-1.5 py-2.5 text-xs font-semibold transition sm:min-h-0 sm:px-3 sm:py-2 sm:text-sm ${
-            tab === "stock"
-              ? "bg-white text-zinc-900 shadow-sm"
-              : "text-zinc-600 active:bg-zinc-200/80 sm:hover:text-zinc-900"
-          }`}
+          className={`flex items-center justify-center text-center ${hubTabBtn(tab === "stock")}`}
         >
           {t("reports.tabStock")}
-        </button>
+        </Link>
       </div>
       <p className="text-sm leading-snug text-zinc-600">{tabOneLiner}</p>
       <ReportsPatronTabStory tab={tab} />
@@ -387,101 +366,66 @@ export function ReportsScreen() {
       >
         <div className="flex flex-col gap-4">
           {tab === "cash" ? (
-            <div className="grid grid-cols-1 gap-3 sm:max-w-md">
-              <ReportCashSeasonYearEndSelect
-                asOfDate={cashAsOfDate}
-                extraHint={t("reports.cashAsOfSeasonYearCrossTabHint")}
-                onApplyAsOf={(iso) => {
-                  setCashAsOfDate(iso);
-                  const y = inferYearFromDec31AsOf(iso);
-                  if (y != null) {
-                    const { dateFrom: f, dateTo: d } = calendarYearRangeIso(y);
-                    setDateFrom(f);
-                    setDateTo(d);
-                  }
-                }}
-              />
-              <DateField
-                label={t("reports.cashAsOfDate")}
-                value={cashAsOfDate}
-                onChange={(e) => setCashAsOfDate(e.target.value)}
-              />
-              <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-800 touch-manipulation sm:min-h-10">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 shrink-0 rounded border-zinc-300"
-                  checked={cashOpenSeasonOnly}
-                  onChange={(e) => setCashOpenSeasonOnly(e.target.checked)}
-                />
-                <span>{t("reports.cashOpenSeasonOnly")}</span>
-              </label>
-            </div>
+            <ReportCashAsOfFilterBlock
+              t={t}
+              asOfDate={cashAsOfDate}
+              onAsOfChange={setCashAsOfDate}
+              openSeasonOnly={cashOpenSeasonOnly}
+              onOpenSeasonOnlyChange={setCashOpenSeasonOnly}
+              mode={cashAsOfMode}
+              onModeChange={setCashAsOfMode}
+              cashYearSelectExtraHint={t("reports.cashAsOfSeasonYearCrossTabHint")}
+              onSyncHubCalendarYear={(y) => {
+                const { dateFrom: f, dateTo: d } = calendarYearRangeIso(y);
+                setDateFrom(f);
+                setDateTo(d);
+                setDateRangeLock("calendarYear");
+              }}
+            />
           ) : (
             <>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="min-h-11 touch-manipulation text-xs sm:min-h-10"
-                  onClick={() => setPreset("month")}
-                >
-                  {t("reports.presetThisMonth")}
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="min-h-11 touch-manipulation text-xs sm:min-h-10"
-                  onClick={() => setPreset("d30")}
-                >
-                  {t("reports.presetLast30")}
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="min-h-11 touch-manipulation text-xs sm:min-h-10"
-                  onClick={() => setPreset("d7")}
-                >
-                  {t("reports.presetLast7")}
-                </Button>
-              </div>
-              <ReportSeasonYearQuickSelect
+              <ReportHubDateRangeControls
+                t={t}
                 dateFrom={dateFrom}
                 dateTo={dateTo}
-                onApplyRange={(f, d) => {
+                rangeLock={dateRangeLock}
+                onUnlockCalendarYear={() => setDateRangeLock("manual")}
+                onPreset={(key) => {
+                  setDateRangeLock("preset");
+                  applyDatePreset(key);
+                }}
+                onCalendarYearRange={(f, d) => {
+                  setDateRangeLock("calendarYear");
                   setDateFrom(f);
                   setDateTo(d);
                   const y = inferCalendarSeasonYearFromRange(f, d);
                   if (y != null) {
                     setCashAsOfDate(`${y}-12-31`);
+                    setCashAsOfMode("calendarYearEnd");
                   }
                 }}
-                className="max-w-full sm:max-w-sm"
+                onDateFromChange={(v) => {
+                  setDateRangeLock("manual");
+                  setDateFrom(v);
+                }}
+                onDateToChange={(v) => {
+                  setDateRangeLock("manual");
+                  setDateTo(v);
+                }}
               />
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <DateField
-                  label={t("reports.dateFrom")}
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                />
-                <DateField
-                  label={t("reports.dateTo")}
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                />
-                {tab === "financial" ? (
-                  <div className="min-w-0 sm:col-span-2">
-                    <Select
-                      name="finBranchFilter"
-                      label={t("reports.colBranch")}
-                      options={finBranchOptions}
-                      value={finBranchId}
-                      onChange={(e) => setFinBranchId(e.target.value)}
-                      onBlur={() => {}}
-                      className="min-h-11 sm:min-h-10 sm:text-sm"
-                    />
-                  </div>
-                ) : null}
-              </div>
+              {tab === "financial" ? (
+                <div className="min-w-0 sm:max-w-md">
+                  <Select
+                    name="finBranchFilter"
+                    label={t("reports.colBranch")}
+                    options={finBranchOptions}
+                    value={finBranchId}
+                    onChange={(e) => setFinBranchId(e.target.value)}
+                    onBlur={() => {}}
+                    className="min-h-11 sm:min-h-10 sm:text-sm"
+                  />
+                </div>
+              ) : null}
               {tab === "financial" ? (
                 <FinancialReportAdvancedFilters
                   dateFrom={dateFrom}
@@ -673,28 +617,34 @@ export function ReportsScreen() {
 
       {tab === "cash" && cash.data ? (
         <div className="flex flex-col gap-3 sm:gap-4">
-          <p className="text-sm leading-relaxed text-zinc-600">
-            <span className="font-medium text-zinc-800">
-              {t("reports.cashPositionSectionTitle")}
-            </span>
-            {" · "}
-            <span className="text-zinc-700">
-              {cash.data.asOfDate}
-              {cash.data.openSeasonOnly ? ` · ${t("reports.cashOpenSeasonOnlyShort")}` : ` · ${t("reports.cashAllBranchesShort")}`}
-            </span>
-          </p>
           {cash.data.branches.length > 0 ? (
             <ReportCashPatronHighlights
               branches={cash.data.branches}
               totals={cash.data.totals}
               t={t}
               locale={locale}
+              asOfLabel={`${cash.data.asOfDate}${
+                cash.data.openSeasonOnly
+                  ? ` · ${t("reports.cashOpenSeasonOnlyShort")}`
+                  : ` · ${t("reports.cashAllBranchesShort")}`
+              }`}
             />
           ) : null}
           {cash.data.branches.length === 0 ? (
-            <p className="rounded-xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
-              {t("reports.cashPositionEmpty")}
-            </p>
+            <>
+              <p className="text-sm leading-relaxed text-zinc-600">
+                {t("reports.cashPositionLead")}{" "}
+                <span className="font-medium text-zinc-800">
+                  {cash.data.asOfDate}
+                  {cash.data.openSeasonOnly
+                    ? ` · ${t("reports.cashOpenSeasonOnlyShort")}`
+                    : ` · ${t("reports.cashAllBranchesShort")}`}
+                </span>
+              </p>
+              <p className="rounded-xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
+                {t("reports.cashPositionEmpty")}
+              </p>
+            </>
           ) : (
             <Table>
               <TableHead>

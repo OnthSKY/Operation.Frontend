@@ -22,7 +22,7 @@ export function ReportTablesPageShell({
   return (
     <div className="mx-auto flex w-full min-w-0 flex-col gap-6 app-page-max pb-6 pt-2 sm:pb-8 sm:pt-4 md:pt-0">
       <Link
-        href="/reports"
+        href="/reports/financial"
         className="w-fit text-sm font-semibold text-violet-700 hover:underline touch-manipulation"
       >
         ← {t("reports.navBackToReportsHub")}

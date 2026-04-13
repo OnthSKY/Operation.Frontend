@@ -12,6 +12,7 @@ import { useMemo } from "react";
 type Props = {
   asOfDate: string;
   onApplyAsOf: (isoYmd: string) => void;
+  disabled?: boolean;
   className?: string;
   /** Shown under the default hint (e.g. cross-tab sync on the main reports hub). */
   extraHint?: string;
@@ -24,6 +25,7 @@ type Props = {
 export function ReportCashSeasonYearEndSelect({
   asOfDate,
   onApplyAsOf,
+  disabled = false,
   className,
   extraHint,
   label,
@@ -58,6 +60,7 @@ export function ReportCashSeasonYearEndSelect({
         label={label ?? t("reports.cashAsOfSeasonYearQuickPick")}
         options={options}
         value={value}
+        disabled={disabled}
         onChange={(e) => {
           const v = e.target.value.trim();
           if (!v || v === REPORT_YEAR_QUICK_PLACEHOLDER) return;

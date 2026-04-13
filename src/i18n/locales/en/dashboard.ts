@@ -3,14 +3,22 @@ export const dashboard = {
   subtitle: "Register day, cumulative net, and live inventory in one place",
   storyFlowTitle: "Today’s flow — where to look",
   storyFlowHint:
-    "On Summary or Register, the top filter only changes branch register totals: one calendar day, one tourism season’s period total, or a sum across several season years. People, warehouses, stock, and advances are separate.",
+    "On Summary or Register, the top filter changes branch register totals: one day, one season, or multiple seasons. Cumulative net and inventory summaries on Summary appear only when you pick All data; that mode has no register-day selection. People, warehouses, stock, and advances are separate.",
   scopeFilterBarTitle: "Branch register — how to aggregate",
   scopeFilterBarHint:
-    "Day: one calendar date. Season: each branch’s tourism-period total. Multiple seasons: those totals summed across the years you pick.",
+    "Day: one calendar date. Season: each branch’s tourism-period total. Multiple seasons: those totals summed across the years you pick. All data: cumulative net and live-record summaries; branch register rollups are not shown in this mode.",
   cashFilterModeAria: "Register summary aggregation mode",
   cashFilterModeDay: "One day",
   cashFilterModeSeasonSingle: "One season",
   cashFilterModeSeasonRange: "Multiple seasons",
+  cashFilterModeAllData: "All data",
+  cashFilterModeAllDataHint:
+    "Cumulative economic net, active record counts, and warehouse stock summary. Branch register day/season totals are not in this view—use Summary or Register with a day or season.",
+  cashScopeAllDataShort: "All data",
+  sumAllBranchesAllData:
+    "Branch register totals are not shown in this mode—open Summary or Register and pick a day or season.",
+  branchTodayDescAllData:
+    "The by-branch register table is not used in this mode—open Summary or Register and pick a day or season.",
   seasonYearPlaceholder: "— year —",
   seasonYearFieldLabel: "Season year",
   seasonYearFromFieldLabel: "From season year",
@@ -29,7 +37,7 @@ export const dashboard = {
     "Net, gross intake, and how many branches are in the total — all match the date above.",
   scopeSectionCumulativeTitle: "Cumulative net and live records",
   scopeSectionCumulativeHint:
-    "Nothing in this section changes when you pick a different register day.",
+    "Independent of the register date filter above. The main box is lifetime economic net across all active branches (one figure, explained below).",
   financeScopeRegisterDayTitle: "By selected day — branch registers",
   financeScopeRegisterDayHint:
     "The three KPI cards and the branch table follow the filter above (one day or season modes).",
@@ -43,6 +51,7 @@ export const dashboard = {
   storyFlowNavBranches: "By branch",
   storyFlowNavPersonnel: "People",
   storyFlowNavOps: "Warehouses",
+  storyFlowNavRegistry: "Registry",
   storyFlowNavReports: "Reports",
   branchTodayTitle: "Today by branch (register)",
   branchTodayDesc:
@@ -74,14 +83,41 @@ export const dashboard = {
     "First the register filter above (one day or season), then cumulative economic net and inventory. Each answers a different question.",
   summaryPanelTitle: "Register snapshot",
   summaryPanelHint:
-    "Net, gross intake, and branch count for the filter you set above (all branches).",
+    "For the day or seasons in the filter: intake (in), paid from register (out), net, and branches included—left to right in story order.",
+  summaryStoryBadgeIn: "1 · In",
+  summaryStoryBadgeOut: "2 · Out",
+  summaryStoryBadgeNet: "3 · Net",
+  summaryStoryBadgeScope: "4 · Scope",
+  summaryStoryInTitle: "Intake (in)",
+  summaryStoryInDescToday:
+    "Total into the register across branches for today’s register day (cash + card/POS).",
+  summaryStoryInDescScoped:
+    "Total into the register across branches for {{scope}} (cash + card/POS).",
+  summaryStoryOutFootnote:
+    "Owner and pocket outflows are excluded—same rule as the Finance tab register KPIs.",
+  summaryExcludedOutflowsCaption: "Outflows not from the register",
+  summaryExcludedPatronPaidLabel: "Paid by owner",
+  summaryExcludedPatronPaidHint:
+    "Expense covered from the owner’s pocket; the register owes the owner this amount (not taken from the drawer).",
+  summaryExcludedPocketByPatronLabel: "Personnel pocket — repaid by owner",
+  summaryExcludedPocketByPatronHint:
+    "Amount the owner paid to settle personnel-pocket spending.",
+  summaryExcludedPersonnelPocketLabel: "Paid from personnel pocket",
+  summaryExcludedPersonnelPocketHint:
+    "Paid directly from the employee’s pocket; not deducted from the register.",
+  summaryExcludedOutflowsTotalLabel: "Subtotal (lines above)",
+  summaryStoryFinanceTabHint:
+    "Open the Finance tab for branch rows, advances, and register-held cash.",
+  summaryStoryMoreIdeasHint:
+    "Ideas to add later: period trends, branch ranking, cash vs card ratio; use Reports and Branches for line-level movements.",
   storyMobileSwipeHint: "On small screens, swipe the card row sideways.",
   storyStep1Badge: "Today · register",
   storyStep1Title: "Selected day, all branches — register net",
   storyStep1Formula: "Intake (cash + card/POS) − paid from the register",
-  storyStep2Badge: "Cumulative · economic",
+  storyStep2Badge: "Cumulative net",
   storyStep2Title: "All active branches — economic net to date",
-  storyStep2Formula: "Sum of income lines − economic expense lines (same OUT filter as daily summaries)",
+  storyStep2Formula:
+    "Recorded income minus recorded expenses. Whether payment left the drawer or the owner’s pocket does not change this net: if an expense line exists on the branch, it counts here. The register summary above only sums paid-from-register flows, so the two numbers answer different questions.",
   storyDetailSectionTitle: "Same day, more detail",
   storyDetailSectionDesc:
     "Net and branch count match the selected register day (same logic as the large summary above).",
@@ -127,12 +163,12 @@ export const dashboard = {
   storyDayAhead: "Ahead after register outflows",
   storyDayShort: "Short after register outflows",
   storyDayEven: "Break-even after register outflows",
-  storyLifetimeNetLabel: "All branches — cumulative",
-  storyLifetimeAhead: "Ahead (total IN − economic OUT)",
-  storyLifetimeShort: "Behind (total IN − economic OUT)",
-  storyLifetimeEven: "Break-even (total IN − economic OUT)",
+  storyLifetimeNetLabel: "Lifetime economic net",
+  storyLifetimeAhead: "Positive net",
+  storyLifetimeShort: "Negative net",
+  storyLifetimeEven: "Near break-even",
   storyLifetimeNetHint:
-    "Lifetime figure sums every active branch: all income lines minus economic expenses (same OUT filter as daily summaries). Mixed currencies are added as-is.",
+    "If you use multiple currencies, amounts are combined the same way; use reports and branch movements for currency detail.",
   financeKpiNoteTitle: "How to read this",
   financeKpiFootnote:
     "These three cards match branch register cash. Expenses paid by the owner or from a staff pocket are not counted as “out from register”; open a branch for owner and pocket nets.",
@@ -162,8 +198,11 @@ export const dashboard = {
     "Branch register by the day you pick above; advances and register-held cash below are not date-scoped.",
   storyPersonnel: "People",
   storyPersonnelDesc: "Headcount and standout records.",
-  storyOperations: "Branches & operations",
-  storyOperationsDesc: "Active branches and warehouses.",
+  storyOperations: "Warehouses & stock",
+  storyOperationsDesc: "Warehouse sites and combined stock across all depots.",
+  storyRegistryTitle: "Branches, suppliers, vehicles & products",
+  storyRegistryDesc: "Operational master data counts with links to each list.",
+  operationsOpenList: "Open list →",
   statActivePersonnel: "Active personnel",
   statActivePersonnelDesc: "Non-deleted people in the system",
   statBranches: "Active branches",

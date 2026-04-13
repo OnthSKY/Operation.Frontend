@@ -34,6 +34,12 @@ export type SummaryAggregateState =
       totalIncomeCard: number;
       totalExpenseFromRegister: number;
       totalExpenseAllOut: number;
+      /** OUT karşılanan: patron cebi (kasa patrona borçlanır). */
+      totalRegisterOwesPatronToday: number;
+      /** Personel cebi iadesi patron tarafından (kasadan düşmez). */
+      totalPersonnelPocketRepaidFromPatronToday: number;
+      /** OUT doğrudan personel cebinden (kasadan düşmez). */
+      totalRegisterOwesPersonnelToday: number;
       netCash: number;
       branchCount: number;
       branchTodayRows: BranchTodayRow[];
@@ -70,6 +76,9 @@ export function useTodayBranchesSummary(params: DashboardBulkCashParams) {
     queryKey: dashboardSummaryKeys.bulk(stableParams),
     queryFn: () => fetchDashboardDailySummaries(stableParams),
     enabled: bulkEnabled,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: true,
   });
 
   const state = useMemo((): SummaryAggregateState => {
@@ -90,6 +99,9 @@ export function useTodayBranchesSummary(params: DashboardBulkCashParams) {
     let totalIncomeCash = 0;
     let totalIncomeCard = 0;
     let totalExpenseAllOut = 0;
+    let totalRegisterOwesPatronToday = 0;
+    let totalPersonnelPocketRepaidFromPatronToday = 0;
+    let totalRegisterOwesPersonnelToday = 0;
     let netCashSum = 0;
     let counted = 0;
     const branchTodayRows: BranchTodayRow[] = [];
@@ -116,6 +128,11 @@ export function useTodayBranchesSummary(params: DashboardBulkCashParams) {
       totalIncomeCash += Number(d.incomeCash ?? 0);
       totalIncomeCard += Number(d.incomeCard ?? 0);
       totalExpenseAllOut += Number(d.totalExpense);
+      totalRegisterOwesPatronToday += Number(d.registerOwesPatronToday ?? 0);
+      totalPersonnelPocketRepaidFromPatronToday += Number(
+        d.personnelPocketRepaidFromPatronToday ?? 0
+      );
+      totalRegisterOwesPersonnelToday += Number(d.registerOwesPersonnelToday ?? 0);
       netCashSum += net;
       branchTodayRows.push({
         branchId: b.id,
@@ -158,6 +175,9 @@ export function useTodayBranchesSummary(params: DashboardBulkCashParams) {
       totalIncomeCard,
       totalExpenseFromRegister,
       totalExpenseAllOut,
+      totalRegisterOwesPatronToday,
+      totalPersonnelPocketRepaidFromPatronToday,
+      totalRegisterOwesPersonnelToday,
       netCash: netCashSum,
       branchCount: branches.length,
       branchTodayRows,

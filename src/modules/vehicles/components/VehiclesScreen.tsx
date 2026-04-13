@@ -219,7 +219,7 @@ export function VehiclesScreen() {
 
   const { data: personnelRows = [] } = useQuery({
     queryKey: ["vehicles", "personnel-options"],
-    queryFn: fetchPersonnelList,
+    queryFn: async () => (await fetchPersonnelList()).items,
     enabled: canEdit,
   });
   const { data: branchRows = [] } = useQuery({

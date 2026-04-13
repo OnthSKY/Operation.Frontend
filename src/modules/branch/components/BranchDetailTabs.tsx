@@ -32,6 +32,7 @@ import { AdvancePersonnelModal } from "@/modules/personnel/components/AdvancePer
 import { PersonnelAdvanceHistory } from "@/modules/personnel/components/PersonnelAdvanceHistory";
 import { fetchAdvancesByPersonnel } from "@/modules/personnel/api/advances-api";
 import {
+  defaultPersonnelListFilters,
   personnelKeys,
   usePersonnelList,
 } from "@/modules/personnel/hooks/usePersonnelQueries";
@@ -381,7 +382,11 @@ export function BranchDetailTabs({
 }: Props) {
   const { t, locale } = useI18n();
   const deleteTxMut = useDeleteBranchTransaction();
-  const { data: personnelData = [] } = usePersonnelList(!employeeSelfService);
+  const { data: personnelListResult } = usePersonnelList(
+    defaultPersonnelListFilters,
+    !employeeSelfService
+  );
+  const personnelData = personnelListResult?.items ?? [];
   const activePersonnel = useMemo(
     () => personnelData.filter((p) => !p.isDeleted),
     [personnelData]
@@ -1815,6 +1820,7 @@ export function BranchDetailTabs({
                                 branchIdFilter={branch.id}
                                 variant="inline"
                                 maxDetailRows={4}
+                                showAttributedExpenses={false}
                               />
                             </div>
                           </div>
@@ -1907,6 +1913,7 @@ export function BranchDetailTabs({
                                       branchIdFilter={branch.id}
                                       variant="inline"
                                       maxDetailRows={4}
+                                      showAttributedExpenses={false}
                                     />
                                   </div>
                                 </TableCell>

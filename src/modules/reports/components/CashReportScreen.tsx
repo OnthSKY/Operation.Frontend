@@ -2,7 +2,7 @@
 
 import { useI18n } from "@/i18n/context";
 import { ReportInteractiveRows } from "@/modules/reports/components/ReportInteractiveRows";
-import { ReportCashSeasonYearEndSelect } from "@/modules/reports/components/ReportCashSeasonYearEndSelect";
+import { ReportCashAsOfFilterBlock } from "@/modules/reports/components/ReportCashAsOfFilterBlock";
 import { ReportTablesPageShell } from "@/modules/reports/components/ReportTablesPageShell";
 import { ReportCashPatronHighlights } from "@/modules/reports/components/ReportCashPatronHighlights";
 import { ReportsPatronTabStory } from "@/modules/reports/components/ReportsPatronTabStory";
@@ -12,7 +12,6 @@ import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
-import { DateField } from "@/shared/ui/DateField";
 import {
   Table,
   TableBody,
@@ -40,6 +39,7 @@ export function CashReportScreen() {
   const { t, locale } = useI18n();
   const [cashAsOfDate, setCashAsOfDate] = useState(() => localIsoDate());
   const [cashOpenSeasonOnly, setCashOpenSeasonOnly] = useState(true);
+  const [cashAsOfMode, setCashAsOfMode] = useState<"calendarYearEnd" | "customDate">("customDate");
 
   const cashParams = useMemo(
     () => ({ asOfDate: cashAsOfDate, openSeasonOnly: cashOpenSeasonOnly }),
@@ -47,7 +47,7 @@ export function CashReportScreen() {
   );
   const cash = useCashPositionReport(cashParams, true);
 
-  const filtersActive = !cashOpenSeasonOnly;
+  const filtersActive = !cashOpenSeasonOnly || cashAsOfMode === "calendarYearEnd";
 
   const rows: CashPositionBranchRow[] = cash.data?.branches ?? [];
 
@@ -80,26 +80,15 @@ export function CashReportScreen() {
         expandLabel={t("common.filtersShow")}
         collapseLabel={t("common.filtersHide")}
       >
-        <div className="grid grid-cols-1 gap-3 sm:max-w-md">
-          <ReportCashSeasonYearEndSelect
-            asOfDate={cashAsOfDate}
-            onApplyAsOf={setCashAsOfDate}
-          />
-          <DateField
-            label={t("reports.cashAsOfDate")}
-            value={cashAsOfDate}
-            onChange={(e) => setCashAsOfDate(e.target.value)}
-          />
-          <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-800 touch-manipulation sm:min-h-10">
-            <input
-              type="checkbox"
-              className="h-4 w-4 shrink-0 rounded border-zinc-300"
-              checked={cashOpenSeasonOnly}
-              onChange={(e) => setCashOpenSeasonOnly(e.target.checked)}
-            />
-            <span>{t("reports.cashOpenSeasonOnly")}</span>
-          </label>
-        </div>
+        <ReportCashAsOfFilterBlock
+          t={t}
+          asOfDate={cashAsOfDate}
+          onAsOfChange={setCashAsOfDate}
+          openSeasonOnly={cashOpenSeasonOnly}
+          onOpenSeasonOnlyChange={setCashOpenSeasonOnly}
+          mode={cashAsOfMode}
+          onModeChange={setCashAsOfMode}
+        />
       </CollapsibleMobileFilters>
 
       <ReportsPatronTabStory tab="cash" />
@@ -122,27 +111,34 @@ export function CashReportScreen() {
 
       {cash.data ? (
         <div className="flex flex-col gap-3 sm:gap-4">
-          <p className="text-sm leading-relaxed text-zinc-600">
-            {t("reports.cashPositionLead")}{" "}
-            <span className="font-medium text-zinc-800">
-              {cash.data.asOfDate}
-              {cash.data.openSeasonOnly
-                ? ` · ${t("reports.cashOpenSeasonOnlyShort")}`
-                : ` · ${t("reports.cashAllBranchesShort")}`}
-            </span>
-          </p>
           {rows.length > 0 ? (
             <ReportCashPatronHighlights
               branches={rows}
               totals={cash.data.totals}
               t={t}
               locale={locale}
+              asOfLabel={`${cash.data.asOfDate}${
+                cash.data.openSeasonOnly
+                  ? ` · ${t("reports.cashOpenSeasonOnlyShort")}`
+                  : ` · ${t("reports.cashAllBranchesShort")}`
+              }`}
             />
           ) : null}
           {rows.length === 0 ? (
-            <p className="rounded-xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
-              {t("reports.cashPositionEmpty")}
-            </p>
+            <>
+              <p className="text-sm leading-relaxed text-zinc-600">
+                {t("reports.cashPositionLead")}{" "}
+                <span className="font-medium text-zinc-800">
+                  {cash.data.asOfDate}
+                  {cash.data.openSeasonOnly
+                    ? ` · ${t("reports.cashOpenSeasonOnlyShort")}`
+                    : ` · ${t("reports.cashAllBranchesShort")}`}
+                </span>
+              </p>
+              <p className="rounded-xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
+                {t("reports.cashPositionEmpty")}
+              </p>
+            </>
           ) : (
             <ReportInteractiveRows
               interactive

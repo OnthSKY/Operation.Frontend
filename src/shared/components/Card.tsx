@@ -16,7 +16,7 @@ export function Card({ children, className, title, description, headerActions }:
   return (
     <div
       className={cn(
-        "rounded-xl border border-zinc-200 bg-white p-4 shadow-sm max-sm:px-3.5 max-sm:py-3.5",
+        "rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5",
         className
       )}
     >

@@ -13,6 +13,7 @@ import {
 } from "@/modules/warehouse/lib/warehouse-scope-filters";
 import { WarehouseStockGroupHeader } from "@/modules/warehouse/components/WarehouseStockGroupHeader";
 import { WarehouseStockLine } from "@/modules/warehouse/components/WarehouseStockLine";
+import { WarehouseOverviewStorySection } from "@/modules/warehouse/components/WarehouseOverviewStorySection";
 import { WarehouseStockSectionHeader } from "@/modules/warehouse/components/WarehouseStockSectionHeader";
 import {
   buildWarehouseStockGroupedSections,
@@ -50,6 +51,7 @@ type Props = {
   active: boolean;
   onOpenAddProduct: () => void;
   onDeleted: () => void;
+  onOpenMovementsTab?: () => void;
 };
 
 export function WarehouseOperationsTab({
@@ -58,6 +60,7 @@ export function WarehouseOperationsTab({
   active,
   onOpenAddProduct,
   onDeleted,
+  onOpenMovementsTab,
 }: Props) {
   const { t } = useI18n();
   const [movementDate, setMovementDate] = useState(() => localIsoDate());
@@ -168,6 +171,16 @@ export function WarehouseOperationsTab({
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="rounded-2xl border border-zinc-200/85 bg-white p-4 shadow-sm ring-1 ring-zinc-950/[0.04] sm:p-5">
+        <WarehouseOverviewStorySection
+          warehouseId={warehouseId}
+          active={active}
+          productCatalog={productCatalog}
+          productCategories={productCategories}
+          onOpenMovementsTab={onOpenMovementsTab}
+        />
+      </div>
+
       <p className="text-sm text-zinc-500">{t("warehouse.stockHint")}</p>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

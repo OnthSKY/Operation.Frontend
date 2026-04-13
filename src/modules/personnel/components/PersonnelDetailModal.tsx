@@ -72,6 +72,7 @@ const PAGE_SIZE_OPTIONS = [10, 20, 25, 50] as const;
 
 export type PersonnelDetailTabId =
   | "profile"
+  | "insurance"
   /** Avans listesi + personele yazılmış gider satırları (tek sekme). */
   | "costs"
   /** Takvim yılı hesap kesimi (kapanış) kayıtları. */
@@ -429,7 +430,7 @@ export function PersonnelDetailModal({
   const { data: insurancePeriods = [], isPending: insurancePeriodsPending } =
     usePersonnelInsurancePeriods(
       insurancePid,
-      open && insurancePid > 0 && tab === "profile",
+      open && insurancePid > 0 && tab === "insurance",
     );
   const updateWhMut = useUpdateWarehouse();
 
@@ -909,6 +910,7 @@ export function PersonnelDetailModal({
                 className="sticky top-0 z-[1] -mx-4 mb-3 flex flex-wrap gap-1 border-b border-zinc-200 bg-white/95 px-4 py-1 backdrop-blur-sm supports-[backdrop-filter]:bg-white/80 sm:-mx-6 sm:px-6"
               >
                 {tabBtn("profile", t("personnel.detailTabProfile"))}
+                {tabBtn("insurance", t("personnel.detailTabInsurance"))}
                 {tabBtn("costs", t("personnel.detailTabCosts"))}
                 {tabBtn("yearClosures", t("personnel.detailTabYearClosures"))}
                 {tabBtn("notes", t("personnel.detailTabNotes"))}
@@ -1045,63 +1047,14 @@ export function PersonnelDetailModal({
                             {t("personnel.insuranceSectionTitle")}
                           </dt>
                           <dd className="font-medium text-zinc-900 sm:text-left">
-                            {personnel.insuranceStarted
-                              ? t("personnel.insuranceStatusStarted")
-                              : t("personnel.insuranceStatusPending")}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between gap-3 sm:block sm:space-y-1">
-                          <dt className="text-zinc-500">
-                            {t("personnel.insuranceCurrentOpenStart")}
-                          </dt>
-                          <dd className="font-medium text-zinc-900 sm:text-left">
-                            {formatOptionalIso(
-                              personnel.insuranceStartDate,
-                              dash,
-                              locale,
-                            )}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between gap-3 sm:block sm:space-y-1">
-                          <dt className="text-zinc-500">
-                            {t("personnel.insuranceCurrentOpenEnd")}
-                          </dt>
-                          <dd className="font-medium text-zinc-900 sm:text-left">
-                            {!personnel.insuranceStarted
-                              ? dash
-                              : personnel.insuranceEndDate == null ||
-                                  String(personnel.insuranceEndDate).trim() ===
-                                    ""
-                                ? t("personnel.insuranceOngoing")
-                                : formatOptionalIso(
-                                    personnel.insuranceEndDate,
-                                    dash,
-                                    locale,
-                                  )}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between gap-3 sm:block sm:space-y-1">
-                          <dt className="text-zinc-500">
-                            {t("personnel.insuranceIntakeDetailLabel")}
-                          </dt>
-                          <dd className="font-medium text-zinc-900 sm:text-left">
-                            {formatOptionalIso(
-                              personnel.insuranceIntakeStartDate,
-                              dash,
-                              locale,
-                            )}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between gap-3 sm:block sm:space-y-1">
-                          <dt className="text-zinc-500">
-                            {t(
-                              "personnel.insuranceAccountingNotifiedDetailLabel",
-                            )}
-                          </dt>
-                          <dd className="font-medium text-zinc-900 sm:text-left">
-                            {personnel.insuranceAccountingNotified
-                              ? t("personnel.insuranceAccountingNotifiedYes")
-                              : t("personnel.insuranceAccountingNotifiedNo")}
+                            <span>
+                              {personnel.insuranceStarted
+                                ? t("personnel.insuranceStatusStarted")
+                                : t("personnel.insuranceStatusPending")}
+                            </span>
+                            <span className="mt-1 block text-xs font-normal text-zinc-500">
+                              {t("personnel.detailInsuranceProfileHint")}
+                            </span>
                           </dd>
                         </div>
                         <div className="flex justify-between gap-3 sm:block sm:space-y-1">
@@ -1294,129 +1247,6 @@ export function PersonnelDetailModal({
                       </div>
                     </article>
 
-                    {personnel ? (
-                      <article
-                        className={cn(
-                          "mb-3 shrink-0 rounded-2xl border p-4 shadow-sm",
-                          personnel.isDeleted
-                            ? "border-zinc-200/90 bg-zinc-100/50"
-                            : "border-zinc-200 bg-white",
-                        )}
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <h4 className="text-sm font-semibold text-zinc-900">
-                            {t("personnel.insurancePeriodsTitle")}
-                          </h4>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className="min-h-10 shrink-0"
-                            disabled={personnel.isDeleted}
-                            onClick={() => setInsuranceAddOpen(true)}
-                          >
-                            {t("personnel.insurancePeriodsAdd")}
-                          </Button>
-                        </div>
-                        <p className="mt-1 text-xs text-zinc-500">
-                          {t("personnel.insurancePeriodsIntro")}
-                        </p>
-                        {insurancePeriodsPending ? (
-                          <p className="mt-3 text-sm text-zinc-500">
-                            {t("common.loading")}
-                          </p>
-                        ) : insurancePeriods.length === 0 ? (
-                          <p className="mt-3 text-sm text-zinc-500">
-                            {t("personnel.insurancePeriodsEmpty")}
-                          </p>
-                        ) : (
-                          <div className="mt-3 -mx-1 overflow-x-auto px-1">
-                            <Table>
-                              <TableHead>
-                                <TableRow>
-                                  <TableHeader>
-                                    {t("personnel.insurancePeriodColStart")}
-                                  </TableHeader>
-                                  <TableHeader>
-                                    {t("personnel.insurancePeriodColEnd")}
-                                  </TableHeader>
-                                  <TableHeader className="min-w-[7rem]">
-                                    {t("personnel.insurancePeriodColBranch")}
-                                  </TableHeader>
-                                  <TableHeader className="min-w-[8rem]">
-                                    {t("personnel.insurancePeriodColNotes")}
-                                  </TableHeader>
-                                  <TableHeader className="w-[1%] whitespace-nowrap text-right">
-                                    {t("personnel.insurancePeriodColActions")}
-                                  </TableHeader>
-                                </TableRow>
-                              </TableHead>
-                              <TableBody>
-                                {insurancePeriods.map((row) => (
-                                  <TableRow key={row.id}>
-                                    <TableCell
-                                      dataLabel={t("personnel.insurancePeriodColStart")}
-                                      className="whitespace-nowrap text-zinc-700"
-                                    >
-                                      {formatLocaleDate(
-                                        row.coverageStartDate,
-                                        locale,
-                                        dash,
-                                      )}
-                                    </TableCell>
-                                    <TableCell
-                                      dataLabel={t("personnel.insurancePeriodColEnd")}
-                                      className="whitespace-nowrap text-zinc-700"
-                                    >
-                                      {row.coverageEndDate == null ||
-                                      String(row.coverageEndDate).trim() === ""
-                                        ? t("personnel.insuranceOngoing")
-                                        : formatLocaleDate(
-                                            row.coverageEndDate,
-                                            locale,
-                                            dash,
-                                          )}
-                                    </TableCell>
-                                    <TableCell
-                                      dataLabel={t("personnel.insurancePeriodColBranch")}
-                                      className="max-w-[10rem] truncate text-zinc-700"
-                                      title={
-                                        row.registeredBranchName?.trim() ??
-                                        undefined
-                                      }
-                                    >
-                                      {row.registeredBranchName?.trim()
-                                        ? row.registeredBranchName.trim()
-                                        : dash}
-                                    </TableCell>
-                                    <TableCell
-                                      dataLabel={t("personnel.insurancePeriodColNotes")}
-                                      className="max-w-[14rem] truncate text-zinc-600"
-                                      title={row.notes ?? undefined}
-                                    >
-                                      {row.notes?.trim()
-                                        ? row.notes.trim()
-                                        : dash}
-                                    </TableCell>
-                                    <TableCell dataLabel={t("personnel.insurancePeriodColActions")} className="text-right">
-                                      <Button
-                                        type="button"
-                                        variant="secondary"
-                                        className="min-h-9 px-2.5 text-xs"
-                                        disabled={personnel.isDeleted}
-                                        onClick={() => setInsuranceEditPeriod(row)}
-                                      >
-                                        {t("personnel.insurancePeriodRowEdit")}
-                                      </Button>
-                                    </TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-                        )}
-                      </article>
-                    ) : null}
-
                     {showCashHandoverBanner &&
                     primaryHandoverRow &&
                     mgmtSnap &&
@@ -1479,6 +1309,210 @@ export function PersonnelDetailModal({
                       open={open}
                     />
                   </div>
+                ) : tab === "insurance" ? (
+                  <div className="space-y-3 pb-2">
+                    <article
+                      className={cn(
+                        "mb-3 shrink-0 rounded-2xl border p-4 shadow-sm",
+                        personnel.isDeleted
+                          ? "border-zinc-200/90 bg-zinc-100/50"
+                          : "border-zinc-200 bg-white",
+                      )}
+                    >
+                      <h4 className="text-sm font-semibold text-zinc-900">
+                        {t("personnel.insuranceSectionTitle")}
+                      </h4>
+                      <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
+                        <div className="flex justify-between gap-3 sm:block sm:space-y-1">
+                          <dt className="text-zinc-500">
+                            {t("personnel.insuranceStatusFieldLabel")}
+                          </dt>
+                          <dd className="font-medium text-zinc-900 sm:text-left">
+                            {personnel.insuranceStarted
+                              ? t("personnel.insuranceStatusStarted")
+                              : t("personnel.insuranceStatusPending")}
+                          </dd>
+                        </div>
+                        <div className="flex justify-between gap-3 sm:block sm:space-y-1">
+                          <dt className="text-zinc-500">
+                            {t("personnel.insuranceCurrentOpenStart")}
+                          </dt>
+                          <dd className="font-medium text-zinc-900 sm:text-left">
+                            {formatOptionalIso(
+                              personnel.insuranceStartDate,
+                              dash,
+                              locale,
+                            )}
+                          </dd>
+                        </div>
+                        <div className="flex justify-between gap-3 sm:block sm:space-y-1">
+                          <dt className="text-zinc-500">
+                            {t("personnel.insuranceCurrentOpenEnd")}
+                          </dt>
+                          <dd className="font-medium text-zinc-900 sm:text-left">
+                            {!personnel.insuranceStarted
+                              ? dash
+                              : personnel.insuranceEndDate == null ||
+                                  String(personnel.insuranceEndDate).trim() ===
+                                    ""
+                                ? t("personnel.insuranceOngoing")
+                                : formatOptionalIso(
+                                    personnel.insuranceEndDate,
+                                    dash,
+                                    locale,
+                                  )}
+                          </dd>
+                        </div>
+                        <div className="flex justify-between gap-3 sm:block sm:space-y-1">
+                          <dt className="text-zinc-500">
+                            {t("personnel.insuranceIntakeDetailLabel")}
+                          </dt>
+                          <dd className="font-medium text-zinc-900 sm:text-left">
+                            {formatOptionalIso(
+                              personnel.insuranceIntakeStartDate,
+                              dash,
+                              locale,
+                            )}
+                          </dd>
+                        </div>
+                        <div className="flex justify-between gap-3 sm:col-span-2 sm:block sm:space-y-1">
+                          <dt className="text-zinc-500">
+                            {t(
+                              "personnel.insuranceAccountingNotifiedDetailLabel",
+                            )}
+                          </dt>
+                          <dd className="font-medium text-zinc-900 sm:text-left">
+                            {personnel.insuranceAccountingNotified
+                              ? t("personnel.insuranceAccountingNotifiedYes")
+                              : t("personnel.insuranceAccountingNotifiedNo")}
+                          </dd>
+                        </div>
+                      </dl>
+                    </article>
+                    <article
+                      className={cn(
+                        "mb-3 shrink-0 rounded-2xl border p-4 shadow-sm",
+                        personnel.isDeleted
+                          ? "border-zinc-200/90 bg-zinc-100/50"
+                          : "border-zinc-200 bg-white",
+                      )}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <h4 className="text-sm font-semibold text-zinc-900">
+                          {t("personnel.insurancePeriodsTitle")}
+                        </h4>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="min-h-10 shrink-0"
+                          disabled={personnel.isDeleted}
+                          onClick={() => setInsuranceAddOpen(true)}
+                        >
+                          {t("personnel.insurancePeriodsAdd")}
+                        </Button>
+                      </div>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        {t("personnel.insurancePeriodsIntro")}
+                      </p>
+                      {insurancePeriodsPending ? (
+                        <p className="mt-3 text-sm text-zinc-500">
+                          {t("common.loading")}
+                        </p>
+                      ) : insurancePeriods.length === 0 ? (
+                        <p className="mt-3 text-sm text-zinc-500">
+                          {t("personnel.insurancePeriodsEmpty")}
+                        </p>
+                      ) : (
+                        <div className="mt-3 -mx-1 overflow-x-auto px-1">
+                          <Table>
+                            <TableHead>
+                              <TableRow>
+                                <TableHeader>
+                                  {t("personnel.insurancePeriodColStart")}
+                                </TableHeader>
+                                <TableHeader>
+                                  {t("personnel.insurancePeriodColEnd")}
+                                </TableHeader>
+                                <TableHeader className="min-w-[7rem]">
+                                  {t("personnel.insurancePeriodColBranch")}
+                                </TableHeader>
+                                <TableHeader className="min-w-[8rem]">
+                                  {t("personnel.insurancePeriodColNotes")}
+                                </TableHeader>
+                                <TableHeader className="w-[1%] whitespace-nowrap text-right">
+                                  {t("personnel.insurancePeriodColActions")}
+                                </TableHeader>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {insurancePeriods.map((row) => (
+                                <TableRow key={row.id}>
+                                  <TableCell
+                                    dataLabel={t("personnel.insurancePeriodColStart")}
+                                    className="whitespace-nowrap text-zinc-700"
+                                  >
+                                    {formatLocaleDate(
+                                      row.coverageStartDate,
+                                      locale,
+                                      dash,
+                                    )}
+                                  </TableCell>
+                                  <TableCell
+                                    dataLabel={t("personnel.insurancePeriodColEnd")}
+                                    className="whitespace-nowrap text-zinc-700"
+                                  >
+                                    {row.coverageEndDate == null ||
+                                    String(row.coverageEndDate).trim() === ""
+                                      ? t("personnel.insuranceOngoing")
+                                      : formatLocaleDate(
+                                          row.coverageEndDate,
+                                          locale,
+                                          dash,
+                                        )}
+                                  </TableCell>
+                                  <TableCell
+                                    dataLabel={t("personnel.insurancePeriodColBranch")}
+                                    className="max-w-[10rem] truncate text-zinc-700"
+                                    title={
+                                      row.registeredBranchName?.trim() ??
+                                      undefined
+                                    }
+                                  >
+                                    {row.registeredBranchName?.trim()
+                                      ? row.registeredBranchName.trim()
+                                      : dash}
+                                  </TableCell>
+                                  <TableCell
+                                    dataLabel={t("personnel.insurancePeriodColNotes")}
+                                    className="max-w-[14rem] truncate text-zinc-600"
+                                    title={row.notes ?? undefined}
+                                  >
+                                    {row.notes?.trim()
+                                      ? row.notes.trim()
+                                      : dash}
+                                  </TableCell>
+                                  <TableCell
+                                    dataLabel={t("personnel.insurancePeriodColActions")}
+                                    className="text-right"
+                                  >
+                                    <Button
+                                      type="button"
+                                      variant="secondary"
+                                      className="min-h-9 px-2.5 text-xs"
+                                      disabled={personnel.isDeleted}
+                                      onClick={() => setInsuranceEditPeriod(row)}
+                                    >
+                                      {t("personnel.insurancePeriodRowEdit")}
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </article>
+                  </div>
                 ) : tab === "costs" ? (
                   <div className="space-y-8 pb-2">
                     <div className="flex flex-col gap-3">
@@ -1534,372 +1568,440 @@ export function PersonnelDetailModal({
                     </div>
 
                     <section className="space-y-4">
-                      <h3 className="text-sm font-semibold text-zinc-900">
-                        {t("personnel.detailTabAdvances")}
-                      </h3>
-                    <CollapsibleMobileFilters
-                      title={t("personnel.detailAdvancesFilters")}
-                      toggleAriaLabel={t("common.filters")}
-                      active={advFiltersActive}
-                      resetKey={personnel.id}
-                      expandLabel={t("common.filtersShow")}
-                      collapseLabel={t("common.filtersHide")}
-                    >
-                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        <Select
-                          name="advBranch"
-                          label={t("personnel.tableBranch")}
-                          options={branchOptions}
-                          value={branchFilter}
-                          onChange={(e) => setBranchFilter(e.target.value)}
-                          onBlur={() => {}}
-                        />
-                        <Select
-                          name="advSource"
-                          label={t("personnel.sourceType")}
-                          options={sourceOptions}
-                          value={sourceFilter}
-                          onChange={(e) => setSourceFilter(e.target.value)}
-                          onBlur={() => {}}
-                        />
-                        <Select
-                          name="advPageSize"
-                          label={t("personnel.detailPageSize")}
-                          options={pageSizeSelectOptions}
-                          value={advPageSizeVal}
-                          onChange={(e) => setAdvPageSize(e.target.value)}
-                          onBlur={() => {}}
-                        />
-                      </div>
-                    </CollapsibleMobileFilters>
-
-                    {advLoading ? (
-                      <p className="text-sm text-zinc-500">
-                        {t("common.loading")}
-                      </p>
-                    ) : advError ? (
-                      <p className="text-sm text-red-600">
-                        {toErrorMessage(advErr)}
-                      </p>
-                    ) : filteredAdvances.length === 0 ? (
-                      <p className="text-sm text-zinc-500">
-                        {t("personnel.advanceHistoryEmpty")}
-                      </p>
-                    ) : (
-                      <>
-                        <div className="md:hidden space-y-3">
-                          {advSlice.map((a) => (
-                            <article
-                              key={a.id}
-                              className="rounded-xl border border-zinc-200 bg-white p-3 text-sm shadow-sm"
+                      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+                        <h3 className="text-sm font-semibold text-zinc-900">
+                          {t("personnel.detailTabCosts")}
+                        </h3>
+                        {!personnel.isDeleted ? (
+                          <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="min-h-10 shrink-0"
+                              onClick={() => setDetailAdvanceOpen(true)}
                             >
-                              <div className="flex justify-between gap-2">
-                                <span className="tabular-nums text-zinc-800">
-                                  {formatAdvanceDay(
-                                    a.advanceDate,
-                                    locale,
-                                    dash,
-                                  )}
-                                </span>
-                                <span className="font-mono font-medium text-zinc-900">
-                                  {formatMoneyDash(
-                                    a.amount,
-                                    dash,
-                                    locale,
-                                    a.currencyCode,
-                                  )}
-                                </span>
-                              </div>
-                              <p className="mt-1 text-xs text-zinc-500">
-                                {a.branchId != null && a.branchId > 0
-                                  ? (branchNameById.get(a.branchId) ??
-                                    `#${a.branchId}`)
-                                  : dash}{" "}
-                                · {sourceAbbrev(t, a.sourceType)} ·{" "}
-                                {a.effectiveYear}
-                              </p>
-                              {a.description?.trim() ? (
-                                <p className="mt-1 text-xs text-zinc-600">
-                                  {a.description.trim()}
-                                </p>
-                              ) : null}
-                              {!personnel.isDeleted ? (
-                                <div className="mt-2 flex justify-end border-t border-zinc-100 pt-2">
-                                  <button
-                                    type="button"
-                                    className={trashIconActionButtonClass}
-                                    aria-label={t("branch.txDeleteAria")}
-                                    disabled={deleteAdvanceMut.isPending}
-                                    onClick={() =>
-                                      confirmDeletePersonnelAdvance(a.id)
-                                    }
-                                  >
-                                    <TrashIcon className="h-5 w-5" />
-                                  </button>
-                                </div>
-                              ) : null}
-                            </article>
-                          ))}
+                              {t("personnel.detailCostsGiveAdvance")}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="min-h-10 shrink-0"
+                              onClick={() => setOrgTxOpen(true)}
+                            >
+                              {t("personnel.detailCostsAddExpense")}
+                            </Button>
+                          </div>
+                        ) : null}
+                      </div>
+                      <CollapsibleMobileFilters
+                        title={t("personnel.detailAdvancesFilters")}
+                        toggleAriaLabel={t("common.filters")}
+                        active={advFiltersActive}
+                        resetKey={personnel.id}
+                        expandLabel={t("common.filtersShow")}
+                        collapseLabel={t("common.filtersHide")}
+                      >
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          <Select
+                            name="advBranch"
+                            label={t("personnel.tableBranch")}
+                            options={branchOptions}
+                            value={branchFilter}
+                            onChange={(e) => setBranchFilter(e.target.value)}
+                            onBlur={() => {}}
+                          />
+                          <Select
+                            name="advSource"
+                            label={t("personnel.sourceType")}
+                            options={sourceOptions}
+                            value={sourceFilter}
+                            onChange={(e) => setSourceFilter(e.target.value)}
+                            onBlur={() => {}}
+                          />
+                          <Select
+                            name="advPageSize"
+                            label={t("personnel.detailPageSize")}
+                            options={pageSizeSelectOptions}
+                            value={advPageSizeVal}
+                            onChange={(e) => setAdvPageSize(e.target.value)}
+                            onBlur={() => {}}
+                          />
                         </div>
-                        <div className="hidden md:block overflow-x-auto">
-                          <Table className="min-w-[42rem]">
-                            <TableHead>
-                              <TableRow>
-                                <TableHeader>
-                                  {t("personnel.advanceDate")}
-                                </TableHeader>
-                                <TableHeader>
-                                  {t("personnel.tableBranch")}
-                                </TableHeader>
-                                <TableHeader className="text-right">
-                                  {t("personnel.amount")}
-                                </TableHeader>
-                                <TableHeader>
-                                  {t("personnel.advanceCurrency")}
-                                </TableHeader>
-                                <TableHeader>
-                                  {t("personnel.sourceType")}
-                                </TableHeader>
-                                <TableHeader>
-                                  {t("personnel.effectiveYear")}
-                                </TableHeader>
-                                <TableHeader>{t("personnel.note")}</TableHeader>
-                                {!personnel.isDeleted ? (
-                                  <TableHeader className="w-[1%] text-center text-xs font-medium text-zinc-500">
-                                    {t("branch.txColActions")}
-                                  </TableHeader>
-                                ) : null}
-                              </TableRow>
-                            </TableHead>
-                            <TableBody>
-                              {advSlice.map((a) => (
-                                <TableRow key={a.id}>
-                                  <TableCell className="whitespace-nowrap">
-                                    {formatAdvanceDay(
-                                      a.advanceDate,
-                                      locale,
-                                      dash,
-                                    )}
-                                  </TableCell>
-                                  <TableCell>
-                                    {a.branchId != null && a.branchId > 0
-                                      ? (branchNameById.get(a.branchId) ??
-                                        `#${a.branchId}`)
-                                      : dash}
-                                  </TableCell>
-                                  <TableCell className="text-right tabular-nums">
+                      </CollapsibleMobileFilters>
+
+                      {advLoading || attrExpLoading ? (
+                        <p className="text-sm text-zinc-500">
+                          {t("common.loading")}
+                        </p>
+                      ) : advError || attrExpError ? (
+                        <div className="space-y-1 text-sm text-red-600">
+                          {advError ? (
+                            <p>{toErrorMessage(advErr)}</p>
+                          ) : null}
+                          {attrExpError ? (
+                            <p>{toErrorMessage(attrExpErr)}</p>
+                          ) : null}
+                        </div>
+                      ) : combinedCostsRows.length === 0 ? (
+                        <p className="text-sm text-zinc-600">
+                          {t("personnel.detailCostsCombinedEmpty")}
+                        </p>
+                      ) : (
+                        <>
+                          <div className="space-y-3 md:hidden">
+                            {costsSlice.map((row) =>
+                              row.kind === "advance" ? (
+                                <article
+                                  key={`a-${row.advance.id}`}
+                                  className="rounded-xl border border-zinc-200 bg-white p-3 text-sm shadow-sm"
+                                >
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <span
+                                      className={cn(
+                                        "inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold leading-tight",
+                                        "border-amber-200 bg-amber-50 text-amber-900",
+                                      )}
+                                    >
+                                      {t("personnel.detailExpenseBadgeAdvance")}
+                                    </span>
+                                    <span className="tabular-nums text-zinc-800">
+                                      {formatAdvanceDay(
+                                        row.advance.advanceDate,
+                                        locale,
+                                        dash,
+                                      )}
+                                    </span>
+                                  </div>
+                                  <p className="mt-2 font-mono font-medium text-zinc-900">
                                     {formatMoneyDash(
-                                      a.amount,
+                                      row.advance.amount,
                                       dash,
                                       locale,
-                                      a.currencyCode,
-                                    )}
-                                  </TableCell>
-                                  <TableCell>{a.currencyCode}</TableCell>
-                                  <TableCell>
-                                    {sourceAbbrev(t, a.sourceType)}
-                                  </TableCell>
-                                  <TableCell className="tabular-nums">
-                                    {a.effectiveYear}
-                                  </TableCell>
-                                  <TableCell className="max-w-[14rem] text-zinc-600">
-                                    {a.description?.trim() || dash}
-                                  </TableCell>
+                                      row.advance.currencyCode,
+                                    )}{" "}
+                                    <span className="text-xs font-normal text-zinc-500">
+                                      {row.advance.currencyCode}
+                                    </span>
+                                  </p>
+                                  <p className="mt-1 text-xs text-zinc-600">
+                                    {sourceAbbrev(t, row.advance.sourceType)} ·{" "}
+                                    {row.advance.effectiveYear}
+                                    {row.advance.description?.trim()
+                                      ? ` · ${row.advance.description.trim()}`
+                                      : ""}
+                                  </p>
+                                  <p className="mt-1 text-xs text-zinc-500">
+                                    {row.advance.branchId != null &&
+                                    row.advance.branchId > 0
+                                      ? (branchNameById.get(row.advance.branchId) ??
+                                        `#${row.advance.branchId}`)
+                                      : dash}
+                                  </p>
                                   {!personnel.isDeleted ? (
-                                    <TableCell className="p-2 text-center align-middle">
+                                    <div className="mt-2 flex justify-end border-t border-zinc-100 pt-2">
                                       <button
                                         type="button"
                                         className={trashIconActionButtonClass}
                                         aria-label={t("branch.txDeleteAria")}
                                         disabled={deleteAdvanceMut.isPending}
                                         onClick={() =>
-                                          confirmDeletePersonnelAdvance(a.id)
+                                          confirmDeletePersonnelAdvance(
+                                            row.advance.id,
+                                          )
                                         }
                                       >
                                         <TrashIcon className="h-5 w-5" />
                                       </button>
-                                    </TableCell>
+                                    </div>
+                                  ) : null}
+                                </article>
+                              ) : (
+                                <article
+                                  key={`e-${row.tx.id}`}
+                                  className="rounded-xl border border-zinc-200 bg-white p-3 text-sm shadow-sm"
+                                >
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <span
+                                      className={cn(
+                                        "inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold leading-tight",
+                                        "border-violet-200 bg-violet-50 text-violet-900",
+                                      )}
+                                    >
+                                      {t("personnel.detailExpenseBadgeExpense")}
+                                    </span>
+                                    <span className="tabular-nums text-zinc-800">
+                                      {formatLocaleDate(
+                                        row.tx.transactionDate,
+                                        locale,
+                                      )}
+                                    </span>
+                                  </div>
+                                  <p className="mt-2 font-mono font-medium text-zinc-900">
+                                    {formatMoneyDash(
+                                      row.tx.amount,
+                                      dash,
+                                      locale,
+                                      row.tx.currencyCode,
+                                    )}{" "}
+                                    <span className="text-xs font-normal text-zinc-500">
+                                      {row.tx.currencyCode}
+                                    </span>
+                                  </p>
+                                  <p className="mt-1 text-sm text-zinc-800">
+                                    {txCategoryLine(
+                                      row.tx.mainCategory,
+                                      row.tx.category,
+                                      t,
+                                    )}
+                                  </p>
+                                  <p className="mt-1 text-xs text-zinc-500">
+                                    {row.tx.branchId != null && row.tx.branchId > 0
+                                      ? (branchNameById.get(row.tx.branchId) ??
+                                        `#${row.tx.branchId}`)
+                                      : t("personnel.detailExpenseBranchNone")}
+                                  </p>
+                                  {!personnel.isDeleted ? (
+                                    <div className="mt-2 flex justify-end border-t border-zinc-100 pt-2">
+                                      <button
+                                        type="button"
+                                        className={trashIconActionButtonClass}
+                                        aria-label={t("branch.txDeleteAria")}
+                                        disabled={deleteTxMut.isPending}
+                                        onClick={() =>
+                                          confirmDeletePersonnelExpenseTx(
+                                            row.tx.id,
+                                          )
+                                        }
+                                      >
+                                        <TrashIcon className="h-5 w-5" />
+                                      </button>
+                                    </div>
+                                  ) : null}
+                                </article>
+                              ),
+                            )}
+                          </div>
+                          <div className="hidden overflow-x-auto rounded-xl border border-zinc-200/90 md:block">
+                            <Table className="min-w-[48rem] border-0">
+                              <TableHead>
+                                <TableRow>
+                                  <TableHeader className="w-[1%] whitespace-nowrap">
+                                    {t("personnel.detailExpenseColKind")}
+                                  </TableHeader>
+                                  <TableHeader>
+                                    {t("personnel.advanceDate")}
+                                  </TableHeader>
+                                  <TableHeader>
+                                    {t("personnel.detailCostsColDetail")}
+                                  </TableHeader>
+                                  <TableHeader>
+                                    {t("personnel.tableBranch")}
+                                  </TableHeader>
+                                  <TableHeader className="text-right">
+                                    {t("personnel.amount")}
+                                  </TableHeader>
+                                  <TableHeader>
+                                    {t("personnel.advanceCurrency")}
+                                  </TableHeader>
+                                  {!personnel.isDeleted ? (
+                                    <TableHeader className="w-[1%] text-center text-xs font-medium text-zinc-500">
+                                      {t("branch.txColActions")}
+                                    </TableHeader>
                                   ) : null}
                                 </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        </div>
-                        <div className="flex flex-col gap-2 border-t border-zinc-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
-                          <p className="text-xs text-zinc-500">
-                            {t("personnel.detailShowing")
-                              .replace(
-                                "{from}",
-                                String((advSafePage - 1) * advSize + 1),
-                              )
-                              .replace(
-                                "{to}",
-                                String(
-                                  Math.min(
-                                    advSafePage * advSize,
-                                    filteredAdvances.length,
+                              </TableHead>
+                              <TableBody>
+                                {costsSlice.map((row) =>
+                                  row.kind === "advance" ? (
+                                    <TableRow key={`a-${row.advance.id}`}>
+                                      <TableCell className="align-middle">
+                                        <span
+                                          className={cn(
+                                            "inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold leading-tight",
+                                            "border-amber-200 bg-amber-50 text-amber-900",
+                                          )}
+                                        >
+                                          {t(
+                                            "personnel.detailExpenseBadgeAdvance",
+                                          )}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell className="whitespace-nowrap">
+                                        {formatAdvanceDay(
+                                          row.advance.advanceDate,
+                                          locale,
+                                          dash,
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="max-w-[18rem] text-sm text-zinc-700">
+                                        <span className="text-zinc-600">
+                                          {sourceAbbrev(
+                                            t,
+                                            row.advance.sourceType,
+                                          )}{" "}
+                                          · {row.advance.effectiveYear}
+                                        </span>
+                                        {row.advance.description?.trim() ? (
+                                          <span className="mt-0.5 block text-xs text-zinc-500">
+                                            {row.advance.description.trim()}
+                                          </span>
+                                        ) : null}
+                                      </TableCell>
+                                      <TableCell>
+                                        {row.advance.branchId != null &&
+                                        row.advance.branchId > 0
+                                          ? (branchNameById.get(
+                                              row.advance.branchId,
+                                            ) ?? `#${row.advance.branchId}`)
+                                          : dash}
+                                      </TableCell>
+                                      <TableCell className="text-right tabular-nums font-medium">
+                                        {formatMoneyDash(
+                                          row.advance.amount,
+                                          dash,
+                                          locale,
+                                          row.advance.currencyCode,
+                                        )}
+                                      </TableCell>
+                                      <TableCell>
+                                        {row.advance.currencyCode}
+                                      </TableCell>
+                                      {!personnel.isDeleted ? (
+                                        <TableCell className="p-2 text-center align-middle">
+                                          <button
+                                            type="button"
+                                            className={trashIconActionButtonClass}
+                                            aria-label={t("branch.txDeleteAria")}
+                                            disabled={deleteAdvanceMut.isPending}
+                                            onClick={() =>
+                                              confirmDeletePersonnelAdvance(
+                                                row.advance.id,
+                                              )
+                                            }
+                                          >
+                                            <TrashIcon className="h-5 w-5" />
+                                          </button>
+                                        </TableCell>
+                                      ) : null}
+                                    </TableRow>
+                                  ) : (
+                                    <TableRow key={`e-${row.tx.id}`}>
+                                      <TableCell className="align-middle">
+                                        <span
+                                          className={cn(
+                                            "inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold leading-tight",
+                                            "border-violet-200 bg-violet-50 text-violet-900",
+                                          )}
+                                        >
+                                          {t(
+                                            "personnel.detailExpenseBadgeExpense",
+                                          )}
+                                        </span>
+                                      </TableCell>
+                                      <TableCell className="whitespace-nowrap">
+                                        {formatLocaleDate(
+                                          row.tx.transactionDate,
+                                          locale,
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="max-w-[18rem] text-sm">
+                                        {txCategoryLine(
+                                          row.tx.mainCategory,
+                                          row.tx.category,
+                                          t,
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="text-zinc-600">
+                                        {row.tx.branchId != null &&
+                                        row.tx.branchId > 0
+                                          ? (branchNameById.get(row.tx.branchId) ??
+                                            `#${row.tx.branchId}`)
+                                          : t("personnel.detailExpenseBranchNone")}
+                                      </TableCell>
+                                      <TableCell className="text-right font-medium tabular-nums">
+                                        {formatMoneyDash(
+                                          row.tx.amount,
+                                          dash,
+                                          locale,
+                                          row.tx.currencyCode,
+                                        )}
+                                      </TableCell>
+                                      <TableCell>
+                                        {row.tx.currencyCode}
+                                      </TableCell>
+                                      {!personnel.isDeleted ? (
+                                        <TableCell className="p-2 text-center align-middle">
+                                          <button
+                                            type="button"
+                                            className={trashIconActionButtonClass}
+                                            aria-label={t("branch.txDeleteAria")}
+                                            disabled={deleteTxMut.isPending}
+                                            onClick={() =>
+                                              confirmDeletePersonnelExpenseTx(
+                                                row.tx.id,
+                                              )
+                                            }
+                                          >
+                                            <TrashIcon className="h-5 w-5" />
+                                          </button>
+                                        </TableCell>
+                                      ) : null}
+                                    </TableRow>
                                   ),
-                                ),
-                              )
-                              .replace(
-                                "{total}",
-                                String(filteredAdvances.length),
-                              )}
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="min-h-10"
-                              disabled={advSafePage <= 1}
-                              onClick={() =>
-                                setAdvPage((p) => Math.max(1, p - 1))
-                              }
-                            >
-                              {t("personnel.detailPrev")}
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="min-h-10"
-                              disabled={advSafePage >= advTotalPages}
-                              onClick={() =>
-                                setAdvPage((p) =>
-                                  Math.min(advTotalPages, p + 1),
-                                )
-                              }
-                            >
-                              {t("personnel.detailNext")}
-                            </Button>
+                                )}
+                              </TableBody>
+                            </Table>
                           </div>
-                        </div>
-                      </>
-                    )}
-                    </section>
-
-                    <section className="space-y-3 border-t border-zinc-200 pt-6">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <h3 className="text-sm font-semibold text-zinc-900">
-                          {t("personnel.detailTabExpenses")}
-                        </h3>
-                        {!personnel.isDeleted ? (
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className="min-h-10 shrink-0"
-                            onClick={() => setOrgTxOpen(true)}
-                          >
-                            {t("personnel.detailExpenseAddOrg")}
-                          </Button>
-                        ) : null}
-                      </div>
-                    {attrExpLoading ? (
-                      <p className="text-sm text-zinc-500">
-                        {t("common.loading")}
-                      </p>
-                    ) : attrExpError ? (
-                      <p className="text-sm text-red-600">
-                        {toErrorMessage(attrExpErr)}
-                      </p>
-                    ) : attributedExpenses.length === 0 ? (
-                      <p className="text-sm text-zinc-600">
-                        {t("personnel.detailExpensesEmpty")}
-                      </p>
-                    ) : attributedNonAdvanceExpensesBase.length === 0 ? (
-                      <p className="text-sm text-zinc-600">
-                        {t("personnel.detailNonAdvanceExpensesEmpty")}
-                      </p>
-                    ) : attributedNonAdvanceExpensesForCostsTab.length === 0 ? (
-                      <p className="text-sm text-zinc-600">
-                        {t("personnel.detailExpensesEmptySeason")}
-                      </p>
-                    ) : (
-                      <div className="overflow-x-auto rounded-xl border border-zinc-200/90">
-                        <Table className="border-0">
-                          <TableHead>
-                            <TableRow>
-                              <TableHeader>
-                                {t("personnel.detailExpenseColDate")}
-                              </TableHeader>
-                              <TableHeader>
-                                {t("personnel.detailExpenseColCategory")}
-                              </TableHeader>
-                              <TableHeader>
-                                {t("personnel.detailExpenseColBranch")}
-                              </TableHeader>
-                              <TableHeader className="text-right">
-                                {t("personnel.detailExpenseColAmount")}
-                              </TableHeader>
-                              {!personnel.isDeleted ? (
-                                <TableHeader className="w-[1%] text-center text-xs font-medium text-zinc-500">
-                                  {t("branch.txColActions")}
-                                </TableHeader>
-                              ) : null}
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {attributedNonAdvanceExpensesForCostsTab.map((row) => (
-                              <TableRow key={row.id}>
-                                <TableCell
-                                  dataLabel={t("personnel.detailExpenseColDate")}
-                                  className="whitespace-nowrap"
-                                >
-                                  {formatLocaleDate(
-                                    row.transactionDate,
-                                    locale,
-                                  )}
-                                </TableCell>
-                                <TableCell
-                                  dataLabel={t("personnel.detailExpenseColCategory")}
-                                  className="min-w-[10rem] text-sm"
-                                >
-                                  {txCategoryLine(
-                                    row.mainCategory,
-                                    row.category,
-                                    t,
-                                  )}
-                                </TableCell>
-                                <TableCell
-                                  dataLabel={t("personnel.detailExpenseColBranch")}
-                                  className="text-sm text-zinc-600"
-                                >
-                                  {row.branchId != null && row.branchId > 0
-                                    ? (branchNameById.get(row.branchId) ??
-                                      `#${row.branchId}`)
-                                    : t("personnel.detailExpenseBranchNone")}
-                                </TableCell>
-                                <TableCell
-                                  dataLabel={t("personnel.detailExpenseColAmount")}
-                                  className="text-right font-medium tabular-nums"
-                                >
-                                  {formatMoneyDash(
-                                    row.amount,
-                                    dash,
-                                    locale,
-                                    row.currencyCode,
-                                  )}
-                                </TableCell>
-                                {!personnel.isDeleted ? (
-                                  <TableCell className="align-middle p-2 text-center">
-                                    <button
-                                      type="button"
-                                      className={trashIconActionButtonClass}
-                                      aria-label={t("branch.txDeleteAria")}
-                                      disabled={deleteTxMut.isPending}
-                                      onClick={() =>
-                                        confirmDeletePersonnelExpenseTx(row.id)
-                                      }
-                                    >
-                                      <TrashIcon className="h-5 w-5" />
-                                    </button>
-                                  </TableCell>
-                                ) : null}
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
+                          <div className="flex flex-col gap-2 border-t border-zinc-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                            <p className="text-xs text-zinc-500">
+                              {t("personnel.detailShowing")
+                                .replace(
+                                  "{from}",
+                                  String((advSafePage - 1) * advSize + 1),
+                                )
+                                .replace(
+                                  "{to}",
+                                  String(
+                                    Math.min(
+                                      advSafePage * advSize,
+                                      combinedCostsRows.length,
+                                    ),
+                                  ),
+                                )
+                                .replace(
+                                  "{total}",
+                                  String(combinedCostsRows.length),
+                                )}
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                className="min-h-10"
+                                disabled={advSafePage <= 1}
+                                onClick={() =>
+                                  setAdvPage((p) => Math.max(1, p - 1))
+                                }
+                              >
+                                {t("personnel.detailPrev")}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                className="min-h-10"
+                                disabled={advSafePage >= advTotalPages}
+                                onClick={() =>
+                                  setAdvPage((p) =>
+                                    Math.min(advTotalPages, p + 1),
+                                  )
+                                }
+                              >
+                                {t("personnel.detailNext")}
+                              </Button>
+                            </div>
+                          </div>
+                        </>
+                      )}
                     </section>
                   </div>
                 ) : tab === "yearClosures" ? (
@@ -2418,6 +2520,14 @@ export function PersonnelDetailModal({
         defaultLinkedPersonnelId={personnel?.id}
         defaultType="OUT"
       />
+      {personnel != null && !personnel.isDeleted ? (
+        <AdvancePersonnelModal
+          open={detailAdvanceOpen}
+          onClose={() => setDetailAdvanceOpen(false)}
+          personnel={[personnel]}
+          initialPersonnelId={personnel.id}
+        />
+      ) : null}
       <AddPersonnelInsurancePeriodModal
         open={insuranceAddOpen && insurancePid > 0}
         onClose={() => setInsuranceAddOpen(false)}

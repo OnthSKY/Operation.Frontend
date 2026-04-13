@@ -20,15 +20,17 @@ export function DashboardPersonnelTab({
   overview: UseQueryResult<DashboardOverview>;
 }) {
   return (
-            <div role="tabpanel">
+            <div className="min-w-0" role="tabpanel">
           <StoryBlock
             title={t("dashboard.storyPersonnel")}
             description={t("dashboard.storyPersonnelDesc")}
           >
             {overview.isError ? (
-              <p className="text-sm text-red-600">{t("dashboard.overviewLoadError")}</p>
+              <div className="rounded-xl border border-red-200/70 bg-red-50/50 px-4 py-3 sm:px-5">
+                <p className="text-sm text-red-700">{t("dashboard.overviewLoadError")}</p>
+              </div>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
                 <Card
                   title={t("dashboard.statActivePersonnel")}
                   description={t("dashboard.statActivePersonnelDesc")}
@@ -48,7 +50,7 @@ export function DashboardPersonnelTab({
                   {overview.isPending ? (
                     <StatSkeleton />
                   ) : overview.data?.personnel.longestTenure ? (
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1.5">
                       <p className="text-lg font-semibold text-zinc-900">
                         {overview.data.personnel.longestTenure.fullName}
                       </p>
@@ -78,7 +80,7 @@ export function DashboardPersonnelTab({
                   {overview.isPending ? (
                     <StatSkeleton />
                   ) : overview.data?.personnel.topAdvanceRecipient ? (
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1.5">
                       <p className="text-lg font-semibold text-zinc-900">
                         {overview.data.personnel.topAdvanceRecipient.fullName}
                       </p>

@@ -160,9 +160,62 @@ function mapPersonnel(r: PersonnelApiRow): Personnel {
   };
 }
 
-export async function fetchPersonnelList(): Promise<Personnel[]> {
-  const rows = await apiRequest<PersonnelApiRow[]>("/personnel");
-  return rows.map(mapPersonnel);
+export type PersonnelListQueryParams = {
+  status?: "all" | "active" | "passive";
+  branchId?: number;
+  jobTitle?: string;
+  name?: string;
+  seasonArrivalFrom?: string;
+  seasonArrivalTo?: string;
+  hireDateFrom?: string;
+  hireDateTo?: string;
+};
+
+export type PersonnelListResult = {
+  items: Personnel[];
+  totalCount: number;
+  activeCount: number;
+  passiveCount: number;
+};
+
+type PersonnelListApiEnvelope = {
+  items: PersonnelApiRow[];
+  totalCount: number;
+  activeCount: number;
+  passiveCount: number;
+};
+
+export async function fetchPersonnelList(
+  params?: PersonnelListQueryParams
+): Promise<PersonnelListResult> {
+  const sp = new URLSearchParams();
+  if (params?.status && params.status !== "all") {
+    sp.set("status", params.status);
+  }
+  if (params?.branchId != null && params.branchId > 0) {
+    sp.set("branchId", String(params.branchId));
+  }
+  const jt = params?.jobTitle?.trim();
+  if (jt) sp.set("jobTitle", jt);
+  const nm = params?.name?.trim();
+  if (nm) sp.set("name", nm);
+  const saf = params?.seasonArrivalFrom?.trim();
+  const sat = params?.seasonArrivalTo?.trim();
+  if (saf) sp.set("seasonArrivalFrom", saf);
+  if (sat) sp.set("seasonArrivalTo", sat);
+  const hf = params?.hireDateFrom?.trim();
+  const ht = params?.hireDateTo?.trim();
+  if (hf) sp.set("hireDateFrom", hf);
+  if (ht) sp.set("hireDateTo", ht);
+  const q = sp.toString();
+  const path = q ? `/personnel?${q}` : "/personnel";
+  const row = await apiRequest<PersonnelListApiEnvelope>(path);
+  return {
+    items: row.items.map(mapPersonnel),
+    totalCount: row.totalCount,
+    activeCount: row.activeCount,
+    passiveCount: row.passiveCount,
+  };
 }
 
 export async function fetchPersonnel(id: number): Promise<Personnel> {

@@ -35,14 +35,30 @@ export const reports = {
   patronHubGuideOpenHint: "Tap to collapse.",
   patronHubGuideClosedHint:
     "Open to see where cash, owner-paid flows, warehouse, and people costs live in the app.",
-  patronHubGuideIntro:
-    "The system stores data in separate places — register movements, payroll/advances, supplier payments, warehouse moves — there is no single box with “everything”. This page gives period summaries and charts. Day-to-day register lines live under Branches; per-person payroll/advances under Personnel costs.",
+  patronHubGuideIntroFinancial:
+    "This tab summarizes income and expenses posted to branch registers for the dates you pick, with charts. Day-to-day register lines are under Branches; per-person payroll and advances under Personnel costs.",
+  patronHubGuideIntroCash:
+    "This tab shows estimated drawer cash per branch and net register debts to staff pocket / you as of one date. For period income/expense trends, use the Financial tab.",
+  patronHubGuideIntroStock:
+    "This tab summarizes warehouse in/out and quantities received at branches in the range you select. For current on-hand stock by warehouse, use Warehouses.",
   patronHubGuideFlowTitle: "Suggested order on this screen",
-  patronHubGuideFlow1: "Pick one of the three tabs (Financial / Cash position / Stock).",
-  patronHubGuideFlow2: "The purple box under the tab tells you what to read, step by step.",
-  patronHubGuideFlow3:
-    "Use “Full-page tables” at the bottom when you need many rows, search, and sort — skip if the summary is enough.",
-  patronHubGuideTabsTitle: "Which question each tab answers",
+  patronHubGuideFlow1Financial:
+    "Set the period dates and branch filter at the top; open advanced financial filters if you need them.",
+  patronHubGuideFlow2Financial:
+    "The purple box below walks you through which KPIs and charts to read first in this tab.",
+  patronHubGuideFlow3Financial:
+    "If the summary is not enough, switch to “Summary / Tables” or use the full-page links at the bottom.",
+  patronHubGuideFlow1Cash: "Set the as-of date and scope (open season only, etc.) at the top.",
+  patronHubGuideFlow2Cash:
+    "The purple box explains how to read drawer, staff-pocket, and owner lines in order.",
+  patronHubGuideFlow3Cash:
+    "Use the branch table below for rows; open the full-page cash table when you need a wider list.",
+  patronHubGuideFlow1Stock: "Set the period dates and warehouse / branch filters at the top.",
+  patronHubGuideFlow2Stock:
+    "The purple box explains how to read the short narrative and charts in order.",
+  patronHubGuideFlow3Stock:
+    "For quantity detail, use “Tables” or the full-page stock report.",
+  patronHubGuideThisTabTitle: "Which question this tab answers",
   patronHubGuideTabFinancial:
     "Totals posted to branch registers for the dates you pick, with branch and category splits. Charts may ignore extra filters (currency, etc.) — read the yellow note when it appears.",
   patronHubGuideTabCash:
@@ -64,10 +80,36 @@ export const reports = {
   patronHubGuideLinkBranchCompareLabel: "Branch comparison (full page)",
   patronHubGuideLinkBranchCompareDesc:
     "Side-by-side branches for the same period: income, expense, net.",
-  patronHubGuideFooterNote:
+  patronHubGuideLinkFinancialHubLabel: "Financial summary (hub)",
+  patronHubGuideLinkFinancialHubDesc:
+    "Income, expense, and net posted to registers for the selected period.",
+  patronHubGuideLinkCashTablesLabel: "Cash table (full page)",
+  patronHubGuideLinkCashTablesDesc:
+    "Sortable table and export using the same cash-position rules.",
+  patronHubGuideLinkBranchesStockDesc:
+    "Branch inbound is summarized here; use Branches for day-to-day register lines.",
+  patronHubGuideLinkStockTablesLabel: "Stock tables (full page)",
+  patronHubGuideLinkStockTablesDesc:
+    "Search and sort by product and warehouse when you need line-level quantities.",
+  patronHubGuideFooterFinancial:
     "Terms: “Out from register” is cash leaving the drawer. Owner-paid and staff-pocket payments are tracked separately — use payment source in reports or Patron flow to tell them apart.",
+  patronHubGuideFooterCash:
+    "Cash position is a snapshot for one date; net debts are derived from register records — not a period P&L.",
+  patronHubGuideFooterStock:
+    "Figures here are movements in the selected range; for live inventory levels, use Warehouses.",
   cashPatronTotalsEyebrow: "Headline totals",
   cashPatronMaxDrawer: "Highest drawer cash: {{name}}",
+  cashSnapshotPanelTitle: "Cash snapshot",
+  cashSnapshotPanelHint:
+    "As of your report date and scope: drawer cash, net staff-pocket position, and net owner position — left to right.",
+  cashSnapshotMoreHint:
+    "Row-level movements: use Branches or the table below; filters above change what is included.",
+  cashSnapshotBadgeDrawer: "1 · Drawer",
+  cashSnapshotBadgePocket: "2 · Staff pocket",
+  cashSnapshotBadgePatron: "3 · Owner",
+  cashSnapshotDescDrawer: "Estimated physical cash in the register drawer (included branches).",
+  cashSnapshotDescPocket: "Net register ↔ staff pocket (positive means the register owes the pocket).",
+  cashSnapshotDescPatron: "Net register ↔ owner (positive means the register owes the owner).",
   tabHint: "Financial: cash & branches. Stock: warehouse & inbound to branches.",
   tabCashPosition: "Cash position",
   tabHintCash:
@@ -187,7 +229,14 @@ export const reports = {
   seasonYearPickPlaceholder: "— pick year —",
   seasonYearOption: "Full year {year}",
   seasonYearHint:
-    "Sets From/To to 1 Jan–31 Dec and also sets the Cash tab as-of date to 31 Dec of that year. Adjust dates below for a custom range.",
+    "Selects the full calendar year (1 Jan–31 Dec) and locks it; preset range buttons are disabled then. Use “edit dates manually” below to change From/To. On this hub, the Cash tab as-of date is set to 31 Dec of that year.",
+  dateRangeUnlockManual: "Edit start/end dates manually",
+  cashFilterPeriodModeLabel: "Report date",
+  cashFilterModeCalendarYearEnd: "Calendar year (31 Dec)",
+  cashFilterModeCustomAsOf: "Custom date",
+  cashFilterPeriodModeHint:
+    "Calendar year: year-end cash snapshot. Custom date: any day; the year list is not used in that mode.",
+  cashCalendarYearQuickPick: "Calendar year",
   cashAsOfSeasonYearQuickPick: "Quick: year-end snapshot",
   cashAsOfSeasonYearOption: "As of 31 Dec {year}",
   cashAsOfSeasonYearHint:

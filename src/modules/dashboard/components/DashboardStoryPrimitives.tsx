@@ -16,9 +16,9 @@ export function StoryBlock({
   return (
     <section
       id={sectionId}
-      className={`flex flex-col gap-3 ${sectionId ? "scroll-mt-28 sm:scroll-mt-24" : ""}`}
+      className={`flex min-w-0 flex-col gap-3 sm:gap-4 ${sectionId ? "scroll-mt-28 sm:scroll-mt-24" : ""}`}
     >
-      <div>
+      <div className="min-w-0">
         <h2 className="text-xl font-semibold leading-snug tracking-tight text-zinc-900 sm:text-lg">
           {title}
         </h2>

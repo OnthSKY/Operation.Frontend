@@ -3,14 +3,22 @@ export const dashboard = {
   subtitle: "Kasa günü, birikmiş net ve güncel envanter tek ekranda",
   storyFlowTitle: "Bugün akışı — nereye bakmalıyım?",
   storyFlowHint:
-    "Özet veya Kasa sekmesinde üstteki filtre yalnızca şube kasası rakamlarını değiştirir: tek takvim günü, tek sezon yılı dönem toplamı veya birden fazla sezon yılının toplamı. Personel, depo, stok ve avans aynı değildir.",
+    "Özet veya Kasa sekmesinde üstteki filtre şube kasası rakamlarını değiştirir: tek gün, tek sezon veya birden fazla sezon. Birikmiş net ve envanter özeti yalnızca Özet’te “Tüm veriler” seçildiğinde görünür; o modda kasa günü seçimi yoktur. Personel, depo, stok ve avans aynı değildir.",
   scopeFilterBarTitle: "Şube kasası — nasıl toplansın",
   scopeFilterBarHint:
-    "Tek gün: bir takvim tarihi. Tek sezon: şube bazında turizm dönemi toplamı. Birden fazla sezon: seçtiğiniz yılların bu toplamlarının özeti.",
+    "Tek gün: bir takvim tarihi. Tek sezon: şube bazında turizm dönemi toplamı. Birden fazla sezon: seçtiğiniz yılların bu toplamlarının özeti. Tüm veriler: birikmiş net ve güncel kayıt özetleri; şube kasası toplamı bu modda yoktur.",
   cashFilterModeAria: "Kasa özeti toplama türü",
   cashFilterModeDay: "Tek gün",
   cashFilterModeSeasonSingle: "Tek sezon",
   cashFilterModeSeasonRange: "Birden fazla sezon",
+  cashFilterModeAllData: "Tüm veriler",
+  cashFilterModeAllDataHint:
+    "Birikmiş ekonomik net, aktif kayıt sayıları ve depo stok özeti. Şube kasası günü / sezon toplamları bu görünümde yer almaz; detay için Özet veya Kasa sekmesinde tarih veya sezon seçin.",
+  cashScopeAllDataShort: "Tüm veriler",
+  sumAllBranchesAllData:
+    "Şube kasası toplamları bu modda gösterilmez; tarih veya sezon seçerek Özet veya Kasa sekmesine geçin.",
+  branchTodayDescAllData:
+    "Şube kasası tablosu bu modda kullanılmaz; Özet veya Kasa sekmesinde gün veya sezon seçin.",
   seasonYearPlaceholder: "— yıl —",
   seasonYearFieldLabel: "Sezon yılı",
   seasonYearFromFieldLabel: "Başlangıç sezon yılı",
@@ -29,7 +37,7 @@ export const dashboard = {
     "Net kasa, brüt tahsilat ve kasaya dahil şube sayısı — hepsi yukarıdaki tarihle aynı.",
   scopeSectionCumulativeTitle: "Birikmiş net ve güncel kayıtlar",
   scopeSectionCumulativeHint:
-    "Bu bölümdeki rakamlar yukarıdaki tarih seçiminden etkilenmez.",
+    "Üstteki kasa tarihinden bağımsız. Ana kutu: tüm aktif şubelerde bugüne kadar birikmiş ekonomik net (tek tutar, aşağıda açıklanır).",
   financeScopeRegisterDayTitle: "Seçilen güne göre — şube kasaları",
   financeScopeRegisterDayHint:
     "Üç özet kartı ve şube tablosu yalnızca yukarıdaki filtreye göredir (tek gün veya sezon modları).",
@@ -43,6 +51,7 @@ export const dashboard = {
   storyFlowNavBranches: "Şube bugün",
   storyFlowNavPersonnel: "Personel",
   storyFlowNavOps: "Depo",
+  storyFlowNavRegistry: "Kayıtlar",
   storyFlowNavReports: "Raporlar",
   branchTodayTitle: "Şubelere göre bugün (kasa)",
   branchTodayDesc:
@@ -74,14 +83,41 @@ export const dashboard = {
     "Önce üstteki kasa filtresi (tek gün veya sezon), sonra birikmiş ekonomik net ve envanter. Farklı sorulara cevap verirler.",
   summaryPanelTitle: "Kasa özeti",
   summaryPanelHint:
-    "Üstteki filtreyle seçtiğiniz güne veya sezona göre tüm şubeler: net, tahsilat ve şube sayısı.",
+    "Üstteki filtreyle seçilen güne veya sezona göre: önce tahsilat (girdi), kasadan gider (çıktı), net ve kasaya dahil şube sayısı — soldan sağa hikâye sırası.",
+  summaryStoryBadgeIn: "1 · Girdi",
+  summaryStoryBadgeOut: "2 · Çıktı",
+  summaryStoryBadgeNet: "3 · Net",
+  summaryStoryBadgeScope: "4 · Kapsam",
+  summaryStoryInTitle: "Tahsilat (girdi)",
+  summaryStoryInDescToday:
+    "Bugünkü kasa günü için tüm şubelerde kasaya giren toplam (nakit + kart/POS).",
+  summaryStoryInDescScoped:
+    "{{scope}} kapsamında tüm şubelerde kasaya giren toplam (nakit + kart/POS).",
+  summaryStoryOutFootnote:
+    "Patron / cebi ödemeleri bu kaleme dahil değildir; Kasa sekmesindeki kasa KPI’ları ile aynı kural.",
+  summaryExcludedOutflowsCaption: "Kasadan düşmeyen OUT'lar",
+  summaryExcludedPatronPaidLabel: "Patron tarafından ödenen",
+  summaryExcludedPatronPaidHint:
+    "Gider patron cebinden karşılandı; kasa bu tutara patrona borçlanır (fiilen kasadan düşmez).",
+  summaryExcludedPocketByPatronLabel: "Personel cebi — patron iadesi",
+  summaryExcludedPocketByPatronHint:
+    "Personel cebinden yapılan ödemenin patron tarafından cebinden kapatılan kısmı.",
+  summaryExcludedPersonnelPocketLabel: "Personel cebinden ödenen",
+  summaryExcludedPersonnelPocketHint:
+    "Ödeme doğrudan personel cebinden; kasadan düşmez.",
+  summaryExcludedOutflowsTotalLabel: "Bu başlıklar toplamı",
+  summaryStoryFinanceTabHint:
+    "Şube satırları, avans ve kasa sorumlusundaki nakit için Kasa sekmesine geçin.",
+  summaryStoryMoreIdeasHint:
+    "İleride eklenebilecekler (fikir): döneme göre trend, şube sıralaması, nakit–kart oranı; satır bazlı hareket için Raporlar ve Şubeler ekranlarını kullanın.",
   storyMobileSwipeHint: "Mobilde kart sırası yatay kaydırmalıdır.",
   storyStep1Badge: "Bugün · kasa",
   storyStep1Title: "Seçilen gün, tüm şubeler — kasa neti",
   storyStep1Formula: "Tahsilat (nakit + kart/POS) − kasadan ödenen giderler",
-  storyStep2Badge: "Birikmiş · ekonomik",
-  storyStep2Title: "Tüm aktif şubeler — bugüne kadar ekonomik net",
-  storyStep2Formula: "Toplam gelir satırları − ekonomik gider satırları (günlük özetle aynı OUT filtresi)",
+  storyStep2Badge: "Birikmiş net",
+  storyStep2Title: "Tüm aktif şubeler — bugüne kadar birikmiş ekonomik net",
+  storyStep2Formula:
+    "Kayıtlı gelirler eksi kayıtlı giderler. Ödeme kasadan mı patron cebinden mi yapıldığı bu neti değiştirmez; şubede gider satırı varsa birikmiş nete gider olarak yansır. Üstteki kasa özeti yalnızca kasadan ödenenleri toplar, bu yüzden iki rakam farklı sorulara cevap verir.",
   storyDetailSectionTitle: "Aynı günün detayı",
   storyDetailSectionDesc:
     "Net ve şube sayısı seçilen kasa günüyle uyumludur (yukarıdaki büyük özetle aynı mantık).",
@@ -127,12 +163,12 @@ export const dashboard = {
   storyDayAhead: "Kasadan gider sonrası fazla",
   storyDayShort: "Kasadan gider sonrası açık",
   storyDayEven: "Kasadan gider sonrası denge",
-  storyLifetimeNetLabel: "Tüm şubeler — birikmiş",
-  storyLifetimeAhead: "Fazla (toplam IN − ekonomik gider)",
-  storyLifetimeShort: "Ekside (toplam IN − ekonomik gider)",
-  storyLifetimeEven: "Dengede (toplam IN − ekonomik gider)",
+  storyLifetimeNetLabel: "Birikmiş ekonomik net tutarı",
+  storyLifetimeAhead: "Pozitif net",
+  storyLifetimeShort: "Negatif net",
+  storyLifetimeEven: "Dengeye yakın",
   storyLifetimeNetHint:
-    "Birikmiş rakam aktif tüm şubelerdeki gelir satırları eksi ekonomik giderlerdir (günlük özetle aynı OUT filtresi). Farklı para birimleri olduğu gibi toplanır.",
+    "Farklı para birimleri varsa tutarlar aynı şekilde birleştirilir; detaylı döviz kırılımı için rapor ve şube hareketlerine bakın.",
   financeKpiNoteTitle: "Nasıl okunur?",
   financeKpiFootnote:
     "Bu üç kart şube kasasıyla uyumludur. Patronun ödediği veya personel cebinden ödenen giderler «kasadan gider»ye yazılmaz; şube detayında patron ve cebi netleri ayrı görünür.",
@@ -162,8 +198,11 @@ export const dashboard = {
     "Üstte seçilen güne göre şube kasası; altta tarihten bağımsız avans ve kasa sorumlusu nakdi.",
   storyPersonnel: "Personel",
   storyPersonnelDesc: "Ekip büyüklüğü ve öne çıkan kayıtlar.",
-  storyOperations: "Şube ve operasyon",
-  storyOperationsDesc: "Aktif şube ve depo envanteri.",
+  storyOperations: "Depo ve stok",
+  storyOperationsDesc: "Depo tanımları ve tüm depoların birleşik stok özeti.",
+  storyRegistryTitle: "Şube, tedarikçi, araç ve ürün",
+  storyRegistryDesc: "Operasyonel ana kayıtlar; sayılar ve ilgili listeye geçiş.",
+  operationsOpenList: "Listeyi aç →",
   statActivePersonnel: "Aktif personel",
   statActivePersonnelDesc: "Silinmemiş personel sayısı",
   statBranches: "Aktif şube",

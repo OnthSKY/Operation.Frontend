@@ -1,12 +1,119 @@
 "use client";
 
 import { useI18n } from "@/i18n/context";
+import type { ReportsHubTab } from "@/modules/reports/lib/reports-hub-paths";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const STORAGE_KEY = "sky-ops-reports-patron-guide-open";
 
-export function ReportsPatronHubGuide() {
+type ElsewhereItem = {
+  href: string;
+  labelKey: string;
+  descKey: string;
+};
+
+const INTRO_KEYS: Record<ReportsHubTab, string> = {
+  financial: "reports.patronHubGuideIntroFinancial",
+  cash: "reports.patronHubGuideIntroCash",
+  stock: "reports.patronHubGuideIntroStock",
+};
+
+const FLOW1_KEYS: Record<ReportsHubTab, string> = {
+  financial: "reports.patronHubGuideFlow1Financial",
+  cash: "reports.patronHubGuideFlow1Cash",
+  stock: "reports.patronHubGuideFlow1Stock",
+};
+
+const FLOW2_KEYS: Record<ReportsHubTab, string> = {
+  financial: "reports.patronHubGuideFlow2Financial",
+  cash: "reports.patronHubGuideFlow2Cash",
+  stock: "reports.patronHubGuideFlow2Stock",
+};
+
+const FLOW3_KEYS: Record<ReportsHubTab, string> = {
+  financial: "reports.patronHubGuideFlow3Financial",
+  cash: "reports.patronHubGuideFlow3Cash",
+  stock: "reports.patronHubGuideFlow3Stock",
+};
+
+const TAB_ANSWER_KEYS: Record<ReportsHubTab, string> = {
+  financial: "reports.patronHubGuideTabFinancial",
+  cash: "reports.patronHubGuideTabCash",
+  stock: "reports.patronHubGuideTabStock",
+};
+
+const FOOTER_KEYS: Record<ReportsHubTab, string> = {
+  financial: "reports.patronHubGuideFooterFinancial",
+  cash: "reports.patronHubGuideFooterCash",
+  stock: "reports.patronHubGuideFooterStock",
+};
+
+const ELSEWHERE_BY_TAB: Record<ReportsHubTab, ElsewhereItem[]> = {
+  financial: [
+    {
+      href: "/branches",
+      labelKey: "reports.patronHubGuideLinkBranchesLabel",
+      descKey: "reports.patronHubGuideLinkBranchesDesc",
+    },
+    {
+      href: "/personnel/costs",
+      labelKey: "reports.patronHubGuideLinkPersonnelLabel",
+      descKey: "reports.patronHubGuideLinkPersonnelDesc",
+    },
+    {
+      href: "/reports/patron-flow",
+      labelKey: "reports.patronHubGuideLinkPatronFlowLabel",
+      descKey: "reports.patronHubGuideLinkPatronFlowDesc",
+    },
+    {
+      href: "/reports/branches",
+      labelKey: "reports.patronHubGuideLinkBranchCompareLabel",
+      descKey: "reports.patronHubGuideLinkBranchCompareDesc",
+    },
+  ],
+  cash: [
+    {
+      href: "/branches",
+      labelKey: "reports.patronHubGuideLinkBranchesLabel",
+      descKey: "reports.patronHubGuideLinkBranchesDesc",
+    },
+    {
+      href: "/reports/financial",
+      labelKey: "reports.patronHubGuideLinkFinancialHubLabel",
+      descKey: "reports.patronHubGuideLinkFinancialHubDesc",
+    },
+    {
+      href: "/reports/cash",
+      labelKey: "reports.patronHubGuideLinkCashTablesLabel",
+      descKey: "reports.patronHubGuideLinkCashTablesDesc",
+    },
+    {
+      href: "/reports/patron-flow",
+      labelKey: "reports.patronHubGuideLinkPatronFlowLabel",
+      descKey: "reports.patronHubGuideLinkPatronFlowDesc",
+    },
+  ],
+  stock: [
+    {
+      href: "/warehouses",
+      labelKey: "reports.patronHubGuideLinkWarehousesLabel",
+      descKey: "reports.patronHubGuideLinkWarehousesDesc",
+    },
+    {
+      href: "/branches",
+      labelKey: "reports.patronHubGuideLinkBranchesLabel",
+      descKey: "reports.patronHubGuideLinkBranchesStockDesc",
+    },
+    {
+      href: "/reports/stock/tables",
+      labelKey: "reports.patronHubGuideLinkStockTablesLabel",
+      descKey: "reports.patronHubGuideLinkStockTablesDesc",
+    },
+  ],
+};
+
+export function ReportsPatronHubGuide({ tab }: { tab: ReportsHubTab }) {
   const { t } = useI18n();
   const [open, setOpen] = useState(true);
 
@@ -19,6 +126,15 @@ export function ReportsPatronHubGuide() {
       /* ignore */
     }
   }, []);
+
+  const introKey = INTRO_KEYS[tab];
+  const flow1Key = FLOW1_KEYS[tab];
+  const flow2Key = FLOW2_KEYS[tab];
+  const flow3Key = FLOW3_KEYS[tab];
+  const tabAnswerKey = TAB_ANSWER_KEYS[tab];
+  const footerKey = FOOTER_KEYS[tab];
+
+  const elsewhere = useMemo(() => ELSEWHERE_BY_TAB[tab], [tab]);
 
   const toggle = useCallback(() => {
     setOpen((o) => {
@@ -67,46 +183,24 @@ export function ReportsPatronHubGuide() {
 
       {open ? (
         <div className="mt-4 space-y-4 border-t border-emerald-200/50 pt-4 text-sm leading-relaxed text-zinc-800">
-          <p>{t("reports.patronHubGuideIntro")}</p>
+          <p>{t(introKey)}</p>
 
           <div>
             <p className="text-[0.65rem] font-bold uppercase tracking-wide text-emerald-900/75">
               {t("reports.patronHubGuideFlowTitle")}
             </p>
             <ol className="mt-2 list-decimal space-y-1 pl-4 text-sm">
-              <li>{t("reports.patronHubGuideFlow1")}</li>
-              <li>{t("reports.patronHubGuideFlow2")}</li>
-              <li>{t("reports.patronHubGuideFlow3")}</li>
+              <li>{t(flow1Key)}</li>
+              <li>{t(flow2Key)}</li>
+              <li>{t(flow3Key)}</li>
             </ol>
           </div>
 
           <div>
             <p className="text-[0.65rem] font-bold uppercase tracking-wide text-emerald-900/75">
-              {t("reports.patronHubGuideTabsTitle")}
+              {t("reports.patronHubGuideThisTabTitle")}
             </p>
-            <ul className="mt-2 list-disc space-y-1.5 pl-4">
-              <li>
-                <span className="font-semibold text-zinc-900">
-                  {t("reports.tabFinancial")}
-                </span>
-                {" — "}
-                {t("reports.patronHubGuideTabFinancial")}
-              </li>
-              <li>
-                <span className="font-semibold text-zinc-900">
-                  {t("reports.tabCashPosition")}
-                </span>
-                {" — "}
-                {t("reports.patronHubGuideTabCash")}
-              </li>
-              <li>
-                <span className="font-semibold text-zinc-900">
-                  {t("reports.tabStock")}
-                </span>
-                {" — "}
-                {t("reports.patronHubGuideTabStock")}
-              </li>
-            </ul>
+            <p className="mt-2 text-sm leading-relaxed text-zinc-800">{t(tabAnswerKey)}</p>
           </div>
 
           <div>
@@ -114,57 +208,21 @@ export function ReportsPatronHubGuide() {
               {t("reports.patronHubGuideElsewhereTitle")}
             </p>
             <ul className="mt-2 space-y-2">
-              <li>
-                <Link href="/branches" className={linkClass}>
-                  {t("reports.patronHubGuideLinkBranchesLabel")}
-                </Link>
-                <span className="text-zinc-700">
-                  {" — "}
-                  {t("reports.patronHubGuideLinkBranchesDesc")}
-                </span>
-              </li>
-              <li>
-                <Link href="/personnel/costs" className={linkClass}>
-                  {t("reports.patronHubGuideLinkPersonnelLabel")}
-                </Link>
-                <span className="text-zinc-700">
-                  {" — "}
-                  {t("reports.patronHubGuideLinkPersonnelDesc")}
-                </span>
-              </li>
-              <li>
-                <Link href="/warehouses" className={linkClass}>
-                  {t("reports.patronHubGuideLinkWarehousesLabel")}
-                </Link>
-                <span className="text-zinc-700">
-                  {" — "}
-                  {t("reports.patronHubGuideLinkWarehousesDesc")}
-                </span>
-              </li>
-              <li>
-                <Link href="/reports/patron-flow" className={linkClass}>
-                  {t("reports.patronHubGuideLinkPatronFlowLabel")}
-                </Link>
-                <span className="text-zinc-700">
-                  {" — "}
-                  {t("reports.patronHubGuideLinkPatronFlowDesc")}
-                </span>
-              </li>
-              <li>
-                <Link href="/reports/branches" className={linkClass}>
-                  {t("reports.patronHubGuideLinkBranchCompareLabel")}
-                </Link>
-                <span className="text-zinc-700">
-                  {" — "}
-                  {t("reports.patronHubGuideLinkBranchCompareDesc")}
-                </span>
-              </li>
+              {elsewhere.map((item) => (
+                <li key={item.href}>
+                  <Link href={item.href} className={linkClass}>
+                    {t(item.labelKey)}
+                  </Link>
+                  <span className="text-zinc-700">
+                    {" — "}
+                    {t(item.descKey)}
+                  </span>
+                </li>
+              ))}
             </ul>
           </div>
 
-          <p className="text-xs leading-relaxed text-zinc-600">
-            {t("reports.patronHubGuideFooterNote")}
-          </p>
+          <p className="text-xs leading-relaxed text-zinc-600">{t(footerKey)}</p>
         </div>
       ) : null}
     </section>

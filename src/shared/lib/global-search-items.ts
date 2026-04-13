@@ -26,7 +26,7 @@ export const GLOBAL_SEARCH_ITEMS: GlobalSearchItemDef[] = [
   },
   {
     id: "reports",
-    href: "/reports",
+    href: "/reports/financial",
     titleKey: "nav.reports",
     subtitleKey: "search.subReports",
     match:

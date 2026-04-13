@@ -13,6 +13,7 @@ import {
 } from "@/modules/branch/hooks/useBranchQueries";
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
 import {
+  defaultPersonnelListFilters,
   useCreateAdvance,
   usePersonnelList,
 } from "@/modules/personnel/hooks/usePersonnelQueries";
@@ -170,7 +171,11 @@ export function AddBranchTransactionModal({
   const reqVal = " ";
   const createTx = useCreateBranchTransaction();
   const createAdvanceMut = useCreateAdvance();
-  const { data: allPersonnel = [] } = usePersonnelList(open);
+  const { data: personnelListResult } = usePersonnelList(
+    defaultPersonnelListFilters,
+    open
+  );
+  const allPersonnel = personnelListResult?.items ?? [];
   const { data: branchesForPersonnelExpense = [] } = useBranchesList();
   const receiptPhotoRef = useRef<HTMLInputElement>(null);
   const [receiptPhotoPick, setReceiptPhotoPick] = useState<File | null>(null);

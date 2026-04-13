@@ -364,6 +364,7 @@ export const personnel = {
   insuranceBadgePending: "Insurance pending",
   insuranceStatusStarted: "Started",
   insuranceStatusPending: "Not started",
+  insuranceStatusFieldLabel: "Coverage status",
   identitySectionTitle: "Identity (optional)",
   identitySectionHint:
     "National ID, birth date, ID card type (old vs chip), and optional front/back photos. To change card type or ID images after the person exists, use Edit. Add insurance coverage periods from the person’s detail view after they are saved.",
@@ -477,6 +478,7 @@ export const personnel = {
   editHint:
     "Updates the record. Hire date is historical — change only when correcting data.",
   tableAdvances: "Advances",
+  tableCostsAdvancesExpenses: "Advances & expenses",
   advanceQuickAria: "Give advance to this person",
   advanceHistoryTitle: "Advance history",
   advanceHistoryLast: "Last",
@@ -485,6 +487,15 @@ export const personnel = {
   advanceHistoryError: "Could not load advances.",
   advanceHistoryCountSuffix: "records",
   advanceHistoryMore: "more…",
+  costsSummaryHeadlineCore: "{adv} advances · {exp} expenses",
+  costsSummaryCardCounts: "{adv} adv · {exp} exp",
+  costsSummaryTotalAdvancesLabel: "Advance total",
+  costsSummaryTotalExpensesLabel: "Expense total",
+  costsAttributedSummaryEmpty: "No advances or attributed expenses yet.",
+  costsSummaryExpenseError: "Could not load attributed expenses.",
+  costsSummaryHistoryTitle: "Advances & expenses",
+  costsSummaryShowDetail: "Show detail",
+  costsSummaryHideDetail: "Hide detail",
   advanceRegisterExpenseInBranch: "Branch register expense linked",
   advanceSourceAbbrCash: "Cash",
   advanceSourceAbbrPatron: "Owner",
@@ -528,7 +539,15 @@ export const personnel = {
   detailSubtitlePassive: "This record is inactive.",
   viewPersonnelAria: "View personnel",
   detailTabProfile: "Person details",
+  detailTabInsurance: "Insurance",
+  detailInsuranceProfileHint:
+    "Open the «Insurance» tab for dates, intake, and coverage periods.",
   detailTabCosts: "Advances & expenses",
+  detailCostsGiveAdvance: "Give advance",
+  detailCostsAddExpense: "Add expense",
+  detailCostsColDetail: "Details",
+  detailCostsCombinedEmpty:
+    "No advances or expenses to show. Adjust season year or list filters (branch, source).",
   detailTabYearClosures: "Closed accounts",
   yearClosuresIntro:
     "Calendar-year account closures for this person. If a year was closed by mistake, you can reopen it.",

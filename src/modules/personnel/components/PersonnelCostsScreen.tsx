@@ -26,6 +26,7 @@ import { PersonnelCostsExpenseModal } from "@/modules/personnel/components/Perso
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { fetchAdvancesByPersonnel } from "@/modules/personnel/api/advances-api";
 import {
+  defaultPersonnelListFilters,
   personnelKeys,
   useAllAdvancesList,
   usePersonnelList,
@@ -287,7 +288,11 @@ export function PersonnelCostsScreen() {
   );
 
   const { data: branches = [] } = useBranchesList();
-  const { data: personnelRaw = [] } = usePersonnelList(!personnelPortal);
+  const { data: personnelListResult } = usePersonnelList(
+    defaultPersonnelListFilters,
+    !personnelPortal
+  );
+  const personnelRaw = personnelListResult?.items ?? [];
   const [yearInput, setYearInput] = useState("");
   const [personnelValue, setPersonnelValue] = useState("");
   const [branchValue, setBranchValue] = useState("");

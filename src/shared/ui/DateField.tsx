@@ -192,12 +192,13 @@ function mergeRefs<T>(node: T | null, ref: ForwardedRef<T>): void {
 const dayPickerClassNames = {
   root: cn(
     "rdp-root w-full min-w-0 max-w-full text-zinc-900 [--rdp-accent-color:theme(colors.violet.600)] [--rdp-accent-background-color:theme(colors.violet.100)]",
+    "[--rdp-day-width:100%] [--rdp-day-height:auto] [--rdp-day_button-width:100%] [--rdp-day_button-height:auto] [--rdp-weekday-padding:0.25rem_0.0625rem]",
     "[&_.rdp-selected]:text-sm [&_.rdp-selected]:font-medium [&_.rdp-selected]:leading-none"
   ),
   months: "rdp-months flex w-full min-w-0 max-w-full flex-col gap-2",
   month: "rdp-month min-w-0 space-y-1 sm:space-y-2",
   month_caption:
-    "rdp-month_caption relative flex !h-auto min-h-11 w-full min-w-0 flex-col flex-wrap items-stretch justify-center gap-2 px-1 py-2 sm:min-h-11 sm:flex-row sm:items-center sm:px-2",
+    "rdp-month_caption relative flex !h-auto min-h-0 w-full min-w-0 flex-col items-stretch justify-center gap-0 px-0 py-1 sm:py-1.5",
   caption_label:
     "rdp-caption_label max-w-[min(100%,11rem)] truncate text-center text-xs font-semibold capitalize text-zinc-900 sm:max-w-none sm:text-sm",
   dropdowns:
@@ -215,14 +216,15 @@ const dayPickerClassNames = {
     "rdp-button_previous inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-600 hover:bg-zinc-100 sm:h-9 sm:w-9",
   button_next:
     "rdp-button_next inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-600 hover:bg-zinc-100 sm:h-9 sm:w-9",
-  month_grid: "rdp-month_grid w-full max-w-full border-collapse",
-  weekdays: "rdp-weekdays flex w-full",
+  month_grid:
+    "rdp-month_grid w-full min-w-0 max-w-full table-fixed border-collapse [border-spacing:0]",
+  weekdays: "rdp-weekdays w-full",
   weekday:
-    "rdp-weekday flex h-8 w-[calc((100%-0.25rem)/7)] max-w-9 min-w-0 items-center justify-center text-center text-[10px] font-semibold uppercase leading-tight text-zinc-400 sm:h-9 sm:w-9 sm:text-[11px]",
-  week: "rdp-week mt-1 flex w-full",
-  day: "rdp-day flex h-8 w-[calc((100%-0.25rem)/7)] max-w-9 min-w-0 items-center justify-center p-0 sm:h-9 sm:w-9",
+    "rdp-weekday box-border w-[14.285714%] min-w-0 px-0.5 py-1.5 text-center text-[10px] font-semibold uppercase leading-tight text-zinc-400 sm:py-2 sm:text-[11px]",
+  week: "rdp-week w-full",
+  day: "rdp-day box-border w-[14.285714%] min-w-0 p-0.5 align-middle sm:p-1",
   day_button:
-    "rdp-day_button inline-flex h-8 w-full max-w-9 min-w-0 items-center justify-center rounded-lg text-xs font-medium text-zinc-800 transition-[color,box-shadow,transform] duration-150 hover:bg-violet-100/90 hover:text-violet-950 focus-visible:outline focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-1 sm:h-9 sm:text-sm",
+    "rdp-day_button !mx-auto box-border flex aspect-square w-full min-h-0 min-w-0 max-w-[min(100%,2.25rem)] items-center justify-center rounded-lg text-xs font-medium text-zinc-800 transition-[color,box-shadow,transform] duration-150 hover:bg-violet-100/90 hover:text-violet-950 focus-visible:outline focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-1 sm:max-w-[min(100%,2.5rem)] sm:text-sm",
   selected:
     [
       "rdp-selected",
@@ -364,6 +366,7 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
     const popoverRef = useRef<HTMLDivElement>(null);
     const [open, setOpen] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const [calendarMonth, setCalendarMonth] = useState<Date>(() => new Date());
 
     const dfLocale = locale === "tr" ? dfTr : dfEn;
     const rdpLocale = locale === "tr" ? rdpTr : rdpEn;
@@ -566,6 +569,11 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
     const [sheetMode, setSheetMode] = useState(false);
 
     useLayoutEffect(() => {
+      if (!open) return;
+      setCalendarMonth(selectedDateForPicker ?? new Date());
+    }, [open, selectedDateForPicker]);
+
+    useLayoutEffect(() => {
       if (!open || !mounted) return;
       const calH = mode === "datetime-local" ? 520 : 480;
       const place = () => {
@@ -709,14 +717,14 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
               </span>
             </button>
           </div>
-          <div className="date-field-rdp min-w-0 flex-1 overflow-y-auto p-1.5 sm:p-3 [&_.rdp-months]:max-w-none">
+          <div className="date-field-rdp min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain p-1.5 sm:p-3 [&_.rdp-months]:max-w-none">
             <DayPicker
               mode="single"
               required={false}
               locale={rdpLocale}
               captionLayout="label"
               components={{ MonthCaption: DatePickerMonthCaption }}
-              navLayout="around"
+              hideNavigation
               startMonth={navRange.startMonth}
               endMonth={navRange.endMonth}
               selected={selectedDateForPicker}
@@ -729,7 +737,8 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
                 }
                 setOpen(false);
               }}
-              defaultMonth={selectedDateForPicker ?? new Date()}
+              month={calendarMonth}
+              onMonthChange={setCalendarMonth}
               disabled={disabledMatchers.length ? disabledMatchers : undefined}
               classNames={dayPickerClassNames}
             />

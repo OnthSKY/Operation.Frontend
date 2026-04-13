@@ -51,9 +51,45 @@ import type {
   UpdatePersonnelInput,
 } from "@/types/personnel";
 
+export type PersonnelListFilters = {
+  status: "all" | "active" | "passive";
+  branchId: number;
+  jobTitle: string;
+  name: string;
+  seasonArrivalFrom: string;
+  seasonArrivalTo: string;
+  hireDateFrom: string;
+  hireDateTo: string;
+};
+
+export const defaultPersonnelListFilters: PersonnelListFilters = {
+  status: "all",
+  branchId: 0,
+  jobTitle: "",
+  name: "",
+  seasonArrivalFrom: "",
+  seasonArrivalTo: "",
+  hireDateFrom: "",
+  hireDateTo: "",
+};
+
 export const personnelKeys = {
   all: ["personnel"] as const,
-  list: () => [...personnelKeys.all, "list"] as const,
+  list: (f: PersonnelListFilters) =>
+    [
+      ...personnelKeys.all,
+      "list",
+      f.status,
+      f.branchId,
+      f.jobTitle,
+      f.name,
+      f.seasonArrivalFrom,
+      f.seasonArrivalTo,
+      f.hireDateFrom,
+      f.hireDateTo,
+    ] as const,
+  /** Tüm filtre kombinasyonlarındaki liste sorgularını geçersiz kılar. */
+  listRoot: () => [...personnelKeys.all, "list"] as const,
   detail: (id: number) => [...personnelKeys.all, "detail", id] as const,
   nonAdvanceAttributedExpenses: (sort: string = "dateDesc") =>
     [...personnelKeys.all, "non-advance-attributed-expenses", sort] as const,
@@ -94,10 +130,23 @@ export const personnelKeys = {
     [...personnelKeys.all, "year-account-closures", personnelId] as const,
 };
 
-export function usePersonnelList(enabled: boolean = true) {
+export function usePersonnelList(
+  filters: PersonnelListFilters,
+  enabled: boolean = true
+) {
   return useQuery({
-    queryKey: personnelKeys.list(),
-    queryFn: fetchPersonnelList,
+    queryKey: personnelKeys.list(filters),
+    queryFn: () =>
+      fetchPersonnelList({
+        status: filters.status,
+        branchId: filters.branchId > 0 ? filters.branchId : undefined,
+        jobTitle: filters.jobTitle.trim() || undefined,
+        name: filters.name.trim() || undefined,
+        seasonArrivalFrom: filters.seasonArrivalFrom.trim() || undefined,
+        seasonArrivalTo: filters.seasonArrivalTo.trim() || undefined,
+        hireDateFrom: filters.hireDateFrom.trim() || undefined,
+        hireDateTo: filters.hireDateTo.trim() || undefined,
+      }),
     enabled,
   });
 }
@@ -135,7 +184,7 @@ export function useAddPersonnelInsurancePeriod() {
       void qc.invalidateQueries({
         queryKey: personnelKeys.insurancePeriods(vars.personnelId),
       });
-      void qc.invalidateQueries({ queryKey: personnelKeys.list() });
+      void qc.invalidateQueries({ queryKey: personnelKeys.listRoot() });
       void qc.invalidateQueries({
         queryKey: personnelKeys.detail(vars.personnelId),
       });
@@ -160,7 +209,7 @@ export function useUpdatePersonnelInsurancePeriod() {
       void qc.invalidateQueries({
         queryKey: personnelKeys.insurancePeriods(vars.personnelId),
       });
-      void qc.invalidateQueries({ queryKey: personnelKeys.list() });
+      void qc.invalidateQueries({ queryKey: personnelKeys.listRoot() });
       void qc.invalidateQueries({
         queryKey: personnelKeys.detail(vars.personnelId),
       });
@@ -232,7 +281,7 @@ export function useCreatePersonnel() {
   return useMutation({
     mutationFn: (input: CreatePersonnelInput) => createPersonnel(input),
     onSuccess: (created) => {
-      void qc.invalidateQueries({ queryKey: personnelKeys.list() });
+      void qc.invalidateQueries({ queryKey: personnelKeys.listRoot() });
       void qc.invalidateQueries({ queryKey: personnelKeys.detail(created.id) });
       void qc.invalidateQueries({ queryKey: usersKeys.list() });
     },
@@ -244,7 +293,7 @@ export function useUpdatePersonnel() {
   return useMutation({
     mutationFn: (input: UpdatePersonnelInput) => updatePersonnel(input),
     onSuccess: (_data, input) => {
-      void qc.invalidateQueries({ queryKey: personnelKeys.list() });
+      void qc.invalidateQueries({ queryKey: personnelKeys.listRoot() });
       void qc.invalidateQueries({ queryKey: personnelKeys.detail(input.id) });
       void qc.invalidateQueries({ queryKey: branchKeys.all });
       void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
@@ -260,7 +309,7 @@ export function useUploadNationalIdPhotos() {
       input: UploadNationalIdPhotosInput;
     }) => uploadNationalIdPhotos(vars.personnelId, vars.input),
     onSuccess: (_d, vars) => {
-      void qc.invalidateQueries({ queryKey: personnelKeys.list() });
+      void qc.invalidateQueries({ queryKey: personnelKeys.listRoot() });
       void qc.invalidateQueries({ queryKey: personnelKeys.detail(vars.personnelId) });
     },
   });
@@ -274,7 +323,7 @@ export function useUploadProfilePhotos() {
       input: UploadProfilePhotosInput;
     }) => uploadProfilePhotos(vars.personnelId, vars.input),
     onSuccess: (_d, vars) => {
-      void qc.invalidateQueries({ queryKey: personnelKeys.list() });
+      void qc.invalidateQueries({ queryKey: personnelKeys.listRoot() });
       void qc.invalidateQueries({ queryKey: personnelKeys.detail(vars.personnelId) });
     },
   });
@@ -285,7 +334,7 @@ export function useSoftDeletePersonnel() {
   return useMutation({
     mutationFn: (id: number) => softDeletePersonnel(id),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: personnelKeys.list() });
+      void qc.invalidateQueries({ queryKey: personnelKeys.listRoot() });
     },
   });
 }
@@ -396,7 +445,7 @@ export function useClosePersonnelYearAccount(personnelId: number) {
         queryKey: personnelKeys.yearAccountClosures(personnelId),
       });
       void qc.invalidateQueries({ queryKey: personnelKeys.detail(personnelId) });
-      void qc.invalidateQueries({ queryKey: personnelKeys.list() });
+      void qc.invalidateQueries({ queryKey: personnelKeys.listRoot() });
     },
   });
 }
@@ -416,7 +465,7 @@ export function useReopenPersonnelYearAccount(personnelId: number) {
         queryKey: [...personnelKeys.all, "year-account-preview", personnelId],
       });
       void qc.invalidateQueries({ queryKey: personnelKeys.detail(personnelId) });
-      void qc.invalidateQueries({ queryKey: personnelKeys.list() });
+      void qc.invalidateQueries({ queryKey: personnelKeys.listRoot() });
     },
   });
 }
@@ -426,7 +475,7 @@ export function useCreateAdvance() {
   return useMutation({
     mutationFn: (input: CreateAdvanceInput) => createAdvance(input),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: personnelKeys.list() });
+      void qc.invalidateQueries({ queryKey: personnelKeys.listRoot() });
       void qc.invalidateQueries({
         queryKey: [...personnelKeys.all, "advances"],
         exact: false,
@@ -458,7 +507,7 @@ export function useDeleteAdvance() {
   return useMutation({
     mutationFn: (advanceId: number) => deleteAdvance(advanceId),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: personnelKeys.list() });
+      void qc.invalidateQueries({ queryKey: personnelKeys.listRoot() });
       void qc.invalidateQueries({
         queryKey: [...personnelKeys.all, "advances"],
         exact: false,

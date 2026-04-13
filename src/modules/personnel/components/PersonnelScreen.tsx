@@ -5,11 +5,14 @@ import { isPersonnelPortalRole } from "@/lib/auth/roles";
 import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
 import { cn } from "@/lib/cn";
+import { fetchPersonnel } from "@/modules/personnel/api/personnel-api";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
 import {
+  defaultPersonnelListFilters,
   usePersonnelList,
   useSoftDeletePersonnel,
+  type PersonnelListFilters,
 } from "@/modules/personnel/hooks/usePersonnelQueries";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
@@ -38,6 +41,7 @@ import {
   TableRow,
 } from "@/shared/ui/Table";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
+import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
 import { useHashScroll } from "@/shared/lib/use-hash-scroll";
 import type { Personnel, PersonnelJobTitle } from "@/types/personnel";
 import { ToolbarGlyphUserPlus } from "@/shared/ui/ToolbarGlyph";
@@ -81,6 +85,8 @@ function formatSalaryMasked(p: Personnel, dash: string): string {
   return "***";
 }
 
+const PERSONNEL_FILTER_TEXT_DEBOUNCE_MS = 300;
+
 const JOB_TITLE_FILTER_VALUES: PersonnelJobTitle[] = [
   "GENERAL_MANAGER",
   "BRANCH_SUPERVISOR",
@@ -100,12 +106,6 @@ function fillPersonnelSummaryTemplate(
     /\{\{(\w+)\}\}/g,
     (_, key: string) => vars[key] ?? "—"
   );
-}
-
-function isoDateSortKey(iso: string | null | undefined): string | null {
-  if (!iso?.trim()) return null;
-  const s = iso.trim().slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null;
 }
 
 function hasLinkedSystemUser(p: Personnel): boolean {
@@ -364,9 +364,6 @@ export function PersonnelScreen() {
   useEffect(() => {
     if (personnelPortal) router.replace("/branches");
   }, [personnelPortal, router]);
-  const { data, isPending, isError, error, refetch, dataUpdatedAt } =
-    usePersonnelList(!personnelPortal);
-  const listPhotoNonce = dataUpdatedAt ?? 0;
   const softDeleteMut = useSoftDeletePersonnel();
   const { data: branches = [] } = useBranchesList();
   const branchNameById = useMemo(() => {
@@ -418,12 +415,6 @@ export function PersonnelScreen() {
     [locale, branchNameById, t]
   );
 
-  const list = useMemo(() => data ?? [], [data]);
-  const activePersonnel = useMemo(
-    () => list.filter((p) => !p.isDeleted),
-    [list]
-  );
-
   const [filterBranch, setFilterBranch] = useState("");
   const [filterSeasonArrivalFrom, setFilterSeasonArrivalFrom] = useState("");
   const [filterSeasonArrivalTo, setFilterSeasonArrivalTo] = useState("");
@@ -434,6 +425,70 @@ export function PersonnelScreen() {
     "all"
   );
   const [filterName, setFilterName] = useState("");
+
+  const debouncedFilterName = useDebouncedValue(
+    filterName,
+    PERSONNEL_FILTER_TEXT_DEBOUNCE_MS
+  );
+  const debouncedSeasonArrivalFrom = useDebouncedValue(
+    filterSeasonArrivalFrom,
+    PERSONNEL_FILTER_TEXT_DEBOUNCE_MS
+  );
+  const debouncedSeasonArrivalTo = useDebouncedValue(
+    filterSeasonArrivalTo,
+    PERSONNEL_FILTER_TEXT_DEBOUNCE_MS
+  );
+  const debouncedCompanyHireFrom = useDebouncedValue(
+    filterCompanyHireFrom,
+    PERSONNEL_FILTER_TEXT_DEBOUNCE_MS
+  );
+  const debouncedCompanyHireTo = useDebouncedValue(
+    filterCompanyHireTo,
+    PERSONNEL_FILTER_TEXT_DEBOUNCE_MS
+  );
+
+  const listFilters = useMemo<PersonnelListFilters>(
+    () => ({
+      status: filterStatus,
+      branchId: filterBranch.trim()
+        ? Number.parseInt(filterBranch, 10) || 0
+        : 0,
+      jobTitle: filterJobTitle,
+      name: debouncedFilterName,
+      seasonArrivalFrom: debouncedSeasonArrivalFrom,
+      seasonArrivalTo: debouncedSeasonArrivalTo,
+      hireDateFrom: debouncedCompanyHireFrom,
+      hireDateTo: debouncedCompanyHireTo,
+    }),
+    [
+      filterBranch,
+      debouncedSeasonArrivalFrom,
+      debouncedSeasonArrivalTo,
+      debouncedCompanyHireFrom,
+      debouncedCompanyHireTo,
+      filterJobTitle,
+      filterStatus,
+      debouncedFilterName,
+    ]
+  );
+
+  const { data, isPending, isError, error, refetch, dataUpdatedAt } =
+    usePersonnelList(listFilters, !personnelPortal);
+  const listPhotoNonce = dataUpdatedAt ?? 0;
+  const items = data?.items ?? [];
+  const totalCount = data?.totalCount ?? 0;
+  const activeCount = data?.activeCount ?? 0;
+  const passiveCount = data?.passiveCount ?? 0;
+
+  const advancePersonnelFilters = useMemo<PersonnelListFilters>(
+    () => ({ ...defaultPersonnelListFilters, status: "active" }),
+    []
+  );
+  const { data: activePersonnelData } = usePersonnelList(
+    advancePersonnelFilters,
+    !personnelPortal
+  );
+  const activePersonnel = activePersonnelData?.items ?? [];
 
   const branchFilterOptions = useMemo(
     () => [
@@ -485,75 +540,13 @@ export function PersonnelScreen() {
     filterName,
   ]);
 
-  const filteredList = useMemo(() => {
-    const bid = filterBranch.trim() ? parseInt(filterBranch, 10) : 0;
-    const jt = filterJobTitle.trim() as PersonnelJobTitle | "";
-    const nameQ = filterName.trim().toLocaleLowerCase(locale);
-
-    return list.filter((p) => {
-      if (filterStatus === "active" && p.isDeleted) return false;
-      if (filterStatus === "passive" && !p.isDeleted) return false;
-
-      if (nameQ) {
-        const n = personnelDisplayName(p).toLocaleLowerCase(locale);
-        if (!n.includes(nameQ)) return false;
-      }
-
-      if (bid > 0) {
-        if (p.branchId == null || p.branchId !== bid) return false;
-      }
-
-      if (jt && p.jobTitle !== jt) return false;
-
-      const seasonFrom = filterSeasonArrivalFrom.trim();
-      const seasonTo = filterSeasonArrivalTo.trim();
-      const sk = isoDateSortKey(p.seasonArrivalDate);
-      if (seasonFrom || seasonTo) {
-        if (!sk) return false;
-        if (seasonFrom && sk < seasonFrom) return false;
-        if (seasonTo && sk > seasonTo) return false;
-      }
-
-      const companyFrom = filterCompanyHireFrom.trim();
-      const companyTo = filterCompanyHireTo.trim();
-      const hk = isoDateSortKey(p.hireDate);
-      if (companyFrom || companyTo) {
-        if (!hk) return false;
-        if (companyFrom && hk < companyFrom) return false;
-        if (companyTo && hk > companyTo) return false;
-      }
-
-      return true;
-    });
-  }, [
-    list,
-    filterBranch,
-    filterSeasonArrivalFrom,
-    filterSeasonArrivalTo,
-    filterCompanyHireFrom,
-    filterCompanyHireTo,
-    filterJobTitle,
-    filterStatus,
-    filterName,
-    locale,
-  ]);
-
-  const passiveCount = useMemo(
-    () => list.filter((p) => p.isDeleted).length,
-    [list]
-  );
-
   const listSummaryText = useMemo(() => {
     if (isPending || isError) return null;
-    const total = list.length;
-    const active = activePersonnel.length;
-    const passive = passiveCount;
-    const shown = filteredList.length;
     const vars = {
-      total: String(total),
-      active: String(active),
-      passive: String(passive),
-      shown: String(shown),
+      total: String(totalCount),
+      active: String(activeCount),
+      passive: String(passiveCount),
+      shown: String(items.length),
     };
     if (filtersActive) {
       return fillPersonnelSummaryTemplate(
@@ -565,10 +558,10 @@ export function PersonnelScreen() {
   }, [
     isPending,
     isError,
-    list.length,
-    activePersonnel.length,
+    totalCount,
+    activeCount,
     passiveCount,
-    filteredList.length,
+    items.length,
     filtersActive,
     t,
   ]);
@@ -592,13 +585,13 @@ export function PersonnelScreen() {
     useState<Personnel | null>(null);
 
   useEffect(() => {
-    if (detailPerson == null || list.length === 0) return;
-    const fresh = list.find((p) => p.id === detailPerson.id);
+    if (detailPerson == null || items.length === 0) return;
+    const fresh = items.find((p) => p.id === detailPerson.id);
     if (!fresh) return;
     if (personnelDetailSyncSig(fresh) !== personnelDetailSyncSig(detailPerson)) {
       setDetailPerson(fresh);
     }
-  }, [list, detailPerson]);
+  }, [items, detailPerson]);
 
   const openPersonnelDetail = (
     p: Personnel,
@@ -613,11 +606,24 @@ export function PersonnelScreen() {
     if (!raw) return;
     const id = Number.parseInt(raw, 10);
     if (!Number.isFinite(id) || id <= 0) return;
-    const p = list.find((x) => x.id === id);
-    if (!p) return;
-    setDetailInitialTab("profile");
-    setDetailPerson(p);
-  }, [searchParams, list]);
+    const p = items.find((x) => x.id === id);
+    if (p) {
+      setDetailInitialTab("profile");
+      setDetailPerson(p);
+      return;
+    }
+    let cancelled = false;
+    void fetchPersonnel(id)
+      .then((person) => {
+        if (cancelled) return;
+        setDetailInitialTab("profile");
+        setDetailPerson(person);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [searchParams, items]);
 
   const openCreate = () => {
     setFormInitial(null);
@@ -690,7 +696,7 @@ export function PersonnelScreen() {
         id: "advance",
         label: t("personnel.advance"),
         onSelect: () => openAdvance(),
-        disabled: activePersonnel.length === 0,
+        disabled: activeCount === 0,
       },
       {
         id: "costs",
@@ -698,7 +704,7 @@ export function PersonnelScreen() {
         onSelect: () => router.push("/personnel/costs"),
       },
     ],
-    [t, activePersonnel.length, router]
+    [t, activeCount, router]
   );
 
   return (
@@ -854,17 +860,17 @@ export function PersonnelScreen() {
               </Button>
             </div>
           )}
-          {!isPending && !isError && list.length === 0 && (
+          {!isPending && !isError && totalCount === 0 && (
             <p className="text-sm text-zinc-500">{t("personnel.noData")}</p>
           )}
-          {!isPending && !isError && list.length > 0 && filteredList.length === 0 && (
+          {!isPending && !isError && totalCount > 0 && items.length === 0 && (
             <p className="text-sm text-zinc-500">{t("personnel.listFilteredEmpty")}</p>
           )}
-          {!isPending && !isError && filteredList.length > 0 && (
+          {!isPending && !isError && items.length > 0 && (
             <>
               {/* Kartlar: tablet & mobil (< md) */}
               <div className="flex flex-col gap-3 md:hidden">
-                {filteredList.map((p) => {
+                {items.map((p) => {
                   const mobileDetailsOpen =
                     mobileCardDetailsOpenById[p.id] === true;
                   return (
@@ -891,7 +897,7 @@ export function PersonnelScreen() {
                               ? () => setProfilePhotoPreviewPerson(p)
                               : undefined
                           }
-                          className="h-24 w-24 min-[400px]:h-[6.5rem] min-[400px]:w-[6.5rem] shrink-0 text-2xl min-[400px]:text-3xl"
+                          className="h-28 w-28 min-[400px]:h-32 min-[400px]:w-32 shrink-0 text-3xl min-[400px]:text-4xl"
                         />
                         <div className="min-w-0 flex-1 space-y-1.5">
                           <div className="flex flex-wrap items-center gap-2">
@@ -1059,6 +1065,7 @@ export function PersonnelScreen() {
                               personnelId={p.id}
                               variant="card"
                               className="text-left"
+                              showAttributedExpenses
                             />
                           </div>
                         </>
@@ -1084,8 +1091,8 @@ export function PersonnelScreen() {
                       <TableHeader className="min-w-[7rem] max-w-[10rem]">
                         {t("personnel.tableSystemUser")}
                       </TableHeader>
-                      <TableHeader className="min-w-[12rem] max-w-[18rem]">
-                        {t("personnel.tableAdvances")}
+                      <TableHeader className="min-w-[14rem] max-w-[24rem]">
+                        {t("personnel.tableCostsAdvancesExpenses")}
                       </TableHeader>
                       <TableHeader className="w-[1%] whitespace-nowrap text-right">
                         {t("personnel.tableActions")}
@@ -1093,7 +1100,7 @@ export function PersonnelScreen() {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {filteredList.map((p) => (
+                    {items.map((p) => (
                       <TableRow
                         key={p.id}
                         className={cn(p.isDeleted && "bg-zinc-50/90")}
@@ -1112,7 +1119,7 @@ export function PersonnelScreen() {
                                   ? () => setProfilePhotoPreviewPerson(p)
                                   : undefined
                               }
-                              className="h-16 w-16 shrink-0 text-xl sm:h-20 sm:w-20 sm:text-2xl"
+                              className="h-[4.75rem] w-[4.75rem] shrink-0 text-2xl sm:h-24 sm:w-24 sm:text-3xl md:h-[6.75rem] md:w-[6.75rem] md:text-4xl"
                             />
                             <div className="min-w-0 flex-1 space-y-1.5">
                               <div className="flex flex-wrap items-center gap-2">
@@ -1198,11 +1205,12 @@ export function PersonnelScreen() {
                             ? p.username
                             : t("personnel.systemUserNone")}
                         </TableCell>
-                        <TableCell className="max-w-[18rem] align-top text-zinc-600">
+                        <TableCell className="max-w-[24rem] align-top text-zinc-600">
                           <PersonnelAdvanceHistory
                             personnelId={p.id}
                             variant="inline"
                             maxDetailRows={4}
+                            showAttributedExpenses
                           />
                         </TableCell>
                         <TableCell className="text-right">

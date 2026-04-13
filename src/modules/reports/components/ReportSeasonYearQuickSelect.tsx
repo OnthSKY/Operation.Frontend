@@ -14,6 +14,7 @@ type Props = {
   dateFrom: string;
   dateTo: string;
   onApplyRange: (dateFrom: string, dateTo: string) => void;
+  disabled?: boolean;
   className?: string;
 };
 
@@ -21,6 +22,7 @@ export function ReportSeasonYearQuickSelect({
   dateFrom,
   dateTo,
   onApplyRange,
+  disabled = false,
   className,
 }: Props) {
   const { t } = useI18n();
@@ -52,6 +54,7 @@ export function ReportSeasonYearQuickSelect({
         label={t("reports.seasonYearQuickPick")}
         options={options}
         value={value}
+        disabled={disabled}
         onChange={(e) => {
           const v = e.target.value.trim();
           if (!v || v === REPORT_YEAR_QUICK_PLACEHOLDER) return;

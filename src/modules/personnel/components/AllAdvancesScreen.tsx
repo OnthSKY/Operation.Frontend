@@ -8,6 +8,7 @@ import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { fetchAdvancesByPersonnel } from "@/modules/personnel/api/advances-api";
 import {
   useAllAdvancesList,
+  defaultPersonnelListFilters,
   personnelKeys,
   usePersonnelList,
 } from "@/modules/personnel/hooks/usePersonnelQueries";
@@ -41,7 +42,11 @@ export function AllAdvancesScreen() {
   const personnelPortal = isPersonnelPortalRole(user?.role);
   const myPersonnelId = user?.personnelId;
   const { data: branches = [] } = useBranchesList();
-  const { data: personnelRaw = [] } = usePersonnelList(!personnelPortal);
+  const { data: personnelListResult } = usePersonnelList(
+    defaultPersonnelListFilters,
+    !personnelPortal
+  );
+  const personnelRaw = personnelListResult?.items ?? [];
   const [yearInput, setYearInput] = useState("");
   const [personnelValue, setPersonnelValue] = useState("");
   const [branchValue, setBranchValue] = useState("");

@@ -9,7 +9,10 @@ import {
   usePatchUserSelfFinancials,
   useUsersList,
 } from "@/modules/personnel/hooks/useUsersQueries";
-import { usePersonnelList } from "@/modules/personnel/hooks/usePersonnelQueries";
+import {
+  defaultPersonnelListFilters,
+  usePersonnelList,
+} from "@/modules/personnel/hooks/usePersonnelQueries";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { Card } from "@/shared/components/Card";
@@ -50,7 +53,8 @@ export function UsersScreen() {
   const { data: rows = [], isLoading, isError, refetch } = useUsersList(
     Boolean(isReady && isAdminUser)
   );
-  const { data: personnel = [] } = usePersonnelList();
+  const { data: personnelListResult } = usePersonnelList(defaultPersonnelListFilters);
+  const personnel = personnelListResult?.items ?? [];
   const createUser = useCreateUser();
   const patchSelfFin = usePatchUserSelfFinancials();
   const patchRole = usePatchUserRole();

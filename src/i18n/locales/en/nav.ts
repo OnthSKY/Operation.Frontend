@@ -1,6 +1,8 @@
 export const nav = {
   home: "Overview",
   reports: "Reports",
+  /** Sidebar group for hub tabs */
+  reportsSection: "Reports",
   personnel: "Personnel management",
   personnelSection: "Personnel management",
   personnelList: "Staff",
@@ -47,6 +49,12 @@ export const nav = {
       "Today’s income, expense, and net cash plus the branches daily grid—a snapshot of patron/branch cash activity. Use Reports for category and period breakdowns.",
     reports:
       "Financial periods (income/expense lines and category concentration), cash position, branch comparison, warehouse/branch stock. Answers “where money came from and went” and “which branch burns stock”.",
+    reportsHubFinancial:
+      "Period charts and tables: income, expense, and net with branch and advanced filters.",
+    reportsHubCash:
+      "Cash position by branch: drawer estimate and net pocket/patron balances for an as-of date.",
+    reportsHubStock:
+      "Stock summary charts and tables: warehouse scope, branch receipts, and product filters.",
     personnelSection:
       "Staff master data and the patron–personnel money line: advances and personnel expenses live here.",
     personnelList:

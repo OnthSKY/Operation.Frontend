@@ -3,7 +3,10 @@
 import { useI18n } from "@/i18n/context";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { useBranchComparisonReport } from "@/modules/reports/hooks/useReportsQueries";
-import { ReportSeasonYearQuickSelect } from "@/modules/reports/components/ReportSeasonYearQuickSelect";
+import {
+  ReportHubDateRangeControls,
+  type ReportHubRangeLock,
+} from "@/modules/reports/components/ReportHubDateRangeControls";
 import { ReportTablesPageShell } from "@/modules/reports/components/ReportTablesPageShell";
 import {
   addDaysFromIso,
@@ -16,7 +19,6 @@ import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { Button } from "@/shared/ui/Button";
-import { DateField } from "@/shared/ui/DateField";
 import {
   Table,
   TableBody,
@@ -45,6 +47,7 @@ export function BranchComparisonReportScreen() {
   const [pageSize, setPageSize] = useState(50);
   const [sortBy, setSortBy] = useState<SortCol>("netCash");
   const [sortDescending, setSortDescending] = useState(true);
+  const [dateRangeLock, setDateRangeLock] = useState<ReportHubRangeLock>("manual");
 
   const { data: branches = [] } = useBranchesList();
 
@@ -68,7 +71,7 @@ export function BranchComparisonReportScreen() {
 
   const q = useBranchComparisonReport(params, true);
 
-  const setPreset = (key: "month" | "d30" | "d7") => {
+  const applyDatePreset = (key: "month" | "d30" | "d7") => {
     const today = localIsoDate();
     if (key === "month") {
       setDateFrom(startOfMonthIso());
@@ -94,7 +97,7 @@ export function BranchComparisonReportScreen() {
     setPage(1);
   };
 
-  const filtersActive = branchId !== "";
+  const filtersActive = branchId !== "" || dateRangeLock !== "manual";
 
   const totalPages = useMemo(() => {
     const n = q.data?.totalCount ?? 0;
@@ -143,52 +146,31 @@ export function BranchComparisonReportScreen() {
           {t("reports.branchComparisonPeriodHelp")}
         </p>
         <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11 touch-manipulation text-xs sm:min-h-10"
-              onClick={() => setPreset("month")}
-            >
-              {t("reports.presetThisMonth")}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11 touch-manipulation text-xs sm:min-h-10"
-              onClick={() => setPreset("d30")}
-            >
-              {t("reports.presetLast30")}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11 touch-manipulation text-xs sm:min-h-10"
-              onClick={() => setPreset("d7")}
-            >
-              {t("reports.presetLast7")}
-            </Button>
-          </div>
-          <ReportSeasonYearQuickSelect
+          <ReportHubDateRangeControls
+            t={t}
             dateFrom={dateFrom}
             dateTo={dateTo}
-            onApplyRange={(f, d) => {
+            rangeLock={dateRangeLock}
+            onUnlockCalendarYear={() => setDateRangeLock("manual")}
+            onPreset={(key) => {
+              setDateRangeLock("preset");
+              applyDatePreset(key);
+            }}
+            onCalendarYearRange={(f, d) => {
+              setDateRangeLock("calendarYear");
               setDateFrom(f);
               setDateTo(d);
             }}
-            className="max-w-full sm:max-w-sm"
+            onDateFromChange={(v) => {
+              setDateRangeLock("manual");
+              setDateFrom(v);
+            }}
+            onDateToChange={(v) => {
+              setDateRangeLock("manual");
+              setDateTo(v);
+            }}
           />
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <DateField
-              label={t("reports.dateFrom")}
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-            />
-            <DateField
-              label={t("reports.dateTo")}
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-            />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="flex min-w-0 flex-col gap-1 text-sm">
               <span className="font-medium text-zinc-700">
                 {t("reports.colBranch")}
