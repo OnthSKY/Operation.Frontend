@@ -3,6 +3,9 @@ export const auth = {
   subtitle: "Use your Operations account.",
   username: "Username",
   password: "Password",
+  rememberMe: "Remember me",
+  rememberMeHint:
+    "When on, a refresh token is stored so your session renews when the access token expires.",
   showPassword: "Show password",
   hidePassword: "Hide password",
   submit: "Sign in",
@@ -17,4 +20,10 @@ export const auth = {
   feature1: "Branch activity and KPIs in one view",
   feature2: "Controlled access for your team",
   feature3: "Warehouse data that stays trustworthy",
+  totpTitle: "Verification code",
+  totpSubtitle: "Enter the 6-digit verification code from your app.",
+  totpCode: "Verification code",
+  totpSubmit: "Verify and sign in",
+  totpBack: "Use different account",
+  totpFailed: "Invalid or expired code.",
 } as const;

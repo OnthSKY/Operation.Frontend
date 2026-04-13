@@ -12,6 +12,7 @@ import {
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
+import { DateField } from "@/shared/ui/DateField";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select, type SelectOption } from "@/shared/ui/Select";
@@ -19,6 +20,7 @@ import {
   currencySelectOptions,
   DEFAULT_CURRENCY,
 } from "@/shared/lib/iso4217-currencies";
+import { localIsoDateTime } from "@/shared/lib/local-iso-date";
 import { useEffect, useMemo } from "react";
 import { useController, useForm, useWatch } from "react-hook-form";
 
@@ -42,10 +44,6 @@ type Props = {
 };
 
 const TITLE_ID = "advance-title";
-
-function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10);
-}
 
 function currentCalendarYear(): string {
   return String(new Date().getFullYear());
@@ -76,7 +74,7 @@ export function AdvancePersonnelModal({
       branchId: "",
       sourceType: "CASH",
       currencyCode: DEFAULT_CURRENCY,
-      advanceDate: todayIsoDate(),
+      advanceDate: localIsoDateTime(),
       effectiveYear: currentCalendarYear(),
       amount: "",
       description: "",
@@ -97,8 +95,6 @@ export function AdvancePersonnelModal({
     () => [
       { value: "CASH", label: t("personnel.sourceCash") },
       { value: "PATRON", label: t("personnel.sourcePatron") },
-      { value: "BANK", label: t("personnel.sourceBank") },
-      { value: "PERSONNEL_POCKET", label: t("personnel.sourcePersonnelPocket") },
     ],
     [t]
   );
@@ -179,7 +175,7 @@ export function AdvancePersonnelModal({
       branchId: "",
       sourceType: "CASH",
       currencyCode: DEFAULT_CURRENCY,
-      advanceDate: todayIsoDate(),
+      advanceDate: localIsoDateTime(),
       effectiveYear: currentCalendarYear(),
       amount: "",
       description: "",
@@ -235,12 +231,6 @@ export function AdvancePersonnelModal({
       branchIdForPayload = explicitBranch;
     } else if (hasExplicitBranch) {
       branchIdForPayload = explicitBranch;
-    } else {
-      const pb = selectedPersonnel?.branchId;
-      if (pb == null || pb <= 0) {
-        notify.error(t("personnel.advanceBranchPickWhenPersonnelHasNoBranch"));
-        return;
-      }
     }
 
     const effectiveYear = Math.trunc(Number(values.effectiveYear));
@@ -266,7 +256,7 @@ export function AdvancePersonnelModal({
         branchId: "",
         sourceType: "CASH",
         currencyCode: DEFAULT_CURRENCY,
-        advanceDate: todayIsoDate(),
+        advanceDate: localIsoDateTime(),
         effectiveYear: currentCalendarYear(),
         amount: "",
         description: "",
@@ -328,11 +318,11 @@ export function AdvancePersonnelModal({
             {t("personnel.advanceBranchOptionalWhenNotCash")}
           </p>
         ) : null}
-        <Input
+        <DateField
           label={t("personnel.advanceDate")}
-          type="date"
           labelRequired
           required
+          mode="datetime-local"
           {...register("advanceDate", { required: t("common.required") })}
           error={errors.advanceDate?.message}
         />
@@ -357,6 +347,9 @@ export function AdvancePersonnelModal({
           })}
           error={errors.effectiveYear?.message}
         />
+        <p className="-mt-0.5 text-xs leading-relaxed text-zinc-500">
+          {t("personnel.effectiveYearHint")}
+        </p>
         <Select
           label={t("personnel.advanceCurrency")}
           labelRequired
@@ -405,7 +398,7 @@ export function AdvancePersonnelModal({
                 branchId: "",
                 sourceType: "CASH",
                 currencyCode: DEFAULT_CURRENCY,
-                advanceDate: todayIsoDate(),
+                advanceDate: localIsoDateTime(),
                 effectiveYear: currentCalendarYear(),
                 amount: "",
                 description: "",

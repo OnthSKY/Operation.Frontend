@@ -10,6 +10,7 @@ import {
 } from "@/modules/warehouse/api/warehouse-stock-api";
 import {
   createWarehouse,
+  fetchWarehousePeopleOptions,
   fetchWarehouseUserOptions,
   fetchWarehouses,
   softDeleteWarehouse,
@@ -22,12 +23,20 @@ import type {
   CreateWarehouseInput,
   WarehouseAuditPageParams,
   WarehouseMovementsPageParams,
+  WarehouseStockFilters,
 } from "@/types/warehouse";
+
+function stockQueryKey(warehouseId: number, filters: WarehouseStockFilters) {
+  const c = filters.categoryId != null && filters.categoryId > 0 ? filters.categoryId : 0;
+  const p = filters.parentProductId != null && filters.parentProductId > 0 ? filters.parentProductId : 0;
+  const r = filters.productId != null && filters.productId > 0 ? filters.productId : 0;
+  return [...warehouseKeys.all, "stock", warehouseId, c, p, r] as const;
+}
 
 export const warehouseKeys = {
   all: warehouseRootKey,
   list: () => [...warehouseKeys.all, "list"] as const,
-  stock: (warehouseId: number) => [...warehouseKeys.all, "stock", warehouseId] as const,
+  stock: stockQueryKey,
 };
 
 function invalidateWarehouseQueries(qc: ReturnType<typeof useQueryClient>) {
@@ -49,6 +58,14 @@ export function useWarehouseUserOptions(enabled: boolean) {
   });
 }
 
+export function useWarehousePeopleOptions(enabled: boolean) {
+  return useQuery({
+    queryKey: [...warehouseKeys.all, "peopleOptions"] as const,
+    queryFn: fetchWarehousePeopleOptions,
+    enabled,
+  });
+}
+
 export function useWarehouseDetail(warehouseId: number | null, enabled: boolean) {
   return useQuery({
     queryKey: [...warehouseKeys.all, "detail", warehouseId ?? 0],
@@ -57,10 +74,14 @@ export function useWarehouseDetail(warehouseId: number | null, enabled: boolean)
   });
 }
 
-export function useWarehouseStock(warehouseId: number | null) {
+export function useWarehouseStock(
+  warehouseId: number | null,
+  filters: WarehouseStockFilters = {}
+) {
+  const id = warehouseId ?? 0;
   return useQuery({
-    queryKey: warehouseKeys.stock(warehouseId ?? 0),
-    queryFn: () => fetchWarehouseStock(warehouseId!),
+    queryKey: warehouseKeys.stock(id, filters),
+    queryFn: () => fetchWarehouseStock(warehouseId!, filters),
     enabled: warehouseId != null && warehouseId > 0,
   });
 }
@@ -130,7 +151,10 @@ export function useRegisterWarehouseMovement() {
   return useMutation({
     mutationFn: registerWarehouseMovement,
     onSuccess: (_data, vars) => {
-      void qc.invalidateQueries({ queryKey: warehouseKeys.stock(vars.warehouseId) });
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "stock", vars.warehouseId],
+        exact: false,
+      });
       invalidateWarehouseQueries(qc);
       void qc.invalidateQueries({ queryKey: productsRootKey });
     },
@@ -142,7 +166,10 @@ export function useTransferWarehouseToBranch() {
   return useMutation({
     mutationFn: transferWarehouseToBranch,
     onSuccess: (_data, vars) => {
-      void qc.invalidateQueries({ queryKey: warehouseKeys.stock(vars.warehouseId) });
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "stock", vars.warehouseId],
+        exact: false,
+      });
       invalidateWarehouseQueries(qc);
       void qc.invalidateQueries({ queryKey: productsRootKey });
       void qc.invalidateQueries({ queryKey: branchKeys.all });

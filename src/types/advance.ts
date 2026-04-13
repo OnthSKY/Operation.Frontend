@@ -1,6 +1,6 @@
 export type CreateAdvanceInput = {
   personnelId: number;
-  /** Required for branch cash (CASH); optional for BANK/PATRON (server uses personnel branch when omitted). */
+  /** CASH için zorunlu; PATRON için opsiyonel (personel şubesi veya şubesiz). */
   branchId?: number;
   sourceType?: string;
   amount: number;
@@ -13,7 +13,7 @@ export type CreateAdvanceInput = {
 export type Advance = {
   id: number;
   personnelId: number;
-  branchId: number;
+  branchId: number | null;
   sourceType: string;
   amount: number;
   currencyCode: string;
@@ -26,5 +26,5 @@ export type Advance = {
 
 export type AdvanceListItem = Advance & {
   personnelFullName: string;
-  branchName: string;
+  branchName: string | null;
 };

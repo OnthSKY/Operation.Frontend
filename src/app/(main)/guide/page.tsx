@@ -7,29 +7,55 @@ import { cn } from "@/lib/cn";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
-function Section({
-  id,
-  title,
-  children,
-}: {
-  id: string;
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <section
-      id={id}
-      className="scroll-mt-[7.5rem] rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm shadow-zinc-900/[0.04] sm:scroll-mt-24 sm:p-6 md:scroll-mt-28"
-    >
-      <h2 className="text-lg font-bold leading-snug text-zinc-900 sm:text-xl">
-        {title}
-      </h2>
-      <div className="mt-4 space-y-3 text-base leading-relaxed text-zinc-600 sm:text-[0.95rem] sm:leading-relaxed md:text-base">
-        {children}
-      </div>
-    </section>
-  );
-}
+type TabId =
+  | "mission"
+  | "nav"
+  | "dashboard"
+  | "flows"
+  | "reports"
+  | "personnel"
+  | "branch"
+  | "warehouse"
+  | "suppliers"
+  | "vehicles"
+  | "products"
+  | "admin"
+  | "tips"
+  | "portal";
+
+const SECTION_TITLE_KEYS: Record<TabId, string> = {
+  mission: "guide.mission.title",
+  nav: "guide.nav.title",
+  dashboard: "guide.dashboard.title",
+  flows: "guide.flows.title",
+  reports: "guide.reports.title",
+  personnel: "guide.personnel.title",
+  branch: "guide.branch.title",
+  warehouse: "guide.warehouse.title",
+  suppliers: "guide.suppliers.title",
+  vehicles: "guide.vehicles.title",
+  products: "guide.products.title",
+  admin: "guide.admin.title",
+  tips: "guide.footer.title",
+  portal: "guide.portal.title",
+};
+
+const WHATS_NEW_KEYS: Record<TabId, string> = {
+  mission: "guide.mission.whatsNew",
+  nav: "guide.nav.whatsNew",
+  dashboard: "guide.dashboard.whatsNew",
+  flows: "guide.flows.whatsNew",
+  reports: "guide.reports.whatsNew",
+  personnel: "guide.personnel.whatsNew",
+  branch: "guide.branch.whatsNew",
+  warehouse: "guide.warehouse.whatsNew",
+  suppliers: "guide.suppliers.whatsNew",
+  vehicles: "guide.vehicles.whatsNew",
+  products: "guide.products.whatsNew",
+  admin: "guide.admin.whatsNew",
+  tips: "guide.footer.whatsNew",
+  portal: "guide.portal.whatsNew",
+};
 
 function P({ children }: { children: ReactNode }) {
   return <p className="text-pretty">{children}</p>;
@@ -60,56 +86,27 @@ function Jump({ href, label }: { href: string; label: string }) {
   );
 }
 
-const SECTION_TITLE_KEYS: Record<
-  | "nav"
-  | "dashboard"
-  | "reports"
-  | "personnel"
-  | "branch"
-  | "warehouse"
-  | "products"
-  | "admin"
-  | "tips"
-  | "portal",
-  string
-> = {
-  nav: "guide.nav.title",
-  dashboard: "guide.dashboard.title",
-  reports: "guide.reports.title",
-  personnel: "guide.personnel.title",
-  branch: "guide.branch.title",
-  warehouse: "guide.warehouse.title",
-  products: "guide.products.title",
-  admin: "guide.admin.title",
-  tips: "guide.footer.title",
-  portal: "guide.portal.title",
-};
-
 export default function GuidePage() {
   const { t } = useI18n();
   const { user } = useAuth();
   const personnelPortal = isPersonnelPortalRole(user?.role);
   const isAdmin = user?.role === "ADMIN";
-  const [showTop, setShowTop] = useState(false);
 
-  useEffect(() => {
-    const onScroll = () => setShowTop(window.scrollY > 280);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-
-  const tocIds = useMemo(
+  const tabIds = useMemo(
     () =>
       personnelPortal
-        ? (["nav", "portal", "branch", "tips"] as const)
+        ? (["mission", "nav", "portal", "branch", "tips"] as const)
         : ([
+            "mission",
             "nav",
             "dashboard",
+            "flows",
             "reports",
             "personnel",
             "branch",
             "warehouse",
+            "suppliers",
+            "vehicles",
             "products",
             ...(isAdmin ? (["admin"] as const) : []),
             "tips",
@@ -117,8 +114,20 @@ export default function GuidePage() {
     [personnelPortal, isAdmin]
   );
 
+  const [active, setActive] = useState<TabId>(tabIds[0]!);
+
+  useEffect(() => {
+    if (!(tabIds as readonly TabId[]).includes(active)) {
+      setActive(tabIds[0]!);
+    }
+  }, [tabIds, active]);
+
+  const safeActive = (tabIds as readonly TabId[]).includes(active)
+    ? active
+    : tabIds[0]!;
+
   return (
-    <div className="mx-auto max-w-3xl space-y-5 px-3 pb-28 pt-4 sm:space-y-6 sm:px-4 sm:pb-10 sm:pt-6 md:px-6 md:py-8">
+    <div className="mx-auto w-full max-w-3xl space-y-5 px-3 pb-28 pt-4 sm:space-y-6 sm:px-4 sm:pb-10 sm:pt-6 md:max-w-5xl md:px-6 md:py-8 lg:max-w-6xl xl:max-w-7xl 2xl:max-w-screen-2xl min-[1920px]:max-w-[min(112rem,calc(100vw-4rem))]">
       <header className="space-y-3 sm:space-y-4">
         <h1 className="text-pretty text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
           {t("guide.pageTitle")}
@@ -153,162 +162,195 @@ export default function GuidePage() {
         </div>
       </header>
 
-      {/* Mobile: sticky horizontal TOC */}
-      <div className="md:hidden">
-        <nav
-          aria-label={t("guide.toc")}
-          className="sticky top-14 z-20 -mx-3 border-b border-zinc-200/80 bg-zinc-50/95 px-3 py-3 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.15)] backdrop-blur-md supports-[backdrop-filter]:bg-zinc-50/85"
-        >
-          <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-violet-700/90">
-            {t("guide.toc")}
-          </p>
-          <p className="mt-1 text-xs text-zinc-500">{t("guide.tocSwipeHint")}</p>
-          <ul className="mt-3 flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {tocIds.map((id) => (
-              <li key={id} className="snap-start shrink-0">
-                <a
-                  href={`#${id}`}
-                  className="flex min-h-11 min-w-[2.75rem] items-center justify-center rounded-full border border-violet-200/90 bg-white px-4 text-sm font-bold text-violet-900 shadow-sm ring-violet-100 transition active:scale-[0.97] active:bg-violet-50"
-                >
-                  {t(`guide.tocShort.${id}`)}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+      <div
+        className="-mx-1 flex min-w-0 gap-1 overflow-x-auto overflow-y-hidden pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        role="tablist"
+        aria-label={t("guide.tabsAria")}
+      >
+        {tabIds.map((id) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={safeActive === id}
+            id={`guide-tab-${id}`}
+            aria-controls={`guide-panel-${id}`}
+            className={cn(
+              "shrink-0 rounded-xl px-3 py-2.5 text-xs font-bold uppercase tracking-wide transition min-h-11 sm:min-h-10",
+              safeActive === id
+                ? "bg-zinc-900 text-white shadow-md"
+                : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200/90 hover:text-zinc-900"
+            )}
+            onClick={() => setActive(id)}
+          >
+            {t(`guide.tocShort.${id}`)}
+          </button>
+        ))}
       </div>
 
-      {/* Desktop / tablet: card TOC with full titles */}
-      <nav
-        aria-label={t("guide.toc")}
-        className="hidden rounded-2xl border border-violet-200/60 bg-gradient-to-br from-violet-50/90 to-fuchsia-50/50 p-5 shadow-sm md:block"
+      <div
+        role="tabpanel"
+        id={`guide-panel-${safeActive}`}
+        aria-labelledby={`guide-tab-${safeActive}`}
+        className="rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm shadow-zinc-900/[0.04] sm:p-6"
       >
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-700/90">
-          {t("guide.toc")}
-        </p>
-        <ul className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          {tocIds.map((id) => (
-            <li key={id}>
-              <a
-                href={`#${id}`}
-                className="flex min-h-11 items-center rounded-xl border border-transparent px-3 py-2 text-sm font-semibold text-violet-900 underline decoration-violet-300 underline-offset-[5px] transition hover:border-violet-200/80 hover:bg-white/70 hover:decoration-violet-600"
-              >
-                {t(SECTION_TITLE_KEYS[id])}
-              </a>
-            </li>
-          ))}
-        </ul>
-      </nav>
+        <h2 className="text-lg font-bold leading-snug text-zinc-900 sm:text-xl">
+          {t(SECTION_TITLE_KEYS[safeActive])}
+        </h2>
 
-      <div className="space-y-4 sm:space-y-5">
-        <Section id="nav" title={t("guide.nav.title")}>
-          <P>{t("guide.nav.p1")}</P>
-          <P>{t("guide.nav.p2")}</P>
-          <P>{t("guide.nav.p3")}</P>
-        </Section>
-
-        {personnelPortal ? (
-          <Section id="portal" title={t("guide.portal.title")}>
-            <P>{t("guide.portal.p1")}</P>
-            <P>{t("guide.portal.p2")}</P>
-            <P>{t("guide.portal.p3")}</P>
-            <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap">
-              <Jump href="/branch" label={t("guide.portal.goBranch")} />
-              <Jump
-                href="/personnel/advances"
-                label={t("guide.portal.goAdvances")}
-              />
-            </div>
-          </Section>
+        {t(WHATS_NEW_KEYS[safeActive]).trim() ? (
+          <div className="mt-4 rounded-xl border border-violet-200/80 bg-violet-50/90 p-4 text-sm leading-relaxed text-violet-950 sm:text-[0.95rem]">
+            <p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-violet-800/90">
+              {t("guide.whatsNewTitle")}
+            </p>
+            <p className="mt-2 text-pretty">{t(WHATS_NEW_KEYS[safeActive])}</p>
+          </div>
         ) : null}
 
-        {!personnelPortal ? (
-          <>
-            <Section id="dashboard" title={t("guide.dashboard.title")}>
+        <div className="mt-4 space-y-3 text-base leading-relaxed text-zinc-600 sm:text-[0.95rem] sm:leading-relaxed md:text-base">
+          {safeActive === "mission" ? (
+            <>
+              <P>{t("guide.mission.p1")}</P>
+              <P>{t("guide.mission.p2")}</P>
+              <P>{t("guide.mission.p3")}</P>
+              <P>{t("guide.mission.p4")}</P>
+              <P>{t("guide.mission.p5")}</P>
+              <P>{t("guide.mission.p6")}</P>
+            </>
+          ) : null}
+
+          {safeActive === "nav" ? (
+            <>
+              <P>{t("guide.nav.p1")}</P>
+              <P>{t("guide.nav.p2")}</P>
+              <P>{t("guide.nav.p3")}</P>
+            </>
+          ) : null}
+
+          {safeActive === "portal" ? (
+            <>
+              <P>{t("guide.portal.p1")}</P>
+              <P>{t("guide.portal.p2")}</P>
+              <P>{t("guide.portal.p3")}</P>
+              <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap">
+                <Jump href="/branches" label={t("guide.portal.goBranch")} />
+                <Jump
+                  href="/personnel/costs"
+                  label={t("guide.portal.goAdvances")}
+                />
+              </div>
+            </>
+          ) : null}
+
+          {safeActive === "dashboard" ? (
+            <>
               <P>{t("guide.dashboard.p1")}</P>
               <P>{t("guide.dashboard.p2")}</P>
               <Jump href="/" label={t("guide.dashboard.go")} />
-            </Section>
+            </>
+          ) : null}
 
-            <Section id="reports" title={t("guide.reports.title")}>
+          {safeActive === "flows" ? (
+            <>
+              <P>{t("guide.flows.p1")}</P>
+              <P>{t("guide.flows.p2")}</P>
+              <P>{t("guide.flows.p3")}</P>
+              <P>{t("guide.flows.p4")}</P>
+              <P>{t("guide.flows.p5")}</P>
+              <P>{t("guide.flows.p6")}</P>
+              <P>{t("guide.flows.p7")}</P>
+              <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap">
+                <Jump href="/" label={t("guide.flows.goHome")} />
+                <Jump href="/branches" label={t("guide.flows.goBranch")} />
+                <Jump href="/reports" label={t("guide.flows.goReports")} />
+              </div>
+            </>
+          ) : null}
+
+          {safeActive === "reports" ? (
+            <>
               <P>{t("guide.reports.p1")}</P>
               <P>{t("guide.reports.p2")}</P>
               <Jump href="/reports" label={t("guide.reports.go")} />
-            </Section>
+            </>
+          ) : null}
 
-            <Section id="personnel" title={t("guide.personnel.title")}>
+          {safeActive === "personnel" ? (
+            <>
               <P>{t("guide.personnel.p1")}</P>
               <P>{t("guide.personnel.p2")}</P>
               <P>{t("guide.personnel.p3")}</P>
               <div className="flex flex-col gap-3 pt-1 sm:flex-row sm:flex-wrap">
                 <Jump href="/personnel" label={t("guide.personnel.goList")} />
                 <Jump
-                  href="/personnel/advances"
+                  href="/personnel/costs"
                   label={t("guide.personnel.goAdvances")}
                 />
               </div>
-            </Section>
-          </>
-        ) : null}
+            </>
+          ) : null}
 
-        <Section id="branch" title={t("guide.branch.title")}>
-          <P>{t("guide.branch.p1")}</P>
-          <P>{t("guide.branch.p2")}</P>
-          <P>{t("guide.branch.p3")}</P>
-          <Jump href="/branch" label={t("guide.branch.go")} />
-        </Section>
+          {safeActive === "branch" ? (
+            <>
+              <P>{t("guide.branch.p1")}</P>
+              <P>{t("guide.branch.p2")}</P>
+              <P>{t("guide.branch.p3")}</P>
+              <Jump href="/branches" label={t("guide.branch.go")} />
+            </>
+          ) : null}
 
-        {!personnelPortal ? (
-          <>
-            <Section id="warehouse" title={t("guide.warehouse.title")}>
+          {safeActive === "warehouse" ? (
+            <>
               <P>{t("guide.warehouse.p1")}</P>
               <P>{t("guide.warehouse.p2")}</P>
-              <Jump href="/warehouse" label={t("guide.warehouse.go")} />
-            </Section>
+              <Jump href="/warehouses" label={t("guide.warehouse.go")} />
+            </>
+          ) : null}
 
-            <Section id="products" title={t("guide.products.title")}>
+          {safeActive === "suppliers" ? (
+            <>
+              <P>{t("guide.suppliers.p1")}</P>
+              <P>{t("guide.suppliers.p2")}</P>
+              <P>{t("guide.suppliers.p3")}</P>
+              <P>{t("guide.suppliers.p4")}</P>
+              <P>{t("guide.suppliers.p5")}</P>
+              <Jump href="/suppliers" label={t("guide.suppliers.go")} />
+            </>
+          ) : null}
+
+          {safeActive === "vehicles" ? (
+            <>
+              <P>{t("guide.vehicles.p1")}</P>
+              <P>{t("guide.vehicles.p2")}</P>
+              <P>{t("guide.vehicles.p3")}</P>
+              <P>{t("guide.vehicles.p4")}</P>
+              <Jump href="/vehicles" label={t("guide.vehicles.go")} />
+            </>
+          ) : null}
+
+          {safeActive === "products" ? (
+            <>
               <P>{t("guide.products.p1")}</P>
               <Jump href="/products" label={t("guide.products.go")} />
-            </Section>
-          </>
-        ) : null}
+            </>
+          ) : null}
 
-        {isAdmin ? (
-          <Section id="admin" title={t("guide.admin.title")}>
-            <P>{t("guide.admin.p1")}</P>
-            <Jump href="/admin/users" label={t("guide.admin.go")} />
-          </Section>
-        ) : null}
+          {safeActive === "admin" ? (
+            <>
+              <P>{t("guide.admin.p1")}</P>
+              <Jump href="/admin/users" label={t("guide.admin.go")} />
+            </>
+          ) : null}
 
-        <Section id="tips" title={t("guide.footer.title")}>
-          <P>{t("guide.footer.p1")}</P>
-          <P>{t("guide.footer.p2")}</P>
-          <P>{t("guide.footer.p3")}</P>
-        </Section>
+          {safeActive === "tips" ? (
+            <>
+              <P>{t("guide.footer.p1")}</P>
+              <P>{t("guide.footer.p2")}</P>
+              <P>{t("guide.footer.p3")}</P>
+            </>
+          ) : null}
+        </div>
       </div>
-
-      {showTop ? (
-        <button
-          type="button"
-          className="fixed bottom-[max(1rem,env(safe-area-inset-bottom,0px))] right-[max(1rem,env(safe-area-inset-right,0px))] z-30 flex min-h-12 items-center gap-2 rounded-full bg-zinc-900 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-zinc-900/30 ring-1 ring-white/10 transition hover:bg-zinc-800 active:scale-[0.98] md:bottom-8 md:right-8"
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <path d="M18 15l-6-6-6 6" />
-          </svg>
-          {t("guide.backToTop")}
-        </button>
-      ) : null}
     </div>
   );
 }

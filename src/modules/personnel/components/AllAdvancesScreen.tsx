@@ -1,7 +1,6 @@
 "use client";
 
 import { useI18n } from "@/i18n/context";
-import type { Locale } from "@/i18n/messages";
 import { cn } from "@/lib/cn";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { isPersonnelPortalRole } from "@/lib/auth/roles";
@@ -15,137 +14,18 @@ import {
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
 import type { AdvanceListItem } from "@/types/advance";
 import { Card } from "@/shared/components/Card";
+import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileFilters";
 import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 import { Select } from "@/shared/ui/Select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/shared/ui/Table";
-import { formatLocaleDate } from "@/shared/lib/locale-date";
-import { formatMoneyDash } from "@/shared/lib/locale-amount";
+import { DataTable, ResponsiveTableFrame } from "@/shared/tables";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { useMatchMedia } from "@/shared/lib/use-match-media";
 import Link from "next/link";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AdvancePersonnelModal } from "./AdvancePersonnelModal";
-
-function sourceAbbrev(t: (k: string) => string, st: string): string {
-  const u = st.toUpperCase();
-  if (u === "PATRON") return t("personnel.advanceSourceAbbrPatron");
-  if (u === "BANK") return t("personnel.advanceSourceAbbrBank");
-  if (u === "PERSONNEL_POCKET") return t("personnel.advanceSourceAbbrPersonnelPocket");
-  return t("personnel.advanceSourceAbbrCash");
-}
-
-function AdvanceCard({
-  row,
-  locale,
-  t,
-}: {
-  row: AdvanceListItem;
-  locale: Locale;
-  t: (k: string) => string;
-}) {
-  const dash = t("personnel.dash");
-  const Field = ({
-    label,
-    children,
-  }: {
-    label: string;
-    children: ReactNode;
-  }) => (
-    <div className="flex min-w-0 items-start justify-between gap-3 py-2">
-      <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-        {label}
-      </span>
-      <span className="min-w-0 text-right text-sm text-zinc-900">{children}</span>
-    </div>
-  );
-
-  return (
-    <article className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3 border-b border-zinc-100 pb-3">
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-base font-semibold text-zinc-900">
-            {row.personnelFullName?.trim() || dash}
-          </p>
-          <p className="mt-0.5 truncate text-sm text-zinc-600">
-            {row.branchName?.trim() || dash}
-          </p>
-        </div>
-        <div className="shrink-0 text-right">
-          <p className="text-base font-semibold tabular-nums text-zinc-900">
-            {formatMoneyDash(row.amount, dash, locale)}
-          </p>
-          <p className="text-xs text-zinc-500">{row.currencyCode}</p>
-        </div>
-      </div>
-      <div className="divide-y divide-zinc-100">
-        <Field label={t("personnel.advanceDate")}>
-          {formatLocaleDate(row.advanceDate, locale, dash)}
-        </Field>
-        <Field label={t("personnel.sourceType")}>
-          {sourceAbbrev(t, row.sourceType)}
-        </Field>
-        <Field label={t("personnel.effectiveYear")}>{row.effectiveYear}</Field>
-        <Field label={t("personnel.note")}>
-          {row.description?.trim() ? (
-            <span className="whitespace-pre-wrap break-words text-left">
-              {row.description.trim()}
-            </span>
-          ) : (
-            dash
-          )}
-        </Field>
-      </div>
-    </article>
-  );
-}
-
-function AdvanceTableRow({
-  row,
-  locale,
-  t,
-}: {
-  row: AdvanceListItem;
-  locale: Locale;
-  t: (k: string) => string;
-}) {
-  const dash = t("personnel.dash");
-  return (
-    <TableRow>
-      <TableCell className="whitespace-nowrap text-sm">
-        {formatLocaleDate(row.advanceDate, locale, dash)}
-      </TableCell>
-      <TableCell className="min-w-[8rem] text-sm font-medium text-zinc-900">
-        {row.personnelFullName?.trim() || dash}
-      </TableCell>
-      <TableCell className="min-w-[6rem] text-sm text-zinc-700">
-        {row.branchName?.trim() || dash}
-      </TableCell>
-      <TableCell className="whitespace-nowrap text-right text-sm tabular-nums">
-        {formatMoneyDash(row.amount, dash, locale)}
-      </TableCell>
-      <TableCell className="whitespace-nowrap text-sm text-zinc-600">
-        {row.currencyCode}
-      </TableCell>
-      <TableCell className="whitespace-nowrap text-sm text-zinc-600">
-        {sourceAbbrev(t, row.sourceType)}
-      </TableCell>
-      <TableCell className="whitespace-nowrap text-sm tabular-nums text-zinc-600">
-        {row.effectiveYear}
-      </TableCell>
-      <TableCell className="max-w-[14rem] truncate text-sm text-zinc-600">
-        {row.description?.trim() || dash}
-      </TableCell>
-    </TableRow>
-  );
-}
+import { AdvanceCard, createAdvanceListColumns } from "./personnel-advance-list-blocks";
 
 export function AllAdvancesScreen() {
   const { t, locale } = useI18n();
@@ -157,8 +37,13 @@ export function AllAdvancesScreen() {
   const [yearInput, setYearInput] = useState("");
   const [personnelValue, setPersonnelValue] = useState("");
   const [branchValue, setBranchValue] = useState("");
-  const [limitInput, setLimitInput] = useState("500");
+  /** null = automatic row limit (20 narrow / 500 desktop) */
+  const [limitInput, setLimitInput] = useState<string | null>(null);
   const [advanceOpen, setAdvanceOpen] = useState(false);
+  const isNarrow = useMatchMedia("(max-width: 767px)");
+  const defaultLimitNum = isNarrow ? 20 : 500;
+  const defaultLimitStr = String(defaultLimitNum);
+  const limitFieldValue = limitInput ?? defaultLimitStr;
 
   const activePersonnel = useMemo(
     () => personnelRaw.filter((p) => !p.isDeleted),
@@ -194,19 +79,19 @@ export function AllAdvancesScreen() {
     const pid = pe ? parseInt(pe, 10) : 0;
     const br = branchValue.trim();
     const bid = br ? parseInt(br, 10) : 0;
-    const lim = limitInput.trim();
-    const limParsed = lim ? parseInt(lim, 10) : 500;
+    const lim = limitFieldValue.trim();
+    const limParsed = lim ? parseInt(lim, 10) : defaultLimitNum;
     const limit =
       Number.isFinite(limParsed) && limParsed >= 1 && limParsed <= 1000
         ? limParsed
-        : 500;
+        : defaultLimitNum;
     return {
       effectiveYear,
       personnelId: pid > 0 ? pid : undefined,
       branchId: bid > 0 ? bid : undefined,
       limit,
     };
-  }, [yearInput, personnelValue, branchValue, limitInput]);
+  }, [yearInput, personnelValue, branchValue, limitFieldValue, defaultLimitNum]);
 
   const allAdvancesQuery = useAllAdvancesList(listParams, !personnelPortal);
   const ownAdvancesQuery = useQuery({
@@ -255,6 +140,8 @@ export function AllAdvancesScreen() {
     ? ownAdvancesQuery.refetch
     : allAdvancesQuery.refetch;
 
+  const advanceColumns = useMemo(() => createAdvanceListColumns(t, locale), [t, locale]);
+
   const branchOptions = useMemo(
     () => [
       { value: "", label: t("personnel.allAdvancesAnyBranch") },
@@ -263,14 +150,37 @@ export function AllAdvancesScreen() {
     [branches, t]
   );
 
+  const filtersActive = useMemo(() => {
+    if (personnelPortal) {
+      return yearInput.trim() !== "";
+    }
+    const lim = limitFieldValue.trim();
+    const limitCustom =
+      limitInput !== null && lim !== "" && lim !== defaultLimitStr;
+    return (
+      yearInput.trim() !== "" ||
+      personnelValue !== "" ||
+      branchValue !== "" ||
+      limitCustom
+    );
+  }, [
+    personnelPortal,
+    yearInput,
+    personnelValue,
+    branchValue,
+    limitFieldValue,
+    limitInput,
+    defaultLimitStr,
+  ]);
+
   const secondaryBtn =
     "inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-base font-medium text-zinc-900 transition-colors hover:bg-zinc-50 active:bg-zinc-100 sm:w-auto";
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 pb-8 lg:max-w-6xl 2xl:max-w-7xl">
+    <div className="mx-auto flex w-full app-page-max flex-col gap-4 p-4 pb-8">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
+          <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
             {t("personnel.allAdvancesTitle")}
           </h1>
           <p className="mt-1 text-sm text-zinc-500">
@@ -293,7 +203,13 @@ export function AllAdvancesScreen() {
         ) : null}
       </div>
 
-      <Card title={t("personnel.allAdvancesFilters")}>
+      <CollapsibleMobileFilters
+        title={t("personnel.allAdvancesFilters")}
+        toggleAriaLabel={t("common.filters")}
+        active={filtersActive}
+        expandLabel={t("common.filtersShow")}
+        collapseLabel={t("common.filtersHide")}
+      >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <Input
             name="effectiveYear"
@@ -331,7 +247,7 @@ export function AllAdvancesScreen() {
                 inputMode="numeric"
                 min={1}
                 max={1000}
-                value={limitInput}
+                value={limitFieldValue}
                 onChange={(e) => setLimitInput(e.target.value)}
               />
             </>
@@ -342,7 +258,7 @@ export function AllAdvancesScreen() {
             {t("personnel.allAdvancesLimitHint")}
           </p>
         ) : null}
-      </Card>
+      </CollapsibleMobileFilters>
 
       <Card title={t("personnel.allAdvancesTableTitle")}>
         {isPending && (
@@ -367,41 +283,20 @@ export function AllAdvancesScreen() {
           <p className="text-sm text-zinc-500">{t("personnel.allAdvancesEmpty")}</p>
         )}
         {!isPending && !isError && data.length > 0 && (
-          <>
-            <div className="grid gap-3 md:hidden" aria-label={t("personnel.allAdvancesTableTitle")}>
-              {data.map((row) => (
-                <AdvanceCard key={row.id} row={row} locale={locale} t={t} />
-              ))}
-            </div>
-            <div className="hidden md:block">
-              <Table className="min-w-[56rem]">
-                <TableHead>
-                  <TableRow>
-                    <TableHeader>{t("personnel.advanceDate")}</TableHeader>
-                    <TableHeader>{t("personnel.tableName")}</TableHeader>
-                    <TableHeader>{t("personnel.tableBranch")}</TableHeader>
-                    <TableHeader className="text-right">
-                      {t("personnel.amount")}
-                    </TableHeader>
-                    <TableHeader>{t("personnel.advanceCurrency")}</TableHeader>
-                    <TableHeader>{t("personnel.sourceType")}</TableHeader>
-                    <TableHeader>{t("personnel.effectiveYear")}</TableHeader>
-                    <TableHeader>{t("personnel.note")}</TableHeader>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {data.map((row) => (
-                    <AdvanceTableRow
-                      key={row.id}
-                      row={row}
-                      locale={locale}
-                      t={t}
-                    />
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </>
+          <ResponsiveTableFrame
+            mobileProps={{ "aria-label": t("personnel.allAdvancesTableTitle") }}
+            mobile={data.map((row) => (
+              <AdvanceCard key={row.id} row={row} locale={locale} t={t} />
+            ))}
+            desktop={
+              <DataTable
+                columns={advanceColumns}
+                rows={data}
+                getRowKey={(row) => row.id}
+                tableClassName="min-w-[56rem]"
+              />
+            }
+          />
         )}
       </Card>
 

@@ -33,6 +33,14 @@ export const GLOBAL_SEARCH_ITEMS: GlobalSearchItemDef[] = [
       "rapor reports finans financial stok stock dönem period özet kategori şube depo",
   },
   {
+    id: "reports-branch-comparison",
+    href: "/reports/branches",
+    titleKey: "reports.navBranchComparison",
+    subtitleKey: "search.subBranchComparison",
+    match:
+      "şube bazlı branch comparison karşılaştırma dönem period gelir gider net kasa register şubeler arası",
+  },
+  {
     id: "personnel",
     href: "/personnel",
     titleKey: "nav.personnel",
@@ -48,12 +56,44 @@ export const GLOBAL_SEARCH_ITEMS: GlobalSearchItemDef[] = [
     match: "avans advance ön ödeme prepaid payment borç loan maaş salary ödeme",
   },
   {
-    id: "advances-all",
-    href: "/personnel/advances",
-    titleKey: "personnel.allAdvancesTitle",
-    subtitleKey: "search.subAllAdvances",
+    id: "personnel-costs",
+    href: "/personnel/costs",
+    titleKey: "personnel.costsTitle",
+    subtitleKey: "search.subPersonnelCosts",
     match:
-      "tüm avanslar all advances liste list kayıtlar records geçmiş history özet",
+      "personel maliyetleri personnel costs avans advances gider expenses maaş salary kasa register toplam combined özet",
+  },
+  {
+    id: "admin-settings",
+    href: "/admin/settings",
+    titleKey: "nav.systemSettingsHome",
+    subtitleKey: "search.subSystemSettings",
+    match:
+      "sistem ayarları system settings kullanıcılar users roller roles izin permissions yetki matrix matris yönetim administration",
+  },
+  {
+    id: "admin-authorization",
+    href: "/admin/settings/authorization",
+    titleKey: "nav.adminNavAuthorization",
+    subtitleKey: "search.subAuthorizationMatrix",
+    match:
+      "rol izin permission matrix matris yetki authorization rbac staff driver admin operations.staff system.admin warehouse.driver",
+  },
+  {
+    id: "admin-notifications",
+    href: "/admin/settings/notifications",
+    titleKey: "settings.notificationsCardTitle",
+    subtitleKey: "search.subOrgNotifications",
+    match:
+      "bildirim notifications hatırlatıcı reminder zil bell toast kurum organization sistem system admin operasyon operational z raporu gün sonu",
+  },
+  {
+    id: "admin-tourism-season-policy",
+    href: "/admin/settings/tourism-season-closed-policy",
+    titleKey: "settings.tourismSeasonCardTitle",
+    subtitleKey: "search.subTourismSeasonPolicy",
+    match:
+      "turizm tourism sezon season kapalı closed kasa register şube branch policy politika TOURISM_SEASON_CLOSED",
   },
   {
     id: "admin-users",
@@ -65,14 +105,14 @@ export const GLOBAL_SEARCH_ITEMS: GlobalSearchItemDef[] = [
   },
   {
     id: "branch",
-    href: "/branch",
+    href: "/branches",
     titleKey: "nav.branch",
     subtitleKey: "search.subBranch",
     match: "şube branch mağaza store lokasyon location ofis outlet",
   },
   {
     id: "warehouse",
-    href: "/warehouse",
+    href: "/warehouses",
     titleKey: "nav.warehouse",
     subtitleKey: "search.subWarehouse",
     match:
@@ -85,6 +125,54 @@ export const GLOBAL_SEARCH_ITEMS: GlobalSearchItemDef[] = [
     subtitleKey: "search.subProducts",
     match:
       "ürünler products katalog catalog liste list depo warehouse stok stock sku malzeme",
+  },
+  {
+    id: "product-categories",
+    href: "/products/categories",
+    titleKey: "nav.productCategories",
+    subtitleKey: "search.subProductCategories",
+    match:
+      "kategori categories ana alt sub parent hiyerarşi taxonomy sınıf class grup group ürün kategorileri",
+  },
+  {
+    id: "suppliers",
+    href: "/suppliers",
+    titleKey: "nav.suppliers",
+    subtitleKey: "search.subSuppliers",
+    match:
+      "tedarikçi supplier vendor alım purchase fatura invoice borç payable ödeme payment merkez depo",
+  },
+  {
+    id: "supplier-invoices",
+    href: "/suppliers/invoices",
+    titleKey: "suppliers.invoicesPageTitle",
+    subtitleKey: "search.subSupplierInvoices",
+    match:
+      "tedarikçi faturaları supplier invoices alım faturası purchase invoice liste list filtre filter ödenmiş ödenmemiş unpaid paid açık bakiye",
+  },
+  {
+    id: "general-overhead",
+    href: "/general-overhead",
+    titleKey: "nav.generalOverhead",
+    subtitleKey: "search.subGeneralOverhead",
+    match:
+      "genel gider overhead merkez muhasebe vergi paylaştır allocate şube branch patron maliyet cost dağıtım split ortak gider",
+  },
+  {
+    id: "vehicles",
+    href: "/vehicles",
+    titleKey: "nav.vehicles",
+    subtitleKey: "search.subVehicles",
+    match:
+      "araç vehicle fleet filo plaka plate şirket company sigorta insurance kasko trafik yakıt fuel bakım maintenance gider expense atama assignment şube branch personel driver",
+  },
+  {
+    id: "insurances",
+    href: "/insurances",
+    titleKey: "nav.insurances",
+    subtitleKey: "search.subInsurances",
+    match:
+      "sigorta insurance takip track sgk personel personnel araç vehicle şube branch poliçe policy kasko trafik bitiş expiry yenileme renewal kapsam coverage",
   },
   {
     id: "income",

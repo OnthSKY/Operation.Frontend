@@ -105,9 +105,12 @@ export function WarehouseDetailModal({ open, warehouseId, onClose, onOpenAddProd
           : undefined
       }
       closeButtonLabel={t("common.close")}
-      className="flex max-h-[min(92dvh,860px)] w-full max-w-full flex-col overflow-hidden rounded-t-2xl sm:max-w-3xl sm:rounded-xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl xl:max-h-[min(94dvh,960px)]"
+      wide
+      wideFixedHeight
+      wideExpanded
+      className="!p-0"
     >
-      <div className="mt-4 flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="mt-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-4 pb-4 sm:px-6">
         {isError ? (
           <p className="text-sm text-red-600">{toErrorMessage(error)}</p>
         ) : detailLoading && !detail ? (
@@ -132,6 +135,7 @@ export function WarehouseDetailModal({ open, warehouseId, onClose, onOpenAddProd
               {tab === "ops" ? (
                 <WarehouseOperationsTab
                   warehouseId={warehouseId}
+                  warehouseName={detail.name}
                   active={open && tab === "ops"}
                   onOpenAddProduct={onOpenAddProduct}
                   onDeleted={onClose}

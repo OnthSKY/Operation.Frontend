@@ -49,7 +49,9 @@ export function PersonnelAdvanceHistory({
   const filtered = useMemo(() => {
     let rows = sortAdvancesDesc(data);
     if (branchIdFilter != null && branchIdFilter > 0) {
-      rows = rows.filter((a) => a.branchId === branchIdFilter);
+      rows = rows.filter(
+        (a) => a.branchId != null && a.branchId === branchIdFilter
+      );
     }
     return rows;
   }, [data, branchIdFilter]);
@@ -168,7 +170,10 @@ export function PersonnelAdvanceHistory({
                 {branchIdFilter == null && (
                   <>
                     {" · "}
-                    {t("personnel.tableBranch")} #{a.branchId}
+                    {t("personnel.tableBranch")}{" "}
+                    {a.branchId != null && a.branchId > 0
+                      ? `#${a.branchId}`
+                      : "—"}
                   </>
                 )}
                 {a.hasLinkedRegisterExpense ? (

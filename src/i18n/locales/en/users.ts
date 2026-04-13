@@ -24,6 +24,7 @@ export const users = {
   roleAdmin: "Administrator",
   roleStaff: "Staff",
   rolePersonnel: "Branch staff (limited)",
+  roleDriver: "Warehouse driver (shipments only)",
   statusActive: "Active",
   statusInactive: "Inactive",
   passwordMismatch: "Passwords do not match.",
@@ -32,4 +33,11 @@ export const users = {
   personnelPickInvalid: "Pick a valid person or leave personnel empty.",
   personnelRequiredForPortalRole:
     "Branch staff role requires selecting a personnel record with an assigned branch.",
+  personnelRequiredForDriverRole:
+    "Driver role requires a linked personnel record (for shipment signing).",
+  tableSelfFinancials: "Own finances",
+  selfFinancialsHint: "Driver can see own advances & attributed expenses when enabled.",
+  selfFinancialsUpdated: "Visibility updated",
+  roleUpdated: "Role updated",
+  roleChangeSelfDisabled: "You cannot change your own role here.",
 } as const;

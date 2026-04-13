@@ -14,10 +14,16 @@ type ModalProps = {
   description?: string;
   children: ReactNode;
   className?: string;
+  /** Arka plan (ör. blur / koyu ton). */
+  backdropClassName?: string;
+  /** Dar kart — OTP, kısa formlar; mobilde üst köşe radius. */
+  narrow?: boolean;
   /** Ürün detayı gibi geniş, dikey kaydırmalı düzen. */
   wide?: boolean;
   /** wide: viewport sınırına kadar sabit yükseklik (tab geçişinde panel zıplamasını önler). */
   wideFixedHeight?: boolean;
+  /** wide + büyük ekran: daha geniş/yüksek panel (ör. personel detay). */
+  wideExpanded?: boolean;
   /** Kapat düğmesi (mobilde keşfedilebilirlik için); erişilebilir etiket. */
   closeButtonLabel?: string;
   /** Başka bir modalın üstünde açılırken daha yüksek z-index. */
@@ -32,8 +38,11 @@ export function Modal({
   description,
   children,
   className,
+  backdropClassName,
+  narrow = false,
   wide = false,
   wideFixedHeight = false,
+  wideExpanded = false,
   closeButtonLabel,
   nested = false,
 }: ModalProps) {
@@ -66,22 +75,30 @@ export function Modal({
 
   if (!mounted) return null;
 
-  const wideHeight = wideFixedHeight
-    ? "h-[min(92dvh,56rem)] sm:h-[min(88vh,60rem)] lg:h-[min(90dvh,68rem)] xl:h-[min(92dvh,76rem)]"
-    : "max-h-[min(92dvh,56rem)] sm:max-h-[min(88vh,60rem)] lg:max-h-[min(90dvh,68rem)] xl:max-h-[min(92dvh,76rem)]";
+  const wideHeight = wideExpanded
+    ? wideFixedHeight
+      ? "h-[min(92dvh,64rem)] sm:h-[min(92dvh,68rem)] lg:h-[min(93dvh,76rem)] xl:h-[min(94dvh,84rem)] 2xl:h-[min(94dvh,92rem)]"
+      : "max-h-[min(92dvh,64rem)] sm:max-h-[min(92dvh,68rem)] lg:max-h-[min(93dvh,76rem)] xl:max-h-[min(94dvh,84rem)] 2xl:max-h-[min(94dvh,92rem)]"
+    : wideFixedHeight
+      ? "h-[min(92dvh,60rem)] sm:h-[min(92dvh,64rem)] lg:h-[min(93dvh,72rem)] xl:h-[min(94dvh,80rem)] 2xl:h-[min(94dvh,84rem)]"
+      : "max-h-[min(92dvh,60rem)] sm:max-h-[min(92dvh,64rem)] lg:max-h-[min(93dvh,72rem)] xl:max-h-[min(94dvh,80rem)] 2xl:max-h-[min(94dvh,84rem)]";
   const panelClass = wide
     ? cn(
-        "flex w-full max-w-[min(100vw-1rem,80rem)] flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white p-0 shadow-lg xl:max-w-[min(100vw-2rem,90rem)] 2xl:max-w-[min(100vw-3rem,96rem)]",
+        wideExpanded
+          ? "flex min-h-0 w-full max-w-[min(100vw-1rem,96rem)] flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white p-0 shadow-lg lg:max-w-[min(100vw-2rem,108rem)] xl:max-w-[min(100vw-2rem,124rem)] 2xl:max-w-[min(100vw-3rem,132rem)]"
+          : "flex min-h-0 w-full max-w-[min(100vw-1rem,88rem)] flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white p-0 shadow-lg lg:max-w-[min(100vw-2rem,96rem)] xl:max-w-[min(100vw-2rem,112rem)] 2xl:max-w-[min(100vw-3rem,120rem)]",
         wideHeight
       )
-    : dialogTheme.panel;
+    : narrow
+      ? dialogTheme.narrowPanel
+      : dialogTheme.panel;
   const headerClass = wide
     ? cn(dialogTheme.headerRow, "shrink-0 border-b border-zinc-100 px-4 py-3 sm:px-6 sm:py-4")
     : dialogTheme.headerRow;
 
   return createPortal(
     <div
-      className={cn(dialogTheme.backdrop, nested && "z-[120]")}
+      className={cn(dialogTheme.backdrop, backdropClassName, nested && "z-[120]")}
       role="presentation"
       onClick={onClose}
     >
@@ -93,12 +110,22 @@ export function Modal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className={cn(headerClass, "shrink-0")}>
-          <div className={dialogTheme.headerText}>
-            <h2 id={titleId} className={dialogTheme.title}>
+          <div className={cn(dialogTheme.headerText, narrow && "sm:pr-1")}>
+            <h2
+              id={titleId}
+              className={cn(dialogTheme.title, narrow && "text-balance text-center sm:text-left")}
+            >
               {title}
             </h2>
             {description ? (
-              <p className={dialogTheme.description}>{description}</p>
+              <p
+                className={cn(
+                  dialogTheme.description,
+                  narrow && "text-balance text-center text-[15px] leading-snug sm:text-left sm:text-sm lg:text-base"
+                )}
+              >
+                {description}
+              </p>
             ) : null}
           </div>
           {closeButtonLabel ? (

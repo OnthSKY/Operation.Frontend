@@ -1,6 +1,7 @@
 "use client";
 
 import type { Locale } from "@/i18n/messages";
+import { reportBranchLabel } from "@/modules/reports/lib/report-branch-label";
 import type {
   FinancialBranchMonthlyBreakdownRow,
   FinancialMonthlyBreakdownRow,
@@ -85,7 +86,7 @@ export function ReportFinancialTimeSeriesCharts({
     for (const r of forCcy) {
       const prev = branchScores.get(r.branchId);
       branchScores.set(r.branchId, {
-        name: r.branchName,
+        name: reportBranchLabel(r.branchId, r.branchName, t),
         score: (prev?.score ?? 0) + Math.abs(r.netCash),
       });
     }
@@ -116,7 +117,7 @@ export function ReportFinancialTimeSeriesCharts({
     }));
 
     return { rows, branchMeta };
-  }, [branchMonthlyRows, currencyCode, locale, showBranchNetByMonth]);
+  }, [branchMonthlyRows, currencyCode, locale, showBranchNetByMonth, t]);
 
   const fmtAxisTick = (v: number) => {
     if (smUp) {

@@ -5,7 +5,7 @@ import { useWarehousesList } from "@/modules/warehouse/hooks/useWarehouseQueries
 import { useI18n } from "@/i18n/context";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
-import { Input } from "@/shared/ui/Input";
+import { DateField } from "@/shared/ui/DateField";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import {
   Table,
@@ -18,6 +18,7 @@ import {
 import { warehouseMovementInvoicePhotoUrl } from "@/modules/warehouse/api/warehouse-movements-api";
 import type { ProductMovementsPageParams } from "@/types/product";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
+import { formatWarehouseShipmentDisplay } from "@/shared/lib/in-batch-group-label";
 import { useEffect, useMemo, useState } from "react";
 
 const PAGE_SIZE = 20;
@@ -110,15 +111,13 @@ export function ProductDetailMovementsTab({ productId, enabled }: Props) {
           onBlur={() => {}}
           name="mv-type"
         />
-        <Input
-          type="date"
+        <DateField
           label={t("products.filterDateFrom")}
           value={dateFrom}
           onChange={(e) => setDateFrom(e.target.value)}
           className="min-w-0"
         />
-        <Input
-          type="date"
+        <DateField
           label={t("products.filterDateTo")}
           value={dateTo}
           onChange={(e) => setDateTo(e.target.value)}
@@ -152,6 +151,9 @@ export function ProductDetailMovementsTab({ productId, enabled }: Props) {
                 <TableHeader>{t("products.mColDate")}</TableHeader>
                 <TableHeader>{t("products.colWarehouse")}</TableHeader>
                 <TableHeader>{t("products.mColType")}</TableHeader>
+                <TableHeader className="whitespace-nowrap">
+                  {t("warehouse.movementBatchGroup")}
+                </TableHeader>
                 <TableHeader className="text-right">{t("products.colQty")}</TableHeader>
                 <TableHeader className="min-w-[8rem]">
                   {t("products.mColNote")}
@@ -162,28 +164,39 @@ export function ProductDetailMovementsTab({ productId, enabled }: Props) {
               </TableRow>
             </TableHead>
             <TableBody>
-              {items.map((m) => (
+              {items.map((m) => {
+                const batchCell = formatWarehouseShipmentDisplay(m.inBatchGroupId, m.id);
+                return (
                 <TableRow key={m.id}>
-                  <TableCell className="whitespace-nowrap text-sm">
+                  <TableCell dataLabel={t("products.mColDate")} className="whitespace-nowrap text-sm">
                     {formatLocaleDate(m.movementDate, locale)}
                   </TableCell>
-                  <TableCell className="text-sm">{m.warehouseName}</TableCell>
-                  <TableCell className="text-sm">
+                  <TableCell dataLabel={t("products.colWarehouse")} className="text-sm">
+                    {m.warehouseName}
+                  </TableCell>
+                  <TableCell dataLabel={t("products.mColType")} className="text-sm">
                     {m.type === "IN" ? t("products.typeIn") : t("products.typeOut")}
                   </TableCell>
-                  <TableCell className="text-right text-sm tabular-nums">
+                  <TableCell
+                    dataLabel={t("warehouse.movementBatchGroup")}
+                    className="max-w-[6rem] truncate font-mono text-xs text-zinc-700"
+                    title={batchCell.title}
+                  >
+                    {batchCell.text}
+                  </TableCell>
+                  <TableCell dataLabel={t("products.colQty")} className="text-right text-sm tabular-nums">
                     {m.quantity}
                   </TableCell>
-                  <TableCell className="max-w-[14rem] truncate text-sm text-zinc-600">
+                  <TableCell dataLabel={t("products.mColNote")} className="max-w-[14rem] truncate text-sm text-zinc-600">
                     {m.description ?? "—"}
                   </TableCell>
-                  <TableCell className="max-w-[10rem] truncate text-sm text-zinc-600">
+                  <TableCell dataLabel={t("products.mColCheckedBy")} className="max-w-[10rem] truncate text-sm text-zinc-600">
                     {m.checkedByPersonnelName ?? "—"}
                   </TableCell>
-                  <TableCell className="max-w-[10rem] truncate text-sm text-zinc-600">
+                  <TableCell dataLabel={t("products.mColApprovedBy")} className="max-w-[10rem] truncate text-sm text-zinc-600">
                     {m.approvedByPersonnelName ?? "—"}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap text-sm">
+                  <TableCell dataLabel={t("warehouse.mColInvoice")} className="whitespace-nowrap text-sm">
                     {m.type === "IN" && m.hasInvoicePhoto ? (
                       <a
                         href={warehouseMovementInvoicePhotoUrl(m.id)}
@@ -198,7 +211,8 @@ export function ProductDetailMovementsTab({ productId, enabled }: Props) {
                     )}
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         </div>

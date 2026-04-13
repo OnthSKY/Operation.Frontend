@@ -1,6 +1,9 @@
-import { getApiBaseUrl } from "@/lib/env";
+import {
+  DEFAULT_NON_ADVANCE_EXPENSE_SORT,
+  type NonAdvanceExpenseSort,
+} from "@/modules/personnel/lib/non-advance-expense-sort";
 import { MAX_IMAGE_UPLOAD_BYTES } from "@/shared/lib/image-upload-limits";
-import { apiRequest } from "@/shared/api/client";
+import { apiRequest, apiUrl } from "@/shared/api/client";
 import type {
   BranchTransaction,
   CreateBranchTransactionInput,
@@ -12,8 +15,7 @@ function normalizeCurrency(v: unknown): string {
 }
 
 export function branchTransactionReceiptPhotoUrl(transactionId: number): string {
-  const base = getApiBaseUrl().replace(/\/$/, "");
-  return `${base}/branch-transactions/${transactionId}/receipt-photo`;
+  return apiUrl(`/branch-transactions/${transactionId}/receipt-photo`);
 }
 
 function normalizePositivePersonnelId(v: unknown): number | null {
@@ -32,6 +34,7 @@ function normalizeOptionalPositiveId(v: unknown): number | null {
 
 type BranchTxApiRow = Omit<
   BranchTransaction,
+  | "branchId"
   | "currencyCode"
   | "cashSettlementParty"
   | "cashSettlementPersonnelId"
@@ -48,7 +51,11 @@ type BranchTxApiRow = Omit<
   | "linkedSalaryPersonnelId"
   | "linkedAdvancePersonnelFullName"
   | "linkedSalaryPersonnelFullName"
+  | "linkedPersonnelId"
+  | "linkedPersonnelFullName"
+  | "invoicePaymentStatus"
 > & {
+  branchId?: number | null;
   currencyCode?: string;
   cashAmount?: number | null;
   cardAmount?: number | null;
@@ -67,6 +74,14 @@ type BranchTxApiRow = Omit<
   linkedSalaryPersonnelId?: number | null;
   linkedAdvancePersonnelFullName?: string | null;
   linkedSalaryPersonnelFullName?: string | null;
+  linkedPersonnelId?: number | null;
+  linkedPersonnelFullName?: string | null;
+  invoicePaymentStatus?: string | null;
+  linkedSupplierInvoiceLineId?: number | null;
+  linkedVehicleExpenseId?: number | null;
+  linkedVehicleId?: number | null;
+  linkedVehiclePlateNumber?: string | null;
+  generalOverheadPoolId?: number | null;
 };
 
 function normalizeBranchTxRow(r: BranchTxApiRow): BranchTransaction {
@@ -100,8 +115,19 @@ function normalizeBranchTxRow(r: BranchTxApiRow): BranchTransaction {
     typeof r.expensePocketPersonnelJobTitle === "string" && r.expensePocketPersonnelJobTitle.trim()
       ? r.expensePocketPersonnelJobTitle.trim().toUpperCase()
       : null;
+  const bidRaw = r.branchId;
+  const branchIdNorm =
+    bidRaw != null && Number.isFinite(Number(bidRaw)) && Number(bidRaw) > 0
+      ? Number(bidRaw)
+      : null;
+  const linkedPerId = normalizeOptionalPositiveId(r.linkedPersonnelId);
+  const linkedPerFn =
+    typeof r.linkedPersonnelFullName === "string" && r.linkedPersonnelFullName.trim()
+      ? r.linkedPersonnelFullName.trim()
+      : null;
   return {
     ...r,
+    branchId: branchIdNorm,
     currencyCode: normalizeCurrency(r.currencyCode),
     cashAmount: r.cashAmount ?? null,
     cardAmount: r.cardAmount ?? null,
@@ -116,6 +142,10 @@ function normalizeBranchTxRow(r: BranchTxApiRow): BranchTransaction {
       r.expensePaymentSource != null && String(r.expensePaymentSource).trim()
         ? String(r.expensePaymentSource).trim().toUpperCase()
         : null,
+    invoicePaymentStatus:
+      r.invoicePaymentStatus != null && String(r.invoicePaymentStatus).trim()
+        ? String(r.invoicePaymentStatus).trim().toUpperCase()
+        : null,
     expensePocketPersonnelId: pocketPid,
     expensePocketPersonnelFullName: pocketFn,
     expensePocketPersonnelJobTitle: pocketJt,
@@ -126,6 +156,18 @@ function normalizeBranchTxRow(r: BranchTxApiRow): BranchTransaction {
     linkedSalaryPersonnelId: salPid,
     linkedAdvancePersonnelFullName: advName,
     linkedSalaryPersonnelFullName: salName,
+    linkedPersonnelId: linkedPerId,
+    linkedPersonnelFullName: linkedPerFn,
+    linkedSupplierInvoiceLineId: normalizeOptionalPositiveId(r.linkedSupplierInvoiceLineId),
+    linkedVehicleExpenseId: normalizeOptionalPositiveId(r.linkedVehicleExpenseId),
+    linkedVehicleId: normalizeOptionalPositiveId(r.linkedVehicleId),
+    linkedVehiclePlateNumber:
+      typeof r.linkedVehiclePlateNumber === "string" && r.linkedVehiclePlateNumber.trim()
+        ? r.linkedVehiclePlateNumber.trim()
+        : null,
+    generalOverheadPoolId: normalizeOptionalPositiveId(
+      (r as { generalOverheadPoolId?: unknown }).generalOverheadPoolId
+    ),
   };
 }
 
@@ -141,6 +183,34 @@ export async function fetchBranchTransactions(
   return rows.map(normalizeBranchTxRow);
 }
 
+export async function fetchPersonnelAttributedExpenses(
+  personnelId: number
+): Promise<BranchTransaction[]> {
+  const rows = await apiRequest<BranchTxApiRow[]>(
+    `/personnel/${personnelId}/attributed-expenses`
+  );
+  return rows.map(normalizeBranchTxRow);
+}
+
+/** Avans ödemeleri hariç, personele yazılan tüm gider satırları (API üst sınırı; sıralama sunucuda). */
+export async function fetchAllNonAdvancePersonnelAttributedExpenses(
+  sort: NonAdvanceExpenseSort = DEFAULT_NON_ADVANCE_EXPENSE_SORT
+): Promise<BranchTransaction[]> {
+  const q = new URLSearchParams({ sort });
+  const rows = await apiRequest<BranchTxApiRow[]>(
+    `/personnel/attributed-expenses/excluding-advances?${q}`
+  );
+  return rows.map(normalizeBranchTxRow);
+}
+
+function isSupplierInvoiceOut(input: CreateBranchTransactionInput): boolean {
+  return (
+    String(input.type ?? "").toUpperCase() === "OUT" &&
+    String(input.mainCategory ?? "").trim().toUpperCase() === "OUT_OPS" &&
+    String(input.category ?? "").trim().toUpperCase() === "OPS_INVOICE"
+  );
+}
+
 export async function createBranchTransaction(
   input: CreateBranchTransactionInput
 ): Promise<BranchTransaction> {
@@ -149,13 +219,18 @@ export async function createBranchTransaction(
     input.receiptPhoto != null &&
     input.receiptPhoto.size > 0;
 
+  if (isSupplierInvoiceOut(input) && !useReceipt) {
+    throw new Error("Invoice expenses require a receipt photo.");
+  }
+
   if (useReceipt && input.receiptPhoto!.size > MAX_IMAGE_UPLOAD_BYTES) {
     throw new Error("image too large");
   }
 
   if (useReceipt) {
     const fd = new FormData();
-    fd.append("branchId", String(input.branchId));
+    if (input.branchId != null && input.branchId > 0)
+      fd.append("branchId", String(input.branchId));
     fd.append("type", input.type);
     if (input.mainCategory != null && String(input.mainCategory).trim())
       fd.append("mainCategory", String(input.mainCategory).trim());
@@ -173,6 +248,8 @@ export async function createBranchTransaction(
       fd.append("cashSettlementPersonnelId", String(input.cashSettlementPersonnelId));
     if (input.expensePaymentSource != null && String(input.expensePaymentSource).trim())
       fd.append("expensePaymentSource", String(input.expensePaymentSource).trim());
+    if (input.invoicePaymentStatus != null && String(input.invoicePaymentStatus).trim())
+      fd.append("invoicePaymentStatus", String(input.invoicePaymentStatus).trim().toUpperCase());
     if (input.expensePocketPersonnelId != null && input.expensePocketPersonnelId > 0)
       fd.append("expensePocketPersonnelId", String(input.expensePocketPersonnelId));
     if (input.linkedAdvanceId != null && input.linkedAdvanceId > 0)
@@ -181,6 +258,14 @@ export async function createBranchTransaction(
       fd.append("linkedSalaryPaymentId", String(input.linkedSalaryPaymentId));
     if (input.linkedFinancialPersonnelId != null && input.linkedFinancialPersonnelId > 0)
       fd.append("linkedFinancialPersonnelId", String(input.linkedFinancialPersonnelId));
+    if (input.linkedPersonnelId != null && input.linkedPersonnelId > 0)
+      fd.append("linkedPersonnelId", String(input.linkedPersonnelId));
+    if (input.linkedPocketExpenseTransactionIds?.length) {
+      for (const id of input.linkedPocketExpenseTransactionIds) {
+        if (Number.isFinite(id) && id > 0)
+          fd.append("linkedPocketExpenseTransactionIds", String(id));
+      }
+    }
     fd.append("receiptPhoto", input.receiptPhoto!);
     const r = await apiRequest<BranchTxApiRow>("/branch-transactions/with-receipt", {
       method: "POST",
@@ -189,7 +274,11 @@ export async function createBranchTransaction(
     return normalizeBranchTxRow(r);
   }
 
-  const { receiptPhoto: _rp, ...jsonBody } = input;
+  const { receiptPhoto: _rp, ...rest } = input;
+  const jsonBody = {
+    ...rest,
+    branchId: rest.branchId ?? null,
+  };
   const r = await apiRequest<BranchTxApiRow>("/branch-transactions", {
     method: "POST",
     body: JSON.stringify(jsonBody),
@@ -201,4 +290,21 @@ export async function deleteBranchTransaction(transactionId: number): Promise<vo
   await apiRequest<null>(`/branch-transactions/${transactionId}`, {
     method: "DELETE",
   });
+}
+
+export async function settleBranchInvoiceExpense(
+  transactionId: number,
+  body: { expensePaymentSource: string; expensePocketPersonnelId?: number | null }
+): Promise<BranchTransaction> {
+  const r = await apiRequest<BranchTxApiRow>(`/branch-transactions/${transactionId}/settle-invoice`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      expensePaymentSource: body.expensePaymentSource.trim().toUpperCase(),
+      expensePocketPersonnelId:
+        body.expensePocketPersonnelId != null && body.expensePocketPersonnelId > 0
+          ? body.expensePocketPersonnelId
+          : null,
+    }),
+  });
+  return normalizeBranchTxRow(r);
 }

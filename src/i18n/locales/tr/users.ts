@@ -25,6 +25,7 @@ export const users = {
   roleAdmin: "Yönetici",
   roleStaff: "Personel",
   rolePersonnel: "Şube personeli (sınırlı)",
+  roleDriver: "Depo şoförü (yalnız sevkiyat)",
   statusActive: "Aktif",
   statusInactive: "Pasif",
   passwordMismatch: "Şifreler eşleşmiyor.",
@@ -33,4 +34,12 @@ export const users = {
   personnelPickInvalid: "Geçerli bir personel seçin veya alanı boş bırakın.",
   personnelRequiredForPortalRole:
     "Şube personeli rolü için atanmış şubesi olan bir personel seçmelisiniz.",
+  personnelRequiredForDriverRole:
+    "Şoför rolü için personel kaydı seçilmelidir (sevkiyat imzası).",
+  tableSelfFinancials: "Kendi mali görünümü",
+  selfFinancialsHint:
+    "Açıkken şoför kendi avans ve kendisine yazılan giderleri görebilir.",
+  selfFinancialsUpdated: "Görünürlük güncellendi",
+  roleUpdated: "Rol güncellendi",
+  roleChangeSelfDisabled: "Kendi rolünüzü buradan değiştiremezsiniz.",
 } as const;

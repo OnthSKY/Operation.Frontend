@@ -3,6 +3,9 @@ export const auth = {
   subtitle: "Operations hesabınızla devam edin.",
   username: "Kullanıcı adı",
   password: "Şifre",
+  rememberMe: "Beni hatırla",
+  rememberMeHint:
+    "Açıksa sunucuda refresh token oluşturulur; access süresi dolunca oturum sessizce yenilenir.",
   showPassword: "Şifreyi göster",
   hidePassword: "Şifreyi gizle",
   submit: "Giriş yap",
@@ -17,4 +20,10 @@ export const auth = {
   feature1: "Şube aktivitesi ve özetler tek bakışta",
   feature2: "Ekibiniz için kontrollü erişim",
   feature3: "Güvenilir depo ve envanter bilgisi",
+  totpTitle: "Doğrulama kodu",
+  totpSubtitle: "Uygulamanızdaki 6 haneli doğrulama kodunu girin.",
+  totpCode: "Doğrulama kodu",
+  totpSubmit: "Doğrula ve giriş yap",
+  totpBack: "Farklı hesap kullan",
+  totpFailed: "Kod geçersiz veya süresi dolmuş.",
 } as const;

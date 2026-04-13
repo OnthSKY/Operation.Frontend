@@ -7,10 +7,15 @@ import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
+import type { BranchPosSettlementBeneficiaryType } from "@/types/branch";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
-type FormValues = { name: string };
+type FormValues = {
+  name: string;
+  posSettlementBeneficiaryType: BranchPosSettlementBeneficiaryType;
+  posSettlementNotes: string;
+};
 
 type Props = {
   open: boolean;
@@ -19,15 +24,36 @@ type Props = {
 
 const TITLE_ID = "add-branch-title";
 
+const POS_OPTIONS: { value: BranchPosSettlementBeneficiaryType; labelKey: string }[] =
+  [
+    { value: "PATRON", labelKey: "branch.posSettlementPatron" },
+    { value: "FRANCHISE", labelKey: "branch.posSettlementFranchise" },
+    { value: "JOINT_VENTURE", labelKey: "branch.posSettlementJoint" },
+    {
+      value: "BRANCH_PERSONNEL",
+      labelKey: "branch.posSettlementBranchPersonnel",
+    },
+    { value: "OTHER", labelKey: "branch.posSettlementOther" },
+  ];
+
 export function AddBranchModal({ open, onClose }: Props) {
   const { t } = useI18n();
   const createBranch = useCreateBranch();
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
     reset,
-  } = useForm<FormValues>({ defaultValues: { name: "" } });
+  } = useForm<FormValues>({
+    defaultValues: {
+      name: "",
+      posSettlementBeneficiaryType: "PATRON",
+      posSettlementNotes: "",
+    },
+  });
+
+  const posType = watch("posSettlementBeneficiaryType");
 
   useEffect(() => {
     if (!open) reset();
@@ -35,7 +61,13 @@ export function AddBranchModal({ open, onClose }: Props) {
 
   const onSubmit = handleSubmit(async (values) => {
     try {
-      await createBranch.mutateAsync({ name: values.name.trim() });
+      await createBranch.mutateAsync({
+        name: values.name.trim(),
+        posSettlementBeneficiaryType: values.posSettlementBeneficiaryType,
+        posSettlementNotes: values.posSettlementNotes.trim()
+          ? values.posSettlementNotes.trim()
+          : null,
+      });
       notify.success(t("toast.branchCreated"));
       reset();
       onClose();
@@ -52,7 +84,7 @@ export function AddBranchModal({ open, onClose }: Props) {
       title={t("branch.addTitle")}
       description={t("branch.addHint")}
     >
-      <form className="mt-4 flex flex-col gap-3" onSubmit={onSubmit}>
+      <form className="mt-4 flex flex-col gap-4" onSubmit={onSubmit}>
         <Input
           label={t("branch.fieldName")}
           labelRequired
@@ -62,7 +94,48 @@ export function AddBranchModal({ open, onClose }: Props) {
           autoComplete="organization"
           maxLength={100}
         />
-        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:justify-end">
+
+        <fieldset className="min-w-0 rounded-xl border border-zinc-200 bg-zinc-50/80 p-3">
+          <legend className="px-1 text-sm font-semibold text-zinc-800">
+            {t("branch.addPosSettlementLegend")}
+          </legend>
+          <p className="mb-3 text-xs leading-relaxed text-zinc-600">
+            {t("branch.addPosSettlementLead")}
+          </p>
+          <div className="flex flex-col gap-2.5">
+            {POS_OPTIONS.map((opt) => (
+              <label
+                key={opt.value}
+                className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-transparent px-1 py-1 hover:bg-white/80"
+              >
+                <input
+                  type="radio"
+                  className="mt-0.5 h-4 w-4 shrink-0 border-zinc-300 text-zinc-900"
+                  value={opt.value}
+                  {...register("posSettlementBeneficiaryType", {
+                    required: t("common.required"),
+                  })}
+                />
+                <span className="text-sm text-zinc-800">{t(opt.labelKey)}</span>
+              </label>
+            ))}
+          </div>
+          {posType === "BRANCH_PERSONNEL" ? (
+            <p className="mt-3 text-xs leading-relaxed text-amber-900/90">
+              {t("branch.posBranchPersonnelFollowUp")}
+            </p>
+          ) : null}
+        </fieldset>
+
+        <Input
+          label={t("branch.posSettlementNotesLabel")}
+          {...register("posSettlementNotes", { maxLength: 500 })}
+          error={errors.posSettlementNotes?.message}
+          maxLength={500}
+          placeholder={t("branch.posSettlementNotesPlaceholder")}
+        />
+
+        <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Button
             type="button"
             variant="secondary"

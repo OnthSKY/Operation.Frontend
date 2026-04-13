@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createUser,
   fetchUsersList,
+  patchUserRole,
+  patchUserSelfFinancialsVisibility,
 } from "@/modules/personnel/api/users-api";
 import type { CreateUserInput } from "@/types/user";
 
@@ -27,6 +29,28 @@ export function useCreateUser() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: usersKeys.list() });
       void qc.invalidateQueries({ queryKey: ["personnel", "list"] });
+    },
+  });
+}
+
+export function usePatchUserSelfFinancials() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { userId: number; allowPersonnelSelfFinancials: boolean }) =>
+      patchUserSelfFinancialsVisibility(args.userId, args.allowPersonnelSelfFinancials),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: usersKeys.list() });
+    },
+  });
+}
+
+export function usePatchUserRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { userId: number; role: string }) =>
+      patchUserRole(args.userId, args.role),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: usersKeys.list() });
     },
   });
 }

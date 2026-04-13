@@ -38,16 +38,60 @@ export async function fetchProductMovementsPage(
 export async function createProduct(input: {
   name: string;
   unit?: string | null;
+  parentProductId?: number | null;
+  categoryId?: number | null;
 }): Promise<ProductCreated> {
   return apiRequest<ProductCreated>("/products", {
     method: "POST",
     body: JSON.stringify({
       name: input.name.trim(),
       unit: input.unit?.trim() || null,
+      parentProductId:
+        input.parentProductId != null && input.parentProductId > 0
+          ? input.parentProductId
+          : null,
+      categoryId:
+        input.categoryId != null && input.categoryId > 0 ? input.categoryId : null,
+    }),
+  });
+}
+
+export async function setProductCategory(
+  productId: number,
+  categoryId: number | null
+): Promise<ProductCreated> {
+  return apiRequest<ProductCreated>(`/products/${productId}/category`, {
+    method: "PUT",
+    body: JSON.stringify({
+      categoryId,
     }),
   });
 }
 
 export async function softDeleteProduct(id: number): Promise<void> {
   await apiRequest<null>(`/products/${id}`, { method: "DELETE" });
+}
+
+export async function updateProduct(
+  id: number,
+  input: {
+    name: string;
+    unit?: string | null;
+    categoryId?: number | null;
+    parentProductId?: number | null;
+  }
+): Promise<ProductCreated> {
+  return apiRequest<ProductCreated>(`/products/${id}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      name: input.name.trim(),
+      unit: input.unit?.trim() || null,
+      categoryId:
+        input.categoryId != null && input.categoryId > 0 ? input.categoryId : null,
+      parentProductId:
+        input.parentProductId != null && input.parentProductId > 0
+          ? input.parentProductId
+          : null,
+    }),
+  });
 }

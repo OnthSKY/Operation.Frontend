@@ -14,3 +14,14 @@ export type SaveBranchTourismSeasonPeriodInput = {
   closedOn?: string | null;
   notes?: string | null;
 };
+
+export type BranchTourismSeasonYearGatePersonnelItem = {
+  personnelId: number;
+  fullName: string;
+};
+
+export type BranchTourismSeasonYearGateResponse = {
+  newSeasonYear: number;
+  priorCalendarYear: number;
+  blockers: BranchTourismSeasonYearGatePersonnelItem[];
+};

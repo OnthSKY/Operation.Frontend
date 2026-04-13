@@ -38,6 +38,19 @@ export type DashboardCashHeldByPersonRow = {
   transactionCount: number;
 };
 
+export type DashboardWarehouseStockTopRow = {
+  productId: number;
+  productName: string;
+  unit: string | null;
+  quantity: number;
+};
+
+export type DashboardWarehouseStockStory = {
+  distinctProductCount: number;
+  totalUnitsApprox: number;
+  topByQuantity: DashboardWarehouseStockTopRow[];
+};
+
 export type DashboardOverview = {
   personnel: {
     activePersonnelCount: number;
@@ -47,11 +60,17 @@ export type DashboardOverview = {
   financeExtras: {
     advanceRecordCount: number;
     advanceTotalsByCurrency: DashboardCurrencyTotal[];
+    /** Sum IN − sum economic OUT across active branches (mixed currency = raw sum). */
+    allBranchesLifetimeEconomicNet?: number;
     registerCashHeldByPersonnelTotalsByCurrency: DashboardCashHeldCurrencyTotal[];
     registerCashHeldByPersonnelBreakdown: DashboardCashHeldByPersonRow[];
   };
   operations: {
     activeBranchCount: number;
     activeWarehouseCount: number;
+    activeSupplierCount: number;
+    activeVehicleCount: number;
+    activeProductCount: number;
+    warehouseStock: DashboardWarehouseStockStory;
   };
 };

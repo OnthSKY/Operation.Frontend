@@ -6,6 +6,22 @@ function isIso4217(code: string): boolean {
   return /^[A-Z]{3}$/.test(code);
 }
 
+/**
+ * TRY: `Intl` currency style uses ₺ (U+20BA), which often falls back to a mismatched
+ * font with Geist/mono. Use locale grouping + a clear suffix instead.
+ */
+function formatTryAmount(n: number, locale: Locale): string {
+  const tag = locTag(locale);
+  const negative = n < 0 || Object.is(n, -0);
+  const abs = Math.abs(n);
+  const formatted = new Intl.NumberFormat(tag, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(abs);
+  const suffix = locale === "tr" ? "\u00a0TL" : "\u00a0TRY";
+  return `${negative ? "-" : ""}${formatted}${suffix}`;
+}
+
 /** Yerel tutar; `currencyCode` verilirse Intl currency, yoksa düz sayı. */
 export function formatLocaleAmount(
   n: number,
@@ -15,6 +31,9 @@ export function formatLocaleAmount(
   if (!Number.isFinite(n)) return "";
   const tag = locTag(locale);
   const c = currencyCode?.trim().toUpperCase();
+  if (c === "TRY") {
+    return formatTryAmount(n, locale);
+  }
   if (c && isIso4217(c)) {
     try {
       return new Intl.NumberFormat(tag, {
@@ -37,6 +56,23 @@ export function formatLocaleAmount(
  * Form / input metnini sayıya çevirir.
  * tr: binlik `.`, ondalık `,` — en: binlik `,`, ondalık `.`
  */
+/** Tutar girişi (simge yok): binlik gruplama + locale’e göre ondalık. */
+export function formatLocaleAmountInput(n: number, locale: Locale): string {
+  if (!Number.isFinite(n)) return "";
+  const tag = locTag(locale);
+  return new Intl.NumberFormat(tag, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(n);
+}
+
+/** Blur’da geçerli sayıya çözüp yerel formata çevirir; aksi halde metni olduğu gibi bırakır. */
+export function formatAmountInputOnBlur(raw: string, locale: Locale): string {
+  const n = parseLocaleAmount(raw, locale);
+  if (!Number.isFinite(n)) return raw.trim();
+  return formatLocaleAmountInput(n, locale);
+}
+
 export function parseLocaleAmount(raw: string, locale: Locale): number {
   const s = raw.trim().replace(/\s/g, "");
   if (!s) return NaN;

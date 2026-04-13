@@ -4,6 +4,7 @@ import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
 import {
   useBranchTourismSeasonPeriods,
+  useBranchTourismSeasonYearClosureGate,
   useCreateBranchTourismSeasonPeriod,
   useDeleteBranchTourismSeasonPeriod,
   useUpdateBranchTourismSeasonPeriod,
@@ -12,7 +13,9 @@ import type { BranchTourismSeasonPeriod } from "@/types/branch-tourism-season";
 import { formatLocaleDate, formatLocaleDateTime } from "@/shared/lib/locale-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
+import { Card } from "@/shared/components/Card";
 import { Button } from "@/shared/ui/Button";
+import { DateField } from "@/shared/ui/DateField";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import {
@@ -59,6 +62,29 @@ export function BranchTourismSeasonTab({ branchId, active }: Props) {
   const [notes, setNotes] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+
+  const formSeasonYearParsed = useMemo(() => {
+    const n = parseInt(seasonYear.trim(), 10);
+    if (!Number.isFinite(n) || n < 1990 || n > 2100) return null;
+    return n;
+  }, [seasonYear]);
+
+  const priorYearGateApplies = formSeasonYearParsed != null && formSeasonYearParsed >= 1991;
+
+  const yearClosureGateQuery = useBranchTourismSeasonYearClosureGate(
+    branchId,
+    formSeasonYearParsed,
+    formOpen && !editing && priorYearGateApplies
+  );
+
+  const yearClosureBlockers = yearClosureGateQuery.data?.blockers ?? [];
+  const createSaveBlockedByYearClosure =
+    !editing &&
+    priorYearGateApplies &&
+    !yearClosureGateQuery.isError &&
+    (yearClosureGateQuery.isPending ||
+      yearClosureGateQuery.isFetching ||
+      yearClosureBlockers.length > 0);
 
   const openCreate = () => {
     setEditing(null);
@@ -262,7 +288,10 @@ export function BranchTourismSeasonTab({ branchId, active }: Props) {
                         dash
                       )}
                     </TableCell>
-                    <TableCell className="hidden whitespace-nowrap text-xs text-zinc-500 lg:table-cell">
+                    <TableCell
+                      dataLabel={t("branch.tSeasonColCreated")}
+                      className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 whitespace-nowrap text-xs text-zinc-500 md:hidden lg:table-cell"
+                    >
                       {formatLocaleDateTime(row.createdAt, locale)}
                     </TableCell>
                     <TableCell className="text-right">
@@ -326,7 +355,7 @@ export function BranchTourismSeasonTab({ branchId, active }: Props) {
         description={t("branch.tSeasonFormHint")}
         closeButtonLabel={t("common.close")}
         nested
-        className="max-h-[min(90dvh,32rem)] w-full max-w-lg overflow-y-auto p-4 sm:p-5 lg:max-h-[min(90dvh,40rem)] lg:max-w-xl xl:max-w-2xl"
+        className="max-h-[min(90dvh,calc(100svh-2rem))] w-full max-w-[min(32rem,calc(100vw-1rem))] overflow-y-auto p-4 sm:max-w-lg sm:p-5 lg:max-h-[min(90dvh,44rem)] lg:max-w-2xl xl:max-w-4xl 2xl:max-w-5xl"
       >
         <div className="mt-3 flex flex-col gap-3">
           <Input
@@ -340,17 +369,15 @@ export function BranchTourismSeasonTab({ branchId, active }: Props) {
             value={seasonYear}
             onChange={(e) => setSeasonYear(e.target.value)}
           />
-          <Input
+          <DateField
             name="openedOn"
-            type="date"
             label={t("branch.tSeasonColOpened")}
             labelRequired
             value={openedOn}
             onChange={(e) => setOpenedOn(e.target.value)}
           />
-          <Input
+          <DateField
             name="closedOn"
-            type="date"
             label={t("branch.tSeasonColClosedOptional")}
             value={closedOn}
             onChange={(e) => setClosedOn(e.target.value)}
@@ -370,9 +397,66 @@ export function BranchTourismSeasonTab({ branchId, active }: Props) {
               )}
             />
           </div>
+          {!editing && priorYearGateApplies ? (
+            yearClosureGateQuery.isPending || yearClosureGateQuery.isFetching ? (
+              <Card className="border-zinc-200/80 bg-zinc-50/50 shadow-none ring-1 ring-zinc-950/[0.04]">
+                <div className="flex items-start gap-3">
+                  <span
+                    className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-zinc-400 animate-pulse"
+                    aria-hidden
+                  />
+                  <p className="text-sm leading-relaxed text-zinc-600">
+                    {t("branch.tSeasonYearClosureGateLoading")}
+                  </p>
+                </div>
+              </Card>
+            ) : yearClosureGateQuery.isError ? (
+              <Card className="border-amber-200/90 bg-amber-50/40 shadow-none ring-1 ring-amber-900/10">
+                <p className="text-sm leading-relaxed text-amber-950">
+                  {t("branch.tSeasonYearClosureGateError")}
+                </p>
+              </Card>
+            ) : yearClosureBlockers.length > 0 ? (
+              <div className="overflow-hidden rounded-xl border border-amber-200/90 bg-amber-50/35 shadow-sm ring-1 ring-amber-900/10">
+                <div className="border-b border-amber-200/60 bg-amber-100/40 px-4 py-3">
+                  <p className="text-sm font-semibold text-amber-950">
+                    {t("branch.tSeasonYearClosureBlockedTitle")}
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-medium uppercase tracking-wide text-amber-900/70">
+                      {t("branch.tSeasonYearClosurePriorLabel")}
+                    </span>
+                    <span className="rounded-md bg-white/80 px-2 py-0.5 text-sm font-semibold tabular-nums text-zinc-900 ring-1 ring-amber-200/80">
+                      {yearClosureGateQuery.data?.priorCalendarYear ?? "—"}
+                    </span>
+                  </div>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-xs leading-relaxed text-amber-950/85">
+                    {t("branch.tSeasonYearClosureBlockedListIntro")}
+                  </p>
+                  <ul className="mt-3 max-h-44 divide-y divide-amber-200/50 overflow-y-auto rounded-lg border border-amber-200/40 bg-white/70">
+                    {yearClosureBlockers.map((b) => (
+                      <li
+                        key={b.personnelId}
+                        className="px-3 py-2.5 text-sm text-zinc-800"
+                      >
+                        {b.fullName.trim() || `#${b.personnelId}`}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ) : null
+          ) : null}
           {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
           <div className="flex flex-wrap gap-2 pt-1">
-            <Button type="button" className="min-h-11" disabled={saving} onClick={() => void submitForm()}>
+            <Button
+              type="button"
+              className="min-h-11"
+              disabled={saving || (!editing && createSaveBlockedByYearClosure)}
+              onClick={() => void submitForm()}
+            >
               {saving ? t("common.saving") : t("common.save")}
             </Button>
             <Button type="button" variant="secondary" className="min-h-11" disabled={saving} onClick={closeForm}>

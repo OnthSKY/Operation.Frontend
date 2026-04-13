@@ -10,19 +10,51 @@ import {
 import { branchKeys } from "@/modules/branch/hooks/useBranchQueries";
 import { dashboardSummaryKeys } from "@/modules/dashboard/query-keys";
 import {
+  closePersonnelYearAccount,
+  fetchPersonnelAccountClosurePreview,
+  fetchPersonnelEmploymentTerms,
+  fetchPersonnelYearAccountClosures,
+  fetchPersonnelYearAccountPreview,
+  reopenPersonnelYearAccount,
+  type ClosePersonnelYearAccountBody,
+} from "@/modules/personnel/api/personnel-account-closure-api";
+import {
+  createPersonnelNote,
+  deletePersonnelNote,
+  fetchPersonnelNotes,
+  updatePersonnelNote,
+} from "@/modules/personnel/api/personnel-notes-api";
+import {
+  addPersonnelInsurancePeriod,
+  updatePersonnelInsurancePeriod,
   createPersonnel,
+  fetchPersonnelInsurancePeriods,
   fetchPersonnelList,
   fetchPersonnelManagementSnapshot,
+  fetchPersonnel,
   softDeletePersonnel,
   updatePersonnel,
+  uploadNationalIdPhotos,
+  uploadProfilePhotos,
+  type UploadNationalIdPhotosInput,
+  type UploadProfilePhotosInput,
 } from "@/modules/personnel/api/personnel-api";
 import { usersKeys } from "@/modules/personnel/hooks/useUsersQueries";
 import type { CreateAdvanceInput } from "@/types/advance";
-import type { CreatePersonnelInput, UpdatePersonnelInput } from "@/types/personnel";
+import type { SavePersonnelNoteInput } from "@/types/personnel-note";
+import type {
+  AddPersonnelInsurancePeriodInput,
+  UpdatePersonnelInsurancePeriodInput,
+  CreatePersonnelInput,
+  UpdatePersonnelInput,
+} from "@/types/personnel";
 
 export const personnelKeys = {
   all: ["personnel"] as const,
   list: () => [...personnelKeys.all, "list"] as const,
+  detail: (id: number) => [...personnelKeys.all, "detail", id] as const,
+  nonAdvanceAttributedExpenses: (sort: string = "dateDesc") =>
+    [...personnelKeys.all, "non-advance-attributed-expenses", sort] as const,
   managementSnapshot: (personnelId: number) =>
     [...personnelKeys.all, "management-snapshot", personnelId] as const,
   /** @param effectiveYear calendar year — filters API by effectiveYear; omit for all years */
@@ -42,6 +74,22 @@ export const personnelKeys = {
       branchId,
       limit,
     ] as const,
+  insurancePeriods: (personnelId: number) =>
+    [...personnelKeys.all, "insurance-periods", personnelId] as const,
+  notes: (personnelId: number) => [...personnelKeys.all, "notes", personnelId] as const,
+  employmentTerms: (personnelId: number) =>
+    [...personnelKeys.all, "employment-terms", personnelId] as const,
+  accountClosurePreview: (personnelId: number, employmentTermId: number) =>
+    [
+      ...personnelKeys.all,
+      "account-closure-preview",
+      personnelId,
+      employmentTermId,
+    ] as const,
+  yearAccountPreview: (personnelId: number, year: number) =>
+    [...personnelKeys.all, "year-account-preview", personnelId, year] as const,
+  yearAccountClosures: (personnelId: number) =>
+    [...personnelKeys.all, "year-account-closures", personnelId] as const,
 };
 
 export function usePersonnelList(enabled: boolean = true) {
@@ -49,6 +97,72 @@ export function usePersonnelList(enabled: boolean = true) {
     queryKey: personnelKeys.list(),
     queryFn: fetchPersonnelList,
     enabled,
+  });
+}
+
+export function usePersonnelDetail(
+  personnelId: number | null | undefined,
+  enabled: boolean = true
+) {
+  return useQuery({
+    queryKey: personnelKeys.detail(personnelId ?? 0),
+    queryFn: () => fetchPersonnel(personnelId!),
+    enabled: enabled && personnelId != null && personnelId > 0,
+  });
+}
+
+export function usePersonnelInsurancePeriods(
+  personnelId: number | null | undefined,
+  enabled: boolean
+) {
+  return useQuery({
+    queryKey: personnelKeys.insurancePeriods(personnelId ?? 0),
+    queryFn: () => fetchPersonnelInsurancePeriods(personnelId!),
+    enabled: enabled && personnelId != null && personnelId > 0,
+  });
+}
+
+export function useAddPersonnelInsurancePeriod() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: {
+      personnelId: number;
+      input: AddPersonnelInsurancePeriodInput;
+    }) => addPersonnelInsurancePeriod(vars.personnelId, vars.input),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({
+        queryKey: personnelKeys.insurancePeriods(vars.personnelId),
+      });
+      void qc.invalidateQueries({ queryKey: personnelKeys.list() });
+      void qc.invalidateQueries({
+        queryKey: personnelKeys.detail(vars.personnelId),
+      });
+    },
+  });
+}
+
+export function useUpdatePersonnelInsurancePeriod() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: {
+      personnelId: number;
+      periodId: number;
+      input: UpdatePersonnelInsurancePeriodInput;
+    }) =>
+      updatePersonnelInsurancePeriod(
+        vars.personnelId,
+        vars.periodId,
+        vars.input
+      ),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({
+        queryKey: personnelKeys.insurancePeriods(vars.personnelId),
+      });
+      void qc.invalidateQueries({ queryKey: personnelKeys.list() });
+      void qc.invalidateQueries({
+        queryKey: personnelKeys.detail(vars.personnelId),
+      });
+    },
   });
 }
 
@@ -115,8 +229,9 @@ export function useCreatePersonnel() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreatePersonnelInput) => createPersonnel(input),
-    onSuccess: () => {
+    onSuccess: (created) => {
       void qc.invalidateQueries({ queryKey: personnelKeys.list() });
+      void qc.invalidateQueries({ queryKey: personnelKeys.detail(created.id) });
       void qc.invalidateQueries({ queryKey: usersKeys.list() });
     },
   });
@@ -126,8 +241,39 @@ export function useUpdatePersonnel() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: UpdatePersonnelInput) => updatePersonnel(input),
-    onSuccess: () => {
+    onSuccess: (_data, input) => {
       void qc.invalidateQueries({ queryKey: personnelKeys.list() });
+      void qc.invalidateQueries({ queryKey: personnelKeys.detail(input.id) });
+      void qc.invalidateQueries({ queryKey: branchKeys.all });
+      void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
+    },
+  });
+}
+
+export function useUploadNationalIdPhotos() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: {
+      personnelId: number;
+      input: UploadNationalIdPhotosInput;
+    }) => uploadNationalIdPhotos(vars.personnelId, vars.input),
+    onSuccess: (_d, vars) => {
+      void qc.invalidateQueries({ queryKey: personnelKeys.list() });
+      void qc.invalidateQueries({ queryKey: personnelKeys.detail(vars.personnelId) });
+    },
+  });
+}
+
+export function useUploadProfilePhotos() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: {
+      personnelId: number;
+      input: UploadProfilePhotosInput;
+    }) => uploadProfilePhotos(vars.personnelId, vars.input),
+    onSuccess: (_d, vars) => {
+      void qc.invalidateQueries({ queryKey: personnelKeys.list() });
+      void qc.invalidateQueries({ queryKey: personnelKeys.detail(vars.personnelId) });
     },
   });
 }
@@ -137,6 +283,137 @@ export function useSoftDeletePersonnel() {
   return useMutation({
     mutationFn: (id: number) => softDeletePersonnel(id),
     onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: personnelKeys.list() });
+    },
+  });
+}
+
+export function usePersonnelNotes(personnelId: number | null, enabled: boolean) {
+  return useQuery({
+    queryKey:
+      personnelId != null && personnelId > 0
+        ? personnelKeys.notes(personnelId)
+        : ([...personnelKeys.all, "notes", 0] as const),
+    queryFn: () => fetchPersonnelNotes(personnelId!),
+    enabled: Boolean(enabled && personnelId != null && personnelId > 0),
+  });
+}
+
+export function useCreatePersonnelNote(personnelId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: SavePersonnelNoteInput) => createPersonnelNote(personnelId, input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: personnelKeys.notes(personnelId) });
+    },
+  });
+}
+
+export function useUpdatePersonnelNote(personnelId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ noteId, body }: { noteId: number; body: SavePersonnelNoteInput }) =>
+      updatePersonnelNote(personnelId, noteId, body),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: personnelKeys.notes(personnelId) });
+    },
+  });
+}
+
+export function useDeletePersonnelNote(personnelId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (noteId: number) => deletePersonnelNote(personnelId, noteId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: personnelKeys.notes(personnelId) });
+    },
+  });
+}
+
+export function usePersonnelEmploymentTerms(
+  personnelId: number,
+  enabled: boolean
+) {
+  return useQuery({
+    queryKey: personnelKeys.employmentTerms(personnelId),
+    queryFn: () => fetchPersonnelEmploymentTerms(personnelId),
+    enabled: enabled && personnelId > 0,
+  });
+}
+
+export function usePersonnelAccountClosurePreview(
+  personnelId: number,
+  employmentTermId: number | null,
+  enabled: boolean
+) {
+  return useQuery({
+    queryKey: personnelKeys.accountClosurePreview(
+      personnelId,
+      employmentTermId ?? 0
+    ),
+    queryFn: () =>
+      fetchPersonnelAccountClosurePreview(personnelId, employmentTermId!),
+    enabled:
+      enabled && personnelId > 0 && employmentTermId != null && employmentTermId > 0,
+  });
+}
+
+export function usePersonnelYearAccountPreview(
+  personnelId: number,
+  year: number,
+  enabled: boolean
+) {
+  return useQuery({
+    queryKey: personnelKeys.yearAccountPreview(personnelId, year),
+    queryFn: () => fetchPersonnelYearAccountPreview(personnelId, year),
+    enabled: enabled && personnelId > 0 && year >= 1990 && year <= 2100,
+  });
+}
+
+export function usePersonnelYearAccountClosures(
+  personnelId: number,
+  enabled: boolean
+) {
+  return useQuery({
+    queryKey: personnelKeys.yearAccountClosures(personnelId),
+    queryFn: () => fetchPersonnelYearAccountClosures(personnelId),
+    enabled: enabled && personnelId > 0,
+  });
+}
+
+export function useClosePersonnelYearAccount(personnelId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ClosePersonnelYearAccountBody) =>
+      closePersonnelYearAccount(personnelId, body),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({
+        queryKey: personnelKeys.yearAccountPreview(personnelId, vars.closureYear),
+      });
+      void qc.invalidateQueries({
+        queryKey: personnelKeys.yearAccountClosures(personnelId),
+      });
+      void qc.invalidateQueries({ queryKey: personnelKeys.detail(personnelId) });
+      void qc.invalidateQueries({ queryKey: personnelKeys.list() });
+    },
+  });
+}
+
+export function useReopenPersonnelYearAccount(personnelId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (year: number) => reopenPersonnelYearAccount(personnelId, year),
+    onSuccess: (_ok, year) => {
+      void qc.invalidateQueries({
+        queryKey: personnelKeys.yearAccountClosures(personnelId),
+      });
+      void qc.invalidateQueries({
+        queryKey: personnelKeys.yearAccountPreview(personnelId, year),
+      });
+      void qc.invalidateQueries({
+        queryKey: [...personnelKeys.all, "year-account-preview", personnelId],
+      });
+      void qc.invalidateQueries({ queryKey: personnelKeys.detail(personnelId) });
       void qc.invalidateQueries({ queryKey: personnelKeys.list() });
     },
   });

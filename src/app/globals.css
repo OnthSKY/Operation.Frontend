@@ -48,8 +48,80 @@
   --font-mono: var(--font-geist-mono);
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+  -webkit-tap-highlight-color: color-mix(in srgb, var(--foreground) 6%, transparent);
+}
+
+/* Üst bar + ana gövde + footer aynı yatay ritim (safe area ile). */
+@layer utilities {
+  .app-shell-inline {
+    padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+  }
+  @media (min-width: 768px) {
+    .app-shell-inline {
+      padding-left: max(1rem, env(safe-area-inset-left, 0px));
+      padding-right: max(1rem, env(safe-area-inset-right, 0px));
+    }
+  }
+  @media (min-width: 1024px) {
+    .app-shell-inline {
+      padding-left: max(1.5rem, env(safe-area-inset-left, 0px));
+      padding-right: max(1.5rem, env(safe-area-inset-right, 0px));
+    }
+  }
+
+  /* Ana içerik: mobilde ~max-w-4xl; lg+ ve ultra geniş ekranda eski 7xl tavanını aşar. */
+  .app-page-max {
+    max-width: min(100%, 56rem);
+  }
+  @media (min-width: 1024px) {
+    .app-page-max {
+      max-width: min(100%, 92rem);
+    }
+  }
+  @media (min-width: 1280px) {
+    .app-page-max {
+      max-width: min(100%, 104rem);
+    }
+  }
+  @media (min-width: 1536px) {
+    .app-page-max {
+      max-width: min(100%, 118rem);
+    }
+  }
+}
+
+/*
+ * body'de touch-action: manipulation, içteki overflow-auto kaydırma alanlarında
+ * (özellikle mobil / responsive mod) parmakla dikey kaydırmayı güvenilir şekilde
+ * iletmez. Çift dokunma yakınlaştırma modern tarayıcılarda zaten kısıtlı; gerekirse
+ * yalnızca etkileşimli elemanlarda hedefleyin.
+ */
+
+@layer components {
+  @media (max-width: 767px) {
+    [data-table-mobile-cards] table tbody tr > td[data-label]:not([data-label=""]) {
+      text-align: right;
+    }
+    [data-table-mobile-cards] table tbody tr > td[data-label]:not([data-label=""])::before {
+      content: attr(data-label);
+      flex-shrink: 0;
+      max-width: 45%;
+      text-align: left;
+      font-size: 0.75rem;
+      font-weight: 500;
+      line-height: 1.25rem;
+      color: color-mix(in srgb, var(--foreground) 45%, transparent);
+      padding-right: 0.5rem;
+    }
+  }
 }

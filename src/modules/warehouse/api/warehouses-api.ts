@@ -2,6 +2,7 @@ import { apiRequest } from "@/shared/api/client";
 import type {
   CreateWarehouseInput,
   WarehouseListItem,
+  WarehousePeopleOption,
   WarehouseUserOption,
 } from "@/types/warehouse";
 
@@ -11,6 +12,10 @@ export async function fetchWarehouses(): Promise<WarehouseListItem[]> {
 
 export async function fetchWarehouseUserOptions(): Promise<WarehouseUserOption[]> {
   return apiRequest<WarehouseUserOption[]>("/warehouses/user-options");
+}
+
+export async function fetchWarehousePeopleOptions(): Promise<WarehousePeopleOption[]> {
+  return apiRequest<WarehousePeopleOption[]>("/warehouses/people-options");
 }
 
 export async function createWarehouse(input: CreateWarehouseInput): Promise<WarehouseListItem> {

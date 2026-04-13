@@ -17,7 +17,7 @@ export default function MainLayout({ children }: { children: ReactNode }) {
 
   if (!isReady) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 text-zinc-500">
+      <div className="flex min-h-[100dvh] items-center justify-center bg-zinc-50 px-4 text-zinc-500">
         {t("common.loading")}
       </div>
     );
@@ -25,7 +25,7 @@ export default function MainLayout({ children }: { children: ReactNode }) {
 
   if (!user) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-zinc-50 text-zinc-500">
+      <div className="flex min-h-[100dvh] items-center justify-center bg-zinc-50 px-4 text-zinc-500">
         {t("common.loading")}
       </div>
     );

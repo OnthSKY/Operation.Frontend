@@ -1,15 +1,20 @@
 "use client";
 
+import { AddProductCategoryModal } from "@/modules/products/components/AddProductCategoryModal";
 import { AddProductModal } from "@/modules/products/components/AddProductModal";
+import { EditProductModal } from "@/modules/products/components/EditProductModal";
 import { ProductDetailModal } from "@/modules/products/components/ProductDetailModal";
+import { SetProductCategoryModal } from "@/modules/products/components/SetProductCategoryModal";
 import {
   useProductsCatalog,
   useSoftDeleteProduct,
 } from "@/modules/products/hooks/useProductQueries";
 import { useI18n } from "@/i18n/context";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
+import { Input } from "@/shared/ui/Input";
 import { detailOpenIconButtonClass, EyeIcon } from "@/shared/ui/EyeIcon";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { Card } from "@/shared/components/Card";
@@ -23,7 +28,10 @@ import {
 } from "@/shared/ui/Table";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import type { ProductListItem } from "@/types/product";
-import { useState } from "react";
+import { cn } from "@/lib/cn";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 function productKv(label: string, value: string) {
   return (
@@ -65,25 +73,66 @@ function ProductWarehouseChips({
 
 export function ProductsScreen() {
   const { t } = useI18n();
+  const searchParams = useSearchParams();
   const [addOpen, setAddOpen] = useState(false);
+  const [addCategoryOpen, setAddCategoryOpen] = useState(false);
+  const [addFixedParent, setAddFixedParent] = useState<{ id: number; name: string } | null>(null);
   const [detailId, setDetailId] = useState<number | null>(null);
   const [detailLabel, setDetailLabel] = useState("");
+  const [categoryEdit, setCategoryEdit] = useState<ProductListItem | null>(null);
+  const [productEdit, setProductEdit] = useState<ProductListItem | null>(null);
+  const [catalogSearch, setCatalogSearch] = useState("");
 
-  const { data: rows = [], isPending, isError, error } = useProductsCatalog();
+  const { data: catalogRows = [], isPending, isError, error } = useProductsCatalog();
   const del = useSoftDeleteProduct();
 
-  const onDelete = async (id: number, label: string) => {
-    if (!window.confirm(`${t("products.confirmDelete")}\n${label}`)) return;
-    try {
-      await del.mutateAsync(id);
-      notify.success(t("toast.productDeleted"));
-      if (detailId === id) {
-        setDetailId(null);
-        setDetailLabel("");
-      }
-    } catch (e) {
-      notify.error(toErrorMessage(e));
-    }
+  const displayRows = useMemo(() => {
+    const q = catalogSearch.trim().toLowerCase();
+    if (!q) return catalogRows;
+    return catalogRows.filter((r) => {
+      const name = r.name.toLowerCase();
+      const cat = (r.categoryName ?? "").toLowerCase();
+      const unit = (r.unit ?? "").toLowerCase();
+      return name.includes(q) || cat.includes(q) || unit.includes(q);
+    });
+  }, [catalogRows, catalogSearch]);
+
+  useEffect(() => {
+    const raw = searchParams.get("openProduct");
+    if (!raw) return;
+    const id = Number.parseInt(raw, 10);
+    if (!Number.isFinite(id) || id <= 0) return;
+    const row = catalogRows.find((r) => r.id === id);
+    if (!row) return;
+    setDetailId(id);
+    setDetailLabel(row.name);
+  }, [searchParams, catalogRows]);
+
+  const onDelete = (id: number, label: string) => {
+    notifyConfirmToast({
+      toastId: "product-delete-confirm",
+      title: t("products.confirmDeleteTitle"),
+      message: (
+        <>
+          <p>{t("products.confirmDelete")}</p>
+          <p className="break-words font-medium text-zinc-900">“{label}”</p>
+        </>
+      ),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("common.delete"),
+      onConfirm: async () => {
+        try {
+          await del.mutateAsync(id);
+          notify.success(t("toast.productDeleted").replace("{name}", label));
+          if (detailId === id) {
+            setDetailId(null);
+            setDetailLabel("");
+          }
+        } catch (e) {
+          notify.error(toErrorMessage(e));
+        }
+      },
+    });
   };
 
   const openDetail = (id: number, name: string) => {
@@ -92,35 +141,91 @@ export function ProductsScreen() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-4xl p-4 lg:max-w-6xl 2xl:max-w-7xl">
+    <div className="mx-auto w-full app-page-max p-4 pb-6 sm:pb-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-900">{t("products.title")}</h1>
+          <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
+            {t("products.title")}
+          </h1>
           <p className="text-sm text-zinc-500">{t("products.subtitle")}</p>
         </div>
-        <Button type="button" className="sm:w-auto" onClick={() => setAddOpen(true)}>
-          {t("products.addProduct")}
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <Link
+            href="/products/categories"
+            className={cn(
+              "inline-flex min-h-12 w-full touch-manipulation items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-base font-medium text-zinc-900 shadow-sm shadow-zinc-900/5 transition hover:bg-zinc-50 hover:shadow-md sm:w-auto sm:min-h-9 sm:text-sm"
+            )}
+          >
+            {t("nav.productCategories")}
+          </Link>
+          <Button type="button" variant="secondary" className="sm:w-auto" onClick={() => setAddCategoryOpen(true)}>
+            {t("products.addCategory")}
+          </Button>
+          <Button
+            type="button"
+            className="sm:w-auto"
+            onClick={() => {
+              setAddFixedParent(null);
+              setAddOpen(true);
+            }}
+          >
+            {t("products.addProduct")}
+          </Button>
+        </div>
       </div>
 
       {isError ? (
         <p className="mt-4 text-sm text-red-600">{toErrorMessage(error)}</p>
       ) : isPending ? (
         <p className="mt-4 text-sm text-zinc-500">{t("common.loading")}</p>
-      ) : rows.length === 0 ? (
+      ) : catalogRows.length === 0 ? (
         <Card className="mt-4" title={t("products.title")}>
           <p className="text-sm text-zinc-600">{t("products.emptyCatalog")}</p>
         </Card>
       ) : (
         <Card className="mt-4">
+          <div className="mb-4">
+            <Input
+              name="product-catalog-search"
+              placeholder={t("products.catalogSearchPlaceholder")}
+              value={catalogSearch}
+              onChange={(e) => setCatalogSearch(e.target.value)}
+              autoComplete="off"
+              aria-label={t("products.catalogSearchPlaceholder")}
+            />
+          </div>
+          {displayRows.length === 0 ? (
+            <p className="text-sm text-zinc-600">{t("products.catalogSearchNoResults")}</p>
+          ) : (
+            <>
           <div className="flex flex-col gap-3 md:hidden">
-            {rows.map((r) => (
+            {displayRows.map((r) => (
               <div
                 key={r.id}
                 className="touch-manipulation rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm shadow-zinc-900/5"
               >
-                <p className="text-base font-semibold leading-snug text-zinc-900">{r.name}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p
+                    className={`text-base font-semibold leading-snug text-zinc-900 ${r.parentProductId != null ? "pl-3 border-l-2 border-violet-200" : ""}`}
+                  >
+                    {r.name}
+                  </p>
+                  {r.hasChildren ? (
+                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-600">
+                      {t("products.badgeGroup")}
+                    </span>
+                  ) : null}
+                  {r.parentProductId != null ? (
+                    <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-violet-800">
+                      {t("products.badgeVariant")}
+                    </span>
+                  ) : null}
+                </div>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {productKv(
+                    t("products.colCategory"),
+                    r.categoryName?.trim() ? r.categoryName : "—"
+                  )}
                   {productKv(t("products.colUnit"), r.unit?.trim() ? r.unit : "—")}
                   <div className="min-w-0 sm:col-span-2">
                     <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
@@ -140,6 +245,35 @@ export function ProductsScreen() {
                   </div>
                 </div>
                 <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-zinc-100 pt-3">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="min-h-11 sm:min-h-9"
+                    onClick={() => setProductEdit(r)}
+                  >
+                    {t("products.editProduct")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="min-h-11 sm:min-h-9"
+                    onClick={() => setCategoryEdit(r)}
+                  >
+                    {t("products.setCategory")}
+                  </Button>
+                  {r.parentProductId == null ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="min-h-11 sm:min-h-9"
+                      onClick={() => {
+                        setAddFixedParent({ id: r.id, name: r.name });
+                        setAddOpen(true);
+                      }}
+                    >
+                      {t("products.addSubProduct")}
+                    </Button>
+                  ) : null}
                   <Tooltip content={t("common.openDetailsDialog")} delayMs={200}>
                     <Button
                       type="button"
@@ -159,7 +293,7 @@ export function ProductsScreen() {
                       type="button"
                       className={`${trashIconActionButtonClass} min-h-11 min-w-11`}
                       aria-label={t("common.delete")}
-                      onClick={() => void onDelete(r.id, r.name)}
+                      onClick={() => onDelete(r.id, r.name)}
                       disabled={del.isPending}
                     >
                       <TrashIcon />
@@ -175,6 +309,7 @@ export function ProductsScreen() {
               <TableHead>
                 <TableRow>
                   <TableHeader>{t("products.colName")}</TableHeader>
+                  <TableHeader className="hidden lg:table-cell">{t("products.colCategory")}</TableHeader>
                   <TableHeader className="hidden md:table-cell">{t("products.colUnit")}</TableHeader>
                   <TableHeader className="min-w-[12rem]">{t("products.colInWarehouses")}</TableHeader>
                   <TableHeader className="text-right">{t("products.colTotal")}</TableHeader>
@@ -184,15 +319,34 @@ export function ProductsScreen() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {rows.map((r) => (
+                {displayRows.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell>
-                      <div className="font-medium text-zinc-900">{r.name}</div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div
+                          className={`font-medium text-zinc-900 ${r.parentProductId != null ? "pl-3 border-l-2 border-violet-200" : ""}`}
+                        >
+                          {r.name}
+                        </div>
+                        {r.hasChildren ? (
+                          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-600">
+                            {t("products.badgeGroup")}
+                          </span>
+                        ) : null}
+                        {r.parentProductId != null ? (
+                          <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-violet-800">
+                            {t("products.badgeVariant")}
+                          </span>
+                        ) : null}
+                      </div>
                       <div className="text-xs text-zinc-500 md:hidden">
                         {r.unit ?? "—"}
                       </div>
                     </TableCell>
-                    <TableCell className="hidden text-zinc-600 md:table-cell">
+                    <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 max-w-[10rem] truncate text-zinc-600 md:hidden lg:table-cell">
+                      {r.categoryName?.trim() ? r.categoryName : "—"}
+                    </TableCell>
+                    <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 text-zinc-600 md:table-cell">
                       {r.unit ?? "—"}
                     </TableCell>
                     <TableCell>
@@ -205,6 +359,41 @@ export function ProductsScreen() {
                     </TableCell>
                     <TableCell className="w-[1%] whitespace-nowrap text-right">
                       <div className="inline-flex flex-nowrap items-center justify-end gap-1.5">
+                        <Tooltip content={t("products.editProduct")} delayMs={200}>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="hidden px-2 text-xs md:inline-flex"
+                            onClick={() => setProductEdit(r)}
+                          >
+                            {t("products.editProductShort")}
+                          </Button>
+                        </Tooltip>
+                        <Tooltip content={t("products.setCategory")} delayMs={200}>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="hidden px-2 text-xs lg:inline-flex"
+                            onClick={() => setCategoryEdit(r)}
+                          >
+                            {t("products.setCategoryShort")}
+                          </Button>
+                        </Tooltip>
+                        {r.parentProductId == null ? (
+                          <Tooltip content={t("products.addSubProduct")} delayMs={200}>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="hidden px-2 text-xs sm:inline-flex"
+                              onClick={() => {
+                                setAddFixedParent({ id: r.id, name: r.name });
+                                setAddOpen(true);
+                              }}
+                            >
+                              {t("products.addSubProductShort")}
+                            </Button>
+                          </Tooltip>
+                        ) : null}
                         <Tooltip content={t("common.openDetailsDialog")} delayMs={200}>
                           <Button
                             type="button"
@@ -224,7 +413,7 @@ export function ProductsScreen() {
                             type="button"
                             className={trashIconActionButtonClass}
                             aria-label={t("common.delete")}
-                            onClick={() => void onDelete(r.id, r.name)}
+                            onClick={() => onDelete(r.id, r.name)}
                             disabled={del.isPending}
                           >
                             <TrashIcon />
@@ -237,10 +426,52 @@ export function ProductsScreen() {
               </TableBody>
             </Table>
           </div>
+            </>
+          )}
         </Card>
       )}
 
-      <AddProductModal open={addOpen} onClose={() => setAddOpen(false)} />
+      <AddProductCategoryModal open={addCategoryOpen} onClose={() => setAddCategoryOpen(false)} />
+      <AddProductModal
+        open={addOpen}
+        fixedParent={addFixedParent}
+        onClose={() => {
+          setAddOpen(false);
+          setAddFixedParent(null);
+        }}
+      />
+      <SetProductCategoryModal
+        open={categoryEdit != null}
+        product={
+          categoryEdit != null
+            ? {
+                id: categoryEdit.id,
+                name: categoryEdit.name,
+                categoryId: categoryEdit.categoryId,
+              }
+            : null
+        }
+        onClose={() => setCategoryEdit(null)}
+      />
+      <EditProductModal
+        open={productEdit != null}
+        product={
+          productEdit != null
+            ? {
+                id: productEdit.id,
+                name: productEdit.name,
+                unit: productEdit.unit,
+                categoryId: productEdit.categoryId ?? null,
+                parentProductId: productEdit.parentProductId ?? null,
+                hasChildren: Boolean(productEdit.hasChildren),
+              }
+            : null
+        }
+        onClose={() => setProductEdit(null)}
+        onUpdated={({ id, name }) => {
+          if (detailId === id) setDetailLabel(name);
+        }}
+      />
       <ProductDetailModal
         open={detailId != null}
         productId={detailId}
@@ -249,6 +480,14 @@ export function ProductsScreen() {
           setDetailId(null);
           setDetailLabel("");
         }}
+        onEdit={
+          detailId != null
+            ? () => {
+                const r = catalogRows.find((x) => x.id === detailId);
+                if (r) setProductEdit(r);
+              }
+            : undefined
+        }
       />
     </div>
   );

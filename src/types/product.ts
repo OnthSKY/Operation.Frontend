@@ -8,6 +8,10 @@ export type ProductListItem = {
   id: number;
   name: string;
   unit: string | null;
+  parentProductId?: number | null;
+  categoryId?: number | null;
+  categoryName?: string | null;
+  hasChildren?: boolean;
   totalQuantity: number;
   byWarehouse: ProductWarehouseQty[];
 };
@@ -16,6 +20,11 @@ export type ProductInventory = {
   productId: number;
   productName: string;
   unit: string | null;
+  categoryId?: number | null;
+  categoryName?: string | null;
+  parentProductId?: number | null;
+  parentProductName?: string | null;
+  hasChildren?: boolean;
   totalQuantity: number;
   byWarehouse: {
     warehouseId: number;
@@ -35,6 +44,7 @@ export type ProductMovementLine = {
   checkedByPersonnelName?: string | null;
   approvedByPersonnelName?: string | null;
   hasInvoicePhoto?: boolean;
+  inBatchGroupId?: string | null;
 };
 
 export type ProductMovementsPaged = {
@@ -57,11 +67,20 @@ export type ProductCreated = {
   id: number;
   name: string;
   unit: string | null;
+  parentProductId?: number | null;
+  categoryId?: number | null;
 };
 
 export type WarehouseProductStockRow = {
   productId: number;
   productName: string;
   unit: string | null;
+  categoryId?: number | null;
+  categoryName?: string | null;
+  parentProductId?: number | null;
+  parentProductName?: string | null;
   quantity: number;
+  /** Backend: girilmiş maliyetlerden ortalama (bilgi) */
+  suggestedAverageUnitCost?: number | null;
+  suggestedAverageCurrencyCode?: string | null;
 };

@@ -21,6 +21,8 @@ export type TooltipProps = {
   /** Hover / generic pointer delay before opening (ms). Focus opens immediately. */
   delayMs?: number;
   className?: string;
+  /** Extra classes for the floating tooltip panel (e.g. wider max-width). */
+  panelClassName?: string;
   /** When true, only `children` are rendered. */
   disabled?: boolean;
 };
@@ -37,6 +39,7 @@ export function Tooltip({
   side = "top",
   delayMs = 280,
   className,
+  panelClassName,
   disabled,
 }: TooltipProps) {
   const triggerRef = useRef<HTMLSpanElement>(null);
@@ -51,6 +54,7 @@ export function Tooltip({
   }>({ top: 0, left: 0, placement: "top" });
 
   const showTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tooltipId = useId();
 
   useEffect(() => setMounted(true), []);
@@ -58,6 +62,11 @@ export function Tooltip({
   const clearShowTimer = useCallback(() => {
     if (showTimer.current) clearTimeout(showTimer.current);
     showTimer.current = null;
+  }, []);
+
+  const clearTouchHideTimer = useCallback(() => {
+    if (touchHideTimer.current) clearTimeout(touchHideTimer.current);
+    touchHideTimer.current = null;
   }, []);
 
   const measureAndPlace = useCallback(() => {
@@ -113,7 +122,13 @@ export function Tooltip({
     };
   }, [open, measureAndPlace]);
 
-  useEffect(() => () => clearShowTimer(), [clearShowTimer]);
+  useEffect(
+    () => () => {
+      clearShowTimer();
+      clearTouchHideTimer();
+    },
+    [clearShowTimer, clearTouchHideTimer]
+  );
 
   const show = useCallback(
     (immediate: boolean) => {
@@ -129,9 +144,19 @@ export function Tooltip({
 
   const hide = useCallback(() => {
     clearShowTimer();
+    clearTouchHideTimer();
     setOpen(false);
     setPlaced(false);
-  }, [clearShowTimer]);
+  }, [clearShowTimer, clearTouchHideTimer]);
+
+  const scheduleTouchAutoHide = useCallback(() => {
+    clearTouchHideTimer();
+    touchHideTimer.current = setTimeout(() => {
+      touchHideTimer.current = null;
+      setOpen(false);
+      setPlaced(false);
+    }, 2200);
+  }, [clearTouchHideTimer]);
 
   if (disabled || isEmptyContent(content)) {
     return <>{children}</>;
@@ -152,6 +177,7 @@ export function Tooltip({
         role="tooltip"
         className={cn(
           "pointer-events-none fixed z-[9998] max-w-[min(18rem,calc(100vw-1rem))] rounded-xl border border-zinc-700/50 bg-zinc-900/96 px-3 py-2 text-left text-xs font-medium leading-snug text-white shadow-[0_16px_48px_-12px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.12] backdrop-blur-md motion-safe:transition-[opacity,transform] motion-safe:duration-150 motion-reduce:transition-none",
+          panelClassName,
           placed ? "opacity-100 motion-safe:scale-100" : "opacity-0 motion-safe:scale-[0.97]"
         )}
         style={{
@@ -171,10 +197,29 @@ export function Tooltip({
         ref={triggerRef}
         className={cn("inline-flex max-w-full", className)}
         onPointerEnter={(e) => {
-          if (e.pointerType === "touch") return;
+          if (e.pointerType === "touch" || e.pointerType === "pen") return;
           show(false);
         }}
-        onPointerLeave={hide}
+        onPointerLeave={(e) => {
+          if (e.pointerType === "touch" || e.pointerType === "pen") return;
+          hide();
+        }}
+        onPointerDown={(e) => {
+          if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
+          if (disabled || isEmptyContent(content)) return;
+          clearShowTimer();
+          clearTouchHideTimer();
+          setPlaced(false);
+          setOpen(true);
+        }}
+        onPointerUp={(e) => {
+          if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
+          scheduleTouchAutoHide();
+        }}
+        onPointerCancel={(e) => {
+          if (e.pointerType !== "touch" && e.pointerType !== "pen") return;
+          hide();
+        }}
         onFocusCapture={() => show(true)}
         onBlurCapture={hide}
       >

@@ -4,6 +4,7 @@ import { useProductInventory } from "@/modules/products/hooks/useProductQueries"
 import { ProductDetailMovementsTab } from "@/modules/products/components/ProductDetailMovementsTab";
 import { useI18n } from "@/i18n/context";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
 import {
   Table,
@@ -20,11 +21,12 @@ type Props = {
   productId: number | null;
   productLabel: string;
   onClose: () => void;
+  onEdit?: () => void;
 };
 
 type TabId = "inventory" | "movements";
 
-export function ProductDetailModal({ open, productId, productLabel, onClose }: Props) {
+export function ProductDetailModal({ open, productId, productLabel, onClose, onEdit }: Props) {
   const { t } = useI18n();
   const { data: inv, isPending: invLoading, isError: invErr, error: invError } =
     useProductInventory(open && productId != null ? productId : null);
@@ -47,9 +49,17 @@ export function ProductDetailModal({ open, productId, productLabel, onClose }: P
       description={t("products.detailDescription")}
       wide
       wideFixedHeight
+      wideExpanded
       closeButtonLabel={t("common.close")}
     >
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {onEdit ? (
+          <div className="flex shrink-0 justify-end border-b border-zinc-100 px-4 py-2 sm:px-6">
+            <Button type="button" variant="secondary" className="min-h-10" onClick={onEdit}>
+              {t("products.editProduct")}
+            </Button>
+          </div>
+        ) : null}
         <div
           role="tablist"
           aria-label={t("products.detailTabsLabel")}
@@ -99,7 +109,32 @@ export function ProductDetailModal({ open, productId, productLabel, onClose }: P
                 <p className="text-sm text-zinc-500">{t("common.loading")}</p>
               ) : inv ? (
                 <>
-                  <p className="text-sm text-zinc-600">
+                  {inv.parentProductName?.trim() ? (
+                    <p className="text-sm text-zinc-600">
+                      <span className="font-medium text-zinc-800">{t("products.detailParentLine")}:</span>{" "}
+                      {inv.parentProductName}
+                    </p>
+                  ) : null}
+                  {inv.categoryName?.trim() ? (
+                    <p
+                      className={`text-sm text-zinc-600 ${inv.parentProductName?.trim() ? "mt-1" : ""}`}
+                    >
+                      <span className="font-medium text-zinc-800">{t("products.colCategory")}:</span>{" "}
+                      {inv.categoryName}
+                    </p>
+                  ) : null}
+                  {inv.hasChildren ? (
+                    <p className="mt-2 rounded-lg border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-sm text-amber-950">
+                      {t("products.detailGroupNote")}
+                    </p>
+                  ) : null}
+                  <p
+                    className={`text-sm text-zinc-600 ${
+                      inv.parentProductName?.trim() || inv.categoryName?.trim() || inv.hasChildren
+                        ? "mt-2"
+                        : ""
+                    }`}
+                  >
                     {t("products.totalQty")}:{" "}
                     <span className="font-semibold text-zinc-900">{inv.totalQuantity}</span>
                   </p>
@@ -113,8 +148,10 @@ export function ProductDetailModal({ open, productId, productLabel, onClose }: P
                     <TableBody>
                       {inv.byWarehouse.map((row) => (
                         <TableRow key={row.warehouseId}>
-                          <TableCell>{row.warehouseName}</TableCell>
-                          <TableCell className="text-right tabular-nums">{row.quantity}</TableCell>
+                          <TableCell dataLabel={t("products.colWarehouse")}>{row.warehouseName}</TableCell>
+                          <TableCell dataLabel={t("products.colQty")} className="text-right tabular-nums">
+                            {row.quantity}
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

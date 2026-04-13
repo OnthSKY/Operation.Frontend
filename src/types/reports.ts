@@ -4,16 +4,27 @@ export type FinancialCurrencyTotalsRow = {
   totalExpense: number;
   incomeTransactionCount: number;
   expenseTransactionCount: number;
+  /** Şube kasasından tedarikçi (CASH); netCash buna göre düşülmüş. */
+  totalSupplierRegisterCashPaid?: number;
   netCash: number;
 };
 
 export type FinancialBranchBreakdownRow = {
+  /** 0 = merkez (kasa dışı OUT). */
   branchId: number;
   branchName: string;
   currencyCode: string;
   totalIncome: number;
   totalExpense: number;
+  totalSupplierRegisterCashPaid?: number;
   netCash: number;
+};
+
+export type ReportPagedResponse<T> = {
+  items: T[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
 };
 
 export type FinancialCategoryBreakdownRow = {
@@ -33,6 +44,14 @@ export type FinancialAdvanceSummaryRow = {
   recordCount: number;
 };
 
+/** OUT gider ödeme kaynağı: REGISTER | PATRON | PERSONNEL_POCKET | UNSET */
+export type FinancialExpensePaymentSourceRow = {
+  expensePaymentSource: string;
+  currencyCode: string;
+  totalAmount: number;
+  lineCount: number;
+};
+
 export type FinancialCurrencyCompareRow = {
   currencyCode: string;
   netCurrent: number;
@@ -49,6 +68,28 @@ export type FinancialBranchTrendRow = {
   netDelta: number;
 };
 
+export type FinancialSupplierPaymentBreakdownRow = {
+  currencyCode: string;
+  sourceType: string;
+  totalAmount: number;
+  recordCount: number;
+};
+
+export type FinancialVehicleExpenseOffRegisterRow = {
+  currencyCode: string;
+  totalAmount: number;
+  recordCount: number;
+};
+
+export type FinancialGeneralOverheadAllocatedRow = {
+  poolId: number;
+  title: string;
+  poolExpenseDate: string;
+  currencyCode: string;
+  totalAmount: number;
+  lineCount: number;
+};
+
 export type FinancialReport = {
   dateFrom: string;
   dateTo: string;
@@ -60,7 +101,12 @@ export type FinancialReport = {
   byBranch: FinancialBranchBreakdownRow[];
   branchTrends?: FinancialBranchTrendRow[];
   byCategory: FinancialCategoryBreakdownRow[];
+  /** Sunucu yanıtında yoksa API katmanı [] doldurur. */
+  byExpensePaymentSource?: FinancialExpensePaymentSourceRow[];
   advancesByCurrency: FinancialAdvanceSummaryRow[];
+  supplierPayments?: FinancialSupplierPaymentBreakdownRow[];
+  vehicleExpensesOffRegister?: FinancialVehicleExpenseOffRegisterRow[];
+  generalOverheadAllocated?: FinancialGeneralOverheadAllocatedRow[];
 };
 
 export type WarehousePeriodSummaryRow = {
@@ -90,14 +136,36 @@ export type BranchReceiptSummaryRow = {
   receiptLineCount: number;
 };
 
+export type WarehouseToBranchFlowRow = {
+  warehouseId: number;
+  warehouseName: string;
+  branchId: number;
+  branchName: string;
+  totalQuantity: number;
+  movementLineCount: number;
+};
+
+export type WarehouseOutboundProductRow = {
+  warehouseId: number;
+  warehouseName: string;
+  productId: number | null;
+  productName: string | null;
+  quantityOut: number;
+};
+
 export type StockReport = {
   dateFrom: string;
   dateTo: string;
   warehouseIdFilter: number | null;
   branchIdFilter: number | null;
+  categoryIdFilter?: number | null;
+  parentProductIdFilter?: number | null;
+  productIdFilter?: number | null;
   warehousePeriod: WarehousePeriodSummaryRow[];
   topProductFlows: WarehouseProductFlowRow[];
   branchReceipts: BranchReceiptSummaryRow[];
+  warehouseToBranchFlows: WarehouseToBranchFlowRow[];
+  topOutboundProducts: WarehouseOutboundProductRow[];
 };
 
 export type FinancialSummaryCurrencyBucket = {
@@ -106,6 +174,9 @@ export type FinancialSummaryCurrencyBucket = {
   totalExpense: number;
   totalSalaryPaid: number;
   totalAdvanceGiven: number;
+  totalSupplierPayments?: number;
+  totalSupplierRegisterCashPaid?: number;
+  totalVehicleExpenseOffRegister?: number;
   netCash: number;
 };
 
@@ -139,4 +210,26 @@ export type FinancialBranchMonthlyBreakdownRow = {
   totalSalaryPaid: number;
   totalAdvanceGiven: number;
   netCash: number;
+};
+
+export type CashPositionBranchRow = {
+  branchId: number;
+  branchName: string;
+  seasonStatus: string;
+  cumulativeCashBalance: number;
+  cumulativeNetRegisterOwesPersonnelPocket: number;
+  cumulativeNetRegisterOwesPatron: number;
+};
+
+export type CashPositionTotalsRow = {
+  cumulativeCashBalance: number;
+  cumulativeNetRegisterOwesPersonnelPocket: number;
+  cumulativeNetRegisterOwesPatron: number;
+};
+
+export type CashPositionReport = {
+  asOfDate: string;
+  openSeasonOnly: boolean;
+  branches: CashPositionBranchRow[];
+  totals: CashPositionTotalsRow;
 };

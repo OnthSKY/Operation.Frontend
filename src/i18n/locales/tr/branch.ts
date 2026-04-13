@@ -4,10 +4,35 @@ export const branch = {
   listTitle: "Şubeler",
   listDesc:
     "Turizm sezonu ve çalışan sayıları sunucu tarihine (bugün) göre; «başlamadı» = işe giriş tarihi henüz gelmemiş kayıtlı personel.",
+  openedFromReportBanner:
+    "Raporlardan bu şubeye yönlendirildiniz; aşağıda seçili şubenin detayı ve günlük hareketler açılır.",
   add: "Şube ekle",
   addTitle: "Yeni şube",
-  addHint: "POST /api/branches — ad zorunlu (en fazla 100 karakter).",
+  addHint:
+    "Ad zorunlu (en fazla 100 karakter). POS / kart tahsilatının bu şubede kime yazılacağını da seçmek zorunludur.",
+  addPosSettlementLegend: "POS / kart tahsilatı — lehtar kim?",
+  addPosSettlementLead:
+    "Zorunlu. Şube POS profili olarak kaydedilir (Patron akışı raporu ile aynı veri).",
+  posSettlementPatron: "Patron / şirket",
+  posSettlementFranchise: "Franchise",
+  posSettlementJoint: "Ortaklık",
+  posSettlementBranchPersonnel: "Şube işleteni (isimli personel)",
+  posSettlementOther: "Diğer yapı",
+  posBranchPersonnelFollowUp:
+    "Bu seçenekte belirli personel seçecekseniz önce personeli şubeye atayın; ardından Raporlar → Patron akışı üzerinden POS lehtarını güncelleyebilirsiniz.",
+  posSettlementNotesLabel: "Not (isteğe bağlı)",
+  posSettlementNotesPlaceholder: "Örn. sözleşme ref., işletim modeli…",
+  edit: "Şubeyi düzenle",
+  editTitle: "Şube düzenle",
+  editHint:
+    "PUT /api/branches/{id} — ad, adres ve sorumlular (yalnızca bu şubeye atanmış personel).",
   fieldName: "Şube adı",
+  fieldAddress: "Adres",
+  fieldResponsibles: "Sorumlular",
+  responsiblesHint: "Yalnızca bu şubeye atanmış aktif personel seçilebilir.",
+  responsiblesEmptyStaff:
+    "Henüz atanmış personel yok — önce personeli bu şubeye bağlayın.",
+  detailResponsibles: "Sorumlular",
   tableId: "No",
   tableName: "Ad",
   tableSeason: "Turizm sezonu",
@@ -28,8 +53,73 @@ export const branch = {
   /** Hepsi ileri tarihli işe giriş. */
   staffLinePendingOnly: "{total} kayıtlı · henüz başlamadı ({pending})",
   tableActions: "İşlem",
+  listMetricsToggle: "Gelir ve kapsamlı stok girişi",
+  listMetricsLoading: "Özet yükleniyor…",
+  listTodayIncome: "Bugünkü gelir (UTC)",
+  listTotalIncome: "Toplam gelir",
+  listAllTimeProfit: "Bugüne kadar kar (gelir − gider)",
+  listStockInboundScopeTitle: "Şubeye giriş toplamı (kapsam seçin)",
+  listStockInboundScopeExplainer:
+    "Depo/stok raporlarıyla aynı kurallar: önce alt kategoriler; üst kategori seçilirse alt kategorilerdeki ürünler dahil.",
+  listStockInboundScopeTotal: "Giriş miktarı (seçilen kapsam)",
+  listStockInboundScopeHint: "Yukarıdaki kapsamdaki ürünler için pozitif şube stok girişleri toplamı (tüm zamanlar).",
+  listStockInboundScopePickHint: "Kategori, ana ürün grubu veya SKU seçin; toplam yüklensin.",
+  listMetricsPersonnelNote: "Parasal özet gizli; giriş miktarı için yukarıdan kapsam seçin.",
   quickAddIncome: "Gelir ekle (kasa)",
   quickAddExpense: "Gider ekle (kasa)",
+  quickActions: "Kasa hızlı işlemler",
+  quickMenuStoryRegister: "Şube kasası",
+  quickMenuStoryPersonnelReports: "Personel ve rapor",
+  quickAddDayClose: "Gün sonu ekle",
+  listRowPdfSettlement:
+    "PDF çıktısı (avans, gider, notlar — şube bazlı)",
+  branchPdfOptionsTitle: "Şube PDF — neler dahil edilsin?",
+  branchPdfOptionsIntro:
+    "Raporu şubenin gerçek maliyet görünümüne göre özelleştirin. İşaretlediğiniz bölümler yüklenir ve özet satırlarında kullanılır.",
+  branchPdfOptStockInbound: "Depodan şubeye gelen stok (giriş hareketleri)",
+  branchPdfOptStockPricing:
+    "Stokta tahmini maliyet sütunları (son depo giriş faturası birim fiyatına göre; fatura yoksa boş)",
+  branchPdfOptAdvances: "Bu şubeye bağlı avanslar",
+  branchPdfOptPersonnelExpenses:
+    "Personele yazılan gider satırları (avans hariç, şube kasası)",
+  branchPdfOptPersonnelSalary:
+    "Personel maaş / SGK tahmini tablosu (şubedeki personel)",
+  branchPdfOptRegister: "Şube kasası — tüm gelir ve gider satırları",
+  branchPdfOptNotes: "Şube notları",
+  branchPdfOverlapHint:
+    "Uyarı: «Personele yazılan giderler» ile «Tüm kasa satırları» birlikte seçildiğinde aynı işlemler hem personel listesinde hem kasa listesinde görünebilir; toplamları tekilleştirmeyin.",
+  branchPdfConfirm: "PDF’i oluştur",
+  branchPdfSectionStock: "Şubeye gelen stok",
+  branchPdfColWarehouse: "Depo",
+  branchPdfColQty: "Miktar",
+  branchPdfColUnit: "Birim",
+  branchPdfColUnitPrice: "Birim fiyat (tahmin)",
+  branchPdfColLineValueEst: "Satır tutarı (tahmin)",
+  branchPdfStockValuationFootnote:
+    "Birim fiyat ve satır tutarı: ilgili depoda aynı ürün için kayıtlı son tedarikçi faturası (depo girişi) üzerinden tahmindir; fiili sevkiyat maliyeti farklı olabilir.",
+  branchPdfSectionRegister: "Şube kasası (tüm satırlar)",
+  branchPdfRegisterColType: "Yön",
+  branchPdfRegisterTypeIn: "Gelir",
+  branchPdfRegisterTypeOut: "Gider",
+  branchPdfTotalStockValuationEst: "Gelen stok tahmini maliyet (toplam)",
+  branchPdfStockQtySummary: "Stok (miktar)",
+  branchPdfTotalInboundQty: "Toplam gelen miktar",
+  branchPdfTotalRegisterIn: "Kasa gelirleri (toplam)",
+  branchPdfTotalRegisterOut: "Kasa giderleri (toplam)",
+  branchPdfTotalRegisterNet: "Kasa net (gelir − gider)",
+  branchPdfModeDetail: "Detay (satır satır)",
+  branchPdfModeSummary: "Özet (toplam)",
+  branchPdfAdvancesListMode: "Avanslar: liste biçimi",
+  branchPdfPersonnelExpensesListMode: "Personele yazılan giderler: liste biçimi",
+  branchPdfRegisterListMode: "Şube kasası: liste biçimi",
+  branchPdfSummaryColCurrency: "Para birimi",
+  branchPdfSummaryColTotal: "Toplam",
+  branchPdfSummaryColCount: "Satır adedi",
+  branchPdfSummarySublineAdvances: "Toplam {n} avans kaydı — ayrıntılı satırlar yazdırılmadı.",
+  branchPdfSummarySublineExpenses:
+    "Toplam {n} gider satırı — ayrıntılı satırlar yazdırılmadı.",
+  branchPdfRegisterSummaryCounts: "{in} gelir satırı, {out} gider satırı.",
+  listRowAddPersonnel: "Şubeye personel ekle",
   noData: "Henüz şube yok.",
   selectHint:
     "Şube satırına dokunun veya detay (göz) simgesine basın; detay tam ekran pencerede açılır.",
@@ -38,18 +128,57 @@ export const branch = {
   detailDesc:
     "Özet, personel, kasa gelir/gider kayıtları ve depodan şubeye ürün — sekmelerden gezinin.",
   detailTabsAria: "Şube detay sekmeleri",
-  dashStoryTitle: "Bu özet nasıl okunur?",
-  dashStory1:
-    "Üstteki tarih yalnızca hemen altındaki dört özet kartını ve gelir/gider tablosunu etkiler — seçtiğiniz güne ait kasa özeti.",
-  dashStory2:
-    "Yeni kayıt için «Gelir veya gider kaydı»nı kullanın. Depodan şubeye ürün akışı «Şubeye gelen ürün» sekmesindedir.",
-  dashStory3:
-    "En alttaki «Rapor ayı» yalnızca o ayın toplam gelir ve gider kartlarını değiştirir; üstteki günlük bölümle karıştırmayın.",
   dashSectionDay: "Seçilen gün",
-  dashSectionDayHint: "Tarihi değiştirince üstteki tutarlar ve alttaki tablo birlikte güncellenir.",
+  registerSummaryBlurb:
+    "Üstteki tarih hem özet kartlarını hem aşağıdaki günlük listeyi günceller.",
+  registerSummaryStoryTitle: "Bu özeti nasıl okuyayım?",
+  registerSummaryStory1:
+    "Önce «Toplam» bölümü: «Kasada nakit» fiili çekmece; yanındaki iki kart kasanın personele ve patrona kümülatif net borcunu gösterir — genel resim burada.",
+  registerSummaryStory2:
+    "Sonra «Gün özeti»: «Net işletme» o günün muhasebe neti (gelir − muhasebe gideri). Altındaki iki net borç kartı yalnız o güne ait cebi ve patron hareketinin özeti.",
+  registerSummaryStory3:
+    "«Gelir» ve «Gider (muhasebe)» net işletmenin parçasıdır; rakamlar şüpheliyse alttaki günlük satır listesinden doğrulayın.",
+  registerSummaryBadgePriority: "Öncelik",
+  registerSummaryBadgeDayDebt: "Gün — net borç",
+  registerTotalsSectionLead: "Genel resim — önce bu üç karta bakın.",
+  registerTodaySectionLead: "Seçilen gün — toplamlardan sonra bu bölüme geçin.",
+  registerTodaySection: "Gün özeti",
+  registerTodayIncome: "Gelir",
+  registerTodayExpenseAccounting: "Gider (muhasebe)",
+  registerTodayExpenseAccountingHint: "Kasadan çıkan + o güne düşen kasa dışı avans.",
+  registerTodayNet: "Net işletme (gün)",
+  registerTodayNetHint: "Gelir − muhasebe gideri. Patron/personel cebi bu kartta yok.",
+  registerTodayNetPersonnelPocket: "Net personele borç (gün)",
+  registerTodayNetPersonnelPocketHint: "Cebinden ödemeler − aynı gün yapılan cebi iadeleri.",
+  registerTodayNetPatron: "Net patrona borç (gün)",
+  registerTodayNetPatronHint: "Patron ödemeli gider − aynı gün kasadan patrona ödeme.",
+  dashDailySnapshotSection: "Günlük özet",
+  dashDailyProfitTitle: "Günlük kar (muhasebe)",
+  dashDailyProfitHint:
+    "Gelir − muhasebe gideri (kasadan çıkan + o güne düşen kasa dışı avans). Aşağıdaki «Net işletme (gün)» ile aynı tutar.",
+  dashTopExpenseTypeTitle: "Günün en yüksek gider türü",
+  dashTopExpenseTypeHint: "Ekonomik gider satırlarında ana kategoriye göre; cep/patron borç kapatma satırları dahil değil.",
+  dashTopExpenseNone: "Bu gün bu kapsamda kayıtlı gider yok.",
+  registerTotalsSection: "Toplam (seçilen güne kadar)",
+  registerTotalCashInDrawer: "Kasada nakit",
+  registerTotalCashInDrawerHint: "Seçilen tarihe kadar nakit giriş − kasadan çıkanlar.",
+  registerTotalPersonnelPocketNet: "Personele net borç",
+  registerTotalPersonnelPocketNetHint:
+    "Başlangıçtan seçilen güne kadar cebi hareketleri (net).",
+  registerTotalPatronNet: "Patrona net borç",
+  registerTotalPatronNetHint:
+    "Başlangıçtan seçilen güne kadar patron ödemeleri − kasadan kapatmalar (net).",
+  registerPatronNetNegativeMeansBranchReceivable:
+    "Eksi tutarda şube patrondan alacaklıdır.",
   dashSectionLive: "Güncel durum (üstteki güne bağlı değil)",
   dashSectionLiveHint:
     "Personel sayısı, tüm zaman gelir/gider, kasada biriken nakit (bugüne kadar) ve takvimdeki bugünün gelir-gideri. Üstteki tarih seçici bunları değiştirmez.",
+  dashStockInboundSection: "Kategori / ürüne göre şubeye giriş",
+  dashStockInboundSectionHint:
+    "Seçilen kapsam için bu şubeye pozitif giriş miktarlarının toplamı (tüm zamanlar). Filtreleri değiştirince rakam otomatik yenilenir.",
+  dashStockInboundTotal: "Giriş miktarı (kapsam)",
+  dashStockInboundTotalHint: "Depo ürün kapsamı filtreleriyle aynı (kategori alt kategorileri kapsar).",
+  dashStockInboundPickScope: "Toplamı görmek için en az bir filtre seçin (kategori, ana ürün veya SKU).",
   dashSectionMonth: "Rapor ayına göre",
   dashSectionMonthHint: "Yalnızca seçilen takvim ayının gelir ve gider toplamı.",
   tabDashboard: "Özet",
@@ -61,6 +190,25 @@ export const branch = {
   tabExpenses: "Giderler",
   tabStock: "Şubeye gelen ürün",
   tabTourismSeason: "Turizm sezonu",
+  tabZReportAccounting: "Z raporu (muhasebe)",
+  tabNotes: "Notlar",
+  tourismSeasonClosedOpenTab: "Turizm sezonu sekmesine git",
+  zReportTabFilterYear: "Yıl",
+  zReportTabFilterYearPh: "Boş = geçerli yıl",
+  zReportTabResetYear: "Yılı sıfırla",
+  notesHint: "Şubeye özel, satır satır notlar (ör. iletişim, hatırlatmalar).",
+  notesReadOnlyHint: "Notları görüntüleyebilirsiniz; ekleme ve düzenleme yalnızca yetkili kullanıcılara açıktır.",
+  notesAdd: "Not ekle",
+  notesEmpty: "Bu şube için henüz not yok.",
+  notesEdit: "Düzenle",
+  notesDelete: "Sil",
+  notesDeleteAsk: "Bu not silinsin mi?",
+  notesDeleteConfirm: "Evet, sil",
+  notesAddTitle: "Not ekle",
+  notesEditTitle: "Notu düzenle",
+  notesBodyLabel: "Not metni",
+  notesBodyRequired: "Not metni zorunludur.",
+  notesBodyTooLong: "Not metni en fazla 4000 karakter olabilir.",
   tSeasonHint:
     "Sezon yılı ve açılış/kapanış tarihlerini geriye dönük girebilirsiniz. Kapanış boşsa sezon hâlâ açık kabul edilir.",
   tSeasonFilterYear: "Sezon yılı (filtre)",
@@ -87,15 +235,49 @@ export const branch = {
   tSeasonYearInvalid: "Sezon yılı 1990–2100 olmalı.",
   tSeasonOpenedInvalid: "Açılış tarihi zorunlu.",
   tSeasonClosedBeforeOpen: "Kapanış, açılıştan önce olamaz.",
+  tSeasonYearClosureGateLoading: "Önceki yıl personel hesap durumu kontrol ediliyor…",
+  tSeasonYearClosureGateError:
+    "Hesap kapanış kuralları doğrulanamadı. Tekrar deneyin; kurallar sağlanmazsa sunucu yine engelleyecektir.",
+  tSeasonYearClosureBlockedTitle: "Bazı personeller için önceki takvim yılı hesabı açık",
+  tSeasonYearClosurePriorLabel: "Önceki takvim yılı",
+  tSeasonYearClosureBlockedListIntro:
+    "Bu turizm sezonunu eklemeden önce personel kartından «Dönem hesap özeti» ile ilgili yılı kapatın.",
+  zReportAccountingTitle: "Z raporu — muhasebe (aylık)",
+  zReportAccountingHint:
+    "Yalnızca turizm sezonu kaydıyla kesişen aylar izlenir. Onay tarih ve kullanıcı ile saklanır.",
+  zReportColMonth: "Ay",
+  zReportColStatus: "Durum",
+  zReportStatusNa: "Turizm sezonu yok",
+  zReportStatusUpcoming: "Gelecek",
+  zReportStatusPending: "Gönderilmedi",
+  zReportStatusSent: "Gönderildi",
+  zReportColSentAt: "Onay zamanı",
+  zReportColSentBy: "Onaylayan",
   incomeHint:
-    "Şube kasasına giren gelir satırları (IN). Tek gün seçince üstte tahsilat, nakit ve kart özeti görünür.",
+    "Şube kasasına giren gelir satırları (IN). Tahsilat satır tutarları, nakit ve kart ise ödeme dağılımıdır (doğru girildiyse tahsilat ≈ nakit + kart).",
+  incomeDateScopeTitle: "Tarih değişince hangi bölümler güncellenir?",
+  incomeDateScopeDaySummary:
+    "Gün özeti (üstteki üç kart — tahsilat / nakit / kart «gün»): Yalnızca başlangıç ve bitiş aynı gün seçildiğinde görünür ve yalnızca o tek günün toplamını gösterir. İki tarih farklı olunca bu kartlar gizlenir.",
+  incomeDateScopeCumulative:
+    "Kümülatif özet (maskeli üç kart): Yine yalnızca tek gün seçiliyken görünür; seçtiğiniz günü bitiş tarihi sayarak ilk kayıttan o güne kadar (dahil) toplar. Günü değiştirince bu rakamlar da değişir.",
+  incomeDateScopeListPatron:
+    "Gelir satırları listesi ve varsa «Patron» akışı kutusu: Daima başlangıç–bitiş aralığına (ve liste filtrelerine) göre güncellenir — tek gün veya tarih aralığı fark etmez.",
   incomeCloseTitle: "Gün özeti (gelir)",
-  incomeCloseHint: "Başlangıç ve bitiş aynı gün — özet ile liste aynı tarihi kullanır.",
+  incomeCloseHint:
+    "Bu üç kart yalnızca seçtiğiniz tek güne aittir (başlangıç = bitiş). Tahsilat: o günkü gelir satır tutarları toplamı; nakit ve kart aynı günün ödeme türü dağılımı. Liste de aynı günü kullanır.",
   incomeCloseTotal: "Tahsilat (gün)",
   incomeCloseCash: "Nakit (gün)",
   incomeCloseCard: "Kart (gün)",
+  incomeCumulativeTitle: "Seçilen güne kadar (tüm zaman)",
+  incomeCumulativeHint:
+    "Üst sınır, yukarıdaki ile aynı tek gündür (bitiş = başlangıç). İlk kayıttan o güne kadar (dahil) IN toplamları. Tutarlar varsayılan olarak gizlidir; alana tıklayınca gösterilir veya tekrar gizlenir.",
+  incomeCumulativeRevealTap: "Göstermek için dokunun",
+  incomeCumulativeTotal: "Tahsilat (kümülatif)",
+  incomeCumulativeCash: "Nakit (kümülatif)",
+  incomeCumulativeCard: "Kart (kümülatif)",
   incomeClosePickSingleDay:
-    "Gelir özeti için başlangıç ve bitişte aynı günü seçin veya «Bugün» kullanın.",
+    "Üstteki gün ve kümülatif kartları görmek için başlangıç ve bitişte aynı günü seçin veya «Bugün» kullanın. Liste yine seçtiğiniz başlangıç–bitiş aralığına göre çalışır.",
+  incomeActionsTitle: "Gelir işlemleri",
   incomeListSection: "Gelir satırları (IN)",
   noIncome: "Bu filtreye uygun gelir yok.",
   dashMonthPicker: "Rapor ayı",
@@ -112,11 +294,13 @@ export const branch = {
   expensesHint:
     "Önce gün sonu özetine bakın; aynı günü seçtiğinizde tahsilat ve gider toplamları üstte, kasa dışı avans ayrı gösterilir. Altta o güne ait gider satırları.",
   expensesCloseTitle: "Gün sonu kasa özeti",
-  expensesCloseHint: "Başlangıç ve bitiş aynı gün — üst kartlar ile liste aynı tarihi kullanır.",
+  expensesCloseHint:
+    "Başlangıç ve bitiş aynı gün — üst kartlar ile liste aynı tarihi kullanır. «Net patrona borç» kartı aynı gün kasadan patron borcu kapatmayı düşer; mor kutu ise (varsa) liste filtresine göre patron ödemeli giderlerin brüt toplamıdır.",
   expensesCloseIncome: "Tahsilat (gün)",
   expensesCloseExpense: "Gider, muhasebe (gün)",
   expensesCloseNet: "Net (gün)",
   expensesCloseCashOut: "Kasadan çıkış (gün)",
+  expensesClosePatronPaid: "Net patrona borç (gün)",
   expensesCloseNonRegister: "Kasa dışı avans (gün)",
   expensesClosePickSingleDay:
     "Özet için başlangıç ve bitişte aynı günü seçin veya «Bugün» ile doldurun.",
@@ -127,12 +311,17 @@ export const branch = {
     "Seçili gün {date}: aşağıda yalnızca bu güne düşen depo girişleri listelenir.",
   noExpenses: "Bu filtreye uygun gider yok.",
   stockHint:
-    "Depodan şubeye gelen ürünler. Varsayılan bugün; tek gün seçince üstte kısa bilgi görürsünüz.",
+    "Depodan şubeye gelen ürünler; depo hareketleriyle aynı sevkiyat (batch) gruplaması. Kategori / ürün ve tarih filtreleri, üstteki toplam miktar kartıyla uyumludur.",
   noStockReceipts: "Kayıt yok.",
   stockColDate: "Tarih",
   stockColProduct: "Ürün",
   stockColQty: "Miktar",
   stockColWarehouse: "Kaynak depo",
+  stockReceiptsTotalsTitle: "Özet (filtreyle uyumlu)",
+  stockReceiptsFilteredTotalQty: "Toplam gelen miktar",
+  stockReceiptsTotalsHint:
+    "Tarih ve ürün kapsamı seçimlerine göre tüm sayfalardaki şube stok girişlerinin miktar toplamı.",
+  stockReceiptsPageShipmentSummary: "Bu sayfada {{shipments}} sevkiyat grubu · {{lines}} satır",
   filterDateFrom: "Başlangıç",
   filterDateTo: "Bitiş",
   filterApplyRefresh: "Yenile",
@@ -143,18 +332,53 @@ export const branch = {
   expensePayRegister: "Şube kasasından ödendi",
   expensePayPatron: "Patron ödedi (kasa dışı)",
   expensePayPersonnelPocket: "Personel cebinden (kasa personele borçlu)",
+  expensePayRegisterShort: "Kasa",
+  expensePayPatronShort: "Patron",
+  expensePayPersonnelPocketShort: "Personel cebi",
+  expensePocketRepayViaRegister: "Kasadan personele",
+  expensePocketRepayViaPatron: "Patrondan personele",
   expensePocketPersonLabel: "Ödemeyi yapan personel",
+  expensePocketRepayPersonLabel: "Ödemeyi alan personel",
+  pocketPriorLinesTitleRepay: "Kapatılacak cepten gider satırları",
+  pocketPriorLinesHintRepay:
+    "Gider türü «Personel cebi borcu ödemesi» iken zorunlu: kasanın ödeyeceği tutar yalnızca seçtiğiniz satırların toplamı olur; bu satırlar başka bir iade ile tekrar kapatılamaz. Henüz kapatılmamış satırlar listelenir.",
+  pocketRepayPickRequired: "En az bir cepten gider satırı seçin.",
+  pocketRepayAmountMismatch: "Tutar, seçilen satırların toplamı ile aynı olmalı.",
+  pocketRepayAmountFromSelectionHint:
+    "Tutar yalnızca aşağıdaki listeden seçimle belirlenir; manuel yazılamaz.",
+  pocketPriorSelectAll: "Tümünü seç",
+  pocketPriorClear: "Seçimi kaldır",
+  pocketPriorSelectedTotal: "Seçilen toplam",
+  pocketPriorEmpty: "Bu personel için kayıtlı cepten ödeme satırı yok.",
+  pocketPriorCurrencyMismatch:
+    "Seçili satırların para birimi, formdaki para birimi ile uyuşmuyor. Tutarı otomatik yazmak için para birimini eşleştirin.",
   txExpensePocketPersonnelRequired: "Personel cebinden seçildiğinde ödemeyi yapan personeli seçin.",
   expensePaymentLabel: "Ödeme nasıl karşılandı?",
   expensePaymentUnset: "Belirtilmedi",
   expensePaymentHint:
     "Kasadan çıkan, patronun karşıladığı veya personelin cebinden ödediği (kasa o personele borçlanır, fiili nakit çıkmaz) seçeneklerinden birini işaretleyin.",
+  txPersonnelExpenseBranchLabel: "Şube (kasadan ödeme için)",
+  txPersonnelExpenseBranchPick: "Şube seçin…",
+  txPersonnelExpenseBranchHint:
+    "Kasadan ödeme bu şubenin kasasına yazılır. Şubesi atanmamış personelde önce şubeyi seçin.",
+  txPersonnelExpensePaymentHintNoBranch:
+    "Önce şubeyi seçin; ardından kasadan veya patronun karşılamasından birini işaretleyin.",
+  txPersonnelExpensePaymentHintWithBranch:
+    "Kasadan veya patronun karşılamasından birini işaretleyin.",
+  txRegisterPaymentNeedBranch: "Kasadan ödeme için geçerli bir şube seçilmeli.",
+  txAdvanceNeedBranch: "Kasadan avans için geçerli bir şube seçilmeli.",
   receiptPhotoOptional:
     "Fiş fotoğrafı (isteğe bağlı, en fazla 5 MB — JPEG, PNG, WebP, telefondan HEIC/AVIF)",
+  receiptPhotoRequiredWhenInvoice:
+    "Fatura görseli (zorunlu, en fazla 5 MB — JPEG, PNG, WebP, telefondan HEIC/AVIF)",
+  invoiceReceiptPhotoRequired:
+    "Tedarikçi faturası için fatura/fiş görseli yüklemeniz gerekir.",
   openReceiptPhoto: "Fişi aç",
   txColActions: "İşlem",
   txDeleteAria: "Bu kasa satırını sil",
   txDeleteSure: "Bu gelir/gider satırı silinsin mi? Kayıt pasifleştirilir (geri alınabilir).",
+  txDeleteIncomeToastMessage:
+    "Bu gelir satırını silmek istediğinize emin misiniz? Kayıt pasifleştirilir (geri alınabilir).",
   txDeleteCancel: "Vazgeç",
   txDeleteConfirm: "Sil",
   txColReceipt: "Fiş",
@@ -166,6 +390,24 @@ export const branch = {
   addTx: "Gelir veya gider kaydı",
   addIncomeTx: "Gelir kaydı ekle",
   addExpenseTx: "Gider kaydı ekle",
+  patronFlowIncomeTitle: "Patrona aktarılan gelir (kasa)",
+  patronFlowIncomeHint:
+    "Gelir satırlarında tahsilatın «Patron»a yazıldığı tutarlar. Aşağıdaki liste filtreleri (tarih, ana kategori, kasa) bu özet için de geçerlidir.",
+  patronFlowIncomeStoryTitle: "Bu kutuyu nasıl okuyayım?",
+  patronFlowIncomeStory1:
+    "Önce «Toplam» kartına bakın: seçili filtrelere uyan gelir satırlarında kasa tahsilatı hedefi Patron olarak işaretlenmiş tutarların özeti budur.",
+  patronFlowIncomeStory2:
+    "Nakit ve POS / kart kartları, satırda nakit–kart ayrımı girilmiş kayıtların dağılımını gösterir; ayrım yoksa «Nakit–kart ayrımı yok» kartı devreye girer.",
+  patronFlowIncomeStory3:
+    "Tarih veya kategori filtrelerini değiştirdiğinizde hem bu kartlar hem alttaki gelir listesi birlikte güncellenir; rakamı listeden çapraz kontrol edebilirsiniz.",
+  patronFlowIncomeCardsSection: "Özet kartları",
+  patronFlowIncomeTotal: "Toplam",
+  patronFlowIncomeCash: "Nakit",
+  patronFlowIncomeCard: "POS / kart",
+  patronFlowIncomeUnspecified: "Nakit–kart ayrımı yok",
+  patronFlowExpenseTitle: "Patron ödeyen giderler",
+  patronFlowExpenseHint:
+    "Ödeme kaynağı «Patron» olan gider satırlarının toplamı; liste filtreleriyle aynı aralık.",
   dayIncome: "Gelir (seçilen gün)",
   dayExpense: "Gider (seçilen gün)",
   dayExpenseAccounting: "Gider, muhasebe (seçilen gün)",
@@ -177,10 +419,36 @@ export const branch = {
   dayNetAfterAllRegisterOut: "Net getiri (kasa satırları)",
   dayNetAfterAllRegisterOutHint:
     "Gelir − seçilen güne ait tüm gider satırları (kasadan çıkan, patron ve personel cebi dahil).",
+  registerSummarySectionCash: "Kasa ve muhasebe (seçilen gün)",
+  registerSummarySectionCashHint:
+    "Tahsilat, kasadan çıkan nakit gider, muhasebe neti ve tüm gider satırlarıyla gün sonu getirisi.",
+  registerSummarySectionPatron: "Patron ile borç (seçilen gün)",
+  registerSummarySectionPatronHint:
+    "Patron ödemeli gider → kasa borçlanır; kasadan patrona ödeme ayrı satırdır. Net = üst satır − ortadaki.",
+  registerSummarySectionPocket: "Personel cebi (seçilen gün)",
+  registerSummarySectionPocketHint:
+    "Cebinden ödenen giderlere karşılık kasanın personele borcu; kasadan veya patrondan yapılan iadeler düşülür.",
+  registerSummarySectionBalance: "Kasada biriken nakit",
+  registerSummarySectionBalanceHint:
+    "Seçilen tarihe kadar fiziksel kasa (nakit giriş − kasadan çıkışlar).",
   dayRegisterOwesPatron: "Patrona borç (ödemeyi patron yaptı)",
   dayRegisterOwesPatronHint:
     "«Patron ödedi» işaretli giderlerin toplamı; kasada fiziksel nakit azalmaz, şube patrona borçlanır.",
+  dayRegisterOwesPatronShortHint:
+    "Aynı gün patronun kasa yerine ödediği gider tutarı (brüt).",
+  dayPatronDebtRepaidFromRegister: "Patrona borç — kasadan ödeme (gün)",
+  dayPatronDebtRepaidFromRegisterHint:
+    "Patronun ödediği giderlere karşılık kasadan patrona yapılan gerçek çıkış (özel gider satırı).",
+  dayNetRegisterOwesPatron: "Net patrona borç (gün)",
+  dayNetRegisterOwesPatronHint:
+    "Aynı gün: patron ödemeli gider toplamı − kasadan patrona yapılan ödeme.",
+  dayNetRegisterOwesPatronFormulaHint: "Üstteki patron borcu − kasadan patrona ödeme.",
   dayRegisterOwesPersonnel: "Personele borç (cebinden ödeme)",
+  dayNetRegisterOwesPersonnelPocket: "Net personele borç (cebi)",
+  dayNetRegisterOwesPersonnelPocketHint:
+    "Aynı gün: yeni cebi gideri − kasadan/patrondan yapılan cebi iadeleri.",
+  dayPocketRepaidRegisterShort: "Kasadan cebi iadesi (gün)",
+  dayPocketRepaidPatronShort: "Patron cebi iadesi (gün)",
   dayRegisterOwesPersonnelHint:
     "Bugünkü giderlerde «personel cebi» ile işaretlenen tutar; kasada fiziksel nakit azalmaz.",
   dayNetCashHint: "Kasa neti (gün)",
@@ -204,6 +472,10 @@ export const branch = {
   txColCashSettlement: "Fiziksel nakit (kimde)",
   txRegisterDayCloseHint:
     "Gün sonu: tutarı «Nakit» ve «Kart» ile bölün (kart banka tarafı). Fiziksel nakit patrona mı devredildi, müdür/kasa sorumlusunda mı, şube kasasında mı kaldı — aşağıdan seçin.",
+  txDayClosePatronDebtRepayToggle:
+    "Bu nakitle kasa → patron borcunu düş (otomatik kasa çıkış satırı eklenir)",
+  txDayClosePatronAutoDebtHint:
+    "Patrona nakit gittiği halde borç düşmesin istiyorsanız kutuyu kapatın. Açıkken gün sonunu sildiğinizde bağlı satır da silinir.",
   cashSettlementHintSplit:
     "Bu satırda nakit tutarı var; fiziksel nakdin patrona mı gittiği, müdür veya kasa yetkilisinde mi olduğu yoksa şube kasasında mı kaldığı seçilebilir. Kart/POS tutarı için seçim gerekmez.",
   cashSettlementLabel: "Fiziksel nakit nerede / kime devredildi?",
@@ -225,18 +497,67 @@ export const branch = {
   staffNone: "Bu şubeye atanmış personel yok.",
   staffName: "Ad",
   staffAdvTotal: "Toplam avans",
+  personnelMoneyColAdvances: "Avans (şube, tümü)",
+  personnelMoneyColRegisterOwes: "Kasa borcu (cep)",
+  personnelMoneyColPocket: "Cep özeti",
+  personnelMoneyMixedCurrency: "Birden fazla para birimi",
+  personnelMoneyPocketOutShort: "Cebinden ödenen",
+  personnelMoneyPocketRepaidShort: "Cebine iade",
+  personnelMoneyPocketAheadShort: "İade fazlası (net)",
+  personnelPayPocketDebt: "Kasa borcunu öde (cebi)",
+  personnelPayPocketDebtHint:
+    "Giderler sekmesinde personel cebi iadesi formunu açar; kapatılacak satırları seçip kasadan veya patrondan ödeyebilirsiniz.",
   staffAdvCount: "Avans adedi",
   staffAdvHistory: "Avans geçmişi (şube)",
   staffGiveAdvanceRow: "Avans",
   openPersonnel: "Personel",
+  assignPersonnelOpen: "Şubeye personel ata",
+  assignPersonnelTitle: "Bu şubeye personel ata",
+  assignPersonnelHint:
+    "Bu şubede olmayan personel listelenir. Mevcut şubesi gösterilir. Şubesi olmayan personelde ek onay sorulmaz.",
+  assignPersonnelFilter: "Ada göre süz",
+  assignPersonnelCurrentBranch: "Mevcut şube",
+  assignPersonnelNoBranch: "Şubesiz",
+  assignPersonnelEmpty:
+    "Atanabilecek personel yok (herkes zaten bu şubede).",
+  assignPersonnelPick: "Seç",
+  assignPersonnelAdd: "Şubeye ekle",
+  assignPersonnelConfirmBody:
+    "«{name}» şu an «{fromBranch}» kayıtlı. «{toBranch}» şubesine aktarılacak. Onaylıyor musunuz?",
+  assignPersonnelConfirmBack: "Geri",
+  assignPersonnelConfirmSubmit: "Evet, aktar",
   giveAdvance: "Avans ver",
   totalAdvancesBranch: "Şube toplam avans",
   totalAdvancesBranchPeriod:
     "Seçilen günün ayına göre mali dönem avansları (bu şube)",
   txModalTitle: "Şube kasa kaydı",
+  txOrgModalTitle: "Merkez gideri (şubesiz)",
+  txOrgModalHintShort:
+    "Şube kasasına bağlı olmayan gider. Ödeme kaynağı patron (PATRON) veya personel cebi (kasaya borç) olmalıdır.",
+  txOrgAdvanceExistingOnly:
+    "Merkez giderinde buradan yeni avans oluşturulamaz; yalnızca mevcut avansa bağlayın.",
+  txOrgPerOtherNeedPersonnel: "Personel kartında görünsün diye personel seçin.",
   txModalHintShort: "Şube kasasına gelir veya gider satırı ekleyin.",
   txModalHintDetail:
     "Stok veya depo taşıması değil; kasaya giren gelir ve çıkan gider. Kart/POS ile nakiti ayırmak için gelirde nakit ve kart alanlarını doldurun.",
+  txExpenseRoutingTitle: "Nereye kaydedilmeli (öneri)",
+  txExpenseRoutingIntro:
+    "Doğru ekranı önce seçin; raporlar ve tedarikçi bağlantıları tutarlı kalır.",
+  txExpenseRoutingSupplierInvoices: "Resmi tedarikçi faturası (mal veya hizmet)",
+  txExpenseRoutingSupplierHrefLabel: "Tedarikçi faturalarına git",
+  txExpenseRoutingPersonnelCosts: "Personel avansı, maaş, prim veya diğer personel gideri",
+  txExpenseRoutingPersonnelHrefLabel: "Personel maliyetlerine git",
+  txExpenseRoutingBranchForm:
+    "Bu formu şube kasasından çıkan kira, fatura/enerji, vergi, POS komisyonu, yakıt, yemek, franchise ve benzeri işletme giderleri — veya sürecinizin izin verdiği istisnalar için kullanın.",
+  txRoutingPersonnelOnlyTitle: "Bu ekrandan personel gideri",
+  txRoutingPersonnelOnlyBody:
+    "Kasaya personel satırı yazıyorsunuz. Avans ve maaş bağları için genelde Personel › Maliyetler akışı daha net (sezon yılı, bağlantılar).",
+  txRoutingHintOutGoods:
+    "Tedarikçi faturasıyla izlenen alımlar Tedarikçi faturaları üzerinden girilmelidir (stok ve şube payı). Ürün / stoku burada yalnızca faturasız basit kasa çıkışları için kullanın.",
+  txRoutingHintOutOps:
+    "Resmi tedarikçi faturaları (tahakkuk veya ödeme) Tedarikçi faturaları modülüne aittir. Aşağıda kira, fatura, pazarlama, yakıt, POS, franchise vb. işletme kalemlerini seçin.",
+  txRoutingHintOutPersonnel:
+    "Maaş, prim, avans (bağlı avans) ve diğer personel giderleri Personel › Maliyetler üzerinden daha düzenli girilir. Gerekirse yine de şubeden kayıt açabilirsiniz.",
   txNotifyIncomplete: "(*) ile işaretli alanları doldurun.",
   txStoryIncomeCallout:
     "Gelir: müşteriden gelen tutar. Kart ve POS bankaya yansır; eldeki nakit için ayrıca «nakit nerede» bilgisini (gerekirse) işaretleyebilirsiniz.",
@@ -252,12 +573,31 @@ export const branch = {
   txSelectPlaceholder: "Seçin…",
   txMainInSales: "Satış geliri",
   txMainInService: "Hizmet geliri",
-  txMainInDayClose: "Gün sonu (kasa özeti)",
   txMainInOther: "Diğer gelir",
+  txMainInPatron: "Patrondan nakit (kasa borcu)",
+  txMainInDayClose: "Gün sonu (kasa özeti)",
+  txSubPatronCash: "Patrondan nakit alım",
+  txPatronCashIncomeHint:
+    "Patrondan şube kasasına giren nakit: tutar hem gelir sayılır hem de patrona borç eklenir (patronun ödediği giderlerle aynı muhasebe tarafı). Nakit/kart ayrımı yok; tek tutar girin.",
+  txPatronCashNoSplit: "Patrondan nakit gelirde nakit/kart ayrımı kullanılamaz; yalnızca toplam tutarı girin.",
   txMainOutPersonnel: "Personel",
   txMainOutGoods: "Ürün / stok",
   txMainOutOps: "İşletme gideri",
+  txMainOutTax: "Vergi ve yasal kesintiler",
+  txMainOutPocketRepay: "Personel cebi borcu ödemesi",
+  txMainOutPatronDebtRepay: "Patrona kasa borcu ödemesi",
+  txSubPocketRepay: "Cebi iadesi",
+  txSubPatronDebtRepay: "Patron borcu kapatma",
+  txPocketRepayModalHint:
+    "Kasadan veya patrondan personele ödeme: ödemeyi alan personeli seçin; ardından kapatılacak cepten gider satırlarını listeden işaretleyin (zorunlu, tutar seçimden gelir).",
+  txPatronDebtRepayModalHint:
+    "Patronun ödediği giderlere karşılık kasadan patrona gerçekten ödeme yaptığınızı kaydedin; ödeme kaynağı yalnızca kasa (nakit çıkar).",
   txMainOutOther: "Diğer gider",
+  txMainOutNonPnl: "Gelir–gider dışı not (franchise / ortak POS)",
+  txSubNonPnlMemo: "Mutabakat notu",
+  txNonPnlModalHint:
+    "Şube gelir–gider ve kasa özetlerine girmez. Franchise veya ortak POS’tan harcama gibi yalnızca şube kartında görmeniz gereken tutarlar için kullanın.",
+  txNonPnlBadge: "Gelir–gider dışı",
   txSubSaleRetail: "Perakende satış",
   txSubSaleWholesale: "Toptan satış",
   txSubSaleOther: "Diğer satış",
@@ -277,6 +617,15 @@ export const branch = {
   txSubPerSalary: "Maaş / ücret",
   txSubPerBonus: "Prim / ikramiye",
   txSubPerAdvance: "Avans (ödeme)",
+  txSubPerOvertime: "Fazla mesai",
+  txSubPerCommission: "Komisyon / hakediş",
+  txSubPerMealAllowance: "Yemek yardımı",
+  txSubPerTransport: "Ulaşım / yol",
+  txSubPerUniform: "Kıyafet / üniforma",
+  txSubPerHealth: "Sağlık (muayene, sigorta katkısı…)",
+  txSubPerSocialSecurity: "SGK / işveren yükümlülükleri",
+  txSubPerTraining: "Eğitim / sertifika",
+  txSubPerSeverance: "Kıdem / ihbar tazminatı",
   txSubPerOther: "Diğer personel",
   txExpenseLinkAdvance: "Avans kaydına bağla",
   txExpenseLinkSalary: "Maaş / prim ödemesine bağla",
@@ -289,16 +638,21 @@ export const branch = {
   txAdvanceModeNew: "Yeni avans (kasadan)",
   txAdvanceModePersonnelPocket: "Personel cebinden (kasa personele borçlu)",
   txAdvanceNewHint:
-    "Yeni avans kaydı oluşturulur ve kasa gideri tek satırda otomatik yazılır; ikinci bir gider satırı oluşmaz.",
+    "Avans (sezon yılı) oluşturulur ve bağlı tek bir kasa OUT satırı yazılır; raporlarda görünmesi için aşağıdaki işlem tarihinin seçtiğiniz dönemde olması gerekir — raporlar yalnızca sezon yılına göre değil, bu tarihe göre filtrelenir.",
+  txAdvanceCreatedRegisterFailed:
+    "Avans kaydedildi, ancak kasa gider satırı yazılamadı:",
   txAdvancePocketHint:
     "Sadece avans kaydı açılır; kasadan henüz para çıkmaz. Kasadan ödediğinizde personel gideri ekleyip bu avansı bağlayın.",
-  txAdvanceEffectiveYear: "Mali yıl (isteğe bağlı)",
+  txAdvanceEffectiveYear: "Sezon yılı (varsayılan: bulunduğumuz yıl)",
   txAmountLockedHint: "Tutar ve para birimi seçilen kayda göre sabit.",
   txExpenseLinkPick: "Seçin…",
   txExpenseLinkRequired: "Bağlı ödeme kaydını seçin.",
   txExpenseLinkEmpty: "Bu şube için bağlanmamış kayıt yok.",
   txLinkedAdvance: "Bağlı avans",
   txLinkedSalary: "Bağlı maaş ödemesi",
+  txLinkedSupplierInvoiceLine: "Tedarikçi fatura satırı",
+  txLinkedVehicle: "Araç gideri",
+  txGeneralOverheadPool: "Genel gider payı",
   txSubStkPurchase: "Stok alımı",
   txSubStkMaterial: "Sarf / malzeme",
   txSubStkOther: "Diğer ürün",
@@ -308,7 +662,27 @@ export const branch = {
   txSubOpsMeal: "Yemek",
   txSubOpsTobacco: "Sigara / tütün",
   txSubOpsFuel: "Yakıt",
+  txSubOpsCargo: "Kargo",
+  txSubOpsInvoice: "Tedarikçi faturası",
+  txSubOpsPosBankFee: "POS / banka komisyonu",
+  txSubOpsFranchiseRoyalty: "Franchise / marka royaltiesi",
+  txSubOpsFranchiseMarketing: "Franchise reklam / pazarlama katkısı",
   txSubOpsOther: "Diğer işletme",
+  txSubTaxWithholding: "Stopaj",
+  txSubTaxPosEod: "POS gün sonu vergisi / mutabakat kesintisi",
+  txSubTaxVat: "KDV (ödeme / mahsup)",
+  txSubTaxStamp: "Damga vergisi",
+  txSubTaxMunicipal: "Belediye / çevre vb. harçlar",
+  txSubTaxExcise: "ÖTV / özel tüketim",
+  txSubTaxSsi: "İşveren SGK / işsizlik (yasal)",
+  txSubTaxOther: "Diğer vergi / kesinti",
+  invoicePaymentStatusLabel: "Fatura ödemesi",
+  invoicePaymentUnpaid: "Henüz ödenmedi (kasadan düşmez)",
+  invoicePaymentPaid: "Ödendi (kasa / patron / cep)",
+  invoiceUnpaidBadge: "Fatura · ödenmedi",
+  invoiceSettleTitle: "Fatura ödemesini kaydet",
+  invoiceSettleHint: "Seçtiğiniz kaynağa göre kasa, patron veya personel cebinden çıkış oluşur.",
+  invoiceSettleSubmit: "Ödemeyi kaydet",
   txSubExpOther: "Diğer gider",
   txLegacySale: "Satış (sistem)",
   txLegacyExpense: "Gider (sistem)",

@@ -7,11 +7,15 @@ import {
   WarehouseListTransferModal,
 } from "@/modules/warehouse/components/WarehouseListQuickModals";
 import { WarehouseDetailModal } from "@/modules/warehouse/components/WarehouseDetailModal";
-import { useWarehousesList } from "@/modules/warehouse/hooks/useWarehouseQueries";
+import {
+  useSoftDeleteWarehouse,
+  useWarehousesList,
+} from "@/modules/warehouse/hooks/useWarehouseQueries";
 import { useI18n } from "@/i18n/context";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
 import { Card } from "@/shared/components/Card";
+import { Input } from "@/shared/ui/Input";
 import {
   Table,
   TableBody,
@@ -20,13 +24,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/Table";
+import { notify } from "@/shared/lib/notify";
+import { notifyWarehouseDeleteConfirm } from "@/shared/lib/notify-warehouse-delete";
 import { detailOpenIconButtonClass, EyeIcon } from "@/shared/ui/EyeIcon";
+import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { BranchTransferListIcon, PlusProductIcon } from "@/shared/ui/WarehouseListIcons";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import { cn } from "@/lib/cn";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
+import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import type { WarehouseListItem } from "@/types/warehouse";
-import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 function warehouseLocationLine(w: WarehouseListItem): string | null {
   const city = w.city?.trim();
@@ -44,6 +53,7 @@ function warehouseResponsiblesLine(w: WarehouseListItem): string | null {
 
 export function WarehouseScreen() {
   const { t, locale } = useI18n();
+  const searchParams = useSearchParams();
   const [whModal, setWhModal] = useState(false);
   const [prodModal, setProdModal] = useState(false);
   const [detailWarehouseId, setDetailWarehouseId] = useState<number | null>(null);
@@ -51,22 +61,72 @@ export function WarehouseScreen() {
   const [quickTransferTarget, setQuickTransferTarget] = useState<{ id: number; name: string } | null>(
     null
   );
+  const [listSearch, setListSearch] = useState("");
 
   const { data: warehouses = [], isPending: whLoading, isError: whError, error: whErr } =
     useWarehousesList();
+  const delWh = useSoftDeleteWarehouse();
+
+  const displayWarehouses = useMemo(() => {
+    const q = listSearch.trim().toLowerCase();
+    if (!q) return warehouses;
+    return warehouses.filter((w) => {
+      const hay = [
+        w.name,
+        w.city,
+        w.address,
+        w.responsibleManagerDisplayName,
+        w.responsibleMasterDisplayName,
+      ]
+        .map((s) => (s ?? "").toLowerCase())
+        .join(" ");
+      return hay.includes(q);
+    });
+  }, [warehouses, listSearch]);
 
   useEffect(() => {
     if (detailWarehouseId == null) return;
     if (!warehouses.some((w) => w.id === detailWarehouseId)) setDetailWarehouseId(null);
   }, [warehouses, detailWarehouseId]);
 
+  useEffect(() => {
+    const raw = searchParams.get("openWarehouse");
+    if (!raw) return;
+    const id = Number.parseInt(raw, 10);
+    if (!Number.isFinite(id) || id <= 0) return;
+    if (!warehouses.some((w) => w.id === id)) return;
+    setDetailWarehouseId(id);
+  }, [searchParams, warehouses]);
+
   const openDetail = (id: number) => setDetailWarehouseId(id);
 
+  const onDeleteWarehouseRow = (w: WarehouseListItem) => {
+    notifyWarehouseDeleteConfirm({
+      warehouseId: w.id,
+      name: w.name,
+      title: t("warehouse.deleteWarehouse"),
+      body: t("warehouse.confirmDeleteWarehouse"),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("common.delete"),
+      onConfirm: async () => {
+        try {
+          await delWh.mutateAsync(w.id);
+          notify.success(t("toast.warehouseDeleted"));
+          if (detailWarehouseId === w.id) setDetailWarehouseId(null);
+        } catch (e) {
+          notify.error(toErrorMessage(e));
+        }
+      },
+    });
+  };
+
   return (
-    <div className="mx-auto w-full max-w-5xl p-3 pb-24 sm:pb-10 sm:p-4 lg:max-w-6xl xl:max-w-7xl">
+    <div className="mx-auto w-full app-page-max p-3 pb-6 sm:pb-10 sm:p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-900">{t("warehouse.title")}</h1>
+          <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
+            {t("warehouse.title")}
+          </h1>
           <p className="text-sm text-zinc-500">{t("warehouse.subtitle")}</p>
         </div>
         <Button type="button" className="min-h-11 w-full sm:min-h-10 sm:w-auto" onClick={() => setWhModal(true)}>
@@ -84,6 +144,20 @@ export function WarehouseScreen() {
         </Card>
       ) : (
         <Card className="mt-4" title={t("warehouse.listTitle")} description={t("warehouse.listDesc")}>
+          <div className="mb-4">
+            <Input
+              name="warehouse-list-search"
+              placeholder={t("warehouse.listSearchPlaceholder")}
+              value={listSearch}
+              onChange={(e) => setListSearch(e.target.value)}
+              autoComplete="off"
+              aria-label={t("warehouse.listSearchPlaceholder")}
+            />
+          </div>
+          {displayWarehouses.length === 0 ? (
+            <p className="text-sm text-zinc-600">{t("warehouse.listSearchNoResults")}</p>
+          ) : (
+            <>
           <div className="-mx-1 hidden overflow-x-auto px-1 md:mx-0 md:block md:overflow-visible md:px-0">
             <Table>
               <TableHead>
@@ -92,6 +166,13 @@ export function WarehouseScreen() {
                   <TableHeader className="hidden min-w-[8rem] lg:table-cell">
                     {t("warehouse.fieldCity")}
                   </TableHeader>
+                  <TableHeader className="hidden text-right lg:table-cell">
+                    <Tooltip content={t("warehouse.listColTotalOnHandHint")} delayMs={200}>
+                      <span className="cursor-help border-b border-dotted border-zinc-400">
+                        {t("warehouse.listColTotalOnHand")}
+                      </span>
+                    </Tooltip>
+                  </TableHeader>
                   <TableHeader className="hidden xl:table-cell">{t("warehouse.fieldAddress")}</TableHeader>
                   <TableHeader className="w-[1%] whitespace-nowrap text-right">
                     {t("common.actions")}
@@ -99,8 +180,10 @@ export function WarehouseScreen() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {warehouses.map((w) => {
+                {displayWarehouses.map((w) => {
                   const loc = warehouseLocationLine(w);
+                  const qty = w.totalOnHandQuantity ?? 0;
+                  const qtyLabel = formatLocaleAmount(qty, locale);
                   const active = detailWarehouseId === w.id;
                   const depoQuickOpen = quickDepoTarget?.id === w.id;
                   const transferQuickOpen = quickTransferTarget?.id === w.id;
@@ -120,15 +203,21 @@ export function WarehouseScreen() {
                             {loc}
                           </p>
                         ) : null}
+                        <p className="mt-1 text-xs font-normal text-zinc-500 lg:hidden">
+                          {t("warehouse.listColTotalOnHand")}: {qtyLabel}
+                        </p>
                       </TableCell>
-                      <TableCell className="hidden text-sm text-zinc-600 lg:table-cell">
+                      <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 text-sm text-zinc-600 md:hidden lg:table-cell">
                         {w.city?.trim() ? (
                           <span className="line-clamp-2">{w.city.trim()}</span>
                         ) : (
                           "—"
                         )}
                       </TableCell>
-                      <TableCell className="hidden text-sm text-zinc-600 xl:table-cell">
+                      <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 text-right text-sm tabular-nums text-zinc-700 md:hidden lg:table-cell">
+                        {qtyLabel}
+                      </TableCell>
+                      <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 text-sm text-zinc-600 md:hidden xl:table-cell">
                         {w.address?.trim() ? (
                           <span className="line-clamp-2">{w.address.trim()}</span>
                         ) : (
@@ -190,6 +279,21 @@ export function WarehouseScreen() {
                               <EyeIcon />
                             </Button>
                           </Tooltip>
+                          <Tooltip
+                            className="shrink-0"
+                            content={t("warehouse.listActionDeleteWarehouse")}
+                            delayMs={200}
+                          >
+                            <button
+                              type="button"
+                              className={`${trashIconActionButtonClass} min-h-11 min-w-11`}
+                              aria-label={t("warehouse.listActionDeleteWarehouse")}
+                              onClick={() => onDeleteWarehouseRow(w)}
+                              disabled={delWh.isPending}
+                            >
+                              <TrashIcon />
+                            </button>
+                          </Tooltip>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -200,9 +304,11 @@ export function WarehouseScreen() {
           </div>
 
           <ul className="grid grid-cols-1 gap-2 md:hidden">
-            {warehouses.map((w) => {
+            {displayWarehouses.map((w) => {
               const loc = warehouseLocationLine(w);
               const resp = warehouseResponsiblesLine(w);
+              const qty = w.totalOnHandQuantity ?? 0;
+              const qtyLabel = formatLocaleAmount(qty, locale);
               const active = detailWarehouseId === w.id;
               const depoQuickOpen = quickDepoTarget?.id === w.id;
               const transferQuickOpen = quickTransferTarget?.id === w.id;
@@ -234,6 +340,9 @@ export function WarehouseScreen() {
                       {resp ? (
                         <p className="mt-1 line-clamp-2 text-xs text-zinc-500">{resp}</p>
                       ) : null}
+                      <p className="mt-1 text-sm tabular-nums text-zinc-700">
+                        {t("warehouse.listColTotalOnHand")}: {qtyLabel}
+                      </p>
                       {created ? (
                         <p className="mt-1 text-[11px] text-zinc-400">
                           {t("warehouse.createdAtLabel")}: {created}
@@ -290,12 +399,29 @@ export function WarehouseScreen() {
                           <EyeIcon />
                         </Button>
                       </Tooltip>
+                      <Tooltip
+                        className="shrink-0"
+                        content={t("warehouse.listActionDeleteWarehouse")}
+                        delayMs={200}
+                      >
+                        <button
+                          type="button"
+                          className={`${trashIconActionButtonClass} min-h-11 min-w-11`}
+                          aria-label={t("warehouse.listActionDeleteWarehouse")}
+                          onClick={() => onDeleteWarehouseRow(w)}
+                          disabled={delWh.isPending}
+                        >
+                          <TrashIcon />
+                        </button>
+                      </Tooltip>
                     </div>
                   </div>
                 </li>
               );
             })}
           </ul>
+            </>
+          )}
         </Card>
       )}
 

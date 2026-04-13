@@ -15,7 +15,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const hasError = error != null && String(error).length > 0;
     const errorText = String(error ?? "").trim();
     return (
-      <div className="flex w-full flex-col gap-1">
+      <div className="flex w-full min-w-0 flex-col gap-1">
         {label ? (
           <label
             htmlFor={inputId}
@@ -23,7 +23,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           >
             {label}
             {labelRequired ? (
-              <span className="ml-0.5 text-red-600" aria-hidden>
+              <span className="ml-0.5 font-semibold text-red-600" aria-hidden>
                 *
               </span>
             ) : null}
@@ -33,6 +33,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           id={inputId}
           name={name}
+          aria-required={labelRequired ? true : undefined}
           className={cn(
             "min-h-12 w-full rounded-lg border border-zinc-300 bg-white px-3 text-base text-zinc-900 outline-none ring-zinc-900 focus:border-zinc-900 focus:ring-2",
             hasError && "border-red-500 focus:border-red-500 focus:ring-red-500",

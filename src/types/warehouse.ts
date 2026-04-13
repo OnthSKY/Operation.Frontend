@@ -8,12 +8,22 @@ export type WarehouseListItem = {
   responsibleMasterUserId?: number | null;
   responsibleManagerDisplayName?: string | null;
   responsibleMasterDisplayName?: string | null;
+  /** Pozitif stok satırlarının miktar toplamı (birimler karışık olabilir). */
+  totalOnHandQuantity?: number;
+  productCountWithStock?: number;
 };
 
 export type WarehouseDetail = WarehouseListItem;
 
 export type WarehouseUserOption = {
   id: number;
+  displayName: string;
+};
+
+/** Birleşik depo kişi listesi (personel + kullanıcı; bağlı olan tek satır). */
+export type WarehousePeopleOption = {
+  personnelId: number | null;
+  userId: number | null;
   displayName: string;
 };
 
@@ -30,6 +40,8 @@ export type WarehouseMovementItem = {
   productId: number;
   productName: string;
   unit: string | null;
+  parentProductId?: number | null;
+  parentProductName?: string | null;
   type: "IN" | "OUT";
   quantity: number;
   movementDate: string;
@@ -37,6 +49,9 @@ export type WarehouseMovementItem = {
   checkedByPersonnelName?: string | null;
   approvedByPersonnelName?: string | null;
   hasInvoicePhoto?: boolean;
+  inBatchGroupId?: string | null;
+  /** OUT + depo→şube eşleşmesi varsa hedef şube adı */
+  outDestinationBranchName?: string | null;
 };
 
 export type WarehouseMovementsPaged = {
@@ -44,15 +59,28 @@ export type WarehouseMovementsPaged = {
   totalCount: number;
   page: number;
   pageSize: number;
+  /** Filtrelerle uyumlu toplam giriş miktarı (tüm eşleşen satırlar, yalnızca mevcut sayfa değil). */
+  totalInQuantity?: number;
+  /** Filtrelerle uyumlu toplam çıkış miktarı. */
+  totalOutQuantity?: number;
+};
+
+export type WarehouseStockFilters = {
+  categoryId?: number;
+  parentProductId?: number;
+  productId?: number;
 };
 
 export type WarehouseMovementsPageParams = {
   page: number;
   pageSize: number;
   type?: "IN" | "OUT" | "";
+  categoryId?: number;
   productId?: number;
   dateFrom?: string;
   dateTo?: string;
+  /** OUT + şubeye transfer ile eşleşen hareketler */
+  branchId?: number;
 };
 
 export type WarehouseAuditItem = {

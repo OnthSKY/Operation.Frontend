@@ -1,6 +1,7 @@
 import { apiRequest } from "@/shared/api/client";
 import type {
   BranchTourismSeasonPeriod,
+  BranchTourismSeasonYearGateResponse,
   SaveBranchTourismSeasonPeriodInput,
 } from "@/types/branch-tourism-season";
 
@@ -17,6 +18,16 @@ export async function fetchBranchTourismSeasonPeriods(
     ? `/branches/${branchId}/tourism-season-periods?${qs}`
     : `/branches/${branchId}/tourism-season-periods`;
   return apiRequest<BranchTourismSeasonPeriod[]>(path);
+}
+
+export async function fetchBranchTourismSeasonYearClosureGate(
+  branchId: number,
+  seasonYear: number
+): Promise<BranchTourismSeasonYearGateResponse> {
+  const q = new URLSearchParams({ seasonYear: String(Math.trunc(seasonYear)) });
+  return apiRequest<BranchTourismSeasonYearGateResponse>(
+    `/branches/${branchId}/tourism-season-periods/year-closure-gate?${q.toString()}`
+  );
 }
 
 export async function createBranchTourismSeasonPeriod(

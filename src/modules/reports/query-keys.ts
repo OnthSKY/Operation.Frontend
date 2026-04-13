@@ -1,6 +1,9 @@
 import type {
+  BranchComparisonParams,
+  CashPositionParams,
   FinancialReportParams,
   FinancialSummaryParams,
+  PatronFlowParams,
   StockReportParams,
 } from "./api/reports-api";
 
@@ -13,4 +16,10 @@ export const reportsKeys = {
   financialBranchMonthly: (p: FinancialReportParams) =>
     [...reportsKeys.all, "financialBranchMonthly", p] as const,
   stock: (p: StockReportParams) => [...reportsKeys.all, "stock", p] as const,
+  cashPosition: (p: CashPositionParams) => [...reportsKeys.all, "cashPosition", p] as const,
+  branchComparison: (p: BranchComparisonParams) =>
+    [...reportsKeys.all, "branchComparison", p] as const,
+  patronFlow: (p: PatronFlowParams) =>
+    [...reportsKeys.all, "patronFlow", p] as const,
+  patronFlowPosProfiles: ["reports", "patronFlowPosProfiles"] as const,
 };

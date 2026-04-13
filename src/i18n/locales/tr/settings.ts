@@ -1,0 +1,103 @@
+export const settings = {
+  title: "Sistem ayarları",
+  description: "Kullanıcıları, rolleri ve her role hangi izinlerin verileceğini yönetin.",
+  usersCardTitle: "Kullanıcılar",
+  usersCardDesc: "Hesap oluşturma, giriş rolü atama ve şoför kendi mali görünürlüğü.",
+  usersCardLink: "Kullanıcıları aç",
+  authzCardTitle: "Roller ve izinler",
+  authzCardDesc: "Sistem rollerine izin eşlemesi (personel, şoför, yönetici). Değişiklikler bir sonraki istekte geçerli olur.",
+  authzCardLink: "İzin matrisini düzenle",
+  backToSettings: "Sistem ayarları",
+  authzPageTitle: "Rol ve izin matrisi",
+  authzPageDescription:
+    "Her rol için izinleri işaretleyip satır bazında kaydedin. ADMIN rolünde system.admin her zaman kalır.",
+  authzLoadError: "Yetkilendirme matrisi yüklenemedi.",
+  authzRole: "Rol",
+  authzActions: "İşlemler",
+  authzSaveRow: "Satırı kaydet",
+  authzSaved: "İzinler güncellendi",
+  authzMobileRolePerms: "İzinler",
+  notificationsCardTitle: "Bildirimler",
+  notificationsCardDesc:
+    "Kurum genelinde operasyon hatırlatıcılarını (zil, API, günlük toast) açıp kapatabilirsiniz.",
+  notificationsCardLink: "Bildirim ayarları",
+  notificationsPageTitle: "Kurum bildirim ayarları",
+  notificationsPageDescription:
+    "Burada kapalıysa, personel tercihlerinden bağımsız olarak hatırlatıcı zili ve günlük toast gösterilmez.",
+  notificationsSectionOrg: "Operasyon hatırlatıcıları",
+  notificationsSectionOrgHint: "Hatırlatıcı zilini görebilen tüm ofis kullanıcıları için geçerlidir.",
+  notificationsOperationalReminders: "Operasyon hatırlatıcılarını aç",
+  notificationsOperationalRemindersDesc:
+    "Gün sonu ve Z raporu muhasebe hatırlatıcıları (üst çubuk zili ve API).",
+  notificationsOperationalDailyToast: "Günlük hatırlatıcı bildirimini aç",
+  notificationsOperationalDailyToastDesc:
+    "Bekleyen kayıt varken takvim gününde bir kez uygulama içi bilgi bildirimi (ayrıca kullanıcının kişisel ayarı açık olmalı).",
+  notificationsSaved: "Kurum bildirim ayarları kaydedildi.",
+  notificationsLastSaved: "Son kayıt:",
+  notificationsNeverUpdated: "Henüz kayıt yok (varsayılan: hepsi açık).",
+  notificationsUserPrefsNote:
+    "Kullanıcılar günlük bildirimi Hesap → Sistem ayarları → Bildirimler üzerinden kendi için kapatabilir.",
+  brandingCardTitle: "Şirket adı ve logo",
+  brandingCardDesc: "Giriş yapmış tüm kullanıcıların sol menü üstünde görünür.",
+  brandingCardLink: "Markayı düzenle",
+  brandingPageTitle: "Kurum görünümü",
+  brandingPageDescription:
+    "Şirket adı ve isteğe bağlı logo. Ad boş bırakılıp kaydedilirse çeviri dosyasındaki varsayılan uygulama adı kullanılır.",
+  brandingSectionName: "Şirket adı",
+  brandingSectionNameHint: "Varsayılan uygulama adına dönmek için alanı boşaltıp kaydedin.",
+  brandingCompanyNameLabel: "Görünen ad",
+  brandingCompanyNamePlaceholder: "ör. SKY Turizm A.Ş.",
+  brandingSectionLogo: "Logo",
+  brandingSectionLogoHint: "Kare veya yatay görsel; JPEG, PNG, WebP, HEIC veya AVIF (en fazla 5 MB).",
+  brandingLogoEmpty: "Logo yok",
+  brandingUploadLogo: "Logo yükle",
+  brandingReplaceLogo: "Logoyu değiştir",
+  brandingRemoveLogo: "Logoyu kaldır",
+  brandingSaved: "Şirket adı kaydedildi.",
+  brandingLogoSaved: "Logo güncellendi.",
+  brandingLogoRemoved: "Logo kaldırıldı.",
+  brandingNeverUpdated: "Henüz kayıt yok (varsayılanlar geçerli).",
+  tourismSeasonCardTitle: "Turizm sezonu — kapalı kasa",
+  tourismSeasonCardDesc:
+    "İşlem tarihinde açık turizm dönemi yokken, akış bazında şube kasası hareketlerine izin verilip verilmeyeceğini seçin.",
+  tourismSeasonCardLink: "Kapalı sezon politikasını düzenle",
+  tourismSeasonPageTitle: "Turizm kapalıyken kasa politikası",
+  tourismSeasonPageDescription:
+    "Şubenin işlem tarihinde açık turizm sezonu yoksa aşağıdaki işlemler engellenir; yalnızca ilgili anahtarı açarsanız izin verilir. Varsayılan: hepsi kapalı (sıkı).",
+  tourismSeasonSectionFlows: "Sezon kapalıyken izin ver",
+  tourismSeasonSectionFlowsHint:
+    "Turizm penceresi olmadan yapılmasını istediğiniz akışları tek tek açın.",
+  tourismSeasonAllowRegisterIncome: "Şube kasası — gelir (IN)",
+  tourismSeasonAllowRegisterIncomeDesc: "Şube ekranından girilen satış ve diğer gelir satırları.",
+  tourismSeasonAllowPersonnelExpense: "Şube kasası — personel gideri (OUT_PERSONNEL)",
+  tourismSeasonAllowPersonnelExpenseDesc: "Şube kasasından kaydedilen personel giderleri.",
+  tourismSeasonAllowPocketRepay: "Şube kasası — cep / mahsup",
+  tourismSeasonAllowPocketRepayDesc: "Cep iade ve kasa akışında sınıflanan ilgili OUT satırları.",
+  tourismSeasonAllowOtherExpense: "Şube kasası — diğer giderler",
+  tourismSeasonAllowOtherExpenseDesc:
+    "Diğer tüm OUT kasa satırları; şubeden operasyon faturası mahsubu (OPS_INVOICE) dahil.",
+  tourismSeasonAllowAdvanceBranchCash: "Avans — şube kasası kaynağı",
+  tourismSeasonAllowAdvanceBranchCashDesc: "Şube kasasına yazan avans oluşturma/güncelleme (branch-cash kaynak).",
+  tourismSeasonAllowSupplierPost: "Tedarikçi fatura — şube payı post",
+  tourismSeasonAllowSupplierPostDesc: "Merkez fatura satırı için kayıtlı şube paylarının kasaya işlenmesi.",
+  tourismSeasonAllowGeneralOverhead: "Genel gider — havuzdan şubelere pay",
+  tourismSeasonAllowGeneralOverheadDesc: "OPEN havuzun şubelere dağıtımında oluşan şube OUT satırları.",
+  tourismSeasonAllowVehicleExpense: "Filo — şubeye bağlı araç gideri",
+  tourismSeasonAllowVehicleExpenseDesc: "Şube kasasına bağlanan araç gideri kayıtları.",
+  tourismSeasonSaved: "Turizm kapalı sezon politikası kaydedildi.",
+  tourismSeasonLastSaved: "Son kayıt:",
+  tourismSeasonNeverUpdated: "Henüz kayıt yok (varsayılan: hepsi kapalı).",
+  tourismSeasonDefaultsNote:
+    "Hepsini kapalı bırakmak önceki davranıştır: kapalı sezonda TOURISM_SEASON_CLOSED_FOR_REGISTER ile engellenir.",
+  tourismSeasonWarningsTitle: "Bu kombinasyonu gözden geçirin",
+  tourismSeasonWarnPocketWithoutPersonnel:
+    "Cep / mahsup açıkken şube personel gideri kapalı. Bu akışlar genelde birlikte yönetilir; kullanıcılar hata veya tutarsız kasa kaydıyla karşılaşabilir.",
+  tourismSeasonWarnAdvanceWithoutPersonnel:
+    "Şube kasası avansı açıkken şube personel gideri kapalı. Avanslar personel ile bağlantılıdır; birini açıp diğerini kapatmak çoğu işletme için tutarsızdır.",
+  tourismSeasonWarnIndirectOutWithoutOther:
+    "Tedarikçi şube payı, genel gider payı veya şubeye araç gideri açıkken «diğer kasa giderleri» kapalı. Hepsi şubede OUT satırı üretir; kuralları karıştırmak operasyon ve raporlarda kafa karıştırır.",
+  tourismSeasonWarnExpensesWithoutIncome:
+    "Şube kasası geliri kapalıyken bazı çıkış akışları açık. Kapalı sezonda kasa tablosu dengesiz görünebilir (gelir yolu yokken gider/çıkış var).",
+  tourismSeasonWarnAllEnabled:
+    "Tüm anahtarlar açık: kapalı turizm sezonunda bu yollar fiilen engellenmez. Kasayı kasıtlı olarak serbest bırakmak istemiyorsanız bazılarını kapatın.",
+} as const;

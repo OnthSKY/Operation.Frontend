@@ -7,12 +7,14 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
   type KeyboardEvent,
   type Ref,
 } from "react";
+import { createPortal } from "react-dom";
 
 export type SelectOption = { value: string; label: string };
 
@@ -28,6 +30,8 @@ export type SelectProps = {
   disabled?: boolean;
   className?: string;
   id?: string;
+  /** Varsayılan: 130. Üst katmanda (ör. z-index 200 takvim) açılan listeler için yükseltin. */
+  menuZIndex?: number;
 };
 
 function mergeRefs<T>(...refs: (Ref<T> | undefined)[]) {
@@ -44,6 +48,34 @@ function norm(s: string) {
   return s.toLocaleLowerCase("tr-TR").normalize("NFD");
 }
 
+const LIST_MAX_PX = 208;
+const DROPDOWN_Z = 130;
+
+type MenuGeom = {
+  top: number;
+  left: number;
+  width: number;
+  maxHeight: number;
+};
+
+function computeMenuGeom(container: HTMLElement): MenuGeom {
+  const r = container.getBoundingClientRect();
+  const margin = 8;
+  const gap = 4;
+  const preferredTop = r.bottom + gap;
+  const spaceBelow = window.innerHeight - preferredTop - margin;
+  const spaceAbove = r.top - margin - gap;
+
+  if (spaceBelow >= 120 || spaceBelow >= spaceAbove) {
+    const maxHeight = Math.min(LIST_MAX_PX, Math.max(96, spaceBelow));
+    return { top: preferredTop, left: r.left, width: r.width, maxHeight };
+  }
+
+  const maxHeight = Math.min(LIST_MAX_PX, Math.max(96, spaceAbove));
+  const top = Math.max(margin, r.top - maxHeight - gap);
+  return { top, left: r.left, width: r.width, maxHeight };
+}
+
 export const Select = forwardRef<HTMLInputElement, SelectProps>(
   function Select(
     {
@@ -58,6 +90,7 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
       onChange,
       onBlur,
       disabled,
+      menuZIndex,
     },
     ref
   ) {
@@ -67,12 +100,19 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
     const hasError = error != null && String(error).length > 0;
     const errorText = String(error ?? "").trim();
     const containerRef = useRef<HTMLDivElement>(null);
+    const listboxRef = useRef<HTMLUListElement>(null);
     const innerRef = useRef<HTMLInputElement>(null);
     const setInputRef = mergeRefs(ref, innerRef);
 
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState("");
     const [highlighted, setHighlighted] = useState(0);
+    const [mounted, setMounted] = useState(false);
+    const [menuGeom, setMenuGeom] = useState<MenuGeom | null>(null);
+
+    useEffect(() => {
+      setMounted(true);
+    }, []);
 
     const selectedLabel = useMemo(
       () => options.find((o) => o.value === value)?.label ?? "",
@@ -87,18 +127,39 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
       );
     }, [options, query, value]);
 
+    const refreshMenuGeom = useCallback(() => {
+      if (!containerRef.current) return;
+      setMenuGeom(computeMenuGeom(containerRef.current));
+    }, []);
+
     useEffect(() => {
       if (!open) return;
       setHighlighted(0);
     }, [open, query]);
 
+    useLayoutEffect(() => {
+      if (!open || disabled) {
+        setMenuGeom(null);
+        return;
+      }
+      refreshMenuGeom();
+      const handler = () => refreshMenuGeom();
+      window.addEventListener("scroll", handler, true);
+      window.addEventListener("resize", handler);
+      return () => {
+        window.removeEventListener("scroll", handler, true);
+        window.removeEventListener("resize", handler);
+      };
+    }, [open, disabled, refreshMenuGeom]);
+
     useEffect(() => {
       if (!open) return;
       const onDoc = (e: MouseEvent) => {
-        if (!containerRef.current?.contains(e.target as Node)) {
-          setOpen(false);
-          setQuery("");
-        }
+        const node = e.target as Node;
+        if (containerRef.current?.contains(node)) return;
+        if (listboxRef.current?.contains(node)) return;
+        setOpen(false);
+        setQuery("");
       };
       document.addEventListener("mousedown", onDoc);
       return () => document.removeEventListener("mousedown", onDoc);
@@ -114,7 +175,8 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
       [name, onChange]
     );
 
-    const displayValue = open ? query : selectedLabel;
+    const displayValue =
+      open && query.trim() !== "" ? query : selectedLabel;
 
     const onInputChange = (raw: string) => {
       if (!open) {
@@ -187,6 +249,49 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
       }
     };
 
+    const listbox = open && !disabled && mounted && menuGeom && (
+      <ul
+        ref={listboxRef}
+        id={listboxId}
+        data-select-combobox-list
+        role="listbox"
+        style={{
+          position: "fixed",
+          top: menuGeom.top,
+          left: menuGeom.left,
+          width: menuGeom.width,
+          maxHeight: menuGeom.maxHeight,
+          zIndex: menuZIndex ?? DROPDOWN_Z,
+        }}
+        className="overflow-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg"
+      >
+        {filtered.length === 0 ? (
+          <li className="px-3 py-2.5 text-sm text-zinc-500">
+            {t("common.comboboxNoMatches")}
+          </li>
+        ) : (
+          filtered.map((o, idx) => (
+            <li
+              key={`${listboxId}-opt-${idx}`}
+              id={`${listboxId}-opt-${idx}`}
+              role="option"
+              aria-selected={o.value === value}
+              className={cn(
+                "cursor-pointer px-3 py-2.5 text-sm text-zinc-900",
+                idx === highlighted && "bg-zinc-100",
+                o.value === value && "font-medium"
+              )}
+              onMouseEnter={() => setHighlighted(idx)}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => commit(o.value)}
+            >
+              {o.label}
+            </li>
+          ))
+        )}
+      </ul>
+    );
+
     return (
       <div className="flex w-full flex-col gap-1">
         {label && inputId && (
@@ -233,8 +338,10 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
                 onBlur(e);
                 window.setTimeout(() => {
                   if (!containerRef.current?.contains(document.activeElement)) {
-                    setOpen(false);
-                    setQuery("");
+                    if (!listboxRef.current?.contains(document.activeElement)) {
+                      setOpen(false);
+                      setQuery("");
+                    }
                   }
                 }, 0);
               }}
@@ -263,40 +370,8 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
               </svg>
             </span>
           </div>
-
-          {open && !disabled ? (
-            <ul
-              id={listboxId}
-              role="listbox"
-              className="absolute z-[100] mt-1 max-h-52 w-full overflow-auto rounded-lg border border-zinc-200 bg-white py-1 shadow-lg"
-            >
-              {filtered.length === 0 ? (
-                <li className="px-3 py-2.5 text-sm text-zinc-500">
-                  {t("common.comboboxNoMatches")}
-                </li>
-              ) : (
-                filtered.map((o, idx) => (
-                  <li
-                    key={o.value === "" ? "__empty__" : o.value}
-                    id={`${listboxId}-opt-${idx}`}
-                    role="option"
-                    aria-selected={o.value === value}
-                    className={cn(
-                      "cursor-pointer px-3 py-2.5 text-sm text-zinc-900",
-                      idx === highlighted && "bg-zinc-100",
-                      o.value === value && "font-medium"
-                    )}
-                    onMouseEnter={() => setHighlighted(idx)}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => commit(o.value)}
-                  >
-                    {o.label}
-                  </li>
-                ))
-              )}
-            </ul>
-          ) : null}
         </div>
+        {listbox ? createPortal(listbox, document.body) : null}
         {errorText ? <p className="text-sm text-red-600">{error}</p> : null}
       </div>
     );

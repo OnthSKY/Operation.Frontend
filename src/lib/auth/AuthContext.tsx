@@ -1,8 +1,8 @@
 "use client";
 
 import { apiRequest } from "@/lib/api/base-api";
-import { isPersonnelPortalRole } from "@/lib/auth/roles";
-import type { AuthUser } from "@/lib/auth/types";
+import { postLoginHomePath } from "@/lib/auth/roles";
+import type { AuthUser, LoginResultPayload } from "@/lib/auth/types";
 import { useRouter } from "next/navigation";
 import {
   createContext,
@@ -17,7 +17,9 @@ import {
 type AuthContextValue = {
   user: AuthUser | null;
   isReady: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (username: string, password: string, rememberMe: boolean) => Promise<LoginResultPayload>;
+  completeTotpLogin: (totpChallengeToken: string, code: string, rememberMe: boolean) => Promise<void>;
+  refreshMe: () => Promise<void>;
   logout: () => void;
 };
 
@@ -45,14 +47,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const login = useCallback(async (username: string, password: string) => {
-    const me = await apiRequest<AuthUser>("/auth/login", {
+  const login = useCallback(async (username: string, password: string, rememberMe: boolean) => {
+    const data = await apiRequest<LoginResultPayload>("/auth/login", {
       method: "POST",
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username, password, rememberMe }),
     });
+    if (!data.requiresTotp && data.user) setUser(data.user);
+    return data;
+  }, []);
+
+  const completeTotpLogin = useCallback(
+    async (totpChallengeToken: string, code: string, rememberMe: boolean) => {
+      const me = await apiRequest<AuthUser>("/auth/login/totp", {
+        method: "POST",
+        body: JSON.stringify({
+          totpChallengeToken,
+          code: code.replace(/\s/g, ""),
+          rememberMe,
+        }),
+      });
+      setUser(me);
+      router.replace(postLoginHomePath(me.role));
+    },
+    [router]
+  );
+
+  const refreshMe = useCallback(async () => {
+    const me = await apiRequest<AuthUser>("/auth/me");
     setUser(me);
-    router.replace(isPersonnelPortalRole(me.role) ? "/branch" : "/");
-  }, [router]);
+  }, []);
 
   const logout = useCallback(async () => {
     try {
@@ -65,8 +88,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [router]);
 
   const value = useMemo(
-    () => ({ user, isReady, login, logout }),
-    [user, isReady, login, logout]
+    () => ({
+      user,
+      isReady,
+      login,
+      completeTotpLogin,
+      refreshMe,
+      logout,
+    }),
+    [user, isReady, login, completeTotpLogin, refreshMe, logout]
   );
 
   return (

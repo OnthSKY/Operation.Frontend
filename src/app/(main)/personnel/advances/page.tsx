@@ -1,5 +1,5 @@
-import { AllAdvancesScreen } from "@/modules/personnel/components/AllAdvancesScreen";
+import { redirect } from "next/navigation";
 
 export default function AllAdvancesPage() {
-  return <AllAdvancesScreen />;
+  redirect("/personnel/costs?tab=advances");
 }

@@ -2,17 +2,24 @@
 
 import { useI18n } from "@/i18n/context";
 import { financialBreakdownCategoryLabel } from "@/modules/reports/lib/financial-breakdown-labels";
+import { reportBranchLabel } from "@/modules/reports/lib/report-branch-label";
+import {
+  ReportExpensePaymentMix,
+  sortExpensePaymentRows,
+} from "@/modules/reports/lib/report-expense-payment";
 import { ReportFinancialTimeSeriesCharts } from "@/modules/reports/components/ReportFinancialTimeSeriesCharts";
 import type {
   FinancialBranchMonthlyBreakdownRow,
   FinancialMonthlyBreakdownRow,
   FinancialReport,
 } from "@/types/reports";
+import { cn } from "@/lib/cn";
 import { Card } from "@/shared/components/Card";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { useMediaMinWidth } from "@/shared/lib/use-media-min-width";
-import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   Bar,
   BarChart,
@@ -109,47 +116,64 @@ export function ReportFinancialStoryCharts({
     return chips;
   }, [data.byCategory, data.totalsByCurrency, t]);
 
-  const storyLines = useMemo(() => {
-    const lines: string[] = [];
+  const storyDeck = useMemo(() => {
     const row = data.totalsByCurrency.find((x) => x.currencyCode === ccy);
     const cmp = netCompare.find((x) => x.currencyCode === ccy);
-    if (!row && !cmp) return lines;
 
-    if (row) {
-      lines.push(
-        tpl(t("reports.storyNetPeriod"), {
-          ccy,
-          net: formatLocaleAmount(row.netCash, locale, ccy),
-        })
-      );
-    }
+    type PayMixItem = { label: string; pct: number; amount: number };
+
+    let compare: {
+      prevFrom: string;
+      prevTo: string;
+      netPrevious: number;
+      netDelta: number;
+      dirLabel: string;
+    } | null = null;
     if (cmp && cmpFrom && cmpTo) {
-      const dir =
+      const dirLabel =
         cmp.netDelta > 0
           ? t("reports.storyDirBetter")
           : cmp.netDelta < 0
             ? t("reports.storyDirWorse")
             : t("reports.storyDirFlat");
-      lines.push(
-        tpl(t("reports.storyVsPrevious"), {
-          prevFrom: formatLocaleDate(cmpFrom, locale),
-          prevTo: formatLocaleDate(cmpTo, locale),
-          prevNet: formatLocaleAmount(cmp.netPrevious, locale, ccy),
-          delta: formatLocaleAmount(cmp.netDelta, locale, ccy),
-          dir,
-        })
-      );
+      compare = {
+        prevFrom: cmpFrom,
+        prevTo: cmpTo,
+        netPrevious: cmp.netPrevious,
+        netDelta: cmp.netDelta,
+        dirLabel,
+      };
+    }
+
+    let payMix: { items: PayMixItem[] } | null = null;
+    const paySrc = data.byExpensePaymentSource ?? [];
+    const payForCcy = paySrc.filter((x) => x.currencyCode === ccy);
+    const payTotal = payForCcy.reduce((s, x) => s + x.totalAmount, 0);
+    if (payTotal > 0) {
+      const ordered = sortExpensePaymentRows(payForCcy);
+      payMix = {
+        items: ordered.map((r) => {
+          const pct = Math.round((r.totalAmount / payTotal) * 100);
+          const label =
+            r.expensePaymentSource.trim().toUpperCase() === "REGISTER"
+              ? t("branch.expensePayRegisterShort")
+              : r.expensePaymentSource.trim().toUpperCase() === "PATRON"
+                ? t("branch.expensePayPatronShort")
+                : r.expensePaymentSource.trim().toUpperCase() ===
+                    "PERSONNEL_POCKET"
+                  ? t("branch.expensePayPersonnelPocketShort")
+                  : t("branch.expensePaymentUnset");
+          return { label, pct, amount: r.totalAmount };
+        }),
+      };
     }
 
     const forCcy = trends.filter((x) => x.currencyCode === ccy);
     const up = forCcy.filter((x) => x.netDelta > 0).length;
     const down = forCcy.filter((x) => x.netDelta < 0).length;
     const flat = forCcy.length - up - down;
-    if (forCcy.length > 0 && cmpFrom) {
-      lines.push(
-        tpl(t("reports.storyBranchTrendCounts"), { up, down, flat, ccy })
-      );
-    }
+    const branchTrend =
+      forCcy.length > 0 && cmpFrom ? { up, down, flat } : null;
 
     let worst: (typeof forCcy)[0] | null = null;
     for (const x of forCcy) {
@@ -161,34 +185,216 @@ export function ReportFinancialStoryCharts({
       if (x.netDelta <= 0) continue;
       if (!best || x.netDelta > best.netDelta) best = x;
     }
-    if (worst) {
-      lines.push(
-        tpl(t("reports.storyWorstBranch"), {
-          name: worst.branchName,
-          delta: formatLocaleAmount(worst.netDelta, locale, ccy),
-        })
-      );
-    }
-    if (best && best.branchId !== worst?.branchId) {
-      lines.push(
-        tpl(t("reports.storyBestBranch"), {
-          name: best.branchName,
-          delta: formatLocaleAmount(best.netDelta, locale, ccy),
-        })
-      );
-    }
 
-    return lines;
+    return {
+      net: row ? { netCash: row.netCash } : null,
+      compare,
+      payMix,
+      branchTrend,
+      worst,
+      best:
+        best && best.branchId !== worst?.branchId
+          ? {
+              branchId: best.branchId,
+              branchName: best.branchName,
+              netDelta: best.netDelta,
+            }
+          : null,
+    };
   }, [
     data.totalsByCurrency,
     ccy,
-    locale,
     t,
     trends,
     netCompare,
     cmpFrom,
     cmpTo,
+    data.byExpensePaymentSource,
   ]);
+
+  const hasStoryMore =
+    Boolean(storyDeck.payMix) ||
+    Boolean(storyDeck.branchTrend) ||
+    Boolean(storyDeck.worst) ||
+    Boolean(storyDeck.best);
+
+  const [storyMoreOpen, setStoryMoreOpen] = useState(false);
+  useEffect(() => {
+    if (smUp) setStoryMoreOpen(true);
+  }, [smUp]);
+
+  const compareInner = useMemo((): ReactNode => {
+    const cmp = storyDeck.compare;
+    if (!cmp) return null;
+    return (
+      <div className="rounded-xl border border-zinc-200/90 bg-white p-4 shadow-sm ring-1 ring-zinc-950/[0.02]">
+        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          {t("reports.storyCardCompareTitle")}
+        </p>
+        <p className="mt-1 text-xs text-zinc-500">
+          {tpl(t("reports.storyCardCompareWindow"), {
+            from: formatLocaleDate(cmp.prevFrom, locale),
+            to: formatLocaleDate(cmp.prevTo, locale),
+          })}
+        </p>
+        <p className="mt-3 text-xs text-zinc-500">
+          {t("reports.storyCardComparePrevLabel")}
+        </p>
+        <p className="text-lg font-semibold tabular-nums text-zinc-900">
+          {formatLocaleAmount(cmp.netPrevious, locale, ccy)}
+        </p>
+        <p className="mt-3 text-xs font-medium text-zinc-500">
+          {t("reports.storyCardCompareDeltaLabel")}
+        </p>
+        <p
+          className={cn(
+            "text-2xl font-bold tabular-nums",
+            cmp.netDelta > 0
+              ? "text-emerald-700"
+              : cmp.netDelta < 0
+                ? "text-red-700"
+                : "text-zinc-700"
+          )}
+        >
+          {formatLocaleAmount(cmp.netDelta, locale, ccy)}
+        </p>
+        <p className="mt-2 text-xs text-zinc-600">
+          {tpl(t("reports.storyCardCompareTrend"), {
+            dir: cmp.dirLabel,
+          })}
+        </p>
+      </div>
+    );
+  }, [storyDeck.compare, locale, ccy, t]);
+
+  const payMixInner = useMemo((): ReactNode => {
+    if (!storyDeck.payMix) return null;
+    return (
+      <div className="rounded-xl border border-zinc-200/90 bg-white p-4 shadow-sm ring-1 ring-zinc-950/[0.02]">
+        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          {t("reports.storyCardPayMixTitle")}
+        </p>
+        <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+          {t("reports.storyCardPayMixCaption")}
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {storyDeck.payMix.items.map((item) => (
+            <div
+              key={item.label}
+              className="min-w-[6.5rem] flex-1 rounded-lg border border-zinc-200/80 bg-zinc-50/90 px-3 py-2 sm:min-w-0 sm:flex-none"
+            >
+              <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                {item.label}
+              </p>
+              <p className="mt-0.5 text-sm font-bold tabular-nums text-zinc-900">
+                {formatLocaleAmount(item.amount, locale, ccy)}
+              </p>
+              <p className="text-xs font-medium text-violet-700">~{item.pct}%</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }, [storyDeck.payMix, locale, ccy, t]);
+
+  const branchTrendInner = useMemo((): ReactNode => {
+    if (!storyDeck.branchTrend) return null;
+    return (
+      <div className="rounded-xl border border-zinc-200/90 bg-white p-4 shadow-sm ring-1 ring-zinc-950/[0.02]">
+        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          {t("reports.storyCardBranchTrendTitle")}{" "}
+          <span className="font-medium normal-case text-zinc-400">({ccy})</span>
+        </p>
+        <p className="mt-0.5 text-xs text-zinc-500">
+          {t("reports.storyCardBranchTrendCaption")}
+        </p>
+        <div className="mt-3 grid grid-cols-3 gap-2 sm:gap-3">
+          <div className="rounded-lg bg-emerald-50/90 px-1.5 py-3 text-center sm:px-2">
+            <p className="text-2xl font-bold tabular-nums text-emerald-900 sm:text-3xl">
+              {storyDeck.branchTrend.up}
+            </p>
+            <p className="mt-1 text-[0.6rem] font-semibold uppercase leading-tight tracking-wide text-emerald-800/90 sm:text-[0.65rem]">
+              {t("reports.storyCardBranchUpLabel")}
+            </p>
+          </div>
+          <div className="rounded-lg bg-red-50/90 px-1.5 py-3 text-center sm:px-2">
+            <p className="text-2xl font-bold tabular-nums text-red-900 sm:text-3xl">
+              {storyDeck.branchTrend.down}
+            </p>
+            <p className="mt-1 text-[0.6rem] font-semibold uppercase leading-tight tracking-wide text-red-900/85 sm:text-[0.65rem]">
+              {t("reports.storyCardBranchDownLabel")}
+            </p>
+          </div>
+          <div className="rounded-lg bg-zinc-100/90 px-1.5 py-3 text-center sm:px-2">
+            <p className="text-2xl font-bold tabular-nums text-zinc-800 sm:text-3xl">
+              {storyDeck.branchTrend.flat}
+            </p>
+            <p className="mt-1 text-[0.6rem] font-semibold uppercase leading-tight tracking-wide text-zinc-600 sm:text-[0.65rem]">
+              {t("reports.storyCardBranchFlatLabel")}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }, [storyDeck.branchTrend, ccy, t]);
+
+  const spotlightInner = useMemo((): ReactNode => {
+    if (!storyDeck.worst && !storyDeck.best) return null;
+    return (
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+        {storyDeck.worst ? (
+          <div className="rounded-xl border border-red-200/90 bg-red-50/35 p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-red-900/80">
+              {t("reports.storyCardWorstTitle")}
+            </p>
+            <p className="mt-2 text-base font-semibold text-zinc-900 sm:text-lg">
+              {reportBranchLabel(
+                storyDeck.worst.branchId,
+                storyDeck.worst.branchName,
+                t
+              )}
+            </p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-red-800">
+              Δ {formatLocaleAmount(storyDeck.worst.netDelta, locale, ccy)}
+            </p>
+            {storyDeck.worst.branchId !== 0 ? (
+              <Link
+                href={`/branches?openBranch=${storyDeck.worst.branchId}`}
+                className="mt-3 inline-flex text-sm font-semibold text-red-800 underline-offset-2 hover:underline"
+              >
+                {t("reports.storyOpenBranchLink")}
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
+        {storyDeck.best ? (
+          <div className="rounded-xl border border-emerald-200/90 bg-emerald-50/35 p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-900/80">
+              {t("reports.storyCardBestTitle")}
+            </p>
+            <p className="mt-2 text-base font-semibold text-zinc-900 sm:text-lg">
+              {reportBranchLabel(
+                storyDeck.best.branchId,
+                storyDeck.best.branchName,
+                t
+              )}
+            </p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-emerald-800">
+              Δ {formatLocaleAmount(storyDeck.best.netDelta, locale, ccy)}
+            </p>
+            {storyDeck.best.branchId !== 0 ? (
+              <Link
+                href={`/branches?openBranch=${storyDeck.best.branchId}`}
+                className="mt-3 inline-flex text-sm font-semibold text-emerald-800 underline-offset-2 hover:underline"
+              >
+                {t("reports.storyOpenBranchLink")}
+              </Link>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    );
+  }, [storyDeck.worst, storyDeck.best, locale, ccy, t]);
 
   const totalRow = data.totalsByCurrency.find((x) => x.currencyCode === ccy);
   const incomeExpenseData = totalRow
@@ -231,27 +437,33 @@ export function ReportFinancialStoryCharts({
     () =>
       data.byBranch
         .filter((b) => b.currencyCode === ccy)
-        .map((b) => ({
-          name: smUp ? b.branchName : truncLabel(b.branchName, 14),
-          nameFull: b.branchName,
-          net: b.netCash,
-        }))
+        .map((b) => {
+          const full = reportBranchLabel(b.branchId, b.branchName, t);
+          return {
+            name: smUp ? full : truncLabel(full, 14),
+            nameFull: full,
+            net: b.netCash,
+          };
+        })
         .sort((a, b) => b.net - a.net),
-    [data.byBranch, ccy, smUp]
+    [data.byBranch, ccy, smUp, t]
   );
 
   const branchDeltaData = useMemo(
     () =>
       trends
         .filter((b) => b.currencyCode === ccy)
-        .map((b) => ({
-          name: smUp ? b.branchName : truncLabel(b.branchName, 14),
-          nameFull: b.branchName,
-          delta: b.netDelta,
-        }))
+        .map((b) => {
+          const full = reportBranchLabel(b.branchId, b.branchName, t);
+          return {
+            name: smUp ? full : truncLabel(full, 14),
+            nameFull: full,
+            delta: b.netDelta,
+          };
+        })
         .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta))
         .slice(0, 14),
-    [trends, ccy, smUp]
+    [trends, ccy, smUp, t]
   );
 
   const tooltipMoney = (code: string) => (value: unknown) => {
@@ -287,7 +499,26 @@ export function ReportFinancialStoryCharts({
   if (!data.totalsByCurrency.length) {
     return (
       <Card title={t("reports.storyTitle")}>
-        <p className="text-sm text-zinc-500">{t("reports.empty")}</p>
+        <p className="text-sm font-medium text-zinc-800">
+          {t("reports.financialEmptyTitle")}
+        </p>
+        <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+          {t("reports.financialEmptyBody")}
+        </p>
+        <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-4">
+          <Link
+            href="/branches"
+            className="text-sm font-semibold text-violet-700 underline-offset-2 hover:underline"
+          >
+            {t("reports.financialEmptyCtaBranch")}
+          </Link>
+          <Link
+            href="/guide"
+            className="text-sm font-semibold text-violet-700 underline-offset-2 hover:underline"
+          >
+            {t("reports.financialEmptyCtaGuide")}
+          </Link>
+        </div>
       </Card>
     );
   }
@@ -327,20 +558,95 @@ export function ReportFinancialStoryCharts({
             ))}
           </select>
         </div>
+        <p className="mb-3 text-xs leading-relaxed text-zinc-500">
+          {t("reports.chartCurrencyScopeHint")}
+        </p>
         {cmpFrom && cmpTo ? (
           <p className="mb-3 text-xs text-zinc-500">
             {t("reports.compareCaption")}: {formatLocaleDate(cmpFrom, locale)} –{" "}
             {formatLocaleDate(cmpTo, locale)}
           </p>
         ) : null}
-        <ul className="space-y-2 break-words text-sm leading-relaxed text-zinc-800">
-          {storyLines.map((line, i) => (
-            <li key={i} className="flex gap-2">
-              <span className="font-bold text-violet-600">•</span>
-              <span>{line}</span>
-            </li>
-          ))}
-        </ul>
+
+        <p className="mb-3 text-xs leading-relaxed text-zinc-600">
+          {t("reports.storyDeckHint")}
+        </p>
+
+        <div className="flex flex-col gap-3 sm:gap-4">
+          {storyDeck.net ? (
+            <div
+              className={cn(
+                "rounded-2xl border-2 p-4 sm:p-5",
+                storyDeck.net.netCash < 0
+                  ? "border-red-300 bg-gradient-to-br from-red-50/95 to-white"
+                  : storyDeck.net.netCash > 0
+                    ? "border-emerald-300/90 bg-gradient-to-br from-emerald-50/90 to-white"
+                    : "border-zinc-200 bg-zinc-50/50"
+              )}
+            >
+              <p className="text-[0.65rem] font-bold uppercase tracking-wider text-zinc-500">
+                {t("reports.storyCardNetEyebrow")}
+              </p>
+              <p className="mt-1 text-base font-semibold text-zinc-900 sm:text-lg">
+                {t("reports.storyCardNetTitle")}{" "}
+                <span className="text-zinc-500">({ccy})</span>
+              </p>
+              <p
+                className={cn(
+                  "mt-2 text-3xl font-bold tabular-nums tracking-tight sm:text-4xl",
+                  storyDeck.net.netCash < 0
+                    ? "text-red-800"
+                    : storyDeck.net.netCash > 0
+                      ? "text-emerald-800"
+                      : "text-zinc-800"
+                )}
+              >
+                {formatLocaleAmount(storyDeck.net.netCash, locale, ccy)}
+              </p>
+            </div>
+          ) : null}
+
+          {storyDeck.compare || payMixInner ? (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+              {compareInner}
+              {payMixInner ? (
+                <div
+                  className={
+                    storyDeck.compare ? "hidden sm:block" : "block"
+                  }
+                >
+                  {payMixInner}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {!smUp && hasStoryMore ? (
+            <button
+              type="button"
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/90 px-4 py-3 text-left text-sm font-semibold text-zinc-800 shadow-sm transition hover:bg-zinc-100"
+              onClick={() => setStoryMoreOpen((o) => !o)}
+              aria-expanded={storyMoreOpen}
+            >
+              {storyMoreOpen
+                ? t("reports.storyDetailsHide")
+                : t("reports.storyDetailsShow")}
+            </button>
+          ) : null}
+
+          {!smUp && storyMoreOpen ? (
+            <div className="flex flex-col gap-3 sm:hidden">
+              {storyDeck.compare && payMixInner ? payMixInner : null}
+              {branchTrendInner}
+              {spotlightInner}
+            </div>
+          ) : null}
+
+          <div className="hidden flex-col gap-3 sm:flex">
+            {branchTrendInner}
+            {spotlightInner}
+          </div>
+        </div>
       </Card>
 
       <ReportFinancialTimeSeriesCharts
@@ -384,7 +690,16 @@ export function ReportFinancialStoryCharts({
           </div>
         </Card>
 
-        <Card title={t("reports.chartExpenseMix")}>
+        <Card
+          title={t("reports.chartExpenseMix")}
+          description={t("reports.chartExpenseMixCaption")}
+        >
+          <ReportExpensePaymentMix
+            rows={data.byExpensePaymentSource ?? []}
+            currencyCode={ccy}
+            t={t}
+            locale={locale}
+          />
           {outPieData.length === 0 ? (
             <p className="text-sm text-zinc-500">{t("reports.empty")}</p>
           ) : (

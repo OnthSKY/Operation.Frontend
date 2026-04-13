@@ -1,4 +1,4 @@
-export type AppUserRole = "ADMIN" | "STAFF" | "PERSONNEL";
+export type AppUserRole = "ADMIN" | "STAFF" | "PERSONNEL" | "DRIVER";
 
 export type UserListItem = {
   id: number;
@@ -7,6 +7,7 @@ export type UserListItem = {
   role: string;
   status: string;
   personnelId: number | null;
+  allowPersonnelSelfFinancials: boolean;
 };
 
 export type CreateUserInput = {

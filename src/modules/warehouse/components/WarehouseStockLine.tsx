@@ -1,14 +1,19 @@
 "use client";
 
 import type { WarehouseProductStockRow } from "@/types/product";
+import {
+  WarehouseTransferFreightFields,
+  type WarehouseFreightPaymentSource,
+} from "@/modules/warehouse/components/WarehouseTransferFreightFields";
+import { WarehouseTransferFreightValuationBar } from "@/modules/warehouse/components/WarehouseTransferFreightValuationBar";
 import { useI18n } from "@/i18n/context";
-import { toErrorMessage } from "@/shared/lib/error-message";
+import { apiUserFacingMessage } from "@/shared/lib/api-user-facing-message";
+import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { notify } from "@/shared/lib/notify";
 import { cn } from "@/lib/cn";
-import {
-  IMAGE_FILE_INPUT_ACCEPT,
-  MAX_IMAGE_UPLOAD_BYTES,
-} from "@/shared/lib/image-upload-limits";
+import { LocalImageFileThumb } from "@/shared/components/LocalImageFileThumb";
+import { IMAGE_FILE_INPUT_ACCEPT } from "@/shared/lib/image-upload-limits";
+import { validateImageFileForUpload } from "@/shared/lib/validate-image-upload";
 import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
@@ -17,26 +22,43 @@ import { TableCell, TableRow } from "@/shared/ui/Table";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
 
-type MoveInput = {
-  warehouseId: number;
-  productId: number;
-  quantity: number;
-  movementDate: string;
-  direction: "in" | "out";
-  checkedByPersonnelId: number;
-  approvedByPersonnelId: number;
-  invoicePhoto?: File | null;
-};
+type MoveInput =
+  | {
+      warehouseId: number;
+      movementDate: string;
+      direction: "in";
+      lines: {
+        productId: number;
+        quantity: number;
+        inboundUnitCost?: number;
+        inboundCurrencyCode?: string;
+      }[];
+      checkedByPersonnelId: number;
+      approvedByPersonnelId: number;
+      invoicePhoto?: File | null;
+    }
+  | {
+      warehouseId: number;
+      movementDate: string;
+      direction: "out";
+      productId: number;
+      quantity: number;
+      checkedByPersonnelId: number;
+      approvedByPersonnelId: number;
+    };
 
 type TransferInput = {
   warehouseId: number;
   branchId: number;
-  productId: number;
-  quantity: number;
+  lines: { productId: number; quantity: number }[];
   movementDate: string;
   description?: string | null;
   checkedByPersonnelId: number;
   approvedByPersonnelId: number;
+  freightAmount?: number | null;
+  freightExpensePaymentSource?: string | null;
+  freightExpensePocketPersonnelId?: number | null;
+  freightNote?: string | null;
 };
 
 type Props = {
@@ -50,6 +72,8 @@ type Props = {
   transferMutate: (input: TransferInput) => Promise<unknown>;
   personnelOptions: { value: string; label: string }[];
   variant: "card" | "table";
+  /** Ana ürün grubu altında varyant satırı */
+  isVariantLine?: boolean;
 };
 
 export function WarehouseStockLine({
@@ -63,8 +87,9 @@ export function WarehouseStockLine({
   transferMutate,
   personnelOptions,
   variant,
+  isVariantLine = false,
 }: Props) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [qty, setQty] = useState("1");
   const [depoInOpen, setDepoInOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
@@ -75,7 +100,13 @@ export function WarehouseStockLine({
   const [inApprovedBy, setInApprovedBy] = useState("");
   const [trCheckedBy, setTrCheckedBy] = useState("");
   const [trApprovedBy, setTrApprovedBy] = useState("");
+  const [freightAmount, setFreightAmount] = useState("");
+  const [freightPay, setFreightPay] = useState<WarehouseFreightPaymentSource>("REGISTER");
+  const [freightPocket, setFreightPocket] = useState("");
+  const [freightNote, setFreightNote] = useState("");
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
+  const [inUnitCost, setInUnitCost] = useState("");
+  const [inCurrency, setInCurrency] = useState("TRY");
   const [pending, setPending] = useState<null | "in" | "transfer">(null);
 
   const personnelSelectOptions = useMemo(
@@ -89,6 +120,8 @@ export function WarehouseStockLine({
     setInCheckedBy("");
     setInApprovedBy("");
     setInvoiceFile(null);
+    setInUnitCost("");
+    setInCurrency("TRY");
   }, [depoInOpen]);
 
   useEffect(() => {
@@ -98,6 +131,10 @@ export function WarehouseStockLine({
     setTDesc("");
     setTrCheckedBy("");
     setTrApprovedBy("");
+    setFreightAmount("");
+    setFreightPay("REGISTER");
+    setFreightPocket("");
+    setFreightNote("");
   }, [transferOpen]);
 
   const off = disabled || pending !== null;
@@ -110,6 +147,19 @@ export function WarehouseStockLine({
     if (!canOut) return t("warehouse.transferNoBranchStock");
     return t("warehouse.actionBranchProductOut");
   }, [t, branchesReady, branchOptions.length, canOut]);
+
+  const suggestedAvgLabel = useMemo(() => {
+    const c = row.suggestedAverageUnitCost;
+    if (c == null || !Number.isFinite(c) || c <= 0) return null;
+    const cur = row.suggestedAverageCurrencyCode?.trim() || "TRY";
+    return formatLocaleAmount(c, locale, cur);
+  }, [row.suggestedAverageUnitCost, row.suggestedAverageCurrencyCode, locale]);
+
+  const transferValuationLines = useMemo(() => {
+    const n = Number(tQty.replace(",", "."));
+    if (!Number.isFinite(n) || n <= 0 || n > row.quantity) return [];
+    return [{ productId: row.productId, quantity: n }];
+  }, [tQty, row.productId, row.quantity]);
 
   const runDepoIn = async (e: FormEvent) => {
     e.preventDefault();
@@ -124,18 +174,44 @@ export function WarehouseStockLine({
       notify.error(t("warehouse.personnelVerifierRequired"));
       return;
     }
-    if (invoiceFile && invoiceFile.size > MAX_IMAGE_UPLOAD_BYTES) {
-      notify.error(t("common.imageUploadTooLarge"));
-      return;
+    if (invoiceFile) {
+      const v = await validateImageFileForUpload(invoiceFile);
+      if (!v.ok) {
+        notify.error(
+          v.reason === "size"
+            ? t("common.imageUploadTooLarge")
+            : t("common.imageUploadNotImage")
+        );
+        return;
+      }
+    }
+    const costRaw = inUnitCost.trim();
+    let inboundUnitCost: number | undefined;
+    let inboundCurrencyCode: string | undefined;
+    if (costRaw.length > 0) {
+      const c = Number(costRaw.replace(",", "."));
+      if (!Number.isFinite(c) || c <= 0) {
+        notify.error(t("warehouse.invalidUnitCost"));
+        return;
+      }
+      inboundUnitCost = c;
+      inboundCurrencyCode = inCurrency.trim() ? inCurrency.trim().toUpperCase() : "TRY";
     }
     setPending("in");
     try {
       await movementMutate({
         warehouseId,
-        productId: row.productId,
-        quantity: n,
         movementDate,
         direction: "in",
+        lines: [
+          {
+            productId: row.productId,
+            quantity: n,
+            ...(inboundUnitCost != null
+              ? { inboundUnitCost, inboundCurrencyCode: inboundCurrencyCode! }
+              : {}),
+          },
+        ],
         checkedByPersonnelId: ck,
         approvedByPersonnelId: ap,
         invoicePhoto: invoiceFile,
@@ -145,7 +221,7 @@ export function WarehouseStockLine({
       setQty("1");
       setInvoiceFile(null);
     } catch (e) {
-      notify.error(toErrorMessage(e));
+      notify.error(apiUserFacingMessage(e, t));
     } finally {
       setPending(null);
     }
@@ -173,17 +249,35 @@ export function WarehouseStockLine({
       notify.error(t("warehouse.personnelVerifierRequired"));
       return;
     }
+    const frN = Number(freightAmount.replace(",", "."));
+    const hasFreight = Number.isFinite(frN) && frN > 0;
+    let pocketPid: number | undefined;
+    if (hasFreight && freightPay === "PERSONNEL_POCKET") {
+      const p = Number(freightPocket);
+      if (!Number.isFinite(p) || p <= 0) {
+        notify.error(t("warehouse.transferFreightPocketRequired"));
+        return;
+      }
+      pocketPid = p;
+    }
     setPending("transfer");
     try {
       await transferMutate({
         warehouseId,
         branchId: b,
-        productId: row.productId,
-        quantity: n,
+        lines: [{ productId: row.productId, quantity: n }],
         movementDate,
         description: tDesc.trim() ? tDesc.trim() : null,
         checkedByPersonnelId: ck,
         approvedByPersonnelId: ap,
+        ...(hasFreight
+          ? {
+              freightAmount: frN,
+              freightExpensePaymentSource: freightPay,
+              freightExpensePocketPersonnelId: pocketPid ?? null,
+              freightNote: freightNote.trim() ? freightNote.trim() : null,
+            }
+          : {}),
       });
       notify.success(t("toast.transferToBranchOk"));
       setTransferOpen(false);
@@ -191,7 +285,7 @@ export function WarehouseStockLine({
       setTQty("1");
       setTDesc("");
     } catch (e) {
-      notify.error(toErrorMessage(e));
+      notify.error(apiUserFacingMessage(e, t));
     } finally {
       setPending(null);
     }
@@ -259,7 +353,7 @@ export function WarehouseStockLine({
     >
       <form
         id={depoInFormId}
-        className="mt-4 flex max-h-[min(60dvh,22rem)] flex-col gap-3 overflow-y-auto [-webkit-overflow-scrolling:touch] sm:max-h-none sm:overflow-visible"
+        className="mt-4 flex max-h-[min(78dvh,28rem)] flex-col gap-3 overflow-y-auto [-webkit-overflow-scrolling:touch] sm:max-h-none sm:overflow-visible"
         onSubmit={(e) => void runDepoIn(e)}
       >
         <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5">
@@ -270,6 +364,11 @@ export function WarehouseStockLine({
           {row.unit ? (
             <p className="mt-1 text-sm text-zinc-600">
               {t("warehouse.productUnit")}: {row.unit}
+            </p>
+          ) : null}
+          {suggestedAvgLabel ? (
+            <p className="mt-1 text-xs text-zinc-500">
+              {t("warehouse.suggestedAvgUnitLabel")}: {suggestedAvgLabel}
             </p>
           ) : null}
         </div>
@@ -284,6 +383,28 @@ export function WarehouseStockLine({
           value={qty}
           onChange={(e) => setQty(e.target.value)}
           disabled={off}
+        />
+        <Input
+          id={`wh-in-cost-${warehouseId}-${row.productId}`}
+          name={`wh-in-cost-${warehouseId}-${row.productId}`}
+          type="text"
+          inputMode="decimal"
+          autoComplete="off"
+          label={t("warehouse.depoInUnitCostOptional")}
+          value={inUnitCost}
+          onChange={(e) => setInUnitCost(e.target.value)}
+          disabled={off}
+        />
+        <p className="text-xs text-zinc-500">{t("warehouse.depoInUnitCostHint")}</p>
+        <Input
+          id={`wh-in-cur-${warehouseId}-${row.productId}`}
+          name={`wh-in-cur-${warehouseId}-${row.productId}`}
+          type="text"
+          autoComplete="off"
+          label={t("warehouse.depoInCurrencyCode")}
+          value={inCurrency}
+          onChange={(e) => setInCurrency(e.target.value)}
+          disabled={off || !inUnitCost.trim()}
         />
         <Select
           label={t("warehouse.checkedByPersonnel")}
@@ -317,10 +438,30 @@ export function WarehouseStockLine({
             name={`wh-in-invoice-${warehouseId}-${row.productId}`}
             type="file"
             accept={IMAGE_FILE_INPUT_ACCEPT}
-            className="block w-full text-sm text-zinc-600 file:mr-3 file:rounded-lg file:border-0 file:bg-zinc-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-zinc-800 hover:file:bg-zinc-200"
+            className="block w-full max-w-full min-w-0 text-sm text-zinc-600 file:mr-3 file:max-w-full file:rounded-lg file:border-0 file:bg-zinc-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-zinc-800 hover:file:bg-zinc-200"
             disabled={off}
-            onChange={(e) => setInvoiceFile(e.target.files?.[0] ?? null)}
+            onChange={async (e) => {
+              const input = e.target;
+              const f = input.files?.[0] ?? null;
+              if (!f) {
+                setInvoiceFile(null);
+                return;
+              }
+              const v = await validateImageFileForUpload(f);
+              if (!v.ok) {
+                input.value = "";
+                setInvoiceFile(null);
+                notify.error(
+                  v.reason === "size"
+                    ? t("common.imageUploadTooLarge")
+                    : t("common.imageUploadNotImage")
+                );
+                return;
+              }
+              setInvoiceFile(f);
+            }}
           />
+          <LocalImageFileThumb file={invoiceFile} />
         </div>
         <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:flex-wrap sm:justify-end">
           <Button
@@ -355,7 +496,7 @@ export function WarehouseStockLine({
     >
       <form
         id={transferFormId}
-        className="mt-4 flex max-h-[min(60dvh,22rem)] flex-col gap-3 overflow-y-auto [-webkit-overflow-scrolling:touch] sm:max-h-none sm:overflow-visible"
+        className="mt-4 flex max-h-[min(78dvh,28rem)] flex-col gap-3 overflow-y-auto [-webkit-overflow-scrolling:touch] sm:max-h-none sm:overflow-visible"
         onSubmit={(e) => void runTransfer(e)}
       >
         <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5">
@@ -371,6 +512,11 @@ export function WarehouseStockLine({
           <p className="mt-2 text-sm font-medium tabular-nums text-zinc-800">
             {t("warehouse.transferStockOnHand")}: {row.quantity}
           </p>
+          {suggestedAvgLabel ? (
+            <p className="mt-1 text-xs text-zinc-500">
+              {t("warehouse.suggestedAvgUnitLabel")}: {suggestedAvgLabel}
+            </p>
+          ) : null}
         </div>
         <Select
           label={t("warehouse.transferBranch")}
@@ -381,6 +527,24 @@ export function WarehouseStockLine({
           onChange={(e) => setBranchId(e.target.value)}
           onBlur={() => {}}
           disabled={off || !branchesReady}
+        />
+        <WarehouseTransferFreightValuationBar
+          warehouseId={warehouseId}
+          lines={transferValuationLines}
+          enabled={transferOpen && !off}
+          onApplySuggestedFreight={setFreightAmount}
+        />
+        <WarehouseTransferFreightFields
+          freightAmount={freightAmount}
+          onFreightAmountChange={setFreightAmount}
+          freightPaymentSource={freightPay}
+          onFreightPaymentSourceChange={setFreightPay}
+          freightPocketPersonnelId={freightPocket}
+          onFreightPocketPersonnelIdChange={setFreightPocket}
+          freightNote={freightNote}
+          onFreightNoteChange={setFreightNote}
+          personnelSelectOptions={personnelSelectOptions}
+          disabled={off}
         />
         <Input
           id={`wh-tr-qty-${warehouseId}-${row.productId}`}
@@ -447,11 +611,21 @@ export function WarehouseStockLine({
     return (
       <div className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm ring-1 ring-zinc-100">
         <div className="flex flex-wrap items-start justify-between gap-2 gap-y-1">
-          <div className="min-w-0 flex-1">
+          <div className={`min-w-0 flex-1 ${isVariantLine ? "border-l-2 border-violet-200 pl-2.5" : ""}`}>
+            {row.parentProductName?.trim() && isVariantLine ? (
+              <p className="text-[0.65rem] font-medium uppercase tracking-wide text-violet-800/90">
+                {row.parentProductName}
+              </p>
+            ) : null}
             <p className="font-medium leading-snug text-zinc-900">{row.productName}</p>
             {row.unit ? (
               <p className="text-xs text-zinc-500">
                 {t("warehouse.productUnit")}: {row.unit}
+              </p>
+            ) : null}
+            {suggestedAvgLabel ? (
+              <p className="text-[0.65rem] text-zinc-500">
+                {t("warehouse.suggestedAvgUnitLabel")}: {suggestedAvgLabel}
               </p>
             ) : null}
           </div>
@@ -468,7 +642,19 @@ export function WarehouseStockLine({
     <Fragment>
       <TableRow>
         <TableCell>
-          <div className="font-medium text-zinc-900">{row.productName}</div>
+          <div className={isVariantLine ? "border-l-2 border-violet-200 pl-2.5" : ""}>
+            {row.parentProductName?.trim() && isVariantLine ? (
+              <div className="text-[0.65rem] font-medium uppercase tracking-wide text-violet-800/90">
+                {row.parentProductName}
+              </div>
+            ) : null}
+            <div className="font-medium text-zinc-900">{row.productName}</div>
+            {suggestedAvgLabel ? (
+              <div className="mt-0.5 text-[0.65rem] text-zinc-500">
+                {t("warehouse.suggestedAvgUnitLabel")}: {suggestedAvgLabel}
+              </div>
+            ) : null}
+          </div>
         </TableCell>
         <TableCell className="text-zinc-600">{row.unit ?? "—"}</TableCell>
         <TableCell className="text-right text-base font-semibold tabular-nums text-zinc-900">

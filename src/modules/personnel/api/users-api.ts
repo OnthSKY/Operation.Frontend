@@ -17,3 +17,20 @@ export async function createUser(input: CreateUserInput): Promise<UserListItem> 
     }),
   });
 }
+
+export async function patchUserSelfFinancialsVisibility(
+  userId: number,
+  allowPersonnelSelfFinancials: boolean
+): Promise<UserListItem> {
+  return apiRequest<UserListItem>(`/users/${userId}/self-financials-visibility`, {
+    method: "PATCH",
+    body: JSON.stringify({ allowPersonnelSelfFinancials }),
+  });
+}
+
+export async function patchUserRole(userId: number, role: string): Promise<UserListItem> {
+  return apiRequest<UserListItem>(`/users/${userId}/role`, {
+    method: "PATCH",
+    body: JSON.stringify({ role }),
+  });
+}
