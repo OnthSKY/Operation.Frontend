@@ -5,9 +5,14 @@ import { isDriverPortalRole, postLoginHomePath } from "@/lib/auth/roles";
 import { fetchMyAttributedExpenses } from "@/modules/account/api/me-api";
 import { fetchAdvancesByPersonnel } from "@/modules/personnel/api/advances-api";
 import { Card } from "@/shared/components/Card";
+import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
+import { TABLE_TOOLBAR_ICON_LINK, TableToolbarRow } from "@/shared/components/TableToolbar";
+import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { useI18n } from "@/i18n/context";
 import { useQuery } from "@tanstack/react-query";
+import { Tooltip } from "@/shared/ui/Tooltip";
+import { ToolbarGlyphBuilding } from "@/shared/ui/ToolbarGlyph";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo } from "react";
@@ -51,21 +56,45 @@ export default function MyFinancialsPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full min-w-0 app-page-max flex-1 flex-col gap-6 p-4 md:p-6">
-      <div>
-        <h1 className="text-xl font-bold text-zinc-900 md:text-2xl">
-          {t("nav.myFinances")}
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500">{t("nav.tooltip.myFinances")}</p>
-        <Link
-          href="/warehouses"
-          className="mt-3 inline-block text-sm font-semibold text-violet-700 hover:underline"
-        >
-          ← {t("nav.warehouse")}
-        </Link>
-      </div>
+    <PageScreenScaffold
+      className="w-full min-w-0 flex-1 p-4 md:p-6"
+      intro={
+        <>
+          <div>
+            <h1 className="text-xl font-bold text-zinc-900 md:text-2xl">
+              {t("nav.myFinances")}
+            </h1>
+            <p className="mt-1 text-sm text-zinc-500">{t("nav.tooltip.myFinances")}</p>
+          </div>
 
-      <Card className="p-4 md:p-5">
+          <PageWhenToUseGuide
+            guideTab="portal"
+            className="mt-1"
+            title={t("common.pageWhenToUseTitle")}
+            description={t("pageHelp.meFinancials.intro")}
+            listVariant="ordered"
+            items={[
+              { text: t("pageHelp.meFinancials.step1") },
+              { text: t("pageHelp.meFinancials.step2") },
+              { text: t("pageHelp.meFinancials.step3") },
+            ]}
+          />
+        </>
+      }
+      main={
+        <>
+          <Card className="p-4 md:p-5">
+            <TableToolbarRow className="mb-3">
+              <Tooltip content={t("nav.warehouse")} delayMs={200}>
+                <Link
+                  href="/warehouses"
+                  className={TABLE_TOOLBAR_ICON_LINK}
+                  aria-label={t("nav.warehouse")}
+                >
+                  <ToolbarGlyphBuilding className="h-5 w-5" />
+                </Link>
+              </Tooltip>
+            </TableToolbarRow>
         <h2 className="text-sm font-bold uppercase tracking-wide text-zinc-500">
           {t("nav.myFinancesAdvances")} ({year})
         </h2>
@@ -116,7 +145,9 @@ export default function MyFinancialsPage() {
             ))}
           </ul>
         )}
-      </Card>
-    </div>
+          </Card>
+        </>
+      }
+    />
   );
 }

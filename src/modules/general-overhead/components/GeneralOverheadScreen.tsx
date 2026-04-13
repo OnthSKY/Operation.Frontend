@@ -15,6 +15,8 @@ import type {
 import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
 import { Card } from "@/shared/components/Card";
+import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
+import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import {
   resolveLocalizedApiError,
@@ -41,6 +43,8 @@ import { Switch } from "@/shared/ui/Switch";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/Table";
 import { cn } from "@/lib/cn";
+import { Tooltip } from "@/shared/ui/Tooltip";
+import { ToolbarGlyphCoinExpense } from "@/shared/ui/ToolbarGlyph";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 function splitEqualParts(total: number, n: number): number[] {
@@ -723,36 +727,100 @@ export function GeneralOverheadScreen() {
     [createAllocLines, createTargetAmt, loc]
   );
 
+  const poolStats = useMemo(() => {
+    const rows = poolsQ.data ?? [];
+    let open = 0;
+    let allocated = 0;
+    for (const p of rows) {
+      const u = String(p.status ?? "").trim().toUpperCase();
+      if (u === "OPEN") open++;
+      else if (u === "ALLOCATED") allocated++;
+    }
+    return { total: rows.length, open, allocated };
+  }, [poolsQ.data]);
+
   return (
-    <div className="mx-auto flex w-full app-page-max flex-col gap-6 px-3 py-6 md:px-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight text-zinc-900 md:text-2xl">
-            {t("generalOverhead.title")}
-          </h1>
-          <p className="mt-1 max-w-2xl text-sm text-zinc-600">{t("generalOverhead.intro")}</p>
-        </div>
-        <Button type="button" variant="primary" className="min-h-11 w-full sm:min-h-10 sm:w-auto" onClick={openCreate}>
-          {t("generalOverhead.addExpense")}
-        </Button>
-      </div>
+    <>
+      <PageScreenScaffold
+        className="w-full app-page-max px-3 py-6 md:px-4"
+        intro={
+          <>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight text-zinc-900 md:text-2xl">
+                {t("generalOverhead.title")}
+              </h1>
+              <p className="mt-1 max-w-2xl text-sm text-zinc-600">{t("generalOverhead.intro")}</p>
+            </div>
 
-      <PageWhenToUseGuide
-        title={t("common.pageWhenToUseTitle")}
-        description={t("generalOverhead.guidanceWhenHere")}
-        items={[
-          {
-            text: t("generalOverhead.guidanceStock"),
-            link: { href: "/suppliers", label: t("generalOverhead.guidanceStockLink") },
-          },
-          {
-            text: t("generalOverhead.guidanceBranch"),
-            link: { href: "/branches", label: t("generalOverhead.guidanceBranchLink") },
-          },
-        ]}
-      />
-
-      <Card title={t("generalOverhead.listTitle")}>
+            <PageWhenToUseGuide
+              guideTab="flows"
+              className="mt-1"
+              title={t("common.pageWhenToUseTitle")}
+              description={t("pageHelp.generalOverhead.intro")}
+              listVariant="ordered"
+              items={[
+                { text: t("pageHelp.generalOverhead.step1") },
+                { text: t("pageHelp.generalOverhead.step2") },
+                {
+                  text: t("pageHelp.generalOverhead.step3"),
+                  link: { href: "/suppliers", label: t("pageHelp.generalOverhead.step3Link") },
+                },
+                {
+                  text: t("pageHelp.generalOverhead.step4"),
+                  link: { href: "/branches", label: t("pageHelp.generalOverhead.step4Link") },
+                },
+              ]}
+            />
+          </>
+        }
+        main={
+          <Card
+            title={t("generalOverhead.listTitle")}
+            headerActions={
+              <Tooltip content={t("generalOverhead.addExpense")} delayMs={200}>
+                <Button
+                  type="button"
+                  variant="primary"
+                  className={TABLE_TOOLBAR_ICON_BTN}
+                  onClick={openCreate}
+                  aria-label={t("generalOverhead.addExpense")}
+                >
+                  <ToolbarGlyphCoinExpense className="h-5 w-5" />
+                </Button>
+              </Tooltip>
+            }
+          >
+        {!poolsQ.isPending && !poolsQ.isError ? (
+          <div className="mb-4 md:mb-5">
+            <p className="mb-2 text-xs text-zinc-500 md:hidden">{t("generalOverhead.storyRailHint")}</p>
+            <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-1 pb-2 [-webkit-overflow-scrolling:touch] md:mx-0 md:grid md:grid-cols-3 md:gap-3 md:overflow-visible md:pb-0 md:snap-none">
+              <div className="w-full max-md:w-[min(82vw,16.5rem)] max-md:shrink-0 max-md:snap-start rounded-2xl border border-zinc-200/90 bg-gradient-to-br from-violet-50/70 to-white p-4 shadow-sm ring-1 ring-violet-100/40">
+                <p className="text-[0.65rem] font-bold uppercase tracking-wide text-violet-900/80">
+                  {t("generalOverhead.storyStatTotal")}
+                </p>
+                <p className="mt-1.5 text-2xl font-bold tabular-nums tracking-tight text-zinc-950">
+                  {poolStats.total}
+                </p>
+              </div>
+              <div className="w-full max-md:w-[min(82vw,16.5rem)] max-md:shrink-0 max-md:snap-start rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/80 to-white p-4 shadow-sm ring-1 ring-emerald-100/50">
+                <p className="text-[0.65rem] font-bold uppercase tracking-wide text-emerald-900/85">
+                  {t("generalOverhead.storyStatOpen")}
+                </p>
+                <p className="mt-1.5 text-2xl font-bold tabular-nums tracking-tight text-zinc-950">
+                  {poolStats.open}
+                </p>
+              </div>
+              <div className="w-full max-md:w-[min(82vw,16.5rem)] max-md:shrink-0 max-md:snap-start rounded-2xl border border-zinc-200/90 bg-gradient-to-br from-zinc-50 to-white p-4 shadow-sm">
+                <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-600">
+                  {t("generalOverhead.storyStatAllocated")}
+                </p>
+                <p className="mt-1.5 text-2xl font-bold tabular-nums tracking-tight text-zinc-950">
+                  {poolStats.allocated}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : null}
         <div className="mb-4 w-full max-w-xs">
           <Select
             name="gohStatusFilter"
@@ -850,7 +918,9 @@ export function GeneralOverheadScreen() {
             </Table>
           </div>
         )}
-      </Card>
+          </Card>
+        }
+      />
 
       <Modal
         open={createOpen}
@@ -956,7 +1026,7 @@ export function GeneralOverheadScreen() {
                 </span>
               </p>
               <p className="mb-2 text-xs text-zinc-500">{t("generalOverhead.quickPicksHint")}</p>
-              <div className="flex flex-wrap gap-1.5 sm:gap-2">
+              <div className="-mx-1 flex snap-x snap-mandatory flex-nowrap gap-2 overflow-x-auto overscroll-x-contain px-1 pb-2 [-webkit-overflow-scrolling:touch] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:pb-0 sm:snap-none sm:gap-2">
                 {QUICK_PICKS.map((p) => (
                   <button
                     key={`${p.main}-${p.category}`}
@@ -966,7 +1036,7 @@ export function GeneralOverheadScreen() {
                       setCCat(p.category);
                     }}
                     className={cn(
-                      "touch-manipulation rounded-lg border px-2.5 py-1.5 text-left text-xs font-medium transition sm:text-sm",
+                      "touch-manipulation shrink-0 snap-start rounded-lg border px-2.5 py-1.5 text-left text-xs font-medium transition sm:snap-none sm:text-sm",
                       cMain === p.main && cCat === p.category
                         ? "border-violet-500 bg-violet-50 text-violet-950"
                         : "border-zinc-200 bg-zinc-50/80 text-zinc-800 hover:border-zinc-300"
@@ -1320,6 +1390,6 @@ export function GeneralOverheadScreen() {
           </div>
         ) : null}
       </Modal>
-    </div>
+    </>
   );
 }

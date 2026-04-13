@@ -20,6 +20,7 @@ import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
+import { OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
 import { Modal } from "@/shared/ui/Modal";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import type { AdvanceListItem } from "@/types/advance";
@@ -510,7 +511,7 @@ export function AppGlobalSearch() {
 
       {open ? (
         <div
-          className="fixed inset-0 z-[200] flex items-stretch justify-center bg-zinc-900/50 p-2 pt-[max(0.5rem,env(safe-area-inset-top,0px))] pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:items-start sm:p-3 sm:pt-16 sm:pb-3"
+          className={`fixed inset-0 ${OVERLAY_Z_TW.globalSearch} flex items-stretch justify-center bg-zinc-900/50 p-2 pt-[max(0.5rem,env(safe-area-inset-top,0px))] pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:items-start sm:p-3 sm:pt-16 sm:pb-3`}
           role="presentation"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) {

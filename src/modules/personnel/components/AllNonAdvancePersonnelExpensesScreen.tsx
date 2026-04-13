@@ -17,8 +17,15 @@ import {
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { personnelKeys } from "@/modules/personnel/hooks/usePersonnelQueries";
 import { Card } from "@/shared/components/Card";
-import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileFilters";
+import { FilterFunnelIcon } from "@/shared/components/FilterFunnelIcon";
+import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
+import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
+import { RightDrawer } from "@/shared/components/RightDrawer";
+import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
+import { TableToolbarMoreMenu } from "@/shared/components/TableToolbarMoreMenu";
 import { Button } from "@/shared/ui/Button";
+import { Tooltip } from "@/shared/ui/Tooltip";
+import { ToolbarGlyphPackage, ToolbarGlyphRefresh } from "@/shared/ui/ToolbarGlyph";
 import { Select } from "@/shared/ui/Select";
 import {
   Table,
@@ -32,6 +39,7 @@ import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -43,6 +51,7 @@ import {
 
 export function AllNonAdvancePersonnelExpensesScreen() {
   const { t, locale } = useI18n();
+  const router = useRouter();
   const { user } = useAuth();
   const personnelPortal = isPersonnelPortalRole(user?.role);
   const { data: branches = [] } = useBranchesList();
@@ -50,6 +59,7 @@ export function AllNonAdvancePersonnelExpensesScreen() {
   const [expenseSort, setExpenseSort] = useState<NonAdvanceExpenseSort>(
     DEFAULT_NON_ADVANCE_EXPENSE_SORT
   );
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const q = useQuery({
     queryKey: personnelKeys.nonAdvanceAttributedExpenses(expenseSort),
@@ -81,77 +91,125 @@ export function AllNonAdvancePersonnelExpensesScreen() {
 
   const filtersActive = branchValue.trim() !== "";
 
-  const secondaryBtn =
-    "inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-base font-medium text-zinc-900 transition-colors hover:bg-zinc-50 active:bg-zinc-100 sm:w-auto";
+  const nonAdvanceToolbarMoreItems = useMemo(
+    () => [
+      {
+        id: "personnel",
+        label: t("personnel.heading"),
+        onSelect: () => router.push("/personnel"),
+      },
+    ],
+    [t, router]
+  );
+
+  const iconLinkBase =
+    "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50/90 text-zinc-700 shadow-sm transition hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70";
 
   if (personnelPortal) {
     return (
-      <div className="mx-auto flex w-full app-page-max flex-col gap-4 p-4 pb-8">
-        <h1 className="text-xl font-semibold text-zinc-900">
-          {t("personnel.nonAdvanceExpensesTitle")}
-        </h1>
-        <p className="text-sm text-zinc-600">{t("personnel.nonAdvanceExpensesPortalDenied")}</p>
-        <Link href="/personnel/costs?tab=advances" className={cn(secondaryBtn, "w-fit text-center")}>
-          {t("nav.personnelCosts")}
-        </Link>
-      </div>
+      <PageScreenScaffold
+        className="w-full p-4 pb-8"
+        intro={
+          <>
+            <h1 className="text-xl font-semibold text-zinc-900">
+              {t("personnel.nonAdvanceExpensesTitle")}
+            </h1>
+            <p className="text-sm text-zinc-600">{t("personnel.nonAdvanceExpensesPortalDenied")}</p>
+          </>
+        }
+        main={
+          <Tooltip content={t("nav.personnelCosts")} delayMs={200}>
+            <Link
+              href="/personnel/costs?tab=advances"
+              className={iconLinkBase}
+              aria-label={t("nav.personnelCosts")}
+            >
+              <ToolbarGlyphPackage className="h-5 w-5" />
+            </Link>
+          </Tooltip>
+        }
+      />
     );
   }
 
   return (
-    <div className="mx-auto flex w-full app-page-max flex-col gap-4 p-4 pb-8">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
-            {t("personnel.nonAdvanceExpensesTitle")}
-          </h1>
-          <p className="mt-1 text-sm text-zinc-500">{t("personnel.nonAdvanceExpensesDesc")}</p>
-        </div>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
-          <Button
-            type="button"
-            variant="secondary"
-            className="w-full sm:w-auto"
-            onClick={() => void q.refetch()}
-            disabled={q.isFetching}
-          >
-            {t("common.retry")}
-          </Button>
-          <Link href="/personnel" className={cn(secondaryBtn, "shrink-0 text-center")}>
-            {t("personnel.heading")}
-          </Link>
-        </div>
-      </div>
-
-      <CollapsibleMobileFilters
-        title={t("personnel.allAdvancesFilters")}
-        toggleAriaLabel={t("common.filters")}
-        active={filtersActive}
-        expandLabel={t("common.filtersShow")}
-        collapseLabel={t("common.filtersHide")}
-      >
-        <div className="grid gap-4 sm:max-w-md">
-          <Select
-            name="nonAdvanceBranch"
-            label={t("personnel.fieldBranch")}
-            value={branchValue}
-            onChange={(e) => setBranchValue(e.target.value)}
-            onBlur={() => {}}
-            options={branchOptions}
+    <PageScreenScaffold
+      className="w-full p-4 pb-8"
+      intro={
+        <>
+          <div>
+            <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
+              {t("personnel.nonAdvanceExpensesTitle")}
+            </h1>
+            <p className="mt-1 text-sm text-zinc-500">{t("personnel.nonAdvanceExpensesDesc")}</p>
+          </div>
+          <PageWhenToUseGuide
+            guideTab="personnel"
+            className="mt-1"
+            title={t("common.pageWhenToUseTitle")}
+            description={t("pageHelp.allNonAdvance.intro")}
+            listVariant="ordered"
+            items={[
+              { text: t("pageHelp.allNonAdvance.step1") },
+              {
+                text: t("pageHelp.allNonAdvance.step2"),
+                link: { href: "/personnel", label: t("pageHelp.allNonAdvance.step2Link") },
+              },
+            ]}
           />
-        </div>
-      </CollapsibleMobileFilters>
+        </>
+      }
+      main={
+        <>
+          {q.isError ? (
+            <Card className="border-red-200 bg-red-50/80 p-4 text-sm text-red-900">
+              {toErrorMessage(q.error)}
+            </Card>
+          ) : null}
 
-      {q.isError ? (
-        <Card className="border-red-200 bg-red-50/80 p-4 text-sm text-red-900">
-          {toErrorMessage(q.error)}
-        </Card>
-      ) : null}
-
-      <div>
-        <h2 className="mb-2 text-sm font-semibold text-zinc-800">
-          {t("personnel.nonAdvanceExpensesTableTitle")}
-        </h2>
+          <Card
+            title={t("personnel.nonAdvanceExpensesTableTitle")}
+            headerActions={
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <Tooltip content={t("personnel.allAdvancesFilters")} delayMs={200}>
+                  <button
+                    type="button"
+                    className={cn(
+                      "relative flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50/90 text-zinc-700 shadow-sm transition hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70",
+                      filtersActive && "border-violet-300 bg-violet-50/90 text-violet-900"
+                    )}
+                    aria-label={t("common.filters")}
+                    aria-expanded={filtersOpen}
+                    onClick={() => setFiltersOpen(true)}
+                  >
+                    <FilterFunnelIcon className="h-5 w-5" />
+                    {filtersActive ? (
+                      <span
+                        className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-violet-500 ring-2 ring-white"
+                        aria-hidden
+                      />
+                    ) : null}
+                  </button>
+                </Tooltip>
+                <TableToolbarMoreMenu
+                  menuId="non-advance-expenses-toolbar-more"
+                  items={nonAdvanceToolbarMoreItems}
+                />
+                <Tooltip content={t("common.retry")} delayMs={200}>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    className={TABLE_TOOLBAR_ICON_BTN}
+                    disabled={q.isFetching}
+                    onClick={() => void q.refetch()}
+                    aria-label={t("common.retry")}
+                  >
+                    <ToolbarGlyphRefresh className="h-5 w-5" />
+                  </Button>
+                </Tooltip>
+              </div>
+            }
+          >
         <NonAdvanceExpenseSortBar
           className="mb-3"
           value={expenseSort}
@@ -263,7 +321,27 @@ export function AllNonAdvancePersonnelExpensesScreen() {
             <p className="mt-2 text-xs text-zinc-500">{t("personnel.nonAdvanceExpensesFootnote")}</p>
           </>
         )}
-      </div>
-    </div>
+          </Card>
+
+          <RightDrawer
+            open={filtersOpen}
+            onClose={() => setFiltersOpen(false)}
+            title={t("personnel.allAdvancesFilters")}
+            closeLabel={t("common.close")}
+          >
+            <div className="space-y-4">
+              <Select
+                name="nonAdvanceBranch"
+                label={t("personnel.fieldBranch")}
+                value={branchValue}
+                onChange={(e) => setBranchValue(e.target.value)}
+                onBlur={() => {}}
+                options={branchOptions}
+              />
+            </div>
+          </RightDrawer>
+        </>
+      }
+    />
   );
 }

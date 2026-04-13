@@ -7,9 +7,15 @@ import {
   useProductCategories,
   useUpdateProductCategory,
 } from "@/modules/products/hooks/useProductQueries";
-import { cn } from "@/lib/cn";
 import { useI18n } from "@/i18n/context";
 import { Card } from "@/shared/components/Card";
+import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
+import {
+  TABLE_TOOLBAR_ICON_BTN,
+  TABLE_TOOLBAR_ICON_LINK,
+  TableToolbarRow,
+} from "@/shared/components/TableToolbar";
+import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
@@ -17,6 +23,7 @@ import { detailOpenIconButtonClass, PencilIcon, PlusIcon } from "@/shared/ui/Eye
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Tooltip } from "@/shared/ui/Tooltip";
+import { ToolbarGlyphArrowLeft, ToolbarGlyphPackage } from "@/shared/ui/ToolbarGlyph";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -121,42 +128,89 @@ export function ProductCategoriesScreen() {
   };
 
   return (
-    <div className="mx-auto w-full app-page-max p-4 pb-6 sm:pb-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
-            {t("products.categoriesPage.title")}
-          </h1>
-          <p className="text-sm text-zinc-500">{t("products.categoriesPage.subtitle")}</p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-          <Link
-            href="/products"
-            className={cn(
-              "inline-flex min-h-11 touch-manipulation items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-900 shadow-sm shadow-zinc-900/5 transition hover:bg-zinc-50 hover:shadow-md sm:min-h-9"
-            )}
-          >
-            {t("products.categoriesPage.backToProducts")}
-          </Link>
-          <Button type="button" className="min-h-11 sm:min-h-9" onClick={openAddRoot}>
-            {t("products.categoriesPage.addRoot")}
-          </Button>
-        </div>
-      </div>
-
-      {isError ? (
-        <p className="mt-4 text-sm text-red-600">{toErrorMessage(error)}</p>
-      ) : isPending ? (
-        <p className="mt-4 text-sm text-zinc-500">{t("common.loading")}</p>
-      ) : tree.length === 0 ? (
-        <Card className="mt-4" title={t("products.categoriesPage.title")}>
-          <p className="text-sm text-zinc-600">{t("products.categoriesPage.empty")}</p>
-          <Button type="button" className="mt-4 min-h-11 sm:min-h-9" onClick={openAddRoot}>
-            {t("products.categoriesPage.addRoot")}
-          </Button>
-        </Card>
-      ) : (
-        <ul className="mt-4 flex flex-col gap-3">
+    <>
+      <PageScreenScaffold
+        className="w-full p-4 pb-6 sm:pb-4"
+        intro={
+          <>
+            <div>
+              <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
+                {t("products.categoriesPage.title")}
+              </h1>
+              <p className="text-sm text-zinc-500">{t("products.categoriesPage.subtitle")}</p>
+            </div>
+            <PageWhenToUseGuide
+              guideTab="products"
+              className="mt-1"
+              title={t("common.pageWhenToUseTitle")}
+              description={t("pageHelp.productCategories.intro")}
+              listVariant="ordered"
+              items={[
+                { text: t("pageHelp.productCategories.step1") },
+                { text: t("pageHelp.productCategories.step2") },
+                {
+                  text: t("pageHelp.productCategories.step3"),
+                  link: { href: "/products", label: t("pageHelp.productCategories.step3Link") },
+                },
+              ]}
+            />
+          </>
+        }
+        main={
+          <>
+            {isError ? (
+              <p className="text-sm text-red-600">{toErrorMessage(error)}</p>
+            ) : isPending ? (
+              <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+            ) : tree.length === 0 ? (
+              <Card title={t("products.categoriesPage.title")}>
+                <TableToolbarRow className="mb-4">
+                  <Tooltip content={t("products.categoriesPage.backToProducts")} delayMs={200}>
+                    <Link
+                      href="/products"
+                      className={TABLE_TOOLBAR_ICON_LINK}
+                      aria-label={t("products.categoriesPage.backToProducts")}
+                    >
+                      <ToolbarGlyphArrowLeft className="h-5 w-5" />
+                    </Link>
+                  </Tooltip>
+                  <Tooltip content={t("products.categoriesPage.addRoot")} delayMs={200}>
+                    <Button
+                      type="button"
+                      className={TABLE_TOOLBAR_ICON_BTN}
+                      onClick={openAddRoot}
+                      aria-label={t("products.categoriesPage.addRoot")}
+                    >
+                      <ToolbarGlyphPackage className="h-5 w-5" />
+                    </Button>
+                  </Tooltip>
+                </TableToolbarRow>
+                <p className="text-sm text-zinc-600">{t("products.categoriesPage.empty")}</p>
+              </Card>
+            ) : (
+              <>
+                <TableToolbarRow className="mb-4">
+                  <Tooltip content={t("products.categoriesPage.backToProducts")} delayMs={200}>
+                    <Link
+                      href="/products"
+                      className={TABLE_TOOLBAR_ICON_LINK}
+                      aria-label={t("products.categoriesPage.backToProducts")}
+                    >
+                      <ToolbarGlyphArrowLeft className="h-5 w-5" />
+                    </Link>
+                  </Tooltip>
+                  <Tooltip content={t("products.categoriesPage.addRoot")} delayMs={200}>
+                    <Button
+                      type="button"
+                      className={TABLE_TOOLBAR_ICON_BTN}
+                      onClick={openAddRoot}
+                      aria-label={t("products.categoriesPage.addRoot")}
+                    >
+                      <ToolbarGlyphPackage className="h-5 w-5" />
+                    </Button>
+                  </Tooltip>
+                </TableToolbarRow>
+              <ul className="flex flex-col gap-3">
           {tree.map((root) => (
             <li key={root.id}>
               <Card className="overflow-hidden p-0 shadow-sm shadow-zinc-900/5 ring-1 ring-zinc-200/80">
@@ -272,7 +326,11 @@ export function ProductCategoriesScreen() {
             </li>
           ))}
         </ul>
-      )}
+              </>
+            )}
+          </>
+        }
+      />
 
       <Modal
         open={addOpen}
@@ -347,6 +405,6 @@ export function ProductCategoriesScreen() {
           </div>
         </div>
       </Modal>
-    </div>
+    </>
   );
 }

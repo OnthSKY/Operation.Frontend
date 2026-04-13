@@ -99,21 +99,31 @@ function isAuthRefreshEligible(path: string): boolean {
   return true;
 }
 
+let refreshInFlight: Promise<boolean> | null = null;
+
 async function trySessionRefresh(): Promise<boolean> {
-  try {
-    const r = await apiFetch("/auth/refresh", { method: "POST" });
-    const t = await r.text();
-    if (!r.ok) return false;
-    const p = t ? (JSON.parse(t) as unknown) : null;
-    return (
-      typeof p === "object" &&
-      p !== null &&
-      "success" in p &&
-      (p as { success: boolean }).success === true
-    );
-  } catch {
-    return false;
-  }
+  if (refreshInFlight) return refreshInFlight;
+
+  refreshInFlight = (async () => {
+    try {
+      const r = await apiFetch("/auth/refresh", { method: "POST" });
+      const t = await r.text();
+      if (!r.ok) return false;
+      const p = t ? (JSON.parse(t) as unknown) : null;
+      return (
+        typeof p === "object" &&
+        p !== null &&
+        "success" in p &&
+        (p as { success: boolean }).success === true
+      );
+    } catch {
+      return false;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+
+  return refreshInFlight;
 }
 
 let unauthorizedRecoveryStarted = false;

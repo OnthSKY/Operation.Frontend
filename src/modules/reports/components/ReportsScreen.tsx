@@ -31,6 +31,8 @@ import {
 } from "@/modules/warehouse/lib/warehouse-scope-filters";
 import { useWarehousesList } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileFilters";
+import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
+import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
@@ -292,17 +294,40 @@ export function ReportsScreen() {
     finExpenseSource !== "";
 
   return (
-    <div className="mx-auto flex w-full min-w-0 app-page-max flex-col gap-4 pb-6 pt-2 sm:gap-6 sm:pt-4 sm:pb-8 md:pt-0">
-      <div>
-        <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
-          {t("reports.title")}
-        </h1>
-        <p className="mt-0.5 break-words text-xs leading-relaxed text-zinc-500 sm:text-sm">
-          {t("reports.subtitle")}
-        </p>
-      </div>
+    <>
+      <PageScreenScaffold
+        className="w-full min-w-0 app-page-max pb-6 pt-2 sm:pb-8 sm:pt-4 md:pt-0"
+        intro={
+          <>
+            <div>
+              <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
+                {t("reports.title")}
+              </h1>
+              <p className="mt-0.5 break-words text-xs leading-relaxed text-zinc-500 sm:text-sm">
+                {t("reports.subtitle")}
+              </p>
+            </div>
 
-      <ReportsPatronHubGuide />
+            <PageWhenToUseGuide
+              guideTab="reports"
+              className="mt-1"
+              title={t("common.pageWhenToUseTitle")}
+              description={t("pageHelp.reportsHub.intro")}
+              listVariant="ordered"
+              items={[
+                { text: t("pageHelp.reportsHub.step1") },
+                { text: t("pageHelp.reportsHub.step2") },
+                {
+                  text: t("pageHelp.reportsHub.step3"),
+                  link: { href: "/branches", label: t("pageHelp.reportsHub.step3Link") },
+                },
+              ]}
+            />
+          </>
+        }
+        main={
+          <>
+            <ReportsPatronHubGuide />
 
       <div
         className="grid grid-cols-3 gap-1 rounded-xl bg-zinc-100/80 p-1"
@@ -804,6 +829,9 @@ export function ReportsScreen() {
           </div>
         ) : null}
       </section>
-    </div>
+          </>
+        }
+      />
+    </>
   );
 }

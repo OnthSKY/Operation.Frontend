@@ -16,6 +16,7 @@ import {
   useUpsertBranchPosSettlementProfile,
 } from "@/modules/reports/hooks/useReportsQueries";
 import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileFilters";
+import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
@@ -244,6 +245,21 @@ export function PatronFlowReportScreen() {
     <ReportTablesPageShell
       title={t("reports.tablesPagePatronFlowTitle")}
       subtitle={t("reports.tablesPagePatronFlowSubtitle")}
+      pageGuide={
+        <PageWhenToUseGuide
+          guideTab="reports"
+          title={t("common.pageWhenToUseTitle")}
+          description={t("pageHelp.reportsPatronFlow.intro")}
+          listVariant="ordered"
+          items={[
+            { text: t("pageHelp.reportsPatronFlow.step1") },
+            {
+              text: t("pageHelp.reportsPatronFlow.step2"),
+              link: { href: "/branches", label: t("pageHelp.reportsPatronFlow.step2Link") },
+            },
+          ]}
+        />
+      }
     >
       <CollapsibleMobileFilters
         title={t("reports.filtersSectionTitle")}

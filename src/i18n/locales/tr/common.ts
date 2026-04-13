@@ -39,6 +39,19 @@ export const common = {
   networkError: "Sunucuya bağlanılamadı. Bağlantınızı kontrol edip tekrar deneyin.",
   apiMalformed: "Sunucu yanıtı beklenen formatta değil. Sayfayı yenileyip tekrar deneyin.",
   footerCredit: "SKY · {{year}} · Powered by Operations",
-  /** `PageWhenToUseGuide` varsayılan başlığı; sayfada özel başlık yoksa kullanın */
-  pageWhenToUseTitle: "Bu ekranı ne zaman kullanmalıyım?",
+  /** `PageWhenToUseGuide` varsayılan başlığı */
+  pageWhenToUseTitle: "Bu sayfada ne yapabilirim?",
+  openInGuide: "«Nasıl kullanırım» kılavuzunda bu bölümü aç →",
+  pageHelpHintLabel: "Bu sayfada ne yapabilirim? — Kısa yardım",
+  pageSectionIntro: "Giriş",
+  pageSectionSummary: "Özet",
+  pageSectionMain: "Kayıtlar",
+  pageIntroSummaryToggle: "Giriş ve özet",
+  pageIntroSummaryExpand: "Göster",
+  pageIntroSummaryCollapse: "Gizle",
+  toolbarMoreActions: "Diğer işlemler",
+  modalConfirmOutsideCloseTitle: "Pencereyi kapatmak istiyor musunuz?",
+  modalConfirmOutsideCloseMessage:
+    "Diyalogun dışına tıkladınız. Yine de kapatılsın mı? Kaydedilmemiş bilgiler kaybolabilir.",
+  modalBackdropCloseStay: "Diyalogda kal",
 } as const;

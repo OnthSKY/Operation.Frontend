@@ -69,7 +69,9 @@ export const products = {
   badgeVariant: "Variant",
   detailParentLine: "Main product",
   detailGroupNote:
-    "Stock is kept on variants; figures here are the sum of all variants under this group.",
+    "Movements are recorded per variant; warehouse quantities below match the Products list (this row plus all variants).",
+  detailOwnQtyLabel: "Main product only (all warehouses)",
+  detailGroupTotalLabel: "Group total (main + variants, all warehouses)",
   addModalTitle: "New product",
   addModalHint:
     "Products are global; stock builds from IN/OUT on the Warehouse page. Use a main row as a group and add variants for flavors/types.",

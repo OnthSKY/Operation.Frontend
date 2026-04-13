@@ -1,9 +1,10 @@
+import { OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
+
 /**
  * Single place to tune dialog / modal visuals (backdrop, panel, typography).
  */
 export const dialogTheme = {
-  backdrop:
-    "fixed inset-0 z-[110] flex items-end justify-center bg-black/40 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pl-[max(0.5rem,env(safe-area-inset-left,0px))] pr-[max(0.5rem,env(safe-area-inset-right,0px))] pt-[max(0.5rem,env(safe-area-inset-top,0px))] sm:items-center sm:p-4 sm:pb-4 lg:p-6 lg:pb-6 xl:p-8 xl:pb-8",
+  backdrop: `fixed inset-0 ${OVERLAY_Z_TW.modal} flex items-end justify-center bg-black/40 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pl-[max(0.5rem,env(safe-area-inset-left,0px))] pr-[max(0.5rem,env(safe-area-inset-right,0px))] pt-[max(0.5rem,env(safe-area-inset-top,0px))] sm:items-center sm:p-4 sm:pb-4 lg:p-6 lg:pb-6 xl:p-8 xl:pb-8`,
   panel:
     "max-h-[min(92dvh,calc(100svh-max(env(safe-area-inset-top),0.5rem)-max(env(safe-area-inset-bottom),0.5rem)-1rem))] w-full max-w-[min(28rem,calc(100vw-1rem))] overflow-y-auto overscroll-contain rounded-xl border border-zinc-200 bg-white p-4 shadow-lg sm:max-w-md sm:p-6 md:max-w-lg lg:max-w-3xl xl:max-w-5xl 2xl:max-w-6xl xl:p-8",
   /** OTP / küçük formlar: tüm kırılımlarda dar, mobil alt hizaya uyumlu. */

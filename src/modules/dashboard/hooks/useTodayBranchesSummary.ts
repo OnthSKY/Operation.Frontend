@@ -4,7 +4,8 @@ import {
   branchKeys,
   useBranchesList,
 } from "@/modules/branch/hooks/useBranchQueries";
-import { fetchDailySummariesForDate } from "@/modules/dashboard/api/daily-summary-api";
+import { fetchDashboardDailySummaries } from "@/modules/dashboard/api/daily-summary-api";
+import type { DashboardBulkCashParams } from "@/modules/dashboard/types/dashboard-cash-filter";
 import {
   dashboardOverviewKeys,
   dashboardSummaryKeys,
@@ -38,9 +39,20 @@ export type SummaryAggregateState =
       branchTodayRows: BranchTodayRow[];
     };
 
-export function useTodayBranchesSummary(asOfDate: string) {
+export function useTodayBranchesSummary(params: DashboardBulkCashParams) {
   const qc = useQueryClient();
-  const dateKey = String(asOfDate ?? "").trim().slice(0, 10) || localIsoDate();
+  const stableParams: DashboardBulkCashParams =
+    params.kind === "all_data"
+      ? { kind: "all_data" }
+      : params.kind === "day"
+        ? { kind: "day", date: String(params.date ?? "").trim().slice(0, 10) || localIsoDate() }
+        : params.kind === "season_single"
+          ? { kind: "season_single", seasonYear: params.seasonYear }
+          : {
+              kind: "season_range",
+              fromYear: params.fromYear,
+              toYear: params.toYear,
+            };
   const {
     data: branches = [],
     isPending: branchesPending,
@@ -49,15 +61,21 @@ export function useTodayBranchesSummary(asOfDate: string) {
   } = useBranchesList();
 
   const bulkEnabled =
-    !branchesPending && !branchesError && branches.length > 0;
+    !branchesPending &&
+    !branchesError &&
+    branches.length > 0 &&
+    stableParams.kind !== "all_data";
 
   const bulkQuery = useQuery({
-    queryKey: dashboardSummaryKeys.bulk(dateKey),
-    queryFn: () => fetchDailySummariesForDate(dateKey),
+    queryKey: dashboardSummaryKeys.bulk(stableParams),
+    queryFn: () => fetchDashboardDailySummaries(stableParams),
     enabled: bulkEnabled,
   });
 
   const state = useMemo((): SummaryAggregateState => {
+    if (stableParams.kind === "all_data") {
+      return { kind: "empty" };
+    }
     if (branchesPending) return { kind: "loading" };
     if (branchesError) return { kind: "error", message: branchesErr };
     if (branches.length === 0) return { kind: "empty" };
@@ -153,7 +171,7 @@ export function useTodayBranchesSummary(asOfDate: string) {
     bulkQuery.isPending,
     bulkQuery.isError,
     bulkQuery.error,
-    dateKey,
+    stableParams,
   ]);
 
   const refetch = useCallback(() => {

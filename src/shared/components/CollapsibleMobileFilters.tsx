@@ -1,27 +1,11 @@
 "use client";
 
 import { cn } from "@/lib/cn";
+import { FilterFunnelIcon } from "@/shared/components/FilterFunnelIcon";
 import { useMediaMinWidth } from "@/shared/lib/use-media-min-width";
 import { useEffect, useState } from "react";
 
 const SM_PX = 640;
-
-function FilterFunnelIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
-    </svg>
-  );
-}
 
 type Props = {
   /** Masaüstünde gösterilen başlık */

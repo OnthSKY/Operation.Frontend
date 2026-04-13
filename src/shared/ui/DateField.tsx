@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/cn";
+import { OVERLAY_Z_INDEX, OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
 import { useI18n } from "@/i18n/context";
 import { format } from "date-fns";
 import { enUS as dfEn, tr as dfTr } from "date-fns/locale";
@@ -9,6 +10,7 @@ import {
   useCallback,
   useEffect,
   useId,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -195,7 +197,7 @@ const dayPickerClassNames = {
   months: "rdp-months flex w-full min-w-0 max-w-full flex-col gap-2",
   month: "rdp-month min-w-0 space-y-1 sm:space-y-2",
   month_caption:
-    "rdp-month_caption relative flex min-h-[3.25rem] w-full flex-wrap items-center justify-center gap-2 px-1 py-2 sm:min-h-11 sm:px-2",
+    "rdp-month_caption relative flex !h-auto min-h-11 w-full min-w-0 flex-col flex-wrap items-stretch justify-center gap-2 px-1 py-2 sm:min-h-11 sm:flex-row sm:items-center sm:px-2",
   caption_label:
     "rdp-caption_label max-w-[min(100%,11rem)] truncate text-center text-xs font-semibold capitalize text-zinc-900 sm:max-w-none sm:text-sm",
   dropdowns:
@@ -286,15 +288,12 @@ function DatePickerMonthCaption(props: MonthCaptionProps) {
 
   return (
     <div
-      className={cn(
-        "mb-1 flex w-full min-w-0 flex-wrap items-center justify-center gap-2 px-0.5",
-        className
-      )}
+      className={cn("mb-1 w-full min-w-0 px-0.5", className)}
       style={style}
       {...divProps}
     >
-      <div className="flex w-full min-w-0 flex-wrap items-stretch justify-center gap-2 sm:gap-2">
-        <div className="min-w-0 flex-[2] basis-[min(100%,12rem)]">
+      <div className="flex w-full min-w-0 flex-col items-stretch justify-center gap-2 min-[360px]:flex-row min-[360px]:flex-wrap sm:gap-2">
+        <div className="min-w-0 w-full flex-[2] basis-0 min-[360px]:min-w-[min(100%,9rem)] min-[360px]:basis-[min(100%,12rem)]">
           <Select
             name={`${captionId}-mo-${displayIndex}`}
             options={monthOptions}
@@ -310,7 +309,7 @@ function DatePickerMonthCaption(props: MonthCaptionProps) {
             className="min-h-11 sm:min-h-10 sm:[&_input]:text-sm"
           />
         </div>
-        <div className="min-w-0 flex-1 basis-[6.5rem]">
+        <div className="min-w-0 w-full flex-1 basis-auto min-[360px]:basis-[6.5rem]">
           <Select
             name={`${captionId}-yr-${displayIndex}`}
             options={yearOptions}
@@ -564,8 +563,9 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
     }, [open]);
 
     const [popoverStyle, setPopoverStyle] = useState<CSSProperties>({});
+    const [sheetMode, setSheetMode] = useState(false);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
       if (!open || !mounted) return;
       const calH = mode === "datetime-local" ? 520 : 480;
       const place = () => {
@@ -573,28 +573,56 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
         if (!r) return;
         const vw = window.innerWidth;
         const vh = window.innerHeight;
-        if (vw < 640) {
+        const pad = 8;
+        const below = vh - r.bottom - pad;
+        const above = r.top - pad;
+        const narrowViewport = vw < 640;
+        const crampedY = below < calH && above < calH;
+        const useSheet = narrowViewport || crampedY;
+        setSheetMode(useSheet);
+
+        if (useSheet) {
           setPopoverStyle({
             position: "fixed",
             left: 0,
             right: 0,
             bottom: 0,
-            zIndex: 200,
-            maxHeight: `min(${calH}px, 88dvh)`,
+            zIndex: OVERLAY_Z_INDEX.dateFieldPopover,
+            maxHeight: `min(${calH}px, 92dvh)`,
+            width: "100%",
+            maxWidth: "100vw",
+            top: "auto",
           });
           return;
         }
+
+        const minPopoverW = 280;
+        const maxPopoverW = Math.min(560, vw - 2 * pad);
+        let w = Math.max(r.width, minPopoverW);
+        w = Math.min(w, maxPopoverW);
+
+        let left = r.left + r.width / 2 - w / 2;
+        left = Math.min(Math.max(pad, left), vw - w - pad);
+
         let top = r.bottom + 6;
-        if (top + calH > vh - 8) top = Math.max(8, r.top - calH - 6);
-        let left = r.left;
-        const w = 340;
-        if (left + w > vw - 8) left = Math.max(8, vw - w - 8);
+        if (top + calH > vh - pad) {
+          top = r.top - calH - 6;
+        }
+        if (top < pad) {
+          top = pad;
+        }
+        if (top + calH > vh - pad) {
+          top = Math.max(pad, vh - calH - pad);
+        }
+
         setPopoverStyle({
           position: "fixed",
           top,
           left,
           width: w,
-          zIndex: 200,
+          maxWidth: `calc(100vw - ${2 * pad}px)`,
+          maxHeight: `min(${calH}px, calc(100dvh - ${2 * pad}px))`,
+          zIndex: OVERLAY_Z_INDEX.dateFieldPopover,
         });
       };
       place();
@@ -621,21 +649,32 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
     const popover = open && mounted ? (
       <>
         <div
-          className="fixed inset-0 z-[199] bg-zinc-900/20 sm:hidden"
+          className={cn(
+            "fixed inset-0 bg-zinc-900/20",
+            OVERLAY_Z_TW.dateFieldBackdrop,
+            sheetMode ? "block" : "hidden"
+          )}
           aria-hidden
           onClick={() => setOpen(false)}
         />
         <div
           ref={popoverRef}
           className={cn(
-            "flex flex-col overflow-hidden border border-zinc-200 bg-white shadow-2xl shadow-zinc-900/15 sm:rounded-xl",
-            "max-sm:rounded-t-2xl max-sm:border-b-0"
+            "flex flex-col overflow-hidden border border-zinc-200 bg-white shadow-2xl shadow-zinc-900/15",
+            sheetMode
+              ? "rounded-t-2xl border-b-0 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
+              : "rounded-xl"
           )}
           style={popoverStyle}
           role="dialog"
           aria-label={dialogTitle}
         >
-          <div className="max-sm:border-b max-sm:border-zinc-100 max-sm:px-3 max-sm:py-2 sm:hidden">
+          <div
+            className={cn(
+              "border-b border-zinc-100 px-3 py-2",
+              sheetMode ? "block" : "hidden"
+            )}
+          >
             <p className="text-center text-xs font-semibold text-zinc-500">
               {dialogTitle}
             </p>
@@ -670,7 +709,7 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
               </span>
             </button>
           </div>
-          <div className="date-field-rdp min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-1.5 sm:p-3">
+          <div className="date-field-rdp min-w-0 flex-1 overflow-y-auto p-1.5 sm:p-3 [&_.rdp-months]:max-w-none">
             <DayPicker
               mode="single"
               required={false}

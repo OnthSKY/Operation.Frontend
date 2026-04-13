@@ -48,6 +48,9 @@ export type VehicleExpense = {
   linkedBranchTransactionId?: number | null;
   postedBranchId?: number | null;
   postedBranchName?: string | null;
+  postedExpensePaymentSource?: string | null;
+  postedRegisterCashAmount?: number | null;
+  postedRegisterCardAmount?: number | null;
   createdAt: string;
 };
 

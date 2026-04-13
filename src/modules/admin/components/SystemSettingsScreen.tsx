@@ -4,6 +4,8 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
 import { Card } from "@/shared/components/Card";
+import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
+import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -34,22 +36,36 @@ export function SystemSettingsScreen() {
   }
 
   return (
-    <div
+    <PageScreenScaffold
       className={cn(
-        "mx-auto flex w-full min-w-0 app-page-max flex-1 flex-col gap-5 sm:gap-6",
-        "max-md:pt-2 md:pt-0 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))]"
+        "w-full min-w-0 flex-1 max-md:pt-2 md:pt-0 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))]"
       )}
-    >
-      <div className="min-w-0">
-        <h1 className="break-words text-lg font-bold leading-snug tracking-tight text-zinc-900 sm:text-xl md:text-2xl">
-          {t("settings.title")}
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-600 sm:text-[0.9375rem]">
-          {t("settings.description")}
-        </p>
-      </div>
+      intro={
+        <>
+          <div className="min-w-0">
+            <h1 className="break-words text-lg font-bold leading-snug tracking-tight text-zinc-900 sm:text-xl md:text-2xl">
+              {t("settings.title")}
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-600 sm:text-[0.9375rem]">
+              {t("settings.description")}
+            </p>
+          </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+          <PageWhenToUseGuide
+            guideTab="admin"
+            className="mt-1"
+            title={t("common.pageWhenToUseTitle")}
+            description={t("pageHelp.settingsHome.intro")}
+            listVariant="ordered"
+            items={[
+              { text: t("pageHelp.settingsHome.step1") },
+              { text: t("pageHelp.settingsHome.step2") },
+            ]}
+          />
+        </>
+      }
+      main={
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
         <Link
           href="/admin/users"
           className="block min-h-[4.5rem] rounded-xl ring-1 ring-zinc-200/80 transition hover:bg-zinc-50 active:bg-zinc-100"
@@ -114,7 +130,8 @@ export function SystemSettingsScreen() {
             </span>
           </Card>
         </Link>
-      </div>
-    </div>
+        </div>
+      }
+    />
   );
 }

@@ -5,6 +5,7 @@ export const toast = {
   personnelMovedToBranch: "Personnel assigned to branch",
   personnelDeactivated: "Personnel deactivated",
   advanceCreated: "Advance recorded",
+  advanceDeleted: "Advance deleted",
   branchCreated: "Branch saved",
   branchUpdated: "Branch updated",
   branchTxCreated: "Register entry saved",
@@ -42,5 +43,6 @@ export const toast = {
   supplierUpdated: "Supplier updated",
   supplierDeleted: "Supplier removed",
   supplierInvoiceCreated: "Purchase invoice saved",
+  supplierInvoiceUpdated: "Invoice updated",
   supplierPaymentCreated: "Supplier payment recorded",
 } as const;

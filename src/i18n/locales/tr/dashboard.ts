@@ -1,9 +1,41 @@
 export const dashboard = {
   title: "Genel bakış",
-  subtitle: "Bugünün kasa özeti, personel ve operasyon göstergeleri",
+  subtitle: "Kasa günü, birikmiş net ve güncel envanter tek ekranda",
   storyFlowTitle: "Bugün akışı — nereye bakmalıyım?",
   storyFlowHint:
-    "Başlığın altındaki kasa gününü kontrol edin (varsayılan bugün). Özet ve Kasa sekmelerindeki rakamlar o güne ait şube kasasıdır. Çok şubede detayı Kasa sekmesindeki tabloda görün.",
+    "Özet veya Kasa sekmesinde üstteki filtre yalnızca şube kasası rakamlarını değiştirir: tek takvim günü, tek sezon yılı dönem toplamı veya birden fazla sezon yılının toplamı. Personel, depo, stok ve avans aynı değildir.",
+  scopeFilterBarTitle: "Şube kasası — nasıl toplansın",
+  scopeFilterBarHint:
+    "Tek gün: bir takvim tarihi. Tek sezon: şube bazında turizm dönemi toplamı. Birden fazla sezon: seçtiğiniz yılların bu toplamlarının özeti.",
+  cashFilterModeAria: "Kasa özeti toplama türü",
+  cashFilterModeDay: "Tek gün",
+  cashFilterModeSeasonSingle: "Tek sezon",
+  cashFilterModeSeasonRange: "Birden fazla sezon",
+  seasonYearPlaceholder: "— yıl —",
+  seasonYearFieldLabel: "Sezon yılı",
+  seasonYearFromFieldLabel: "Başlangıç sezon yılı",
+  seasonYearToFieldLabel: "Bitiş sezon yılı",
+  seasonSingleModeHint:
+    "Şube bazında: o sezon yılı turizm döneminin tamamı için gelir, kasadan gider ve net toplamı (tek günlük anlık değil).",
+  seasonRangeModeHint:
+    "Şube bazında: aralıktaki her sezon yılı kendi turizm döneminde toplanır; o şubede tanımlı olmayan yıllar toplama dahil edilmez.",
+  registerDateShortHint:
+    "Belirli bir güne veya bugüne geçmek için.",
+  scopeSectionRegisterDayTitle: "Seçilen kasa günü",
+  scopeSectionRegisterDayHint:
+    "Tek bir takvim günü, tüm şubelerin kasası birlikte: tahsilat eksi kasadan ödenen gider.",
+  scopeRegisterDayBreakdownTitle: "Aynı günün detayı",
+  scopeRegisterDayBreakdownHint:
+    "Net kasa, brüt tahsilat ve kasaya dahil şube sayısı — hepsi yukarıdaki tarihle aynı.",
+  scopeSectionCumulativeTitle: "Birikmiş net ve güncel kayıtlar",
+  scopeSectionCumulativeHint:
+    "Bu bölümdeki rakamlar yukarıdaki tarih seçiminden etkilenmez.",
+  financeScopeRegisterDayTitle: "Seçilen güne göre — şube kasaları",
+  financeScopeRegisterDayHint:
+    "Üç özet kartı ve şube tablosu yalnızca yukarıdaki filtreye göredir (tek gün veya sezon modları).",
+  financeScopeIndependentTitle: "Tarihten bağımsız — avans ve kasa sorumlusu nakdi",
+  financeScopeIndependentHint:
+    "Avans toplamları ve kasa sorumlusundaki nakit bakiyeleri güncel / tüm zamanlar mantığıyla gelir; kasa gününü değiştirmek bunları değiştirmez.",
   tabsAria: "Genel bakış sekmeleri",
   storyFlowNavAria: "Genel bakış bölümlerine hızlı geçiş",
   storyFlowNavStory: "Özet",
@@ -17,6 +49,10 @@ export const dashboard = {
     "Her satır tek şubenin bugünkü gelir, kasadan gider ve neti; üstteki üç kart bunların toplamıdır.",
   branchTodayDescForDate:
     "Her satır o şubenin {{date}} tarihindeki gelir, kasadan gider ve neti; üstteki üç kart bunların toplamıdır.",
+  branchTodayDescSeasonSingle:
+    "Her satır o şubenin {{year}} sezon yılı turizm dönemi boyunca (açılış–kapanış) toplam gelir, kasadan gider ve neti; üstteki üç kart tüm şubelerin toplamıdır.",
+  branchTodayDescSeasonRange:
+    "Her satır o şubenin {{fromYear}}–{{toYear}} sezon yılları için turizm dönemlerinin (yıl bazında toplanıp) birleşik toplamı; üstteki üç kart tüm şubelerin toplamıdır.",
   branchTodayOpenBranches: "Şubelerde günlük kasayı aç →",
   branchTodayColBranch: "Şube",
   branchTodayColIncome: "Gelir",
@@ -27,25 +63,28 @@ export const dashboard = {
     "Gördüğünüz gelir, kasadan gider ve net tamamen «{{name}}» şubesinin bugünkü kasasıdır.",
   singleBranchFinanceContextForDate:
     "Gördüğünüz gelir, kasadan gider ve net tamamen «{{name}}» şubesinin {{date}} tarihli kasasıdır.",
+  singleBranchFinanceContextSeason:
+    "Gördüğünüz toplamlar «{{name}}» şubesi için {{scope}} kapsamındadır.",
   warehouseMultiCtaTitle: "{{count}} depo tanımlı — stok ayrı yerlerde",
   warehouseMultiCtaBody:
     "Depolar arası seviye ve hareketleri tek ekranda görmek için Depolar sayfasına gidin; genel bakışta depo bazlı rakam yoktur.",
   warehouseMultiCtaLink: "Depoları aç →",
-  storyCardTitle: "Günün özeti",
+  storyCardTitle: "Nasıl okunur",
   storyCardDesc:
-    "Aşağıda iki farklı sorunun cevabı var: (1) Seçtiğiniz günde kasada ne kaldı? (2) Tüm şubelerde bugüne kadar ekonomik olarak ne durumdayız? Alttaki kartlar bunları parçalar.",
-  storyTwoMetricsTitle: "İki farklı bakış — karıştırmayın",
-  storyTwoMetricsNote:
-    "Soldaki rakam yalnızca seçilen takvim günü ve «kasadan çıkan» giderlerle ilgilidir. Sağdaki rakam tüm zamanlar ve ekonomik gider tanımı içindir. İkisi aynı sayıyı gösterebilir; anlamları yine de farklıdır.",
+    "Önce üstteki kasa filtresi (tek gün veya sezon), sonra birikmiş ekonomik net ve envanter. Farklı sorulara cevap verirler.",
+  summaryPanelTitle: "Kasa özeti",
+  summaryPanelHint:
+    "Üstteki filtreyle seçtiğiniz güne veya sezona göre tüm şubeler: net, tahsilat ve şube sayısı.",
+  storyMobileSwipeHint: "Mobilde kart sırası yatay kaydırmalıdır.",
   storyStep1Badge: "Bugün · kasa",
   storyStep1Title: "Seçilen gün, tüm şubeler — kasa neti",
   storyStep1Formula: "Tahsilat (nakit + kart/POS) − kasadan ödenen giderler",
   storyStep2Badge: "Birikmiş · ekonomik",
   storyStep2Title: "Tüm aktif şubeler — bugüne kadar ekonomik net",
   storyStep2Formula: "Toplam gelir satırları − ekonomik gider satırları (günlük özetle aynı OUT filtresi)",
-  storyDetailSectionTitle: "Bugünün kasasını açan detaylar",
+  storyDetailSectionTitle: "Aynı günün detayı",
   storyDetailSectionDesc:
-    "İlk kart üstteki «Bugün · kasa» kutusuyla aynı mantığı parçalar. Yanındaki kartlar o günün kasa bağlamı ile sistemdeki aktif şube, personel, depo, tedarikçi, araç ve ürün sayılarıdır. Altında tüm depolar birleşik stok özeti vardır.",
+    "Net ve şube sayısı seçilen kasa günüyle uyumludur (yukarıdaki büyük özetle aynı mantık).",
   storySummaryBranchesInDayTitle: "Kasa toplamına dahil şube",
   storySummaryBranchesInDayDesc:
     "Seçilen gün için yukarıdaki net rakama kaç şube dahil edildi.",
@@ -106,9 +145,10 @@ export const dashboard = {
   sumAllBranches: "Tüm şubeler · bugün",
   sumAllBranchesToday: "Tüm şubeler · bugün",
   sumAllBranchesForDate: "Tüm şubeler · {{date}}",
-  registerSnapshotDayLabel: "Kasa özeti günü",
-  registerSnapshotToolbarHint:
-    "Özet ve Kasa sekmesindeki toplamlar bu takvim gününe göredir (raporlardaki «tarih / yıl sonu» ile aynı mantık). Aşağıdan yıl sonu veya istediğiniz günü seçin.",
+  sumAllBranchesSeasonSingle: "Tüm şubeler · {{year}} sezon toplamı",
+  sumAllBranchesSeasonRange: "Tüm şubeler · {{fromYear}}–{{toYear}} sezonları toplamı",
+  cashScopeSeasonSingleShort: "{{year}} sezonu",
+  cashScopeSeasonRangeShort: "{{fromYear}}–{{toYear}} sezonları",
   registerSnapshotDateField: "Kasa tarihi",
   registerSnapshotResetToday: "Bugüne dön",
   emptyCalloutTitle: "Bugünkü kasa özetini görmek için",
@@ -117,8 +157,9 @@ export const dashboard = {
   emptyCalloutCta: "Şubelere git",
   noBranches: "Henüz şube yok. Şubeler’den ekleyin.",
   loadError: "Bugünün özetleri yüklenemedi.",
-  storyFinance: "Finans",
-  storyFinanceDesc: "Bugünün şube kasaları ve birikmiş avans hareketleri.",
+  storyFinance: "Kasa",
+  storyFinanceDesc:
+    "Üstte seçilen güne göre şube kasası; altta tarihten bağımsız avans ve kasa sorumlusu nakdi.",
   storyPersonnel: "Personel",
   storyPersonnelDesc: "Ekip büyüklüğü ve öne çıkan kayıtlar.",
   storyOperations: "Şube ve operasyon",
@@ -130,7 +171,7 @@ export const dashboard = {
   statWarehouses: "Aktif depo",
   statWarehousesDesc: "Tanımlı depolar",
   statActiveSuppliers: "Aktif tedarikçi",
-  statActiveSuppliersDesc: "Silinmemiş tedarikçi kayıtları",
+  statActiveSuppliersDesc: "Silinmiş kayıtlar sayıma dahil edilmez",
   statActiveVehicles: "Aktif araç",
   statActiveVehiclesDesc: "Durumu «aktif» olan araçlar",
   statActiveProducts: "Aktif ürün",

@@ -7,6 +7,7 @@ import {
 } from "@/modules/admin/hooks/useSystemNotificationSettingsQuery";
 import { useI18n } from "@/i18n/context";
 import { Card } from "@/shared/components/Card";
+import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { formatLocaleDateTime } from "@/shared/lib/locale-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
@@ -81,6 +82,17 @@ export function SystemNotificationSettingsScreen() {
           {t("settings.notificationsPageDescription")}
         </p>
       </div>
+
+      <PageWhenToUseGuide
+        guideTab="admin"
+        title={t("common.pageWhenToUseTitle")}
+        description={t("pageHelp.settingsNotifications.intro")}
+        listVariant="ordered"
+        items={[
+          { text: t("pageHelp.settingsNotifications.step1") },
+          { text: t("pageHelp.settingsNotifications.step2") },
+        ]}
+      />
 
       {isPending ? (
         <p className="text-sm text-zinc-500">{t("common.loading")}</p>

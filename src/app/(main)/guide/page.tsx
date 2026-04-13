@@ -4,26 +4,12 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { isPersonnelPortalRole } from "@/lib/auth/roles";
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
+import { parseGuideTabQuery, type GuideTabId } from "@/shared/lib/guide-tab";
 import Link from "next/link";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 
-type TabId =
-  | "mission"
-  | "nav"
-  | "dashboard"
-  | "flows"
-  | "reports"
-  | "personnel"
-  | "branch"
-  | "warehouse"
-  | "suppliers"
-  | "vehicles"
-  | "products"
-  | "admin"
-  | "tips"
-  | "portal";
-
-const SECTION_TITLE_KEYS: Record<TabId, string> = {
+const SECTION_TITLE_KEYS: Record<GuideTabId, string> = {
   mission: "guide.mission.title",
   nav: "guide.nav.title",
   dashboard: "guide.dashboard.title",
@@ -40,7 +26,7 @@ const SECTION_TITLE_KEYS: Record<TabId, string> = {
   portal: "guide.portal.title",
 };
 
-const WHATS_NEW_KEYS: Record<TabId, string> = {
+const WHATS_NEW_KEYS: Record<GuideTabId, string> = {
   mission: "guide.mission.whatsNew",
   nav: "guide.nav.whatsNew",
   dashboard: "guide.dashboard.whatsNew",
@@ -89,6 +75,9 @@ function Jump({ href, label }: { href: string; label: string }) {
 export default function GuidePage() {
   const { t } = useI18n();
   const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const personnelPortal = isPersonnelPortalRole(user?.role);
   const isAdmin = user?.role === "ADMIN";
 
@@ -114,15 +103,32 @@ export default function GuidePage() {
     [personnelPortal, isAdmin]
   );
 
-  const [active, setActive] = useState<TabId>(tabIds[0]!);
+  const [active, setActive] = useState<GuideTabId>(tabIds[0]!);
+
+  useLayoutEffect(() => {
+    const fromQuery = parseGuideTabQuery(searchParams.get("tab"));
+    if (fromQuery && (tabIds as readonly string[]).includes(fromQuery)) {
+      setActive(fromQuery);
+    }
+  }, [searchParams, tabIds]);
 
   useEffect(() => {
-    if (!(tabIds as readonly TabId[]).includes(active)) {
+    if (!(tabIds as readonly GuideTabId[]).includes(active)) {
       setActive(tabIds[0]!);
     }
   }, [tabIds, active]);
 
-  const safeActive = (tabIds as readonly TabId[]).includes(active)
+  const selectTab = useCallback(
+    (id: GuideTabId) => {
+      setActive(id);
+      const next = new URLSearchParams(searchParams.toString());
+      next.set("tab", id);
+      router.replace(`${pathname}?${next.toString()}`, { scroll: false });
+    },
+    [pathname, router, searchParams]
+  );
+
+  const safeActive = (tabIds as readonly GuideTabId[]).includes(active)
     ? active
     : tabIds[0]!;
 
@@ -181,7 +187,7 @@ export default function GuidePage() {
                 ? "bg-zinc-900 text-white shadow-md"
                 : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200/90 hover:text-zinc-900"
             )}
-            onClick={() => setActive(id)}
+            onClick={() => selectTab(id)}
           >
             {t(`guide.tocShort.${id}`)}
           </button>

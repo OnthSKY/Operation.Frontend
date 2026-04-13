@@ -11,6 +11,7 @@ import {
 } from "@/modules/reports/lib/report-period-helpers";
 import { reportBranchLabel } from "@/modules/reports/lib/report-branch-label";
 import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileFilters";
+import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
@@ -114,6 +115,21 @@ export function BranchComparisonReportScreen() {
     <ReportTablesPageShell
       title={t("reports.tablesPageBranchComparisonTitle")}
       subtitle={t("reports.tablesPageBranchComparisonSubtitle")}
+      pageGuide={
+        <PageWhenToUseGuide
+          guideTab="reports"
+          title={t("common.pageWhenToUseTitle")}
+          description={t("pageHelp.reportsBranches.intro")}
+          listVariant="ordered"
+          items={[
+            { text: t("pageHelp.reportsBranches.step1") },
+            {
+              text: t("pageHelp.reportsBranches.step2"),
+              link: { href: "/branches", label: t("pageHelp.reportsBranches.step2Link") },
+            },
+          ]}
+        />
+      }
     >
       <CollapsibleMobileFilters
         title={t("reports.filtersSectionTitle")}

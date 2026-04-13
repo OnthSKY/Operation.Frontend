@@ -55,6 +55,8 @@ export type SupplierInvoiceListItem = {
 };
 
 export type SupplierInvoiceDetail = SupplierInvoiceListItem & {
+  /** Sunucu her zaman false döner; satır değişimi desteklenmez. */
+  canReplaceLines?: boolean;
   lines: SupplierInvoiceLine[];
 };
 
@@ -159,6 +161,32 @@ export async function fetchSupplierInvoices(params: SupplierInvoiceListQuery): P
 
 export async function fetchSupplierInvoice(id: number): Promise<SupplierInvoiceDetail> {
   return apiRequest<SupplierInvoiceDetail>(`/suppliers/invoices/${id}`);
+}
+
+export async function updateSupplierInvoice(
+  invoiceId: number,
+  body: {
+    documentNumber?: string | null;
+    documentDate: string;
+    dueDate?: string | null;
+    description?: string | null;
+    paymentMarkedComplete: boolean;
+    formalSupplierInvoiceIssued: boolean;
+    changeNote?: string | null;
+  }
+): Promise<SupplierInvoiceDetail> {
+  return apiRequest<SupplierInvoiceDetail>(`/suppliers/invoices/${invoiceId}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      documentNumber: body.documentNumber ?? null,
+      documentDate: body.documentDate,
+      dueDate: body.dueDate ?? null,
+      description: body.description ?? null,
+      paymentMarkedComplete: body.paymentMarkedComplete,
+      formalSupplierInvoiceIssued: body.formalSupplierInvoiceIssued,
+      changeNote: body.changeNote ?? null,
+    }),
+  });
 }
 
 export async function createSupplierInvoice(body: {

@@ -14,14 +14,21 @@ import {
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
 import type { AdvanceListItem } from "@/types/advance";
 import { Card } from "@/shared/components/Card";
-import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileFilters";
+import { FilterFunnelIcon } from "@/shared/components/FilterFunnelIcon";
+import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
+import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
+import { RightDrawer } from "@/shared/components/RightDrawer";
+import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
+import { TableToolbarMoreMenu } from "@/shared/components/TableToolbarMoreMenu";
 import { Button } from "@/shared/ui/Button";
+import { Tooltip } from "@/shared/ui/Tooltip";
+import { ToolbarGlyphAdvance } from "@/shared/ui/ToolbarGlyph";
 import { Input } from "@/shared/ui/Input";
 import { Select } from "@/shared/ui/Select";
 import { DataTable, ResponsiveTableFrame } from "@/shared/tables";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { useMatchMedia } from "@/shared/lib/use-match-media";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AdvancePersonnelModal } from "./AdvancePersonnelModal";
@@ -29,6 +36,7 @@ import { AdvanceCard, createAdvanceListColumns } from "./personnel-advance-list-
 
 export function AllAdvancesScreen() {
   const { t, locale } = useI18n();
+  const router = useRouter();
   const { user } = useAuth();
   const personnelPortal = isPersonnelPortalRole(user?.role);
   const myPersonnelId = user?.personnelId;
@@ -40,6 +48,7 @@ export function AllAdvancesScreen() {
   /** null = automatic row limit (20 narrow / 500 desktop) */
   const [limitInput, setLimitInput] = useState<string | null>(null);
   const [advanceOpen, setAdvanceOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const isNarrow = useMatchMedia("(max-width: 767px)");
   const defaultLimitNum = isNarrow ? 20 : 500;
   const defaultLimitStr = String(defaultLimitNum);
@@ -173,94 +182,96 @@ export function AllAdvancesScreen() {
     defaultLimitStr,
   ]);
 
-  const secondaryBtn =
-    "inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-base font-medium text-zinc-900 transition-colors hover:bg-zinc-50 active:bg-zinc-100 sm:w-auto";
+  const advancesToolbarMoreItems = useMemo(
+    () =>
+      !personnelPortal
+        ? [
+            {
+              id: "personnel",
+              label: t("personnel.heading"),
+              onSelect: () => router.push("/personnel"),
+            },
+          ]
+        : [],
+    [personnelPortal, t, router]
+  );
 
   return (
-    <div className="mx-auto flex w-full app-page-max flex-col gap-4 p-4 pb-8">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
-            {t("personnel.allAdvancesTitle")}
-          </h1>
-          <p className="mt-1 text-sm text-zinc-500">
-            {t("personnel.allAdvancesDesc")}
-          </p>
-        </div>
-        {!personnelPortal ? (
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
-            <Button
-              type="button"
-              className="w-full sm:w-auto"
-              onClick={() => setAdvanceOpen(true)}
+    <>
+      <PageScreenScaffold
+        className="w-full p-4 pb-8"
+        intro={
+          <>
+            <div>
+              <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
+                {t("personnel.allAdvancesTitle")}
+              </h1>
+              <p className="mt-1 text-sm text-zinc-500">{t("personnel.allAdvancesDesc")}</p>
+            </div>
+            <PageWhenToUseGuide
+              guideTab="personnel"
+              className="mt-1"
+              title={t("common.pageWhenToUseTitle")}
+              description={t("pageHelp.allAdvances.intro")}
+              listVariant="ordered"
+              items={[
+                { text: t("pageHelp.allAdvances.step1") },
+                {
+                  text: t("pageHelp.allAdvances.step2"),
+                  link: { href: "/personnel", label: t("pageHelp.allAdvances.step2Link") },
+                },
+              ]}
+            />
+          </>
+        }
+        main={
+          <>
+            <Card
+              title={t("personnel.allAdvancesTableTitle")}
+              headerActions={
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <Tooltip content={t("personnel.allAdvancesFilters")} delayMs={200}>
+                    <button
+                      type="button"
+                      className={cn(
+                        "relative flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50/90 text-zinc-700 shadow-sm transition hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70",
+                        filtersActive && "border-violet-300 bg-violet-50/90 text-violet-900"
+                      )}
+                      aria-label={t("common.filters")}
+                      aria-expanded={filtersOpen}
+                      onClick={() => setFiltersOpen(true)}
+                    >
+                      <FilterFunnelIcon className="h-5 w-5" />
+                      {filtersActive ? (
+                        <span
+                          className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-violet-500 ring-2 ring-white"
+                          aria-hidden
+                        />
+                      ) : null}
+                    </button>
+                  </Tooltip>
+                  {!personnelPortal ? (
+                    <>
+                      <TableToolbarMoreMenu
+                        menuId="all-advances-toolbar-more"
+                        items={advancesToolbarMoreItems}
+                      />
+                      <Tooltip content={t("personnel.advance")} delayMs={200}>
+                        <Button
+                          type="button"
+                          variant="primary"
+                          className={TABLE_TOOLBAR_ICON_BTN}
+                          onClick={() => setAdvanceOpen(true)}
+                          aria-label={t("personnel.advance")}
+                        >
+                          <ToolbarGlyphAdvance className="h-5 w-5" />
+                        </Button>
+                      </Tooltip>
+                    </>
+                  ) : null}
+                </div>
+              }
             >
-              {t("personnel.advance")}
-            </Button>
-            <Link href="/personnel" className={cn(secondaryBtn, "shrink-0 text-center")}>
-              {t("personnel.heading")}
-            </Link>
-          </div>
-        ) : null}
-      </div>
-
-      <CollapsibleMobileFilters
-        title={t("personnel.allAdvancesFilters")}
-        toggleAriaLabel={t("common.filters")}
-        active={filtersActive}
-        expandLabel={t("common.filtersShow")}
-        collapseLabel={t("common.filtersHide")}
-      >
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          <Input
-            name="effectiveYear"
-            label={t("personnel.allAdvancesYearOptional")}
-            type="number"
-            inputMode="numeric"
-            min={1900}
-            max={9999}
-            placeholder={t("personnel.fieldOptionalPlaceholder")}
-            value={yearInput}
-            onChange={(e) => setYearInput(e.target.value)}
-          />
-          {!personnelPortal ? (
-            <>
-              <Select
-                name="personnelFilter"
-                label={t("personnel.tableName")}
-                options={personnelOptions}
-                value={personnelValue}
-                onChange={(e) => setPersonnelValue(e.target.value)}
-                onBlur={() => {}}
-              />
-              <Select
-                name="branchFilter"
-                label={t("personnel.tableBranch")}
-                options={branchOptions}
-                value={branchValue}
-                onChange={(e) => setBranchValue(e.target.value)}
-                onBlur={() => {}}
-              />
-              <Input
-                name="limit"
-                label={t("personnel.allAdvancesLimit")}
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={1000}
-                value={limitFieldValue}
-                onChange={(e) => setLimitInput(e.target.value)}
-              />
-            </>
-          ) : null}
-        </div>
-        {!personnelPortal ? (
-          <p className="mt-3 text-xs text-zinc-500">
-            {t("personnel.allAdvancesLimitHint")}
-          </p>
-        ) : null}
-      </CollapsibleMobileFilters>
-
-      <Card title={t("personnel.allAdvancesTableTitle")}>
         {isPending && (
           <p className="text-sm text-zinc-500" aria-busy="true">
             {t("common.loading")}
@@ -298,7 +309,66 @@ export function AllAdvancesScreen() {
             }
           />
         )}
-      </Card>
+            </Card>
+
+            <RightDrawer
+              open={filtersOpen}
+              onClose={() => setFiltersOpen(false)}
+              title={t("personnel.allAdvancesFilters")}
+              closeLabel={t("common.close")}
+            >
+              <div className="space-y-4">
+                <div className="grid gap-4 sm:grid-cols-1">
+                  <Input
+                    name="effectiveYear"
+                    label={t("personnel.allAdvancesYearOptional")}
+                    type="number"
+                    inputMode="numeric"
+                    min={1900}
+                    max={9999}
+                    placeholder={t("personnel.fieldOptionalPlaceholder")}
+                    value={yearInput}
+                    onChange={(e) => setYearInput(e.target.value)}
+                  />
+                  {!personnelPortal ? (
+                    <>
+                      <Select
+                        name="personnelFilter"
+                        label={t("personnel.tableName")}
+                        options={personnelOptions}
+                        value={personnelValue}
+                        onChange={(e) => setPersonnelValue(e.target.value)}
+                        onBlur={() => {}}
+                      />
+                      <Select
+                        name="branchFilter"
+                        label={t("personnel.tableBranch")}
+                        options={branchOptions}
+                        value={branchValue}
+                        onChange={(e) => setBranchValue(e.target.value)}
+                        onBlur={() => {}}
+                      />
+                      <Input
+                        name="limit"
+                        label={t("personnel.allAdvancesLimit")}
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={1000}
+                        value={limitFieldValue}
+                        onChange={(e) => setLimitInput(e.target.value)}
+                      />
+                    </>
+                  ) : null}
+                </div>
+                {!personnelPortal ? (
+                  <p className="text-xs text-zinc-500">{t("personnel.allAdvancesLimitHint")}</p>
+                ) : null}
+              </div>
+            </RightDrawer>
+          </>
+        }
+      />
 
       {!personnelPortal ? (
         <AdvancePersonnelModal
@@ -307,6 +377,6 @@ export function AllAdvancesScreen() {
           personnel={activePersonnel}
         />
       ) : null}
-    </div>
+    </>
   );
 }

@@ -15,8 +15,10 @@ import {
   postSupplierInvoiceLineBranchAllocations,
   setSupplierInvoiceLineBranchAllocations,
   updateSupplier,
+  updateSupplierInvoice,
   type SupplierInvoiceListQuery,
 } from "@/modules/suppliers/api/suppliers-api";
+import { fetchAuditLogs } from "@/lib/api/audit-logs-api";
 
 export const supplierKeys = {
   all: ["suppliers"] as const,
@@ -33,6 +35,7 @@ export const supplierKeys = {
       f.paymentStatus ?? "all",
     ] as const,
   invoice: (id: number) => [...supplierKeys.all, "invoice", id] as const,
+  invoiceAudit: (id: number) => [...supplierKeys.all, "invoice-audit", id] as const,
   payments: (supplierId: number) => [...supplierKeys.all, "payments", supplierId] as const,
   lineAlloc: (lineId: number) => [...supplierKeys.all, "line-alloc", lineId] as const,
   view: (id: number) => [...supplierKeys.all, "view", id] as const,
@@ -65,6 +68,18 @@ export function useSupplierInvoice(id: number | null, enabled: boolean) {
     queryKey: supplierKeys.invoice(id ?? 0),
     queryFn: () => fetchSupplierInvoice(id!),
     enabled: enabled && id != null && id > 0,
+  });
+}
+
+export function useSupplierInvoiceAuditLogs(invoiceId: number | null, enabled: boolean) {
+  return useQuery({
+    queryKey: supplierKeys.invoiceAudit(invoiceId ?? 0),
+    queryFn: () =>
+      fetchAuditLogs({
+        tableName: "supplier_invoices",
+        recordId: invoiceId!,
+      }),
+    enabled: enabled && invoiceId != null && invoiceId > 0,
   });
 }
 
@@ -123,6 +138,19 @@ export function useCreateSupplierInvoice() {
   return useMutation({
     mutationFn: createSupplierInvoice,
     onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: supplierKeys.all });
+    },
+  });
+}
+
+export function useUpdateSupplierInvoice() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: number; body: Parameters<typeof updateSupplierInvoice>[1] }) =>
+      updateSupplierInvoice(input.id, input.body),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: supplierKeys.invoice(vars.id) });
+      void qc.invalidateQueries({ queryKey: supplierKeys.invoiceAudit(vars.id) });
       void qc.invalidateQueries({ queryKey: supplierKeys.all });
     },
   });

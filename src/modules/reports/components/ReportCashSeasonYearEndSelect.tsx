@@ -15,6 +15,10 @@ type Props = {
   className?: string;
   /** Shown under the default hint (e.g. cross-tab sync on the main reports hub). */
   extraHint?: string;
+  /** Overrides `reports.cashAsOfSeasonYearQuickPick` for the select label. */
+  label?: string;
+  /** When false, hides `reports.cashAsOfSeasonYearHint` (parent can supply copy). Default true. */
+  showDefaultHint?: boolean;
 };
 
 export function ReportCashSeasonYearEndSelect({
@@ -22,6 +26,8 @@ export function ReportCashSeasonYearEndSelect({
   onApplyAsOf,
   className,
   extraHint,
+  label,
+  showDefaultHint = true,
 }: Props) {
   const { t } = useI18n();
   const options = useMemo((): SelectOption[] => {
@@ -49,7 +55,7 @@ export function ReportCashSeasonYearEndSelect({
     <div className={className}>
       <Select
         name="reportCashSeasonYearEnd"
-        label={t("reports.cashAsOfSeasonYearQuickPick")}
+        label={label ?? t("reports.cashAsOfSeasonYearQuickPick")}
         options={options}
         value={value}
         onChange={(e) => {
@@ -62,9 +68,11 @@ export function ReportCashSeasonYearEndSelect({
         onBlur={() => {}}
         className="min-h-11 sm:min-h-10 sm:text-sm"
       />
-      <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-        {t("reports.cashAsOfSeasonYearHint")}
-      </p>
+      {showDefaultHint ? (
+        <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+          {t("reports.cashAsOfSeasonYearHint")}
+        </p>
+      ) : null}
       {extraHint ? (
         <p className="mt-1 text-xs leading-relaxed text-zinc-500">{extraHint}</p>
       ) : null}

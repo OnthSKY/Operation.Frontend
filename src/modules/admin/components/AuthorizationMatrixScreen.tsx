@@ -8,6 +8,7 @@ import {
 } from "@/modules/admin/hooks/useAuthorizationAdminQueries";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
+import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { Button } from "@/shared/ui/Button";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import Link from "next/link";
@@ -125,6 +126,20 @@ export function AuthorizationMatrixScreen() {
         </h1>
         <p className="mt-1 text-sm text-zinc-500">{t("settings.authzPageDescription")}</p>
       </div>
+
+      <PageWhenToUseGuide
+        guideTab="admin"
+        title={t("common.pageWhenToUseTitle")}
+        description={t("pageHelp.settingsAuthorization.intro")}
+        listVariant="ordered"
+        items={[
+          { text: t("pageHelp.settingsAuthorization.step1") },
+          {
+            text: t("pageHelp.settingsAuthorization.step2"),
+            link: { href: "/admin/users", label: t("pageHelp.settingsAuthorization.step2Link") },
+          },
+        ]}
+      />
 
       {isLoading ? (
         <div className="rounded-xl border border-zinc-200 bg-white p-8 text-center text-sm text-zinc-500">

@@ -3,6 +3,7 @@
 import type { Supplier } from "@/modules/suppliers/api/suppliers-api";
 import { useSupplierView } from "@/modules/suppliers/hooks/useSupplierQueries";
 import { cn } from "@/lib/cn";
+import { StatusBadge } from "@/shared/components/StatusBadge";
 import { useI18n } from "@/i18n/context";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
@@ -135,9 +136,9 @@ export function SupplierViewModal({
                         {s.currencyCode}
                       </span>
                       {q.data?.isDeleted ? (
-                        <span className="inline-flex items-center rounded-full bg-zinc-200/90 px-3 py-1 text-xs font-semibold text-zinc-700 ring-1 ring-zinc-300/60">
+                        <StatusBadge tone="deleted" size="md" className="normal-case">
                           {t("suppliers.viewDeletedBadge")}
-                        </span>
+                        </StatusBadge>
                       ) : null}
                     </div>
                   </div>

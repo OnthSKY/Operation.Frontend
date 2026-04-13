@@ -32,6 +32,20 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { isDriverPortalRole, isPersonnelPortalRole } from "@/lib/auth/roles";
 import { useI18n } from "@/i18n/context";
 import { Card } from "@/shared/components/Card";
+import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
+import { StatusBadge } from "@/shared/components/StatusBadge";
+import {
+  vehicleHeaderStatusTone,
+  vehicleListStatusTone,
+  vehicleStatusLabel,
+} from "@/modules/vehicles/lib/vehicle-status-display";
+import {
+  VEHICLE_MAINTENANCE_TYPE_IDS,
+  isKnownVehicleMaintenanceType,
+  labelVehicleMaintenanceType,
+} from "@/modules/vehicles/lib/vehicle-maintenance-types";
+import { TABLE_TOOLBAR_ICON_BTN, TableToolbarSplit } from "@/shared/components/TableToolbar";
+import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { notifyDefaults } from "@/shared/lib/notify";
@@ -39,7 +53,7 @@ import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
-import { detailOpenIconButtonClass, EyeIcon, PencilIcon } from "@/shared/ui/EyeIcon";
+import { detailOpenIconButtonClass, EyeIcon, PencilIcon, PlusIcon } from "@/shared/ui/EyeIcon";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
@@ -62,12 +76,24 @@ import type {
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { toast } from "react-toastify";
 
 type DetailTab = "overview" | "service" | "assignments" | "insurances" | "costs" | "audit";
 type CostsSubTab = "ledger" | "report";
 type AssignMode = "idle" | "personnel" | "branch";
+
+function vehicleExpenseBranchPostingDetail(x: VehicleExpense, t: (key: string) => string): string | null {
+  if (x.postedBranchId == null || x.postedBranchId <= 0) return null;
+  const src = (x.postedExpensePaymentSource ?? "REGISTER").toUpperCase();
+  if (src === "PATRON") {
+    const card = x.postedRegisterCardAmount ?? 0;
+    const cash = x.postedRegisterCashAmount ?? 0;
+    const method = card > 0 && cash <= 0 ? t("vehicles.expensePayCard") : t("vehicles.expensePayCash");
+    return `${t("vehicles.expensePaidByPatron")} · ${method}`;
+  }
+  return t("vehicles.expensePaidFromRegisterDrawer");
+}
 
 function buildVehicleRowMenuSections(params: {
   canEdit: boolean;
@@ -76,6 +102,9 @@ function buildVehicleRowMenuSections(params: {
   onEdit: () => void;
   onAddMaintenance: () => void;
   onEditKm: () => void;
+  onChangeAssignment?: () => void;
+  onAddExpense?: () => void;
+  onAddInsurance?: () => void;
   /** `extras`: only maintenance + km (view/edit as separate buttons on narrow layouts). */
   menuMode?: "full" | "extras";
 }): QuickActionsMenuSection[] {
@@ -86,6 +115,9 @@ function buildVehicleRowMenuSections(params: {
     onEdit,
     onAddMaintenance,
     onEditKm,
+    onChangeAssignment,
+    onAddExpense,
+    onAddInsurance,
     menuMode = "full",
   } = params;
   const items: QuickActionsMenuSection["items"] = [];
@@ -99,6 +131,19 @@ function buildVehicleRowMenuSections(params: {
       );
     }
   } else if (canEdit) {
+    if (onChangeAssignment) {
+      items.push({
+        id: "assign",
+        label: t("vehicles.changeAssignment"),
+        onSelect: onChangeAssignment,
+      });
+    }
+    if (onAddExpense) {
+      items.push({ id: "expense", label: t("vehicles.addExpense"), onSelect: onAddExpense });
+    }
+    if (onAddInsurance) {
+      items.push({ id: "insurance", label: t("vehicles.addInsurance"), onSelect: onAddInsurance });
+    }
     items.push(
       { id: "maint", label: t("vehicles.rowAddMaintenance"), onSelect: onAddMaintenance },
       { id: "km", label: t("vehicles.rowEditOdometer"), onSelect: onEditKm }
@@ -121,6 +166,32 @@ function badgeClasses(b: VehicleInsuranceBadge) {
     default:
       return "bg-zinc-100 text-zinc-600 ring-zinc-200";
   }
+}
+
+function VehicleOverviewRow({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: ReactNode;
+  icon?: ReactNode;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-zinc-100/90 py-2.5 last:border-b-0 sm:py-3">
+      <div className="flex min-w-0 items-start gap-2.5">
+        {icon ? (
+          <span className="mt-0.5 shrink-0 text-zinc-400 [&_svg]:h-4 [&_svg]:w-4" aria-hidden>
+            {icon}
+          </span>
+        ) : null}
+        <span className="text-[0.7rem] font-semibold uppercase tracking-wide text-zinc-500">{label}</span>
+      </div>
+      <div className="max-w-[min(100%,18rem)] text-right text-sm font-semibold leading-snug text-zinc-900 sm:max-w-[60%]">
+        {value}
+      </div>
+    </div>
+  );
 }
 
 export function VehiclesScreen() {
@@ -292,6 +363,25 @@ export function VehiclesScreen() {
     setAssignDlgOpen(true);
   };
 
+  const openAssignmentFromListRow = (r: VehicleListItem) => {
+    if (!canEdit) return;
+    setAssignDlgVehicleId(r.id);
+    if (r.assignedPersonnelId) {
+      setAssignDlgMode("personnel");
+      setAssignDlgPersonnelId(String(r.assignedPersonnelId));
+      setAssignDlgBranchId("");
+    } else if (r.assignedBranchId) {
+      setAssignDlgMode("branch");
+      setAssignDlgBranchId(String(r.assignedBranchId));
+      setAssignDlgPersonnelId("");
+    } else {
+      setAssignDlgMode("idle");
+      setAssignDlgPersonnelId("");
+      setAssignDlgBranchId("");
+    }
+    setAssignDlgOpen(true);
+  };
+
   const saveAssignmentDialog = async () => {
     if (assignDlgVehicleId == null) return;
     let assignedPersonnelId: number | null = null;
@@ -428,8 +518,42 @@ export function VehiclesScreen() {
     setDetailTab("overview");
   }, [searchParams, rows]);
 
+  useEffect(() => {
+    setMaintLogFilterType("");
+  }, [detailId]);
+
   const detailEnabled = detailId != null && detailId > 0;
   const { data: detail, isPending: detailPending } = useVehicle(detailId, detailEnabled);
+
+  const [maintLogFilterType, setMaintLogFilterType] = useState("");
+
+  const filteredVehicleMaintenances = useMemo(() => {
+    const m = detail?.maintenances ?? [];
+    if (!maintLogFilterType.trim()) return m;
+    return m.filter((x) => x.maintenanceType === maintLogFilterType);
+  }, [detail?.maintenances, maintLogFilterType]);
+
+  const maintenanceLogFilterSelectOptions = useMemo(() => {
+    const known = VEHICLE_MAINTENANCE_TYPE_IDS.map((id) => ({
+      value: id,
+      label: t(`vehicles.maintenanceTypes.${id}`),
+    }));
+    const seen = new Set<string>([...VEHICLE_MAINTENANCE_TYPE_IDS]);
+    const legacy: { value: string; label: string }[] = [];
+    for (const x of detail?.maintenances ?? []) {
+      const v = x.maintenanceType?.trim();
+      if (v && !seen.has(v)) {
+        seen.add(v);
+        legacy.push({ value: v, label: v });
+      }
+    }
+    legacy.sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+    return [
+      { value: "", label: t("vehicles.maintenanceFilterAll") },
+      ...known,
+      ...legacy,
+    ];
+  }, [detail?.maintenances, t]);
 
   const [sumYear, setSumYear] = useState(String(new Date().getFullYear()));
   const [sumMonth, setSumMonth] = useState("");
@@ -515,6 +639,10 @@ export function VehiclesScreen() {
   const [expDate, setExpDate] = useState(localIsoDate());
   const [expDesc, setExpDesc] = useState("");
   const [expBranchId, setExpBranchId] = useState("");
+  const [expBranchPaySource, setExpBranchPaySource] = useState<"REGISTER" | "PATRON">("REGISTER");
+  const [expPatronPay, setExpPatronPay] = useState<"CASH" | "CARD">("CASH");
+  const [expModalVehicleId, setExpModalVehicleId] = useState<number | null>(null);
+  const [insModalVehicleId, setInsModalVehicleId] = useState<number | null>(null);
 
   const [maintModal, setMaintModal] = useState<"add" | "edit" | null>(null);
   const [maintVehicleId, setMaintVehicleId] = useState<number | null>(null);
@@ -537,6 +665,18 @@ export function VehiclesScreen() {
   const [assignDlgMode, setAssignDlgMode] = useState<AssignMode>("idle");
   const [assignDlgPersonnelId, setAssignDlgPersonnelId] = useState("");
   const [assignDlgBranchId, setAssignDlgBranchId] = useState("");
+
+  const maintenanceTypeFormSelectOptions = useMemo(() => {
+    const base = VEHICLE_MAINTENANCE_TYPE_IDS.map((id) => ({
+      value: id,
+      label: t(`vehicles.maintenanceTypes.${id}`),
+    }));
+    const cur = maintType.trim();
+    if (cur && !isKnownVehicleMaintenanceType(cur)) {
+      return [{ value: cur, label: cur }, ...base];
+    }
+    return base;
+  }, [maintType, t]);
 
   const kmModalEnabled = kmModalVehicleId != null && kmModalVehicleId > 0;
   const { data: kmModalVehicle } = useVehicle(kmModalVehicleId, kmModalEnabled);
@@ -578,7 +718,7 @@ export function VehiclesScreen() {
     setMaintEditId(null);
     setMaintServiceDate(localIsoDate());
     setMaintOdometerStr("");
-    setMaintType("");
+    setMaintType(VEHICLE_MAINTENANCE_TYPE_IDS[0]);
     setMaintWorkshop("");
     setMaintDesc("");
     setMaintCost("");
@@ -674,8 +814,8 @@ export function VehiclesScreen() {
     }
   };
 
-  const openAddInsurance = () => {
-    if (!detailId) return;
+  const openAddInsuranceForVehicle = (vehicleId: number) => {
+    setInsModalVehicleId(vehicleId);
     setInsEditId(null);
     setInsType("");
     setInsProvider("");
@@ -686,7 +826,13 @@ export function VehiclesScreen() {
     setInsModal("add");
   };
 
+  const openAddInsurance = () => {
+    if (!detailId) return;
+    openAddInsuranceForVehicle(detailId);
+  };
+
   const openEditInsurance = (x: VehicleInsurance) => {
+    if (detailId) setInsModalVehicleId(detailId);
     setInsEditId(x.id);
     setInsType(x.insuranceType);
     setInsProvider(x.provider ?? "");
@@ -698,12 +844,13 @@ export function VehiclesScreen() {
   };
 
   const saveInsurance = async () => {
-    if (!detailId) return;
+    const vid = insModalVehicleId ?? detailId;
+    if (!vid) return;
     const amt = insAmount.trim() ? parseFloat(insAmount.replace(",", ".")) : null;
     try {
       if (insModal === "add") {
         await insCreate.mutateAsync({
-          vehicleId: detailId,
+          vehicleId: vid,
           insuranceType: insType.trim(),
           provider: insProvider.trim() || null,
           policyNumber: insPolicy.trim() || null,
@@ -713,7 +860,7 @@ export function VehiclesScreen() {
         });
       } else if (insEditId) {
         await insUpdate.mutateAsync({
-          vehicleId: detailId,
+          vehicleId: vid,
           insuranceId: insEditId,
           insuranceType: insType.trim(),
           provider: insProvider.trim() || null,
@@ -725,6 +872,7 @@ export function VehiclesScreen() {
       }
       toast.success(t("common.saved"), { ...notifyDefaults });
       setInsModal(null);
+      setInsModalVehicleId(null);
     } catch (e) {
       toast.error(toErrorMessage(e), { ...notifyDefaults });
     }
@@ -735,8 +883,8 @@ export function VehiclesScreen() {
     openAddMaintenanceForVehicle(detailId);
   };
 
-  const openAddExpense = () => {
-    if (!detailId) return;
+  const openAddExpenseForVehicle = (vehicleId: number) => {
+    setExpModalVehicleId(vehicleId);
     setExpEditId(null);
     setExpType("fuel");
     setExpAmount("");
@@ -744,10 +892,18 @@ export function VehiclesScreen() {
     setExpDate(localIsoDate());
     setExpDesc("");
     setExpBranchId("");
+    setExpBranchPaySource("REGISTER");
+    setExpPatronPay("CASH");
     setExpModal("add");
   };
 
+  const openAddExpense = () => {
+    if (!detailId) return;
+    openAddExpenseForVehicle(detailId);
+  };
+
   const openEditExpense = (x: VehicleExpense) => {
+    if (detailId) setExpModalVehicleId(detailId);
     setExpEditId(x.id);
     setExpType(x.expenseType);
     setExpAmount(String(x.amount));
@@ -757,11 +913,17 @@ export function VehiclesScreen() {
     setExpBranchId(
       x.postedBranchId != null && x.postedBranchId > 0 ? String(x.postedBranchId) : ""
     );
+    const src = (x.postedExpensePaymentSource ?? "REGISTER").toUpperCase();
+    setExpBranchPaySource(src === "PATRON" ? "PATRON" : "REGISTER");
+    const card = x.postedRegisterCardAmount ?? 0;
+    const cash = x.postedRegisterCashAmount ?? 0;
+    setExpPatronPay(card > 0 && cash <= 0 ? "CARD" : "CASH");
     setExpModal("edit");
   };
 
   const saveExpense = async () => {
-    if (!detailId) return;
+    const vid = expModalVehicleId ?? detailId;
+    if (!vid) return;
     const amt = parseFloat(expAmount.replace(",", "."));
     if (!Number.isFinite(amt)) {
       toast.error(t("common.invalid"), { ...notifyDefaults });
@@ -773,20 +935,25 @@ export function VehiclesScreen() {
       branchIdParsed != null && Number.isFinite(branchIdParsed) && branchIdParsed > 0
         ? branchIdParsed
         : null;
+    const branchExpensePaymentSource = branchId != null ? expBranchPaySource : undefined;
+    const patronPaymentMethod =
+      branchId != null && expBranchPaySource === "PATRON" ? expPatronPay : undefined;
     try {
       if (expModal === "add") {
         await expCreate.mutateAsync({
-          vehicleId: detailId,
+          vehicleId: vid,
           expenseType: expType.trim(),
           amount: amt,
           currencyCode: expCur.trim() || "TRY",
           expenseDate: expDate,
           description: expDesc.trim() || null,
           branchId,
+          branchExpensePaymentSource,
+          patronPaymentMethod,
         });
       } else if (expEditId) {
         await expUpdate.mutateAsync({
-          vehicleId: detailId,
+          vehicleId: vid,
           expenseId: expEditId,
           expenseType: expType.trim(),
           amount: amt,
@@ -794,10 +961,13 @@ export function VehiclesScreen() {
           expenseDate: expDate,
           description: expDesc.trim() || null,
           branchId,
+          branchExpensePaymentSource,
+          patronPaymentMethod,
         });
       }
       toast.success(t("common.saved"), { ...notifyDefaults });
       setExpModal(null);
+      setExpModalVehicleId(null);
     } catch (e) {
       toast.error(toErrorMessage(e), { ...notifyDefaults });
     }
@@ -829,32 +999,63 @@ export function VehiclesScreen() {
   }, [t, canEdit]);
 
   return (
-    <div className="mx-auto flex min-w-0 w-full app-page-max flex-col gap-4 px-2 py-3 pb-24 sm:px-3 sm:py-4 sm:pb-10 md:px-4 md:py-6">
-      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="text-pretty text-xl font-bold tracking-tight text-zinc-900 md:text-2xl">
-            {t("vehicles.title")}
-          </h1>
-          <p className="mt-1 text-pretty text-sm text-zinc-500">{t("vehicles.subtitle")}</p>
-        </div>
-        {canEdit ? (
-          <Button
-            type="button"
-            onClick={openAdd}
-            className="w-full shrink-0 !min-h-12 touch-manipulation sm:!min-h-10 sm:w-auto"
-          >
-            {t("vehicles.addVehicle")}
-          </Button>
-        ) : null}
-      </div>
+    <>
+      <PageScreenScaffold
+        className="min-w-0 w-full px-2 py-3 pb-24 sm:px-3 sm:py-4 sm:pb-10 md:px-4 md:py-6"
+        intro={
+          <>
+            <div className="min-w-0">
+              <h1 className="text-pretty text-xl font-bold tracking-tight text-zinc-900 md:text-2xl">
+                {t("vehicles.title")}
+              </h1>
+              <p className="mt-1 text-pretty text-sm text-zinc-500">{t("vehicles.subtitle")}</p>
+            </div>
 
-      <Card className="min-w-0 p-3 sm:p-4">
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder={t("vehicles.listFilterPlaceholder")}
-          className="w-full max-w-none text-base sm:max-w-md sm:text-sm"
-        />
+            <PageWhenToUseGuide
+              guideTab="vehicles"
+              className="mt-1"
+              title={t("common.pageWhenToUseTitle")}
+              description={t("pageHelp.vehicles.intro")}
+              listVariant="ordered"
+              items={[
+                { text: t("pageHelp.vehicles.step1") },
+                { text: t("pageHelp.vehicles.step2") },
+                { text: t("pageHelp.vehicles.step3") },
+              ]}
+            />
+          </>
+        }
+        main={
+          <Card className="min-w-0 p-3 sm:p-4" title={t("common.pageSectionMain")}>
+            <TableToolbarSplit
+              className="mb-1 sm:mb-2"
+              lead={
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={t("vehicles.listFilterPlaceholder")}
+                  className="w-full text-base sm:text-sm"
+                  name="vehicles-list-search"
+                  autoComplete="off"
+                  aria-label={t("vehicles.listFilterPlaceholder")}
+                />
+              }
+              trailing={
+                canEdit ? (
+                  <Tooltip content={t("vehicles.addVehicle")} delayMs={200}>
+                    <Button
+                      type="button"
+                      variant="primary"
+                      onClick={openAdd}
+                      className={TABLE_TOOLBAR_ICON_BTN}
+                      aria-label={t("vehicles.addVehicle")}
+                    >
+                      <PlusIcon />
+                    </Button>
+                  </Tooltip>
+                ) : null
+              }
+            />
         {isError ? (
           <p className="mt-3 text-sm text-zinc-600">{t("toast.loadFailed")}</p>
         ) : isPending ? (
@@ -873,6 +1074,9 @@ export function VehiclesScreen() {
                   onEdit: () => openEdit(r),
                   onAddMaintenance: () => openAddMaintenanceForVehicle(r.id),
                   onEditKm: () => openKmModal(r.id),
+                  onChangeAssignment: () => openAssignmentFromListRow(r),
+                  onAddExpense: () => openAddExpenseForVehicle(r.id),
+                  onAddInsurance: () => openAddInsuranceForVehicle(r.id),
                   menuMode: "extras",
                 });
                 return (
@@ -891,10 +1095,11 @@ export function VehiclesScreen() {
                             <span className="text-zinc-500"> · {r.year}</span>
                           ) : null}
                         </p>
-                        <p className="mt-1 text-xs text-zinc-500">
-                          <span className="font-medium text-zinc-600">{r.status}</span>
-                          {" · "}
-                          <span className="break-words">
+                        <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
+                          <StatusBadge tone={vehicleListStatusTone(r.status)}>
+                            {vehicleStatusLabel(t, r.status)}
+                          </StatusBadge>
+                          <span className="break-words text-zinc-600">
                             {r.assignedPersonnelName ?? r.assignedBranchName ?? t("vehicles.idle")}
                           </span>
                         </p>
@@ -976,6 +1181,9 @@ export function VehiclesScreen() {
                         onEdit: () => openEdit(r),
                         onAddMaintenance: () => openAddMaintenanceForVehicle(r.id),
                         onEditKm: () => openKmModal(r.id),
+                        onChangeAssignment: () => openAssignmentFromListRow(r),
+                        onAddExpense: () => openAddExpenseForVehicle(r.id),
+                        onAddInsurance: () => openAddInsuranceForVehicle(r.id),
                         menuMode: "extras",
                       });
                       return (
@@ -986,7 +1194,11 @@ export function VehiclesScreen() {
                           <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 md:hidden lg:table-cell">
                             {r.year ?? "—"}
                           </TableCell>
-                          <TableCell>{r.status}</TableCell>
+                          <TableCell>
+                            <StatusBadge tone={vehicleListStatusTone(r.status)}>
+                              {vehicleStatusLabel(t, r.status)}
+                            </StatusBadge>
+                          </TableCell>
                           <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 max-w-[12rem] truncate md:hidden xl:table-cell">
                             {r.assignedPersonnelName ?? r.assignedBranchName ?? t("vehicles.idle")}
                           </TableCell>
@@ -1000,8 +1212,8 @@ export function VehiclesScreen() {
                               {insuranceBadgeLabel(r.insuranceBadge)}
                             </span>
                           </TableCell>
-                          <TableCell className="text-right">
-                            <div className="inline-flex flex-wrap items-center justify-end gap-1">
+                          <TableCell className="text-right align-middle">
+                            <div className="inline-flex flex-nowrap items-center justify-end gap-1">
                               <Tooltip content={t("common.openDetails")} delayMs={200}>
                                 <Button
                                   type="button"
@@ -1049,7 +1261,9 @@ export function VehiclesScreen() {
             </div>
           </>
         )}
-      </Card>
+          </Card>
+        }
+      />
 
       <Modal
         open={vehicleModal != null}
@@ -1252,217 +1466,374 @@ export function VehiclesScreen() {
               className="min-h-0 min-w-0 flex-1"
             >
             {detailTab === "overview" ? (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {canEdit ? (
-                  <div className="min-w-0 sm:col-span-2">
-                    <p className="text-[0.65rem] font-bold uppercase text-zinc-400">
-                      {t("vehicles.vehiclePhoto")}
-                    </p>
-                    {detail.hasPhoto ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={vehiclePhotoUrl(detail.id, photoCacheBust)}
-                        alt=""
-                        className="mt-1 max-h-48 w-auto max-w-full rounded-lg border border-zinc-200 object-contain shadow-sm"
-                      />
-                    ) : (
-                      <p className="mt-1 text-sm text-zinc-500">{t("vehicles.noPhoto")}</p>
-                    )}
-                    <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                      <input
-                        id={`vehicle-detail-photo-${detail.id}`}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,image/heic,image/avif"
-                        className="sr-only"
-                        onChange={(e) => {
-                          const input = e.currentTarget;
-                          const f = input.files?.[0];
-                          if (!f) return;
-                          void (async () => {
-                            try {
-                              await uploadVehiclePhotoMut.mutateAsync({
-                                vehicleId: detail.id,
-                                file: f,
-                              });
-                              setPhotoCacheBust(Date.now());
-                              toast.success(t("common.saved"), { ...notifyDefaults });
-                            } catch (err) {
-                              toast.error(toErrorMessage(err), { ...notifyDefaults });
-                            } finally {
-                              input.value = "";
-                            }
-                          })();
-                        }}
-                      />
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="w-full !min-h-12 touch-manipulation sm:w-auto sm:!min-h-10"
-                        disabled={uploadVehiclePhotoMut.isPending}
-                        onClick={() =>
-                          document.getElementById(`vehicle-detail-photo-${detail.id}`)?.click()
-                        }
+              <div className="space-y-4">
+                <div className="overflow-hidden rounded-2xl border border-zinc-200/90 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-zinc-100/80">
+                  <div className="border-b border-zinc-800/20 bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 px-4 py-4 sm:px-5 sm:py-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-zinc-400">
+                          {t("vehicles.plate")}
+                        </p>
+                        <p className="mt-0.5 font-mono text-2xl font-bold tracking-[0.08em] text-white sm:text-[1.65rem]">
+                          {detail.plateNumber}
+                        </p>
+                        <p className="mt-1.5 text-sm text-zinc-300">
+                          {detail.brand} {detail.model}
+                          {detail.year != null ? ` · ${detail.year}` : ""}
+                        </p>
+                      </div>
+                      <StatusBadge
+                        surface="dark"
+                        tone={vehicleHeaderStatusTone(detail.status)}
+                        size="md"
+                        className="w-fit font-bold"
                       >
-                        {t("vehicles.uploadPhoto")}
-                      </Button>
-                      {detail.hasPhoto ? (
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="w-full !min-h-12 touch-manipulation sm:w-auto sm:!min-h-10"
-                          disabled={deleteVehiclePhotoMut.isPending}
-                          onClick={() =>
-                            void notifyConfirmToast({
-                              toastId: `vehicle-photo-delete-${detail.id}`,
-                              message: t("vehicles.confirmDeletePhoto"),
-                              confirmLabel: t("vehicles.deletePhoto"),
-                              cancelLabel: t("common.cancel"),
-                              onConfirm: async () => {
+                        {vehicleStatusLabel(t, detail.status)}
+                      </StatusBadge>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,17rem)_1fr] lg:gap-6">
+                    <section
+                      className="flex min-h-0 flex-col rounded-xl border border-dashed border-zinc-200/90 bg-zinc-50/60 p-3 ring-1 ring-zinc-100/60 sm:p-4"
+                      aria-label={t("vehicles.vehiclePhoto")}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-500">
+                          {t("vehicles.vehiclePhoto")}
+                        </h3>
+                      </div>
+                      <div className="mt-3 flex min-h-[10rem] flex-1 flex-col items-center justify-center overflow-hidden rounded-lg border border-zinc-200/80 bg-white shadow-inner">
+                        {detail.hasPhoto ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={vehiclePhotoUrl(detail.id, photoCacheBust)}
+                            alt=""
+                            className="max-h-52 w-full object-contain"
+                          />
+                        ) : (
+                          <p className="px-3 text-center text-sm text-zinc-500">{t("vehicles.noPhoto")}</p>
+                        )}
+                      </div>
+                      {canEdit ? (
+                        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                          <input
+                            id={`vehicle-detail-photo-${detail.id}`}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,image/heic,image/avif"
+                            className="sr-only"
+                            onChange={(e) => {
+                              const input = e.currentTarget;
+                              const f = input.files?.[0];
+                              if (!f) return;
+                              void (async () => {
                                 try {
-                                  await deleteVehiclePhotoMut.mutateAsync(detail.id);
+                                  await uploadVehiclePhotoMut.mutateAsync({
+                                    vehicleId: detail.id,
+                                    file: f,
+                                  });
                                   setPhotoCacheBust(Date.now());
                                   toast.success(t("common.saved"), { ...notifyDefaults });
                                 } catch (err) {
                                   toast.error(toErrorMessage(err), { ...notifyDefaults });
+                                } finally {
+                                  input.value = "";
                                 }
-                              },
-                            })
-                          }
-                        >
-                          {t("vehicles.deletePhoto")}
-                        </Button>
+                              })();
+                            }}
+                          />
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="w-full !min-h-11 touch-manipulation shadow-sm sm:w-auto sm:!min-h-10"
+                            disabled={uploadVehiclePhotoMut.isPending}
+                            onClick={() =>
+                              document.getElementById(`vehicle-detail-photo-${detail.id}`)?.click()
+                            }
+                          >
+                            {t("vehicles.uploadPhoto")}
+                          </Button>
+                          {detail.hasPhoto ? (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="w-full !min-h-11 touch-manipulation shadow-sm sm:w-auto sm:!min-h-10"
+                              disabled={deleteVehiclePhotoMut.isPending}
+                              onClick={() =>
+                                void notifyConfirmToast({
+                                  toastId: `vehicle-photo-delete-${detail.id}`,
+                                  message: t("vehicles.confirmDeletePhoto"),
+                                  confirmLabel: t("vehicles.deletePhoto"),
+                                  cancelLabel: t("common.cancel"),
+                                  onConfirm: async () => {
+                                    try {
+                                      await deleteVehiclePhotoMut.mutateAsync(detail.id);
+                                      setPhotoCacheBust(Date.now());
+                                      toast.success(t("common.saved"), { ...notifyDefaults });
+                                    } catch (err) {
+                                      toast.error(toErrorMessage(err), { ...notifyDefaults });
+                                    }
+                                  },
+                                })
+                              }
+                            >
+                              {t("vehicles.deletePhoto")}
+                            </Button>
+                          ) : null}
+                        </div>
                       ) : null}
-                    </div>
-                  </div>
-                ) : detail.hasPhoto ? (
-                  <div className="min-w-0 sm:col-span-2">
-                    <p className="text-[0.65rem] font-bold uppercase text-zinc-400">
-                      {t("vehicles.vehiclePhoto")}
-                    </p>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={vehiclePhotoUrl(detail.id, photoCacheBust)}
-                      alt=""
-                      className="mt-1 max-h-48 w-auto max-w-full rounded-lg border border-zinc-200 object-contain shadow-sm"
-                    />
-                  </div>
-                ) : null}
-                <div className="min-w-0">
-                  <p className="text-[0.65rem] font-bold uppercase text-zinc-400">
-                    {t("vehicles.brand")} / {t("vehicles.model")}
-                  </p>
-                  <p className="text-sm font-medium text-zinc-900">
-                    {detail.brand} {detail.model}
-                  </p>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[0.65rem] font-bold uppercase text-zinc-400">
-                    {t("vehicles.year")}
-                  </p>
-                  <p className="text-sm text-zinc-900">{detail.year ?? "—"}</p>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[0.65rem] font-bold uppercase text-zinc-400">
-                    {t("vehicles.status")}
-                  </p>
-                  <p className="text-sm text-zinc-900">{detail.status}</p>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[0.65rem] font-bold uppercase text-zinc-400">
-                    {t("vehicles.odometerKm")}
-                  </p>
-                  <p className="text-sm text-zinc-900">
-                    {detail.odometerKm != null
-                      ? new Intl.NumberFormat(locale === "tr" ? "tr-TR" : "en-US").format(
-                          detail.odometerKm
-                        )
-                      : "—"}
-                  </p>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[0.65rem] font-bold uppercase text-zinc-400">
-                    {t("vehicles.inspectionValidUntil")}
-                  </p>
-                  <p className="text-sm text-zinc-900">
-                    {detail.inspectionValidUntil
-                      ? new Date(`${detail.inspectionValidUntil}T12:00:00`).toLocaleDateString(
-                          locale === "tr" ? "tr-TR" : "en-US"
-                        )
-                      : "—"}
-                  </p>
-                </div>
-                <div className="min-w-0 sm:col-span-2">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[0.65rem] font-bold uppercase text-zinc-400">
-                        {t("vehicles.assignment")}
-                      </p>
-                      <p className="break-words text-sm text-zinc-900">
-                        {detail.assignedPersonnelName ??
-                          detail.assignedBranchName ??
-                          t("vehicles.idle")}
-                      </p>
-                    </div>
-                    {canEdit ? (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="w-full !min-h-11 shrink-0 touch-manipulation sm:w-auto sm:!min-h-10"
-                        onClick={openAssignmentDialogFromDetail}
+                    </section>
+
+                    <div className="min-w-0 space-y-4">
+                      <section
+                        className="rounded-xl border border-zinc-200/80 bg-white p-3 shadow-sm sm:p-4"
+                        aria-labelledby="vehicle-overview-lines-heading"
                       >
-                        {t("vehicles.changeAssignment")}
-                      </Button>
-                    ) : null}
+                        <div
+                          id="vehicle-overview-lines-heading"
+                          className="mb-1 flex items-center gap-2 border-b border-zinc-100 pb-2"
+                        >
+                          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-700">
+                            <svg
+                              viewBox="0 0 24 24"
+                              width={18}
+                              height={18}
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.75"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden
+                            >
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                              <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+                            </svg>
+                          </span>
+                          <h3 className="text-sm font-semibold text-zinc-900">{t("vehicles.tabOverview")}</h3>
+                        </div>
+                        <div className="px-0.5">
+                          <VehicleOverviewRow
+                            label={`${t("vehicles.brand")} / ${t("vehicles.model")}`}
+                            value={`${detail.brand} ${detail.model}`.trim() || "—"}
+                            icon={
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.75"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.3-1.5-2.1c-.2-.8-.7-1.4-1.5-1.4H8.5c-.8 0-1.3.6-1.5 1.4C6.8 8.7 5.5 10 5.5 10 3.3 10 2 11.7 2 14v3c0 .6.4 1 1 1h2" />
+                                <circle cx="7" cy="17" r="2" />
+                                <path d="M9 17h6" />
+                                <circle cx="17" cy="17" r="2" />
+                              </svg>
+                            }
+                          />
+                          <VehicleOverviewRow
+                            label={t("vehicles.year")}
+                            value={detail.year ?? "—"}
+                            icon={
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.75"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M8 2v4M16 2v4" />
+                                <rect x="3" y="4" width="18" height="18" rx="2" />
+                                <path d="M3 10h18" />
+                              </svg>
+                            }
+                          />
+                          <VehicleOverviewRow
+                            label={t("vehicles.odometerKm")}
+                            value={
+                              detail.odometerKm != null
+                                ? new Intl.NumberFormat(locale === "tr" ? "tr-TR" : "en-US").format(
+                                    detail.odometerKm
+                                  )
+                                : "—"
+                            }
+                            icon={
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.75"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <circle cx="12" cy="12" r="10" />
+                                <path d="M12 6v6l4 2" />
+                              </svg>
+                            }
+                          />
+                          <VehicleOverviewRow
+                            label={t("vehicles.inspectionValidUntil")}
+                            value={
+                              detail.inspectionValidUntil
+                                ? new Date(`${detail.inspectionValidUntil}T12:00:00`).toLocaleDateString(
+                                    locale === "tr" ? "tr-TR" : "en-US"
+                                  )
+                                : "—"
+                            }
+                            icon={
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.75"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M8 2v4M16 2v4" />
+                                <rect x="3" y="4" width="18" height="18" rx="2" />
+                                <path d="M3 10h18" />
+                              </svg>
+                            }
+                          />
+                          {detail.assignedPersonnelId ? (
+                            <>
+                              <VehicleOverviewRow
+                                label={t("vehicles.driverSrcValidUntil")}
+                                value={
+                                  detail.driverSrcValidUntil
+                                    ? new Date(
+                                        `${detail.driverSrcValidUntil}T12:00:00`
+                                      ).toLocaleDateString(locale === "tr" ? "tr-TR" : "en-US")
+                                    : "—"
+                                }
+                                icon={
+                                  <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.75"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  >
+                                    <path d="M8 2v4M16 2v4" />
+                                    <rect x="3" y="4" width="18" height="18" rx="2" />
+                                    <path d="M3 10h18" />
+                                  </svg>
+                                }
+                              />
+                              <VehicleOverviewRow
+                                label={t("vehicles.driverPsychotechnicalValidUntil")}
+                                value={
+                                  detail.driverPsychotechnicalValidUntil
+                                    ? new Date(
+                                        `${detail.driverPsychotechnicalValidUntil}T12:00:00`
+                                      ).toLocaleDateString(locale === "tr" ? "tr-TR" : "en-US")
+                                    : "—"
+                                }
+                                icon={
+                                  <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="1.75"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  >
+                                    <path d="M8 2v4M16 2v4" />
+                                    <rect x="3" y="4" width="18" height="18" rx="2" />
+                                    <path d="M3 10h18" />
+                                  </svg>
+                                }
+                              />
+                            </>
+                          ) : null}
+                          <VehicleOverviewRow
+                            label={t("vehicles.assignment")}
+                            value={
+                              <span className="inline-flex flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-3">
+                                <span className="break-words font-semibold text-zinc-900">
+                                  {detail.assignedPersonnelName ??
+                                    detail.assignedBranchName ??
+                                    t("vehicles.idle")}
+                                </span>
+                                {canEdit ? (
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    className="!min-h-10 w-full shrink-0 touch-manipulation shadow-sm sm:w-auto"
+                                    onClick={openAssignmentDialogFromDetail}
+                                  >
+                                    {t("vehicles.changeAssignment")}
+                                  </Button>
+                                ) : null}
+                              </span>
+                            }
+                            icon={
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.75"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                                <circle cx="9" cy="7" r="4" />
+                                <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                              </svg>
+                            }
+                          />
+                          <VehicleOverviewRow
+                            label={t("vehicles.notes")}
+                            value={
+                              <span className="whitespace-pre-wrap font-normal text-zinc-800">
+                                {detail.notes?.trim() ? detail.notes : "—"}
+                              </span>
+                            }
+                            icon={
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.75"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+                              </svg>
+                            }
+                          />
+                          <VehicleOverviewRow
+                            label={t("vehicles.insuranceBadge")}
+                            value={
+                              <span
+                                className={cn(
+                                  "inline-flex rounded-full px-2.5 py-1 text-[0.65rem] font-bold uppercase ring-1",
+                                  badgeClasses(detail.insuranceBadge)
+                                )}
+                              >
+                                {insuranceBadgeLabel(detail.insuranceBadge)}
+                              </span>
+                            }
+                            icon={
+                              <svg
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.75"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                              </svg>
+                            }
+                          />
+                        </div>
+                      </section>
+                    </div>
                   </div>
-                </div>
-                {detail.assignedPersonnelId ? (
-                  <>
-                    <div className="min-w-0">
-                      <p className="text-[0.65rem] font-bold uppercase text-zinc-400">
-                        {t("vehicles.driverSrcValidUntil")}
-                      </p>
-                      <p className="text-sm text-zinc-900">
-                        {detail.driverSrcValidUntil
-                          ? new Date(`${detail.driverSrcValidUntil}T12:00:00`).toLocaleDateString(
-                              locale === "tr" ? "tr-TR" : "en-US"
-                            )
-                          : "—"}
-                      </p>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[0.65rem] font-bold uppercase text-zinc-400">
-                        {t("vehicles.driverPsychotechnicalValidUntil")}
-                      </p>
-                      <p className="text-sm text-zinc-900">
-                        {detail.driverPsychotechnicalValidUntil
-                          ? new Date(`${detail.driverPsychotechnicalValidUntil}T12:00:00`).toLocaleDateString(
-                              locale === "tr" ? "tr-TR" : "en-US"
-                            )
-                          : "—"}
-                      </p>
-                    </div>
-                  </>
-                ) : null}
-                <div className="min-w-0 sm:col-span-2">
-                  <p className="text-[0.65rem] font-bold uppercase text-zinc-400">
-                    {t("vehicles.notes")}
-                  </p>
-                  <p className="whitespace-pre-wrap text-sm text-zinc-900">
-                    {detail.notes?.trim() ? detail.notes : "—"}
-                  </p>
-                </div>
-                <div className="min-w-0">
-                  <p className="text-[0.65rem] font-bold uppercase text-zinc-400">
-                    {t("vehicles.insuranceBadge")}
-                  </p>
-                  <span
-                    className={cn(
-                      "inline-flex rounded-full px-2 py-0.5 text-[0.65rem] font-bold uppercase ring-1",
-                      badgeClasses(detail.insuranceBadge)
-                    )}
-                  >
-                    {insuranceBadgeLabel(detail.insuranceBadge)}
-                  </span>
                 </div>
               </div>
             ) : null}
@@ -1532,8 +1903,21 @@ export function VehiclesScreen() {
                   <p className="text-sm text-zinc-500">{t("vehicles.emptyMaintenances")}</p>
                 ) : (
                   <>
+                    <Select
+                      name="vehicle-maintenance-log-filter"
+                      label={t("vehicles.maintenanceFilterByType")}
+                      value={maintLogFilterType}
+                      onBlur={() => {}}
+                      onChange={(e) => setMaintLogFilterType(e.target.value)}
+                      options={maintenanceLogFilterSelectOptions}
+                      className="max-w-md"
+                    />
+                    {filteredVehicleMaintenances.length === 0 ? (
+                      <p className="text-sm text-zinc-500">{t("vehicles.maintenanceFilterNoResults")}</p>
+                    ) : (
+                      <>
                     <ul className="flex flex-col gap-3 md:hidden">
-                      {(detail.maintenances ?? []).map((x) => {
+                      {filteredVehicleMaintenances.map((x) => {
                         const nextDueLabel = x.nextDueDate
                           ? x.nextDueDate.slice(0, 10)
                           : x.nextDueKm != null
@@ -1546,7 +1930,9 @@ export function VehiclesScreen() {
                           >
                             <div className="flex flex-wrap items-start justify-between gap-2">
                               <div className="min-w-0 flex-1">
-                                <p className="font-semibold text-zinc-900">{x.maintenanceType}</p>
+                                <p className="font-semibold text-zinc-900">
+                                  {labelVehicleMaintenanceType(x.maintenanceType, t)}
+                                </p>
                                 <p className="mt-0.5 text-xs text-zinc-500">
                                   {t("vehicles.maintenanceServiceDate")}: {x.serviceDate.slice(0, 10)}
                                 </p>
@@ -1648,12 +2034,14 @@ export function VehiclesScreen() {
                             </TableRow>
                           </TableHead>
                           <TableBody>
-                            {(detail.maintenances ?? []).map((x) => (
+                            {filteredVehicleMaintenances.map((x) => (
                               <TableRow key={x.id}>
                                 <TableCell className="whitespace-nowrap">
                                   {x.serviceDate.slice(0, 10)}
                                 </TableCell>
-                                <TableCell className="max-w-[10rem] truncate">{x.maintenanceType}</TableCell>
+                                <TableCell className="max-w-[10rem] truncate">
+                                  {labelVehicleMaintenanceType(x.maintenanceType, t)}
+                                </TableCell>
                                 <TableCell className="max-sm:hidden sm:max-md:flex sm:max-md:w-full sm:max-md:min-w-0 sm:max-md:items-start sm:max-md:justify-between sm:max-md:gap-3 tabular-nums md:table-cell">
                                   {x.odometerKm != null
                                     ? new Intl.NumberFormat(locale === "tr" ? "tr-TR" : "en-US").format(
@@ -1723,6 +2111,8 @@ export function VehiclesScreen() {
                         </Table>
                       </div>
                     </div>
+                      </>
+                    )}
                   </>
                 )}
                 </section>
@@ -2008,7 +2398,9 @@ export function VehiclesScreen() {
                 ) : (
                   <>
                     <ul className="flex flex-col gap-3 md:hidden">
-                      {detail.expenses.map((x) => (
+                      {detail.expenses.map((x) => {
+                        const postingDetail = vehicleExpenseBranchPostingDetail(x, t);
+                        return (
                         <li
                           key={x.id}
                           className="rounded-xl border border-zinc-200/90 bg-white p-3 shadow-sm ring-1 ring-zinc-100/80"
@@ -2020,6 +2412,9 @@ export function VehiclesScreen() {
                               {x.postedBranchName?.trim() ? (
                                 <p className="mt-0.5 text-[11px] text-sky-800">
                                   {t("vehicles.expensePostedBranch")}: {x.postedBranchName.trim()}
+                                  {postingDetail ? (
+                                    <span className="ml-1 font-semibold">· {postingDetail}</span>
+                                  ) : null}
                                 </p>
                               ) : null}
                             </div>
@@ -2070,7 +2465,8 @@ export function VehiclesScreen() {
                             </div>
                           ) : null}
                         </li>
-                      ))}
+                        );
+                      })}
                     </ul>
                     <div className="-mx-1 hidden min-w-0 overflow-x-auto rounded-lg sm:mx-0 md:block">
                       <Table className="min-w-[34rem] text-sm sm:min-w-0 sm:text-base">
@@ -2083,7 +2479,9 @@ export function VehiclesScreen() {
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {detail.expenses.map((x) => (
+                          {detail.expenses.map((x) => {
+                                const postingDetail = vehicleExpenseBranchPostingDetail(x, t);
+                                return (
                             <TableRow key={x.id}>
                               <TableCell>{x.expenseDate.slice(0, 10)}</TableCell>
                               <TableCell>
@@ -2091,6 +2489,9 @@ export function VehiclesScreen() {
                                 {x.postedBranchName?.trim() ? (
                                   <div className="mt-0.5 text-xs text-sky-800">
                                     {x.postedBranchName.trim()}
+                                    {postingDetail ? (
+                                      <span className="ml-1 font-semibold">· {postingDetail}</span>
+                                    ) : null}
                                   </div>
                                 ) : null}
                               </TableCell>
@@ -2139,7 +2540,8 @@ export function VehiclesScreen() {
                                 ) : null}
                               </TableCell>
                             </TableRow>
-                          ))}
+                                );
+                              })}
                         </TableBody>
                       </Table>
                     </div>
@@ -2275,7 +2677,10 @@ export function VehiclesScreen() {
 
       <Modal
         open={insModal != null}
-        onClose={() => setInsModal(null)}
+        onClose={() => {
+          setInsModal(null);
+          setInsModalVehicleId(null);
+        }}
         titleId="vehicle-insurance-form"
         title={insModal === "add" ? t("vehicles.addInsurance") : t("vehicles.editInsurance")}
         narrow
@@ -2319,7 +2724,10 @@ export function VehiclesScreen() {
               type="button"
               variant="secondary"
               className="w-full !min-h-12 touch-manipulation sm:!min-h-10 sm:w-auto"
-              onClick={() => setInsModal(null)}
+              onClick={() => {
+                setInsModal(null);
+                setInsModalVehicleId(null);
+              }}
             >
               {t("common.cancel")}
             </Button>
@@ -2337,7 +2745,10 @@ export function VehiclesScreen() {
 
       <Modal
         open={expModal != null}
-        onClose={() => setExpModal(null)}
+        onClose={() => {
+          setExpModal(null);
+          setExpModalVehicleId(null);
+        }}
         titleId="vehicle-expense-form"
         title={expModal === "add" ? t("vehicles.addExpense") : t("vehicles.editExpense")}
         narrow
@@ -2385,7 +2796,14 @@ export function VehiclesScreen() {
               label={t("vehicles.expensePostToBranch")}
               value={expBranchId}
               onBlur={() => {}}
-              onChange={(e) => setExpBranchId(e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                setExpBranchId(v);
+                if (!v.trim()) {
+                  setExpBranchPaySource("REGISTER");
+                  setExpPatronPay("CASH");
+                }
+              }}
               options={[
                 { value: "", label: "—" },
                 ...branchRows.map((b) => ({
@@ -2395,12 +2813,44 @@ export function VehiclesScreen() {
               ]}
             />
           ) : null}
+          {canEdit && expBranchId.trim() ? (
+            <div className="flex flex-col gap-3 rounded-lg border border-zinc-200/80 bg-zinc-50/60 p-3">
+              <p className="text-xs text-zinc-600">{t("vehicles.expenseBranchPayHint")}</p>
+              <Select
+                name="vehicle-expense-branch-pay-source"
+                label={t("vehicles.expenseBranchPaySource")}
+                value={expBranchPaySource}
+                onBlur={() => {}}
+                onChange={(e) => setExpBranchPaySource(e.target.value as "REGISTER" | "PATRON")}
+                options={[
+                  { value: "REGISTER", label: t("vehicles.expenseBranchPayRegister") },
+                  { value: "PATRON", label: t("vehicles.expenseBranchPayPatron") },
+                ]}
+              />
+              {expBranchPaySource === "PATRON" ? (
+                <Select
+                  name="vehicle-expense-patron-pay"
+                  label={t("vehicles.expensePatronPayMethod")}
+                  value={expPatronPay}
+                  onBlur={() => {}}
+                  onChange={(e) => setExpPatronPay(e.target.value as "CASH" | "CARD")}
+                  options={[
+                    { value: "CASH", label: t("vehicles.expensePayCash") },
+                    { value: "CARD", label: t("vehicles.expensePayCard") },
+                  ]}
+                />
+              ) : null}
+            </div>
+          ) : null}
           <div className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
               variant="secondary"
               className="w-full !min-h-12 touch-manipulation sm:!min-h-10 sm:w-auto"
-              onClick={() => setExpModal(null)}
+              onClick={() => {
+                setExpModal(null);
+                setExpModalVehicleId(null);
+              }}
             >
               {t("common.cancel")}
             </Button>
@@ -2443,12 +2893,14 @@ export function VehiclesScreen() {
             inputMode="numeric"
             placeholder="0"
           />
-          <Input
+          <Select
+            name="vehicle-maintenance-type"
             label={t("vehicles.maintenanceType")}
             labelRequired
             value={maintType}
+            onBlur={() => {}}
             onChange={(e) => setMaintType(e.target.value)}
-            placeholder={t("vehicles.types.maintenance")}
+            options={maintenanceTypeFormSelectOptions}
           />
           <Input
             label={t("vehicles.maintenanceWorkshop")}
@@ -2633,6 +3085,6 @@ export function VehiclesScreen() {
           </div>
         </div>
       </Modal>
-    </div>
+    </>
   );
 }

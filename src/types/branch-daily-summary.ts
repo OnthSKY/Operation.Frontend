@@ -19,4 +19,7 @@ export type BranchDailySummary = {
   registerOwesPatronToday?: number;
   patronDebtRepaidFromRegisterToday?: number;
   netRegisterOwesPatronToday?: number;
+  tourismSeasonPeriodMissing?: boolean;
+  tourismSeasonOpenedOn?: string | null;
+  tourismSeasonClosedOn?: string | null;
 };

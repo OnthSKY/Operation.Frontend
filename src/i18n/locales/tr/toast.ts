@@ -5,6 +5,7 @@ export const toast = {
   personnelMovedToBranch: "Personel şubeye atandı",
   personnelDeactivated: "Personel pasifleştirildi",
   advanceCreated: "Avans kaydedildi",
+  advanceDeleted: "Avans silindi",
   branchCreated: "Şube kaydedildi",
   branchUpdated: "Şube güncellendi",
   branchTxCreated: "Kasa kaydı kaydedildi",
@@ -42,5 +43,6 @@ export const toast = {
   supplierUpdated: "Tedarikçi güncellendi",
   supplierDeleted: "Tedarikçi silindi",
   supplierInvoiceCreated: "Alım faturası kaydedildi",
+  supplierInvoiceUpdated: "Fatura güncellendi",
   supplierPaymentCreated: "Tedarikçi ödemesi kaydedildi",
 } as const;

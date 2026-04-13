@@ -8,6 +8,7 @@ import { ReportCashPatronHighlights } from "@/modules/reports/components/ReportC
 import { ReportsPatronTabStory } from "@/modules/reports/components/ReportsPatronTabStory";
 import { useCashPositionReport } from "@/modules/reports/hooks/useReportsQueries";
 import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileFilters";
+import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
@@ -54,6 +55,22 @@ export function CashReportScreen() {
     <ReportTablesPageShell
       title={t("reports.tablesPageCashTitle")}
       subtitle={t("reports.tablesPageCashSubtitle")}
+      pageGuide={
+        <PageWhenToUseGuide
+          guideTab="reports"
+          title={t("common.pageWhenToUseTitle")}
+          description={t("pageHelp.reportsCash.intro")}
+          listVariant="ordered"
+          items={[
+            { text: t("pageHelp.reportsCash.step1") },
+            { text: t("pageHelp.reportsCash.step2") },
+            {
+              text: t("pageHelp.reportsCash.step3"),
+              link: { href: "/", label: t("pageHelp.reportsCash.step3Link") },
+            },
+          ]}
+        />
+      }
     >
       <CollapsibleMobileFilters
         title={t("reports.filtersSectionTitle")}

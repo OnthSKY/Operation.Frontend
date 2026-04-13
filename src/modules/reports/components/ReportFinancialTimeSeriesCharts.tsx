@@ -7,6 +7,7 @@ import type {
   FinancialMonthlyBreakdownRow,
 } from "@/types/reports";
 import { Card } from "@/shared/components/Card";
+import { RechartsMeasureBox } from "@/shared/components/RechartsMeasureBox";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { useMediaMinWidth } from "@/shared/lib/use-media-min-width";
 import { useMemo } from "react";
@@ -156,46 +157,48 @@ export function ReportFinancialTimeSeriesCharts({
           <p className="mb-3 break-words text-xs leading-relaxed text-zinc-500">
             {t("reports.chartMonthlyTrendCaption")}
           </p>
-          <Card title={t("reports.chartMonthlyExpenseNet")}>
-            <div className="h-[240px] w-full min-w-0 sm:h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={monthlyChartData}
-                  margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-                  <XAxis dataKey="label" tick={{ fontSize: smUp ? 11 : 9 }} />
-                  <YAxis
-                    tick={{ fontSize: smUp ? 11 : 9 }}
-                    tickFormatter={fmtAxisTick}
-                    width={smUp ? 72 : 56}
-                  />
-                  <Tooltip
-                    formatter={(v) => tooltipMoney(v)}
-                    labelFormatter={(_, p) =>
-                      (p?.[0]?.payload as { label?: string })?.label ?? ""
-                    }
-                  />
-                  <Legend wrapperStyle={{ fontSize: smUp ? 12 : 10 }} />
-                  <Line
-                    type="monotone"
-                    dataKey="expense"
-                    name={t("reports.chartMonthlyExpense")}
-                    stroke="#dc2626"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="net"
-                    name={t("reports.chartMonthlyNet")}
-                    stroke="#059669"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+          <Card className="min-w-0" title={t("reports.chartMonthlyExpenseNet")}>
+            <RechartsMeasureBox className="h-[240px] w-full min-w-0 sm:h-[280px]">
+              {({ width, height }) => (
+                <ResponsiveContainer width={width} height={height}>
+                  <LineChart
+                    data={monthlyChartData}
+                    margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                    <XAxis dataKey="label" tick={{ fontSize: smUp ? 11 : 9 }} />
+                    <YAxis
+                      tick={{ fontSize: smUp ? 11 : 9 }}
+                      tickFormatter={fmtAxisTick}
+                      width={smUp ? 72 : 56}
+                    />
+                    <Tooltip
+                      formatter={(v) => tooltipMoney(v)}
+                      labelFormatter={(_, p) =>
+                        (p?.[0]?.payload as { label?: string })?.label ?? ""
+                      }
+                    />
+                    <Legend wrapperStyle={{ fontSize: smUp ? 12 : 10 }} />
+                    <Line
+                      type="monotone"
+                      dataKey="expense"
+                      name={t("reports.chartMonthlyExpense")}
+                      stroke="#dc2626"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="net"
+                      name={t("reports.chartMonthlyNet")}
+                      stroke="#059669"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </RechartsMeasureBox>
           </Card>
         </div>
       ) : null}
@@ -208,36 +211,40 @@ export function ReportFinancialTimeSeriesCharts({
           <p className="mb-3 break-words text-xs leading-relaxed text-zinc-500">
             {t("reports.chartBranchMonthlyHint")}
           </p>
-          <Card title={t("reports.chartBranchMonthlyNet")}>
-            <div className="h-[260px] w-full min-w-0 sm:h-[320px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={branchChart.rows}
-                  margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-                  <XAxis dataKey="label" tick={{ fontSize: smUp ? 11 : 9 }} />
-                  <YAxis
-                    tick={{ fontSize: smUp ? 11 : 9 }}
-                    tickFormatter={fmtAxisTick}
-                    width={smUp ? 72 : 56}
-                  />
-                  <Tooltip formatter={(v) => tooltipMoney(v)} />
-                  <Legend wrapperStyle={{ fontSize: smUp ? 11 : 10 }} />
-                  {branchChart.branchMeta.map((b, i) => (
-                    <Line
-                      key={b.id}
-                      type="monotone"
-                      dataKey={`b${b.id}`}
-                      name={b.name}
-                      stroke={BRANCH_LINE_COLORS[i % BRANCH_LINE_COLORS.length]}
-                      strokeWidth={2}
-                      dot={false}
+          <Card className="min-w-0" title={t("reports.chartBranchMonthlyNet")}>
+            <RechartsMeasureBox className="h-[260px] w-full min-w-0 sm:h-[320px]">
+              {({ width, height }) => (
+                <ResponsiveContainer width={width} height={height}>
+                  <LineChart
+                    data={branchChart.rows}
+                    margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                    <XAxis dataKey="label" tick={{ fontSize: smUp ? 11 : 9 }} />
+                    <YAxis
+                      tick={{ fontSize: smUp ? 11 : 9 }}
+                      tickFormatter={fmtAxisTick}
+                      width={smUp ? 72 : 56}
                     />
-                  ))}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+                    <Tooltip formatter={(v) => tooltipMoney(v)} />
+                    <Legend wrapperStyle={{ fontSize: smUp ? 11 : 10 }} />
+                    {branchChart.branchMeta.map((b, i) => (
+                      <Line
+                        key={b.id}
+                        type="monotone"
+                        dataKey={`b${b.id}`}
+                        name={b.name}
+                        stroke={
+                          BRANCH_LINE_COLORS[i % BRANCH_LINE_COLORS.length]
+                        }
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </RechartsMeasureBox>
           </Card>
         </div>
       ) : null}

@@ -5,6 +5,7 @@ import type { Locale } from "@/i18n/messages";
 import { cn } from "@/lib/cn";
 import { apiFetch } from "@/shared/api/client";
 import { AddBranchTransactionModal } from "@/modules/branch/components/AddBranchTransactionModal";
+import { AdvancePersonnelModal } from "@/modules/personnel/components/AdvancePersonnelModal";
 import { fetchPersonnelAttributedExpenses } from "@/modules/branch/api/branch-transactions-api";
 import { txCategoryLine } from "@/modules/branch/lib/branch-transaction-options";
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
@@ -18,13 +19,16 @@ import {
   personnelProfilePhotoUrl,
 } from "@/modules/personnel/api/personnel-api";
 import { PersonnelProfilePhotoAvatar } from "@/modules/personnel/components/PersonnelProfilePhotoAvatar";
+import { StatusBadge } from "@/shared/components/StatusBadge";
 import {
+  useDeleteAdvance,
   usePersonnelAdvancesAll,
   usePersonnelInsurancePeriods,
   usePersonnelManagementSnapshot,
   usePersonnelYearAccountClosures,
   useReopenPersonnelYearAccount,
 } from "@/modules/personnel/hooks/usePersonnelQueries";
+import { useDeleteBranchTransaction } from "@/modules/branch/hooks/useBranchQueries";
 import { fetchWarehouses } from "@/modules/warehouse/api/warehouses-api";
 import {
   useUpdateWarehouse,
@@ -50,6 +54,7 @@ import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
+import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import {
   Table,
   TableBody,
@@ -156,14 +161,6 @@ function sourceAbbrev(t: (k: string) => string, st: string): string {
   if (u === "PERSONNEL_POCKET")
     return t("personnel.advanceSourceAbbrPersonnelPocket");
   return t("personnel.advanceSourceAbbrCash");
-}
-
-function PassiveBadge({ children }: { children: string }) {
-  return (
-    <span className="inline-flex shrink-0 items-center rounded-md bg-zinc-300/80 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-800">
-      {children}
-    </span>
-  );
 }
 
 function nationalIdFileExt(mime: string): string {
@@ -423,6 +420,7 @@ export function PersonnelDetailModal({
     "manager",
   );
   const [orgTxOpen, setOrgTxOpen] = useState(false);
+  const [detailAdvanceOpen, setDetailAdvanceOpen] = useState(false);
   const [insuranceAddOpen, setInsuranceAddOpen] = useState(false);
   const [insuranceEditPeriod, setInsuranceEditPeriod] =
     useState<PersonnelInsurancePeriod | null>(null);
@@ -470,6 +468,8 @@ export function PersonnelDetailModal({
   });
 
   const reopenYearMut = useReopenPersonnelYearAccount(pid);
+  const deleteAdvanceMut = useDeleteAdvance();
+  const deleteTxMut = useDeleteBranchTransaction();
   const {
     data: yearClosures = [],
     isPending: yearClosuresLoading,
@@ -480,15 +480,33 @@ export function PersonnelDetailModal({
     open && pid > 0 && tab === "yearClosures",
   );
 
-  const attributedExpensesForCostsTab = useMemo(() => {
+  const attributedNonAdvanceExpensesBase = useMemo(
+    () =>
+      attributedExpenses.filter((r) => !attributedExpenseRowIsAdvance(r)),
+    [attributedExpenses],
+  );
+
+  const attributedNonAdvanceExpensesForCostsTab = useMemo(() => {
     const y = parseSettlementSeasonYearChoice(costsListSeason);
-    if (y == null) return attributedExpenses;
-    return attributedExpenses.filter((r) => {
+    if (y == null) return attributedNonAdvanceExpensesBase;
+    return attributedNonAdvanceExpensesBase.filter((r) => {
       const td = String(r.transactionDate ?? "").trim();
       const ty = td.length >= 4 ? parseInt(td.slice(0, 4), 10) : NaN;
       return Number.isFinite(ty) && ty === y;
     });
-  }, [attributedExpenses, costsListSeason]);
+  }, [attributedNonAdvanceExpensesBase, costsListSeason]);
+
+  const filteredExpensesForCostsCombo = useMemo(() => {
+    let rows = attributedNonAdvanceExpensesForCostsTab;
+    const br = branchFilter.trim();
+    if (br) {
+      const bid = parseInt(br, 10);
+      if (Number.isFinite(bid) && bid > 0) {
+        rows = rows.filter((r) => r.branchId != null && r.branchId === bid);
+      }
+    }
+    return rows;
+  }, [attributedNonAdvanceExpensesForCostsTab, branchFilter]);
 
   const handoverCashRows = useMemo(() => {
     if (!mgmtSnap) return [];
@@ -554,6 +572,7 @@ export function PersonnelDetailModal({
     setRolesSearch("");
     setAssignWarehouseId("");
     setAssignRole("manager");
+    setDetailAdvanceOpen(false);
   }, [open, personnel?.id, initialTab]);
 
   const seasonScopeSelectOptions = useMemo(
@@ -604,12 +623,37 @@ export function PersonnelDetailModal({
     return rows;
   }, [advancesRaw, costsListSeason, branchFilter, sourceFilter]);
 
+  const combinedCostsRows = useMemo(() => {
+    const advPart = filteredAdvances.map((advance) => ({
+      kind: "advance" as const,
+      advance,
+    }));
+    const expPart = filteredExpensesForCostsCombo.map((tx) => ({
+      kind: "expense" as const,
+      tx,
+    }));
+    const sortKey = (
+      r: (typeof advPart)[number] | (typeof expPart)[number],
+    ) =>
+      r.kind === "advance"
+        ? r.advance.advanceDate.slice(0, 10)
+        : String(r.tx.transactionDate ?? "").slice(0, 10);
+    const rowId = (r: (typeof advPart)[number] | (typeof expPart)[number]) =>
+      r.kind === "advance" ? r.advance.id : r.tx.id;
+    return [...advPart, ...expPart].sort((a, b) => {
+      const ka = sortKey(a);
+      const kb = sortKey(b);
+      if (ka !== kb) return kb.localeCompare(ka);
+      return rowId(b) - rowId(a);
+    });
+  }, [filteredAdvances, filteredExpensesForCostsCombo]);
+
   const advSize =
     PAGE_SIZE_OPTIONS.find((n) => String(n) === advPageSizeVal) ??
     PAGE_SIZE_OPTIONS[0];
   const advTotalPages = Math.max(
     1,
-    Math.ceil(filteredAdvances.length / advSize),
+    Math.ceil(combinedCostsRows.length / advSize),
   );
 
   useEffect(() => {
@@ -617,10 +661,10 @@ export function PersonnelDetailModal({
   }, [advTotalPages]);
 
   const advSafePage = Math.min(advPage, advTotalPages);
-  const advSlice = useMemo(() => {
+  const costsSlice = useMemo(() => {
     const start = (advSafePage - 1) * advSize;
-    return filteredAdvances.slice(start, start + advSize);
-  }, [filteredAdvances, advSafePage, advSize]);
+    return combinedCostsRows.slice(start, start + advSize);
+  }, [combinedCostsRows, advSafePage, advSize]);
 
   const warehouseAssignOptions = useMemo(
     () => [
@@ -696,6 +740,50 @@ export function PersonnelDetailModal({
       advPageSizeVal,
       autoAdvPageSize,
     ],
+  );
+
+  const confirmDeletePersonnelAdvance = useCallback(
+    (advanceId: number) => {
+      if (!personnel) return;
+      notifyConfirmToast({
+        toastId: `personnel-advance-del-${personnel.id}-${advanceId}`,
+        message: t("personnel.detailAdvanceDeleteConfirm"),
+        cancelLabel: t("common.cancel"),
+        confirmLabel: t("branch.txDeleteConfirm"),
+        tone: "warning",
+        onConfirm: async () => {
+          try {
+            await deleteAdvanceMut.mutateAsync(advanceId);
+            notify.success(t("toast.advanceDeleted"));
+          } catch (e) {
+            notify.error(toErrorMessage(e));
+          }
+        },
+      });
+    },
+    [deleteAdvanceMut, personnel, t],
+  );
+
+  const confirmDeletePersonnelExpenseTx = useCallback(
+    (transactionId: number) => {
+      if (!personnel) return;
+      notifyConfirmToast({
+        toastId: `personnel-tx-del-${personnel.id}-${transactionId}`,
+        message: t("branch.txDeleteSure"),
+        cancelLabel: t("branch.txDeleteCancel"),
+        confirmLabel: t("branch.txDeleteConfirm"),
+        tone: "warning",
+        onConfirm: async () => {
+          try {
+            await deleteTxMut.mutateAsync(transactionId);
+            notify.success(t("toast.branchTxDeleted"));
+          } catch (e) {
+            notify.error(toErrorMessage(e));
+          }
+        },
+      });
+    },
+    [deleteTxMut, personnel, t],
   );
 
   const runSettlementPrint = useCallback(async () => {
@@ -829,7 +917,7 @@ export function PersonnelDetailModal({
 
               {tab !== "profile" && personnel.isDeleted ? (
                 <div className="-mx-4 mb-3 flex flex-wrap items-center gap-2 px-4 sm:-mx-6 sm:px-6">
-                  <PassiveBadge>{t("personnel.badgePassive")}</PassiveBadge>
+                  <StatusBadge tone="inactive">{t("personnel.badgePassive")}</StatusBadge>
                 </div>
               ) : null}
 
@@ -864,9 +952,7 @@ export function PersonnelDetailModal({
                               {personnelDisplayName(personnel)}
                             </h3>
                             {personnel.isDeleted ? (
-                              <PassiveBadge>
-                                {t("personnel.badgePassive")}
-                              </PassiveBadge>
+                              <StatusBadge tone="inactive">{t("personnel.badgePassive")}</StatusBadge>
                             ) : null}
                           </div>
                         </div>
@@ -1537,6 +1623,21 @@ export function PersonnelDetailModal({
                                   {a.description.trim()}
                                 </p>
                               ) : null}
+                              {!personnel.isDeleted ? (
+                                <div className="mt-2 flex justify-end border-t border-zinc-100 pt-2">
+                                  <button
+                                    type="button"
+                                    className={trashIconActionButtonClass}
+                                    aria-label={t("branch.txDeleteAria")}
+                                    disabled={deleteAdvanceMut.isPending}
+                                    onClick={() =>
+                                      confirmDeletePersonnelAdvance(a.id)
+                                    }
+                                  >
+                                    <TrashIcon className="h-5 w-5" />
+                                  </button>
+                                </div>
+                              ) : null}
                             </article>
                           ))}
                         </div>
@@ -1563,6 +1664,11 @@ export function PersonnelDetailModal({
                                   {t("personnel.effectiveYear")}
                                 </TableHeader>
                                 <TableHeader>{t("personnel.note")}</TableHeader>
+                                {!personnel.isDeleted ? (
+                                  <TableHeader className="w-[1%] text-center text-xs font-medium text-zinc-500">
+                                    {t("branch.txColActions")}
+                                  </TableHeader>
+                                ) : null}
                               </TableRow>
                             </TableHead>
                             <TableBody>
@@ -1599,6 +1705,21 @@ export function PersonnelDetailModal({
                                   <TableCell className="max-w-[14rem] text-zinc-600">
                                     {a.description?.trim() || dash}
                                   </TableCell>
+                                  {!personnel.isDeleted ? (
+                                    <TableCell className="p-2 text-center align-middle">
+                                      <button
+                                        type="button"
+                                        className={trashIconActionButtonClass}
+                                        aria-label={t("branch.txDeleteAria")}
+                                        disabled={deleteAdvanceMut.isPending}
+                                        onClick={() =>
+                                          confirmDeletePersonnelAdvance(a.id)
+                                        }
+                                      >
+                                        <TrashIcon className="h-5 w-5" />
+                                      </button>
+                                    </TableCell>
+                                  ) : null}
                                 </TableRow>
                               ))}
                             </TableBody>
@@ -1684,7 +1805,11 @@ export function PersonnelDetailModal({
                       <p className="text-sm text-zinc-600">
                         {t("personnel.detailExpensesEmpty")}
                       </p>
-                    ) : attributedExpensesForCostsTab.length === 0 ? (
+                    ) : attributedNonAdvanceExpensesBase.length === 0 ? (
+                      <p className="text-sm text-zinc-600">
+                        {t("personnel.detailNonAdvanceExpensesEmpty")}
+                      </p>
+                    ) : attributedNonAdvanceExpensesForCostsTab.length === 0 ? (
                       <p className="text-sm text-zinc-600">
                         {t("personnel.detailExpensesEmptySeason")}
                       </p>
@@ -1696,9 +1821,6 @@ export function PersonnelDetailModal({
                               <TableHeader>
                                 {t("personnel.detailExpenseColDate")}
                               </TableHeader>
-                              <TableHeader className="w-[1%] whitespace-nowrap">
-                                {t("personnel.detailExpenseColKind")}
-                              </TableHeader>
                               <TableHeader>
                                 {t("personnel.detailExpenseColCategory")}
                               </TableHeader>
@@ -1708,12 +1830,15 @@ export function PersonnelDetailModal({
                               <TableHeader className="text-right">
                                 {t("personnel.detailExpenseColAmount")}
                               </TableHeader>
+                              {!personnel.isDeleted ? (
+                                <TableHeader className="w-[1%] text-center text-xs font-medium text-zinc-500">
+                                  {t("branch.txColActions")}
+                                </TableHeader>
+                              ) : null}
                             </TableRow>
                           </TableHead>
                           <TableBody>
-                            {attributedExpensesForCostsTab.map((row) => {
-                              const isAdv = attributedExpenseRowIsAdvance(row);
-                              return (
+                            {attributedNonAdvanceExpensesForCostsTab.map((row) => (
                               <TableRow key={row.id}>
                                 <TableCell
                                   dataLabel={t("personnel.detailExpenseColDate")}
@@ -1723,23 +1848,6 @@ export function PersonnelDetailModal({
                                     row.transactionDate,
                                     locale,
                                   )}
-                                </TableCell>
-                                <TableCell
-                                  dataLabel={t("personnel.detailExpenseColKind")}
-                                  className="whitespace-nowrap align-middle"
-                                >
-                                  <span
-                                    className={cn(
-                                      "inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold leading-tight",
-                                      isAdv
-                                        ? "border-amber-200 bg-amber-50 text-amber-900"
-                                        : "border-violet-200 bg-violet-50 text-violet-900"
-                                    )}
-                                  >
-                                    {isAdv
-                                      ? t("personnel.detailExpenseBadgeAdvance")
-                                      : t("personnel.detailExpenseBadgeExpense")}
-                                  </span>
                                 </TableCell>
                                 <TableCell
                                   dataLabel={t("personnel.detailExpenseColCategory")}
@@ -1771,9 +1879,23 @@ export function PersonnelDetailModal({
                                     row.currencyCode,
                                   )}
                                 </TableCell>
+                                {!personnel.isDeleted ? (
+                                  <TableCell className="align-middle p-2 text-center">
+                                    <button
+                                      type="button"
+                                      className={trashIconActionButtonClass}
+                                      aria-label={t("branch.txDeleteAria")}
+                                      disabled={deleteTxMut.isPending}
+                                      onClick={() =>
+                                        confirmDeletePersonnelExpenseTx(row.id)
+                                      }
+                                    >
+                                      <TrashIcon className="h-5 w-5" />
+                                    </button>
+                                  </TableCell>
+                                ) : null}
                               </TableRow>
-                            );
-                            })}
+                            ))}
                           </TableBody>
                         </Table>
                       </div>

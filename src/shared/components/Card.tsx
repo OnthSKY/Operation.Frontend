@@ -6,9 +6,13 @@ type CardProps = {
   className?: string;
   title?: string;
   description?: string;
+  /** Başlık satırında sağda; başlık ile `items-center` hizalı */
+  headerActions?: ReactNode;
 };
 
-export function Card({ children, className, title, description }: CardProps) {
+export function Card({ children, className, title, description, headerActions }: CardProps) {
+  const hasHeader = title || description || headerActions;
+
   return (
     <div
       className={cn(
@@ -16,20 +20,34 @@ export function Card({ children, className, title, description }: CardProps) {
         className
       )}
     >
-      {(title || description) && (
+      {hasHeader ? (
         <div className="mb-3 max-sm:mb-2.5">
-          {title && (
-            <h2 className="text-[1.0625rem] font-semibold leading-snug tracking-tight text-zinc-900 sm:text-base">
-              {title}
-            </h2>
+          {(title || headerActions) && (
+            <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-2">
+              {title ? (
+                <h2 className="min-w-0 flex-1 text-[1.0625rem] font-semibold leading-snug tracking-tight text-zinc-900 sm:text-base">
+                  {title}
+                </h2>
+              ) : (
+                <div className="min-w-0 flex-1" aria-hidden />
+              )}
+              {headerActions ? (
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">{headerActions}</div>
+              ) : null}
+            </div>
           )}
-          {description && (
-            <p className="mt-1 text-sm leading-relaxed text-zinc-600 sm:mt-0.5 sm:text-zinc-500">
+          {description ? (
+            <p
+              className={cn(
+                "text-sm leading-relaxed text-zinc-600 sm:text-zinc-500",
+                title || headerActions ? "mt-1 sm:mt-0.5" : ""
+              )}
+            >
               {description}
             </p>
-          )}
+          ) : null}
         </div>
-      )}
+      ) : null}
       {children}
     </div>
   );

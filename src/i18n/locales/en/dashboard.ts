@@ -1,9 +1,41 @@
 export const dashboard = {
   title: "Overview",
-  subtitle: "Today’s cash picture, team, and operations at a glance",
+  subtitle: "Register day, cumulative net, and live inventory in one place",
   storyFlowTitle: "Today’s flow — where to look",
   storyFlowHint:
-    "Check the register day under the title (default: today). Summary and Register tabs use that day’s branch register totals. With multiple branches, open the Register tab for the per-branch table.",
+    "On Summary or Register, the top filter only changes branch register totals: one calendar day, one tourism season’s period total, or a sum across several season years. People, warehouses, stock, and advances are separate.",
+  scopeFilterBarTitle: "Branch register — how to aggregate",
+  scopeFilterBarHint:
+    "Day: one calendar date. Season: each branch’s tourism-period total. Multiple seasons: those totals summed across the years you pick.",
+  cashFilterModeAria: "Register summary aggregation mode",
+  cashFilterModeDay: "One day",
+  cashFilterModeSeasonSingle: "One season",
+  cashFilterModeSeasonRange: "Multiple seasons",
+  seasonYearPlaceholder: "— year —",
+  seasonYearFieldLabel: "Season year",
+  seasonYearFromFieldLabel: "From season year",
+  seasonYearToFieldLabel: "To season year",
+  seasonSingleModeHint:
+    "Per branch: total income, register out, and net over the full tourism season period for that year (not a single calendar day).",
+  seasonRangeModeHint:
+    "Per branch: each season year in the range is totaled over its tourism period; years without a period for that branch are skipped in the sum.",
+  registerDateShortHint:
+    "Pick a specific day or return to today.",
+  scopeSectionRegisterDayTitle: "Selected register day",
+  scopeSectionRegisterDayHint:
+    "One calendar day, all branches together: intake minus paid-from-register expenses.",
+  scopeRegisterDayBreakdownTitle: "Same day, more detail",
+  scopeRegisterDayBreakdownHint:
+    "Net, gross intake, and how many branches are in the total — all match the date above.",
+  scopeSectionCumulativeTitle: "Cumulative net and live records",
+  scopeSectionCumulativeHint:
+    "Nothing in this section changes when you pick a different register day.",
+  financeScopeRegisterDayTitle: "By selected day — branch registers",
+  financeScopeRegisterDayHint:
+    "The three KPI cards and the branch table follow the filter above (one day or season modes).",
+  financeScopeIndependentTitle: "Not date-scoped — advances and register-held cash",
+  financeScopeIndependentHint:
+    "Advance totals and cash held by register owners use current / all-time balances; changing the register day does not change them.",
   tabsAria: "Overview sections",
   storyFlowNavAria: "Jump to overview sections",
   storyFlowNavStory: "Summary",
@@ -17,6 +49,10 @@ export const dashboard = {
     "Each row is one branch’s income, out-from-register, and net; the three cards above are the sum.",
   branchTodayDescForDate:
     "Each row is that branch’s income, out-from-register, and net for {{date}}; the three cards above are the sum.",
+  branchTodayDescSeasonSingle:
+    "Each row is that branch’s totals across the {{year}} tourism season period (open through close); the three cards are the all-branch sum.",
+  branchTodayDescSeasonRange:
+    "Each row is that branch’s combined totals across tourism seasons from {{fromYear}} through {{toYear}} (per-year period sums added); the three cards are the all-branch sum.",
   branchTodayOpenBranches: "Open branches & daily register →",
   branchTodayColBranch: "Branch",
   branchTodayColIncome: "Income",
@@ -27,25 +63,28 @@ export const dashboard = {
     "Income, out-from-register, and net are entirely for «{{name}}» today.",
   singleBranchFinanceContextForDate:
     "Income, out-from-register, and net are entirely for «{{name}}» on {{date}}.",
+  singleBranchFinanceContextSeason:
+    "Totals are for «{{name}}» under {{scope}}.",
   warehouseMultiCtaTitle: "{{count}} warehouses — stock lives per site",
   warehouseMultiCtaBody:
     "Use the Warehouses screen to see levels and movements per location; the overview does not break stock down by warehouse.",
   warehouseMultiCtaLink: "Open warehouses →",
-  storyCardTitle: "Today’s story",
+  storyCardTitle: "How to read this",
   storyCardDesc:
-    "Two different questions: (1) For the day you picked, what’s left in register terms? (2) Across all branches to date, what’s the economic picture? The cards below break those down.",
-  storyTwoMetricsTitle: "Two views — don’t mix them up",
-  storyTwoMetricsNote:
-    "The left number is only the selected calendar day and “paid from the register”. The right is all-time, all branches, economic expense rules. They can match by coincidence — the meaning is still different.",
+    "First the register filter above (one day or season), then cumulative economic net and inventory. Each answers a different question.",
+  summaryPanelTitle: "Register snapshot",
+  summaryPanelHint:
+    "Net, gross intake, and branch count for the filter you set above (all branches).",
+  storyMobileSwipeHint: "On small screens, swipe the card row sideways.",
   storyStep1Badge: "Today · register",
   storyStep1Title: "Selected day, all branches — register net",
   storyStep1Formula: "Intake (cash + card/POS) − paid from the register",
   storyStep2Badge: "Cumulative · economic",
   storyStep2Title: "All active branches — economic net to date",
   storyStep2Formula: "Sum of income lines − economic expense lines (same OUT filter as daily summaries)",
-  storyDetailSectionTitle: "Details behind today’s register",
+  storyDetailSectionTitle: "Same day, more detail",
   storyDetailSectionDesc:
-    "The first card unpacks the same logic as “Today · register”. The others cover that day’s register context plus active branches, people, warehouses, suppliers, vehicles, and products. Below them is combined warehouse stock.",
+    "Net and branch count match the selected register day (same logic as the large summary above).",
   storySummaryBranchesInDayTitle: "Branches in register totals",
   storySummaryBranchesInDayDesc:
     "How many branches are included in the net above for the selected day.",
@@ -106,9 +145,10 @@ export const dashboard = {
   sumAllBranches: "All branches · today",
   sumAllBranchesToday: "All branches · today",
   sumAllBranchesForDate: "All branches · {{date}}",
-  registerSnapshotDayLabel: "Register snapshot day",
-  registerSnapshotToolbarHint:
-    "Totals on Summary and Register match this calendar day (same idea as report as-of / year-end). Pick a year-end below or set any date.",
+  sumAllBranchesSeasonSingle: "All branches · {{year}} season total",
+  sumAllBranchesSeasonRange: "All branches · {{fromYear}}–{{toYear}} seasons total",
+  cashScopeSeasonSingleShort: "{{year}} season",
+  cashScopeSeasonRangeShort: "{{fromYear}}–{{toYear}} seasons",
   registerSnapshotDateField: "Register date",
   registerSnapshotResetToday: "Jump to today",
   emptyCalloutTitle: "To see today’s cash summary",
@@ -117,8 +157,9 @@ export const dashboard = {
   emptyCalloutCta: "Go to branches",
   noBranches: "No branches yet. Add one under Branches.",
   loadError: "Could not load today’s totals.",
-  storyFinance: "Finance",
-  storyFinanceDesc: "Today’s branch registers and cumulative advances.",
+  storyFinance: "Register",
+  storyFinanceDesc:
+    "Branch register by the day you pick above; advances and register-held cash below are not date-scoped.",
   storyPersonnel: "People",
   storyPersonnelDesc: "Headcount and standout records.",
   storyOperations: "Branches & operations",
@@ -130,7 +171,7 @@ export const dashboard = {
   statWarehouses: "Active warehouses",
   statWarehousesDesc: "Defined warehouse locations",
   statActiveSuppliers: "Active suppliers",
-  statActiveSuppliersDesc: "Non-deleted supplier records",
+  statActiveSuppliersDesc: "Deleted supplier records are excluded",
   statActiveVehicles: "Active vehicles",
   statActiveVehiclesDesc: "Vehicles with status Active",
   statActiveProducts: "Active products",

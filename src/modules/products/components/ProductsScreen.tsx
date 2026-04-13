@@ -15,9 +15,13 @@ import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
-import { detailOpenIconButtonClass, EyeIcon } from "@/shared/ui/EyeIcon";
+import { detailOpenIconButtonClass, EyeIcon, PlusIcon } from "@/shared/ui/EyeIcon";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { Card } from "@/shared/components/Card";
+import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
+import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
+import { TableToolbarMoreMenu } from "@/shared/components/TableToolbarMoreMenu";
+import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import {
   Table,
   TableBody,
@@ -28,9 +32,8 @@ import {
 } from "@/shared/ui/Table";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import type { ProductListItem } from "@/types/product";
-import { cn } from "@/lib/cn";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { ToolbarGlyphPackage } from "@/shared/ui/ToolbarGlyph";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 function productKv(label: string, value: string) {
@@ -73,6 +76,7 @@ function ProductWarehouseChips({
 
 export function ProductsScreen() {
   const { t } = useI18n();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [addOpen, setAddOpen] = useState(false);
   const [addCategoryOpen, setAddCategoryOpen] = useState(false);
@@ -82,6 +86,42 @@ export function ProductsScreen() {
   const [categoryEdit, setCategoryEdit] = useState<ProductListItem | null>(null);
   const [productEdit, setProductEdit] = useState<ProductListItem | null>(null);
   const [catalogSearch, setCatalogSearch] = useState("");
+
+  const productsMoreItems = useMemo(
+    () => [
+      {
+        id: "categories",
+        label: t("nav.productCategories"),
+        onSelect: () => router.push("/products/categories"),
+      },
+      {
+        id: "addCategory",
+        label: t("products.addCategory"),
+        onSelect: () => setAddCategoryOpen(true),
+      },
+    ],
+    [t, router]
+  );
+
+  const productCardHeaderActions = (
+    <>
+      <TableToolbarMoreMenu menuId="products-toolbar-more" items={productsMoreItems} />
+      <Tooltip content={t("products.addProduct")} delayMs={200}>
+        <Button
+          type="button"
+          variant="primary"
+          className={TABLE_TOOLBAR_ICON_BTN}
+          onClick={() => {
+            setAddFixedParent(null);
+            setAddOpen(true);
+          }}
+          aria-label={t("products.addProduct")}
+        >
+          <ToolbarGlyphPackage className="h-5 w-5" />
+        </Button>
+      </Tooltip>
+    </>
+  );
 
   const { data: catalogRows = [], isPending, isError, error } = useProductsCatalog();
   const del = useSoftDeleteProduct();
@@ -141,49 +181,47 @@ export function ProductsScreen() {
   };
 
   return (
-    <div className="mx-auto w-full app-page-max p-4 pb-6 sm:pb-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
-            {t("products.title")}
-          </h1>
-          <p className="text-sm text-zinc-500">{t("products.subtitle")}</p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Link
-            href="/products/categories"
-            className={cn(
-              "inline-flex min-h-12 w-full touch-manipulation items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-base font-medium text-zinc-900 shadow-sm shadow-zinc-900/5 transition hover:bg-zinc-50 hover:shadow-md sm:w-auto sm:min-h-9 sm:text-sm"
-            )}
-          >
-            {t("nav.productCategories")}
-          </Link>
-          <Button type="button" variant="secondary" className="sm:w-auto" onClick={() => setAddCategoryOpen(true)}>
-            {t("products.addCategory")}
-          </Button>
-          <Button
-            type="button"
-            className="sm:w-auto"
-            onClick={() => {
-              setAddFixedParent(null);
-              setAddOpen(true);
-            }}
-          >
-            {t("products.addProduct")}
-          </Button>
-        </div>
-      </div>
-
-      {isError ? (
-        <p className="mt-4 text-sm text-red-600">{toErrorMessage(error)}</p>
-      ) : isPending ? (
-        <p className="mt-4 text-sm text-zinc-500">{t("common.loading")}</p>
-      ) : catalogRows.length === 0 ? (
-        <Card className="mt-4" title={t("products.title")}>
-          <p className="text-sm text-zinc-600">{t("products.emptyCatalog")}</p>
-        </Card>
-      ) : (
-        <Card className="mt-4">
+    <>
+      <PageScreenScaffold
+        className="w-full p-4 pb-6 sm:pb-4"
+        intro={
+          <>
+            <div>
+              <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
+                {t("products.title")}
+              </h1>
+              <p className="text-sm text-zinc-500">{t("products.subtitle")}</p>
+            </div>
+            <PageWhenToUseGuide
+              guideTab="products"
+              className="mt-1"
+              title={t("common.pageWhenToUseTitle")}
+              description={t("pageHelp.products.intro")}
+              listVariant="ordered"
+              items={[
+                { text: t("pageHelp.products.step1") },
+                { text: t("pageHelp.products.step2") },
+                {
+                  text: t("pageHelp.products.step3"),
+                  link: { href: "/products/categories", label: t("pageHelp.products.step3Link") },
+                },
+                { text: t("pageHelp.products.step4") },
+              ]}
+            />
+          </>
+        }
+        main={
+          <>
+            {isError ? (
+              <p className="text-sm text-red-600">{toErrorMessage(error)}</p>
+            ) : isPending ? (
+              <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+            ) : catalogRows.length === 0 ? (
+              <Card title={t("common.pageSectionMain")} headerActions={productCardHeaderActions}>
+                <p className="text-sm text-zinc-600">{t("products.emptyCatalog")}</p>
+              </Card>
+            ) : (
+              <Card title={t("common.pageSectionMain")} headerActions={productCardHeaderActions}>
           <div className="mb-4">
             <Input
               name="product-catalog-search"
@@ -429,7 +467,10 @@ export function ProductsScreen() {
             </>
           )}
         </Card>
-      )}
+            )}
+          </>
+        }
+      />
 
       <AddProductCategoryModal open={addCategoryOpen} onClose={() => setAddCategoryOpen(false)} />
       <AddProductModal
@@ -489,6 +530,6 @@ export function ProductsScreen() {
             : undefined
         }
       />
-    </div>
+    </>
   );
 }

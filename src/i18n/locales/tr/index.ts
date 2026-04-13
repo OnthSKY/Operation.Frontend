@@ -9,6 +9,7 @@ import { guide } from "./guide";
 import { insuranceTrack } from "./insurance-track";
 import { lang } from "./lang";
 import { nav } from "./nav";
+import { pageHelp } from "./pageHelp";
 import { profile } from "./profile";
 import { personnel } from "./personnel";
 import { products } from "./products";
@@ -24,6 +25,7 @@ import { warehouse } from "./warehouse";
 
 export const tr = {
   nav,
+  pageHelp,
   lang,
   apiErrors,
   auth,

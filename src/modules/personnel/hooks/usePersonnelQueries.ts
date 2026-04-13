@@ -3,12 +3,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createAdvance,
+  deleteAdvance,
   fetchAdvancesByPersonnel,
   fetchAllAdvances,
   type FetchAllAdvancesParams,
 } from "@/modules/personnel/api/advances-api";
 import { branchKeys } from "@/modules/branch/hooks/useBranchQueries";
 import { dashboardSummaryKeys } from "@/modules/dashboard/query-keys";
+import { reportsKeys } from "@/modules/reports/query-keys";
 import {
   closePersonnelYearAccount,
   fetchPersonnelAccountClosurePreview,
@@ -447,6 +449,43 @@ export function useCreateAdvance() {
       });
       void qc.invalidateQueries({ queryKey: branchKeys.all });
       void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
+    },
+  });
+}
+
+export function useDeleteAdvance() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (advanceId: number) => deleteAdvance(advanceId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: personnelKeys.list() });
+      void qc.invalidateQueries({
+        queryKey: [...personnelKeys.all, "advances"],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: [...personnelKeys.all, "management-snapshot"],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: [...personnelKeys.all, "advances-all"],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: ["personnel", "attributed-expenses"],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: [...branchKeys.all, "advances"],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: [...branchKeys.all, "register-summary"],
+        exact: false,
+      });
+      void qc.invalidateQueries({ queryKey: branchKeys.all });
+      void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
+      void qc.invalidateQueries({ queryKey: reportsKeys.all });
     },
   });
 }

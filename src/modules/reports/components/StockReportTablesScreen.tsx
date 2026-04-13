@@ -21,6 +21,7 @@ import {
 } from "@/modules/warehouse/lib/warehouse-scope-filters";
 import { useWarehousesList } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileFilters";
+import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { Button } from "@/shared/ui/Button";
@@ -104,6 +105,25 @@ export function StockReportTablesScreen() {
     <ReportTablesPageShell
       title={t("reports.tablesPageStockTitle")}
       subtitle={t("reports.tablesPageStockSubtitle")}
+      pageGuide={
+        <PageWhenToUseGuide
+          guideTab="reports"
+          title={t("common.pageWhenToUseTitle")}
+          description={t("pageHelp.reportsStock.intro")}
+          listVariant="ordered"
+          items={[
+            { text: t("pageHelp.reportsStock.step1") },
+            {
+              text: t("pageHelp.reportsStock.step2"),
+              link: { href: "/warehouses", label: t("pageHelp.reportsStock.step2Link") },
+            },
+            {
+              text: t("pageHelp.reportsStock.step3"),
+              link: { href: "/branches", label: t("pageHelp.reportsStock.step3Link") },
+            },
+          ]}
+        />
+      }
     >
       <CollapsibleMobileFilters
         title={t("reports.filtersSectionTitle")}

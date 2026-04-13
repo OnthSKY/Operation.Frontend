@@ -3,9 +3,11 @@
 import { useI18n } from "@/i18n/context";
 import type { Branch } from "@/types/branch";
 import type { Personnel } from "@/types/personnel";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import type { BranchDetailTabId } from "@/modules/branch/lib/branch-detail-tab";
+import { BackdropCloseConfirm } from "@/shared/overlays/BackdropCloseConfirm";
+import { OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
 import { BranchDetailTabs } from "./BranchDetailTabs";
 
 const TITLE_ID = "branch-detail-dialog-title";
@@ -52,15 +54,25 @@ export function BranchDetailSheet({
   initialTab = null,
 }: Props) {
   const { t } = useI18n();
+  const [backdropConfirmOpen, setBackdropConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) setBackdropConfirmOpen(false);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      if (backdropConfirmOpen) {
+        setBackdropConfirmOpen(false);
+        return;
+      }
+      onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, backdropConfirmOpen]);
 
   useEffect(() => {
     if (!open) return;
@@ -73,11 +85,13 @@ export function BranchDetailSheet({
 
   if (!open) return null;
 
+  const requestBackdropClose = () => setBackdropConfirmOpen(true);
+
   return (
     <div
-      className="fixed inset-0 z-[100] flex flex-col justify-end bg-zinc-950/50 sm:items-center sm:justify-center sm:p-4"
+      className={`fixed inset-0 ${OVERLAY_Z_TW.branchDetailSheet} flex flex-col justify-end bg-zinc-950/50 sm:items-center sm:justify-center sm:p-4`}
       role="presentation"
-      onClick={onClose}
+      onClick={requestBackdropClose}
     >
       <div
         role="dialog"
@@ -143,6 +157,14 @@ export function BranchDetailSheet({
           />
         </div>
       </div>
+      <BackdropCloseConfirm
+        open={backdropConfirmOpen}
+        onCancel={() => setBackdropConfirmOpen(false)}
+        onConfirm={() => {
+          setBackdropConfirmOpen(false);
+          onClose();
+        }}
+      />
     </div>
   );
 }

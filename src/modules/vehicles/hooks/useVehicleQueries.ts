@@ -243,6 +243,8 @@ export function useCreateVehicleExpense() {
       expenseDate: string;
       description?: string | null;
       branchId?: number | null;
+      branchExpensePaymentSource?: string | null;
+      patronPaymentMethod?: string | null;
     }) => {
       const { vehicleId, ...body } = input;
       return createVehicleExpense(vehicleId, body);
@@ -267,6 +269,8 @@ export function useUpdateVehicleExpense() {
       expenseDate: string;
       description?: string | null;
       branchId?: number | null;
+      branchExpensePaymentSource?: string | null;
+      patronPaymentMethod?: string | null;
     }) => {
       const { vehicleId, expenseId, ...body } = input;
       return updateVehicleExpense(vehicleId, expenseId, body);

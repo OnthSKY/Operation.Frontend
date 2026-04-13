@@ -1,3 +1,4 @@
+import type { DashboardBulkCashParams } from "@/modules/dashboard/types/dashboard-cash-filter";
 import { apiRequest } from "@/shared/api/client";
 import type { BranchDailySummary } from "@/types/branch-daily-summary";
 
@@ -23,10 +24,23 @@ function normalizeDailySummary(r: BranchDailySummary): BranchDailySummary {
 }
 
 /** Tüm erişilebilir şubeler için tek istek (dashboard). */
-export async function fetchDailySummariesForDate(
-  date: string
+export async function fetchDashboardDailySummaries(
+  params: DashboardBulkCashParams
 ): Promise<BranchDailySummary[]> {
-  const q = new URLSearchParams({ date });
+  if (params.kind === "all_data") {
+    return [];
+  }
+  const q = new URLSearchParams();
+  if (params.kind === "day") {
+    q.set("date", params.date);
+  } else if (params.kind === "season_single") {
+    q.set("seasonScope", "single");
+    q.set("seasonYear", String(params.seasonYear));
+  } else {
+    q.set("seasonScope", "range");
+    q.set("seasonYearFrom", String(params.fromYear));
+    q.set("seasonYearTo", String(params.toYear));
+  }
   const rows = await apiRequest<BranchDailySummary[]>(
     `/branch-transactions/daily-summaries?${q}`
   );

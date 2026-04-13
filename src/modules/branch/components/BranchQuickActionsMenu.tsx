@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/cn";
+import { OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
 import { Button } from "@/shared/ui/Button";
 import { detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
 import {
@@ -12,27 +13,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import { createPortal } from "react-dom";
-
-function QuickActionsGlyph({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.75"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <circle cx="12" cy="5" r="1.35" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="12" r="1.35" fill="currentColor" stroke="none" />
-      <circle cx="12" cy="19" r="1.35" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
+import { ToolbarGlyphLightning } from "@/shared/ui/ToolbarGlyph";
 
 export type QuickActionsMenuItem = {
   id: string;
@@ -205,7 +186,10 @@ export function BranchQuickActionsMenu({
             type="button"
             tabIndex={-1}
             aria-hidden
-            className="fixed inset-0 z-[199] cursor-default border-0 bg-zinc-950/20 p-0 backdrop-blur-[2px] transition-opacity duration-150 sm:hidden"
+            className={cn(
+              "fixed inset-0 cursor-default border-0 bg-zinc-950/20 p-0 backdrop-blur-[2px] transition-opacity duration-150 sm:hidden",
+              OVERLAY_Z_TW.menuMobileBackdrop
+            )}
             onClick={() => setOpen(false)}
           />
         ) : null}
@@ -214,7 +198,8 @@ export function BranchQuickActionsMenu({
           id={menuId}
           role="menu"
           className={cn(
-            "fixed z-[200] overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-zinc-200/90 bg-white/95 py-1.5 shadow-xl shadow-zinc-900/10 ring-1 ring-zinc-950/[0.04] backdrop-blur-md outline-none [-webkit-overflow-scrolling:touch]",
+            "fixed overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-zinc-200/90 bg-white/95 py-1.5 shadow-xl shadow-zinc-900/10 ring-1 ring-zinc-950/[0.04] backdrop-blur-md outline-none [-webkit-overflow-scrolling:touch]",
+            OVERLAY_Z_TW.menuPanel,
             layout.centered && "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
           )}
           style={
@@ -282,7 +267,7 @@ export function BranchQuickActionsMenu({
           variant="secondary"
           className={cn(
             detailOpenIconButtonClass,
-            "text-violet-800 hover:border-violet-200 hover:bg-violet-50",
+            "border-zinc-200 bg-zinc-50/90 text-zinc-800 hover:border-violet-200 hover:bg-violet-50",
             compact && "min-h-11 min-w-11"
           )}
           aria-label={triggerLabel}
@@ -296,7 +281,7 @@ export function BranchQuickActionsMenu({
             setOpen((o) => !o);
           }}
         >
-          <QuickActionsGlyph />
+          <ToolbarGlyphLightning className="h-5 w-5" />
         </Button>
       </div>
       {portal}

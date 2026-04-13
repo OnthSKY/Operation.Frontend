@@ -3,6 +3,7 @@
 import { useI18n } from "@/i18n/context";
 import type { StockReport } from "@/types/reports";
 import { Card } from "@/shared/components/Card";
+import { RechartsMeasureBox } from "@/shared/components/RechartsMeasureBox";
 import { useMediaMinWidth } from "@/shared/lib/use-media-min-width";
 import { useMemo } from "react";
 import {
@@ -131,124 +132,130 @@ export function ReportStockCharts({ data }: Props) {
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         {whBar.length > 0 ? (
           <Card
+            className="min-w-0"
             title={t("reports.chartWarehouseMix")}
             description={t("reports.stockChartWarehouseDesc")}
           >
             <div className={chartScrollWrap} style={{ height: barH(whBar.length) }}>
-              <div
+              <RechartsMeasureBox
                 className="h-full min-w-[min(100%,280px)] sm:min-w-0"
                 style={{ minWidth: smUp ? undefined : 300 }}
               >
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={whBar}
-                    layout="vertical"
-                    margin={{
-                      top: 8,
-                      right: smUp ? 16 : 8,
-                      left: 0,
-                      bottom: 8,
-                    }}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="#e4e4e7"
-                      horizontal={false}
-                    />
-                    <XAxis
-                      type="number"
-                      tick={{ fontSize: smUp ? 11 : 9 }}
-                      tickFormatter={fmtAxisTick}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="name"
-                      width={yAxisW}
-                      tick={{ fontSize: smUp ? 11 : 9 }}
-                    />
-                    <Tooltip
-                      formatter={(v) => fmtQty(v)}
-                      labelFormatter={(_, payload) =>
-                        (payload?.[0]?.payload as { nameFull?: string })
-                          ?.nameFull ?? ""
-                      }
-                    />
-                    <Legend wrapperStyle={legendStyle} />
-                    <Bar
-                      dataKey="qtyIn"
-                      name={t("reports.colQtyIn")}
-                      stackId="wh"
-                      fill={COL_IN}
-                      radius={[0, 0, 0, 0]}
-                    />
-                    <Bar
-                      dataKey="qtyOut"
-                      name={t("reports.colQtyOut")}
-                      stackId="wh"
-                      fill={COL_OUT}
-                      radius={[0, 4, 4, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+                {({ width, height }) => (
+                  <ResponsiveContainer width={width} height={height}>
+                    <BarChart
+                      data={whBar}
+                      layout="vertical"
+                      margin={{
+                        top: 8,
+                        right: smUp ? 16 : 8,
+                        left: 0,
+                        bottom: 8,
+                      }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="#e4e4e7"
+                        horizontal={false}
+                      />
+                      <XAxis
+                        type="number"
+                        tick={{ fontSize: smUp ? 11 : 9 }}
+                        tickFormatter={fmtAxisTick}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        width={yAxisW}
+                        tick={{ fontSize: smUp ? 11 : 9 }}
+                      />
+                      <Tooltip
+                        formatter={(v) => fmtQty(v)}
+                        labelFormatter={(_, payload) =>
+                          (payload?.[0]?.payload as { nameFull?: string })
+                            ?.nameFull ?? ""
+                        }
+                      />
+                      <Legend wrapperStyle={legendStyle} />
+                      <Bar
+                        dataKey="qtyIn"
+                        name={t("reports.colQtyIn")}
+                        stackId="wh"
+                        fill={COL_IN}
+                        radius={[0, 0, 0, 0]}
+                      />
+                      <Bar
+                        dataKey="qtyOut"
+                        name={t("reports.colQtyOut")}
+                        stackId="wh"
+                        fill={COL_OUT}
+                        radius={[0, 4, 4, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </RechartsMeasureBox>
             </div>
           </Card>
         ) : null}
 
         {brBar.length > 0 ? (
           <Card
+            className="min-w-0"
             title={t("reports.chartBranchInboundMix")}
             description={t("reports.stockChartBranchDesc")}
           >
             <div className={chartScrollWrap} style={{ height: barH(brBar.length) }}>
-              <div
+              <RechartsMeasureBox
                 className="h-full min-w-[min(100%,280px)] sm:min-w-0"
                 style={{ minWidth: smUp ? undefined : 300 }}
               >
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={brBar}
-                    layout="vertical"
-                    margin={{
-                      top: 8,
-                      right: smUp ? 16 : 8,
-                      left: 0,
-                      bottom: 8,
-                    }}
-                  >
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                      stroke="#e4e4e7"
-                      horizontal={false}
-                    />
-                    <XAxis
-                      type="number"
-                      tick={{ fontSize: smUp ? 11 : 9 }}
-                      tickFormatter={fmtAxisTick}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="name"
-                      width={yAxisW}
-                      tick={{ fontSize: smUp ? 11 : 9 }}
-                    />
-                    <Tooltip
-                      formatter={(v) => fmtQty(v)}
-                      labelFormatter={(_, payload) =>
-                        (payload?.[0]?.payload as { nameFull?: string })
-                          ?.nameFull ?? ""
-                      }
-                    />
-                    <Legend wrapperStyle={legendStyle} />
-                    <Bar
-                      dataKey="qty"
-                      name={t("reports.colReceiptQty")}
-                      fill={COL_BRANCH}
-                      radius={[0, 4, 4, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+                {({ width, height }) => (
+                  <ResponsiveContainer width={width} height={height}>
+                    <BarChart
+                      data={brBar}
+                      layout="vertical"
+                      margin={{
+                        top: 8,
+                        right: smUp ? 16 : 8,
+                        left: 0,
+                        bottom: 8,
+                      }}
+                    >
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="#e4e4e7"
+                        horizontal={false}
+                      />
+                      <XAxis
+                        type="number"
+                        tick={{ fontSize: smUp ? 11 : 9 }}
+                        tickFormatter={fmtAxisTick}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        width={yAxisW}
+                        tick={{ fontSize: smUp ? 11 : 9 }}
+                      />
+                      <Tooltip
+                        formatter={(v) => fmtQty(v)}
+                        labelFormatter={(_, payload) =>
+                          (payload?.[0]?.payload as { nameFull?: string })
+                            ?.nameFull ?? ""
+                        }
+                      />
+                      <Legend wrapperStyle={legendStyle} />
+                      <Bar
+                        dataKey="qty"
+                        name={t("reports.colReceiptQty")}
+                        fill={COL_BRANCH}
+                        radius={[0, 4, 4, 0]}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </RechartsMeasureBox>
             </div>
           </Card>
         ) : null}

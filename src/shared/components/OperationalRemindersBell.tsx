@@ -4,6 +4,7 @@ import { useI18n } from "@/i18n/context";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { isPersonnelPortalRole } from "@/lib/auth/roles";
 import { cn } from "@/lib/cn";
+import { OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
 import {
   fetchOperationalReminders,
   markZReportAccountingSent,
@@ -152,15 +153,19 @@ export function OperationalRemindersBell() {
       {open ? (
         <>
           <div
-            className="fixed inset-0 z-[85] bg-zinc-900/40 md:hidden"
+            className={cn(
+              "fixed inset-0 bg-zinc-900/40 md:hidden",
+              OVERLAY_Z_TW.remindersMobileBackdrop
+            )}
             aria-hidden
             onClick={() => setOpen(false)}
           />
           <div
             className={cn(
               "flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-xl shadow-zinc-900/10 ring-1 ring-zinc-900/5",
-              "max-md:fixed max-md:z-[90] max-md:left-[max(0.75rem,env(safe-area-inset-left,0px))] max-md:right-[max(0.75rem,env(safe-area-inset-right,0px))] max-md:top-[calc(0.5rem+3.5rem+env(safe-area-inset-top,0px))] max-md:max-h-[min(85dvh,calc(100dvh-4.5rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)))] max-md:w-auto",
-              "md:absolute md:right-0 md:top-full md:z-50 md:mt-1 md:max-h-[min(70dvh,20rem)] md:w-[min(100vw-1.5rem,22rem)]"
+              "max-md:fixed max-md:left-[max(0.75rem,env(safe-area-inset-left,0px))] max-md:right-[max(0.75rem,env(safe-area-inset-right,0px))] max-md:top-[calc(0.5rem+3.5rem+env(safe-area-inset-top,0px))] max-md:max-h-[min(85dvh,calc(100dvh-4.5rem-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)))] max-md:w-auto",
+              OVERLAY_Z_TW.remindersPanel,
+              "md:absolute md:right-0 md:top-full md:mt-1 md:max-h-[min(70dvh,20rem)] md:w-[min(100vw-1.5rem,22rem)]"
             )}
             role="dialog"
             aria-label={t("reminders.bellAria")}

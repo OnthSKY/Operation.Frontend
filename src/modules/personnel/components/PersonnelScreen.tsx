@@ -16,6 +16,11 @@ import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { notify } from "@/shared/lib/notify";
 import { openPersonnelSettlementPrintWindow } from "@/modules/personnel/lib/personnel-settlement-print";
 import { Card } from "@/shared/components/Card";
+import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
+import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
+import { TableToolbarMoreMenu } from "@/shared/components/TableToolbarMoreMenu";
+import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
+import { StatusBadge } from "@/shared/components/StatusBadge";
 import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileFilters";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
@@ -35,15 +40,10 @@ import {
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { useHashScroll } from "@/shared/lib/use-hash-scroll";
 import type { Personnel, PersonnelJobTitle } from "@/types/personnel";
+import { ToolbarGlyphUserPlus } from "@/shared/ui/ToolbarGlyph";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { PersonnelCostsExpenseModal } from "@/modules/personnel/components/PersonnelCostsExpenseModal";
 import {
   BranchQuickActionsMenu,
@@ -350,14 +350,6 @@ function PersonnelRowActionsToolbar({
         </Tooltip>
       ) : null}
     </div>
-  );
-}
-
-function PassiveBadge({ children }: { children: ReactNode }) {
-  return (
-    <span className="inline-flex shrink-0 items-center rounded-md bg-zinc-300/80 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-800">
-      {children}
-    </span>
   );
 }
 
@@ -692,10 +684,30 @@ export function PersonnelScreen() {
     setDetailInitialTab("profile");
   };
 
+  const personnelToolbarMoreItems = useMemo(
+    () => [
+      {
+        id: "advance",
+        label: t("personnel.advance"),
+        onSelect: () => openAdvance(),
+        disabled: activePersonnel.length === 0,
+      },
+      {
+        id: "costs",
+        label: t("personnel.personnelCostsNavLink"),
+        onSelect: () => router.push("/personnel/costs"),
+      },
+    ],
+    [t, activePersonnel.length, router]
+  );
+
   return (
-    <div className="mx-auto flex w-full app-page-max flex-col gap-4 p-4 pb-6 sm:pb-8">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
-        <div className="min-w-0 flex-1">
+    <>
+      <PageScreenScaffold
+        className="w-full p-4 pb-6 sm:pb-8"
+        intro={
+          <>
+            <div className="min-w-0">
           <h1 className="text-balance text-xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-2xl">
             {t("personnel.heading")}
           </h1>
@@ -706,35 +718,37 @@ export function PersonnelScreen() {
             ) : null}
           </div>
         </div>
-        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2.5 lg:flex lg:w-auto lg:max-w-full lg:shrink-0 lg:flex-row lg:flex-wrap lg:justify-end">
-          <Button
-            type="button"
-            className="min-h-12 w-full touch-manipulation sm:min-h-11 lg:min-h-10 lg:w-auto"
-            onClick={openCreate}
-          >
-            {t("personnel.add")}
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            className="min-h-12 w-full touch-manipulation sm:min-h-11 lg:min-h-10 lg:w-auto"
-            onClick={() => openAdvance()}
-            disabled={activePersonnel.length === 0}
-          >
-            {t("personnel.advance")}
-          </Button>
-          <Link
-            href="/personnel/costs"
-            className={cn(
-              "inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-center text-base font-medium leading-snug text-zinc-900 transition-colors hover:bg-zinc-50 active:bg-zinc-100 touch-manipulation sm:col-span-2 sm:min-h-11 lg:col-span-1 lg:min-h-10 lg:w-auto lg:px-4 lg:text-sm"
-            )}
-          >
-            {t("personnel.personnelCostsNavLink")}
-          </Link>
-        </div>
-      </div>
 
-      <div id="personnel-advance" className="scroll-mt-24 flex flex-col gap-4">
+      <PageWhenToUseGuide
+        guideTab="personnel"
+        className="mt-1"
+        title={t("common.pageWhenToUseTitle")}
+        description={t("pageHelp.personnel.intro")}
+        listVariant="ordered"
+        items={[
+          { text: t("pageHelp.personnel.step1") },
+          { text: t("pageHelp.personnel.step2") },
+          {
+            text: t("pageHelp.personnel.step3"),
+            link: { href: "/personnel/advances", label: t("pageHelp.personnel.step3Link") },
+          },
+          {
+            text: t("pageHelp.personnel.step4"),
+            link: {
+              href: "/personnel/non-advance-expenses",
+              label: t("pageHelp.personnel.step4Link"),
+            },
+          },
+          {
+            text: t("pageHelp.personnel.step5"),
+            link: { href: "/admin/users", label: t("pageHelp.personnel.step5Link") },
+          },
+        ]}
+      />
+          </>
+        }
+        main={
+          <div id="personnel-advance" className="scroll-mt-24 flex flex-col gap-4">
         <CollapsibleMobileFilters
           title={t("personnel.listFilters")}
           toggleAriaLabel={t("common.filters")}
@@ -809,7 +823,26 @@ export function PersonnelScreen() {
           </div>
         </CollapsibleMobileFilters>
 
-        <Card title={t("personnel.team")} description={t("personnel.teamDesc")}>
+        <Card
+          title={t("personnel.team")}
+          description={t("personnel.teamDesc")}
+          headerActions={
+            <>
+              <TableToolbarMoreMenu menuId="personnel-toolbar-more" items={personnelToolbarMoreItems} />
+              <Tooltip content={t("personnel.add")} delayMs={200}>
+                <Button
+                  type="button"
+                  variant="primary"
+                  className={TABLE_TOOLBAR_ICON_BTN}
+                  onClick={openCreate}
+                  aria-label={t("personnel.add")}
+                >
+                  <ToolbarGlyphUserPlus className="h-5 w-5" />
+                </Button>
+              </Tooltip>
+            </>
+          }
+        >
           {isPending && (
             <p className="text-sm text-zinc-500">{t("common.loading")}</p>
           )}
@@ -871,9 +904,7 @@ export function PersonnelScreen() {
                               {personnelDisplayName(p)}
                             </h3>
                             {p.isDeleted ? (
-                              <PassiveBadge>
-                                {t("personnel.badgePassive")}
-                              </PassiveBadge>
+                              <StatusBadge tone="inactive">{t("personnel.badgePassive")}</StatusBadge>
                             ) : null}
                           </div>
                           <p
@@ -1094,9 +1125,7 @@ export function PersonnelScreen() {
                                   {personnelDisplayName(p)}
                                 </span>
                                 {p.isDeleted ? (
-                                  <PassiveBadge>
-                                    {t("personnel.badgePassive")}
-                                  </PassiveBadge>
+                                  <StatusBadge tone="inactive">{t("personnel.badgePassive")}</StatusBadge>
                                 ) : null}
                               </div>
                               <PersonnelInsuranceBadge personnel={p} t={t} />
@@ -1206,7 +1235,9 @@ export function PersonnelScreen() {
             </>
           )}
         </Card>
-      </div>
+          </div>
+        }
+      />
 
       <PersonnelFormModal
         open={formOpen}
@@ -1273,6 +1304,6 @@ export function PersonnelScreen() {
         closeLabel={t("common.close")}
         loadingLabel={t("common.loading")}
       />
-    </div>
+    </>
   );
 }

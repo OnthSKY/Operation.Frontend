@@ -15,6 +15,9 @@ import { useI18n } from "@/i18n/context";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
 import { Card } from "@/shared/components/Card";
+import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
+import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
+import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { Input } from "@/shared/ui/Input";
 import {
   Table,
@@ -26,7 +29,7 @@ import {
 } from "@/shared/ui/Table";
 import { notify } from "@/shared/lib/notify";
 import { notifyWarehouseDeleteConfirm } from "@/shared/lib/notify-warehouse-delete";
-import { detailOpenIconButtonClass, EyeIcon } from "@/shared/ui/EyeIcon";
+import { detailOpenIconButtonClass, EyeIcon, PlusIcon } from "@/shared/ui/EyeIcon";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { BranchTransferListIcon, PlusProductIcon } from "@/shared/ui/WarehouseListIcons";
 import { Tooltip } from "@/shared/ui/Tooltip";
@@ -121,29 +124,78 @@ export function WarehouseScreen() {
   };
 
   return (
-    <div className="mx-auto w-full app-page-max p-3 pb-6 sm:pb-10 sm:p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
-            {t("warehouse.title")}
-          </h1>
-          <p className="text-sm text-zinc-500">{t("warehouse.subtitle")}</p>
-        </div>
-        <Button type="button" className="min-h-11 w-full sm:min-h-10 sm:w-auto" onClick={() => setWhModal(true)}>
-          {t("warehouse.addWarehouse")}
-        </Button>
-      </div>
-
-      {whError ? (
-        <p className="mt-4 text-sm text-red-600">{toErrorMessage(whErr)}</p>
-      ) : whLoading ? (
-        <p className="mt-4 text-sm text-zinc-500">{t("common.loading")}</p>
-      ) : warehouses.length === 0 ? (
-        <Card className="mt-4" title={t("warehouse.noWarehouses")}>
-          <p className="text-sm text-zinc-600">{t("warehouse.noWarehousesHint")}</p>
-        </Card>
-      ) : (
-        <Card className="mt-4" title={t("warehouse.listTitle")} description={t("warehouse.listDesc")}>
+    <>
+      <PageScreenScaffold
+        className="w-full p-3 pb-6 sm:pb-10 sm:p-4"
+        intro={
+          <>
+            <div>
+              <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
+                {t("warehouse.title")}
+              </h1>
+              <p className="text-sm text-zinc-500">{t("warehouse.subtitle")}</p>
+            </div>
+            <PageWhenToUseGuide
+              guideTab="warehouse"
+              className="mt-1"
+              title={t("common.pageWhenToUseTitle")}
+              description={t("pageHelp.warehouse.intro")}
+              listVariant="ordered"
+              items={[
+                { text: t("pageHelp.warehouse.step1") },
+                { text: t("pageHelp.warehouse.step2") },
+                {
+                  text: t("pageHelp.warehouse.step3"),
+                  link: { href: "/products", label: t("pageHelp.warehouse.step3Link") },
+                },
+                { text: t("pageHelp.warehouse.step4") },
+              ]}
+            />
+          </>
+        }
+        main={
+          <>
+            {whError ? (
+              <p className="text-sm text-red-600">{toErrorMessage(whErr)}</p>
+            ) : whLoading ? (
+              <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+            ) : warehouses.length === 0 ? (
+              <Card
+                title={t("warehouse.noWarehouses")}
+                headerActions={
+                  <Tooltip content={t("warehouse.addWarehouse")} delayMs={200}>
+                    <Button
+                      type="button"
+                      variant="primary"
+                      className={TABLE_TOOLBAR_ICON_BTN}
+                      onClick={() => setWhModal(true)}
+                      aria-label={t("warehouse.addWarehouse")}
+                    >
+                      <PlusIcon />
+                    </Button>
+                  </Tooltip>
+                }
+              >
+                <p className="text-sm text-zinc-600">{t("warehouse.noWarehousesHint")}</p>
+              </Card>
+            ) : (
+              <Card
+                title={t("warehouse.listTitle")}
+                description={t("warehouse.listDesc")}
+                headerActions={
+                  <Tooltip content={t("warehouse.addWarehouse")} delayMs={200}>
+                    <Button
+                      type="button"
+                      variant="primary"
+                      className={TABLE_TOOLBAR_ICON_BTN}
+                      onClick={() => setWhModal(true)}
+                      aria-label={t("warehouse.addWarehouse")}
+                    >
+                      <PlusIcon />
+                    </Button>
+                  </Tooltip>
+                }
+              >
           <div className="mb-4">
             <Input
               name="warehouse-list-search"
@@ -423,7 +475,10 @@ export function WarehouseScreen() {
             </>
           )}
         </Card>
-      )}
+            )}
+          </>
+        }
+      />
 
       <WarehouseListDepoInModal target={quickDepoTarget} onClose={() => setQuickDepoTarget(null)} />
       <WarehouseListTransferModal
@@ -445,6 +500,6 @@ export function WarehouseScreen() {
         onClose={() => setProdModal(false)}
         descriptionKey="warehouse.addProductHint"
       />
-    </div>
+    </>
   );
 }

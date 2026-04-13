@@ -13,6 +13,7 @@ import {
 } from "@/modules/reports/lib/report-period-helpers";
 import { useFinancialReport } from "@/modules/reports/hooks/useReportsQueries";
 import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileFilters";
+import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { Button } from "@/shared/ui/Button";
@@ -107,6 +108,22 @@ export function FinancialReportTablesScreen() {
     <ReportTablesPageShell
       title={t("reports.tablesPageFinTitle")}
       subtitle={t("reports.tablesPageFinSubtitle")}
+      pageGuide={
+        <PageWhenToUseGuide
+          guideTab="reports"
+          title={t("common.pageWhenToUseTitle")}
+          description={t("pageHelp.reportsFinancial.intro")}
+          listVariant="ordered"
+          items={[
+            { text: t("pageHelp.reportsFinancial.step1") },
+            { text: t("pageHelp.reportsFinancial.step2") },
+            {
+              text: t("pageHelp.reportsFinancial.step3"),
+              link: { href: "/branches", label: t("pageHelp.reportsFinancial.step3Link") },
+            },
+          ]}
+        />
+      }
     >
       <CollapsibleMobileFilters
         title={t("reports.filtersSectionTitle")}

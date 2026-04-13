@@ -4,7 +4,9 @@ import type { AccountMenuSection } from "@/modules/account/types";
 import { useI18n } from "@/i18n/context";
 import { AccountPanelTabs } from "@/modules/account/components/AccountPanelTabs";
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import { BackdropCloseConfirm } from "@/shared/overlays/BackdropCloseConfirm";
+import { OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
+import { useEffect, useState } from "react";
 
 type Props = {
   open: boolean;
@@ -22,15 +24,25 @@ export function AccountPanelShell({
   children,
 }: Props) {
   const { t } = useI18n();
+  const [backdropConfirmOpen, setBackdropConfirmOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) setBackdropConfirmOpen(false);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      if (backdropConfirmOpen) {
+        setBackdropConfirmOpen(false);
+        return;
+      }
+      onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open, onClose, backdropConfirmOpen]);
 
   useEffect(() => {
     if (!open) return;
@@ -43,16 +55,18 @@ export function AccountPanelShell({
 
   if (!open) return null;
 
+  const requestBackdropClose = () => setBackdropConfirmOpen(true);
+
   return (
     <div
-      className="fixed inset-0 z-[80] flex md:items-start md:justify-end md:p-3 md:pt-[max(0.75rem,calc(3.5rem+env(safe-area-inset-top,0px)+0.5rem))]"
+      className={`fixed inset-0 ${OVERLAY_Z_TW.accountPanel} flex md:items-start md:justify-end md:p-3 md:pt-[max(0.75rem,calc(3.5rem+env(safe-area-inset-top,0px)+0.5rem))]`}
       role="presentation"
     >
       <button
         type="button"
         className="absolute inset-0 bg-zinc-900/50 md:bg-zinc-900/40"
         aria-label={t("profile.closePanel")}
-        onClick={onClose}
+        onClick={requestBackdropClose}
       />
       <div
         role="dialog"
@@ -94,6 +108,14 @@ export function AccountPanelShell({
           {children}
         </div>
       </div>
+      <BackdropCloseConfirm
+        open={backdropConfirmOpen}
+        onCancel={() => setBackdropConfirmOpen(false)}
+        onConfirm={() => {
+          setBackdropConfirmOpen(false);
+          onClose();
+        }}
+      />
     </div>
   );
 }

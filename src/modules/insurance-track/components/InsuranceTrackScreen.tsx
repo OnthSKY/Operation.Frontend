@@ -4,6 +4,9 @@ import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { useInsuranceTrackQuery } from "@/modules/insurance-track/hooks/useInsuranceTrackQuery";
 import { useI18n } from "@/i18n/context";
 import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileFilters";
+import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
+import { StatusBadge, type StatusBadgeTone } from "@/shared/components/StatusBadge";
+import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { notifyDefaults } from "@/shared/lib/notify";
@@ -35,16 +38,16 @@ type AlertFilter = Extract<
   "ExpiringSoon" | "NoCoverage" | "Expired"
 >;
 
-function statusBadgeClass(status: InsuranceTrackStatusApi): string {
+function insuranceTrackStatusTone(status: InsuranceTrackStatusApi): StatusBadgeTone {
   switch (status) {
     case "ExpiringSoon":
-      return "bg-amber-100 text-amber-900 ring-1 ring-amber-200/80";
+      return "warning";
     case "Expired":
-      return "bg-red-100 text-red-900 ring-1 ring-red-200/80";
+      return "danger";
     case "NoCoverage":
-      return "bg-zinc-100 text-zinc-700 ring-1 ring-zinc-200/80";
+      return "muted";
     default:
-      return "bg-emerald-100 text-emerald-900 ring-1 ring-emerald-200/80";
+      return "success";
   }
 }
 
@@ -259,17 +262,38 @@ export function InsuranceTrackScreen() {
   const attentionLoading = attentionQ.isPending && !attentionQ.data;
 
   return (
-    <div className="mx-auto flex w-full min-w-0 app-page-max flex-col gap-4 pb-6 pt-2 sm:gap-6 sm:pt-4 sm:pb-8 md:pt-0">
-      <div>
-        <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
-          {t("insuranceTrack.title")}
-        </h1>
-        <p className="mt-0.5 break-words text-xs leading-relaxed text-zinc-500 sm:text-sm">
-          {t("insuranceTrack.subtitle")}
-        </p>
-      </div>
+    <PageScreenScaffold
+      className="w-full min-w-0 pb-6 pt-2 sm:pb-8 sm:pt-4 md:pt-0"
+      intro={
+        <>
+          <div>
+            <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
+              {t("insuranceTrack.title")}
+            </h1>
+            <p className="mt-0.5 break-words text-xs leading-relaxed text-zinc-500 sm:text-sm">
+              {t("insuranceTrack.subtitle")}
+            </p>
+          </div>
 
-      <div className="flex flex-col gap-2">
+          <PageWhenToUseGuide
+            guideTab="flows"
+            className="mt-1"
+            title={t("common.pageWhenToUseTitle")}
+            description={t("pageHelp.insuranceTrack.intro")}
+            listVariant="ordered"
+            items={[
+              { text: t("pageHelp.insuranceTrack.step1") },
+              { text: t("pageHelp.insuranceTrack.step2") },
+              {
+                text: t("pageHelp.insuranceTrack.step3"),
+                link: { href: "/vehicles", label: t("pageHelp.insuranceTrack.step3Link") },
+              },
+            ]}
+          />
+        </>
+      }
+      summary={
+        <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-end justify-between gap-2">
           <h2 className="text-sm font-bold uppercase tracking-wide text-zinc-500">
             {t("insuranceTrack.alertsTitle")}
@@ -328,8 +352,10 @@ export function InsuranceTrackScreen() {
           })}
         </div>
       </div>
-
-      <CollapsibleMobileFilters
+      }
+      main={
+        <>
+          <CollapsibleMobileFilters
         title={t("insuranceTrack.filtersTitle")}
         toggleAriaLabel={t("common.filters")}
         active={filtersActive}
@@ -467,11 +493,12 @@ export function InsuranceTrackScreen() {
                           {r.branchName?.trim() || "—"}
                         </TableCell>
                         <TableCell>
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusBadgeClass(r.status)}`}
+                          <StatusBadge
+                            tone={insuranceTrackStatusTone(r.status)}
+                            className="rounded-full px-2.5 normal-case"
                           >
                             {statusLabel(t, locale, r.status)}
-                          </span>
+                          </StatusBadge>
                         </TableCell>
                       </TableRow>
                     ))
@@ -500,11 +527,12 @@ export function InsuranceTrackScreen() {
                       </Link>
                       {r.subtitle ? <p className="mt-0.5 text-xs text-zinc-500">{r.subtitle}</p> : null}
                     </div>
-                    <span
-                      className={`shrink-0 rounded-full px-2 py-0.5 text-[0.65rem] font-semibold ${statusBadgeClass(r.status)}`}
+                    <StatusBadge
+                      tone={insuranceTrackStatusTone(r.status)}
+                      className="shrink-0 rounded-full px-2 py-0.5 text-[0.65rem] normal-case"
                     >
                       {statusLabel(t, locale, r.status)}
-                    </span>
+                    </StatusBadge>
                   </div>
                   <dl className="mt-2 grid grid-cols-1 gap-1.5 text-sm">
                     <div className="flex justify-between gap-2">
@@ -528,7 +556,9 @@ export function InsuranceTrackScreen() {
           </div>
         </section>
       ) : null}
-    </div>
+        </>
+      }
+    />
   );
 }
 

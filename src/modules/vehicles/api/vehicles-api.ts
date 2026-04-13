@@ -153,6 +153,8 @@ export async function createVehicleExpense(
     expenseDate: string;
     description?: string | null;
     branchId?: number | null;
+    branchExpensePaymentSource?: string | null;
+    patronPaymentMethod?: string | null;
   }
 ): Promise<VehicleExpense> {
   return apiRequest<VehicleExpense>(`/vehicles/${vehicleId}/expenses`, {
@@ -171,6 +173,8 @@ export async function updateVehicleExpense(
     expenseDate: string;
     description?: string | null;
     branchId?: number | null;
+    branchExpensePaymentSource?: string | null;
+    patronPaymentMethod?: string | null;
   }
 ): Promise<VehicleExpense> {
   return apiRequest<VehicleExpense>(`/vehicles/${vehicleId}/expenses/${expenseId}`, {

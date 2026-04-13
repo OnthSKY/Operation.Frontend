@@ -8,6 +8,9 @@ import { usePersonnelList } from "@/modules/personnel/hooks/usePersonnelQueries"
 import type { Branch, BranchSeasonStatus } from "@/types/branch";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Card } from "@/shared/components/Card";
+import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
+import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
+import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { Button } from "@/shared/ui/Button";
 import {
   Table,
@@ -21,8 +24,9 @@ import { useSearchParams } from "next/navigation";
 import type { MouseEvent } from "react";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/cn";
-import { detailOpenIconButtonClass, EyeIcon } from "@/shared/ui/EyeIcon";
+import { PlusIcon } from "@/shared/ui/EyeIcon";
 import { Tooltip } from "@/shared/ui/Tooltip";
+import { detailOpenIconButtonClass, EyeIcon } from "@/shared/ui/EyeIcon";
 import { AddBranchModal } from "./AddBranchModal";
 import { EditBranchModal } from "./EditBranchModal";
 import { AddBranchTransactionModal } from "./AddBranchTransactionModal";
@@ -311,34 +315,66 @@ export function BranchScreen() {
   );
 
   return (
-    <div className="mx-auto flex w-full app-page-max flex-col gap-4 p-4 pb-6 sm:pb-8">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
-            {t("branch.title")}
-          </h1>
-          <p className="text-sm text-zinc-500">
-            {t("branch.subtitle")}{" "}
-            <code className="rounded bg-zinc-100 px-1 text-xs">GET /branches</code>
-          </p>
-        </div>
-        {!personnelPortal ? (
-          <Button type="button" onClick={() => setAddOpen(true)}>
-            {t("branch.add")}
-          </Button>
-        ) : null}
-      </div>
+    <>
+      <PageScreenScaffold
+        className="w-full p-4 pb-6 sm:pb-8"
+        intro={
+          <>
+            <div>
+              <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
+                {t("branch.title")}
+              </h1>
+                <p className="text-sm text-zinc-500">{t("branch.subtitle")}</p>
+            </div>
 
-      {openedFromReport ? (
-        <div
-          role="status"
-          className="rounded-xl border border-violet-200/90 bg-violet-50/90 px-3 py-2.5 text-sm leading-snug text-violet-950"
-        >
-          {t("branch.openedFromReportBanner")}
-        </div>
-      ) : null}
-
-      <Card title={t("branch.listTitle")} description={t("branch.listDesc")}>
+            <PageWhenToUseGuide
+              guideTab="branch"
+              className="mt-1"
+              title={t("common.pageWhenToUseTitle")}
+              description={t("pageHelp.branch.intro")}
+              listVariant="ordered"
+              items={[
+                { text: t("pageHelp.branch.step1") },
+                { text: t("pageHelp.branch.step2") },
+                { text: t("pageHelp.branch.step3") },
+                {
+                  text: t("pageHelp.branch.step4"),
+                  link: { href: "/general-overhead", label: t("pageHelp.branch.step4Link") },
+                },
+              ]}
+            />
+          </>
+        }
+        summary={
+          openedFromReport ? (
+            <div
+              role="status"
+              className="rounded-xl border border-violet-200/90 bg-violet-50/90 px-3 py-2.5 text-sm leading-snug text-violet-950"
+            >
+              {t("branch.openedFromReportBanner")}
+            </div>
+          ) : undefined
+        }
+        main={
+          <Card
+            title={t("branch.listTitle")}
+            description={t("branch.listDesc")}
+            headerActions={
+              !personnelPortal ? (
+                <Tooltip content={t("branch.add")} delayMs={200}>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    className={TABLE_TOOLBAR_ICON_BTN}
+                    onClick={() => setAddOpen(true)}
+                    aria-label={t("branch.add")}
+                  >
+                    <PlusIcon />
+                  </Button>
+                </Tooltip>
+              ) : undefined
+            }
+          >
         {isPending && (
           <p className="text-sm text-zinc-500">{t("common.loading")}</p>
         )}
@@ -619,7 +655,9 @@ export function BranchScreen() {
         {!isPending && !isError && list.length > 0 && !selectedId && (
           <p className="mt-3 text-sm text-zinc-500">{t("branch.selectHint")}</p>
         )}
-      </Card>
+          </Card>
+        }
+      />
 
       {selected ? (
         <BranchDetailSheet
@@ -689,6 +727,6 @@ export function BranchScreen() {
           onClose={() => setPdfBranch(null)}
         />
       ) : null}
-    </div>
+    </>
   );
 }

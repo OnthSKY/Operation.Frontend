@@ -68,6 +68,10 @@ export async function fetchAllAdvances(
   }));
 }
 
+export async function deleteAdvance(advanceId: number): Promise<void> {
+  await apiRequest<null>(`/advances/${advanceId}`, { method: "DELETE" });
+}
+
 export async function createAdvance(
   input: CreateAdvanceInput
 ): Promise<Advance> {

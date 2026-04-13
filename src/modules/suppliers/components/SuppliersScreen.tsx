@@ -11,22 +11,30 @@ import {
 import { cn } from "@/lib/cn";
 import { useI18n } from "@/i18n/context";
 import { Card } from "@/shared/components/Card";
+import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
+import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
+import { TableToolbarMoreMenu } from "@/shared/components/TableToolbarMoreMenu";
+import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
+import { StatusBadge } from "@/shared/components/StatusBadge";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { Button } from "@/shared/ui/Button";
-import { detailOpenIconButtonClass, EyeIcon, PencilIcon } from "@/shared/ui/EyeIcon";
+import { detailOpenIconButtonClass, EyeIcon, PencilIcon, PlusIcon } from "@/shared/ui/EyeIcon";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Switch } from "@/shared/ui/Switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/Table";
 import { Tooltip } from "@/shared/ui/Tooltip";
+import { ToolbarGlyphReceipt } from "@/shared/ui/ToolbarGlyph";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useMemo, useState } from "react";
 
 export function SuppliersScreen() {
   const { t } = useI18n();
+  const router = useRouter();
   const [includeDeleted, setIncludeDeleted] = useState(false);
   const { data: suppliers = [], isPending: supPending, isError: supErr, error: supError } =
     useSuppliers(includeDeleted);
@@ -99,6 +107,17 @@ export function SuppliersScreen() {
     }
   };
 
+  const supplierMoreItems = useMemo(
+    () => [
+      {
+        id: "invoices",
+        label: t("suppliers.invoicesPageTitle"),
+        onSelect: () => router.push("/suppliers/invoices"),
+      },
+    ],
+    [t, router]
+  );
+
   const onDeleteSupplier = (s: Supplier) => {
     notifyConfirmToast({
       toastId: "supplier-delete-confirm",
@@ -118,23 +137,55 @@ export function SuppliersScreen() {
   };
 
   return (
-    <div className="mx-auto w-full app-page-max p-4 pb-8">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">{t("suppliers.title")}</h1>
-          <p className="mt-1 text-sm text-zinc-500">{t("suppliers.subtitle")}</p>
-        </div>
-        <Link
-          href="/suppliers/invoices"
-          className={cn(
-            "inline-flex min-h-11 shrink-0 items-center justify-center self-start rounded-lg border border-violet-200 bg-violet-50 px-4 text-sm font-semibold text-violet-900 shadow-sm transition hover:bg-violet-100 sm:min-h-9 sm:self-auto"
-          )}
-        >
-          {t("suppliers.invoicesPageTitle")}
-        </Link>
-      </div>
-
-      <Card className="mt-6" title={t("suppliers.suppliersSection")}>
+    <>
+      <PageScreenScaffold
+        className="w-full p-4 pb-8"
+        intro={
+          <>
+            <div>
+              <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">{t("suppliers.title")}</h1>
+              <p className="mt-1 text-sm text-zinc-500">{t("suppliers.subtitle")}</p>
+            </div>
+            <PageWhenToUseGuide
+              guideTab="suppliers"
+              className="mt-1"
+              title={t("common.pageWhenToUseTitle")}
+              description={t("pageHelp.suppliers.intro")}
+              listVariant="ordered"
+              items={[
+                { text: t("pageHelp.suppliers.step1") },
+                {
+                  text: t("pageHelp.suppliers.step2"),
+                  link: { href: "/suppliers/invoices", label: t("pageHelp.suppliers.step2Link") },
+                },
+                {
+                  text: t("pageHelp.suppliers.step3"),
+                  link: { href: "/general-overhead", label: t("pageHelp.suppliers.step3Link") },
+                },
+              ]}
+            />
+          </>
+        }
+        main={
+          <Card
+            title={t("suppliers.suppliersSection")}
+            headerActions={
+              <>
+                <TableToolbarMoreMenu menuId="suppliers-toolbar-more" items={supplierMoreItems} />
+                <Tooltip content={t("suppliers.addSupplier")} delayMs={200}>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    className={TABLE_TOOLBAR_ICON_BTN}
+                    onClick={openAddSupplier}
+                    aria-label={t("suppliers.addSupplier")}
+                  >
+                    <PlusIcon />
+                  </Button>
+                </Tooltip>
+              </>
+            }
+          >
         <div className="mb-4">
           <label
             className={cn(
@@ -172,7 +223,12 @@ export function SuppliersScreen() {
                 {suppliers.map((s) => (
                   <TableRow key={s.id}>
                     <TableCell dataLabel={t("suppliers.name")} className="font-medium text-zinc-900">
-                      {s.name}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span>{s.name}</span>
+                        {s.isDeleted ? (
+                          <StatusBadge tone="deleted">{t("suppliers.viewDeletedBadge")}</StatusBadge>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell dataLabel={t("suppliers.currency")} className="text-zinc-600">
                       {s.currencyCode}
@@ -204,18 +260,34 @@ export function SuppliersScreen() {
                           </Button>
                         </Tooltip>
                         {!s.isDeleted ? (
-                          <Tooltip content={t("common.delete")} delayMs={200}>
-                            <button
-                              type="button"
-                              className={trashIconActionButtonClass}
-                              disabled={deleteSup.isPending}
-                              aria-label={t("common.delete")}
-                              title={t("common.delete")}
-                              onClick={() => onDeleteSupplier(s)}
-                            >
-                              <TrashIcon />
-                            </button>
-                          </Tooltip>
+                          <>
+                            <Tooltip content={t("suppliers.writeInvoice")} delayMs={200}>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                className={detailOpenIconButtonClass}
+                                aria-label={t("suppliers.writeInvoice")}
+                                title={t("suppliers.writeInvoice")}
+                                onClick={() =>
+                                  router.push(`/suppliers/invoices?supplierId=${s.id}&newInvoice=1`)
+                                }
+                              >
+                                <ToolbarGlyphReceipt className="h-5 w-5" />
+                              </Button>
+                            </Tooltip>
+                            <Tooltip content={t("common.delete")} delayMs={200}>
+                              <button
+                                type="button"
+                                className={trashIconActionButtonClass}
+                                disabled={deleteSup.isPending}
+                                aria-label={t("common.delete")}
+                                title={t("common.delete")}
+                                onClick={() => onDeleteSupplier(s)}
+                              >
+                                <TrashIcon />
+                              </button>
+                            </Tooltip>
+                          </>
                         ) : null}
                       </div>
                     </TableCell>
@@ -225,10 +297,9 @@ export function SuppliersScreen() {
             </Table>
           </div>
         )}
-        <Button type="button" className="mt-4 min-h-11 sm:min-h-9" onClick={openAddSupplier}>
-          {t("suppliers.addSupplier")}
-        </Button>
-      </Card>
+          </Card>
+        }
+      />
 
       <SupplierViewModal
         open={viewSupplier != null}
@@ -266,6 +337,6 @@ export function SuppliersScreen() {
           </div>
         </div>
       </Modal>
-    </div>
+    </>
   );
 }

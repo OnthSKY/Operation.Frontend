@@ -13,6 +13,10 @@ import { usePersonnelList } from "@/modules/personnel/hooks/usePersonnelQueries"
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { Card } from "@/shared/components/Card";
+import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
+import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
+import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
+import { appUserAccountStatusTone, StatusBadge } from "@/shared/components/StatusBadge";
 import { Button } from "@/shared/ui/Button";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import { Input } from "@/shared/ui/Input";
@@ -20,6 +24,7 @@ import { Modal } from "@/shared/ui/Modal";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import type { AppUserRole, UserListItem } from "@/types/user";
 import { cn } from "@/lib/cn";
+import { ToolbarGlyphUserPlus } from "@/shared/ui/ToolbarGlyph";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -33,51 +38,6 @@ type FormValues = {
   role: AppUserRole;
   personnelId: string;
 };
-
-const iconStroke = {
-  width: 20,
-  height: 20,
-  viewBox: "0 0 24 24" as const,
-  fill: "none" as const,
-  stroke: "currentColor" as const,
-  strokeWidth: 2,
-  strokeLinecap: "round" as const,
-  strokeLinejoin: "round" as const,
-};
-
-function UserStatusIcon({
-  status,
-  activeLabel,
-  inactiveLabel,
-}: {
-  status: string;
-  activeLabel: string;
-  inactiveLabel: string;
-}) {
-  const isActive = status.toUpperCase() === "ACTIVE";
-  const label = isActive ? activeLabel : inactiveLabel;
-  return (
-    <Tooltip content={label} delayMs={200}>
-      <span
-        className="inline-flex shrink-0 items-center justify-center"
-        aria-label={label}
-        role="img"
-      >
-        {isActive ? (
-          <svg {...iconStroke} className="text-emerald-600">
-            <circle cx="12" cy="12" r="10" />
-            <path d="M8 12l2.5 2.5L16 10" />
-          </svg>
-        ) : (
-          <svg {...iconStroke} className="text-zinc-400">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="8" y1="12" x2="16" y2="12" />
-          </svg>
-        )}
-      </span>
-    </Tooltip>
-  );
-}
 
 export function UsersScreen() {
   const { t } = useI18n();
@@ -271,32 +231,61 @@ export function UsersScreen() {
   });
 
   return (
-    <div className="mx-auto flex w-full min-w-0 app-page-max flex-1 flex-col gap-6 p-4 md:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0">
-          <Link
-            href="/admin/settings"
-            className="text-sm font-medium text-violet-700 hover:text-violet-800"
+    <>
+      <PageScreenScaffold
+        className="mx-auto w-full min-w-0 flex-1 app-page-max p-4 md:p-6"
+        intro={
+          <>
+            <div className="min-w-0">
+              <Link
+                href="/admin/settings"
+                className="text-sm font-medium text-violet-700 hover:text-violet-800"
+              >
+                ← {t("settings.backToSettings")}
+              </Link>
+              <h1 className="mt-2 text-xl font-bold tracking-tight text-zinc-900 md:text-2xl">
+                {t("users.title")}
+              </h1>
+              <p className="mt-1 max-w-2xl text-sm text-zinc-500">{t("users.description")}</p>
+            </div>
+            <PageWhenToUseGuide
+              guideTab="admin"
+              className="mt-1"
+              title={t("common.pageWhenToUseTitle")}
+              description={t("pageHelp.users.intro")}
+              listVariant="ordered"
+              items={[
+                { text: t("pageHelp.users.step1") },
+                { text: t("pageHelp.users.step2") },
+                {
+                  text: t("pageHelp.users.step3"),
+                  link: {
+                    href: "/admin/settings/authorization",
+                    label: t("pageHelp.users.step3Link"),
+                  },
+                },
+              ]}
+            />
+          </>
+        }
+        main={
+          <Card
+            className="overflow-hidden"
+            title={t("common.pageSectionMain")}
+            headerActions={
+              <Tooltip content={t("users.addUser")} delayMs={200}>
+                <Button
+                  type="button"
+                  variant="primary"
+                  className={TABLE_TOOLBAR_ICON_BTN}
+                  onClick={() => setModalOpen(true)}
+                  aria-label={t("users.addUser")}
+                >
+                  <ToolbarGlyphUserPlus className="h-5 w-5" />
+                </Button>
+              </Tooltip>
+            }
           >
-            ← {t("settings.backToSettings")}
-          </Link>
-          <h1 className="mt-2 text-xl font-bold tracking-tight text-zinc-900 md:text-2xl">
-            {t("users.title")}
-          </h1>
-          <p className="mt-1 max-w-2xl text-sm text-zinc-500">
-            {t("users.description")}
-          </p>
-        </div>
-        <Button
-          type="button"
-          className="w-full shrink-0 sm:w-auto"
-          onClick={() => setModalOpen(true)}
-        >
-          {t("users.addUser")}
-        </Button>
-      </div>
-
-      <Card className="overflow-hidden p-0">
         {isLoading ? (
           <div className="p-8 text-center text-sm text-zinc-500">
             {t("common.loading")}
@@ -335,11 +324,11 @@ export function UsersScreen() {
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      <UserStatusIcon
-                        status={r.status}
-                        activeLabel={t("users.statusActive")}
-                        inactiveLabel={t("users.statusInactive")}
-                      />
+                      <StatusBadge tone={appUserAccountStatusTone(r.status)}>
+                        {r.status.toUpperCase() === "ACTIVE"
+                          ? t("users.statusActive")
+                          : t("users.statusInactive")}
+                      </StatusBadge>
                     </div>
                   </div>
                   <dl className="mt-3 grid gap-2 border-t border-zinc-200/80 pt-3 text-sm">
@@ -465,11 +454,11 @@ export function UsersScreen() {
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <UserStatusIcon
-                          status={r.status}
-                          activeLabel={t("users.statusActive")}
-                          inactiveLabel={t("users.statusInactive")}
-                        />
+                        <StatusBadge tone={appUserAccountStatusTone(r.status)}>
+                          {r.status.toUpperCase() === "ACTIVE"
+                            ? t("users.statusActive")
+                            : t("users.statusInactive")}
+                        </StatusBadge>
                       </td>
                       <td className="max-w-[10rem] truncate px-4 py-3 text-zinc-600 lg:max-w-xs">
                         {personnelCell(r)}
@@ -499,7 +488,9 @@ export function UsersScreen() {
             </div>
           </>
         )}
-      </Card>
+          </Card>
+        }
+      />
 
       <Modal
         open={modalOpen}
@@ -585,6 +576,6 @@ export function UsersScreen() {
           </div>
         </form>
       </Modal>
-    </div>
+    </>
   );
 }

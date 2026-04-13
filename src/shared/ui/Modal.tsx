@@ -1,6 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/cn";
+import { BackdropCloseConfirm } from "@/shared/overlays/BackdropCloseConfirm";
+import { OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
 import { dialogTheme } from "@/shared/theme/dialog";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import { useEffect, useState, type ReactNode } from "react";
@@ -28,6 +30,8 @@ type ModalProps = {
   closeButtonLabel?: string;
   /** Başka bir modalın üstünde açılırken daha yüksek z-index. */
   nested?: boolean;
+  /** false: arka plana tıklanınca doğrudan kapanır (varsayılan: onay sorulur). */
+  backdropCloseRequiresConfirm?: boolean;
 };
 
 export function Modal({
@@ -45,22 +49,32 @@ export function Modal({
   wideExpanded = false,
   closeButtonLabel,
   nested = false,
+  backdropCloseRequiresConfirm = true,
 }: ModalProps) {
   const [mounted, setMounted] = useState(false);
+  const [backdropConfirmOpen, setBackdropConfirmOpen] = useState(false);
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!open) setBackdropConfirmOpen(false);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (nested) e.stopPropagation();
+      if (backdropConfirmOpen) {
+        setBackdropConfirmOpen(false);
+        return;
+      }
       onClose();
     };
     window.addEventListener("keydown", onKey, nested);
     return () => window.removeEventListener("keydown", onKey, nested);
-  }, [open, onClose, nested]);
+  }, [open, onClose, nested, backdropConfirmOpen]);
 
   useEffect(() => {
     if (!open) return;
@@ -96,11 +110,20 @@ export function Modal({
     ? cn(dialogTheme.headerRow, "shrink-0 border-b border-zinc-100 px-4 py-3 sm:px-6 sm:py-4")
     : dialogTheme.headerRow;
 
+  const requestBackdropClose = () => {
+    if (backdropCloseRequiresConfirm) setBackdropConfirmOpen(true);
+    else onClose();
+  };
+
   return createPortal(
     <div
-      className={cn(dialogTheme.backdrop, backdropClassName, nested && "z-[120]")}
+      className={cn(
+        dialogTheme.backdrop,
+        backdropClassName,
+        nested && OVERLAY_Z_TW.modalNested
+      )}
       role="presentation"
-      onClick={onClose}
+      onClick={requestBackdropClose}
     >
       <div
         role="dialog"
@@ -143,6 +166,14 @@ export function Modal({
         </div>
         {children}
       </div>
+      <BackdropCloseConfirm
+        open={backdropConfirmOpen}
+        onCancel={() => setBackdropConfirmOpen(false)}
+        onConfirm={() => {
+          setBackdropConfirmOpen(false);
+          onClose();
+        }}
+      />
     </div>,
     document.body
   );

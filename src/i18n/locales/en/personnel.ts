@@ -556,7 +556,11 @@ export const personnel = {
   detailTabAdvances: "Advances",
   detailTabExpenses: "Expenses",
   detailExpensesEmpty: "No attributed expense lines yet.",
+  detailNonAdvanceExpensesEmpty:
+    "No non-advance expenses. Payroll advances are listed under Advances above.",
   detailExpensesEmptySeason: "No expense lines for the selected season year (by transaction date).",
+  detailAdvanceDeleteConfirm:
+    "Delete this advance? The record is soft-deleted (recovery depends on policy).",
   detailExpenseAddOrg: "Add organization expense",
   detailExpenseColDate: "Date",
   detailExpenseColAmount: "Amount",

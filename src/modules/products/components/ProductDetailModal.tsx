@@ -128,16 +128,33 @@ export function ProductDetailModal({ open, productId, productLabel, onClose, onE
                       {t("products.detailGroupNote")}
                     </p>
                   ) : null}
-                  <p
-                    className={`text-sm text-zinc-600 ${
+                  <div
+                    className={`space-y-1 text-sm text-zinc-600 ${
                       inv.parentProductName?.trim() || inv.categoryName?.trim() || inv.hasChildren
                         ? "mt-2"
                         : ""
                     }`}
                   >
-                    {t("products.totalQty")}:{" "}
-                    <span className="font-semibold text-zinc-900">{inv.totalQuantity}</span>
-                  </p>
+                    {inv.hasChildren ? (
+                      <>
+                        <p>
+                          {t("products.detailOwnQtyLabel")}:{" "}
+                          <span className="font-semibold text-zinc-900 tabular-nums">
+                            {inv.ownTotalQuantity ?? inv.totalQuantity}
+                          </span>
+                        </p>
+                        <p>
+                          {t("products.detailGroupTotalLabel")}:{" "}
+                          <span className="font-semibold text-zinc-900 tabular-nums">{inv.totalQuantity}</span>
+                        </p>
+                      </>
+                    ) : (
+                      <p>
+                        {t("products.totalQty")}:{" "}
+                        <span className="font-semibold text-zinc-900 tabular-nums">{inv.totalQuantity}</span>
+                      </p>
+                    )}
+                  </div>
                   <Table className="mt-3">
                     <TableHead>
                       <TableRow>
@@ -146,14 +163,22 @@ export function ProductDetailModal({ open, productId, productLabel, onClose, onE
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {inv.byWarehouse.map((row) => (
-                        <TableRow key={row.warehouseId}>
-                          <TableCell dataLabel={t("products.colWarehouse")}>{row.warehouseName}</TableCell>
-                          <TableCell dataLabel={t("products.colQty")} className="text-right tabular-nums">
-                            {row.quantity}
+                      {inv.byWarehouse.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={2} className="text-sm text-zinc-500">
+                            {t("products.notInAnyWarehouse")}
                           </TableCell>
                         </TableRow>
-                      ))}
+                      ) : (
+                        inv.byWarehouse.map((row) => (
+                          <TableRow key={row.warehouseId}>
+                            <TableCell dataLabel={t("products.colWarehouse")}>{row.warehouseName}</TableCell>
+                            <TableCell dataLabel={t("products.colQty")} className="text-right tabular-nums">
+                              {row.quantity}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
                     </TableBody>
                   </Table>
                 </>

@@ -562,8 +562,12 @@ export const personnel = {
   detailTabAdvances: "Avanslar",
   detailTabExpenses: "Giderler",
   detailExpensesEmpty: "Bu personele yazılmış gider satırı yok.",
+  detailNonAdvanceExpensesEmpty:
+    "Avans dışı gider satırı yok. Avanslar yukarıdaki listede.",
   detailExpensesEmptySeason:
     "Seçilen sezon yılı için (işlem tarihine göre) gider satırı yok.",
+  detailAdvanceDeleteConfirm:
+    "Bu avans silinsin mi? Kayıt pasifleştirilir (geri alınabilirlik politikaya bağlıdır).",
   detailExpenseAddOrg: "Merkez gideri ekle",
   detailExpenseColDate: "Tarih",
   detailExpenseColAmount: "Tutar",

@@ -15,6 +15,7 @@ import type {
 } from "@/types/reports";
 import { cn } from "@/lib/cn";
 import { Card } from "@/shared/components/Card";
+import { RechartsMeasureBox } from "@/shared/components/RechartsMeasureBox";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { useMediaMinWidth } from "@/shared/lib/use-media-min-width";
@@ -666,31 +667,34 @@ export function ReportFinancialStoryCharts({
           {t("reports.chartLegendHint")}
         </p>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card title={t("reports.chartIncomeVsExpense")}>
-          <div className="h-[220px] w-full min-w-0 sm:h-[260px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart margin={{ top: 0, right: 0, bottom: 4, left: 0 }}>
-                <Pie
-                  data={incomeExpenseData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={pieOuterInc}
-                  label={false}
-                >
-                  {incomeExpenseData.map((x, i) => (
-                    <Cell key={i} fill={x.fill} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={tooltipMoney(ccy)} />
-                <Legend wrapperStyle={legendStyle} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+        <Card className="min-w-0" title={t("reports.chartIncomeVsExpense")}>
+          <RechartsMeasureBox className="h-[220px] w-full min-w-0 sm:h-[260px]">
+            {({ width, height }) => (
+              <ResponsiveContainer width={width} height={height}>
+                <PieChart margin={{ top: 0, right: 0, bottom: 4, left: 0 }}>
+                  <Pie
+                    data={incomeExpenseData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={pieOuterInc}
+                    label={false}
+                  >
+                    {incomeExpenseData.map((x, i) => (
+                      <Cell key={i} fill={x.fill} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={tooltipMoney(ccy)} />
+                  <Legend wrapperStyle={legendStyle} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </RechartsMeasureBox>
         </Card>
 
         <Card
+          className="min-w-0"
           title={t("reports.chartExpenseMix")}
           description={t("reports.chartExpenseMixCaption")}
         >
@@ -703,36 +707,38 @@ export function ReportFinancialStoryCharts({
           {outPieData.length === 0 ? (
             <p className="text-sm text-zinc-500">{t("reports.empty")}</p>
           ) : (
-            <div className="h-[240px] w-full min-w-0 sm:h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart margin={{ top: 0, right: 0, bottom: 4, left: 0 }}>
-                  <Pie
-                    data={outPieData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={pieInnerExp}
-                    outerRadius={pieOuterExp}
-                    paddingAngle={2}
-                    label={false}
-                  >
-                    {outPieData.map((x, i) => (
-                      <Cell key={i} fill={x.fill} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={tooltipMoney(ccy)} />
-                  <Legend wrapperStyle={legendStyle} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+            <RechartsMeasureBox className="h-[240px] w-full min-w-0 sm:h-[280px]">
+              {({ width, height }) => (
+                <ResponsiveContainer width={width} height={height}>
+                  <PieChart margin={{ top: 0, right: 0, bottom: 4, left: 0 }}>
+                    <Pie
+                      data={outPieData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={pieInnerExp}
+                      outerRadius={pieOuterExp}
+                      paddingAngle={2}
+                      label={false}
+                    >
+                      {outPieData.map((x, i) => (
+                        <Cell key={i} fill={x.fill} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={tooltipMoney(ccy)} />
+                    <Legend wrapperStyle={legendStyle} />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </RechartsMeasureBox>
           )}
         </Card>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card title={t("reports.chartBranchNet")}>
+        <Card className="min-w-0" title={t("reports.chartBranchNet")}>
           {branchNetData.length === 0 ? (
             <p className="text-sm text-zinc-500">{t("reports.empty")}</p>
           ) : (
@@ -740,60 +746,62 @@ export function ReportFinancialStoryCharts({
               className="-mx-1 w-[calc(100%+0.5rem)] touch-pan-x overflow-x-auto overscroll-x-contain px-1 sm:mx-0 sm:w-full sm:overflow-visible sm:px-0"
               style={{ height: barH(branchNetData.length) }}
             >
-              <div
+              <RechartsMeasureBox
                 className="h-full min-w-[min(100%,280px)] sm:min-w-0"
                 style={{ minWidth: smUp ? undefined : 300 }}
               >
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={branchNetData}
-                    layout="vertical"
-                    margin={{
-                      top: 8,
-                      right: smUp ? 12 : 4,
-                      left: 0,
-                      bottom: 8,
-                    }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-                    <XAxis
-                      type="number"
-                      tick={{ fontSize: smUp ? 11 : 9 }}
-                      tickFormatter={fmtAxisTick}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="name"
-                      width={yAxisW}
-                      tick={{ fontSize: smUp ? 11 : 9 }}
-                    />
-                    <Tooltip
-                      formatter={tooltipMoney(ccy)}
-                      labelFormatter={(_, payload) =>
-                        (payload?.[0]?.payload as { nameFull?: string })
-                          ?.nameFull ?? ""
-                      }
-                    />
-                    <Bar
-                      dataKey="net"
-                      name={t("reports.colNet")}
-                      radius={[0, 4, 4, 0]}
+                {({ width, height }) => (
+                  <ResponsiveContainer width={width} height={height}>
+                    <BarChart
+                      data={branchNetData}
+                      layout="vertical"
+                      margin={{
+                        top: 8,
+                        right: smUp ? 12 : 4,
+                        left: 0,
+                        bottom: 8,
+                      }}
                     >
-                      {branchNetData.map((e, i) => (
-                        <Cell
-                          key={i}
-                          fill={e.net >= 0 ? COL_INCOME : COL_EXPENSE}
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                      <XAxis
+                        type="number"
+                        tick={{ fontSize: smUp ? 11 : 9 }}
+                        tickFormatter={fmtAxisTick}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        width={yAxisW}
+                        tick={{ fontSize: smUp ? 11 : 9 }}
+                      />
+                      <Tooltip
+                        formatter={tooltipMoney(ccy)}
+                        labelFormatter={(_, payload) =>
+                          (payload?.[0]?.payload as { nameFull?: string })
+                            ?.nameFull ?? ""
+                        }
+                      />
+                      <Bar
+                        dataKey="net"
+                        name={t("reports.colNet")}
+                        radius={[0, 4, 4, 0]}
+                      >
+                        {branchNetData.map((e, i) => (
+                          <Cell
+                            key={i}
+                            fill={e.net >= 0 ? COL_INCOME : COL_EXPENSE}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </RechartsMeasureBox>
             </div>
           )}
         </Card>
 
-        <Card title={t("reports.chartBranchDelta")}>
+        <Card className="min-w-0" title={t("reports.chartBranchDelta")}>
           {branchDeltaData.length === 0 ? (
             <p className="text-sm text-zinc-500">{t("reports.empty")}</p>
           ) : (
@@ -801,57 +809,59 @@ export function ReportFinancialStoryCharts({
               className="-mx-1 w-[calc(100%+0.5rem)] touch-pan-x overflow-x-auto overscroll-x-contain px-1 sm:mx-0 sm:w-full sm:overflow-visible sm:px-0"
               style={{ height: barH(branchDeltaData.length) }}
             >
-              <div
+              <RechartsMeasureBox
                 className="h-full min-w-[min(100%,280px)] sm:min-w-0"
                 style={{ minWidth: smUp ? undefined : 300 }}
               >
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={branchDeltaData}
-                    layout="vertical"
-                    margin={{
-                      top: 8,
-                      right: smUp ? 12 : 4,
-                      left: 0,
-                      bottom: 8,
-                    }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-                    <XAxis
-                      type="number"
-                      tick={{ fontSize: smUp ? 11 : 9 }}
-                      tickFormatter={fmtAxisTick}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="name"
-                      width={yAxisW}
-                      tick={{ fontSize: smUp ? 11 : 9 }}
-                    />
-                    <Tooltip
-                      formatter={tooltipMoney(ccy)}
-                      labelFormatter={(_, payload) =>
-                        (payload?.[0]?.payload as { nameFull?: string })
-                          ?.nameFull ?? ""
-                      }
-                    />
-                    <Bar
-                      dataKey="delta"
-                      name={t("reports.colDeltaPrior")}
-                      radius={[0, 4, 4, 0]}
+                {({ width, height }) => (
+                  <ResponsiveContainer width={width} height={height}>
+                    <BarChart
+                      data={branchDeltaData}
+                      layout="vertical"
+                      margin={{
+                        top: 8,
+                        right: smUp ? 12 : 4,
+                        left: 0,
+                        bottom: 8,
+                      }}
                     >
-                      {branchDeltaData.map((e, i) => (
-                        <Cell
-                          key={i}
-                          fill={
-                            e.delta >= 0 ? COL_DELTA_UP : COL_DELTA_DOWN
-                          }
-                        />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                      <XAxis
+                        type="number"
+                        tick={{ fontSize: smUp ? 11 : 9 }}
+                        tickFormatter={fmtAxisTick}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        width={yAxisW}
+                        tick={{ fontSize: smUp ? 11 : 9 }}
+                      />
+                      <Tooltip
+                        formatter={tooltipMoney(ccy)}
+                        labelFormatter={(_, payload) =>
+                          (payload?.[0]?.payload as { nameFull?: string })
+                            ?.nameFull ?? ""
+                        }
+                      />
+                      <Bar
+                        dataKey="delta"
+                        name={t("reports.colDeltaPrior")}
+                        radius={[0, 4, 4, 0]}
+                      >
+                        {branchDeltaData.map((e, i) => (
+                          <Cell
+                            key={i}
+                            fill={
+                              e.delta >= 0 ? COL_DELTA_UP : COL_DELTA_DOWN
+                            }
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </RechartsMeasureBox>
             </div>
           )}
         </Card>

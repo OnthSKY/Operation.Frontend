@@ -11,6 +11,7 @@ import {
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
 import { Card } from "@/shared/components/Card";
+import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { SidebarBrandingLogo } from "@/shared/components/SidebarBrandingLogo";
 import { formatLocaleDateTime } from "@/shared/lib/locale-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
@@ -122,6 +123,17 @@ export function BrandingSettingsScreen() {
           {t("settings.brandingPageDescription")}
         </p>
       </div>
+
+      <PageWhenToUseGuide
+        guideTab="admin"
+        title={t("common.pageWhenToUseTitle")}
+        description={t("pageHelp.settingsBranding.intro")}
+        listVariant="ordered"
+        items={[
+          { text: t("pageHelp.settingsBranding.step1") },
+          { text: t("pageHelp.settingsBranding.step2") },
+        ]}
+      />
 
       {isPending ? (
         <p className="text-sm text-zinc-500">{t("common.loading")}</p>

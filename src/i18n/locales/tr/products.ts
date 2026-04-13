@@ -70,7 +70,9 @@ export const products = {
   badgeVariant: "Alt ürün",
   detailParentLine: "Ana ürün",
   detailGroupNote:
-    "Stok alt ürün satırlarında tutulur; buradaki rakamlar bu gruptaki tüm alt ürünlerin toplamıdır.",
+    "Hareketler alt ürün satırlarına yazılır; aşağıdaki depo miktarları Ürünler listesindeki gibi ana ürün + tüm alt ürünlerin toplamıdır.",
+  detailOwnQtyLabel: "Yalnızca ana ürün (tüm depolar)",
+  detailGroupTotalLabel: "Grup toplamı (ana + alt ürünler, tüm depolar)",
   addModalTitle: "Yeni ürün",
   addModalHint:
     "Ürün tüm depolar için geçerlidir; stok depo giriş/çıkış ile oluşur. Grup için ana satır, çeşitler için alt ürün ekleyin.",

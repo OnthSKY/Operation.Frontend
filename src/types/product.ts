@@ -25,6 +25,8 @@ export type ProductInventory = {
   parentProductId?: number | null;
   parentProductName?: string | null;
   hasChildren?: boolean;
+  /** Ana ürün satırının kendi stoku (alt ürünler hariç); backend eskiyse totalQuantity ile aynı kabul edilebilir */
+  ownTotalQuantity?: number;
   totalQuantity: number;
   byWarehouse: {
     warehouseId: number;
