@@ -8,6 +8,7 @@ import {
   ReportHubDateRangeControls,
   type ReportHubRangeLock,
 } from "@/modules/reports/components/ReportHubDateRangeControls";
+import { ReportMobileFilterSurface } from "@/modules/reports/components/ReportMobileFilterSurface";
 import { ReportTablesPageShell } from "@/modules/reports/components/ReportTablesPageShell";
 import {
   addDaysFromIso,
@@ -23,9 +24,9 @@ import {
   warehouseScopeFiltersActive,
 } from "@/modules/warehouse/lib/warehouse-scope-filters";
 import { useWarehousesList } from "@/modules/warehouse/hooks/useWarehouseQueries";
-import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileFilters";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { Select } from "@/shared/ui/Select";
 import { useMemo, useState } from "react";
@@ -104,6 +105,21 @@ export function StockReportTablesScreen() {
     warehouseScopeFiltersActive(stockScope) ||
     dateRangeLock !== "manual";
 
+  const filterPreview = useMemo(() => {
+    const a = formatLocaleDate(dateFrom, locale);
+    const b = formatLocaleDate(dateTo, locale);
+    return (
+      <>
+        <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-400">
+          {t("reports.navStockTables")}
+        </p>
+        <p className="mt-0.5 truncate text-sm font-semibold text-zinc-900">
+          {a} – {b}
+        </p>
+      </>
+    );
+  }, [dateFrom, dateTo, locale, t]);
+
   return (
     <ReportTablesPageShell
       title={t("reports.tablesPageStockTitle")}
@@ -128,13 +144,13 @@ export function StockReportTablesScreen() {
         />
       }
     >
-      <CollapsibleMobileFilters
-        title={t("reports.filtersSectionTitle")}
-        toggleAriaLabel={t("common.filters")}
-        active={filtersActive}
+      <ReportMobileFilterSurface
+        filtersActive={filtersActive}
+        drawerTitle={t("reports.filtersSectionTitle")}
         resetKey="stock-tables"
-        expandLabel={t("common.filtersShow")}
-        collapseLabel={t("common.filtersHide")}
+        preview={filterPreview}
+        onRefetch={() => void stock.refetch()}
+        isRefetching={stock.isFetching}
       >
         <div className="flex flex-col gap-4">
           <ReportHubDateRangeControls
@@ -190,7 +206,7 @@ export function StockReportTablesScreen() {
             </div>
           </div>
         </div>
-      </CollapsibleMobileFilters>
+      </ReportMobileFilterSurface>
 
       <ReportsPatronTabStory tab="stock" />
 

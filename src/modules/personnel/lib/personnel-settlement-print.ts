@@ -159,7 +159,12 @@ async function loadPersonnelSettlementPersonRow(
     const personnel = await fetchPersonnel(personnelId);
     let profilePhotoDataUrl: string | null = null;
     if (personnel.hasProfilePhoto1 === true) {
-      const res = await apiFetch(personnelProfilePhotoUrl(personnelId, 1));
+      const res = await apiFetch(
+        personnelProfilePhotoUrl(personnelId, 1, {
+          profilePhoto1Url: personnel.profilePhoto1Url,
+          profilePhoto2Url: personnel.profilePhoto2Url,
+        })
+      );
       if (res.ok) {
         const blob = await res.blob();
         if (blob.size > 0) profilePhotoDataUrl = await blobToDataUrl(blob);
@@ -387,6 +392,8 @@ function renderSalaryCostLoadFailedSection(
 function sourceAbbrev(t: (k: string) => string, st: string): string {
   const u = st.toUpperCase();
   if (u === "PATRON") return t("personnel.advanceSourceAbbrPatron");
+  if (u === "PATRON_BRANCH")
+    return t("personnel.advanceSourceAbbrPatronBranch");
   if (u === "BANK") return t("personnel.advanceSourceAbbrBank");
   if (u === "PERSONNEL_POCKET")
     return t("personnel.advanceSourceAbbrPersonnelPocket");

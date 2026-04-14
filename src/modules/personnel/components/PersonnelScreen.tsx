@@ -41,6 +41,7 @@ import {
   TableRow,
 } from "@/shared/ui/Table";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
+import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
 import { useHashScroll } from "@/shared/lib/use-hash-scroll";
 import type { Personnel, PersonnelJobTitle } from "@/types/personnel";
@@ -79,10 +80,59 @@ function formatSeasonArrivalDate(
   return formatLocaleDate(p.seasonArrivalDate, locale, dash);
 }
 
-/** Liste / kart: tutarı gizle; gerçek değer yalnızca detay modalında. */
-function formatSalaryMasked(p: Personnel, dash: string): string {
-  if (p.salary == null) return dash;
-  return "***";
+function PersonnelListSalaryReveal({
+  p,
+  locale,
+  dash,
+  revealed,
+  onToggle,
+  t,
+}: {
+  p: Personnel;
+  locale: Locale;
+  dash: string;
+  revealed: boolean;
+  onToggle: () => void;
+  t: (key: string) => string;
+}) {
+  if (p.salary == null) {
+    return (
+      <span
+        className={cn("tabular-nums", p.isDeleted ? "text-zinc-500" : "text-zinc-600")}
+      >
+        {dash}
+      </span>
+    );
+  }
+  const muted = p.isDeleted ? "text-zinc-500" : "text-zinc-600";
+  if (revealed) {
+    return (
+      <button
+        type="button"
+        onClick={onToggle}
+        className={cn(
+          "max-w-full cursor-pointer text-right font-mono text-sm font-medium tabular-nums underline decoration-zinc-300 decoration-dotted underline-offset-2 transition-colors hover:decoration-zinc-600",
+          muted
+        )}
+        aria-label={t("personnel.salaryHideAria")}
+      >
+        {formatMoneyDash(p.salary, dash, locale, p.currencyCode)}
+      </button>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={cn(
+        "cursor-pointer font-mono text-sm font-semibold tracking-widest underline decoration-zinc-300 decoration-dotted underline-offset-2 transition-colors hover:decoration-zinc-600",
+        muted
+      )}
+      aria-label={t("personnel.salaryRevealAria")}
+    >
+      ***
+    </button>
+  );
 }
 
 const PERSONNEL_FILTER_TEXT_DEBOUNCE_MS = 300;
@@ -130,6 +180,7 @@ function personnelDetailSyncSig(p: Personnel): string {
     p.hasProfilePhoto2,
     p.insuranceIntakeStartDate ?? "",
     p.insuranceAccountingNotified,
+    (p.yearAccountClosedYears ?? []).join(","),
   ].join("|");
 }
 
@@ -152,6 +203,34 @@ function PersonnelInsuranceBadge({
       {personnel.insuranceStarted
         ? t("personnel.insuranceBadgeStarted")
         : t("personnel.insuranceBadgePending")}
+    </span>
+  );
+}
+
+function PersonnelYearAccountClosedBadge({
+  personnel,
+  t,
+}: {
+  personnel: Personnel;
+  t: (key: string) => string;
+}) {
+  const years = personnel.yearAccountClosedYears ?? [];
+  if (years.length === 0) return null;
+  const label = years.join(", ");
+  return (
+    <span
+      className="inline-flex min-w-0 max-w-full shrink-0"
+      title={t("personnel.listYearAccountClosedTitle").replace("{years}", label)}
+    >
+      <StatusBadge
+        tone="info"
+        size="sm"
+        className="max-w-full font-medium normal-case tracking-normal"
+      >
+        <span className="truncate">
+          {t("personnel.listYearAccountClosedBadge").replace("{years}", label)}
+        </span>
+      </StatusBadge>
     </span>
   );
 }
@@ -379,6 +458,12 @@ export function PersonnelScreen() {
   const [mobileCardDetailsOpenById, setMobileCardDetailsOpenById] = useState<
     Record<number, boolean>
   >({});
+  const [salaryRevealedById, setSalaryRevealedById] = useState<
+    Record<number, boolean>
+  >({});
+  const toggleSalaryReveal = useCallback((id: number) => {
+    setSalaryRevealedById((m) => ({ ...m, [id]: !m[id] }));
+  }, []);
 
   const profilePhotoPreviewTitle =
     profilePhotoPreviewPerson != null
@@ -888,6 +973,10 @@ export function PersonnelScreen() {
                           shape="square"
                           personnelId={p.id}
                           hasPhoto={p.hasProfilePhoto1}
+                          profilePhotoPaths={{
+                            profilePhoto1Url: p.profilePhoto1Url,
+                            profilePhoto2Url: p.profilePhoto2Url,
+                          }}
                           nonce={listPhotoNonce}
                           displayName={personnelDisplayName(p)}
                           photoLabel={t("personnel.profilePhotoAvatarAria")}
@@ -912,6 +1001,7 @@ export function PersonnelScreen() {
                             {p.isDeleted ? (
                               <StatusBadge tone="inactive">{t("personnel.badgePassive")}</StatusBadge>
                             ) : null}
+                            <PersonnelYearAccountClosedBadge personnel={p} t={t} />
                           </div>
                           <p
                             className={cn(
@@ -1030,13 +1120,15 @@ export function PersonnelScreen() {
                               <dt className="shrink-0 text-zinc-500">
                                 {t("personnel.tableSalary")}
                               </dt>
-                              <dd
-                                className={cn(
-                                  "text-right font-medium text-zinc-900",
-                                  p.isDeleted && "text-zinc-600"
-                                )}
-                              >
-                                {formatSalaryMasked(p, t("personnel.dash"))}
+                              <dd className="text-right font-medium text-zinc-900">
+                                <PersonnelListSalaryReveal
+                                  p={p}
+                                  locale={locale}
+                                  dash={t("personnel.dash")}
+                                  revealed={salaryRevealedById[p.id] === true}
+                                  onToggle={() => toggleSalaryReveal(p.id)}
+                                  t={t}
+                                />
                               </dd>
                             </div>
                             <div className="flex justify-between gap-3">
@@ -1110,6 +1202,10 @@ export function PersonnelScreen() {
                             <PersonnelProfilePhotoAvatar
                               personnelId={p.id}
                               hasPhoto={p.hasProfilePhoto1}
+                              profilePhotoPaths={{
+                                profilePhoto1Url: p.profilePhoto1Url,
+                                profilePhoto2Url: p.profilePhoto2Url,
+                              }}
                               nonce={listPhotoNonce}
                               displayName={personnelDisplayName(p)}
                               photoLabel={t("personnel.profilePhotoAvatarAria")}
@@ -1134,6 +1230,7 @@ export function PersonnelScreen() {
                                 {p.isDeleted ? (
                                   <StatusBadge tone="inactive">{t("personnel.badgePassive")}</StatusBadge>
                                 ) : null}
+                                <PersonnelYearAccountClosedBadge personnel={p} t={t} />
                               </div>
                               <PersonnelInsuranceBadge personnel={p} t={t} />
                             </div>
@@ -1171,13 +1268,15 @@ export function PersonnelScreen() {
                             locale
                           )}
                         </TableCell>
-                        <TableCell
-                          className={cn(
-                            "text-zinc-600",
-                            p.isDeleted && "text-zinc-500"
-                          )}
-                        >
-                          {formatSalaryMasked(p, t("personnel.dash"))}
+                        <TableCell className="text-zinc-600">
+                          <PersonnelListSalaryReveal
+                            p={p}
+                            locale={locale}
+                            dash={t("personnel.dash")}
+                            revealed={salaryRevealedById[p.id] === true}
+                            onToggle={() => toggleSalaryReveal(p.id)}
+                            t={t}
+                          />
                         </TableCell>
                         <TableCell
                           className={cn(
@@ -1307,6 +1406,7 @@ export function PersonnelScreen() {
         open={profilePhotoPreviewPerson != null}
         onClose={() => setProfilePhotoPreviewPerson(null)}
         personnelId={profilePhotoPreviewPerson?.id ?? 0}
+        profilePhoto1Url={profilePhotoPreviewPerson?.profilePhoto1Url ?? null}
         nonce={listPhotoNonce}
         title={profilePhotoPreviewTitle}
         closeLabel={t("common.close")}

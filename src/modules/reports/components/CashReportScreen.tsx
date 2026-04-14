@@ -3,13 +3,14 @@
 import { useI18n } from "@/i18n/context";
 import { ReportInteractiveRows } from "@/modules/reports/components/ReportInteractiveRows";
 import { ReportCashAsOfFilterBlock } from "@/modules/reports/components/ReportCashAsOfFilterBlock";
+import { ReportMobileFilterSurface } from "@/modules/reports/components/ReportMobileFilterSurface";
 import { ReportTablesPageShell } from "@/modules/reports/components/ReportTablesPageShell";
 import { ReportCashPatronHighlights } from "@/modules/reports/components/ReportCashPatronHighlights";
 import { ReportsPatronTabStory } from "@/modules/reports/components/ReportsPatronTabStory";
 import { useCashPositionReport } from "@/modules/reports/hooks/useReportsQueries";
-import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileFilters";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
+import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import {
@@ -49,6 +50,20 @@ export function CashReportScreen() {
 
   const filtersActive = !cashOpenSeasonOnly || cashAsOfMode === "calendarYearEnd";
 
+  const filterPreview = useMemo(
+    () => (
+      <>
+        <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-400">
+          {t("reports.navCashReport")}
+        </p>
+        <p className="mt-0.5 truncate text-sm font-semibold text-zinc-900">
+          {formatLocaleDate(cashAsOfDate, locale)}
+        </p>
+      </>
+    ),
+    [cashAsOfDate, locale, t]
+  );
+
   const rows: CashPositionBranchRow[] = cash.data?.branches ?? [];
 
   return (
@@ -72,13 +87,13 @@ export function CashReportScreen() {
         />
       }
     >
-      <CollapsibleMobileFilters
-        title={t("reports.filtersSectionTitle")}
-        toggleAriaLabel={t("common.filters")}
-        active={filtersActive}
+      <ReportMobileFilterSurface
+        filtersActive={filtersActive}
+        drawerTitle={t("reports.filtersSectionTitle")}
         resetKey="cash-report"
-        expandLabel={t("common.filtersShow")}
-        collapseLabel={t("common.filtersHide")}
+        preview={filterPreview}
+        onRefetch={() => void cash.refetch()}
+        isRefetching={cash.isFetching}
       >
         <ReportCashAsOfFilterBlock
           t={t}
@@ -89,7 +104,7 @@ export function CashReportScreen() {
           mode={cashAsOfMode}
           onModeChange={setCashAsOfMode}
         />
-      </CollapsibleMobileFilters>
+      </ReportMobileFilterSurface>
 
       <ReportsPatronTabStory tab="cash" />
 

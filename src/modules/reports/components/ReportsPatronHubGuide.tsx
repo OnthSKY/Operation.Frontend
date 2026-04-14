@@ -1,9 +1,10 @@
 "use client";
 
 import { useI18n } from "@/i18n/context";
+import { isGuideParagraphRedundant } from "@/modules/reports/lib/reports-guide-dedupe";
 import type { ReportsHubTab } from "@/modules/reports/lib/reports-hub-paths";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 const STORAGE_KEY = "sky-ops-reports-patron-guide-open";
 
@@ -113,19 +114,27 @@ const ELSEWHERE_BY_TAB: Record<ReportsHubTab, ElsewhereItem[]> = {
   ],
 };
 
-export function ReportsPatronHubGuide({ tab }: { tab: ReportsHubTab }) {
-  const { t } = useI18n();
-  const [open, setOpen] = useState(true);
+type SummaryBlockProps = {
+  tab: ReportsHubTab;
+  /** Translated strings already visible in the same summary column (story, hints, etc.). */
+  corpusTexts: readonly string[];
+};
 
-  useEffect(() => {
-    try {
-      const v = localStorage.getItem(STORAGE_KEY);
-      if (v === "0") setOpen(false);
-      if (v === "1") setOpen(true);
-    } catch {
-      /* ignore */
-    }
-  }, []);
+function readGuideOpenPref(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    const v = window.localStorage.getItem(STORAGE_KEY);
+    if (v === "0") return false;
+    if (v === "1") return true;
+  } catch {
+    /* ignore */
+  }
+  return true;
+}
+
+export function ReportsPatronHubGuideSummaryBlock({ tab, corpusTexts }: SummaryBlockProps) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(readGuideOpenPref);
 
   const introKey = INTRO_KEYS[tab];
   const flow1Key = FLOW1_KEYS[tab];
@@ -150,6 +159,47 @@ export function ReportsPatronHubGuide({ tab }: { tab: ReportsHubTab }) {
 
   const linkClass =
     "font-semibold text-emerald-900 underline-offset-2 hover:underline";
+
+  const dedupedBody = useMemo(() => {
+    const corpus = corpusTexts.filter((s) => s.trim().length > 0);
+
+    const take = (text: string): boolean => {
+      if (!text.trim()) return false;
+      if (isGuideParagraphRedundant(text, corpus)) return false;
+      corpus.push(text);
+      return true;
+    };
+
+    const intro = t(introKey);
+    const showIntro = take(intro);
+
+    const flowLines = [t(flow1Key), t(flow2Key), t(flow3Key)].filter((line) => take(line));
+
+    const tabAnswer = t(tabAnswerKey);
+    const showTabAnswer = take(tabAnswer);
+
+    const elsewhereItems = elsewhere.map((item) => {
+      const label = t(item.labelKey);
+      const desc = t(item.descKey);
+      const descOk = take(desc);
+      return { href: item.href, label, desc, descOk };
+    });
+
+    const footer = t(footerKey);
+    const showFooter = take(footer);
+
+    return { showIntro, intro, flowLines, showTabAnswer, tabAnswer, showFooter, footer, elsewhereItems };
+  }, [
+    corpusTexts,
+    elsewhere,
+    flow1Key,
+    flow2Key,
+    flow3Key,
+    footerKey,
+    introKey,
+    t,
+    tabAnswerKey,
+  ]);
 
   return (
     <section
@@ -183,46 +233,54 @@ export function ReportsPatronHubGuide({ tab }: { tab: ReportsHubTab }) {
 
       {open ? (
         <div className="mt-4 space-y-4 border-t border-emerald-200/50 pt-4 text-sm leading-relaxed text-zinc-800">
-          <p>{t(introKey)}</p>
+          {dedupedBody.showIntro ? <p>{dedupedBody.intro}</p> : null}
 
-          <div>
-            <p className="text-[0.65rem] font-bold uppercase tracking-wide text-emerald-900/75">
-              {t("reports.patronHubGuideFlowTitle")}
-            </p>
-            <ol className="mt-2 list-decimal space-y-1 pl-4 text-sm">
-              <li>{t(flow1Key)}</li>
-              <li>{t(flow2Key)}</li>
-              <li>{t(flow3Key)}</li>
-            </ol>
-          </div>
+          {dedupedBody.flowLines.length > 0 ? (
+            <div>
+              <p className="text-[0.65rem] font-bold uppercase tracking-wide text-emerald-900/75">
+                {t("reports.patronHubGuideFlowTitle")}
+              </p>
+              <ol className="mt-2 list-decimal space-y-1 pl-4 text-sm">
+                {dedupedBody.flowLines.map((line, i) => (
+                  <li key={i}>{line}</li>
+                ))}
+              </ol>
+            </div>
+          ) : null}
 
-          <div>
-            <p className="text-[0.65rem] font-bold uppercase tracking-wide text-emerald-900/75">
-              {t("reports.patronHubGuideThisTabTitle")}
-            </p>
-            <p className="mt-2 text-sm leading-relaxed text-zinc-800">{t(tabAnswerKey)}</p>
-          </div>
+          {dedupedBody.showTabAnswer ? (
+            <div>
+              <p className="text-[0.65rem] font-bold uppercase tracking-wide text-emerald-900/75">
+                {t("reports.patronHubGuideThisTabTitle")}
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-800">{dedupedBody.tabAnswer}</p>
+            </div>
+          ) : null}
 
           <div>
             <p className="text-[0.65rem] font-bold uppercase tracking-wide text-emerald-900/75">
               {t("reports.patronHubGuideElsewhereTitle")}
             </p>
             <ul className="mt-2 space-y-2">
-              {elsewhere.map((item) => (
+              {dedupedBody.elsewhereItems.map((item) => (
                 <li key={item.href}>
                   <Link href={item.href} className={linkClass}>
-                    {t(item.labelKey)}
+                    {item.label}
                   </Link>
-                  <span className="text-zinc-700">
-                    {" — "}
-                    {t(item.descKey)}
-                  </span>
+                  {item.descOk ? (
+                    <span className="text-zinc-700">
+                      {" — "}
+                      {item.desc}
+                    </span>
+                  ) : null}
                 </li>
               ))}
             </ul>
           </div>
 
-          <p className="text-xs leading-relaxed text-zinc-600">{t(footerKey)}</p>
+          {dedupedBody.showFooter ? (
+            <p className="text-xs leading-relaxed text-zinc-600">{dedupedBody.footer}</p>
+          ) : null}
         </div>
       ) : null}
     </section>

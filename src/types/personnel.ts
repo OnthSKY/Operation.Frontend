@@ -19,6 +19,8 @@ export type Personnel = {
   hireDate: string;
   /** Güncel açık dönem: `personnel_employment_terms.arrival_date` */
   seasonArrivalDate: string | null;
+  /** Takvim yılı hesabı kapatılmış yıllar (API: yeni → eski); yoksa boş dizi */
+  yearAccountClosedYears?: number[];
   jobTitle: PersonnelJobTitle;
   currencyCode: string;
   salary: number | null;
@@ -39,6 +41,9 @@ export type Personnel = {
   /** Profil / tanıtım fotoğrafı yuvaları (en fazla 2). */
   hasProfilePhoto1: boolean;
   hasProfilePhoto2: boolean;
+  /** GET göreli yol; dosya yoksa null (`NEXT_PUBLIC_API_BASE_URL` ile birleştirin). */
+  profilePhoto1Url: string | null;
+  profilePhoto2Url: string | null;
   /** Formda girilen planlanan / beyan sigorta başlangıcı (dönem tablosundan ayrı). */
   insuranceIntakeStartDate: string | null;
   insuranceAccountingNotified: boolean;

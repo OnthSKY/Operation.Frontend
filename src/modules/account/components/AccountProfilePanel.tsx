@@ -25,6 +25,7 @@ export function AccountProfilePanel({ user }: Props) {
   }, [
     personnelRow?.hasProfilePhoto1,
     personnelRow?.hasProfilePhoto2,
+    personnelRow?.profilePhoto1Url,
     personnelRow?.id,
   ]);
 
@@ -35,6 +36,14 @@ export function AccountProfilePanel({ user }: Props) {
           <PersonnelProfilePhotoAvatar
             personnelId={pid}
             hasPhoto={personnelRow?.hasProfilePhoto1 === true}
+            profilePhotoPaths={
+              personnelRow
+                ? {
+                    profilePhoto1Url: personnelRow.profilePhoto1Url,
+                    profilePhoto2Url: personnelRow.profilePhoto2Url,
+                  }
+                : null
+            }
             nonce={photoNonce}
             displayName={displayName}
             photoLabel={t("personnel.profilePhotoAvatarAria")}

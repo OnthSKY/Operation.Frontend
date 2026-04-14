@@ -18,9 +18,20 @@ export type BranchTodayRow = {
   branchId: number;
   branchName: string;
   income: number;
+  /** IN lines — cash (same day, branch register rules). */
+  incomeCash: number;
+  /** IN lines — card/POS. */
+  incomeCard: number;
+  /** All OUT lines total (API totalExpense). */
+  totalExpenseOut: number;
   expenseFromRegister: number;
   netCash: number;
   financialHidden: boolean;
+  registerOwesPatronToday: number;
+  registerOwesPersonnelToday: number;
+  personnelPocketRepaidFromPatronToday: number;
+  personnelPocketRepaidFromRegisterToday: number;
+  patronDebtRepaidFromRegisterToday: number;
 };
 
 export type SummaryAggregateState =
@@ -45,7 +56,11 @@ export type SummaryAggregateState =
       branchTodayRows: BranchTodayRow[];
     };
 
-export function useTodayBranchesSummary(params: DashboardBulkCashParams) {
+export function useTodayBranchesSummary(
+  params: DashboardBulkCashParams,
+  /** When false, no bulk request runs (e.g. date-range mode uses separate queries). */
+  queryEnabled = true
+) {
   const qc = useQueryClient();
   const stableParams: DashboardBulkCashParams =
     params.kind === "all_data"
@@ -67,6 +82,7 @@ export function useTodayBranchesSummary(params: DashboardBulkCashParams) {
   } = useBranchesList();
 
   const bulkEnabled =
+    queryEnabled &&
     !branchesPending &&
     !branchesError &&
     branches.length > 0 &&
@@ -114,9 +130,17 @@ export function useTodayBranchesSummary(params: DashboardBulkCashParams) {
           branchId: b.id,
           branchName: b.name,
           income: 0,
+          incomeCash: 0,
+          incomeCard: 0,
+          totalExpenseOut: 0,
           expenseFromRegister: 0,
           netCash: 0,
           financialHidden: true,
+          registerOwesPatronToday: 0,
+          registerOwesPersonnelToday: 0,
+          personnelPocketRepaidFromPatronToday: 0,
+          personnelPocketRepaidFromRegisterToday: 0,
+          patronDebtRepaidFromRegisterToday: 0,
         });
         continue;
       }
@@ -124,23 +148,39 @@ export function useTodayBranchesSummary(params: DashboardBulkCashParams) {
       const income = Number(d.totalIncome);
       const net = Number(d.netCash);
       const expenseFromRegister = income - net;
+      const totalExpenseOut = Number(d.totalExpense);
+      const registerOwesPatronToday = Number(d.registerOwesPatronToday ?? 0);
+      const registerOwesPersonnelToday = Number(d.registerOwesPersonnelToday ?? 0);
+      const personnelPocketRepaidFromPatronToday = Number(
+        d.personnelPocketRepaidFromPatronToday ?? 0
+      );
+      const personnelPocketRepaidFromRegisterToday = Number(
+        d.personnelPocketRepaidFromRegisterToday ?? 0
+      );
+      const patronDebtRepaidFromRegisterToday = Number(d.patronDebtRepaidFromRegisterToday ?? 0);
       totalIncome += income;
       totalIncomeCash += Number(d.incomeCash ?? 0);
       totalIncomeCard += Number(d.incomeCard ?? 0);
-      totalExpenseAllOut += Number(d.totalExpense);
-      totalRegisterOwesPatronToday += Number(d.registerOwesPatronToday ?? 0);
-      totalPersonnelPocketRepaidFromPatronToday += Number(
-        d.personnelPocketRepaidFromPatronToday ?? 0
-      );
-      totalRegisterOwesPersonnelToday += Number(d.registerOwesPersonnelToday ?? 0);
+      totalExpenseAllOut += totalExpenseOut;
+      totalRegisterOwesPatronToday += registerOwesPatronToday;
+      totalPersonnelPocketRepaidFromPatronToday += personnelPocketRepaidFromPatronToday;
+      totalRegisterOwesPersonnelToday += registerOwesPersonnelToday;
       netCashSum += net;
       branchTodayRows.push({
         branchId: b.id,
         branchName: b.name,
         income,
+        incomeCash: Number(d.incomeCash ?? 0),
+        incomeCard: Number(d.incomeCard ?? 0),
+        totalExpenseOut,
         expenseFromRegister,
         netCash: net,
         financialHidden: false,
+        registerOwesPatronToday,
+        registerOwesPersonnelToday,
+        personnelPocketRepaidFromPatronToday,
+        personnelPocketRepaidFromRegisterToday,
+        patronDebtRepaidFromRegisterToday,
       });
     }
 
@@ -192,6 +232,7 @@ export function useTodayBranchesSummary(params: DashboardBulkCashParams) {
     bulkQuery.isError,
     bulkQuery.error,
     stableParams,
+    queryEnabled,
   ]);
 
   const refetch = useCallback(() => {

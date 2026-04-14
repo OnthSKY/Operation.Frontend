@@ -5,6 +5,8 @@ import { FilterFunnelIcon } from "@/shared/components/FilterFunnelIcon";
 import { useMediaMinWidth } from "@/shared/lib/use-media-min-width";
 import { useEffect, useState } from "react";
 
+/** Uzun filtre + özet için ayrıca `PageScreenScaffold` `mobileToolbar` + `RightDrawer` + `MobilePageToolRow` kullanılabilir. */
+
 const SM_PX = 640;
 
 type Props = {

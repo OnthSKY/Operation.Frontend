@@ -444,7 +444,6 @@ export function BranchDetailTabs({
   const [incPage, setIncPage] = useState(1);
   const [incFilterMain, setIncFilterMain] = useState("");
   const [incFilterCash, setIncFilterCash] = useState("");
-  const [incomeCumulativeRevealed, setIncomeCumulativeRevealed] = useState(false);
 
   useEffect(() => {
     const today = localIsoDate();
@@ -684,10 +683,6 @@ export function BranchDetailTabs({
     incomeCloseDay && !employeeSelfService ? branch.id : null,
     incomeCloseDay ?? ""
   );
-
-  useEffect(() => {
-    setIncomeCumulativeRevealed(false);
-  }, [branch.id, incomeCloseDay]);
 
   const {
     data: expCloseSum,
@@ -1944,6 +1939,104 @@ export function BranchDetailTabs({
               </ul>
             </div>
 
+            {incomeCloseDay && !employeeSelfService ? (
+              <section className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3 sm:p-4">
+                <h3 className="text-sm font-semibold text-zinc-900">{t("branch.incomeSummarySectionTitle")}</h3>
+                <p className="mt-1 text-xs text-zinc-600">{t("branch.incomeSummarySectionLead")}</p>
+                {incCloseErr && (
+                  <p className="mt-2 text-sm text-red-600">{toErrorMessage(incCloseErrorMsg)}</p>
+                )}
+                {incCloseLoading ? (
+                  <p className="mt-2 text-sm text-zinc-500">{t("common.loading")}</p>
+                ) : incCloseSum ? (
+                  <>
+                    <h4 className="mt-4 text-xs font-semibold uppercase tracking-wide text-emerald-900/80">
+                      {t("branch.incomeCumulativeTitle")}
+                    </h4>
+                    <p className="mt-1 text-[11px] leading-relaxed text-zinc-600">
+                      {t("branch.incomeCumulativeHint")}
+                    </p>
+                    <div className="mt-2 grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
+                      <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                          {t("branch.incomeCumulativeCash")}
+                        </p>
+                        <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-base">
+                          {formatMoneyDash(
+                            incCloseSum.cumulativeIncomeCashThroughAsOf ?? 0,
+                            t("personnel.dash"),
+                            locale,
+                            "TRY"
+                          )}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                          {t("branch.incomeCumulativeCard")}
+                        </p>
+                        <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-base">
+                          {formatMoneyDash(
+                            incCloseSum.cumulativeIncomeCardThroughAsOf ?? 0,
+                            t("personnel.dash"),
+                            locale,
+                            "TRY"
+                          )}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-2.5 shadow-sm ring-1 ring-emerald-200/60 sm:p-3">
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-600">
+                          {t("branch.incomeCumulativeTotal")}
+                        </p>
+                        <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-emerald-900 sm:text-base">
+                          {formatMoneyDash(
+                            incCloseSum.cumulativeIncomeTotalThroughAsOf ?? 0,
+                            t("personnel.dash"),
+                            locale,
+                            "TRY"
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <h4 className="mt-5 text-xs font-semibold uppercase tracking-wide text-emerald-900/80">
+                      {t("branch.incomeCloseTitle")}
+                    </h4>
+                    <p className="mt-1 text-[11px] leading-relaxed text-zinc-600">{t("branch.incomeCloseHint")}</p>
+                    <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                          {t("branch.incomeCloseTotal")}
+                        </p>
+                        <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-emerald-800 sm:text-base">
+                          {formatMoneyDash(incCloseSum.dayTotalIncome, t("personnel.dash"), locale, "TRY")}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                          {t("branch.incomeCloseCash")}
+                        </p>
+                        <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-base">
+                          {formatMoneyDash(incCloseSum.dayIncomeCash, t("personnel.dash"), locale, "TRY")}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:col-span-2 sm:p-3 lg:col-span-1">
+                        <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                          {t("branch.incomeCloseCard")}
+                        </p>
+                        <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-base">
+                          {formatMoneyDash(incCloseSum.dayIncomeCard, t("personnel.dash"), locale, "TRY")}
+                        </p>
+                      </div>
+                    </div>
+                  </>
+                ) : null}
+              </section>
+            ) : !incomeCloseDay && !employeeSelfService ? (
+              <p className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+                {t("branch.incomeClosePickSingleDay")}
+              </p>
+            ) : null}
+
             {!employeeSelfService &&
             !incLoading &&
             patronIncomeToPatronVisible(incData?.patronIncomeToPatron) &&
@@ -2025,130 +2118,6 @@ export function BranchDetailTabs({
                   ) : null}
                 </div>
               </section>
-            ) : null}
-
-            {incomeCloseDay && !employeeSelfService ? (
-              <section className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3 sm:p-4">
-                <h3 className="text-sm font-semibold text-zinc-900">{t("branch.incomeCloseTitle")}</h3>
-                <p className="mt-1 text-xs text-zinc-600">{t("branch.incomeCloseHint")}</p>
-                {incCloseErr && (
-                  <p className="mt-2 text-sm text-red-600">{toErrorMessage(incCloseErrorMsg)}</p>
-                )}
-                {incCloseLoading ? (
-                  <p className="mt-2 text-sm text-zinc-500">{t("common.loading")}</p>
-                ) : incCloseSum ? (
-                  <>
-                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                      <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
-                        <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-                          {t("branch.incomeCloseTotal")}
-                        </p>
-                        <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-emerald-800 sm:text-base">
-                          {formatMoneyDash(incCloseSum.dayTotalIncome, t("personnel.dash"), locale, "TRY")}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
-                        <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-                          {t("branch.incomeCloseCash")}
-                        </p>
-                        <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-base">
-                          {formatMoneyDash(incCloseSum.dayIncomeCash, t("personnel.dash"), locale, "TRY")}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:col-span-2 sm:p-3 lg:col-span-1">
-                        <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-                          {t("branch.incomeCloseCard")}
-                        </p>
-                        <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-base">
-                          {formatMoneyDash(incCloseSum.dayIncomeCard, t("personnel.dash"), locale, "TRY")}
-                        </p>
-                      </div>
-                    </div>
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => setIncomeCumulativeRevealed((v) => !v)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          setIncomeCumulativeRevealed((v) => !v);
-                        }
-                      }}
-                      className="mt-4 cursor-pointer rounded-xl border border-emerald-200/80 bg-white/70 p-3 shadow-sm outline-none ring-emerald-400/40 focus-visible:ring-2"
-                      aria-pressed={incomeCumulativeRevealed}
-                    >
-                      <h4 className="text-xs font-semibold text-zinc-900">
-                        {t("branch.incomeCumulativeTitle")}
-                      </h4>
-                      <p className="mt-0.5 text-[11px] text-zinc-600">
-                        {t("branch.incomeCumulativeHint")}
-                      </p>
-                      {!incomeCumulativeRevealed ? (
-                        <p className="mt-2 text-[11px] font-medium text-emerald-800">
-                          {t("branch.incomeCumulativeRevealTap")}
-                        </p>
-                      ) : null}
-                      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        <div className="rounded-lg border border-zinc-100 bg-white p-2.5 sm:p-3">
-                          <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-                            {t("branch.incomeCumulativeTotal")}
-                          </p>
-                          <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-emerald-800 sm:text-base">
-                            {incomeCumulativeRevealed ? (
-                              formatMoneyDash(
-                                incCloseSum.cumulativeIncomeTotalThroughAsOf ?? 0,
-                                t("personnel.dash"),
-                                locale,
-                                "TRY"
-                              )
-                            ) : (
-                              <span className="tracking-[0.4em] text-zinc-700">***</span>
-                            )}
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-zinc-100 bg-white p-2.5 sm:p-3">
-                          <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-                            {t("branch.incomeCumulativeCash")}
-                          </p>
-                          <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-base">
-                            {incomeCumulativeRevealed ? (
-                              formatMoneyDash(
-                                incCloseSum.cumulativeIncomeCashThroughAsOf ?? 0,
-                                t("personnel.dash"),
-                                locale,
-                                "TRY"
-                              )
-                            ) : (
-                              <span className="tracking-[0.4em] text-zinc-700">***</span>
-                            )}
-                          </p>
-                        </div>
-                        <div className="rounded-lg border border-zinc-100 bg-white p-2.5 sm:col-span-2 sm:p-3 lg:col-span-1">
-                          <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
-                            {t("branch.incomeCumulativeCard")}
-                          </p>
-                          <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-base">
-                            {incomeCumulativeRevealed ? (
-                              formatMoneyDash(
-                                incCloseSum.cumulativeIncomeCardThroughAsOf ?? 0,
-                                t("personnel.dash"),
-                                locale,
-                                "TRY"
-                              )
-                            ) : (
-                              <span className="tracking-[0.4em] text-zinc-700">***</span>
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                ) : null}
-              </section>
-            ) : !incomeCloseDay && !employeeSelfService ? (
-              <p className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-                {t("branch.incomeClosePickSingleDay")}
-              </p>
             ) : null}
 
             <div className="flex flex-col gap-4">

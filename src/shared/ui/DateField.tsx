@@ -242,7 +242,7 @@ const dayPickerClassNames = {
   outside: "rdp-outside opacity-40",
 } as const;
 
-const SELECT_LIST_IN_CALENDAR_Z = 210;
+const SELECT_LIST_IN_CALENDAR_Z = OVERLAY_Z_INDEX.dateFieldPopover + 10;
 
 function DatePickerMonthCaption(props: MonthCaptionProps) {
   const { locale } = useI18n();

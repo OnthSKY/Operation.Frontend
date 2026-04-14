@@ -257,11 +257,14 @@ export const branch = {
     "Şube kasasına giren gelir satırları (IN). Tahsilat satır tutarları, nakit ve kart ise ödeme dağılımıdır (doğru girildiyse tahsilat ≈ nakit + kart).",
   incomeDateScopeTitle: "Tarih değişince hangi bölümler güncellenir?",
   incomeDateScopeDaySummary:
-    "Gün özeti (üstteki üç kart — tahsilat / nakit / kart «gün»): Yalnızca başlangıç ve bitiş aynı gün seçildiğinde görünür ve yalnızca o tek günün toplamını gösterir. İki tarih farklı olunca bu kartlar gizlenir.",
+    "Gün özeti (alttaki yeşil kutuda üç kart): Yalnızca başlangıç ve bitiş aynı gün seçildiğinde görünür; o takvim gününün tahsilat / nakit / kart dağılımıdır.",
   incomeDateScopeCumulative:
-    "Kümülatif özet (maskeli üç kart): Yine yalnızca tek gün seçiliyken görünür; seçtiğiniz günü bitiş tarihi sayarak ilk kayıttan o güne kadar (dahil) toplar. Günü değiştirince bu rakamlar da değişir.",
+    "Kümülatif özet (üstteki üç kart): Yine yalnızca tek gün seçiliyken görünür; seçtiğiniz günü bitiş sayarak ilk kayıttan o güne kadar (dahil) IN toplamları — her zaman görünür.",
   incomeDateScopeListPatron:
     "Gelir satırları listesi ve varsa «Patron» akışı kutusu: Daima başlangıç–bitiş aralığına (ve liste filtrelerine) göre güncellenir — tek gün veya tarih aralığı fark etmez.",
+  incomeSummarySectionTitle: "Şube geliri — özet",
+  incomeSummarySectionLead:
+    "Üst blok seçilen güne kadar birikim; alt blok yalnız o günün tahsilat dağılımı (başlangıç = bitiş).",
   incomeCloseTitle: "Gün özeti (gelir)",
   incomeCloseHint:
     "Bu üç kart yalnızca seçtiğiniz tek güne aittir (başlangıç = bitiş). Tahsilat: o günkü gelir satır tutarları toplamı; nakit ve kart aynı günün ödeme türü dağılımı. Liste de aynı günü kullanır.",
@@ -270,13 +273,13 @@ export const branch = {
   incomeCloseCard: "Kart (gün)",
   incomeCumulativeTitle: "Seçilen güne kadar (tüm zaman)",
   incomeCumulativeHint:
-    "Üst sınır, yukarıdaki ile aynı tek gündür (bitiş = başlangıç). İlk kayıttan o güne kadar (dahil) IN toplamları. Tutarlar varsayılan olarak gizlidir; alana tıklayınca gösterilir veya tekrar gizlenir.",
+    "Bitiş tarihi, alttaki gün özetiyle aynı tek gündür (başlangıç = bitiş). İlk kayıttan o güne kadar (dahil) IN toplamları.",
   incomeCumulativeRevealTap: "Göstermek için dokunun",
   incomeCumulativeTotal: "Tahsilat (kümülatif)",
   incomeCumulativeCash: "Nakit (kümülatif)",
   incomeCumulativeCard: "Kart (kümülatif)",
   incomeClosePickSingleDay:
-    "Üstteki gün ve kümülatif kartları görmek için başlangıç ve bitişte aynı günü seçin veya «Bugün» kullanın. Liste yine seçtiğiniz başlangıç–bitiş aralığına göre çalışır.",
+    "Kümülatif ve gün özeti kartlarını görmek için başlangıç ve bitişte aynı günü seçin veya «Bugün» kullanın. Liste yine seçtiğiniz başlangıç–bitiş aralığına göre çalışır.",
   incomeActionsTitle: "Gelir işlemleri",
   incomeListSection: "Gelir satırları (IN)",
   noIncome: "Bu filtreye uygun gelir yok.",

@@ -68,4 +68,8 @@ export type PersonnelYearAccountClosureListItem = {
   closedAtUtc: string;
   closedByUserId: number;
   closedByFullName: string | null;
+  /** Sunucuda kapanış anında yazılan JSON arşivi (indirilebilir). */
+  hasClosureArchive?: boolean;
+  /** İsteğe bağlı yüklenmiş PDF (yazdır → PDF). */
+  hasClosurePdf?: boolean;
 };

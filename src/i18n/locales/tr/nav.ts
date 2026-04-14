@@ -22,6 +22,7 @@ export const nav = {
   fleetSection: "Filo",
   insuranceSection: "Sigorta ve kapsam",
   branch: "Şube yönetimi",
+  dailyBranchRegister: "Kasa günü (tüm şubeler)",
   generalOverhead: "Genel giderler",
   warehouse: "Depo",
   products: "Ürünler",
@@ -53,6 +54,8 @@ export const nav = {
       "Şubelere göre nakit pozisyonu: çekmece tahmini ve pers./patron net bakiyeleri (rapor tarihi).",
     reportsHubStock:
       "Stok özet grafikleri ve tablolar: depo kapsamı, şubeye girişler ve ürün filtreleri.",
+    reportsHubDailyRegister:
+      "Aynı takvim günü, tüm şubeler: nakit ve kart/POS tahsilat, kasadan ödenenler ve net — dönem ve pozisyon raporlarıyla birlikte.",
     personnelSection:
       "Çalışan tanımı ile patron–personel para hattı: avans ve personel giderlerinin izlenmesi bu bloktadır.",
     personnelList:
@@ -63,6 +66,8 @@ export const nav = {
       "Operasyonel kasa: şube bazında günlük işlemler. Sistemde “kazanılan” ve “harcanan” paranın sahadaki kaynağı burada işlenir.",
     branch:
       "Şube detayında kasaya giriş–çıkış, patrondan kasaya aktarım, satış geliri, gider ve operasyon kalemlerini kaydedin. Günlük para akışının doğruluğu raporların temelidir.",
+    dailyBranchRegister:
+      "Aynı gün için şube şube: nakit ve kart tahsilat, kasadan ödenen gider ve net — her şube kartını tek tek açmadan.",
     generalOverhead:
       "Şirket genelinde ortak gider kaydı (muhasebe, vergi vb.); isteğe bağlı şubelere pay. Stok alımı için tedarikçi faturası, tek şube gideri için şube ekranı kullanın.",
     inventorySection:

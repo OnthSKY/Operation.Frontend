@@ -7,15 +7,16 @@ import {
   ReportHubDateRangeControls,
   type ReportHubRangeLock,
 } from "@/modules/reports/components/ReportHubDateRangeControls";
+import { ReportMobileFilterSurface } from "@/modules/reports/components/ReportMobileFilterSurface";
 import { ReportTablesPageShell } from "@/modules/reports/components/ReportTablesPageShell";
 import {
   addDaysFromIso,
   startOfMonthIso,
 } from "@/modules/reports/lib/report-period-helpers";
 import { reportBranchLabel } from "@/modules/reports/lib/report-branch-label";
-import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileFilters";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { Button } from "@/shared/ui/Button";
@@ -99,6 +100,26 @@ export function BranchComparisonReportScreen() {
 
   const filtersActive = branchId !== "" || dateRangeLock !== "manual";
 
+  const filterPreview = useMemo(() => {
+    const a = formatLocaleDate(dateFrom, locale);
+    const b = formatLocaleDate(dateTo, locale);
+    const branchName =
+      branchId === "" ? null : branches.find((x) => String(x.id) === branchId)?.name;
+    return (
+      <>
+        <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-400">
+          {t("reports.navBranchComparison")}
+        </p>
+        <p className="mt-0.5 truncate text-sm font-semibold text-zinc-900">
+          {a} – {b}
+        </p>
+        {branchName ? (
+          <p className="mt-0.5 truncate text-xs text-zinc-600">{branchName}</p>
+        ) : null}
+      </>
+    );
+  }, [dateFrom, dateTo, locale, t, branchId, branches]);
+
   const totalPages = useMemo(() => {
     const n = q.data?.totalCount ?? 0;
     return Math.max(1, Math.ceil(n / pageSize));
@@ -134,13 +155,13 @@ export function BranchComparisonReportScreen() {
         />
       }
     >
-      <CollapsibleMobileFilters
-        title={t("reports.filtersSectionTitle")}
-        toggleAriaLabel={t("common.filters")}
-        active={filtersActive}
+      <ReportMobileFilterSurface
+        filtersActive={filtersActive}
+        drawerTitle={t("reports.filtersSectionTitle")}
         resetKey="branch-comparison"
-        expandLabel={t("common.filtersShow")}
-        collapseLabel={t("common.filtersHide")}
+        preview={filterPreview}
+        onRefetch={() => void q.refetch()}
+        isRefetching={q.isFetching}
       >
         <p className="-mt-1 mb-2 text-xs leading-relaxed text-zinc-500 sm:mt-0">
           {t("reports.branchComparisonPeriodHelp")}
@@ -205,7 +226,7 @@ export function BranchComparisonReportScreen() {
             </label>
           </div>
         </div>
-      </CollapsibleMobileFilters>
+      </ReportMobileFilterSurface>
 
       {q.isFetching && q.data ? (
         <p className="text-center text-xs text-zinc-400" aria-live="polite">

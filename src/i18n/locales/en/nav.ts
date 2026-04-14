@@ -24,6 +24,7 @@ export const nav = {
   fleetSection: "Fleet",
   insuranceSection: "Insurance & coverage",
   branch: "Branch management",
+  dailyBranchRegister: "Register day (all branches)",
   generalOverhead: "General overhead",
   warehouse: "Warehouse",
   products: "Products",
@@ -55,6 +56,8 @@ export const nav = {
       "Cash position by branch: drawer estimate and net pocket/patron balances for an as-of date.",
     reportsHubStock:
       "Stock summary charts and tables: warehouse scope, branch receipts, and product filters.",
+    reportsHubDailyRegister:
+      "Same calendar day, every branch: cash vs card/POS intake, register-paid outflows, and net — alongside period and position reports.",
     personnelSection:
       "Staff master data and the patron–personnel money line: advances and personnel expenses live here.",
     personnelList:
@@ -65,6 +68,8 @@ export const nav = {
       "Operational cash: daily branch transactions. This is where on-the-ground income and spending are captured for the system.",
     branch:
       "Record cash in/out, patron-to-till transfers, sales income, expenses, and ops lines. Accurate daily posting underpins all financial reports.",
+    dailyBranchRegister:
+      "Same-day snapshot per branch: cash vs card intake, register-paid expenses, and net — without opening each branch card.",
     generalOverhead:
       "Company-wide shared expenses (tax, accounting, etc.) with optional branch allocation. Use supplier invoices for stock purchases; single-branch expenses belong on the branch screen.",
     inventorySection:

@@ -9,15 +9,16 @@ import {
   ReportHubDateRangeControls,
   type ReportHubRangeLock,
 } from "@/modules/reports/components/ReportHubDateRangeControls";
+import { ReportMobileFilterSurface } from "@/modules/reports/components/ReportMobileFilterSurface";
 import { ReportTablesPageShell } from "@/modules/reports/components/ReportTablesPageShell";
 import {
   addDaysFromIso,
   startOfMonthIso,
 } from "@/modules/reports/lib/report-period-helpers";
 import { useFinancialReport } from "@/modules/reports/hooks/useReportsQueries";
-import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileFilters";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { Select } from "@/shared/ui/Select";
 import { useEffect, useMemo, useState } from "react";
@@ -107,6 +108,28 @@ export function FinancialReportTablesScreen() {
     finExpenseSource !== "" ||
     dateRangeLock !== "manual";
 
+  const filterPreview = useMemo(() => {
+    const a = formatLocaleDate(dateFrom, locale);
+    const b = formatLocaleDate(dateTo, locale);
+    const branchName =
+      finBranchId === ""
+        ? null
+        : branches.find((x) => String(x.id) === finBranchId)?.name;
+    return (
+      <>
+        <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-400">
+          {t("reports.navFinancialTables")}
+        </p>
+        <p className="mt-0.5 truncate text-sm font-semibold text-zinc-900">
+          {a} – {b}
+        </p>
+        {branchName ? (
+          <p className="mt-0.5 truncate text-xs text-zinc-600">{branchName}</p>
+        ) : null}
+      </>
+    );
+  }, [dateFrom, dateTo, locale, t, finBranchId, branches]);
+
   return (
     <ReportTablesPageShell
       title={t("reports.tablesPageFinTitle")}
@@ -128,13 +151,13 @@ export function FinancialReportTablesScreen() {
         />
       }
     >
-      <CollapsibleMobileFilters
-        title={t("reports.filtersSectionTitle")}
-        toggleAriaLabel={t("common.filters")}
-        active={filtersActive}
+      <ReportMobileFilterSurface
+        filtersActive={filtersActive}
+        drawerTitle={t("reports.filtersSectionTitle")}
         resetKey="fin-tables"
-        expandLabel={t("common.filtersShow")}
-        collapseLabel={t("common.filtersHide")}
+        preview={filterPreview}
+        onRefetch={() => void financial.refetch()}
+        isRefetching={financial.isFetching}
       >
         <div className="flex flex-col gap-4">
           <ReportHubDateRangeControls
@@ -204,7 +227,7 @@ export function FinancialReportTablesScreen() {
             }}
           />
         </div>
-      </CollapsibleMobileFilters>
+      </ReportMobileFilterSurface>
 
       <ReportsPatronTabStory tab="financial" />
 

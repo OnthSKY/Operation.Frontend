@@ -111,6 +111,14 @@ export const GLOBAL_SEARCH_ITEMS: GlobalSearchItemDef[] = [
     match: "şube branch mağaza store lokasyon location ofis outlet",
   },
   {
+    id: "daily-branch-register",
+    href: "/daily-branch-register",
+    titleKey: "nav.dailyBranchRegister",
+    subtitleKey: "search.subDailyBranchRegister",
+    match:
+      "kasa günü register day şube branch nakit cash pos kart gün sonu day end patron owner özet snapshot rapor reports",
+  },
+  {
     id: "warehouse",
     href: "/warehouses",
     titleKey: "nav.warehouse",

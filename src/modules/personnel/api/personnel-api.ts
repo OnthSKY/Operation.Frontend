@@ -64,6 +64,8 @@ type PersonnelApiRow = {
   hasNationalIdPhotoBack?: boolean;
   hasProfilePhoto1?: boolean;
   hasProfilePhoto2?: boolean;
+  profilePhoto1Url?: string | null;
+  profilePhoto2Url?: string | null;
   insuranceIntakeStartDate?: string | null;
   insuranceAccountingNotified?: boolean;
   isDeleted?: boolean;
@@ -148,6 +150,14 @@ function mapPersonnel(r: PersonnelApiRow): Personnel {
     hasNationalIdPhotoBack: r.hasNationalIdPhotoBack === true,
     hasProfilePhoto1: r.hasProfilePhoto1 === true,
     hasProfilePhoto2: r.hasProfilePhoto2 === true,
+    profilePhoto1Url:
+      typeof r.profilePhoto1Url === "string" && r.profilePhoto1Url.trim() !== ""
+        ? r.profilePhoto1Url.trim()
+        : null,
+    profilePhoto2Url:
+      typeof r.profilePhoto2Url === "string" && r.profilePhoto2Url.trim() !== ""
+        ? r.profilePhoto2Url.trim()
+        : null,
     insuranceIntakeStartDate: normalizeIsoDateOptional(
       r.insuranceIntakeStartDate
     ),
@@ -275,10 +285,20 @@ export function personnelNationalIdPhotoUrl(
 
 export type ProfilePhotoSlot = 1 | 2;
 
+export type PersonnelProfilePhotoPaths = {
+  profilePhoto1Url?: string | null;
+  profilePhoto2Url?: string | null;
+};
+
 export function personnelProfilePhotoUrl(
   personnelId: number,
-  slot: ProfilePhotoSlot
+  slot: ProfilePhotoSlot,
+  paths?: PersonnelProfilePhotoPaths | null
 ): string {
+  const fromApi =
+    slot === 1 ? paths?.profilePhoto1Url : paths?.profilePhoto2Url;
+  if (typeof fromApi === "string" && fromApi.trim() !== "")
+    return apiUrl(fromApi.trim());
   return apiUrl(`/personnel/${personnelId}/profile-photos/${slot}`);
 }
 

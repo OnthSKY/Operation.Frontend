@@ -1,13 +1,18 @@
 "use client";
 
 import { cn } from "@/lib/cn";
-import { personnelProfilePhotoUrl } from "@/modules/personnel/api/personnel-api";
+import {
+  personnelProfilePhotoUrl,
+  type PersonnelProfilePhotoPaths,
+} from "@/modules/personnel/api/personnel-api";
 import { apiFetch } from "@/shared/api/client";
 import { useEffect, useMemo, useState } from "react";
 
 type Props = {
   personnelId: number;
   hasPhoto: boolean;
+  /** API’den gelen göreli yollar; yoksa `/personnel/{id}/profile-photos/1` kullanılır. */
+  profilePhotoPaths?: PersonnelProfilePhotoPaths | null;
   /** Önbelleği kırmak için (yüklemelerden sonra artırın). */
   nonce: number;
   displayName: string;
@@ -24,6 +29,7 @@ type Props = {
 export function PersonnelProfilePhotoAvatar({
   personnelId,
   hasPhoto,
+  profilePhotoPaths,
   nonce,
   displayName,
   className,
@@ -35,9 +41,9 @@ export function PersonnelProfilePhotoAvatar({
   const href = useMemo(
     () =>
       hasPhoto
-        ? `${personnelProfilePhotoUrl(personnelId, 1)}?_=${nonce}`
+        ? `${personnelProfilePhotoUrl(personnelId, 1, profilePhotoPaths)}?_=${nonce}`
         : null,
-    [hasPhoto, personnelId, nonce]
+    [hasPhoto, personnelId, profilePhotoPaths, nonce]
   );
   const [src, setSrc] = useState<string | null>(null);
 

@@ -22,8 +22,11 @@ import {
   ReportHubDateRangeControls,
   type ReportHubRangeLock,
 } from "@/modules/reports/components/ReportHubDateRangeControls";
-import { ReportsPatronHubGuide } from "@/modules/reports/components/ReportsPatronHubGuide";
-import { ReportsPatronTabStory } from "@/modules/reports/components/ReportsPatronTabStory";
+import { ReportsPatronHubGuideSummaryBlock } from "@/modules/reports/components/ReportsPatronHubGuide";
+import {
+  PATRON_TAB_STORY_KEYS,
+  ReportsPatronTabStory,
+} from "@/modules/reports/components/ReportsPatronTabStory";
 import {
   WarehouseProductScopeFilters,
   type WarehouseScopeFiltersValue,
@@ -33,10 +36,11 @@ import {
   warehouseScopeFiltersActive,
 } from "@/modules/warehouse/lib/warehouse-scope-filters";
 import { useWarehousesList } from "@/modules/warehouse/hooks/useWarehouseQueries";
-import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileFilters";
+import { ReportMobileFilterSurface } from "@/modules/reports/components/ReportMobileFilterSurface";
 import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
+import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { Button } from "@/shared/ui/Button";
@@ -275,6 +279,58 @@ export function ReportsHubScreen({ routeTab }: { routeTab: ReportsHubTab }) {
         ? t("reports.tabOneLinerCash")
         : t("reports.tabOneLinerStock");
 
+  const stockGuideCorpus = useMemo(
+    () => [t("reports.tabOneLinerStock"), ...PATRON_TAB_STORY_KEYS.stock.map((k) => t(k))],
+    [t]
+  );
+
+  const cashGuideCorpus = useMemo(() => {
+    if (!cash.data) return [];
+    const rows: string[] = [
+      t("reports.tabOneLinerCash"),
+      ...PATRON_TAB_STORY_KEYS.cash.map((k) => t(k)),
+    ];
+    if (cash.data.branches.length > 0) {
+      rows.push(
+        t("reports.cashSnapshotPanelHint"),
+        t("reports.cashSnapshotMoreHint"),
+        t("reports.cashSnapshotDescDrawer"),
+        t("reports.cashSnapshotDescPocket"),
+        t("reports.cashSnapshotDescPatron")
+      );
+    }
+    return rows;
+  }, [t, cash.data]);
+
+  const hubFilterPreview = useMemo(() => {
+    if (tab === "cash") {
+      return (
+        <>
+          <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-400">
+            {t("reports.tabCashPosition")}
+          </p>
+          <p className="mt-0.5 truncate text-sm font-semibold text-zinc-900">
+            {formatLocaleDate(cashAsOfDate, locale)}
+          </p>
+        </>
+      );
+    }
+    const tabLabel =
+      tab === "financial" ? t("reports.tabFinancial") : t("reports.tabStock");
+    const a = formatLocaleDate(dateFrom, locale);
+    const b = formatLocaleDate(dateTo, locale);
+    return (
+      <>
+        <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-400">
+          {tabLabel}
+        </p>
+        <p className="mt-0.5 truncate text-sm font-semibold text-zinc-900">
+          {a} – {b}
+        </p>
+      </>
+    );
+  }, [tab, cashAsOfDate, dateFrom, dateTo, locale, t]);
+
   const showBackgroundRefresh =
     (tab === "financial" && financial.isFetching && financial.data) ||
     (tab === "stock" && stock.isFetching && stock.data) ||
@@ -286,6 +342,15 @@ export function ReportsHubScreen({ routeTab }: { routeTab: ReportsHubTab }) {
     finMainCategory !== "" ||
     finCategory !== "" ||
     finExpenseSource !== "";
+
+  const financialGuideCorpus = useMemo(
+    () => [
+      t("reports.tabOneLinerFinancial"),
+      ...PATRON_TAB_STORY_KEYS.financial.map((k) => t(k)),
+      ...(finAdvancedActive ? [t("reports.finChartsScopeNote")] : []),
+    ],
+    [t, finAdvancedActive]
+  );
 
   return (
     <>
@@ -321,8 +386,6 @@ export function ReportsHubScreen({ routeTab }: { routeTab: ReportsHubTab }) {
         }
         main={
           <>
-            <ReportsPatronHubGuide tab={routeTab} />
-
       <div
         className="grid grid-cols-3 gap-1 rounded-xl bg-zinc-100/80 p-1"
         role="tablist"
@@ -356,13 +419,13 @@ export function ReportsHubScreen({ routeTab }: { routeTab: ReportsHubTab }) {
       <p className="text-sm leading-snug text-zinc-600">{tabOneLiner}</p>
       <ReportsPatronTabStory tab={tab} />
 
-      <CollapsibleMobileFilters
-        title={t("reports.filtersSectionTitle")}
-        toggleAriaLabel={t("common.filters")}
-        active={reportFiltersActive}
+      <ReportMobileFilterSurface
+        filtersActive={reportFiltersActive}
+        drawerTitle={t("reports.filtersSectionTitle")}
         resetKey={tab}
-        expandLabel={t("common.filtersShow")}
-        collapseLabel={t("common.filtersHide")}
+        preview={hubFilterPreview}
+        onRefetch={() => void activeQuery.refetch()}
+        isRefetching={activeQuery.isFetching}
       >
         <div className="flex flex-col gap-4">
           {tab === "cash" ? (
@@ -494,7 +557,7 @@ export function ReportsHubScreen({ routeTab }: { routeTab: ReportsHubTab }) {
             </>
           )}
         </div>
-      </CollapsibleMobileFilters>
+      </ReportMobileFilterSurface>
 
       {showBackgroundRefresh ? (
         <p className="text-center text-xs text-zinc-400" aria-live="polite">
@@ -527,7 +590,8 @@ export function ReportsHubScreen({ routeTab }: { routeTab: ReportsHubTab }) {
       ) : null}
 
       {((tab === "financial" && financial.data) ||
-        (tab === "stock" && stock.data)) ? (
+        (tab === "stock" && stock.data) ||
+        (tab === "cash" && cash.data)) ? (
         <div
           className="sticky top-2 z-10 grid grid-cols-2 gap-1 rounded-xl border border-zinc-200/80 bg-zinc-50/95 p-1 shadow-sm backdrop-blur-sm sm:p-1.5"
           role="tablist"
@@ -579,6 +643,10 @@ export function ReportsHubScreen({ routeTab }: { routeTab: ReportsHubTab }) {
                 }
                 showBranchNetByMonth={finBranchId === ""}
               />
+              <ReportsPatronHubGuideSummaryBlock
+                tab="financial"
+                corpusTexts={financialGuideCorpus}
+              />
             </div>
           ) : (
             <div>
@@ -600,6 +668,7 @@ export function ReportsHubScreen({ routeTab }: { routeTab: ReportsHubTab }) {
           {reportView === "summary" ? (
             <div>
               <ReportStockCharts data={stock.data} />
+              <ReportsPatronHubGuideSummaryBlock tab="stock" corpusTexts={stockGuideCorpus} />
             </div>
           ) : (
             <div>
@@ -617,34 +686,43 @@ export function ReportsHubScreen({ routeTab }: { routeTab: ReportsHubTab }) {
 
       {tab === "cash" && cash.data ? (
         <div className="flex flex-col gap-3 sm:gap-4">
-          {cash.data.branches.length > 0 ? (
-            <ReportCashPatronHighlights
-              branches={cash.data.branches}
-              totals={cash.data.totals}
-              t={t}
-              locale={locale}
-              asOfLabel={`${cash.data.asOfDate}${
-                cash.data.openSeasonOnly
-                  ? ` · ${t("reports.cashOpenSeasonOnlyShort")}`
-                  : ` · ${t("reports.cashAllBranchesShort")}`
-              }`}
-            />
-          ) : null}
-          {cash.data.branches.length === 0 ? (
+          {reportView === "summary" ? (
             <>
-              <p className="text-sm leading-relaxed text-zinc-600">
-                {t("reports.cashPositionLead")}{" "}
-                <span className="font-medium text-zinc-800">
-                  {cash.data.asOfDate}
-                  {cash.data.openSeasonOnly
-                    ? ` · ${t("reports.cashOpenSeasonOnlyShort")}`
-                    : ` · ${t("reports.cashAllBranchesShort")}`}
-                </span>
-              </p>
-              <p className="rounded-xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
-                {t("reports.cashPositionEmpty")}
-              </p>
+              {cash.data.branches.length > 0 ? (
+                <ReportCashPatronHighlights
+                  branches={cash.data.branches}
+                  totals={cash.data.totals}
+                  t={t}
+                  locale={locale}
+                  asOfLabel={`${cash.data.asOfDate}${
+                    cash.data.openSeasonOnly
+                      ? ` · ${t("reports.cashOpenSeasonOnlyShort")}`
+                      : ` · ${t("reports.cashAllBranchesShort")}`
+                  }`}
+                />
+              ) : null}
+              {cash.data.branches.length === 0 ? (
+                <>
+                  <p className="text-sm leading-relaxed text-zinc-600">
+                    {t("reports.cashPositionLead")}{" "}
+                    <span className="font-medium text-zinc-800">
+                      {cash.data.asOfDate}
+                      {cash.data.openSeasonOnly
+                        ? ` · ${t("reports.cashOpenSeasonOnlyShort")}`
+                        : ` · ${t("reports.cashAllBranchesShort")}`}
+                    </span>
+                  </p>
+                  <p className="rounded-xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
+                    {t("reports.cashPositionEmpty")}
+                  </p>
+                </>
+              ) : null}
+              <ReportsPatronHubGuideSummaryBlock tab="cash" corpusTexts={cashGuideCorpus} />
             </>
+          ) : cash.data.branches.length === 0 ? (
+            <p className="rounded-xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
+              {t("reports.cashPositionEmpty")}
+            </p>
           ) : (
             <Table>
               <TableHead>

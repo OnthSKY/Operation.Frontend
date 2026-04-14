@@ -18,6 +18,7 @@ import {
   fetchPersonnelYearAccountClosures,
   fetchPersonnelYearAccountPreview,
   reopenPersonnelYearAccount,
+  uploadPersonnelYearClosurePdf,
   type ClosePersonnelYearAccountBody,
 } from "@/modules/personnel/api/personnel-account-closure-api";
 import {
@@ -466,6 +467,19 @@ export function useReopenPersonnelYearAccount(personnelId: number) {
       });
       void qc.invalidateQueries({ queryKey: personnelKeys.detail(personnelId) });
       void qc.invalidateQueries({ queryKey: personnelKeys.listRoot() });
+    },
+  });
+}
+
+export function useUploadPersonnelYearClosurePdf(personnelId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ year, file }: { year: number; file: File }) =>
+      uploadPersonnelYearClosurePdf(personnelId, year, file),
+    onSuccess: () => {
+      void qc.invalidateQueries({
+        queryKey: personnelKeys.yearAccountClosures(personnelId),
+      });
     },
   });
 }

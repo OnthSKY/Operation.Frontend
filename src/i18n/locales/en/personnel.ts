@@ -224,6 +224,8 @@ export const personnel = {
   tableCompanyHireDate: "Company hire date",
   tableSeasonArrivalDate: "Tourism season arrival",
   tableSalary: "Salary",
+  salaryRevealAria: "Show salary",
+  salaryHideAria: "Hide salary",
   tableBranch: "Branch",
   tableSystemUser: "System",
   systemUserNone: "No account",
@@ -278,8 +280,10 @@ export const personnel = {
     stepsAria: "Steps for account preview",
     stepPick: "Choose basis",
     stepSummary: "Totals",
+    stepPickHelp: "Calendar year (recommended) or employment period.",
+    stepSummaryHelp: "Review totals; close the year when ready.",
     introYearFirst:
-      "Recommended: close accounts by calendar year before moving to a new season. Advances use their season year (so pre-start advances count in that year). Expenses and salary lines use the transaction date year. You can still open the employment-term view for detail.",
+      "Prefer closing by calendar year before a new season. Advances use the season year on the record; expenses and salary use the transaction date year.",
     scopeYear: "By calendar year (recommended)",
     scopeTerm: "By employment term (advanced)",
     yearRulesHint:
@@ -330,8 +334,13 @@ export const personnel = {
       "On file: no PDF acknowledgement flag (legacy or pre-update closure).",
     salarySectionTitle: "Salary for this year close-out",
     salarySectionHint:
-      "Enter days worked and the salary amount owed for this calendar year (after your internal rule). We subtract advances, recorded salary payments, and personnel-tagged expenses in the same currency. If the remaining balance was paid, say how (cash, bank, or patron).",
+      "Enter days worked and the salary amount owed for this calendar year (after your internal rule). We subtract advances, recorded salary payments, and personnel-tagged expenses in the same currency. If the remaining balance was paid, say how (branch register, patron branch register, or patron).",
     workedDaysLabel: "Days worked (in this year)",
+    workedDaysSeasonSuggestion:
+      "Season start {arrival}. System suggestion for {year}: {days} calendar days from {from} through {to} (inclusive).",
+    workedDaysSeasonSuggestionMissing:
+      "No season start date on file — enter days worked manually.",
+    workedDaysApplySuggestionButton: "Apply day suggestion",
     expectedSalaryLabel: "Expected salary amount (this year, same currency)",
     salaryCurrencyLabel: "Currency (3 letters)",
     suggestedFromCard:
@@ -344,7 +353,7 @@ export const personnel = {
     salarySourceLabel: "Payment source",
     salarySourcePick: "Select…",
     salarySourceCash: "Cash (branch register)",
-    salarySourceBank: "Bank transfer",
+    salarySourcePatronBranch: "Patron (branch register)",
     salarySourcePatron: "Patron / owner",
     salarySettlementNoteLabel: "Salary settlement note (optional)",
     salarySettlementNotePlaceholder: "e.g. paid with January payroll batch",
@@ -355,6 +364,46 @@ export const personnel = {
     closedSalarySettledYes: "Settled",
     closedSalarySettledNo: "Not marked settled",
     closedSalarySource: "Source",
+    closeYearStoryTitle: "Before you mark the year closed",
+    closeYearStoryLead:
+      "The button stays disabled until each check below is satisfied — work through them in order.",
+    closeYearStepPdf: "Settlement PDF + acknowledgement checkbox",
+    closeYearStepDays: "Days worked (1–366)",
+    closeYearStepSalary: "Expected salary amount (≥ 0)",
+    closeYearStepSource:
+      "If balance was paid: payment source (branch register / patron branch register / patron)",
+    closeYearHintPdf:
+      "Open the PDF, align with the person, then tick the acknowledgement checkbox.",
+    closeYearHintDays: "Enter a whole number of days worked between 1 and 366.",
+    closeYearHintSalary: "Enter a valid expected salary number (0 or greater).",
+    closeYearHintSource:
+      "If «remaining salary balance was paid» is checked, pick a payment source.",
+    closeYearReadyHint:
+      "All checks pass — you can press the button to close the year.",
+    closeYearTabsAria: "Year close — step indicator",
+    closeYearMobileTabOverview: "Summary",
+    closeYearMobileTabPdf: "PDF",
+    closeYearMobileTabSalary: "Salary",
+    closeYearMobileTabsFooterHint:
+      "Steps advance in order; use only the buttons at the bottom to move. The bar above shows where you are. The year-close button is on the final step.",
+    closeYearSalaryTabRequiresPdfAck:
+      "Tick the settlement acknowledgement before continuing to salary.",
+    closeYearGuideTitle: "Recorded totals (how to read them)",
+    closeYearGuideLead:
+      "These figures are rolled up for the selected calendar year and rules; they are not legal settlement. Read them together with the PDF and salary steps.",
+    closeYearGuideEmptyTitle: "No movements in this preview",
+    closeYearGuideEmptyBody:
+      "We did not find advances, salary payments, or personnel-tagged expenses for this year. You can still share the PDF summary and enter expected salary on the final step.",
+    closeYearBalanceNetPositive:
+      "Positive net: recorded advances plus personnel-tagged expenses exceed salary paid in this currency.",
+    closeYearBalanceNetNegative:
+      "Negative net: salary paid exceeds advances plus personnel-tagged expenses in this currency.",
+    closeYearBalanceNetZero:
+      "Net near zero: those three buckets look balanced in the ledger.",
+    closeYearGuideHandoverNote:
+      "Cash handover IN is not included in this net row; review it with the detailed blocks and the PDF.",
+    closeYearGoPdfTab: "Continue to PDF →",
+    closeYearGoSalaryTab: "Continue to salary & close →",
   },
   fieldInsurancePrerequisiteNotes:
     "Documents collected or missing — notes (optional)",
@@ -362,6 +411,9 @@ export const personnel = {
   insuranceDateOrderInvalid: "End date must be on or after the start date.",
   insuranceBadgeStarted: "Insured",
   insuranceBadgePending: "Insurance pending",
+  listYearAccountClosedBadge: "Account closed: {years}",
+  listYearAccountClosedTitle:
+    "Calendar-year account closed ({years}). Person detail → Closed accounts & archive.",
   insuranceStatusStarted: "Started",
   insuranceStatusPending: "Not started",
   insuranceStatusFieldLabel: "Coverage status",
@@ -499,6 +551,7 @@ export const personnel = {
   advanceRegisterExpenseInBranch: "Branch register expense linked",
   advanceSourceAbbrCash: "Cash",
   advanceSourceAbbrPatron: "Owner",
+  advanceSourceAbbrPatronBranch: "Patron branch register",
   advanceSourceAbbrBank: "Bank",
   advanceSourceAbbrPersonnelPocket: "Pocket",
   advancePaidFromBank: "Paid from bank account",
@@ -551,6 +604,8 @@ export const personnel = {
   detailTabYearClosures: "Closed accounts",
   yearClosuresIntro:
     "Calendar-year account closures for this person. If a year was closed by mistake, you can reopen it.",
+  yearClosuresStoryHint:
+    "In «Close account / summary»: PDF acknowledgement → days & salary → payment source if needed; then «Mark year as closed» becomes enabled.",
   yearClosuresCloseAccount: "Close account / summary",
   yearClosuresEmpty: "No closed year accounts for this person yet.",
   yearClosuresReadOnlyHint:
@@ -561,6 +616,11 @@ export const personnel = {
   yearClosuresColNotes: "Notes",
   yearClosuresColAction: "Action",
   yearClosuresColSettlementPdf: "PDF ack",
+  yearClosuresColReport: "Archive / PDF",
+  yearClosuresDownloadJson: "Download JSON",
+  yearClosuresDownloadPdf: "Download closure PDF",
+  yearClosuresUploadPdf: "Upload closure PDF",
+  yearClosuresUploadPdfSuccess: "Closure PDF saved.",
   yearClosuresColSalary: "Salary close-out",
   yearClosuresSalarySettledYes: "Settled",
   yearClosuresSalarySettledNo: "Not settled",

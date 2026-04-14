@@ -44,6 +44,12 @@ const reportsHubSubNav = [
     icon: "/reports" as const,
     hintKey: "nav.tooltip.reportsHubStock" as const,
   },
+  {
+    href: "/daily-branch-register",
+    labelKey: "nav.dailyBranchRegister",
+    icon: "dailyBranchRegister" as const,
+    hintKey: "nav.tooltip.reportsHubDailyRegister" as const,
+  },
 ] as const;
 
 const suppliersSubNav = [
@@ -76,7 +82,8 @@ type NavIconName =
   | "authz"
   | "notificationsBell"
   | "insurances"
-  | "generalOverhead";
+  | "generalOverhead"
+  | "dailyBranchRegister";
 
 function NavGlyph({ name }: { name: NavIconName }) {
   const common = {
@@ -158,6 +165,14 @@ function NavGlyph({ name }: { name: NavIconName }) {
         <svg {...common}>
           <path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4" />
           <path d="M9 9v.01M9 12v.01M9 15v.01M9 18v.01" />
+        </svg>
+      );
+    case "dailyBranchRegister":
+      return (
+        <svg {...common}>
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <path d="M16 2v4M8 2v4M3 10h18" />
+          <path d="M8 14h.01M12 14h.01M16 14h.01" />
         </svg>
       );
     case "/warehouses":

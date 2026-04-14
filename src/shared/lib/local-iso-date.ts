@@ -16,6 +16,45 @@ export function addDaysToLocalIsoDate(iso: string, days: number): string {
   return localIsoDate(dt);
 }
 
+const YMD = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Inclusive local calendar days from `from` through `to` (order-independent).
+ * Caps at `maxDays` and sets `truncated` when the span exceeds the cap.
+ */
+export function enumerateLocalIsoDatesInclusive(
+  from: string,
+  to: string,
+  maxDays: number
+): { dates: string[]; truncated: boolean } {
+  const f = from.trim().slice(0, 10);
+  const t = to.trim().slice(0, 10);
+  if (!YMD.test(f) || !YMD.test(t) || !Number.isFinite(maxDays) || maxDays < 1) {
+    return { dates: [], truncated: false };
+  }
+  let a = f;
+  let b = t;
+  if (a > b) {
+    const x = a;
+    a = b;
+    b = x;
+  }
+  const dates: string[] = [];
+  let cur = a;
+  let truncated = false;
+  while (cur <= b) {
+    if (dates.length >= maxDays) {
+      truncated = true;
+      break;
+    }
+    dates.push(cur);
+    const next = addDaysToLocalIsoDate(cur, 1);
+    if (!next || next <= cur) break;
+    cur = next;
+  }
+  return { dates, truncated };
+}
+
 /** `YYYY-MM-DDTHH:mm` for `<input type="datetime-local" />` (local clock, not UTC). */
 export function localIsoDateTime(d = new Date()): string {
   const y = d.getFullYear();

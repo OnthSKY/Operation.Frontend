@@ -62,6 +62,40 @@ body {
 
 /* Üst bar + ana gövde + footer aynı yatay ritim (safe area ile). */
 @layer utilities {
+  /** `PageScreenScaffold` mobilToolbar: küçük ekranda kaydırırken üstte sabit özet/filtre satırı */
+  .mobile-toolbar-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 9;
+    margin-left: -1rem;
+    margin-right: -1rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    background: color-mix(in srgb, #ffffff 92%, transparent);
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--foreground) 6%, transparent);
+    backdrop-filter: blur(8px);
+  }
+  @media (min-width: 640px) {
+    .mobile-toolbar-sticky {
+      position: static;
+      z-index: auto;
+      margin-left: 0;
+      margin-right: 0;
+      padding-left: 0;
+      padding-right: 0;
+      background: transparent;
+      box-shadow: none;
+      backdrop-filter: none;
+    }
+  }
+
+  /** İkon / compact kontroller için yaklaşık 44px dokunma hedefi */
+  .mobile-hit-44 {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    touch-action: manipulation;
+  }
+
   .app-shell-inline {
     padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
     padding-right: max(0.75rem, env(safe-area-inset-right, 0px));

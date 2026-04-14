@@ -11,6 +11,7 @@ import {
   ReportHubDateRangeControls,
   type ReportHubRangeLock,
 } from "@/modules/reports/components/ReportHubDateRangeControls";
+import { ReportMobileFilterSurface } from "@/modules/reports/components/ReportMobileFilterSurface";
 import { ReportTablesPageShell } from "@/modules/reports/components/ReportTablesPageShell";
 import {
   addDaysFromIso,
@@ -21,9 +22,9 @@ import {
   usePatronFlowPosProfiles,
   useUpsertBranchPosSettlementProfile,
 } from "@/modules/reports/hooks/useReportsQueries";
-import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileFilters";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { notify } from "@/shared/lib/notify";
@@ -215,6 +216,28 @@ export function PatronFlowReportScreen() {
 
   const filtersActive = filterBranchId !== "" || dateRangeLock !== "manual";
 
+  const filterPreview = useMemo(() => {
+    const a = formatLocaleDate(dateFrom, locale);
+    const b = formatLocaleDate(dateTo, locale);
+    const branchName =
+      filterBranchId === ""
+        ? null
+        : branches.find((x) => String(x.id) === filterBranchId)?.name;
+    return (
+      <>
+        <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-400">
+          {t("reports.navPatronFlow")}
+        </p>
+        <p className="mt-0.5 truncate text-sm font-semibold text-zinc-900">
+          {a} – {b}
+        </p>
+        {branchName ? (
+          <p className="mt-0.5 truncate text-xs text-zinc-600">{branchName}</p>
+        ) : null}
+      </>
+    );
+  }, [dateFrom, dateTo, locale, t, filterBranchId, branches]);
+
   const items: PatronFlowLine[] = overview.data?.items ?? [];
   const totals = overview.data?.totalsByKind ?? [];
 
@@ -271,13 +294,13 @@ export function PatronFlowReportScreen() {
         />
       }
     >
-      <CollapsibleMobileFilters
-        title={t("reports.filtersSectionTitle")}
-        toggleAriaLabel={t("common.filters")}
-        active={filtersActive}
+      <ReportMobileFilterSurface
+        filtersActive={filtersActive}
+        drawerTitle={t("reports.filtersSectionTitle")}
         resetKey="patron-flow"
-        expandLabel={t("common.filtersShow")}
-        collapseLabel={t("common.filtersHide")}
+        preview={filterPreview}
+        onRefetch={() => void overview.refetch()}
+        isRefetching={overview.isFetching}
       >
         <div className="flex flex-col gap-3">
           <ReportHubDateRangeControls
@@ -316,7 +339,7 @@ export function PatronFlowReportScreen() {
             />
           </div>
         </div>
-      </CollapsibleMobileFilters>
+      </ReportMobileFilterSurface>
 
       <p className="text-sm leading-relaxed text-zinc-600">{t("reports.patronFlowLead")}</p>
 

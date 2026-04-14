@@ -9,6 +9,8 @@ type Props = {
   open: boolean;
   onClose: () => void;
   personnelId: number;
+  /** Liste/detay API’sinden; yoksa varsayılan yol kullanılır. */
+  profilePhoto1Url?: string | null;
   nonce: number;
   title: string;
   closeLabel: string;
@@ -19,6 +21,7 @@ export function PersonnelProfilePhotoPreviewModal({
   open,
   onClose,
   personnelId,
+  profilePhoto1Url,
   nonce,
   title,
   closeLabel,
@@ -35,7 +38,9 @@ export function PersonnelProfilePhotoPreviewModal({
       });
       return;
     }
-    const href = `${personnelProfilePhotoUrl(personnelId, 1)}?_=${nonce}`;
+    const href = `${personnelProfilePhotoUrl(personnelId, 1, {
+      profilePhoto1Url: profilePhoto1Url ?? undefined,
+    })}?_=${nonce}`;
     const ac = new AbortController();
     void apiFetch(href, { signal: ac.signal })
       .then((r) => (r.ok ? r.blob() : null))
@@ -54,7 +59,7 @@ export function PersonnelProfilePhotoPreviewModal({
         return null;
       });
     };
-  }, [open, personnelId, nonce]);
+  }, [open, personnelId, profilePhoto1Url, nonce]);
 
   return (
     <Modal

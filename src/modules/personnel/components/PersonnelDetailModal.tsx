@@ -4,6 +4,10 @@ import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
 import { cn } from "@/lib/cn";
 import { apiFetch } from "@/shared/api/client";
+import {
+  personnelYearClosureArchiveUrl,
+  personnelYearClosurePdfDownloadUrl,
+} from "@/modules/personnel/api/personnel-account-closure-api";
 import { AddBranchTransactionModal } from "@/modules/branch/components/AddBranchTransactionModal";
 import { AdvancePersonnelModal } from "@/modules/personnel/components/AdvancePersonnelModal";
 import { fetchPersonnelAttributedExpenses } from "@/modules/branch/api/branch-transactions-api";
@@ -27,6 +31,7 @@ import {
   usePersonnelManagementSnapshot,
   usePersonnelYearAccountClosures,
   useReopenPersonnelYearAccount,
+  useUploadPersonnelYearClosurePdf,
 } from "@/modules/personnel/hooks/usePersonnelQueries";
 import { useDeleteBranchTransaction } from "@/modules/branch/hooks/useBranchQueries";
 import { fetchWarehouses } from "@/modules/warehouse/api/warehouses-api";
@@ -151,13 +156,82 @@ function formatYearClosureSalarySummary(
       : t("personnel.yearClosuresSalarySettledNo"),
   );
   const st = row.salaryPaymentSourceType?.trim();
-  if (st) bits.push(st);
+  if (st) bits.push(sourceAbbrev(t, st));
   return bits.join(" · ");
+}
+
+function YearClosureReportLinks({
+  personnelId,
+  row,
+  readOnly,
+  uploadPending,
+  t,
+  onPickPdf,
+}: {
+  personnelId: number;
+  row: PersonnelYearAccountClosureListItem;
+  readOnly: boolean;
+  uploadPending: boolean;
+  t: (k: string) => string;
+  onPickPdf: (year: number, file: File) => void;
+}) {
+  const hasArch = row.hasClosureArchive === true;
+  const hasPdf = row.hasClosurePdf === true;
+  const jsonHref = hasArch
+    ? personnelYearClosureArchiveUrl(personnelId, row.closureYear)
+    : null;
+  const pdfHref = hasPdf
+    ? personnelYearClosurePdfDownloadUrl(personnelId, row.closureYear)
+    : null;
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
+      {jsonHref ? (
+        <a
+          href={jsonHref}
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-sky-800 underline decoration-sky-800/30 underline-offset-2"
+        >
+          {t("personnel.yearClosuresDownloadJson")}
+        </a>
+      ) : (
+        <span className="text-xs text-zinc-400">—</span>
+      )}
+      {pdfHref ? (
+        <a
+          href={pdfHref}
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-sky-800 underline decoration-sky-800/30 underline-offset-2"
+        >
+          {t("personnel.yearClosuresDownloadPdf")}
+        </a>
+      ) : null}
+      {!readOnly ? (
+        <label className="cursor-pointer text-xs font-medium text-zinc-700 underline decoration-zinc-400 underline-offset-2 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-zinc-900">
+          <input
+            type="file"
+            accept="application/pdf,.pdf"
+            className="sr-only"
+            disabled={uploadPending}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              e.target.value = "";
+              if (f) onPickPdf(row.closureYear, f);
+            }}
+          />
+          {t("personnel.yearClosuresUploadPdf")}
+        </label>
+      ) : null}
+    </div>
+  );
 }
 
 function sourceAbbrev(t: (k: string) => string, st: string): string {
   const u = st.toUpperCase();
   if (u === "PATRON") return t("personnel.advanceSourceAbbrPatron");
+  if (u === "PATRON_BRANCH")
+    return t("personnel.advanceSourceAbbrPatronBranch");
   if (u === "BANK") return t("personnel.advanceSourceAbbrBank");
   if (u === "PERSONNEL_POCKET")
     return t("personnel.advanceSourceAbbrPersonnelPocket");
@@ -469,6 +543,20 @@ export function PersonnelDetailModal({
   });
 
   const reopenYearMut = useReopenPersonnelYearAccount(pid);
+  const uploadClosurePdfMut = useUploadPersonnelYearClosurePdf(pid);
+  const onYearClosurePdfUpload = useCallback(
+    (year: number, file: File) => {
+      uploadClosurePdfMut.mutate(
+        { year, file },
+        {
+          onSuccess: () =>
+            notify.success(t("personnel.yearClosuresUploadPdfSuccess")),
+          onError: (e) => notify.error(toErrorMessage(e)),
+        },
+      );
+    },
+    [uploadClosurePdfMut, t],
+  );
   const deleteAdvanceMut = useDeleteAdvance();
   const deleteTxMut = useDeleteBranchTransaction();
   const {
@@ -938,6 +1026,10 @@ export function PersonnelDetailModal({
                         <PersonnelProfilePhotoAvatar
                           personnelId={personnel.id}
                           hasPhoto={personnel.hasProfilePhoto1}
+                          profilePhotoPaths={{
+                            profilePhoto1Url: personnel.profilePhoto1Url,
+                            profilePhoto2Url: personnel.profilePhoto2Url,
+                          }}
                           nonce={photoViewNonce}
                           displayName={personnelDisplayName(personnel)}
                           photoLabel={t("personnel.profilePhotoAvatarAria")}
@@ -1134,7 +1226,10 @@ export function PersonnelDetailModal({
                             <NationalIdPreviewImg
                               href={
                                 personnel.hasProfilePhoto1
-                                  ? `${personnelProfilePhotoUrl(personnel.id, 1)}?_=${photoViewNonce}`
+                                  ? `${personnelProfilePhotoUrl(personnel.id, 1, {
+                                      profilePhoto1Url: personnel.profilePhoto1Url,
+                                      profilePhoto2Url: personnel.profilePhoto2Url,
+                                    })}?_=${photoViewNonce}`
                                   : null
                               }
                               emptyLabel={t("personnel.profilePhotosNoFile")}
@@ -1159,7 +1254,10 @@ export function PersonnelDetailModal({
                             <NationalIdPreviewImg
                               href={
                                 personnel.hasProfilePhoto2
-                                  ? `${personnelProfilePhotoUrl(personnel.id, 2)}?_=${photoViewNonce}`
+                                  ? `${personnelProfilePhotoUrl(personnel.id, 2, {
+                                      profilePhoto1Url: personnel.profilePhoto1Url,
+                                      profilePhoto2Url: personnel.profilePhoto2Url,
+                                    })}?_=${photoViewNonce}`
                                   : null
                               }
                               emptyLabel={t("personnel.profilePhotosNoFile")}
@@ -2007,9 +2105,14 @@ export function PersonnelDetailModal({
                 ) : tab === "yearClosures" ? (
                   <div className="min-w-0 space-y-4 pb-2">
                     <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
-                      <p className="min-w-0 flex-1 text-sm leading-relaxed text-zinc-600">
-                        {t("personnel.yearClosuresIntro")}
-                      </p>
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <p className="text-sm leading-relaxed text-zinc-600">
+                          {t("personnel.yearClosuresIntro")}
+                        </p>
+                        <p className="text-xs leading-relaxed text-zinc-500">
+                          {t("personnel.yearClosuresStoryHint")}
+                        </p>
+                      </div>
                       <Button
                         type="button"
                         variant="secondary"
@@ -2045,7 +2148,7 @@ export function PersonnelDetailModal({
                     ) : null}
                     {!yearClosuresLoading && !yearClosuresError && yearClosures.length > 0 ? (
                       <>
-                        <div className="space-y-3 md:hidden">
+                        <div className="space-y-3 lg:hidden">
                           {yearClosures.map((row) => (
                             <div
                               key={row.id}
@@ -2108,6 +2211,25 @@ export function PersonnelDetailModal({
                                     )}
                                   </dd>
                                 </div>
+                                <div className="flex flex-col gap-0.5">
+                                  <dt className="text-zinc-500">
+                                    {t("personnel.yearClosuresColReport")}
+                                  </dt>
+                                  <dd>
+                                    <YearClosureReportLinks
+                                      personnelId={personnel.id}
+                                      row={row}
+                                      readOnly={personnel.isDeleted}
+                                      uploadPending={
+                                        uploadClosurePdfMut.isPending &&
+                                        uploadClosurePdfMut.variables?.year ===
+                                          row.closureYear
+                                      }
+                                      t={t}
+                                      onPickPdf={onYearClosurePdfUpload}
+                                    />
+                                  </dd>
+                                </div>
                                 {row.salarySettlementNote?.trim() ? (
                                   <div className="flex flex-col gap-0.5">
                                     <dt className="text-zinc-500">
@@ -2124,7 +2246,7 @@ export function PersonnelDetailModal({
                               <Button
                                 type="button"
                                 variant="secondary"
-                                className="mt-4 min-h-10 w-full"
+                                className="mt-4 min-h-12 w-full touch-manipulation"
                                 disabled={
                                   personnel.isDeleted ||
                                   (reopenYearMut.isPending &&
@@ -2165,9 +2287,9 @@ export function PersonnelDetailModal({
                             </div>
                           ))}
                         </div>
-                        <div className="hidden min-w-0 md:block">
+                        <div className="hidden min-w-0 lg:block">
                           <div className="overflow-x-auto rounded-lg border border-zinc-200 [-webkit-overflow-scrolling:touch]">
-                            <table className="w-full min-w-[54rem] border-collapse text-left text-sm">
+                            <table className="w-full min-w-[64rem] border-collapse text-left text-sm">
                               <thead className="bg-zinc-50 text-zinc-700">
                                 <tr>
                                   <th className="min-w-[4rem] px-3 py-3 pl-4 font-medium">
@@ -2187,6 +2309,9 @@ export function PersonnelDetailModal({
                                   </th>
                                   <th className="min-w-[5rem] px-3 py-3 font-medium">
                                     {t("personnel.yearClosuresColSettlementPdf")}
+                                  </th>
+                                  <th className="min-w-[12rem] px-3 py-3 font-medium">
+                                    {t("personnel.yearClosuresColReport")}
                                   </th>
                                   <th className="w-[1%] px-3 py-3 pr-4 text-right font-medium">
                                     {t("personnel.yearClosuresColAction")}
@@ -2234,6 +2359,20 @@ export function PersonnelDetailModal({
                                       {row.settlementPdfAcknowledged
                                         ? t("personnel.yearClosuresPdfAckYes")
                                         : t("personnel.yearClosuresPdfAckNo")}
+                                    </td>
+                                    <td className="max-w-[16rem] px-3 py-3 align-middle">
+                                      <YearClosureReportLinks
+                                        personnelId={personnel.id}
+                                        row={row}
+                                        readOnly={personnel.isDeleted}
+                                        uploadPending={
+                                          uploadClosurePdfMut.isPending &&
+                                          uploadClosurePdfMut.variables?.year ===
+                                            row.closureYear
+                                        }
+                                        t={t}
+                                        onPickPdf={onYearClosurePdfUpload}
+                                      />
                                     </td>
                                     <td className="px-3 py-3 pr-4 text-right align-middle">
                                       <Button

@@ -10,6 +10,11 @@ type Props = {
   intro: ReactNode;
   /** Özet / üst bilgi — verilmezse bölüm çizilmez */
   summary?: ReactNode;
+  /**
+   * Mobil ana kaydırma içinde üstte sabitlenen araç çubuğu (filtre ikonu, özet şeridi vb.).
+   * Küçük ekranda kaydırırken erişilebilir kalsın diye `max-sm:sticky` sarmalayıcıda verilir.
+   */
+  mobileToolbar?: ReactNode;
   main: ReactNode;
   /** Dış sarmalayıcı (padding, gap) */
   className?: string;
@@ -20,7 +25,14 @@ type Props = {
 /**
  * Liste / detay ekranlarında Giriş → (Özet) → Kayıtlar bölümlendirmesi.
  */
-export function PageScreenScaffold({ intro, summary, main, className, top }: Props) {
+export function PageScreenScaffold({
+  intro,
+  summary,
+  mobileToolbar,
+  main,
+  className,
+  top,
+}: Props) {
   const { t } = useI18n();
   const rid = useId().replace(/:/g, "");
 
@@ -59,6 +71,11 @@ export function PageScreenScaffold({ intro, summary, main, className, top }: Pro
         eyebrow={t("common.pageSectionMain")}
         sectionLabelId={`page-main-${rid}`}
       >
+        {mobileToolbar != null ? (
+          <div className="mobile-toolbar-sticky -mx-4 border-b border-zinc-200/70 bg-white/95 px-4 py-2.5 sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+            {mobileToolbar}
+          </div>
+        ) : null}
         {main}
       </PageContentSection>
     </div>

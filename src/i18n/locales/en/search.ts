@@ -14,6 +14,8 @@ export const search = {
   subReports: "Financial & stock period reports",
   subBranchComparison: "Income, expense, net by branch",
   subBranch: "Branches",
+  subDailyBranchRegister:
+    "Per-branch cash, card/POS, register expenses and net for one register day",
   subWarehouse: "Warehouse / stock",
   subProducts: "Product list by warehouse",
   subProductCategories: "Main and sub product categories",

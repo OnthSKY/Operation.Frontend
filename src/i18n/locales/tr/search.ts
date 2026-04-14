@@ -14,6 +14,8 @@ export const search = {
   subReports: "Finans ve stok dönem raporları",
   subBranchComparison: "Şubelere göre gelir, gider, net",
   subBranch: "Şubeler",
+  subDailyBranchRegister:
+    "Tek kasa gününde şube bazında nakit, kart/POS, kasadan gider ve net",
   subWarehouse: "Depo / stok",
   subProducts: "Depolara göre ürün listesi",
   subProductCategories: "Ana ve alt ürün kategorileri",

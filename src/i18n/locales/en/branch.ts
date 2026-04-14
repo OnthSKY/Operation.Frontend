@@ -252,11 +252,14 @@ export const branch = {
     "Register income rows (IN). Income is the sum of line amounts; cash and card are the payment split (when entered correctly, income ≈ cash + card).",
   incomeDateScopeTitle: "What updates when you change dates?",
   incomeDateScopeDaySummary:
-    "Day summary (top three cards — income / cash / card for the day): Shown only when start and end are the same day; they reflect that single day. If the two dates differ, these cards are hidden.",
+    "Day summary (three cards in the green block below): Only when start and end are the same day; that calendar day’s income / cash / card split.",
   incomeDateScopeCumulative:
-    "Cumulative summary (masked three cards): Also only when a single day is selected; totals run from the first record through that day (inclusive). Changing the day updates these figures.",
+    "Cumulative summary (three cards at the top of the green block): Also only when a single day is selected; IN totals from the first record through that day (inclusive) — always visible.",
   incomeDateScopeListPatron:
     "Income lines list and the Patron flow box (if shown): Always follow the start–end range (plus list filters), whether you pick one day or a range.",
+  incomeSummarySectionTitle: "Branch income — summary",
+  incomeSummarySectionLead:
+    "Top block: cumulative through the selected day; lower block: that calendar day’s split only (start = end).",
   incomeCloseTitle: "Day summary (income)",
   incomeCloseHint:
     "These three cards are for the single selected day only (start = end). Income: sum of line amounts that day; cash and card are the payment split. The list uses the same day.",
@@ -265,7 +268,7 @@ export const branch = {
   incomeCloseCard: "Card (day)",
   incomeCumulativeTitle: "Through selected day (all time)",
   incomeCumulativeHint:
-    "The end date is the same single day as above. IN totals from the first record through that day (inclusive). Amounts are hidden by default; tap the area to show or hide.",
+    "The end date is the same single day as the day summary below (start = end). IN totals from the first record through that day (inclusive).",
   incomeCumulativeRevealTap: "Tap to show",
   incomeCumulativeTotal: "Income (cumulative)",
   incomeCumulativeCash: "Cash (cumulative)",

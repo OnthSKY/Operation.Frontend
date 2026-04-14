@@ -1,4 +1,4 @@
-import { apiRequest } from "@/shared/api/client";
+import { apiRequest, apiUrl } from "@/shared/api/client";
 import type {
   PersonnelAccountClosurePreview,
   PersonnelEmploymentTerm,
@@ -73,4 +73,35 @@ export async function reopenPersonnelYearAccount(
   return apiRequest<boolean>(`/personnel/${personnelId}/year-account/closures/${year}`, {
     method: "DELETE",
   });
+}
+
+export function personnelYearClosureArchiveUrl(
+  personnelId: number,
+  year: number,
+): string {
+  return apiUrl(
+    `/personnel/${personnelId}/year-account/closures/${year}/archive`,
+  );
+}
+
+export function personnelYearClosurePdfDownloadUrl(
+  personnelId: number,
+  year: number,
+): string {
+  return apiUrl(
+    `/personnel/${personnelId}/year-account/closures/${year}/closure-pdf`,
+  );
+}
+
+export async function uploadPersonnelYearClosurePdf(
+  personnelId: number,
+  year: number,
+  file: File,
+): Promise<boolean> {
+  const fd = new FormData();
+  fd.append("file", file);
+  return apiRequest<boolean>(
+    `/personnel/${personnelId}/year-account/closures/${year}/closure-pdf`,
+    { method: "POST", body: fd },
+  );
 }
