@@ -26,4 +26,27 @@ export const auth = {
   totpSubmit: "Doğrula ve giriş yap",
   totpBack: "Farklı hesap kullan",
   totpFailed: "Kod geçersiz veya süresi dolmuş.",
+  emergencyPageTitle: "Acil kullanıcı / şifre sıfırlama",
+  emergencyPageIntro:
+    "Geçici sayfa (giriş ekranından bağlantı yok). Sunucudaki AdminRegisterKey gerekir. Kullanıcı adı zaten varsa yalnızca şifre güncellenir — rol, görünen ad ve personel yok sayılır.",
+  emergencyBackToLogin: "Giriş sayfasına dön",
+  emergencyWarning:
+    "Geçici araç: üretimde şifre hash düzeltmesi için. Sunucudaki AdminRegisterKey gerekir. İş bitince kaldırılmalıdır.",
+  emergencyAdminKey: "Yönetim anahtarı (x-admin-key)",
+  emergencyUsername: "Kullanıcı adı",
+  emergencyPassword: "Yeni şifre",
+  emergencyPasswordConfirm: "Yeni şifre (tekrar)",
+  emergencySubmit: "Uygula",
+  emergencySubmitting: "Gönderiliyor…",
+  emergencySuccess: "Kullanıcı oluşturuldu veya şifre güncellendi. Giriş yapabilirsiniz.",
+  emergencyInvalidKey: "Yönetim anahtarı geçersiz.",
+  emergencyPasswordMismatch: "Şifreler eşleşmiyor.",
+  emergencyFailed: "İşlem tamamlanamadı.",
+  emergencyFillAll: "Yönetim anahtarı, kullanıcı adı ve şifre alanlarını doldurun.",
+  emergencyFullNameOptional: "Görünen ad (isteğe bağlı, yalnızca yeni kullanıcı)",
+  emergencyRole: "Rol (yalnızca yeni kullanıcı)",
+  emergencyRoleHint: "PERSONNEL ve DRIVER için geçerli personel ID gerekir; o personelde zaten kullanıcı olmamalı.",
+  emergencyPersonnelIdOptional: "Personel ID (isteğe bağlı)",
+  emergencyUpdateHint:
+    "Hesap zaten varsa: yalnızca şifre değişir. Yeni hesap: aşağıdaki rol, ad ve personel kullanılır.",
 } as const;

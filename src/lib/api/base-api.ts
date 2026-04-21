@@ -96,6 +96,7 @@ function isAuthRefreshEligible(path: string): boolean {
   if (p.includes("/auth/login")) return false;
   if (p.includes("/auth/refresh")) return false;
   if (p.includes("/auth/logout")) return false;
+  if (p.includes("/auth/admin-register")) return false;
   return true;
 }
 
@@ -128,6 +129,14 @@ async function trySessionRefresh(): Promise<boolean> {
 
 let unauthorizedRecoveryStarted = false;
 
+/** Oturum yokken /auth/me 401 — bu sayfalarda login’e zorla yönlendirme yapılmaz. */
+function isPublicAuthPath(pathname: string): boolean {
+  if (pathname === "/login" || pathname.startsWith("/login/")) return true;
+  if (pathname === "/emergency-admin-register" || pathname.startsWith("/emergency-admin-register/"))
+    return true;
+  return false;
+}
+
 function recoverFromUnauthorized(path: string): void {
   if (!isAuthRefreshEligible(path)) return;
   if (typeof window === "undefined") return;
@@ -135,7 +144,7 @@ function recoverFromUnauthorized(path: string): void {
   unauthorizedRecoveryStarted = true;
   void (async () => {
     await clearSessionOnServer();
-    if (!window.location.pathname.startsWith("/login")) {
+    if (!isPublicAuthPath(window.location.pathname)) {
       window.location.assign("/login");
     }
   })();

@@ -26,4 +26,27 @@ export const auth = {
   totpSubmit: "Verify and sign in",
   totpBack: "Use different account",
   totpFailed: "Invalid or expired code.",
+  emergencyPageTitle: "Emergency user / password reset",
+  emergencyPageIntro:
+    "TEMPORARY page (not linked from sign-in). Server AdminRegisterKey required. If the username already exists, only the password is updated — role, display name and personnel are ignored.",
+  emergencyBackToLogin: "Back to sign in",
+  emergencyWarning:
+    "TEMPORARY tool for fixing password hashes in production. Requires the server AdminRegisterKey. Remove after use.",
+  emergencyAdminKey: "Admin key (x-admin-key)",
+  emergencyUsername: "Username",
+  emergencyPassword: "New password",
+  emergencyPasswordConfirm: "Confirm new password",
+  emergencySubmit: "Apply",
+  emergencySubmitting: "Sending…",
+  emergencySuccess: "User created or password updated. You can sign in now.",
+  emergencyInvalidKey: "Invalid admin key.",
+  emergencyPasswordMismatch: "Passwords do not match.",
+  emergencyFailed: "The operation could not be completed.",
+  emergencyFillAll: "Please fill in the admin key, username, and password.",
+  emergencyFullNameOptional: "Display name (optional, new users only)",
+  emergencyRole: "Role (new users only)",
+  emergencyRoleHint: "PERSONNEL and DRIVER require a valid personnel ID with no existing user.",
+  emergencyPersonnelIdOptional: "Personnel ID (optional)",
+  emergencyUpdateHint:
+    "Existing account: only password changes. New account: uses role, name and personnel below.",
 } as const;
