@@ -44,8 +44,9 @@ export async function transferWarehouseToBranch(input: {
   lines: TransferWarehouseToBranchLineInput[];
   movementDate: string;
   description?: string | null;
-  checkedByPersonnelId: number;
-  approvedByPersonnelId: number;
+  transportedByPersonnelId: number;
+  sentByPersonnelId: number;
+  receivedByPersonnelId: number;
   freightAmount?: number | null;
   freightCurrencyCode?: string | null;
   freightExpensePaymentSource?: string | null;
@@ -60,8 +61,9 @@ export async function transferWarehouseToBranch(input: {
       lines: input.lines,
       movementDate: input.movementDate,
       description: input.description ?? null,
-      checkedByPersonnelId: input.checkedByPersonnelId,
-      approvedByPersonnelId: input.approvedByPersonnelId,
+      transportedByPersonnelId: input.transportedByPersonnelId,
+      sentByPersonnelId: input.sentByPersonnelId,
+      receivedByPersonnelId: input.receivedByPersonnelId,
       freightAmount: input.freightAmount ?? null,
       freightCurrencyCode: input.freightCurrencyCode ?? null,
       freightExpensePaymentSource: input.freightExpensePaymentSource ?? null,

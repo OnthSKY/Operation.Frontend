@@ -368,8 +368,9 @@ export function WarehouseListTransferModal({
   ]);
   const [branchId, setBranchId] = useState("");
   const [tDesc, setTDesc] = useState("");
-  const [trCheckedBy, setTrCheckedBy] = useState("");
-  const [trApprovedBy, setTrApprovedBy] = useState("");
+  const [trTransportedBy, setTrTransportedBy] = useState("");
+  const [trSentBy, setTrSentBy] = useState("");
+  const [trReceivedBy, setTrReceivedBy] = useState("");
   const [freightAmount, setFreightAmount] = useState("");
   const [freightPay, setFreightPay] = useState<WarehouseFreightPaymentSource>("REGISTER");
   const [freightPocket, setFreightPocket] = useState("");
@@ -433,8 +434,9 @@ export function WarehouseListTransferModal({
     setLines([{ key: newDraftLineKey(), productId: "", qty: "1" }]);
     setBranchId("");
     setTDesc("");
-    setTrCheckedBy("");
-    setTrApprovedBy("");
+    setTrTransportedBy("");
+    setTrSentBy("");
+    setTrReceivedBy("");
     setFreightAmount("");
     setFreightPay("REGISTER");
     setFreightPocket("");
@@ -478,10 +480,18 @@ export function WarehouseListTransferModal({
       notify.error(t("warehouse.transferAtLeastOneProductLine"));
       return;
     }
-    const ck = Number(trCheckedBy);
-    const ap = Number(trApprovedBy);
-    if (!Number.isFinite(ck) || ck <= 0 || !Number.isFinite(ap) || ap <= 0) {
-      notify.error(t("warehouse.personnelVerifierRequired"));
+    const transportedBy = Number(trTransportedBy);
+    const sentBy = Number(trSentBy);
+    const receivedBy = Number(trReceivedBy);
+    if (
+      !Number.isFinite(transportedBy) ||
+      transportedBy <= 0 ||
+      !Number.isFinite(sentBy) ||
+      sentBy <= 0 ||
+      !Number.isFinite(receivedBy) ||
+      receivedBy <= 0
+    ) {
+      notify.error(t("warehouse.transferPersonnelRolesRequired"));
       return;
     }
     const frN = Number(freightAmount.replace(",", "."));
@@ -503,8 +513,9 @@ export function WarehouseListTransferModal({
         lines: parsed,
         movementDate,
         description: tDesc.trim() ? tDesc.trim() : null,
-        checkedByPersonnelId: ck,
-        approvedByPersonnelId: ap,
+        transportedByPersonnelId: transportedBy,
+        sentByPersonnelId: sentBy,
+        receivedByPersonnelId: receivedBy,
         ...(hasFreight
           ? {
               freightAmount: frN,
@@ -647,22 +658,32 @@ export function WarehouseListTransferModal({
             disabled={disabled}
           />
           <Select
-            label={t("warehouse.checkedByPersonnel")}
+            label={t("warehouse.transportedByPersonnel")}
             labelRequired
-            name="wh-list-tr-ck"
+            name="wh-list-tr-transported"
             options={personnelSelectOptions}
-            value={trCheckedBy}
-            onChange={(e) => setTrCheckedBy(e.target.value)}
+            value={trTransportedBy}
+            onChange={(e) => setTrTransportedBy(e.target.value)}
             onBlur={() => {}}
             disabled={disabled}
           />
           <Select
-            label={t("warehouse.approvedByPersonnel")}
+            label={t("warehouse.sentByPersonnel")}
             labelRequired
-            name="wh-list-tr-ap"
+            name="wh-list-tr-sent"
             options={personnelSelectOptions}
-            value={trApprovedBy}
-            onChange={(e) => setTrApprovedBy(e.target.value)}
+            value={trSentBy}
+            onChange={(e) => setTrSentBy(e.target.value)}
+            onBlur={() => {}}
+            disabled={disabled}
+          />
+          <Select
+            label={t("warehouse.receivedByPersonnel")}
+            labelRequired
+            name="wh-list-tr-received"
+            options={personnelSelectOptions}
+            value={trReceivedBy}
+            onChange={(e) => setTrReceivedBy(e.target.value)}
             onBlur={() => {}}
             disabled={disabled}
           />
