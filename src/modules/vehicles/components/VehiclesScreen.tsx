@@ -67,7 +67,7 @@ import {
   parseLocaleAmount,
 } from "@/shared/lib/locale-amount";
 import { OVERLAY_Z_INDEX } from "@/shared/overlays/z-layers";
-import { notifyDefaults } from "@/shared/lib/notify";
+import { notify, notifyDefaults } from "@/shared/lib/notify";
 import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
@@ -566,71 +566,6 @@ export function VehiclesScreen() {
     });
   };
 
-  const vehicleDocKindLabel = (kind: VehicleDocumentKind) => {
-    const opt = VEHICLE_DOCUMENT_KIND_OPTIONS.find((x) => x.value === kind);
-    return opt ? t(opt.labelKey) : kind;
-  };
-
-  const openVehicleDoc = async (vehicleId: number, documentId: number) => {
-    setOpeningVehicleDocId(documentId);
-    try {
-      const { blob, contentType } = await fetchVehicleDocumentBlob(vehicleId, documentId);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const ext =
-        contentType === "application/pdf"
-          ? "pdf"
-          : contentType.includes("png")
-            ? "png"
-            : contentType.includes("webp")
-              ? "webp"
-              : "jpg";
-      a.download = `vehicle-${vehicleId}-doc-${documentId}.${ext}`;
-      a.rel = "noopener";
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      notify.error(toErrorMessage(e));
-    } finally {
-      setOpeningVehicleDocId(null);
-    }
-  };
-
-  const submitVehicleDocUpload = async () => {
-    if (!detailId || detailId <= 0) return;
-    setDocFormError(null);
-    if (!docFile || docFile.size <= 0) {
-      setDocFormError(t("vehicles.documentsFileRequired"));
-      return;
-    }
-    try {
-      await uploadVehicleDocumentMut.mutateAsync({
-        file: docFile,
-        kind: docKind,
-        notes: docNotes.trim() || null,
-      });
-      notify.success(t("common.saved"));
-      setDocFormOpen(false);
-      setDocFile(null);
-      setDocNotes("");
-      setDocKind("REGISTRATION");
-    } catch (e) {
-      setDocFormError(toErrorMessage(e));
-    }
-  };
-
-  const confirmVehicleDocDelete = async () => {
-    if (!docDeleteId || !detailId) return;
-    try {
-      await deleteVehicleDocumentMut.mutateAsync(docDeleteId);
-      notify.success(t("common.saved"));
-      setDocDeleteId(null);
-    } catch (e) {
-      notify.error(toErrorMessage(e));
-    }
-  };
-
   const [detailId, setDetailId] = useState<number | null>(null);
   const [detailTab, setDetailTab] = useState<DetailTab>("overview");
   const [costsSubTab, setCostsSubTab] = useState<CostsSubTab>("ledger");
@@ -707,6 +642,71 @@ export function VehiclesScreen() {
       setDocFormError(null);
     }
   }, [detailEnabled]);
+
+  const vehicleDocKindLabel = (kind: VehicleDocumentKind) => {
+    const opt = VEHICLE_DOCUMENT_KIND_OPTIONS.find((x) => x.value === kind);
+    return opt ? t(opt.labelKey) : kind;
+  };
+
+  const openVehicleDoc = async (vehicleId: number, documentId: number) => {
+    setOpeningVehicleDocId(documentId);
+    try {
+      const { blob, contentType } = await fetchVehicleDocumentBlob(vehicleId, documentId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const ext =
+        contentType === "application/pdf"
+          ? "pdf"
+          : contentType.includes("png")
+            ? "png"
+            : contentType.includes("webp")
+              ? "webp"
+              : "jpg";
+      a.download = `vehicle-${vehicleId}-doc-${documentId}.${ext}`;
+      a.rel = "noopener";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    } finally {
+      setOpeningVehicleDocId(null);
+    }
+  };
+
+  const submitVehicleDocUpload = async () => {
+    if (!detailId || detailId <= 0) return;
+    setDocFormError(null);
+    if (!docFile || docFile.size <= 0) {
+      setDocFormError(t("vehicles.documentsFileRequired"));
+      return;
+    }
+    try {
+      await uploadVehicleDocumentMut.mutateAsync({
+        file: docFile,
+        kind: docKind,
+        notes: docNotes.trim() || null,
+      });
+      notify.success(t("common.saved"));
+      setDocFormOpen(false);
+      setDocFile(null);
+      setDocNotes("");
+      setDocKind("REGISTRATION");
+    } catch (e) {
+      setDocFormError(toErrorMessage(e));
+    }
+  };
+
+  const confirmVehicleDocDelete = async () => {
+    if (!docDeleteId || !detailId) return;
+    try {
+      await deleteVehicleDocumentMut.mutateAsync(docDeleteId);
+      notify.success(t("common.saved"));
+      setDocDeleteId(null);
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    }
+  };
 
   const filteredVehicleMaintenances = useMemo(() => {
     const m = detail?.maintenances ?? [];
