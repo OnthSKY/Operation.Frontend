@@ -6,6 +6,7 @@ import {
   createVehicleExpense,
   createVehicleInsurance,
   createVehicleMaintenance,
+  deleteVehicle,
   deleteVehicleExpense,
   deleteVehicleInsurance,
   deleteVehicleMaintenance,
@@ -22,13 +23,20 @@ import {
   updateVehicleMaintenance,
   uploadVehiclePhoto,
 } from "@/modules/vehicles/api/vehicles-api";
+import {
+  deleteVehicleDocument,
+  fetchVehicleDocuments,
+  uploadVehicleDocument,
+} from "@/modules/vehicles/api/vehicle-documents-api";
 import { branchKeys } from "@/modules/branch/hooks/useBranchQueries";
+import type { UploadVehicleDocumentInput } from "@/types/vehicle-document";
 import type { VehicleAuditPageParams } from "@/types/vehicle";
 
 export const vehicleKeys = {
   all: ["vehicles"] as const,
   list: () => [...vehicleKeys.all, "list"] as const,
   detail: (id: number) => [...vehicleKeys.all, "detail", id] as const,
+  documents: (id: number) => [...vehicleKeys.all, "documents", id] as const,
   auditPage: (vehicleId: number, params: VehicleAuditPageParams) =>
     [...vehicleKeys.all, "auditPage", vehicleId, params] as const,
   expenseSummary: (p: {
@@ -51,6 +59,37 @@ export function useVehicle(id: number | null, enabled: boolean) {
     queryKey: vehicleKeys.detail(id ?? 0),
     queryFn: () => fetchVehicle(id!),
     enabled: enabled && id != null && id > 0,
+  });
+}
+
+export function useVehicleDocuments(vehicleId: number | null, enabled: boolean) {
+  return useQuery({
+    queryKey:
+      vehicleId != null && vehicleId > 0
+        ? vehicleKeys.documents(vehicleId)
+        : ([...vehicleKeys.all, "documents", 0] as const),
+    queryFn: () => fetchVehicleDocuments(vehicleId!),
+    enabled: Boolean(enabled && vehicleId != null && vehicleId > 0),
+  });
+}
+
+export function useUploadVehicleDocument(vehicleId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UploadVehicleDocumentInput) => uploadVehicleDocument(vehicleId, input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: vehicleKeys.documents(vehicleId) });
+    },
+  });
+}
+
+export function useDeleteVehicleDocument(vehicleId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (documentId: number) => deleteVehicleDocument(vehicleId, documentId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: vehicleKeys.documents(vehicleId) });
+    },
   });
 }
 
@@ -104,6 +143,16 @@ export function useCreateVehicle() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: createVehicle,
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: vehicleKeys.all });
+    },
+  });
+}
+
+export function useDeleteVehicle() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vehicleId: number) => deleteVehicle(vehicleId),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: vehicleKeys.all });
     },

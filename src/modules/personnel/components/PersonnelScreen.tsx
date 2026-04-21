@@ -10,6 +10,7 @@ import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
 import {
   defaultPersonnelListFilters,
+  personnelKeys,
   usePersonnelList,
   useSoftDeletePersonnel,
   type PersonnelListFilters,
@@ -24,7 +25,8 @@ import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
 import { TableToolbarMoreMenu } from "@/shared/components/TableToolbarMoreMenu";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { StatusBadge } from "@/shared/components/StatusBadge";
-import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileFilters";
+import { FilterFunnelIcon } from "@/shared/components/FilterFunnelIcon";
+import { RightDrawer } from "@/shared/components/RightDrawer";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
 import { Input } from "@/shared/ui/Input";
@@ -49,7 +51,18 @@ import { ToolbarGlyphUserPlus } from "@/shared/ui/ToolbarGlyph";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { PersonnelCostsExpenseModal } from "@/modules/personnel/components/PersonnelCostsExpenseModal";
+import {
+  PersonnelPocketClaimToPatronDialog,
+  PersonnelPocketClaimToStaffDialog,
+} from "@/modules/personnel/components/PersonnelPocketClaimDialogs";
+import { PersonnelCashHandoverToPatronDialog } from "@/modules/personnel/components/PersonnelCashHandoverToPatronDialog";
+import {
+  PersonnelHandoverPatronTransferDialog,
+  type PersonnelHandoverPatronTransferOpen,
+} from "@/modules/personnel/components/PersonnelHandoverPatronTransferDialog";
+import { UI_POCKET_CLAIM_TRANSFER_ENABLED } from "@/modules/branch/lib/product-ui-flags";
 import {
   BranchQuickActionsMenu,
   type QuickActionsMenuSection,
@@ -57,6 +70,7 @@ import {
 import { AdvancePersonnelModal } from "./AdvancePersonnelModal";
 import { CreatePersonnelSystemUserModal } from "./CreatePersonnelSystemUserModal";
 import { PersonnelAdvanceHistory } from "./PersonnelAdvanceHistory";
+import { PersonnelListCashHandoverPoolLine } from "./PersonnelListCashHandoverPoolLine";
 import { PersonnelSettlementSeasonPickerModal } from "./PersonnelSettlementSeasonPickerModal";
 import {
   PersonnelDetailModal,
@@ -260,6 +274,9 @@ function buildPersonnelRowMenuSections(params: {
   t: (key: string) => string;
   onAdvance: () => void;
   onAddExpense: () => void;
+  onPocketClaimToPatron?: () => void;
+  onPocketClaimToStaff?: () => void;
+  onPersonnelCashHandoverToPatron?: () => void;
   onNotes: () => void;
   onInsuranceIntake: () => void;
   onCreateSystemUser: () => void;
@@ -271,6 +288,9 @@ function buildPersonnelRowMenuSections(params: {
     t,
     onAdvance,
     onAddExpense,
+    onPocketClaimToPatron,
+    onPocketClaimToStaff,
+    onPersonnelCashHandoverToPatron,
     onNotes,
     onInsuranceIntake,
     onCreateSystemUser,
@@ -290,18 +310,57 @@ function buildPersonnelRowMenuSections(params: {
     });
   }
   if (!p.isDeleted) {
+    const moneyItems: QuickActionsMenuSection["items"] = [
+      { id: "advance", label: t("personnel.advance"), onSelect: onAdvance },
+      {
+        id: "expense",
+        label: t("personnel.cardQuickAddPersonnelExpense"),
+        onSelect: onAddExpense,
+      },
+      {
+        id: "notes",
+        label: t("personnel.cardQuickNotes"),
+        onSelect: onNotes,
+      },
+    ];
     sections.push({
       storyTitle: t("personnel.quickMenuStoryMoney"),
-      items: [
-        { id: "advance", label: t("personnel.advance"), onSelect: onAdvance },
-        {
-          id: "expense",
-          label: t("personnel.cardQuickAddPersonnelExpense"),
-          onSelect: onAddExpense,
-        },
-        { id: "notes", label: t("personnel.cardQuickNotes"), onSelect: onNotes },
-      ],
+      items: moneyItems,
     });
+    if (onPersonnelCashHandoverToPatron) {
+      sections.push({
+        storyTitle: t("personnel.quickMenuStoryHandoverPool"),
+        items: [
+          {
+            id: "personnelCashHandoverToPatron",
+            label: t("personnel.listMenuHandoverPatronPool"),
+            onSelect: onPersonnelCashHandoverToPatron,
+          },
+        ],
+      });
+    }
+    if (
+      onPocketClaimToPatron &&
+      onPocketClaimToStaff &&
+      p.branchId != null &&
+      p.branchId > 0
+    ) {
+      sections.push({
+        storyTitle: t("personnel.quickMenuStoryPocketClaimNoCash"),
+        items: [
+          {
+            id: "pocketClaimToPatron",
+            label: t("personnel.listMenuPocketClaimToPatron"),
+            onSelect: onPocketClaimToPatron,
+          },
+          {
+            id: "pocketClaimToStaff",
+            label: t("personnel.listMenuPocketClaimToStaff"),
+            onSelect: onPocketClaimToStaff,
+          },
+        ],
+      });
+    }
     sections.push({
       storyTitle: t("personnel.quickMenuStoryInsurance"),
       items: [
@@ -336,6 +395,9 @@ function PersonnelRowActionsToolbar({
   onDeactivate,
   onAdvance,
   onAddExpense,
+  onPocketClaimToPatron,
+  onPocketClaimToStaff,
+  onPersonnelCashHandoverToPatron,
   onNotes,
   onInsuranceIntake,
   onCreateSystemUser,
@@ -354,6 +416,9 @@ function PersonnelRowActionsToolbar({
   onDeactivate: () => void;
   onAdvance: () => void;
   onAddExpense: () => void;
+  onPocketClaimToPatron?: () => void;
+  onPocketClaimToStaff?: () => void;
+  onPersonnelCashHandoverToPatron?: () => void;
   onNotes: () => void;
   onInsuranceIntake: () => void;
   onCreateSystemUser: () => void;
@@ -369,6 +434,9 @@ function PersonnelRowActionsToolbar({
     t,
     onAdvance,
     onAddExpense,
+    onPocketClaimToPatron,
+    onPocketClaimToStaff,
+    onPersonnelCashHandoverToPatron,
     onNotes,
     onInsuranceIntake,
     onCreateSystemUser,
@@ -437,6 +505,7 @@ export function PersonnelScreen() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const isAdmin = user?.role === "ADMIN";
   const personnelPortal = isPersonnelPortalRole(user?.role);
   useHashScroll();
@@ -509,7 +578,11 @@ export function PersonnelScreen() {
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "passive">(
     "all"
   );
+  const [filterInsuranceStatus, setFilterInsuranceStatus] = useState<
+    "all" | "started" | "not_started"
+  >("all");
   const [filterName, setFilterName] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const debouncedFilterName = useDebouncedValue(
     filterName,
@@ -544,6 +617,7 @@ export function PersonnelScreen() {
       seasonArrivalTo: debouncedSeasonArrivalTo,
       hireDateFrom: debouncedCompanyHireFrom,
       hireDateTo: debouncedCompanyHireTo,
+      insuranceStatus: filterInsuranceStatus,
     }),
     [
       filterBranch,
@@ -554,6 +628,7 @@ export function PersonnelScreen() {
       filterJobTitle,
       filterStatus,
       debouncedFilterName,
+      filterInsuranceStatus,
     ]
   );
 
@@ -603,6 +678,15 @@ export function PersonnelScreen() {
     [t]
   );
 
+  const insuranceStatusFilterOptions = useMemo(
+    () => [
+      { value: "all", label: t("personnel.filterInsuranceAll") },
+      { value: "started", label: t("personnel.filterInsuranceStarted") },
+      { value: "not_started", label: t("personnel.filterInsuranceNotStarted") },
+    ],
+    [t]
+  );
+
   const filtersActive = useMemo(() => {
     return (
       filterBranch !== "" ||
@@ -612,6 +696,7 @@ export function PersonnelScreen() {
       filterCompanyHireTo !== "" ||
       filterJobTitle !== "" ||
       filterStatus !== "all" ||
+      filterInsuranceStatus !== "all" ||
       filterName.trim() !== ""
     );
   }, [
@@ -622,6 +707,7 @@ export function PersonnelScreen() {
     filterCompanyHireTo,
     filterJobTitle,
     filterStatus,
+    filterInsuranceStatus,
     filterName,
   ]);
 
@@ -666,6 +752,13 @@ export function PersonnelScreen() {
   const [expensePersonnel, setExpensePersonnel] = useState<Personnel | null>(
     null
   );
+  const [pocketClaimUi, setPocketClaimUi] = useState<
+    null | { mode: "patron" | "staff"; personnel: Personnel }
+  >(null);
+  const [patronHandoverTransferCtx, setPatronHandoverTransferCtx] =
+    useState<PersonnelHandoverPatronTransferOpen | null>(null);
+  const [cashHandoverToPatronPersonnel, setCashHandoverToPatronPersonnel] =
+    useState<Personnel | null>(null);
   const [insuranceIntakeTarget, setInsuranceIntakeTarget] =
     useState<Personnel | null>(null);
 
@@ -840,85 +933,28 @@ export function PersonnelScreen() {
         }
         main={
           <div id="personnel-advance" className="scroll-mt-24 flex flex-col gap-4">
-        <CollapsibleMobileFilters
-          title={t("personnel.listFilters")}
-          toggleAriaLabel={t("common.filters")}
-          active={filtersActive}
-          expandLabel={t("common.filtersShow")}
-          collapseLabel={t("common.filtersHide")}
-        >
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            <Input
-              name="personnelFilterName"
-              label={t("personnel.filterNameSearch")}
-              type="search"
-              autoComplete="off"
-              value={filterName}
-              onChange={(e) => setFilterName(e.target.value)}
-              className="min-w-0"
-            />
-            <Select
-              name="personnelFilterBranch"
-              label={t("personnel.tableBranch")}
-              options={branchFilterOptions}
-              value={filterBranch}
-              onChange={(e) => setFilterBranch(e.target.value)}
-              onBlur={() => {}}
-            />
-            <DateField
-              name="personnelFilterSeasonArrivalFrom"
-              label={t("personnel.filterSeasonArrivalFrom")}
-              value={filterSeasonArrivalFrom}
-              onChange={(e) => setFilterSeasonArrivalFrom(e.target.value)}
-              className="min-w-0"
-            />
-            <DateField
-              name="personnelFilterSeasonArrivalTo"
-              label={t("personnel.filterSeasonArrivalTo")}
-              value={filterSeasonArrivalTo}
-              onChange={(e) => setFilterSeasonArrivalTo(e.target.value)}
-              className="min-w-0"
-            />
-            <DateField
-              name="personnelFilterCompanyHireFrom"
-              label={t("personnel.filterCompanyHireFrom")}
-              value={filterCompanyHireFrom}
-              onChange={(e) => setFilterCompanyHireFrom(e.target.value)}
-              className="min-w-0"
-            />
-            <DateField
-              name="personnelFilterCompanyHireTo"
-              label={t("personnel.filterCompanyHireTo")}
-              value={filterCompanyHireTo}
-              onChange={(e) => setFilterCompanyHireTo(e.target.value)}
-              className="min-w-0"
-            />
-            <Select
-              name="personnelFilterJobTitle"
-              label={t("personnel.tableJobTitle")}
-              options={jobTitleFilterOptions}
-              value={filterJobTitle}
-              onChange={(e) => setFilterJobTitle(e.target.value)}
-              onBlur={() => {}}
-            />
-            <Select
-              name="personnelFilterStatus"
-              label={t("personnel.filterStatus")}
-              options={statusFilterOptions}
-              value={filterStatus}
-              onChange={(e) =>
-                setFilterStatus(e.target.value as "all" | "active" | "passive")
-              }
-              onBlur={() => {}}
-            />
-          </div>
-        </CollapsibleMobileFilters>
-
         <Card
           title={t("personnel.team")}
           description={t("personnel.teamDesc")}
           headerActions={
             <>
+              <Tooltip content={t("personnel.listFilters")} delayMs={200}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className={cn(TABLE_TOOLBAR_ICON_BTN, "relative")}
+                  onClick={() => setFiltersOpen(true)}
+                  aria-label={t("personnel.listFilters")}
+                >
+                  <FilterFunnelIcon className="h-5 w-5" />
+                  {filtersActive ? (
+                    <span
+                      className="absolute right-1 top-1 h-2 w-2 rounded-full bg-violet-500 ring-2 ring-white"
+                      aria-hidden
+                    />
+                  ) : null}
+                </Button>
+              </Tooltip>
               <TableToolbarMoreMenu menuId="personnel-toolbar-more" items={personnelToolbarMoreItems} />
               <Tooltip content={t("personnel.add")} delayMs={200}>
                 <Button
@@ -1046,6 +1082,23 @@ export function PersonnelScreen() {
                             onDeactivate={() => openSoftDelete(p)}
                             onAdvance={() => openAdvance(p.id)}
                             onAddExpense={() => setExpensePersonnel(p)}
+                            onPersonnelCashHandoverToPatron={() =>
+                              setCashHandoverToPatronPersonnel(p)
+                            }
+                            {...(UI_POCKET_CLAIM_TRANSFER_ENABLED
+                              ? {
+                                  onPocketClaimToPatron: () =>
+                                    setPocketClaimUi({
+                                      mode: "patron",
+                                      personnel: p,
+                                    }),
+                                  onPocketClaimToStaff: () =>
+                                    setPocketClaimUi({
+                                      mode: "staff",
+                                      personnel: p,
+                                    }),
+                                }
+                              : {})}
                             onNotes={() => openPersonnelDetail(p, "notes")}
                             onInsuranceIntake={() =>
                               setInsuranceIntakeTarget(p)
@@ -1153,6 +1206,11 @@ export function PersonnelScreen() {
                             </div>
                           </dl>
                           <div className="mt-3 border-t border-zinc-200/80 pt-3">
+                            <PersonnelListCashHandoverPoolLine
+                              personnelId={p.id}
+                              currencyCode={p.currencyCode}
+                              className="mb-3 text-xs leading-snug"
+                            />
                             <PersonnelAdvanceHistory
                               personnelId={p.id}
                               variant="card"
@@ -1305,6 +1363,11 @@ export function PersonnelScreen() {
                             : t("personnel.systemUserNone")}
                         </TableCell>
                         <TableCell className="max-w-[24rem] align-top text-zinc-600">
+                          <PersonnelListCashHandoverPoolLine
+                            personnelId={p.id}
+                            currencyCode={p.currencyCode}
+                            className="mb-2 text-xs leading-snug"
+                          />
                           <PersonnelAdvanceHistory
                             personnelId={p.id}
                             variant="inline"
@@ -1323,6 +1386,23 @@ export function PersonnelScreen() {
                             onDeactivate={() => openSoftDelete(p)}
                             onAdvance={() => openAdvance(p.id)}
                             onAddExpense={() => setExpensePersonnel(p)}
+                            onPersonnelCashHandoverToPatron={() =>
+                              setCashHandoverToPatronPersonnel(p)
+                            }
+                            {...(UI_POCKET_CLAIM_TRANSFER_ENABLED
+                              ? {
+                                  onPocketClaimToPatron: () =>
+                                    setPocketClaimUi({
+                                      mode: "patron",
+                                      personnel: p,
+                                    }),
+                                  onPocketClaimToStaff: () =>
+                                    setPocketClaimUi({
+                                      mode: "staff",
+                                      personnel: p,
+                                    }),
+                                }
+                              : {})}
                             onNotes={() => openPersonnelDetail(p, "notes")}
                             onInsuranceIntake={() => setInsuranceIntakeTarget(p)}
                             onCreateSystemUser={() => openCreateSystemUser(p)}
@@ -1342,6 +1422,101 @@ export function PersonnelScreen() {
             </>
           )}
         </Card>
+
+            <RightDrawer
+              open={filtersOpen}
+              onClose={() => setFiltersOpen(false)}
+              title={t("personnel.listFilters")}
+              closeLabel={t("common.close")}
+              backdropCloseRequiresConfirm={false}
+            >
+              <div className="space-y-4">
+                <p className="text-xs leading-relaxed text-zinc-500">
+                  {t("personnel.listFiltersDrawerHint")}
+                </p>
+                <div className="grid gap-4 sm:grid-cols-1">
+                  <Input
+                    name="personnelFilterName"
+                    label={t("personnel.filterNameSearch")}
+                    type="search"
+                    autoComplete="off"
+                    value={filterName}
+                    onChange={(e) => setFilterName(e.target.value)}
+                    className="min-w-0"
+                  />
+                  <Select
+                    name="personnelFilterBranch"
+                    label={t("personnel.tableBranch")}
+                    options={branchFilterOptions}
+                    value={filterBranch}
+                    onChange={(e) => setFilterBranch(e.target.value)}
+                    onBlur={() => {}}
+                    menuZIndex={280}
+                  />
+                  <DateField
+                    name="personnelFilterSeasonArrivalFrom"
+                    label={t("personnel.filterSeasonArrivalFrom")}
+                    value={filterSeasonArrivalFrom}
+                    onChange={(e) => setFilterSeasonArrivalFrom(e.target.value)}
+                    className="min-w-0"
+                  />
+                  <DateField
+                    name="personnelFilterSeasonArrivalTo"
+                    label={t("personnel.filterSeasonArrivalTo")}
+                    value={filterSeasonArrivalTo}
+                    onChange={(e) => setFilterSeasonArrivalTo(e.target.value)}
+                    className="min-w-0"
+                  />
+                  <DateField
+                    name="personnelFilterCompanyHireFrom"
+                    label={t("personnel.filterCompanyHireFrom")}
+                    value={filterCompanyHireFrom}
+                    onChange={(e) => setFilterCompanyHireFrom(e.target.value)}
+                    className="min-w-0"
+                  />
+                  <DateField
+                    name="personnelFilterCompanyHireTo"
+                    label={t("personnel.filterCompanyHireTo")}
+                    value={filterCompanyHireTo}
+                    onChange={(e) => setFilterCompanyHireTo(e.target.value)}
+                    className="min-w-0"
+                  />
+                  <Select
+                    name="personnelFilterJobTitle"
+                    label={t("personnel.tableJobTitle")}
+                    options={jobTitleFilterOptions}
+                    value={filterJobTitle}
+                    onChange={(e) => setFilterJobTitle(e.target.value)}
+                    onBlur={() => {}}
+                    menuZIndex={280}
+                  />
+                  <Select
+                    name="personnelFilterInsuranceStatus"
+                    label={t("personnel.filterInsuranceStatus")}
+                    options={insuranceStatusFilterOptions}
+                    value={filterInsuranceStatus}
+                    onChange={(e) =>
+                      setFilterInsuranceStatus(
+                        e.target.value as "all" | "started" | "not_started",
+                      )
+                    }
+                    onBlur={() => {}}
+                    menuZIndex={280}
+                  />
+                  <Select
+                    name="personnelFilterStatus"
+                    label={t("personnel.filterStatus")}
+                    options={statusFilterOptions}
+                    value={filterStatus}
+                    onChange={(e) =>
+                      setFilterStatus(e.target.value as "all" | "active" | "passive")
+                    }
+                    onBlur={() => {}}
+                    menuZIndex={280}
+                  />
+                </div>
+              </div>
+            </RightDrawer>
           </div>
         }
       />
@@ -1382,6 +1557,48 @@ export function PersonnelScreen() {
         onClose={() => setExpensePersonnel(null)}
         defaultLinkedPersonnelId={expensePersonnel?.id}
       />
+      {UI_POCKET_CLAIM_TRANSFER_ENABLED ? (
+        <>
+          <PersonnelPocketClaimToPatronDialog
+            open={
+              pocketClaimUi?.mode === "patron" &&
+              pocketClaimUi.personnel != null &&
+              !pocketClaimUi.personnel.isDeleted
+            }
+            onClose={() => setPocketClaimUi(null)}
+            branchId={pocketClaimUi?.personnel.branchId ?? 0}
+            fromPersonnelId={pocketClaimUi?.personnel.id ?? 0}
+            fromPersonnelDisplayName={
+              pocketClaimUi?.personnel
+                ? personnelDisplayName(pocketClaimUi.personnel)
+                : ""
+            }
+            defaultCurrencyCode={
+              pocketClaimUi?.personnel.currencyCode?.trim().toUpperCase() ||
+              "TRY"
+            }
+          />
+          <PersonnelPocketClaimToStaffDialog
+            open={
+              pocketClaimUi?.mode === "staff" &&
+              pocketClaimUi.personnel != null &&
+              !pocketClaimUi.personnel.isDeleted
+            }
+            onClose={() => setPocketClaimUi(null)}
+            branchId={pocketClaimUi?.personnel.branchId ?? 0}
+            fromPersonnelId={pocketClaimUi?.personnel.id ?? 0}
+            fromPersonnelDisplayName={
+              pocketClaimUi?.personnel
+                ? personnelDisplayName(pocketClaimUi.personnel)
+                : ""
+            }
+            defaultCurrencyCode={
+              pocketClaimUi?.personnel.currencyCode?.trim().toUpperCase() ||
+              "TRY"
+            }
+          />
+        </>
+      ) : null}
       <AddPersonnelInsurancePeriodModal
         open={
           insuranceIntakeTarget != null && !insuranceIntakeTarget.isDeleted
@@ -1402,6 +1619,47 @@ export function PersonnelScreen() {
         busy={pdfSeasonBusy}
         onConfirm={(p, seasonYear) => void runPersonnelPdfWithSeason(p, seasonYear)}
       />
+      <PersonnelHandoverPatronTransferDialog
+        open={patronHandoverTransferCtx != null && !patronHandoverTransferCtx.personnel.isDeleted}
+        ctx={patronHandoverTransferCtx}
+        onClose={() => {
+          const pid = patronHandoverTransferCtx?.personnel.id;
+          setPatronHandoverTransferCtx(null);
+          if (pid != null) {
+            void queryClient.invalidateQueries({
+              queryKey: personnelKeys.managementSnapshot(pid),
+            });
+          }
+        }}
+      />
+      {cashHandoverToPatronPersonnel != null && !cashHandoverToPatronPersonnel.isDeleted ? (
+        <PersonnelCashHandoverToPatronDialog
+          open
+          personnel={cashHandoverToPatronPersonnel}
+          branchName={
+            cashHandoverToPatronPersonnel.branchId != null
+              ? branchNameById.get(cashHandoverToPatronPersonnel.branchId)
+              : undefined
+          }
+          onClose={() => {
+            const pid = cashHandoverToPatronPersonnel.id;
+            setCashHandoverToPatronPersonnel(null);
+            void queryClient.invalidateQueries({
+              queryKey: personnelKeys.managementSnapshot(pid),
+            });
+          }}
+          onOpenPatronRegister={(ctx) => {
+            setCashHandoverToPatronPersonnel(null);
+            setPatronHandoverTransferCtx({
+              personnel: ctx.personnel,
+              branchId: ctx.branchId,
+              branchName: ctx.branchName ?? branchNameById.get(ctx.branchId),
+              currencyCode: ctx.currencyCode,
+              suggestedAmount: ctx.suggestedAmount,
+            });
+          }}
+        />
+      ) : null}
       <PersonnelProfilePhotoPreviewModal
         open={profilePhotoPreviewPerson != null}
         onClose={() => setProfilePhotoPreviewPerson(null)}

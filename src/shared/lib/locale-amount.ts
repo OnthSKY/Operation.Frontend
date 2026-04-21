@@ -73,8 +73,19 @@ export function formatAmountInputOnBlur(raw: string, locale: Locale): string {
   return formatLocaleAmountInput(n, locale);
 }
 
+/** Kopyala-yapıştır / tablo gösterimi sonrası kalan para birimi soneklerini ayıklar. */
+function stripTrailingCurrencyTokens(s: string): string {
+  let t = s.replace(/[\u00a0\u202f]/g, "").trim();
+  for (let i = 0; i < 6; i++) {
+    const next = t.replace(/(?:TL|TRY|USD|EUR|GBP|CHF|JPY|CNY|₺|€|\$)+$/iu, "").trim();
+    if (next === t) break;
+    t = next;
+  }
+  return t;
+}
+
 export function parseLocaleAmount(raw: string, locale: Locale): number {
-  const s = raw.trim().replace(/\s/g, "");
+  const s = stripTrailingCurrencyTokens(raw.trim().replace(/\s/g, ""));
   if (!s) return NaN;
 
   if (locale === "tr") {

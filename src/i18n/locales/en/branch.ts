@@ -9,19 +9,35 @@ export const branch = {
   add: "Add branch",
   addTitle: "New branch",
   addHint:
-    "Name is required (max 100 characters). You must choose how POS / card takings are attributed for this branch.",
+    "Name is required (max 100 characters). POS beneficiary is required; for franchise, joint venture, or other, the note must state where takings go.",
   addPosSettlementLegend: "POS / card takings — who is the beneficiary?",
   addPosSettlementLead:
-    "Required. This is stored as the branch POS profile (same as Patron flow report).",
+    "Required. Pick who card/POS takings accrue to in reporting. For franchise, joint venture, or other, you must spell out the economic destination in the note.",
   posSettlementPatron: "Patron / company",
+  posSettlementPatronHint: "Card/POS takings are labeled as accruing to the owner/company.",
   posSettlementFranchise: "Franchise",
+  posSettlementFranchiseHint:
+    "Takings are attributed to the franchise operator side. Royalties, settlement splits, or bank routing are not derived from this choice alone — add contract or account detail in notes.",
   posSettlementJoint: "Joint venture / partnership",
+  posSettlementJointHint:
+    "Takings are attributed to the joint-venture model. Partner share or payout account is not configured here — spell out the arrangement in notes.",
   posSettlementBranchPersonnel: "Branch operator (named staff)",
+  posSettlementBranchPersonnelHint:
+    "A named staff member appears as payee in reports (pick them in Branches → POS settlement profile after assigning staff to this branch).",
   posSettlementOther: "Other",
+  posSettlementOtherHint:
+    "Use for mixed or bespoke structures; explain who or which entity is the payee in notes.",
   posBranchPersonnelFollowUp:
-    "After you assign staff to this branch, open Reports → Patron flow and pick the POS payee person if needed.",
+    "After you assign staff to this branch, open Branches → quick actions → POS settlement profile and pick the payee person if needed.",
   posSettlementNotesLabel: "Notes (optional)",
   posSettlementNotesPlaceholder: "e.g. contract reference, operating model detail…",
+  posSettlementNotesPlaceholderRequired:
+    "Required: who or which entity receives POS takings? (e.g. franchise legal name, partner share…)",
+  posSettlementNotesRequired:
+    "For franchise, joint venture, or other, enter a note that states where takings economically go.",
+  posSettlementNotesRequiredHint:
+    "The app does not infer a single payee for these three types — document the destination here.",
+  posSettlementNotesMaxLength: "At most 500 characters.",
   edit: "Edit branch",
   editTitle: "Edit branch",
   editHint: "PUT /api/branches/{id} — name, address, and branch managers (assigned staff only).",
@@ -68,6 +84,11 @@ export const branch = {
   quickAddDayClose: "Add day close",
   listRowPdfSettlement:
     "PDF report (advances, expenses, notes — by branch)",
+  listRowPosProfile: "POS settlement profile (beneficiary)",
+  posProfileUnsetHint:
+    "No profile saved for this branch yet — pick a beneficiary and save.",
+  posProfileReportsHint:
+    "Used on Patron flow and related views for the POS / card takings label.",
   branchPdfOptionsTitle: "Branch PDF — what to include?",
   branchPdfOptionsIntro:
     "Choose which blocks to load and how stock is shown. Checked sections appear in the report and drive the summary lines.",
@@ -181,13 +202,23 @@ export const branch = {
   personnelSubTabsAria: "Personnel section tabs",
   personnelSubTabPeople: "Staff list",
   personnelSubTabAdvances: "Advances given",
+  personnelSummaryCardAssigned: "Assigned to branch",
+  personnelSummaryCardStarted: "Started (hire date)",
+  personnelSummaryCardAdvancesLifetime: "Total advances (all-time)",
+  personnelSummaryCardAdvancesFiscalYear: "Advances (FY {year})",
+  personnelSummaryFiscalAdvancesCountHint: "{n} advance record(s)",
+  personnelSummaryCardPocketPaid: "Paid from pocket (total)",
+  personnelSummaryCardNetRegisterOwes: "Net owed to staff (pocket)",
   tabIncome: "Income",
   tabExpenses: "Expenses",
   tabStock: "Stock in",
   tabTourismSeason: "Tourism season",
   tabZReportAccounting: "Z report (accounting)",
   tabNotes: "Notes",
+  tabDocuments: "Documents",
   tourismSeasonClosedOpenTab: "Go to tourism season tab",
+  expensesSeasonMissingForToday:
+    "There is no open tourism season covering today for this branch. Without an operating season, posting branch-register expenses is blocked on the server; add a season row or pick a transaction date inside an open season. Only register income (IN) may still be allowed when the central “Closed season allowances” policy permits it.",
   zReportTabFilterYear: "Year",
   zReportTabFilterYearPh: "Empty = current year",
   zReportTabResetYear: "Reset year",
@@ -204,8 +235,38 @@ export const branch = {
   notesBodyLabel: "Note text",
   notesBodyRequired: "Note text is required.",
   notesBodyTooLong: "Note text cannot exceed 4000 characters.",
+  docKindTaxBase: "Tax base certificate",
+  docKindWorkPermit: "Work permit / operating certificate",
+  docKindAgricultureCert: "Agriculture / related certificate",
+  docKindOther: "Other",
+  documentsIntro:
+    "Upload PDF or image files (tax base, work permit, agriculture certificate, etc.). Staff can add and remove; everyone who can open the branch can download.",
+  documentsAdd: "Upload document",
+  documentsEmpty: "No documents uploaded for this branch yet.",
+  documentsOpen: "Download",
+  documentsUploadTitle: "Upload branch document",
+  documentsKindLabel: "Document type",
+  documentsFileLabel: "File (PDF or image)",
+  documentsFileRequired: "Choose a file to upload.",
+  documentsNotesLabel: "Notes (optional)",
+  documentsNotesPlaceholder: "e.g. expiry date, issuing authority",
+  documentsUploadSubmit: "Upload",
+  documentsDeleteTitle: "Delete document",
+  documentsDeleteConfirm: "Delete this file? This cannot be undone.",
   tSeasonHint:
     "Record season year and open/close dates retrospectively. If close date is empty, the season is treated as still open.",
+  tSeasonGuideTitle: "Tourism season & closure — how it works",
+  tSeasonGuideStep1:
+    "For each season year, set the open date. When the season ends, set the close date; if close is empty, the season is still treated as open.",
+  tSeasonGuideStep2:
+    "When adding a new season year, the system checks prior-calendar-year account closure for personnel tied to this branch; if incomplete, it lists them and blocks save.",
+  tSeasonGuideStep3:
+    "Income and expense summaries use the season row that covers “today” based on the dates you maintain here.",
+  tSeasonGuideStep4:
+    "If the tourism season is closed on a transaction day, register operation types follow the central “Allowed when season closed” policy.",
+  tSeasonGuidePolicyLink: "Manage closed-season allowances (admins)",
+  tSeasonGuidePolicyNoteViewer:
+    "Which register actions stay open when the season is closed is a central setting; ask your system administrator to change it.",
   tSeasonFilterYear: "Season year (filter)",
   tSeasonFilterYearPh: "Empty = all years",
   tSeasonFilterYearInvalid: "Enter a year between 1990 and 2100, or clear the field.",
@@ -248,34 +309,67 @@ export const branch = {
   zReportStatusSent: "Sent",
   zReportColSentAt: "Confirmed at",
   zReportColSentBy: "By",
-  incomeHint:
-    "Register income rows (IN). Income is the sum of line amounts; cash and card are the payment split (when entered correctly, income ≈ cash + card).",
-  incomeDateScopeTitle: "What updates when you change dates?",
-  incomeDateScopeDaySummary:
-    "Day summary (three cards in the green block below): Only when start and end are the same day; that calendar day’s income / cash / card split.",
-  incomeDateScopeCumulative:
-    "Cumulative summary (three cards at the top of the green block): Also only when a single day is selected; IN totals from the first record through that day (inclusive) — always visible.",
-  incomeDateScopeListPatron:
-    "Income lines list and the Patron flow box (if shown): Always follow the start–end range (plus list filters), whether you pick one day or a range.",
   incomeSummarySectionTitle: "Branch income — summary",
-  incomeSummarySectionLead:
-    "Top block: cumulative through the selected day; lower block: that calendar day’s split only (start = end).",
+  incomeSummaryCardsLead:
+    "Top: all-time and (when defined for today) open tourism season IN income through today. The cards below follow the list dates in Filters; they do not change the top cumulatives. Cash cards include who holds the cash.",
+  incomePatronKasaSplitTitle: "Patron vs register (same calendar day)",
+  incomePatronKasaSplitLead:
+    "Uses the register-summary date: off-register advances (no drawer OUT yet), OUT_NON_PNL by payment source, other OUT by source, and net owed to the owner for that day.",
+  incomeSplitOffRegisterAdvTitle: "Off-register advances (recorded that day)",
+  incomeSplitOffRegisterAdvPatron: "Patron-funded (PATRON)",
+  incomeSplitOffRegisterAdvBank: "Bank-funded (BANK)",
+  incomeSplitOffRegisterAdvTotal: "Total (accounting advance line)",
+  incomeSplitOutNonPnlTitle: "OUT_NON_PNL lines — payment source",
+  incomeSplitOutNonPnlRegister: "From register cash",
+  incomeSplitOutNonPnlPatron: "Patron-paid",
+  incomeSplitOutNonPnlPocket: "Staff pocket",
+  incomeSplitOutNonPnlTotal: "Total OUT_NON_PNL",
+  incomeSplitOtherOutTitle: "Other economic OUT (excl. OUT_NON_PNL)",
+  incomeSplitOtherOutRegister: "Register cash",
+  incomeSplitOtherOutPatron: "Patron-paid",
+  incomeSplitOtherOutPocket: "Staff pocket",
+  incomeSplitDayNetPatron: "Net owed to owner (day)",
+  incomeCumulativeAllTimeTitle: "All time — through today",
+  incomeCumulativeSeasonTitle: "This season — through today",
+  incomeSeasonYearShort: "Season year",
+  incomeSeasonOpenEnded: "open season",
+  incomeSeasonMissingForToday: "No tourism period covers today for this branch; add one under Tourism season.",
+  incomeListDatesSummaryTitle: "Summary for list dates",
+  incomeListDatesSummaryLead:
+    "Set start and end under Filters. Same day = that day’s register snapshot; different days = period total. Empty both dates defaults to today. Amounts transferred to the owner appear inside the cards for the same date scope as the list.",
+  incomeListPatronTransferredCash: "Cash transferred to owner (filter)",
+  incomeListPatronTransferredCard: "Card/POS to owner (filter)",
+  incomeListPatronTransferredTotal: "Income to owner (filter)",
+  incomeListPosPatronHint:
+    "Card/POS intake is tracked on the owner side per branch POS settlement policy; see cash settlement on line items.",
+  incomeListInvalidRange: "Start date cannot be after end date.",
+  incomeListDatesIncomplete: "Dates are incomplete or invalid; both fields need a full date.",
+  incomeCashPartyPatron: "Cash — patron",
+  incomeCashPartyBranchManager: "Cash — branch lead",
+  incomeCashBranchManagerBreakdownToggle: "Split by named cashier (details)",
+  incomeCashBranchManagerUnassigned: "Recorded without named cashier",
+  incomeCashPartyRemains: "Cash — stays at branch",
+  incomeCashPartyUnspecified: "Cash — unset / other",
+  incomeDayForDatePrefix: "Day summary —",
+  incomePeriodTitle: "Period summary (income)",
+  incomePeriodForRangePrefix: "Selected range —",
+  incomePeriodTotal: "Period — income",
+  incomePeriodCash: "Period — cash",
+  incomePeriodCard: "Period — credit card (POS)",
   incomeCloseTitle: "Day summary (income)",
-  incomeCloseHint:
-    "These three cards are for the single selected day only (start = end). Income: sum of line amounts that day; cash and card are the payment split. The list uses the same day.",
-  incomeCloseTotal: "Income (day)",
-  incomeCloseCash: "Cash (day)",
-  incomeCloseCard: "Card (day)",
-  incomeCumulativeTitle: "Through selected day (all time)",
-  incomeCumulativeHint:
-    "The end date is the same single day as the day summary below (start = end). IN totals from the first record through that day (inclusive).",
-  incomeCumulativeRevealTap: "Tap to show",
-  incomeCumulativeTotal: "Income (cumulative)",
-  incomeCumulativeCash: "Cash (cumulative)",
-  incomeCumulativeCard: "Card (cumulative)",
-  incomeClosePickSingleDay:
-    "Use the same start and end date (or Today) to show the day and cumulative cards above. The list still follows whatever start–end range you set.",
+  incomeCloseTotal: "Day — income",
+  incomeCloseCash: "Day — cash",
+  incomeCloseCard: "Day — credit card (POS)",
+  incomeCumulativeTitle: "Through today (all time)",
+  incomeCumulativeTotal: "Cumulative — income",
+  incomeCumulativeCash: "Cumulative — cash",
+  incomeCumulativeCard: "Cumulative — credit card (POS)",
   incomeActionsTitle: "Income actions",
+  incomeFilterOpenButton: "Filters",
+  incomeFilterDrawerTitle: "Income list filters",
+  incomeFilterDrawerHint:
+    "These dates filter the income list only. Top cumulatives are always through today; day / range cards live in the section below.",
+  incomeFilterApplyAndClose: "Apply & close",
   incomeListSection: "Income lines (IN)",
   noIncome: "No income matches these filters.",
   dashMonthPicker: "Report month",
@@ -290,7 +384,10 @@ export const branch = {
   dashDayMovements: "Register lines for selected day",
   registerDayBookTitle: "Income and expense lines recorded for this day",
   expensesHint:
-    "Check the day-close summary first. When from/to are the same day, totals match the list below; bank/patron advances are shown separately.",
+    "Top: all-time through today, then (when applicable) this tourism season through today with the same cards. «Summary for list dates» defaults to today. Expenses do not use a «cash with branch cashier» split.",
+  expensesSummarySectionTitle: "Branch expenses — summary",
+  expensesSummaryCardsLead:
+    "Top: all-time through today and (when applicable) the tourism season through today with the same expense cards. Cards are not mutually exclusive; explanatory notes appear in each block.",
   expensesCloseTitle: "Day-close register summary",
   expensesCloseHint:
     "From and to are the same day — cards and list use that date. «Net owed to owner» subtracts same-day register repayments to the owner; the violet box above (when shown) is gross owner-paid expenses for the list filters.",
@@ -302,6 +399,130 @@ export const branch = {
   expensesCloseNonRegister: "Off-register advance (day)",
   expensesClosePickSingleDay:
     "Pick the same start and end date for the summary, or tap Today.",
+  expensesSummaryLifetimeBlockTitle: "All time (through today)",
+  expensesSummaryLifetimeBlockLead:
+    "From the branch’s first recorded movement through today: takings plus how expenses were paid and grouped by type.",
+  expensesSummarySeasonBlockTitle: "This tourism season (through today)",
+  expensesSummarySeasonBlockLead:
+    "From the active season’s first day through today using the same measures; compare with «all time» above.",
+  expensesTabTotalIncome: "Total takings",
+  expensesTabOutRegister: "Paid from the branch register",
+  expensesTabOutPatron: "Paid by the owner",
+  expensesTabOutPocket: "Paid from staff pocket",
+  expensesTabOutPocketHint: "No cash left the drawer; amount reflects register debt to staff.",
+  expensesTabPersonnelMain: "Direct staff-related expenses",
+  expensesTabBranchOps: "Branch operating expenses",
+  expensesTabBranchOpsHint:
+    "Goods/stock, operations, tax, and other expense mains (OUT_GOODS, OUT_OPS, OUT_TAX, OUT_OTHER). Staff, advances, and general-overhead share are separate cards.",
+  expensesTabAdvanceNonPnl: "Advances and similar off-register items",
+  expensesTabGeneralOverhead: "Share from general overhead",
+  expensesTabGeneralOverheadHint:
+    "Total allocated to this branch from central general-overhead pools. If paid by owner/register, the same amount also appears on those cards.",
+  expensesSummaryCardsOrthogonalNote:
+    "Cards are not mutually exclusive: one expense line can appear on several cards at once (payment source, main category, and general-overhead share). Do not add card totals to invent a single “total expense”.",
+  expensesOverlapTitle: "General-overhead share — the same OUT line also shows up as:",
+  expensesOverlapBulPatron: "Amount also counted on the owner-paid card:",
+  expensesOverlapBulRegister: "Amount also counted on the register-paid card (cash component rules):",
+  expensesOverlapBulPocket: "Amount also counted on the staff-pocket card:",
+  expensesOverlapBulBranchMain: "Amount also counted on the branch operating bucket:",
+  expensesOverlapFooter:
+    "These slices refer to the same underlying rows; they answer different questions. Use the table below or the expense list for the net line view.",
+  expensesCardDetailOverheadOverlapIntro:
+    "Each row is one OUT transaction. The same amount may also appear on owner/register/operating cards above—do not sum cards across dimensions.",
+  expensesCardDetailRegisterGoOverlapLabel: "Including general-overhead share (register):",
+  expensesCardDetailRegisterGoOverlapExplain:
+    "Central allocation paid/treated from the register; can be the same movement as the general-overhead card.",
+  expensesCardDetailPatronGoOverlapLabel: "Including general-overhead share (owner-paid):",
+  expensesCardDetailPatronGoOverlapExplain:
+    "Central allocation marked owner-paid; can overlap with the general-overhead and operating cards.",
+  expensesCardDetailPocketGoOverlapLabel: "Including general-overhead share (staff pocket):",
+  expensesCardDetailPocketGoOverlapExplain:
+    "Central allocation marked staff-pocket paid; can be the same line as the general-overhead card.",
+  expensesCardDetailBranchGoOverlapLabel: "Including general-overhead share (operating mains):",
+  expensesCardDetailBranchGoOverlapExplain:
+    "If the allocated line’s main category is goods/ops/tax/other, it also contributes here alongside general-overhead and payment-source views.",
+  expensesCardAxisIncome: "Income (IN); not a payment-source slice.",
+  expensesCardAxisRegister: "Slice: paid from the branch register.",
+  expensesCardAxisPatron: "Slice: paid by the owner (outside the register).",
+  expensesCardAxisPocket: "Slice: paid from staff pocket.",
+  expensesCardAxisMainCategoryPersonnel:
+    "Slice: main category (staff). Register vs owner: use the register/owner/pocket cards and each line.",
+  expensesCardAxisMainCategoryBranch:
+    "Slice: operating mains. Register vs owner: use the register/owner/pocket cards and each line.",
+  expensesCardAxisMainCategoryAdvance:
+    "Slice: advance / off-register mains. Payment: line payment source + cards above.",
+  expensesCardAxisCentralShare:
+    "Slice: central general-overhead allocation. The same amount may also appear on register/owner/pocket cards.",
+  expensesCardAxisTopMain: "Slice: largest main category. Payment is separate (register/owner/pocket cards).",
+  expensesCardAxisOutLines: "Slice: economic expense line count. Payment is separate.",
+  expensesCardTapForDetail: "Tap for details",
+  expensesTabTopExpenseCategory: "Top expense main category",
+  expensesTabTopExpenseCategoryEmpty: "—",
+  expensesTabEconomicOutCount: "Economic expense line count",
+  expensesTabEconomicOutCountHint:
+    "Number of expense (OUT) lines in the period, excluding advances and debt-repayment lines from the economic bucket.",
+  expensesCardDetailClose: "Close",
+  expensesCardDetailIncome:
+    "Sum of all income (IN) lines in this period. Use the Income tab to review individual lines.",
+  expensesCardDetailRegister:
+    "Expenses paid from the branch register: register payment source (or legacy blank) with the same cash-split rules as summaries.",
+  expensesCardDetailPatron:
+    "Expenses paid directly by the owner (OUT, owner-paid). Reflects what the branch register owes the owner for those lines.",
+  expensesCardDetailPocket:
+    "Expenses paid from staff pocket. No cash left the drawer; amounts increase the register’s debt to the staff member.",
+  expensesCardDetailPersonnel:
+    "Total OUT lines whose main category is staff-related (depends on how each line was categorized).",
+  expensesCardDetailBranch:
+    "Sum of OUT lines tagged for day‑to‑day branch operations: goods/stock (OUT_GOODS), operations (OUT_OPS), tax (OUT_TAX), and other expense (OUT_OTHER). Staff (OUT_PERSONNEL), off‑register/advance (OUT_NON_PNL), and debt‑repayment mains are excluded. If a central general‑overhead allocation line uses one of those four mains, it is included here too and may also appear on the general‑overhead share card.",
+  expensesCardDetailMatchingCardTotalLabel: "Amount on the card (this period)",
+  expensesCardDetailGoTableVsCardHint:
+    "The table below lists only central general‑overhead allocation lines. The card total also includes non‑pool branch lines in the same mains, so the table does not have to add up to the card.",
+  expensesCardDetailBranchNonGoPortionLabel:
+    "Branch operating expenses without a general‑overhead pool (card total minus the general‑overhead share above):",
+  expensesCardDetailBranchNonGoPortionHint:
+    "These are branch OUT lines in OUT_GOODS / OUT_OPS / OUT_TAX / OUT_OTHER that are not central pool allocations. Filter the expense list by those mains for line detail.",
+  expensesBranchOperatingListTitle: "Lines in this period",
+  expensesBranchOperatingListLead:
+    "Badges: purple = central general‑overhead share; green = direct branch (same mains, no pool). The card total matches the sum of these rows (within the row cap).",
+  expensesBranchLineBadgeGo: "General‑overhead share",
+  expensesBranchLineBadgeDirect: "Direct branch",
+  expensesBranchOperatingListTruncated:
+    "Only the latest 250 lines are shown; use the expense list for older rows.",
+  expensesBranchOperatingListEmpty: "No lines to list for this period.",
+  expensesCardDetailAdvance:
+    "Total of OUT_NON_PNL style lines tracked as advances / off-register items in this period.",
+  expensesCardDetailOverheadEmpty: "No general-overhead allocation lines in this period.",
+  expensesCardDetailGoColPool: "Pool",
+  expensesCardDetailGoColDate: "Date",
+  expensesCardDetailGoColAmount: "Amount",
+  expensesCardDetailGoColMain: "Main category",
+  expensesCardDetailGoColPay: "Payment",
+  expensesCardDetailGoColDesc: "Description",
+  expensesCardDetailGoColTx: "Line id",
+  expensesCardDetailGoLinesTitlePatron: "General-overhead lines — owner-paid",
+  expensesCardDetailGoLinesTitleRegister: "General-overhead lines — counted toward register share",
+  expensesCardDetailGoLinesTitlePocket: "General-overhead lines — staff pocket",
+  expensesCardDetailGoLinesTitleBranch: "General-overhead lines — operating main categories",
+  expensesCardDetailGoLinesFilteredEmpty: "No general-overhead lines match this slice.",
+  expensesCardDetailGoLinesRegisterFootnote:
+    "Rows use the same filter as the register share figure (e.g. unpaid ops invoices excluded from the register component). Cash/card splits can make line totals differ from the headline amount.",
+  expensesCardDetailTopCategoryEmpty: "No economic expenses in this period or no category split.",
+  expensesCardDetailTopCategoryLead:
+    "The main OUT category with the largest summed amount in the period (same economic filters as the day-close style summaries).",
+  expensesCardDetailOutCountLead:
+    "Count of distinct economic OUT transactions in the same date range.",
+  expensesListDatesSummaryTitle: "Summary for list dates",
+  expensesListDatesSummaryLead:
+    "Set start and end under «Filters». Same day: that day’s register bridge; a range: filtered OUT total, owner-paid OUT total, and row count. Empty dates default to today.",
+  expensesListFilteredTotal: "Filtered expense (OUT) total",
+  expensesListPeriodPatronTotal: "Owner-paid expenses (OUT+PATRON)",
+  expensesListPeriodRowCount: "Matching rows",
+  expensesListDayForPrefix: "Selected day:",
+  expensesActionsTitle: "Expense actions",
+  expenseFilterDrawerTitle: "Expense list filters",
+  expenseFilterDrawerHint:
+    "Date and category filters match the list below. Apply refreshes the list and closes the drawer.",
+  expenseFilterApplyAndClose: "Apply and close",
   expensesListSection: "Expense lines (OUT)",
   filterToday: "Today",
   filterAllDates: "All dates",
@@ -330,12 +551,21 @@ export const branch = {
   expensePayRegister: "Paid from branch register",
   expensePayPatron: "Owner paid (outside register)",
   expensePayPersonnelPocket: "Staff paid from pocket (register owes them)",
+  expensePayPersonnelHeldRegisterCash: "Paid from register cash held with staff",
   expensePayRegisterShort: "Register",
   expensePayPatronShort: "Owner",
   expensePayPersonnelPocketShort: "Staff pocket",
+  expensePayPersonnelHeldRegisterCashShort: "Held register cash",
   expensePocketRepayViaRegister: "Register → staff",
   expensePocketRepayViaPatron: "Owner → staff",
   expensePocketPersonLabel: "Staff member who paid",
+  expenseHeldRegisterPersonLabel: "Staff member holding the register cash",
+  expenseHeldRegisterPersonPickerLoading: "Loading held register cash balances…",
+  expenseHeldRegisterPersonPickerEmpty:
+    "No staff with a positive held register cash balance through this date.",
+  expenseHeldRegisterPersonPickerNeedDate: "Set a valid transaction date to load balances.",
+  /** Held register dropdown: label before formatted amount. */
+  heldRegisterCashDropdownAmountLabel: "Cash on hand",
   expensePocketRepayPersonLabel: "Staff member receiving payment",
   pocketPriorLinesTitleRepay: "Staff-pocket expense lines to settle",
   pocketPriorLinesHintRepay:
@@ -355,7 +585,7 @@ export const branch = {
   expensePaymentLabel: "How was this paid?",
   expensePaymentUnset: "Not specified",
   expensePaymentHint:
-    "Mark whether cash left the register, the owner covered it, or a staff member paid from pocket (register debt — no physical cash out).",
+    "Mark whether cash left the register, the owner covered it, staff paid from pocket (register debt), or register cash already with a staff member (drawer cash is unchanged).",
   txPersonnelExpenseBranchLabel: "Branch (for register payment)",
   txPersonnelExpenseBranchPick: "Select branch…",
   txPersonnelExpenseBranchHint:
@@ -365,6 +595,12 @@ export const branch = {
   txPersonnelExpensePaymentHintWithBranch:
     "Mark whether it was paid from the register or by the owner.",
   txRegisterPaymentNeedBranch: "Register payment requires a valid branch.",
+  txSettlesCashHandoverLabel: "Apply against register physical cash handover IN # (optional)",
+  txSettlesCashHandoverHint:
+    "When this expense reduces cash from a specific «cash to manager» income line, enter that line’s transaction id (from the personnel physical cash handover list). Leave blank if not applicable.",
+  txSettlesCashHandoverInvalid: "Physical cash handover line id must be a positive number.",
+  txSettlesCashHandoverNotAllowed:
+    "Physical cash handover line id is not allowed for this expense type or payment source.",
   txAdvanceNeedBranch: "Register advance requires a valid branch.",
   receiptPhotoOptional:
     "Receipt photo (optional, max 5 MB — JPEG, PNG, WebP, HEIC/AVIF from phone)",
@@ -390,19 +626,10 @@ export const branch = {
   addIncomeTx: "Add income",
   addExpenseTx: "Add expense",
   patronFlowIncomeTitle: "Income paid out to owner (register)",
-  patronFlowIncomeHint:
-    "Register intake assigned to «Owner» on income lines. The same filters below (dates, main category, register party) apply to this summary.",
-  patronFlowIncomeStoryTitle: "How should I read this?",
-  patronFlowIncomeStory1:
-    "Start with Total: it sums income lines in your filter range where register intake is marked for the owner.",
-  patronFlowIncomeStory2:
-    "Cash and Card / POS show the split where you entered it; if there is no split, the «Cash vs card not split» card carries the rest.",
-  patronFlowIncomeStory3:
-    "Changing dates or filters updates both these cards and the income list below — use the list to double-check amounts.",
   patronFlowIncomeCardsSection: "Summary cards",
-  patronFlowIncomeTotal: "Total",
-  patronFlowIncomeCash: "Cash",
-  patronFlowIncomeCard: "Card / POS",
+  patronFlowIncomeTotal: "Owner — income",
+  patronFlowIncomeCash: "Owner — cash",
+  patronFlowIncomeCard: "Owner — credit card (POS)",
   patronFlowIncomeUnspecified: "Cash vs card not split",
   patronFlowExpenseTitle: "Owner-paid expenses",
   patronFlowExpenseHint:
@@ -470,21 +697,54 @@ export const branch = {
   txColCashCard: "Cash / card",
   txColCashSettlement: "Physical cash (who holds)",
   txRegisterDayCloseHint:
-    "Day-close: split into cash and card/POS (card reflects the bank). Mark physical cash — remitted to owner, with manager/register lead, or still in the drawer.",
+    "Day-close: split into cash and card/POS (card reflects the bank). Mark physical cash — remitted to owner, with general or branch lead, or still in the drawer.",
   txDayClosePatronDebtRepayToggle:
     "Count this cash as repaying register debt to the owner (adds the automatic register payout line)",
   txDayClosePatronAutoDebtHint:
     "Turn off if cash went to the owner but should not reduce register debt to the owner. Deleting the day-close also removes the linked line when this is on.",
+  txDayCloseOptionalExpenseTitle: "Same-day expense (optional)",
+  txDayCloseBundledExpenseCheckbox: "Expense included",
+  txDayCloseBundledExpenseCheckboxHint:
+    "Opens with operating expense and paid from register as defaults. Fill the fields and use Confirm to add each line to the table (up to 3 per day close).",
+  txDayCloseBundledExpenseConfirm: "Confirm expense",
+  txDayCloseBundledExpenseListTitle: "Confirmed expenses",
+  txDayCloseBundledExpenseTableType: "Type",
+  txDayCloseBundledExpenseTableSub: "Subtype",
+  txDayCloseBundledExpenseTablePay: "Payment",
+  txDayCloseBundledExpenseTableAmount: "Amount",
+  txDayCloseBundledExpenseTableNote: "Note",
+  txDayCloseBundledExpenseRemove: "Remove",
+  txDayCloseBundledExpenseMax: "You can add at most 3 same-day expenses with this day close.",
+  txDayCloseBundledExpenseDraftNotConfirmed:
+    "Clear the expense amount or confirm it with «Confirm expense» before saving.",
+  txDayCloseBundledExpensePreviewLabel: "Expense line preview",
+  txDayCloseBundledExpensePreviewIncomplete: "Select subtype and payment source to match what will be saved.",
+  txDayCloseOptionalExpenseHint:
+    "If you enter an amount, choose the expense type and whether it was paid from the branch register or by the owner; a matching expense line is saved for the same date.",
+  txDayCloseOptionalExpenseAmount: "Expense amount",
+  txDayCloseOptionalExpenseDescription: "Note (optional)",
+  txDayCloseBundledExpenseMainLabel: "Expense type",
+  txDayCloseBundledExpenseSubLabel: "Subtype",
+  txDayCloseBundledExpenseMainRequired: "Select an expense type for the same-day expense.",
+  txDayCloseBundledExpenseSubRequired: "Select a subtype for this expense.",
+  txDayCloseBundledExpensePaymentRequired:
+    "Select payment source: branch register or owner (required when an expense amount is entered).",
+  txDayCloseBundledExpensePaymentHint:
+    "Register: cash leaves the drawer. Owner: paid by the owner (not from register cash).",
+  txDayCloseBundledExpenseFailedAfterIncome:
+    "Income was saved, but the same-day expense could not be added:",
   cashSettlementHintSplit:
-    "This line includes a cash amount; you can record whether physical cash was remitted to the owner, held by the manager or register lead, or left in the branch register. Card/POS amounts do not need this.",
+    "This line includes a cash amount; you can record whether physical cash was remitted to the owner, held by a general or branch lead, or left in the branch register. Card/POS amounts do not need this.",
   cashSettlementLabel: "Where is physical cash / who holds it?",
   cashSettlementUnset: "Not specified",
   cashSettlementPatron: "Remitted to owner",
-  cashSettlementBranchManager: "With branch manager / register lead",
-  cashSettlementResponsiblePerson: "Responsible person (name & role)",
+  cashSettlementBranchManager: "With general or branch lead",
+  cashSettlementResponsiblePerson: "Responsible personnel (general or branch)",
   cashSettlementResponsiblePick: "Select…",
   cashSettlementResponsibleEmpty:
     "No active personnel are assigned to this branch. Assign staff to the branch on the personnel card first.",
+  cashSettlementResponsibleEmptyGlobal:
+    "No active personnel found. Add personnel records or ensure they are not deleted.",
   cashSettlementRemainsAtBranch: "Still at branch (in register)",
   txColMainCategory: "Main category",
   txColCategory: "Category",
@@ -502,6 +762,7 @@ export const branch = {
   personnelMoneyMixedCurrency: "Multiple currencies",
   personnelMoneyPocketOutShort: "Paid from pocket",
   personnelMoneyPocketRepaidShort: "Repaid to pocket",
+  personnelMoneyPocketClaimTransferShort: "On-books reassignment (no cash out)",
   personnelMoneyPocketAheadShort: "Net ahead (over-repaid)",
   personnelPayPocketDebt: "Pay register debt (pocket)",
   personnelPayPocketDebtHint:
@@ -542,19 +803,23 @@ export const branch = {
     "Use the right screen first — reports and supplier links stay consistent.",
   txExpenseRoutingSupplierInvoices: "Formal supplier invoice (goods or services)",
   txExpenseRoutingSupplierHrefLabel: "Open supplier invoices",
-  txExpenseRoutingPersonnelCosts: "Personnel advance, salary, bonus, or other HR cost",
+  txExpenseRoutingPersonnelCosts:
+    "Per-personnel costs (salary, bonus, advance, commute…): here or Personnel › Costs; you can link an advance to this line later",
   txExpenseRoutingPersonnelHrefLabel: "Open personnel costs",
+  txExpenseRoutingVehicleCosts:
+    "Fleet / plate expenses (fuel, etc. hitting the branch register): record under Vehicles; the register line is created automatically",
+  txExpenseRoutingVehicleHrefLabel: "Open Vehicles",
   txExpenseRoutingBranchForm:
-    "Use this form for register cash-outs such as rent, utilities, taxes, POS fees, fuel, meals, franchise fees, and other shop costs — or rare exceptions your process allows below.",
+    "This form is for day-to-day register operating costs (rent, utilities, taxes, POS, meals, franchise, small non-invoiced buys…). Use the links above for fleet costs and formal supplier invoices.",
   txRoutingPersonnelOnlyTitle: "Personnel expense from this screen",
   txRoutingPersonnelOnlyBody:
-    "You are posting a personnel line on the register. For advances and payroll links, the Personnel › Costs flow is usually clearer (season year, links).",
+    "You are posting a personnel line on the register. You can pick advance / payroll links here, or enter from Personnel › Costs first and link afterward.",
   txRoutingHintOutGoods:
     "Purchases tied to a supplier invoice should be entered under Supplier invoices (stock and branch allocation). Use Goods & stock here only for simple cash purchases without an invoice, if your process allows.",
   txRoutingHintOutOps:
-    "Formal supplier bills (accrual or payment) belong under Supplier invoices. Use Operations below for rent, utilities, marketing, fuel, POS fees, franchise, etc.",
+    "Formal supplier bills live under Supplier invoices. For plated vehicle costs, use Vehicles › post to branch (fuel lines originate there); use Operations below for on-site costs (e.g. generator fuel) when needed.",
   txRoutingHintOutPersonnel:
-    "Salary, bonus, advance (with advance link), and other personnel costs are easier under Personnel › Costs. You can still post from the branch when needed.",
+    "Per-personnel expense: here or Personnel › Costs. You can attach advance / payroll links when saving or add them later.",
   txNotifyIncomplete: "Please fill in the fields marked with *.",
   txStoryIncomeCallout:
     "Income is money received at the branch. Card/POS typically settles at the bank; for cash in hand you can optionally mark where that physical cash ended up.",
@@ -582,8 +847,18 @@ export const branch = {
   txMainOutOps: "Operations",
   txMainOutTax: "Taxes & statutory deductions",
   txMainOutPocketRepay: "Pocket debt repayment to staff",
+  txMainOutPocketClaimTransfer: "Reassign register-owed amount (book entry)",
   txMainOutPatronDebtRepay: "Repay owner from register",
   txSubPocketRepay: "Pocket repayment",
+  txSubPocketClaimTransfer: "Staff → staff (same booking obligation)",
+  txSubPocketClaimTransferToPatron: "Staff → owner (reassigned on the books)",
+  txPocketClaimTransferModalHint:
+    "Changes who the register books as owing the «paid from pocket» amount (no cash leaves the drawer). Use staff→staff to move the obligation between people, or staff→owner when the staff member reassigns it to the owner on paper. To pay out cash for pocket-paid expenses, use «Pocket debt repayment to staff».",
+  txPocketClaimTransferNeedBranch: "This booking reassignment must be recorded on a branch.",
+  txPocketClaimTransferFromRequired: "Select who is giving up the booking (from).",
+  txPocketClaimTransferSamePerson: "From and to personnel must be different.",
+  txPocketClaimTransferFromLabel: "From (gives up register-owed booking)",
+  txPocketClaimTransferToLabel: "To (takes over that register-owed booking)",
   txSubPatronDebtRepay: "Owner debt repayment",
   txPocketRepayModalHint:
     "Pay from register or owner to the staff member, then tick the pocket-paid expense lines you are settling (required; amount comes only from the selection).",

@@ -34,6 +34,25 @@ export type GeneralOverheadPoolDetail = GeneralOverheadPoolRow & {
   allocations: GeneralOverheadAllocationRow[];
 };
 
+export type GeneralOverheadReversePreviewLine = {
+  branchId: number;
+  branchName: string;
+  amount: number;
+  currencyCode: string;
+  branchTransactionId: number;
+  branchTransactionAlreadyRemoved: boolean;
+  expensePaymentSource: string;
+  hasOpenTourismSeasonOnExpenseDate: boolean;
+};
+
+export type GeneralOverheadReversePreview = {
+  poolId: number;
+  title: string;
+  expenseDate: string;
+  lines: GeneralOverheadReversePreviewLine[];
+  risksRequireAcknowledgement: boolean;
+};
+
 export type CreateGeneralOverheadPoolInput = {
   title: string;
   notes?: string | null;
@@ -95,11 +114,22 @@ export async function allocateGeneralOverheadPool(
   );
 }
 
-export async function reverseGeneralOverheadAllocation(
+export async function fetchGeneralOverheadReversePreview(
   poolId: number
+): Promise<GeneralOverheadReversePreview> {
+  return apiRequest<GeneralOverheadReversePreview>(
+    `/general-overhead/${poolId}/reverse-allocation-preview`
+  );
+}
+
+export async function reverseGeneralOverheadAllocation(
+  poolId: number,
+  opts?: { acknowledgeReverseRisks?: boolean }
 ): Promise<GeneralOverheadPoolDetail> {
+  const body =
+    opts?.acknowledgeReverseRisks === true ? JSON.stringify({ acknowledgeReverseRisks: true }) : "{}";
   return apiRequest<GeneralOverheadPoolDetail>(
     `/general-overhead/${poolId}/reverse-allocation`,
-    { method: "POST" }
+    { method: "POST", body }
   );
 }

@@ -8,6 +8,8 @@ import type {
   BranchTransaction,
   CreateBranchTransactionInput,
 } from "@/types/branch-transaction";
+import { branchTxDirectionAndClassificationFromApi } from "@/modules/branch/lib/map-branch-tx-from-api";
+import { classificationCodeFromLegacyBranchTxForm } from "@/modules/branch/lib/branch-tx-form-to-classification";
 
 function normalizeCurrency(v: unknown): string {
   const s = String(v ?? "TRY").trim().toUpperCase();
@@ -82,6 +84,7 @@ type BranchTxApiRow = Omit<
   linkedVehicleId?: number | null;
   linkedVehiclePlateNumber?: string | null;
   generalOverheadPoolId?: number | null;
+  settlesCashHandoverTransactionId?: number | null;
 };
 
 function normalizeBranchTxRow(r: BranchTxApiRow): BranchTransaction {
@@ -125,8 +128,12 @@ function normalizeBranchTxRow(r: BranchTxApiRow): BranchTransaction {
     typeof r.linkedPersonnelFullName === "string" && r.linkedPersonnelFullName.trim()
       ? r.linkedPersonnelFullName.trim()
       : null;
+  const { type: mappedType, mainCategory: mappedMain } =
+    branchTxDirectionAndClassificationFromApi(r as Record<string, unknown>);
   return {
     ...r,
+    type: mappedType,
+    mainCategory: mappedMain,
     branchId: branchIdNorm,
     currencyCode: normalizeCurrency(r.currencyCode),
     cashAmount: r.cashAmount ?? null,
@@ -168,6 +175,9 @@ function normalizeBranchTxRow(r: BranchTxApiRow): BranchTransaction {
     generalOverheadPoolId: normalizeOptionalPositiveId(
       (r as { generalOverheadPoolId?: unknown }).generalOverheadPoolId
     ),
+    settlesCashHandoverTransactionId: normalizeOptionalPositiveId(
+      (r as { settlesCashHandoverTransactionId?: unknown }).settlesCashHandoverTransactionId
+    ),
   };
 }
 
@@ -203,12 +213,51 @@ export async function fetchAllNonAdvancePersonnelAttributedExpenses(
   return rows.map(normalizeBranchTxRow);
 }
 
-function isSupplierInvoiceOut(input: CreateBranchTransactionInput): boolean {
-  return (
-    String(input.type ?? "").toUpperCase() === "OUT" &&
-    String(input.mainCategory ?? "").trim().toUpperCase() === "OUT_OPS" &&
-    String(input.category ?? "").trim().toUpperCase() === "OPS_INVOICE"
+function resolvedClassificationCode(input: CreateBranchTransactionInput): string {
+  const direct = input.classificationCode?.trim();
+  if (direct) return direct;
+  return classificationCodeFromLegacyBranchTxForm(
+    input.type,
+    input.mainCategory,
+    input.category
   );
+}
+
+function isSupplierInvoiceOut(input: CreateBranchTransactionInput): boolean {
+  try {
+    return resolvedClassificationCode(input) === "OUT_OPS_INVOICE";
+  } catch {
+    return false;
+  }
+}
+
+function buildCreateBranchTransactionBody(
+  input: CreateBranchTransactionInput
+): Record<string, unknown> {
+  const classificationCode = resolvedClassificationCode(input);
+  return {
+    classificationCode,
+    branchId: input.branchId ?? null,
+    amount: input.amount,
+    cashAmount: input.cashAmount ?? null,
+    cardAmount: input.cardAmount ?? null,
+    currencyCode: (input.currencyCode ?? "TRY").trim() || "TRY",
+    transactionDate: input.transactionDate,
+    description: input.description ?? null,
+    cashSettlementParty: input.cashSettlementParty ?? null,
+    cashSettlementPersonnelId: input.cashSettlementPersonnelId ?? null,
+    expensePaymentSource: input.expensePaymentSource ?? null,
+    invoicePaymentStatus: input.invoicePaymentStatus ?? null,
+    expensePocketPersonnelId: input.expensePocketPersonnelId ?? null,
+    linkedAdvanceId: input.linkedAdvanceId ?? null,
+    linkedSalaryPaymentId: input.linkedSalaryPaymentId ?? null,
+    linkedFinancialPersonnelId: input.linkedFinancialPersonnelId ?? null,
+    linkedPersonnelId: input.linkedPersonnelId ?? null,
+    linkedPocketExpenseTransactionIds: input.linkedPocketExpenseTransactionIds ?? null,
+    applyPatronDebtRepayFromDayClose: input.applyPatronDebtRepayFromDayClose ?? null,
+    settlesCashHandoverTransactionId: input.settlesCashHandoverTransactionId ?? null,
+    cashHandoverSettlements: input.cashHandoverSettlements ?? null,
+  };
 }
 
 export async function createBranchTransaction(
@@ -231,11 +280,7 @@ export async function createBranchTransaction(
     const fd = new FormData();
     if (input.branchId != null && input.branchId > 0)
       fd.append("branchId", String(input.branchId));
-    fd.append("type", input.type);
-    if (input.mainCategory != null && String(input.mainCategory).trim())
-      fd.append("mainCategory", String(input.mainCategory).trim());
-    if (input.category != null && String(input.category).trim())
-      fd.append("category", String(input.category).trim());
+    fd.append("classificationCode", resolvedClassificationCode(input));
     fd.append("amount", String(input.amount));
     if (input.cashAmount != null) fd.append("cashAmount", String(input.cashAmount));
     if (input.cardAmount != null) fd.append("cardAmount", String(input.cardAmount));
@@ -260,11 +305,26 @@ export async function createBranchTransaction(
       fd.append("linkedFinancialPersonnelId", String(input.linkedFinancialPersonnelId));
     if (input.linkedPersonnelId != null && input.linkedPersonnelId > 0)
       fd.append("linkedPersonnelId", String(input.linkedPersonnelId));
+    if (input.settlesCashHandoverTransactionId != null && input.settlesCashHandoverTransactionId > 0) {
+      fd.append("settlesCashHandoverTransactionId", String(input.settlesCashHandoverTransactionId));
+    }
     if (input.linkedPocketExpenseTransactionIds?.length) {
       for (const id of input.linkedPocketExpenseTransactionIds) {
         if (Number.isFinite(id) && id > 0)
           fd.append("linkedPocketExpenseTransactionIds", String(id));
       }
+    }
+    if (input.applyPatronDebtRepayFromDayClose != null) {
+      fd.append(
+        "applyPatronDebtRepayFromDayClose",
+        input.applyPatronDebtRepayFromDayClose ? "true" : "false"
+      );
+    }
+    if (input.cashHandoverSettlements?.length) {
+      input.cashHandoverSettlements.forEach((line, i) => {
+        fd.append(`cashHandoverSettlements[${i}].handoverTransactionId`, String(line.handoverTransactionId));
+        fd.append(`cashHandoverSettlements[${i}].amount`, String(line.amount));
+      });
     }
     fd.append("receiptPhoto", input.receiptPhoto!);
     const r = await apiRequest<BranchTxApiRow>("/branch-transactions/with-receipt", {
@@ -274,14 +334,9 @@ export async function createBranchTransaction(
     return normalizeBranchTxRow(r);
   }
 
-  const { receiptPhoto: _rp, ...rest } = input;
-  const jsonBody = {
-    ...rest,
-    branchId: rest.branchId ?? null,
-  };
   const r = await apiRequest<BranchTxApiRow>("/branch-transactions", {
     method: "POST",
-    body: JSON.stringify(jsonBody),
+    body: JSON.stringify(buildCreateBranchTransactionBody(input)),
   });
   return normalizeBranchTxRow(r);
 }

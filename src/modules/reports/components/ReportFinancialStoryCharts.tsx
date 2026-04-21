@@ -53,11 +53,26 @@ function tpl(s: string, vars: Record<string, string | number>): string {
   return s.replace(/\{\{(\w+)\}\}/g, (_, k: string) => String(vars[k] ?? ""));
 }
 
+function pctPart(numerator: number, denominator: number): number {
+  if (!(denominator > 0) || !Number.isFinite(numerator)) return 0;
+  return Math.min(100, Math.max(0, Math.round((numerator / denominator) * 100)));
+}
+
+export type ReportsFinancialStorySegment = "all" | "summary" | "charts" | "compare";
+
 type Props = {
   data: FinancialReport;
   monthlyRows?: FinancialMonthlyBreakdownRow[] | null;
   branchMonthlyRows?: FinancialBranchMonthlyBreakdownRow[] | null;
   showBranchNetByMonth?: boolean;
+  /** Ek finans filtresindeki para birimi; boşsa grafikler TRY veya ilk mevcut para birimini kullanır. */
+  filterCurrencyCode?: string;
+  /** false: kümülatif zaman serisi özetten çıkarılır (ayrı trend sayfasında). */
+  includeCumulativeTrendCharts?: boolean;
+  /** Sayfa kırılımı: özet / grafikler / karşılaştırma; all = tek sayfada hepsi (varsayılan). */
+  storySegment?: ReportsFinancialStorySegment;
+  /** Örn. özet sayfası üst boşluk (`mt-4`). */
+  className?: string;
 };
 
 function truncLabel(s: string, max: number): string {
@@ -66,31 +81,203 @@ function truncLabel(s: string, max: number): string {
   return `${t.slice(0, Math.max(0, max - 1))}…`;
 }
 
+type FinSummaryScope = "filter" | "cumulative" | "distribution" | "ranking";
+
+const SCOPE_BADGE: Record<FinSummaryScope, string> = {
+  filter: "border-violet-200/90 bg-violet-50 text-violet-900",
+  cumulative: "border-teal-200/90 bg-teal-50 text-teal-900",
+  distribution: "border-sky-200/90 bg-sky-50 text-sky-900",
+  ranking: "border-zinc-300/90 bg-zinc-100 text-zinc-800",
+};
+
+const SCOPE_RAIL: Record<FinSummaryScope, string> = {
+  filter: "bg-violet-500",
+  cumulative: "bg-teal-500",
+  distribution: "bg-sky-500",
+  ranking: "bg-zinc-500",
+};
+
+function FinSummaryStorySection({
+  t,
+  scope,
+  title,
+  description,
+  children,
+}: {
+  t: (key: string) => string;
+  scope: FinSummaryScope;
+  title: string;
+  description?: string;
+  children: ReactNode;
+}) {
+  const badgeKey =
+    scope === "filter"
+      ? "reports.finStoryScopeBadgeFilter"
+      : scope === "cumulative"
+        ? "reports.finStoryScopeBadgeCumulative"
+        : scope === "distribution"
+          ? "reports.finStoryScopeBadgeDistribution"
+          : "reports.finStoryScopeBadgeRanking";
+  return (
+    <section className="min-w-0 scroll-mt-4 overflow-hidden rounded-2xl border border-zinc-200/90 bg-white shadow-sm ring-1 ring-zinc-950/[0.025]">
+      <div className="flex min-w-0 gap-0">
+        <div
+          className={cn("w-1 shrink-0 self-stretch", SCOPE_RAIL[scope])}
+          aria-hidden
+        />
+        <div className="min-w-0 flex-1">
+          <header className="border-b border-zinc-100 px-3 py-3 sm:px-5 sm:py-4">
+            <span
+              className={cn(
+                "inline-flex rounded-full border px-2.5 py-0.5 text-[0.65rem] font-bold uppercase tracking-[0.14em]",
+                SCOPE_BADGE[scope]
+              )}
+            >
+              {t(badgeKey)}
+            </span>
+            <h2 className="mt-3 text-base font-semibold leading-snug text-zinc-900 sm:text-lg">
+              {title}
+            </h2>
+            {description ? (
+              <p className="mt-1.5 text-xs leading-relaxed text-zinc-600 sm:text-sm">
+                {description}
+              </p>
+            ) : null}
+          </header>
+          <div className="space-y-4 px-3 py-4 sm:space-y-5 sm:px-5 sm:py-5">{children}</div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function ReportFinancialStoryCharts({
   data,
   monthlyRows,
   branchMonthlyRows,
   showBranchNetByMonth = false,
+  filterCurrencyCode = "",
+  includeCumulativeTrendCharts = true,
+  storySegment = "all",
+  className,
 }: Props) {
   const { t, locale } = useI18n();
   const smUp = useMediaMinWidth(640);
+  const lgUp = useMediaMinWidth(1024);
   const trends = data.branchTrends ?? [];
   const netCompare = data.netCompareByCurrency ?? [];
   const cmpFrom = data.comparePeriodFrom;
   const cmpTo = data.comparePeriodTo;
 
+  const segment = storySegment;
+  const execKpiBand =
+    segment === "summary" ||
+    (segment === "all" && !includeCumulativeTrendCharts);
+  const showGradientHero =
+    segment === "all" && includeCumulativeTrendCharts;
+  const showRanking = segment === "all" || segment === "charts";
+  const showFilterStory = segment === "all" || segment === "compare";
+  const showDistribution = segment === "all" || segment === "charts";
+
   const currencies = useMemo(
     () => data.totalsByCurrency.map((x) => x.currencyCode),
     [data.totalsByCurrency]
   );
-  const [ccy, setCcy] = useState("TRY");
+  const ccy = useMemo(() => {
+    const want = filterCurrencyCode.trim();
+    if (want && currencies.includes(want)) return want;
+    if (currencies.includes("TRY")) return "TRY";
+    return currencies[0] ?? "TRY";
+  }, [filterCurrencyCode, currencies]);
 
-  useEffect(() => {
-    if (!currencies.length) return;
-    if (!currencies.includes(ccy)) {
-      setCcy(currencies.includes("TRY") ? "TRY" : currencies[0]);
-    }
-  }, [currencies, ccy]);
+  const ccyTotalsRow = useMemo(
+    () => data.totalsByCurrency.find((x) => x.currencyCode === ccy) ?? null,
+    [data.totalsByCurrency, ccy]
+  );
+
+  const incomeRegisterForCcy = useMemo(() => {
+    if (!ccyTotalsRow) return null;
+    const code = ccyTotalsRow.currencyCode;
+    const rows = data.incomeRegisterBreakdownByCurrency ?? [];
+    return (
+      rows.find(
+        (x) =>
+          x.currencyCode.trim().toUpperCase() === code.trim().toUpperCase()
+      ) ?? null
+    );
+  }, [data.incomeRegisterBreakdownByCurrency, ccyTotalsRow]);
+
+  const expensePayBreakdownForCcy = useMemo(() => {
+    if (!ccyTotalsRow) return null;
+    const code = ccyTotalsRow.currencyCode;
+    const rows = data.byExpensePaymentSource ?? [];
+    const forCcy = rows.filter(
+      (x) =>
+        x.currencyCode.trim().toUpperCase() === code.trim().toUpperCase()
+    );
+    const ordered = sortExpensePaymentRows(forCcy);
+    const total = ordered.reduce((s, x) => s + x.totalAmount, 0);
+    return total > 0 ? ordered : null;
+  }, [data.byExpensePaymentSource, ccyTotalsRow]);
+
+  const expenseBranchTopForCcy = useMemo(() => {
+    if (!ccyTotalsRow) return [];
+    const code = ccyTotalsRow.currencyCode;
+    return data.byBranch
+      .filter(
+        (b) =>
+          b.currencyCode.trim().toUpperCase() === code.trim().toUpperCase() &&
+          b.totalExpense > 0
+      )
+      .sort((a, b) => b.totalExpense - a.totalExpense)
+      .slice(0, 6);
+  }, [data.byBranch, ccyTotalsRow]);
+
+  const summarySecondaryKpis = useMemo(() => {
+    if (!execKpiBand && segment !== "compare") return null;
+    const totals = data.totalsByCurrency.find((x) => x.currencyCode === ccy);
+    const supplier = totals?.totalSupplierRegisterCashPaid ?? 0;
+    const adv = data.advancesByCurrency.find((x) => x.currencyCode === ccy);
+    const overheadRows = (data.generalOverheadAllocated ?? []).filter(
+      (x) => x.currencyCode === ccy
+    );
+    const overheadSum = overheadRows.reduce((s, x) => s + x.totalAmount, 0);
+    const overheadLines = overheadRows.reduce((s, x) => s + x.lineCount, 0);
+    const vehicleRow = (data.vehicleExpensesOffRegister ?? []).find(
+      (x) => x.currencyCode === ccy
+    );
+    return {
+      supplier,
+      advances: adv?.totalAmount ?? 0,
+      advanceRecords: adv?.recordCount ?? 0,
+      overheadSum,
+      overheadLines,
+      vehicle: vehicleRow?.totalAmount ?? 0,
+      vehicleRecords: vehicleRow?.recordCount ?? 0,
+    };
+  }, [
+    execKpiBand,
+    ccy,
+    data.totalsByCurrency,
+    data.advancesByCurrency,
+    data.generalOverheadAllocated,
+    data.vehicleExpensesOffRegister,
+  ]);
+
+  const hasCumulativeCharts = useMemo(() => {
+    if (segment !== "all" || !includeCumulativeTrendCharts) return false;
+    const mon = monthlyRows?.some((r) => r.currencyCode === ccy) ?? false;
+    if (mon) return true;
+    if (!showBranchNetByMonth || !branchMonthlyRows?.length) return false;
+    return branchMonthlyRows.some((r) => r.currencyCode === ccy);
+  }, [
+    segment,
+    includeCumulativeTrendCharts,
+    monthlyRows,
+    branchMonthlyRows,
+    ccy,
+    showBranchNetByMonth,
+  ]);
 
   const alertChips = useMemo(() => {
     const chips: { tone: "bad" | "warn"; text: string }[] = [];
@@ -117,6 +304,24 @@ export function ReportFinancialStoryCharts({
     return chips;
   }, [data.byCategory, data.totalsByCurrency, t]);
 
+  const alertsRow =
+    alertChips.length > 0 ? (
+      <div className="flex flex-wrap gap-2">
+        {alertChips.map((c, i) => (
+          <span
+            key={i}
+            className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+              c.tone === "bad"
+                ? "bg-red-100 text-red-900"
+                : "bg-amber-100 text-amber-950"
+            }`}
+          >
+            {c.text}
+          </span>
+        ))}
+      </div>
+    ) : null;
+
   const storyDeck = useMemo(() => {
     const row = data.totalsByCurrency.find((x) => x.currencyCode === ccy);
     const cmp = netCompare.find((x) => x.currencyCode === ccy);
@@ -127,6 +332,7 @@ export function ReportFinancialStoryCharts({
       prevFrom: string;
       prevTo: string;
       netPrevious: number;
+      netCurrent: number;
       netDelta: number;
       dirLabel: string;
     } | null = null;
@@ -141,6 +347,7 @@ export function ReportFinancialStoryCharts({
         prevFrom: cmpFrom,
         prevTo: cmpTo,
         netPrevious: cmp.netPrevious,
+        netCurrent: cmp.netCurrent,
         netDelta: cmp.netDelta,
         dirLabel,
       };
@@ -221,8 +428,8 @@ export function ReportFinancialStoryCharts({
 
   const [storyMoreOpen, setStoryMoreOpen] = useState(false);
   useEffect(() => {
-    if (smUp) setStoryMoreOpen(true);
-  }, [smUp]);
+    if (lgUp) setStoryMoreOpen(true);
+  }, [lgUp]);
 
   const compareInner = useMemo((): ReactNode => {
     const cmp = storyDeck.compare;
@@ -238,27 +445,41 @@ export function ReportFinancialStoryCharts({
             to: formatLocaleDate(cmp.prevTo, locale),
           })}
         </p>
-        <p className="mt-3 text-xs text-zinc-500">
-          {t("reports.storyCardComparePrevLabel")}
-        </p>
-        <p className="text-lg font-semibold tabular-nums text-zinc-900">
-          {formatLocaleAmount(cmp.netPrevious, locale, ccy)}
-        </p>
-        <p className="mt-3 text-xs font-medium text-zinc-500">
-          {t("reports.storyCardCompareDeltaLabel")}
-        </p>
-        <p
-          className={cn(
-            "text-2xl font-bold tabular-nums",
-            cmp.netDelta > 0
-              ? "text-emerald-700"
-              : cmp.netDelta < 0
-                ? "text-red-700"
-                : "text-zinc-700"
-          )}
-        >
-          {formatLocaleAmount(cmp.netDelta, locale, ccy)}
-        </p>
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:gap-4">
+          <div className="min-w-0">
+            <p className="text-xs text-zinc-500">
+              {t("reports.storyCardComparePrevLabel")}
+            </p>
+            <p className="mt-1 text-lg font-semibold tabular-nums text-zinc-900 sm:text-xl">
+              {formatLocaleAmount(cmp.netPrevious, locale, ccy)}
+            </p>
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs text-zinc-500">
+              {t("reports.storyCardCompareCurrentLabel")}
+            </p>
+            <p className="mt-1 text-lg font-semibold tabular-nums text-zinc-900 sm:text-xl">
+              {formatLocaleAmount(cmp.netCurrent, locale, ccy)}
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 border-t border-zinc-100 pt-3">
+          <p className="text-xs font-medium text-zinc-500">
+            {t("reports.storyCardCompareDiffLabel")}
+          </p>
+          <p
+            className={cn(
+              "mt-1 text-2xl font-bold tabular-nums sm:text-3xl",
+              cmp.netDelta > 0
+                ? "text-emerald-700"
+                : cmp.netDelta < 0
+                  ? "text-red-700"
+                  : "text-zinc-700"
+            )}
+          >
+            {formatLocaleAmount(cmp.netDelta, locale, ccy)}
+          </p>
+        </div>
         <p className="mt-2 text-xs text-zinc-600">
           {tpl(t("reports.storyCardCompareTrend"), {
             dir: cmp.dirLabel,
@@ -275,14 +496,21 @@ export function ReportFinancialStoryCharts({
         <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
           {t("reports.storyCardPayMixTitle")}
         </p>
-        <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-          {t("reports.storyCardPayMixCaption")}
-        </p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        {segment !== "compare" ? (
+          <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+            {t("reports.storyCardPayMixCaption")}
+          </p>
+        ) : null}
+        <div
+          className={cn(
+            "flex flex-wrap gap-2",
+            segment === "compare" ? "mt-2" : "mt-3"
+          )}
+        >
           {storyDeck.payMix.items.map((item) => (
             <div
               key={item.label}
-              className="min-w-[6.5rem] flex-1 rounded-lg border border-zinc-200/80 bg-zinc-50/90 px-3 py-2 sm:min-w-0 sm:flex-none"
+              className="min-w-[6.5rem] flex-1 rounded-lg border border-zinc-200/80 bg-zinc-50/90 px-3 py-2 lg:min-w-0 lg:flex-none"
             >
               <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
                 {item.label}
@@ -296,7 +524,7 @@ export function ReportFinancialStoryCharts({
         </div>
       </div>
     );
-  }, [storyDeck.payMix, locale, ccy, t]);
+  }, [storyDeck.payMix, locale, ccy, t, segment]);
 
   const branchTrendInner = useMemo((): ReactNode => {
     if (!storyDeck.branchTrend) return null;
@@ -525,56 +753,656 @@ export function ReportFinancialStoryCharts({
   }
 
   return (
-    <div className="flex flex-col gap-4 sm:gap-6">
-      <Card title={t("reports.storyTitle")} description={t("reports.storyDesc")}>
-        {alertChips.length > 0 ? (
-          <div className="mb-4 flex flex-wrap gap-2">
-            {alertChips.map((c, i) => (
-              <span
-                key={i}
-                className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                  c.tone === "bad"
-                    ? "bg-red-100 text-red-900"
-                    : "bg-amber-100 text-amber-950"
-                }`}
-              >
-                {c.text}
-              </span>
-            ))}
-          </div>
-        ) : null}
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-            {t("reports.chartCurrency")}
-          </span>
-          <select
-            value={ccy}
-            onChange={(e) => setCcy(e.target.value)}
-            className="min-h-11 min-w-[5.5rem] rounded-lg border border-zinc-200 px-3 py-2 text-base font-medium sm:min-h-0 sm:px-2 sm:py-1.5 sm:text-sm"
-          >
-            {currencies.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
+    <div
+      className={cn(
+        "flex flex-col",
+        segment === "summary" ||
+        segment === "compare" ||
+        segment === "charts"
+          ? "gap-3 sm:gap-4"
+          : "gap-5 sm:gap-8",
+        className
+      )}
+    >
+      {showGradientHero ? (
+        <div className="rounded-2xl border border-zinc-200/90 bg-gradient-to-br from-zinc-50/95 via-white to-violet-50/25 px-4 py-4 shadow-sm ring-1 ring-zinc-950/[0.02] sm:px-5 sm:py-5">
+          <h2 className="text-lg font-semibold tracking-tight text-zinc-900 sm:text-xl">
+            {t("reports.storyTitle")}
+          </h2>
+          <p className="mt-2 text-sm leading-relaxed text-zinc-700 sm:text-[0.95rem]">
+            {t("reports.finStoryPageLead")}
+          </p>
+          <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+            {t("reports.storyDesc")}
+          </p>
         </div>
-        <p className="mb-3 text-xs leading-relaxed text-zinc-500">
-          {t("reports.chartCurrencyScopeHint")}
-        </p>
-        {cmpFrom && cmpTo ? (
-          <p className="mb-3 text-xs text-zinc-500">
+      ) : segment === "summary" || segment === "compare" || segment === "charts" ? null : (
+        <div className="rounded-xl border border-zinc-200/90 bg-white px-4 py-4 shadow-sm ring-1 ring-zinc-950/[0.02] sm:px-5 sm:py-4">
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold tracking-tight text-zinc-900 sm:text-xl">
+              {t("reports.storyTitle")}
+            </h2>
+            <p className="mt-1 text-xs font-medium tabular-nums text-zinc-500">
+              {formatLocaleDate(data.dateFrom, locale)} –{" "}
+              {formatLocaleDate(data.dateTo, locale)}
+              <span className="mx-1.5 text-zinc-300">·</span>
+              {ccy}
+            </p>
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-zinc-700 sm:text-[0.95rem]">
+            {t("reports.finStoryPageLead")}
+          </p>
+        </div>
+      )}
+
+      {segment === "compare" && ccyTotalsRow && cmpFrom && cmpTo ? (
+        <div className="rounded-xl border border-violet-200/80 bg-gradient-to-br from-violet-50/90 via-white to-zinc-50/40 px-4 py-3 shadow-sm ring-1 ring-violet-950/[0.04] sm:px-5 sm:py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:gap-4">
+            <div className="min-w-0 flex-1 rounded-lg border border-zinc-200/80 bg-white/90 px-3 py-2.5 sm:px-4 sm:py-3">
+              <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-500">
+                {t("reports.finCompareCurrentPeriodLabel")}
+              </p>
+              <p className="mt-1 text-sm font-semibold tabular-nums text-zinc-900 sm:text-base">
+                {formatLocaleDate(data.dateFrom, locale)} –{" "}
+                {formatLocaleDate(data.dateTo, locale)}
+                <span className="ml-1.5 text-xs font-medium text-zinc-500">
+                  · {ccy}
+                </span>
+              </p>
+            </div>
+            <div className="min-w-0 flex-1 rounded-lg border-2 border-violet-400/70 bg-violet-100/50 px-3 py-2.5 shadow-sm sm:px-4 sm:py-3">
+              <p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-violet-900">
+                {t("reports.finComparePriorPeriodLabel")}
+              </p>
+              <p className="mt-1 text-base font-bold tabular-nums text-violet-950 sm:text-lg">
+                {formatLocaleDate(cmpFrom, locale)} –{" "}
+                {formatLocaleDate(cmpTo, locale)}
+              </p>
+              <p className="mt-1 text-[0.7rem] leading-snug text-violet-900/90 sm:text-xs">
+                {t("reports.finComparePriorPeriodHint")}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {segment === "charts" ? alertsRow : null}
+
+      {(execKpiBand || segment === "compare") && ccyTotalsRow && summarySecondaryKpis ? (
+        <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-zinc-200/90 bg-white px-4 py-3 shadow-sm ring-1 ring-zinc-950/[0.02] sm:px-4 sm:py-3.5">
+              <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                {t("reports.colIncome")}
+              </p>
+              <p
+                className={cn(
+                  "mt-1 font-semibold tabular-nums text-emerald-800",
+                  segment === "compare"
+                    ? "text-xl sm:text-2xl"
+                    : "text-lg sm:text-xl"
+                )}
+              >
+                {formatLocaleAmount(ccyTotalsRow.totalIncome, locale, ccy)}
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">
+                {t("reports.colInCount")}: {ccyTotalsRow.incomeTransactionCount}
+              </p>
+              {ccyTotalsRow.totalIncome > 0 ? (
+                incomeRegisterForCcy ? (
+                  <div className="mt-2 space-y-1 border-t border-emerald-100/90 pt-2">
+                    <div
+                      className={cn(
+                        "flex justify-between gap-2 leading-snug text-zinc-600",
+                        segment === "compare"
+                          ? "text-sm sm:text-base"
+                          : "text-xs"
+                      )}
+                    >
+                      <span className="min-w-0">{t("reports.finIncomeKpiPos")}</span>
+                      <span className="max-w-[58%] shrink-0 text-right tabular-nums text-zinc-800">
+                        <span>
+                          {formatLocaleAmount(
+                            incomeRegisterForCcy.incomeCard,
+                            locale,
+                            ccy
+                          )}
+                        </span>
+                        <span className="block text-[0.7rem] font-normal normal-case text-zinc-500 sm:text-xs">
+                          ·{" "}
+                          {tpl(t("reports.finIncomeKpiPctOfIncome"), {
+                            pct: pctPart(
+                              incomeRegisterForCcy.incomeCard,
+                              ccyTotalsRow.totalIncome
+                            ),
+                          })}
+                        </span>
+                      </span>
+                    </div>
+                    <div
+                      className={cn(
+                        "flex justify-between gap-2 leading-snug text-zinc-600",
+                        segment === "compare"
+                          ? "text-sm sm:text-base"
+                          : "text-xs"
+                      )}
+                    >
+                      <span className="min-w-0">{t("reports.finIncomeKpiCash")}</span>
+                      <span className="max-w-[58%] shrink-0 text-right tabular-nums text-zinc-800">
+                        <span>
+                          {formatLocaleAmount(
+                            incomeRegisterForCcy.incomeCash,
+                            locale,
+                            ccy
+                          )}
+                        </span>
+                        <span className="block text-[0.7rem] font-normal normal-case text-zinc-500 sm:text-xs">
+                          ·{" "}
+                          {tpl(t("reports.finIncomeKpiPctOfIncome"), {
+                            pct: pctPart(
+                              incomeRegisterForCcy.incomeCash,
+                              ccyTotalsRow.totalIncome
+                            ),
+                          })}
+                        </span>
+                      </span>
+                    </div>
+                    {incomeRegisterForCcy.incomeCash > 0 &&
+                    (incomeRegisterForCcy.cashRemainsAtBranch !== 0 ||
+                      incomeRegisterForCcy.cashPatron !== 0 ||
+                      incomeRegisterForCcy.cashBranchManager !== 0 ||
+                      incomeRegisterForCcy.cashUnspecified !== 0) ? (
+                      <div className="ml-1 space-y-0.5 border-l border-zinc-200/90 pl-2 text-[0.8rem] leading-snug text-zinc-600 sm:text-xs">
+                        {incomeRegisterForCcy.cashRemainsAtBranch !== 0 ? (
+                          <div className="flex justify-between gap-2">
+                            <span className="min-w-0">
+                              {t("reports.finIncomeKpiCashDrawer")}
+                            </span>
+                            <span className="max-w-[58%] shrink-0 text-right tabular-nums text-zinc-800">
+                              <span>
+                                {formatLocaleAmount(
+                                  incomeRegisterForCcy.cashRemainsAtBranch,
+                                  locale,
+                                  ccy
+                                )}
+                              </span>
+                              <span className="block text-[0.65rem] font-normal normal-case text-zinc-500">
+                                ·{" "}
+                                {tpl(t("reports.finIncomeKpiPctOfCash"), {
+                                  pct: pctPart(
+                                    incomeRegisterForCcy.cashRemainsAtBranch,
+                                    incomeRegisterForCcy.incomeCash
+                                  ),
+                                })}
+                              </span>
+                            </span>
+                          </div>
+                        ) : null}
+                        {incomeRegisterForCcy.cashPatron !== 0 ? (
+                          <div className="flex justify-between gap-2">
+                            <span className="min-w-0">
+                              {t("reports.finIncomeKpiCashPatron")}
+                            </span>
+                            <span className="max-w-[58%] shrink-0 text-right tabular-nums text-zinc-800">
+                              <span>
+                                {formatLocaleAmount(
+                                  incomeRegisterForCcy.cashPatron,
+                                  locale,
+                                  ccy
+                                )}
+                              </span>
+                              <span className="block text-[0.65rem] font-normal normal-case text-zinc-500">
+                                ·{" "}
+                                {tpl(t("reports.finIncomeKpiPctOfCash"), {
+                                  pct: pctPart(
+                                    incomeRegisterForCcy.cashPatron,
+                                    incomeRegisterForCcy.incomeCash
+                                  ),
+                                })}
+                              </span>
+                            </span>
+                          </div>
+                        ) : null}
+                        {incomeRegisterForCcy.cashBranchManager !== 0 ? (
+                          <div className="flex justify-between gap-2">
+                            <span className="min-w-0">
+                              {t("reports.finIncomeKpiCashPersonnel")}
+                            </span>
+                            <span className="max-w-[58%] shrink-0 text-right tabular-nums text-zinc-800">
+                              <span>
+                                {formatLocaleAmount(
+                                  incomeRegisterForCcy.cashBranchManager,
+                                  locale,
+                                  ccy
+                                )}
+                              </span>
+                              <span className="block text-[0.65rem] font-normal normal-case text-zinc-500">
+                                ·{" "}
+                                {tpl(t("reports.finIncomeKpiPctOfCash"), {
+                                  pct: pctPart(
+                                    incomeRegisterForCcy.cashBranchManager,
+                                    incomeRegisterForCcy.incomeCash
+                                  ),
+                                })}
+                              </span>
+                            </span>
+                          </div>
+                        ) : null}
+                        {incomeRegisterForCcy.cashUnspecified !== 0 ? (
+                          <div className="flex justify-between gap-2">
+                            <span className="min-w-0">
+                              {t("reports.finIncomeKpiCashOther")}
+                            </span>
+                            <span className="max-w-[58%] shrink-0 text-right tabular-nums text-zinc-800">
+                              <span>
+                                {formatLocaleAmount(
+                                  incomeRegisterForCcy.cashUnspecified,
+                                  locale,
+                                  ccy
+                                )}
+                              </span>
+                              <span className="block text-[0.65rem] font-normal normal-case text-zinc-500">
+                                ·{" "}
+                                {tpl(t("reports.finIncomeKpiPctOfCash"), {
+                                  pct: pctPart(
+                                    incomeRegisterForCcy.cashUnspecified,
+                                    incomeRegisterForCcy.incomeCash
+                                  ),
+                                })}
+                              </span>
+                            </span>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs leading-snug text-zinc-500">
+                    {t("reports.finIncomeKpiBreakdownMissing")}
+                  </p>
+                )
+              ) : null}
+            </div>
+            <div className="rounded-xl border border-zinc-200/90 bg-white px-4 py-3 shadow-sm ring-1 ring-zinc-950/[0.02] sm:px-4 sm:py-3.5">
+              <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                {t("reports.colExpense")}
+              </p>
+              <p
+                className={cn(
+                  "mt-1 font-semibold tabular-nums text-red-800",
+                  segment === "compare"
+                    ? "text-xl sm:text-2xl"
+                    : "text-lg sm:text-xl"
+                )}
+              >
+                {formatLocaleAmount(ccyTotalsRow.totalExpense, locale, ccy)}
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">
+                {t("reports.colOutCount")}:{" "}
+                {ccyTotalsRow.expenseTransactionCount}
+              </p>
+              {ccyTotalsRow.totalExpense > 0 ? (
+                expensePayBreakdownForCcy ? (
+                  <div className="mt-2 space-y-1 border-t border-red-100/90 pt-2">
+                    {expensePayBreakdownForCcy.map((r) => {
+                      const src = r.expensePaymentSource.trim().toUpperCase();
+                      const label =
+                        src === "REGISTER"
+                          ? t("branch.expensePayRegisterShort")
+                          : src === "PATRON"
+                            ? t("branch.expensePayPatronShort")
+                            : src === "PERSONNEL_POCKET"
+                              ? t("branch.expensePayPersonnelPocketShort")
+                              : t("branch.expensePaymentUnset");
+                      return (
+                        <div
+                          key={src}
+                          className="flex justify-between gap-2 text-xs leading-snug text-zinc-600"
+                        >
+                          <span className="min-w-0">{label}</span>
+                          <span className="max-w-[58%] shrink-0 text-right tabular-nums text-zinc-800">
+                            <span>
+                              {formatLocaleAmount(
+                                r.totalAmount,
+                                locale,
+                                ccy
+                              )}
+                            </span>
+                            <span className="block text-[0.7rem] font-normal normal-case text-zinc-500 sm:text-xs">
+                              ·{" "}
+                              {tpl(t("reports.finExpenseKpiPctOfExpense"), {
+                                pct: pctPart(
+                                  r.totalAmount,
+                                  ccyTotalsRow.totalExpense
+                                ),
+                              })}
+                            </span>
+                          </span>
+                        </div>
+                      );
+                    })}
+                    {expenseBranchTopForCcy.length > 0 ? (
+                      <div className="ml-1 mt-1 space-y-0.5 border-l border-zinc-200/90 pl-2 text-[0.8rem] leading-snug text-zinc-600 sm:text-xs">
+                        <p className="font-medium text-zinc-500">
+                          {t("reports.finExpenseKpiByBranch")}
+                        </p>
+                        {expenseBranchTopForCcy.map((b) => (
+                          <div
+                            key={`${b.branchId}-${b.currencyCode}`}
+                            className="flex justify-between gap-2"
+                          >
+                            <span className="min-w-0">
+                              {reportBranchLabel(
+                                b.branchId,
+                                b.branchName,
+                                t
+                              )}
+                            </span>
+                            <span className="max-w-[58%] shrink-0 text-right tabular-nums text-zinc-800">
+                              <span>
+                                {formatLocaleAmount(
+                                  b.totalExpense,
+                                  locale,
+                                  ccy
+                                )}
+                              </span>
+                              <span className="block text-[0.65rem] font-normal normal-case text-zinc-500">
+                                ·{" "}
+                                {tpl(t("reports.finExpenseKpiPctOfExpense"), {
+                                  pct: pctPart(
+                                    b.totalExpense,
+                                    ccyTotalsRow.totalExpense
+                                  ),
+                                })}
+                              </span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs leading-snug text-zinc-500">
+                    {t("reports.finExpenseKpiBreakdownMissing")}
+                  </p>
+                )
+              ) : null}
+            </div>
+            <div
+              className={cn(
+                "rounded-xl border px-4 py-3 shadow-sm ring-1 ring-zinc-950/[0.02] sm:px-4 sm:py-3.5",
+                ccyTotalsRow.netCash < 0
+                  ? "border-red-200/90 bg-red-50/40"
+                  : ccyTotalsRow.netCash > 0
+                    ? "border-emerald-200/90 bg-emerald-50/35"
+                    : "border-zinc-200/90 bg-zinc-50/50"
+              )}
+            >
+              <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                {t("reports.storyCardNetTitle")}
+              </p>
+              <p
+                className={cn(
+                  "mt-1 font-bold tabular-nums",
+                  segment === "compare"
+                    ? "text-2xl sm:text-3xl"
+                    : "text-lg sm:text-xl",
+                  ccyTotalsRow.netCash < 0
+                    ? "text-red-900"
+                    : ccyTotalsRow.netCash > 0
+                      ? "text-emerald-900"
+                      : "text-zinc-900"
+                )}
+              >
+                {formatLocaleAmount(ccyTotalsRow.netCash, locale, ccy)}
+              </p>
+            </div>
+          </div>
+
+          {segment === "compare" ? null : (
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div className="rounded-xl border border-zinc-200/90 bg-white px-4 py-3 shadow-sm ring-1 ring-zinc-950/[0.02] sm:px-4 sm:py-3.5">
+              <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                {t("reports.finSummaryKpiSupplierRegister")}
+              </p>
+              <p className="mt-1 text-base font-semibold tabular-nums text-violet-900 sm:text-lg">
+                {formatLocaleAmount(
+                  summarySecondaryKpis.supplier,
+                  locale,
+                  ccy
+                )}
+              </p>
+            </div>
+            <div className="rounded-xl border border-zinc-200/90 bg-white px-4 py-3 shadow-sm ring-1 ring-zinc-950/[0.02] sm:px-4 sm:py-3.5">
+              <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                {t("reports.finSummaryKpiAdvances")}
+              </p>
+              <p className="mt-1 text-base font-semibold tabular-nums text-amber-900 sm:text-lg">
+                {formatLocaleAmount(
+                  summarySecondaryKpis.advances,
+                  locale,
+                  ccy
+                )}
+              </p>
+              {summarySecondaryKpis.advanceRecords > 0 ? (
+                <p className="mt-1 text-xs text-zinc-500">
+                  {tpl(t("reports.finSummaryKpiRowMetaRecords"), {
+                    n: summarySecondaryKpis.advanceRecords,
+                  })}
+                </p>
+              ) : null}
+            </div>
+            <div className="rounded-xl border border-zinc-200/90 bg-white px-4 py-3 shadow-sm ring-1 ring-zinc-950/[0.02] sm:px-4 sm:py-3.5">
+              <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                {t("reports.finSummaryKpiOverhead")}
+              </p>
+              <p className="mt-1 text-base font-semibold tabular-nums text-zinc-800 sm:text-lg">
+                {formatLocaleAmount(
+                  summarySecondaryKpis.overheadSum,
+                  locale,
+                  ccy
+                )}
+              </p>
+              {summarySecondaryKpis.overheadLines > 0 ? (
+                <p className="mt-1 text-xs text-zinc-500">
+                  {tpl(t("reports.finSummaryKpiRowMetaLines"), {
+                    n: summarySecondaryKpis.overheadLines,
+                  })}
+                </p>
+              ) : null}
+            </div>
+            <div className="rounded-xl border border-zinc-200/90 bg-white px-4 py-3 shadow-sm ring-1 ring-zinc-950/[0.02] sm:px-4 sm:py-3.5">
+              <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                {t("reports.finSummaryKpiVehicleOffReg")}
+              </p>
+              <p className="mt-1 text-base font-semibold tabular-nums text-orange-900 sm:text-lg">
+                {formatLocaleAmount(
+                  summarySecondaryKpis.vehicle,
+                  locale,
+                  ccy
+                )}
+              </p>
+              {summarySecondaryKpis.vehicleRecords > 0 ? (
+                <p className="mt-1 text-xs text-zinc-500">
+                  {tpl(t("reports.finSummaryKpiRowMetaRecords"), {
+                    n: summarySecondaryKpis.vehicleRecords,
+                  })}
+                </p>
+              ) : null}
+            </div>
+          </div>
+          )}
+        </div>
+      ) : null}
+
+      {segment === "summary" ? alertsRow : null}
+
+      {showRanking ? (
+      <FinSummaryStorySection
+        t={t}
+        scope="ranking"
+        title={t("reports.finStoryRankingSectionTitle")}
+        description={t("reports.finStoryRankingSectionDesc")}
+      >
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <Card className="min-w-0" title={t("reports.chartBranchNet")}>
+            {branchNetData.length === 0 ? (
+              <p className="text-sm text-zinc-500">{t("reports.empty")}</p>
+            ) : (
+              <div
+                className="-mx-1 w-[calc(100%+0.5rem)] touch-pan-x overflow-x-auto overscroll-x-contain px-1 lg:mx-0 lg:w-full lg:overflow-visible lg:px-0"
+                style={{ height: barH(branchNetData.length) }}
+              >
+                <RechartsMeasureBox
+                  className="h-full min-w-[min(100%,280px)] lg:min-w-0"
+                  style={{ minWidth: smUp ? undefined : 300 }}
+                >
+                  {({ width, height }) => (
+                    <ResponsiveContainer width={width} height={height}>
+                      <BarChart
+                        data={branchNetData}
+                        layout="vertical"
+                        margin={{
+                          top: 8,
+                          right: smUp ? 12 : 4,
+                          left: 0,
+                          bottom: 8,
+                        }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                        <XAxis
+                          type="number"
+                          tick={{ fontSize: smUp ? 11 : 9 }}
+                          tickFormatter={fmtAxisTick}
+                        />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          width={yAxisW}
+                          tick={{ fontSize: smUp ? 11 : 9 }}
+                        />
+                        <Tooltip
+                          formatter={tooltipMoney(ccy)}
+                          labelFormatter={(_, payload) =>
+                            (payload?.[0]?.payload as { nameFull?: string })
+                              ?.nameFull ?? ""
+                          }
+                        />
+                        <Bar
+                          dataKey="net"
+                          name={t("reports.colNet")}
+                          radius={[0, 4, 4, 0]}
+                        >
+                          {branchNetData.map((e, i) => (
+                            <Cell
+                              key={i}
+                              fill={e.net >= 0 ? COL_INCOME : COL_EXPENSE}
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </RechartsMeasureBox>
+              </div>
+            )}
+          </Card>
+
+          <Card className="min-w-0" title={t("reports.chartBranchDelta")}>
+            {branchDeltaData.length === 0 ? (
+              <p className="text-sm text-zinc-500">{t("reports.empty")}</p>
+            ) : (
+              <div
+                className="-mx-1 w-[calc(100%+0.5rem)] touch-pan-x overflow-x-auto overscroll-x-contain px-1 lg:mx-0 lg:w-full lg:overflow-visible lg:px-0"
+                style={{ height: barH(branchDeltaData.length) }}
+              >
+                <RechartsMeasureBox
+                  className="h-full min-w-[min(100%,280px)] lg:min-w-0"
+                  style={{ minWidth: smUp ? undefined : 300 }}
+                >
+                  {({ width, height }) => (
+                    <ResponsiveContainer width={width} height={height}>
+                      <BarChart
+                        data={branchDeltaData}
+                        layout="vertical"
+                        margin={{
+                          top: 8,
+                          right: smUp ? 12 : 4,
+                          left: 0,
+                          bottom: 8,
+                        }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                        <XAxis
+                          type="number"
+                          tick={{ fontSize: smUp ? 11 : 9 }}
+                          tickFormatter={fmtAxisTick}
+                        />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          width={yAxisW}
+                          tick={{ fontSize: smUp ? 11 : 9 }}
+                        />
+                        <Tooltip
+                          formatter={tooltipMoney(ccy)}
+                          labelFormatter={(_, payload) =>
+                            (payload?.[0]?.payload as { nameFull?: string })
+                              ?.nameFull ?? ""
+                          }
+                        />
+                        <Bar
+                          dataKey="delta"
+                          name={t("reports.colDeltaPrior")}
+                          radius={[0, 4, 4, 0]}
+                        >
+                          {branchDeltaData.map((e, i) => (
+                            <Cell
+                              key={i}
+                              fill={
+                                e.delta >= 0 ? COL_DELTA_UP : COL_DELTA_DOWN
+                              }
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </RechartsMeasureBox>
+              </div>
+            )}
+          </Card>
+        </div>
+      </FinSummaryStorySection>
+      ) : null}
+
+      {showFilterStory ? (
+      <FinSummaryStorySection
+        t={t}
+        scope="filter"
+        title={t("reports.finStoryFilterSectionTitle")}
+        description={
+          segment === "compare"
+            ? undefined
+            : t("reports.finStoryFilterSectionDesc")
+        }
+      >
+        {segment === "all" || segment === "compare" ? alertsRow : null}
+        {cmpFrom && cmpTo && segment !== "compare" ? (
+          <p className="text-xs text-zinc-500">
             {t("reports.compareCaption")}: {formatLocaleDate(cmpFrom, locale)} –{" "}
             {formatLocaleDate(cmpTo, locale)}
           </p>
         ) : null}
 
-        <p className="mb-3 text-xs leading-relaxed text-zinc-600">
-          {t("reports.storyDeckHint")}
-        </p>
+        {segment !== "compare" ? (
+          <p className="text-xs leading-relaxed text-zinc-600 sm:text-sm">
+            {t(execKpiBand ? "reports.storyDeckHintSummary" : "reports.storyDeckHint")}
+          </p>
+        ) : null}
 
         <div className="flex flex-col gap-3 sm:gap-4">
-          {storyDeck.net ? (
+          {storyDeck.net && !execKpiBand ? (
             <div
               className={cn(
                 "rounded-2xl border-2 p-4 sm:p-5",
@@ -622,10 +1450,10 @@ export function ReportFinancialStoryCharts({
             </div>
           ) : null}
 
-          {!smUp && hasStoryMore ? (
+          {!lgUp && hasStoryMore ? (
             <button
               type="button"
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/90 px-4 py-3 text-left text-sm font-semibold text-zinc-800 shadow-sm transition hover:bg-zinc-100"
+              className="min-h-11 w-full touch-manipulation rounded-xl border border-zinc-200 bg-zinc-50/90 px-4 py-3 text-left text-sm font-semibold text-zinc-800 shadow-sm transition hover:bg-zinc-100"
               onClick={() => setStoryMoreOpen((o) => !o)}
               aria-expanded={storyMoreOpen}
             >
@@ -635,35 +1463,53 @@ export function ReportFinancialStoryCharts({
             </button>
           ) : null}
 
-          {!smUp && storyMoreOpen ? (
-            <div className="flex flex-col gap-3 sm:hidden">
+          {!lgUp && storyMoreOpen ? (
+            <div className="flex flex-col gap-3 lg:hidden">
               {storyDeck.compare && payMixInner ? payMixInner : null}
               {branchTrendInner}
               {spotlightInner}
             </div>
           ) : null}
 
-          <div className="hidden flex-col gap-3 sm:flex">
+          <div className="hidden flex-col gap-3 lg:flex">
             {branchTrendInner}
             {spotlightInner}
           </div>
         </div>
-      </Card>
+      </FinSummaryStorySection>
+      ) : null}
 
-      <ReportFinancialTimeSeriesCharts
+      {hasCumulativeCharts ? (
+        <FinSummaryStorySection
+          t={t}
+          scope="cumulative"
+          title={t("reports.finStoryCumulativeSectionTitle")}
+          description={t("reports.finStoryCumulativeSectionDesc")}
+        >
+          <ReportFinancialTimeSeriesCharts
+            t={t}
+            locale={locale}
+            currencyCode={ccy}
+            monthlyRows={monthlyRows}
+            branchMonthlyRows={branchMonthlyRows ?? undefined}
+            showBranchNetByMonth={showBranchNetByMonth}
+            suppressSectionIntro
+          />
+        </FinSummaryStorySection>
+      ) : null}
+
+      {showDistribution ? (
+      <FinSummaryStorySection
         t={t}
-        locale={locale}
-        currencyCode={ccy}
-        monthlyRows={monthlyRows}
-        branchMonthlyRows={branchMonthlyRows ?? undefined}
-        showBranchNetByMonth={showBranchNetByMonth}
-      />
-
-      <div>
-        <p className="mb-1 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-zinc-400">
-          {t("reports.sectionCharts")}
-        </p>
-        <p className="mb-3 break-words text-xs leading-relaxed text-zinc-500">
+        scope="distribution"
+        title={t("reports.finStoryDistributionSectionTitle")}
+        description={
+          segment === "charts"
+            ? undefined
+            : t("reports.finStoryDistributionSectionDesc")
+        }
+      >
+        <p className="text-xs leading-relaxed text-zinc-600 sm:text-sm">
           {t("reports.chartLegendHint")}
         </p>
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -735,137 +1581,8 @@ export function ReportFinancialStoryCharts({
           )}
         </Card>
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card className="min-w-0" title={t("reports.chartBranchNet")}>
-          {branchNetData.length === 0 ? (
-            <p className="text-sm text-zinc-500">{t("reports.empty")}</p>
-          ) : (
-            <div
-              className="-mx-1 w-[calc(100%+0.5rem)] touch-pan-x overflow-x-auto overscroll-x-contain px-1 sm:mx-0 sm:w-full sm:overflow-visible sm:px-0"
-              style={{ height: barH(branchNetData.length) }}
-            >
-              <RechartsMeasureBox
-                className="h-full min-w-[min(100%,280px)] sm:min-w-0"
-                style={{ minWidth: smUp ? undefined : 300 }}
-              >
-                {({ width, height }) => (
-                  <ResponsiveContainer width={width} height={height}>
-                    <BarChart
-                      data={branchNetData}
-                      layout="vertical"
-                      margin={{
-                        top: 8,
-                        right: smUp ? 12 : 4,
-                        left: 0,
-                        bottom: 8,
-                      }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-                      <XAxis
-                        type="number"
-                        tick={{ fontSize: smUp ? 11 : 9 }}
-                        tickFormatter={fmtAxisTick}
-                      />
-                      <YAxis
-                        type="category"
-                        dataKey="name"
-                        width={yAxisW}
-                        tick={{ fontSize: smUp ? 11 : 9 }}
-                      />
-                      <Tooltip
-                        formatter={tooltipMoney(ccy)}
-                        labelFormatter={(_, payload) =>
-                          (payload?.[0]?.payload as { nameFull?: string })
-                            ?.nameFull ?? ""
-                        }
-                      />
-                      <Bar
-                        dataKey="net"
-                        name={t("reports.colNet")}
-                        radius={[0, 4, 4, 0]}
-                      >
-                        {branchNetData.map((e, i) => (
-                          <Cell
-                            key={i}
-                            fill={e.net >= 0 ? COL_INCOME : COL_EXPENSE}
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </RechartsMeasureBox>
-            </div>
-          )}
-        </Card>
-
-        <Card className="min-w-0" title={t("reports.chartBranchDelta")}>
-          {branchDeltaData.length === 0 ? (
-            <p className="text-sm text-zinc-500">{t("reports.empty")}</p>
-          ) : (
-            <div
-              className="-mx-1 w-[calc(100%+0.5rem)] touch-pan-x overflow-x-auto overscroll-x-contain px-1 sm:mx-0 sm:w-full sm:overflow-visible sm:px-0"
-              style={{ height: barH(branchDeltaData.length) }}
-            >
-              <RechartsMeasureBox
-                className="h-full min-w-[min(100%,280px)] sm:min-w-0"
-                style={{ minWidth: smUp ? undefined : 300 }}
-              >
-                {({ width, height }) => (
-                  <ResponsiveContainer width={width} height={height}>
-                    <BarChart
-                      data={branchDeltaData}
-                      layout="vertical"
-                      margin={{
-                        top: 8,
-                        right: smUp ? 12 : 4,
-                        left: 0,
-                        bottom: 8,
-                      }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-                      <XAxis
-                        type="number"
-                        tick={{ fontSize: smUp ? 11 : 9 }}
-                        tickFormatter={fmtAxisTick}
-                      />
-                      <YAxis
-                        type="category"
-                        dataKey="name"
-                        width={yAxisW}
-                        tick={{ fontSize: smUp ? 11 : 9 }}
-                      />
-                      <Tooltip
-                        formatter={tooltipMoney(ccy)}
-                        labelFormatter={(_, payload) =>
-                          (payload?.[0]?.payload as { nameFull?: string })
-                            ?.nameFull ?? ""
-                        }
-                      />
-                      <Bar
-                        dataKey="delta"
-                        name={t("reports.colDeltaPrior")}
-                        radius={[0, 4, 4, 0]}
-                      >
-                        {branchDeltaData.map((e, i) => (
-                          <Cell
-                            key={i}
-                            fill={
-                              e.delta >= 0 ? COL_DELTA_UP : COL_DELTA_DOWN
-                            }
-                          />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </RechartsMeasureBox>
-            </div>
-          )}
-        </Card>
-      </div>
+      </FinSummaryStorySection>
+      ) : null}
     </div>
   );
 }

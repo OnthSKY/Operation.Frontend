@@ -13,21 +13,26 @@ export function MobilePageToolRow({
   actions,
   className,
 }: {
-  preview: ReactNode;
+  /** `null` = yalnızca ikonlar (finans raporu gibi yoğun sayfalar). */
+  preview: ReactNode | null;
   actions: ReactNode;
   className?: string;
 }) {
+  const showPreview = preview != null;
   return (
     <div
       className={cn(
-        "flex flex-wrap items-stretch justify-end gap-2 sm:justify-between",
+        "flex flex-nowrap items-center gap-2",
+        showPreview ? "justify-between" : "justify-end",
         className
       )}
     >
-      <div className="min-w-0 flex-1 basis-[min(100%,20rem)] rounded-xl border border-zinc-200/90 bg-zinc-50/80 px-3 py-2.5 ring-1 ring-zinc-950/[0.03] sm:py-2">
-        {preview}
-      </div>
-      <div className="flex shrink-0 items-stretch gap-2">{actions}</div>
+      {showPreview ? (
+        <div className="min-w-0 flex-1 overflow-hidden rounded-xl border border-zinc-200/90 bg-zinc-50/80 px-3 py-2 ring-1 ring-zinc-950/[0.03] sm:py-2">
+          {preview}
+        </div>
+      ) : null}
+      <div className="flex shrink-0 items-center gap-2">{actions}</div>
     </div>
   );
 }

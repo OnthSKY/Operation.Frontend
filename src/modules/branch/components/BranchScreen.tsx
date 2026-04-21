@@ -41,7 +41,9 @@ import {
 } from "./BranchQuickActionsMenu";
 import { AssignPersonnelToBranchModal } from "./AssignPersonnelToBranchModal";
 import { BranchPdfSettlementOptionsModal } from "./BranchPdfSettlementOptionsModal";
+import { BranchPosSettlementProfileModal } from "./BranchPosSettlementProfileModal";
 import { parseBranchDetailTabParam } from "@/modules/branch/lib/branch-detail-tab";
+import { parseRegisterDaySearchParam } from "@/modules/branch/lib/register-day-search-param";
 
 function seasonLabel(status: BranchSeasonStatus, t: (key: string) => string): string {
   switch (status) {
@@ -174,6 +176,7 @@ export function BranchScreen() {
   const [metricsOpen, setMetricsOpen] = useState<Record<number, boolean>>({});
   const [assignBranchId, setAssignBranchId] = useState<number | null>(null);
   const [pdfBranch, setPdfBranch] = useState<Branch | null>(null);
+  const [posProfileBranch, setPosProfileBranch] = useState<Branch | null>(null);
 
   const branchNameById = useMemo(() => {
     const m = new Map<number, string>();
@@ -263,6 +266,11 @@ export function BranchScreen() {
               onSelect: () => setPdfBranch(b),
             },
             {
+              id: "posProfile",
+              label: t("branch.listRowPosProfile"),
+              onSelect: () => setPosProfileBranch(b),
+            },
+            {
               id: "assign",
               label: t("branch.listRowAddPersonnel"),
               onSelect: () => setAssignBranchId(b.id),
@@ -320,6 +328,11 @@ export function BranchScreen() {
 
   const initialDetailTab = useMemo(
     () => parseBranchDetailTabParam(searchParams.get("branchTab")),
+    [searchParams]
+  );
+
+  const registerDayFromUrl = useMemo(
+    () => parseRegisterDaySearchParam(searchParams.get("registerDay")),
     [searchParams]
   );
 
@@ -675,6 +688,7 @@ export function BranchScreen() {
           staff={staff}
           employeeSelfService={personnelPortal}
           initialTab={initialDetailTab}
+          initialRegisterDay={registerDayFromUrl}
           canEditBranch={!personnelPortal}
           onEditBranch={() => {
             if (selectedId != null) {
@@ -734,6 +748,14 @@ export function BranchScreen() {
           branchNameById={branchNameById}
           locale={locale}
           onClose={() => setPdfBranch(null)}
+        />
+      ) : null}
+
+      {!personnelPortal ? (
+        <BranchPosSettlementProfileModal
+          branch={posProfileBranch}
+          personnel={activePersonnel}
+          onClose={() => setPosProfileBranch(null)}
         />
       ) : null}
     </>

@@ -3,7 +3,7 @@
 import { useI18n } from "@/i18n/context";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { StockReportDetailTables } from "@/modules/reports/components/ReportsDetailTables";
-import { ReportsPatronTabStory } from "@/modules/reports/components/ReportsPatronTabStory";
+import { ReportsPatronStoryInfoButton } from "@/modules/reports/components/ReportsPatronTabStory";
 import {
   ReportHubDateRangeControls,
   type ReportHubRangeLock,
@@ -24,7 +24,7 @@ import {
   warehouseScopeFiltersActive,
 } from "@/modules/warehouse/lib/warehouse-scope-filters";
 import { useWarehousesList } from "@/modules/warehouse/hooks/useWarehouseQueries";
-import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
+import { PageWhenToUseInfoButton } from "@/shared/components/PageWhenToUseInfoButton";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
@@ -125,9 +125,9 @@ export function StockReportTablesScreen() {
       title={t("reports.tablesPageStockTitle")}
       subtitle={t("reports.tablesPageStockSubtitle")}
       pageGuide={
-        <PageWhenToUseGuide
+        <PageWhenToUseInfoButton
+          ariaLabel={t("common.pageHelpHintLabel")}
           guideTab="reports"
-          title={t("common.pageWhenToUseTitle")}
           description={t("pageHelp.reportsStock.intro")}
           listVariant="ordered"
           items={[
@@ -151,6 +151,40 @@ export function StockReportTablesScreen() {
         preview={filterPreview}
         onRefetch={() => void stock.refetch()}
         isRefetching={stock.isFetching}
+        main={
+          <>
+            <div className="flex justify-end">
+              <ReportsPatronStoryInfoButton tab="stock" />
+            </div>
+
+            {stock.isFetching && stock.data ? (
+              <p className="text-center text-xs text-zinc-400" aria-live="polite">
+                {t("reports.updatingHint")}
+              </p>
+            ) : null}
+
+            {stock.isError ? (
+              <p className="text-sm text-red-600">
+                {t("reports.error")} {toErrorMessage(stock.error)}
+              </p>
+            ) : null}
+
+            {stock.isPending ? (
+              <p className="text-sm text-zinc-500">{t("reports.loading")}</p>
+            ) : null}
+
+            {stock.data ? (
+              <div className="space-y-6 rounded-2xl border border-zinc-200 bg-white px-3 py-4 sm:px-5 sm:py-6">
+                <StockReportDetailTables
+                  data={stock.data}
+                  t={t}
+                  locale={locale}
+                  interactive
+                />
+              </div>
+            ) : null}
+          </>
+        }
       >
         <div className="flex flex-col gap-4">
           <ReportHubDateRangeControls
@@ -207,35 +241,6 @@ export function StockReportTablesScreen() {
           </div>
         </div>
       </ReportMobileFilterSurface>
-
-      <ReportsPatronTabStory tab="stock" />
-
-      {stock.isFetching && stock.data ? (
-        <p className="text-center text-xs text-zinc-400" aria-live="polite">
-          {t("reports.updatingHint")}
-        </p>
-      ) : null}
-
-      {stock.isError ? (
-        <p className="text-sm text-red-600">
-          {t("reports.error")} {toErrorMessage(stock.error)}
-        </p>
-      ) : null}
-
-      {stock.isPending ? (
-        <p className="text-sm text-zinc-500">{t("reports.loading")}</p>
-      ) : null}
-
-      {stock.data ? (
-        <div className="space-y-6 rounded-2xl border border-zinc-200 bg-white px-3 py-4 sm:px-5 sm:py-6">
-          <StockReportDetailTables
-            data={stock.data}
-            t={t}
-            locale={locale}
-            interactive
-          />
-        </div>
-      ) : null}
     </ReportTablesPageShell>
   );
 }

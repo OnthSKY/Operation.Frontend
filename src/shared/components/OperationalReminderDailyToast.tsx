@@ -2,7 +2,7 @@
 
 import { useI18n } from "@/i18n/context";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { isDriverPortalRole, isPersonnelPortalRole } from "@/lib/auth/roles";
+import { hasStaffOperationsNotifications } from "@/lib/auth/permissions";
 import { fetchOperationalReminders } from "@/modules/reminders/api/reminders-api";
 import { remindersKeys } from "@/modules/reminders/reminders-keys";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
@@ -39,21 +39,18 @@ export function OperationalReminderDailyToast() {
   const { t } = useI18n();
   const today = localIsoDate();
   const shownRef = useRef(false);
-  const personnelPortal = isPersonnelPortalRole(user?.role);
-  const driverPortal = isDriverPortalRole(user?.role);
-  const staffFullNav = Boolean(user) && !personnelPortal && !driverPortal;
-
   const dailyToastAllowed = user?.notificationPreferences?.operationalDailyToast !== false;
+  const staffOps = Boolean(user) && hasStaffOperationsNotifications(user);
 
   const { data, isSuccess } = useQuery({
     queryKey: remindersKeys.today(today),
     queryFn: () => fetchOperationalReminders(today),
     staleTime: 60_000,
-    enabled: staffFullNav && dailyToastAllowed,
+    enabled: staffOps && dailyToastAllowed,
   });
 
   useEffect(() => {
-    if (!staffFullNav || !dailyToastAllowed || !isSuccess || !data) return;
+    if (!staffOps || !dailyToastAllowed || !isSuccess || !data) return;
     if (typeof window === "undefined") return;
     if (shownRef.current) return;
     if (reminderCount(data) === 0) return;
@@ -69,7 +66,7 @@ export function OperationalReminderDailyToast() {
       /* private mode */
     }
     notify.info(t("reminders.dailyToast"));
-  }, [staffFullNav, dailyToastAllowed, isSuccess, data, today, t]);
+  }, [staffOps, dailyToastAllowed, isSuccess, data, today, t]);
 
   return null;
 }

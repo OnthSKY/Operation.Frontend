@@ -1,6 +1,11 @@
 import { apiRequest, apiUrl } from "@/shared/api/client";
 import type {
   PersonnelCashHandoverLine,
+  PersonnelCashHandoverLinesPagedResponse,
+  PersonnelCashHandoverOutflow,
+  PersonnelCashHandoverOutflowKind,
+  PersonnelCashHandoverOutflowsPagedResponse,
+  PersonnelCashHandoverPoolRemaining,
   PersonnelManagementSnapshot,
 } from "@/types/personnel-management-snapshot";
 import type {
@@ -179,6 +184,8 @@ export type PersonnelListQueryParams = {
   seasonArrivalTo?: string;
   hireDateFrom?: string;
   hireDateTo?: string;
+  /** Açık sigorta dönemi; yalnız true/false gönderilir (tümü: parametre yok). */
+  insuranceStarted?: boolean;
 };
 
 export type PersonnelListResult = {
@@ -217,6 +224,8 @@ export async function fetchPersonnelList(
   const ht = params?.hireDateTo?.trim();
   if (hf) sp.set("hireDateFrom", hf);
   if (ht) sp.set("hireDateTo", ht);
+  if (params?.insuranceStarted === true) sp.set("insuranceStarted", "true");
+  if (params?.insuranceStarted === false) sp.set("insuranceStarted", "false");
   const q = sp.toString();
   const path = q ? `/personnel?${q}` : "/personnel";
   const row = await apiRequest<PersonnelListApiEnvelope>(path);
@@ -435,6 +444,10 @@ export async function updatePersonnelInsurancePeriod(
 }
 
 function mapCashHandoverLine(r: Record<string, unknown>): PersonnelCashHandoverLine {
+  const num = (v: unknown): number => {
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
   const tid = typeof r.transactionId === "number" ? r.transactionId : Number(r.transactionId);
   const bid = typeof r.branchId === "number" ? r.branchId : Number(r.branchId);
   const amt = typeof r.cashAmount === "number" ? r.cashAmount : Number(r.cashAmount);
@@ -445,6 +458,8 @@ function mapCashHandoverLine(r: Record<string, unknown>): PersonnelCashHandoverL
     branchName: typeof r.branchName === "string" ? r.branchName : "",
     transactionDate: d,
     cashAmount: Number.isFinite(amt) ? amt : 0,
+    settledFromHandoverAmount: num(r.settledFromHandoverAmount),
+    remainingHandoverAmount: num(r.remainingHandoverAmount),
     currencyCode:
       typeof r.currencyCode === "string" && r.currencyCode.trim()
         ? r.currencyCode.trim().toUpperCase()
@@ -452,6 +467,62 @@ function mapCashHandoverLine(r: Record<string, unknown>): PersonnelCashHandoverL
     mainCategory: r.mainCategory != null ? String(r.mainCategory) : null,
     category: r.category != null ? String(r.category) : null,
     description: r.description != null ? String(r.description) : null,
+  };
+}
+
+function mapCashHandoverOutflow(r: Record<string, unknown>): PersonnelCashHandoverOutflow {
+  const num = (v: unknown): number => {
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const tid = typeof r.transactionId === "number" ? r.transactionId : Number(r.transactionId);
+  const bid = typeof r.branchId === "number" ? r.branchId : Number(r.branchId);
+  const rawKind = String(r.outflowKind ?? "").trim().toUpperCase();
+  const outflowKind: PersonnelCashHandoverOutflowKind =
+    rawKind === "SETTLES_HANDOVER_IN" ? "SETTLES_HANDOVER_IN" : "HELD_REGISTER_CASH";
+  let settles: number | null = null;
+  const s = r.settlesCashHandoverTransactionId;
+  if (s != null && typeof s === "number" && Number.isFinite(s)) settles = s;
+  else if (s != null) {
+    const n = parseInt(String(s), 10);
+    if (Number.isFinite(n)) settles = n;
+  }
+  const d = r.transactionDate != null ? String(r.transactionDate).slice(0, 10) : "";
+  const optNum = (v: unknown): number | null => {
+    if (v == null) return null;
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) ? n : null;
+  };
+  return {
+    transactionId: Number.isFinite(tid) ? tid : 0,
+    branchId: Number.isFinite(bid) ? bid : 0,
+    branchName: typeof r.branchName === "string" ? r.branchName : "",
+    transactionDate: d,
+    amount: num(r.amount),
+    currencyCode:
+      typeof r.currencyCode === "string" && r.currencyCode.trim()
+        ? r.currencyCode.trim().toUpperCase()
+        : "TRY",
+    mainCategory: r.mainCategory != null ? String(r.mainCategory) : null,
+    category: r.category != null ? String(r.category) : null,
+    description: r.description != null ? String(r.description) : null,
+    outflowKind,
+    settlesCashHandoverTransactionId: settles,
+    balanceBefore: optNum((r as { balanceBefore?: unknown }).balanceBefore),
+    balanceAfter: optNum((r as { balanceAfter?: unknown }).balanceAfter),
+  };
+}
+
+function mapPoolRemaining(r: Record<string, unknown>): PersonnelCashHandoverPoolRemaining {
+  const bid = Number((r as { branchId?: unknown }).branchId);
+  const tot = Number((r as { totalRemainingHandover?: unknown }).totalRemainingHandover);
+  return {
+    branchId: Number.isFinite(bid) ? bid : 0,
+    branchName: String((r as { branchName?: unknown }).branchName ?? "").trim(),
+    currencyCode: String((r as { currencyCode?: unknown }).currencyCode ?? "TRY")
+      .trim()
+      .toUpperCase() || "TRY",
+    totalRemainingHandover: Number.isFinite(tot) ? tot : 0,
   };
 }
 
@@ -465,5 +536,107 @@ export async function fetchPersonnelManagementSnapshot(
   const cashHandoverLines: PersonnelCashHandoverLine[] = Array.isArray(linesRaw)
     ? linesRaw.map((x) => mapCashHandoverLine(x as Record<string, unknown>))
     : [];
-  return { ...(raw as unknown as PersonnelManagementSnapshot), cashHandoverLines };
+  const poolRaw = raw.cashHandoverPoolRemainingByBranch;
+  const cashHandoverPoolRemainingByBranch: PersonnelCashHandoverPoolRemaining[] =
+    Array.isArray(poolRaw)
+      ? poolRaw.map((x) => mapPoolRemaining(x as Record<string, unknown>))
+      : [];
+  const outRaw = raw.cashHandoverOutflows;
+  const cashHandoverOutflows: PersonnelCashHandoverOutflow[] = Array.isArray(outRaw)
+    ? outRaw.map((x) => mapCashHandoverOutflow(x as Record<string, unknown>))
+    : [];
+  return {
+    ...(raw as unknown as PersonnelManagementSnapshot),
+    cashHandoverLines,
+    cashHandoverPoolRemainingByBranch,
+    cashHandoverOutflows,
+  };
+}
+
+export type PersonnelCashHandoverLinesApiQuery = {
+  page: number;
+  pageSize: number;
+  branchId?: number;
+  currencyCode?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+};
+
+export async function fetchPersonnelCashHandoverLinesPaged(
+  personnelId: number,
+  q: PersonnelCashHandoverLinesApiQuery
+): Promise<PersonnelCashHandoverLinesPagedResponse> {
+  const sp = new URLSearchParams();
+  sp.set("page", String(q.page));
+  sp.set("pageSize", String(q.pageSize));
+  if (q.branchId != null && q.branchId > 0) sp.set("branchId", String(q.branchId));
+  if (q.currencyCode != null && q.currencyCode.trim() !== "") {
+    sp.set("currencyCode", q.currencyCode.trim().toUpperCase());
+  }
+  if (q.dateFrom != null && q.dateFrom.trim() !== "") {
+    sp.set("dateFrom", q.dateFrom.trim().slice(0, 10));
+  }
+  if (q.dateTo != null && q.dateTo.trim() !== "") {
+    sp.set("dateTo", q.dateTo.trim().slice(0, 10));
+  }
+  if (q.search != null && q.search.trim() !== "") sp.set("search", q.search.trim());
+
+  const raw = await apiRequest<Record<string, unknown>>(
+    `/personnel/${personnelId}/cash-handover-lines?${sp.toString()}`
+  );
+  const itemsRaw = raw.items;
+  const items: PersonnelCashHandoverLine[] = Array.isArray(itemsRaw)
+    ? itemsRaw.map((x) => mapCashHandoverLine(x as Record<string, unknown>))
+    : [];
+  const totalCount =
+    typeof raw.totalCount === "number" ? raw.totalCount : parseInt(String(raw.totalCount ?? "0"), 10);
+  const page = typeof raw.page === "number" ? raw.page : parseInt(String(raw.page ?? "1"), 10);
+  const pageSize =
+    typeof raw.pageSize === "number" ? raw.pageSize : parseInt(String(raw.pageSize ?? "25"), 10);
+  return {
+    items,
+    totalCount: Number.isFinite(totalCount) ? totalCount : 0,
+    page: Number.isFinite(page) && page > 0 ? page : 1,
+    pageSize: Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 25,
+  };
+}
+
+export async function fetchPersonnelCashHandoverOutflowsPaged(
+  personnelId: number,
+  q: PersonnelCashHandoverLinesApiQuery
+): Promise<PersonnelCashHandoverOutflowsPagedResponse> {
+  const sp = new URLSearchParams();
+  sp.set("page", String(q.page));
+  sp.set("pageSize", String(q.pageSize));
+  if (q.branchId != null && q.branchId > 0) sp.set("branchId", String(q.branchId));
+  if (q.currencyCode != null && q.currencyCode.trim() !== "") {
+    sp.set("currencyCode", q.currencyCode.trim().toUpperCase());
+  }
+  if (q.dateFrom != null && q.dateFrom.trim() !== "") {
+    sp.set("dateFrom", q.dateFrom.trim().slice(0, 10));
+  }
+  if (q.dateTo != null && q.dateTo.trim() !== "") {
+    sp.set("dateTo", q.dateTo.trim().slice(0, 10));
+  }
+  if (q.search != null && q.search.trim() !== "") sp.set("search", q.search.trim());
+
+  const raw = await apiRequest<Record<string, unknown>>(
+    `/personnel/${personnelId}/cash-handover-outflows?${sp.toString()}`
+  );
+  const itemsRaw = raw.items;
+  const items: PersonnelCashHandoverOutflow[] = Array.isArray(itemsRaw)
+    ? itemsRaw.map((x) => mapCashHandoverOutflow(x as Record<string, unknown>))
+    : [];
+  const totalCount =
+    typeof raw.totalCount === "number" ? raw.totalCount : parseInt(String(raw.totalCount ?? "0"), 10);
+  const page = typeof raw.page === "number" ? raw.page : parseInt(String(raw.page ?? "1"), 10);
+  const pageSize =
+    typeof raw.pageSize === "number" ? raw.pageSize : parseInt(String(raw.pageSize ?? "25"), 10);
+  return {
+    items,
+    totalCount: Number.isFinite(totalCount) ? totalCount : 0,
+    page: Number.isFinite(page) && page > 0 ? page : 1,
+    pageSize: Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 25,
+  };
 }

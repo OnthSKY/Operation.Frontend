@@ -2,9 +2,12 @@
 
 import { useProductInventory } from "@/modules/products/hooks/useProductQueries";
 import { ProductDetailMovementsTab } from "@/modules/products/components/ProductDetailMovementsTab";
+import { useProductCostHistory } from "@/modules/products/hooks/useProductCostQueries";
 import { useI18n } from "@/i18n/context";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { Button } from "@/shared/ui/Button";
+import { detailOpenIconButtonClass, PencilIcon } from "@/shared/ui/EyeIcon";
 import { Modal } from "@/shared/ui/Modal";
 import {
   Table,
@@ -24,14 +27,24 @@ type Props = {
   onEdit?: () => void;
 };
 
-type TabId = "inventory" | "movements";
+type TabId = "inventory" | "movements" | "costHistory";
 
 export function ProductDetailModal({ open, productId, productLabel, onClose, onEdit }: Props) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const [tab, setTab] = useState<TabId>("inventory");
   const { data: inv, isPending: invLoading, isError: invErr, error: invError } =
     useProductInventory(open && productId != null ? productId : null);
-
-  const [tab, setTab] = useState<TabId>("inventory");
+  const {
+    data: costRows = [],
+    isPending: costLoading,
+    isError: costErr,
+    error: costError,
+  } = useProductCostHistory(
+    {
+      productId: open && productId != null ? productId : undefined,
+    },
+    open && tab === "costHistory" && productId != null && productId > 0
+  );
 
   useEffect(() => {
     if (open) setTab("inventory");
@@ -53,13 +66,6 @@ export function ProductDetailModal({ open, productId, productLabel, onClose, onE
       closeButtonLabel={t("common.close")}
     >
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {onEdit ? (
-          <div className="flex shrink-0 justify-end border-b border-zinc-100 px-4 py-2 sm:px-6">
-            <Button type="button" variant="secondary" className="min-h-10" onClick={onEdit}>
-              {t("products.editProduct")}
-            </Button>
-          </div>
-        ) : null}
         <div
           role="tablist"
           aria-label={t("products.detailTabsLabel")}
@@ -93,11 +99,45 @@ export function ProductDetailModal({ open, productId, productLabel, onClose, onE
           >
             {t("products.tabMovements")}
           </button>
+          <button
+            type="button"
+            role="tab"
+            id="product-tab-cost-history"
+            aria-selected={tab === "costHistory"}
+            className={
+              tab === "costHistory"
+                ? "-mb-px min-h-12 border-b-2 border-zinc-900 px-4 text-sm font-semibold text-zinc-900"
+                : "min-h-12 border-b-2 border-transparent px-4 text-sm font-medium text-zinc-500 hover:text-zinc-800"
+            }
+            onClick={() => setTab("costHistory")}
+          >
+            {t("products.tabCostHistory")}
+          </button>
+          {onEdit ? (
+            <div className="ml-auto flex items-center">
+              <Button
+                type="button"
+                variant="secondary"
+                className={detailOpenIconButtonClass}
+                onClick={onEdit}
+                aria-label={t("products.editProduct")}
+                title={t("products.editProduct")}
+              >
+                <PencilIcon className="h-5 w-5" />
+              </Button>
+            </div>
+          ) : null}
         </div>
 
         <div
           role="tabpanel"
-          aria-labelledby={tab === "inventory" ? "product-tab-inventory" : "product-tab-movements"}
+          aria-labelledby={
+            tab === "inventory"
+              ? "product-tab-inventory"
+              : tab === "movements"
+                ? "product-tab-movements"
+                : "product-tab-cost-history"
+          }
           className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain px-4 py-4 sm:px-6 sm:py-5"
         >
           {tab === "inventory" && (
@@ -193,6 +233,45 @@ export function ProductDetailModal({ open, productId, productLabel, onClose, onE
                 productId={pid}
                 enabled={open && tab === "movements"}
               />
+            </section>
+          )}
+          {tab === "costHistory" && pid > 0 && (
+            <section className="flex min-h-0 flex-1 flex-col">
+              <h3 className="sr-only">{t("products.sectionCostHistory")}</h3>
+              {costErr ? (
+                <p className="text-sm text-red-600">{toErrorMessage(costError)}</p>
+              ) : costLoading ? (
+                <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+              ) : costRows.length === 0 ? (
+                <p className="text-sm text-zinc-500">{t("products.costHistory.empty")}</p>
+              ) : (
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableHeader>{t("products.costHistory.colDate")}</TableHeader>
+                      <TableHeader className="text-right">{t("products.costHistory.colExVat")}</TableHeader>
+                      <TableHeader className="text-right">{t("products.costHistory.colIncVat")}</TableHeader>
+                      <TableHeader className="text-right">{t("products.costHistory.colVatRate")}</TableHeader>
+                      <TableHeader>{t("products.costHistory.colNote")}</TableHeader>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {costRows.map((r) => (
+                      <TableRow key={r.id}>
+                        <TableCell>{r.effectiveDate}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatLocaleAmount(r.unitCostExcludingVat, locale)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatLocaleAmount(r.unitCostIncludingVat, locale)}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">%{r.vatRate}</TableCell>
+                        <TableCell>{r.note?.trim() || "—"}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </section>
           )}
         </div>

@@ -7,6 +7,8 @@ export type AuthUser = {
   username: string;
   fullName: string;
   role: string;
+  /** DB role_permissions; matris ile yönetilir. */
+  permissionCodes?: string[] | null;
   personnelId: number | null;
   /** personnel.branch_id — PERSONNEL kapsamı için */
   personnelBranchId?: number | null;

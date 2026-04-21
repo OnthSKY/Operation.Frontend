@@ -85,7 +85,7 @@ export function RightDrawer({
         aria-modal="true"
         aria-labelledby="right-drawer-title"
         className={cn(
-          "absolute inset-y-0 right-0 flex w-full max-w-md flex-col border-l border-zinc-200 bg-white shadow-2xl shadow-zinc-900/15",
+          "absolute inset-y-0 right-0 flex w-full max-w-md flex-col border-l border-zinc-200 bg-white shadow-2xl shadow-zinc-900/15 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]",
           className
         )}
       >
@@ -95,7 +95,7 @@ export function RightDrawer({
           </h2>
           <button
             type="button"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900"
+            className="flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900"
             onClick={onClose}
             aria-label={closeLabel}
           >
@@ -107,7 +107,7 @@ export function RightDrawer({
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-4 sm:px-5 sm:py-5">
           {children}
         </div>
-        <div className="shrink-0 border-t border-zinc-100 p-4 sm:px-5">
+        <div className="shrink-0 border-t border-zinc-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] sm:px-5">
           <Button type="button" variant="secondary" className="w-full min-h-11" onClick={onClose}>
             {closeLabel}
           </Button>

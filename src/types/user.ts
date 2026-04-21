@@ -1,4 +1,11 @@
-export type AppUserRole = "ADMIN" | "STAFF" | "PERSONNEL" | "DRIVER";
+export type AppUserRole =
+  | "ADMIN"
+  | "STAFF"
+  | "PERSONNEL"
+  | "DRIVER"
+  | "VIEWER"
+  | "FINANCE"
+  | "PROCUREMENT";
 
 export type UserListItem = {
   id: number;

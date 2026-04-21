@@ -5,11 +5,15 @@ import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import {
   useAllocateGeneralOverheadPool,
   useCreateGeneralOverheadPool,
+  useGeneralOverheadPoolDetail,
   useGeneralOverheadPools,
+  useGeneralOverheadReversePreview,
+  generalOverheadPoolAuditKey,
   useReverseGeneralOverheadAllocation,
 } from "@/modules/general-overhead/hooks/useGeneralOverheadQueries";
 import type {
   GeneralOverheadAllocateLine,
+  GeneralOverheadPoolDetail,
   GeneralOverheadPoolRow,
 } from "@/modules/general-overhead/api/general-overhead-api";
 import { useI18n } from "@/i18n/context";
@@ -30,9 +34,9 @@ import {
   formatLocaleAmountInput,
   parseLocaleAmount,
 } from "@/shared/lib/locale-amount";
+import { formatLocaleDate, formatLocaleDateTime } from "@/shared/lib/locale-date";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { notify } from "@/shared/lib/notify";
-import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { financialBreakdownMainLabel } from "@/modules/reports/lib/financial-breakdown-labels";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
@@ -40,12 +44,20 @@ import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import { Switch } from "@/shared/ui/Switch";
+import {
+  detailOpenIconButtonClass,
+  EyeIcon,
+  ShareAllocateIcon,
+  UndoIcon,
+} from "@/shared/ui/EyeIcon";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/Table";
 import { cn } from "@/lib/cn";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import { ToolbarGlyphCoinExpense } from "@/shared/ui/ToolbarGlyph";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { fetchAuditLogs } from "@/lib/api/audit-logs-api";
 
 function splitEqualParts(total: number, n: number): number[] {
   if (n <= 0) return [];
@@ -63,6 +75,15 @@ function splitEqualParts(total: number, n: number): number[] {
 type AllocLine = { key: string; branchId: string; amount: string };
 
 type CreateAmountRow = { key: string; currency: string; amount: string };
+
+function expensePaySourceLabel(src: string, t: (k: string) => string): string {
+  const u = String(src ?? "")
+    .trim()
+    .toUpperCase();
+  if (u === "REGISTER") return t("generalOverhead.reversePayRegister");
+  if (u === "PERSONNEL_POCKET") return t("generalOverhead.reversePayPocket");
+  return t("generalOverhead.reversePayPatron");
+}
 
 function poolAmountsList(p: GeneralOverheadPoolRow): { currencyCode: string; amount: number }[] {
   const rows = p.amounts;
@@ -294,7 +315,168 @@ function AllocationDraftTotalsBar({
   );
 }
 
+function GohDetailAllocationSection({
+  data,
+  t,
+  locale,
+}: {
+  data: GeneralOverheadPoolDetail;
+  t: (k: string) => string;
+  locale: Locale;
+}) {
+  const st = String(data.status ?? "")
+    .trim()
+    .toUpperCase();
+  const rows = data.allocations ?? [];
+  if (st === "ALLOCATED" && rows.length > 0) {
+    return (
+      <div className="max-h-[min(52dvh,22rem)] overflow-y-auto overscroll-y-contain rounded-2xl sm:max-h-[min(60dvh,28rem)] md:max-h-none md:overflow-visible">
+        <Table className="shadow-sm ring-1 ring-zinc-950/[0.04]">
+          <TableHead>
+            <TableRow>
+              <TableHeader>{t("generalOverhead.fieldBranch")}</TableHeader>
+              <TableHeader className="text-end">{t("generalOverhead.fieldShareAmount")}</TableHeader>
+              <TableHeader className="whitespace-nowrap text-end">
+                {t("generalOverhead.detailBranchTransactionId")}
+              </TableHeader>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {rows.map((row) => (
+              <TableRow key={`${row.branchId}-${row.currencyCode}-${row.branchTransactionId}`}>
+                <TableCell className="text-sm font-medium text-zinc-900" dataLabel={t("generalOverhead.fieldBranch")}>
+                  {row.branchName}
+                </TableCell>
+                <TableCell
+                  className="text-end text-sm font-semibold tabular-nums text-zinc-900"
+                  dataLabel={t("generalOverhead.fieldShareAmount")}
+                >
+                  {formatLocaleAmount(row.amount, locale, row.currencyCode)}
+                </TableCell>
+                <TableCell
+                  className="text-end text-sm tabular-nums text-zinc-500"
+                  dataLabel={t("generalOverhead.detailBranchTransactionId")}
+                >
+                  #{row.branchTransactionId}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  }
+  if (st === "ALLOCATED") {
+    return <p className="rounded-xl bg-amber-50/90 px-3 py-2.5 text-sm text-amber-950">{t("generalOverhead.detailAllocationsEmpty")}</p>;
+  }
+  return (
+    <p className="rounded-xl bg-zinc-50 px-3 py-2.5 text-sm text-zinc-600">{t("generalOverhead.detailNotAllocated")}</p>
+  );
+}
+
+function parseGohAuditOperationJson(json: string | null): string | null {
+  if (json == null || json.trim() === "") return null;
+  try {
+    const o = JSON.parse(json) as { operation?: string };
+    return typeof o.operation === "string" ? o.operation : null;
+  } catch {
+    return null;
+  }
+}
+
+function gohAuditOperationLabel(op: string | null, t: (k: string) => string): string {
+  switch (op) {
+    case "GENERAL_OVERHEAD_POOL_CREATE":
+      return t("generalOverhead.auditOpPoolCreate");
+    case "GENERAL_OVERHEAD_ALLOCATE":
+      return t("generalOverhead.auditOpAllocate");
+    case "GENERAL_OVERHEAD_REVERSE_PREVIEW":
+      return t("generalOverhead.auditOpReversePreview");
+    case "GENERAL_OVERHEAD_REVERSE_ALLOCATION":
+      return t("generalOverhead.auditOpReverseAllocation");
+    default:
+      return op ?? "—";
+  }
+}
+
+function GohPoolAuditSection({
+  poolId,
+  locale,
+  t,
+  apiErrMsg,
+}: {
+  poolId: number;
+  locale: Locale;
+  t: (k: string) => string;
+  apiErrMsg: (e: unknown) => string;
+}) {
+  const q = useQuery({
+    queryKey: [...generalOverheadPoolAuditKey(poolId)],
+    queryFn: () => fetchAuditLogs({ tableName: "general_overhead_pools", recordId: poolId }),
+    enabled: poolId > 0,
+  });
+
+  if (q.isPending) {
+    return <p className="text-xs text-zinc-500">{t("common.loading")}</p>;
+  }
+  if (q.isError) {
+    return <p className="text-xs text-red-700">{apiErrMsg(q.error)}</p>;
+  }
+  const rows = q.data ?? [];
+  if (rows.length === 0) {
+    return <p className="text-xs text-zinc-500">{t("generalOverhead.detailAuditEmpty")}</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+        {t("generalOverhead.detailAuditTitle")}
+      </p>
+      <ul className="max-h-[min(40dvh,16rem)] space-y-2 overflow-y-auto overscroll-y-contain pr-0.5 sm:max-h-[min(48dvh,20rem)]">
+        {rows.map((row) => {
+          const op = parseGohAuditOperationJson(row.newData);
+          const label = gohAuditOperationLabel(op, t);
+          return (
+            <li
+              key={row.id}
+              className="rounded-xl border border-zinc-200/90 bg-zinc-50/50 px-3 py-2 text-xs shadow-sm shadow-zinc-900/[0.03]"
+            >
+              <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+                <span className="font-semibold text-zinc-900">{label}</span>
+                <span className="tabular-nums text-zinc-500">{formatLocaleDateTime(row.createdAt, locale)}</span>
+              </div>
+              {row.userId != null ? (
+                <p className="mt-1 text-[11px] text-zinc-500">
+                  {t("generalOverhead.detailAuditUser")}{" "}
+                  <span className="font-mono font-medium text-zinc-700">#{row.userId}</span>
+                </p>
+              ) : null}
+              {row.newData != null && row.newData.trim() !== "" ? (
+                <details className="mt-2 border-t border-dashed border-zinc-200 pt-2">
+                  <summary className="cursor-pointer select-none text-[11px] font-medium text-violet-800">
+                    {t("generalOverhead.detailAuditPayload")}
+                  </summary>
+                  <pre className="mt-2 max-h-40 overflow-auto rounded-lg bg-zinc-900/95 p-2 text-[10px] leading-snug text-zinc-100">
+                    {(() => {
+                      try {
+                        return JSON.stringify(JSON.parse(row.newData), null, 2);
+                      } catch {
+                        return row.newData;
+                      }
+                    })()}
+                  </pre>
+                </details>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 export function GeneralOverheadScreen() {
+  const qc = useQueryClient();
   const { t, locale } = useI18n();
   const { user } = useAuth();
   const loc = locale as Locale;
@@ -313,6 +495,14 @@ export function GeneralOverheadScreen() {
   const createMut = useCreateGeneralOverheadPool();
   const allocMut = useAllocateGeneralOverheadPool();
   const reverseMut = useReverseGeneralOverheadAllocation();
+  const [reversePoolId, setReversePoolId] = useState<number | null>(null);
+  const [reverseAck, setReverseAck] = useState(false);
+  const reversePreviewQ = useGeneralOverheadReversePreview(reversePoolId);
+
+  useEffect(() => {
+    if (!reversePreviewQ.isSuccess || reversePoolId == null) return;
+    void qc.invalidateQueries({ queryKey: [...generalOverheadPoolAuditKey(reversePoolId)] });
+  }, [qc, reversePoolId, reversePreviewQ.isSuccess, reversePreviewQ.dataUpdatedAt]);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [cTitle, setCTitle] = useState("");
@@ -331,6 +521,8 @@ export function GeneralOverheadScreen() {
   const [allocPool, setAllocPool] = useState<GeneralOverheadPoolRow | null>(null);
   const [allocLinesByCur, setAllocLinesByCur] = useState<Record<string, AllocLine[]>>({});
   const [allocBranchPaid, setAllocBranchPaid] = useState(false);
+  const [detailPoolId, setDetailPoolId] = useState<number | null>(null);
+  const detailQ = useGeneralOverheadPoolDetail(detailPoolId);
 
   useEffect(() => {
     if (!createOpen) return;
@@ -636,6 +828,38 @@ export function GeneralOverheadScreen() {
     }));
   };
 
+  const openReverseAllocationFlow = useCallback((poolId: number) => {
+    setReversePoolId(poolId);
+    setReverseAck(false);
+  }, []);
+
+  const submitReverseAllocation = useCallback(async () => {
+    if (reversePoolId == null) return;
+    const pv = reversePreviewQ.data;
+    if (!pv) return;
+    if (pv.risksRequireAcknowledgement && !reverseAck) {
+      notify.error(t("generalOverhead.reverseAckRequired"));
+      return;
+    }
+    try {
+      await reverseMut.mutateAsync({
+        poolId: reversePoolId,
+        acknowledgeReverseRisks: pv.risksRequireAcknowledgement ? reverseAck : false,
+      });
+      notify.success(t("generalOverhead.toastReversed"));
+      setReversePoolId(null);
+    } catch (e) {
+      notify.error(apiErrMsg(e));
+    }
+  }, [
+    apiErrMsg,
+    reverseAck,
+    reverseMut,
+    reversePoolId,
+    reversePreviewQ.data,
+    t,
+  ]);
+
   const submitAllocate = async () => {
     if (!allocPool) return;
     const targets = poolAmountsList(allocPool);
@@ -670,30 +894,6 @@ export function GeneralOverheadScreen() {
     } catch (e) {
       notify.error(apiErrMsg(e));
     }
-  };
-
-  const requestReverseAllocation = (p: GeneralOverheadPoolRow) => {
-    notifyConfirmToast({
-      toastId: `goh-reverse-${p.id}`,
-      title: t("generalOverhead.confirmReverseTitle"),
-      message: (
-        <>
-          <p>{t("generalOverhead.confirmReverseMessage")}</p>
-          <p className="mt-2 break-words font-medium text-zinc-900">“{p.title}”</p>
-        </>
-      ),
-      cancelLabel: t("common.cancel"),
-      confirmLabel: t("generalOverhead.confirmReverseAction"),
-      tone: "warning",
-      onConfirm: async () => {
-        try {
-          await reverseMut.mutateAsync(p.id);
-          notify.success(t("generalOverhead.toastReversed"));
-        } catch (e) {
-          notify.error(apiErrMsg(e));
-        }
-      },
-    });
   };
 
   const statusLabel = (s: string) => {
@@ -887,30 +1087,53 @@ export function GeneralOverheadScreen() {
                         {statusLabel(p.status)}
                       </span>
                     </TableCell>
-                    <TableCell dataLabel={t("common.actions")} className="text-end">
-                      {p.status.trim().toUpperCase() === "OPEN" ? (
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="text-xs"
-                          disabled={allocMut.isPending}
-                          onClick={() => openAllocate(p)}
-                        >
-                          {t("generalOverhead.allocate")}
-                        </Button>
-                      ) : p.status.trim().toUpperCase() === "ALLOCATED" ? (
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="text-xs"
-                          disabled={reverseMut.isPending && reverseMut.variables === p.id}
-                          onClick={() => requestReverseAllocation(p)}
-                        >
-                          {t("generalOverhead.reverseAllocation")}
-                        </Button>
-                      ) : (
-                        <span className="text-xs text-zinc-400">—</span>
-                      )}
+                    <TableCell dataLabel={t("common.actions")} className="text-end max-md:pt-3">
+                      <div className="flex w-full flex-col gap-2 sm:ml-auto sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end sm:gap-1.5">
+                        <Tooltip content={t("common.openDetails")} delayMs={200}>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className={cn(detailOpenIconButtonClass, "mx-auto sm:mx-0")}
+                            aria-label={t("common.openDetails")}
+                            title={t("common.openDetails")}
+                            aria-haspopup="dialog"
+                            onClick={() => setDetailPoolId(p.id)}
+                          >
+                            <EyeIcon />
+                          </Button>
+                        </Tooltip>
+                        {p.status.trim().toUpperCase() === "OPEN" ? (
+                          <Tooltip content={t("generalOverhead.allocate")} delayMs={200}>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className={cn(detailOpenIconButtonClass, "mx-auto sm:mx-0")}
+                              disabled={allocMut.isPending}
+                              aria-label={t("generalOverhead.allocate")}
+                              title={t("generalOverhead.allocate")}
+                              onClick={() => openAllocate(p)}
+                            >
+                              <ShareAllocateIcon />
+                            </Button>
+                          </Tooltip>
+                        ) : p.status.trim().toUpperCase() === "ALLOCATED" ? (
+                          <Tooltip content={t("generalOverhead.reverseAllocation")} delayMs={200}>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className={cn(detailOpenIconButtonClass, "mx-auto sm:mx-0")}
+                              disabled={reverseMut.isPending && reverseMut.variables?.poolId === p.id}
+                              aria-label={t("generalOverhead.reverseAllocation")}
+                              title={t("generalOverhead.reverseAllocation")}
+                              onClick={() => openReverseAllocationFlow(p.id)}
+                            >
+                              <UndoIcon />
+                            </Button>
+                          </Tooltip>
+                        ) : (
+                          <span className="py-2 text-center text-xs text-zinc-400 sm:py-0">—</span>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -1193,11 +1416,18 @@ export function GeneralOverheadScreen() {
           <Button
             type="button"
             variant="primary"
-            className="min-h-11 w-full sm:min-h-10 sm:w-auto"
+            className="min-h-11 inline-flex w-full items-center justify-center gap-2 sm:min-h-10 sm:w-auto"
             disabled={createMut.isPending || allocMut.isPending}
             onClick={() => void submitCreate()}
           >
-            {allocateNow ? t("generalOverhead.saveAndAllocate") : t("common.save")}
+            {allocateNow ? (
+              <>
+                <ShareAllocateIcon className="h-5 w-5 shrink-0 opacity-90" />
+                <span>{t("generalOverhead.saveAndAllocate")}</span>
+              </>
+            ) : (
+              t("common.save")
+            )}
           </Button>
         </div>
       </Modal>
@@ -1380,13 +1610,237 @@ export function GeneralOverheadScreen() {
               <Button
                 type="button"
                 variant="primary"
-                className="min-h-11 w-full sm:min-h-10 sm:w-auto"
+                className="min-h-11 inline-flex w-full items-center justify-center gap-2 sm:min-h-10 sm:w-auto"
                 disabled={allocMut.isPending}
                 onClick={() => void submitAllocate()}
               >
-                {t("generalOverhead.confirmAllocate")}
+                <ShareAllocateIcon className="h-5 w-5 shrink-0 opacity-90" />
+                <span>{t("generalOverhead.confirmAllocate")}</span>
               </Button>
             </div>
+          </div>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={detailPoolId != null}
+        onClose={() => setDetailPoolId(null)}
+        titleId="goh-detail"
+        title={t("generalOverhead.modalDetailTitle")}
+        narrow
+        closeButtonLabel={t("common.close")}
+        className="!max-w-[min(100vw-0.5rem,40rem)] sm:!max-w-xl md:!max-w-2xl"
+      >
+        {detailPoolId != null ? (
+          <div className="flex min-h-0 flex-col gap-5 px-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] pt-1 sm:gap-6 sm:px-6 sm:pb-6 sm:pt-0">
+            {detailQ.isPending ? (
+              <div className="space-y-4 px-0 pb-2 sm:px-0" aria-busy="true" aria-label={t("common.loading")}>
+                <div className="h-36 animate-pulse rounded-2xl bg-zinc-100" />
+                <div className="h-28 animate-pulse rounded-2xl bg-zinc-100" />
+              </div>
+            ) : detailQ.isError ? (
+              <p className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-800">{apiErrMsg(detailQ.error)}</p>
+            ) : detailQ.data ? (
+              <>
+                <div className="relative overflow-hidden rounded-2xl border border-zinc-200/80 bg-gradient-to-br from-zinc-50 via-white to-violet-50/30 p-4 shadow-sm ring-1 ring-zinc-950/[0.04] sm:p-5">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={cn(
+                            "inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold tracking-wide",
+                            detailQ.data.status.trim().toUpperCase() === "OPEN"
+                              ? "bg-emerald-100 text-emerald-900"
+                              : "bg-zinc-200/90 text-zinc-800"
+                          )}
+                        >
+                          {statusLabel(detailQ.data.status)}
+                        </span>
+                        <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                          {t("generalOverhead.colDate")}
+                        </span>
+                        <span className="text-xs font-semibold text-zinc-700">
+                          {formatLocaleDate(detailQ.data.expenseDate, loc)}
+                        </span>
+                      </div>
+                      <h3 className="text-balance text-lg font-semibold leading-snug tracking-tight text-zinc-900 sm:text-xl">
+                        {detailQ.data.title}
+                      </h3>
+                      <p className="text-sm leading-relaxed text-zinc-600">
+                        {financialBreakdownMainLabel(detailQ.data.mainCategory, t)}
+                        <span className="text-zinc-300"> / </span>
+                        {txCategoryLine(detailQ.data.mainCategory, detailQ.data.category, t) || "—"}
+                      </p>
+                    </div>
+                    <div className="shrink-0 rounded-xl border border-zinc-200/60 bg-white/80 px-4 py-3 text-right shadow-sm backdrop-blur-sm sm:min-w-[9.5rem]">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+                        {t("generalOverhead.colAmount")}
+                      </p>
+                      <div className="mt-1 flex flex-col items-end gap-0.5 tabular-nums text-lg font-semibold text-zinc-900 sm:text-xl">
+                        {poolAmountsList(detailQ.data).map((a) => (
+                          <span key={a.currencyCode}>{formatLocaleAmount(a.amount, locale, a.currencyCode)}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  {detailQ.data.allocatedAt ? (
+                    <p className="mt-3 border-t border-zinc-200/60 pt-3 text-xs text-zinc-500">
+                      {t("generalOverhead.detailAllocatedAtLabel")}{" "}
+                      <span className="font-medium text-zinc-700">
+                        {formatLocaleDateTime(detailQ.data.allocatedAt, loc)}
+                      </span>
+                    </p>
+                  ) : null}
+                  {detailQ.data.notes != null && String(detailQ.data.notes).trim() !== "" ? (
+                    <p className="mt-3 rounded-xl border border-zinc-100 bg-white/70 px-3 py-2.5 text-sm leading-relaxed text-zinc-700">
+                      {String(detailQ.data.notes).trim()}
+                    </p>
+                  ) : null}
+                </div>
+                <section className="min-w-0 space-y-3">
+                  <div className="space-y-1">
+                    <h4 className="text-sm font-semibold text-zinc-900 sm:text-base">
+                      {t("generalOverhead.detailAllocationsTitle")}
+                    </h4>
+                    <p className="text-xs text-zinc-500 sm:hidden">{t("generalOverhead.detailAllocationsHint")}</p>
+                  </div>
+                  <GohDetailAllocationSection data={detailQ.data} t={t} locale={loc} />
+                </section>
+                {String(detailQ.data.status ?? "").trim().toUpperCase() === "ALLOCATED" ? (
+                  <div className="flex justify-end pt-1">
+                    <Tooltip content={t("generalOverhead.reverseAllocation")} delayMs={200}>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className={cn(detailOpenIconButtonClass, "text-xs sm:text-sm")}
+                        disabled={reverseMut.isPending && reverseMut.variables?.poolId === detailQ.data.id}
+                        aria-label={t("generalOverhead.reverseAllocation")}
+                        title={t("generalOverhead.reverseAllocation")}
+                        onClick={() => {
+                          openReverseAllocationFlow(detailQ.data.id);
+                          setDetailPoolId(null);
+                        }}
+                      >
+                        <UndoIcon />
+                      </Button>
+                    </Tooltip>
+                  </div>
+                ) : null}
+                <section className="border-t border-zinc-100 pt-4">
+                  <GohPoolAuditSection poolId={detailQ.data.id} locale={loc} t={t} apiErrMsg={apiErrMsg} />
+                </section>
+              </>
+            ) : (
+              <p className="text-sm text-zinc-500">{t("common.retry")}</p>
+            )}
+          </div>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={reversePoolId != null}
+        onClose={() => {
+          if (!reverseMut.isPending) setReversePoolId(null);
+        }}
+        titleId="goh-reverse"
+        title={t("generalOverhead.reverseModalTitle")}
+        wide
+        closeButtonLabel={t("common.close")}
+      >
+        {reversePoolId != null ? (
+          <div className="flex flex-col gap-4 px-4 pb-4 sm:px-6 sm:pb-6">
+            {reversePreviewQ.isPending ? (
+              <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+            ) : reversePreviewQ.isError ? (
+              <p className="text-sm text-red-600">{apiErrMsg(reversePreviewQ.error)}</p>
+            ) : reversePreviewQ.data ? (
+              <>
+                <p className="text-sm text-zinc-700">{t("generalOverhead.reverseModalIntro")}</p>
+                <p className="text-xs text-zinc-500">
+                  {t("generalOverhead.colDate")}: {formatLocaleDate(reversePreviewQ.data.expenseDate, loc)}
+                  {" · "}
+                  <span className="font-medium text-zinc-800">{reversePreviewQ.data.title}</span>
+                </p>
+                {reversePreviewQ.data.risksRequireAcknowledgement ? (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/90 px-3 py-2.5 text-sm text-amber-950">
+                    {t("generalOverhead.reverseRiskNotice")}
+                  </div>
+                ) : null}
+                <div className="overflow-x-auto rounded-xl border border-zinc-200/90">
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableHeader>{t("generalOverhead.reverseColBranch")}</TableHeader>
+                        <TableHeader className="text-end">{t("generalOverhead.reverseColAmount")}</TableHeader>
+                        <TableHeader>{t("generalOverhead.reverseColSeason")}</TableHeader>
+                        <TableHeader>{t("generalOverhead.reverseColPayment")}</TableHeader>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {reversePreviewQ.data.lines.map((row) => (
+                        <TableRow key={`${row.branchId}-${row.currencyCode}-${row.branchTransactionId}`}>
+                          <TableCell className="text-sm">{row.branchName}</TableCell>
+                          <TableCell className="text-end text-sm tabular-nums">
+                            {formatLocaleAmount(row.amount, locale, row.currencyCode)}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {row.branchTransactionAlreadyRemoved ? (
+                              <span className="text-zinc-500">{t("generalOverhead.reverseRowRemoved")}</span>
+                            ) : row.hasOpenTourismSeasonOnExpenseDate ? (
+                              <span className="text-emerald-800">{t("generalOverhead.reverseSeasonOpen")}</span>
+                            ) : (
+                              <span className="text-amber-900">{t("generalOverhead.reverseSeasonClosed")}</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {row.branchTransactionAlreadyRemoved
+                              ? "—"
+                              : expensePaySourceLabel(row.expensePaymentSource, t)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+                {reversePreviewQ.data.risksRequireAcknowledgement ? (
+                  <label className="flex cursor-pointer gap-3 rounded-xl border border-zinc-200 bg-zinc-50/80 p-3.5 sm:p-4">
+                    <span className="min-w-0 flex-1 text-sm leading-relaxed text-zinc-800">
+                      {t("generalOverhead.reverseAckSwitch")}
+                    </span>
+                    <Switch
+                      checked={reverseAck}
+                      onCheckedChange={setReverseAck}
+                      disabled={reverseMut.isPending}
+                      className="shrink-0"
+                      aria-label={t("generalOverhead.reverseAckSwitch")}
+                    />
+                  </label>
+                ) : null}
+                <div className="flex flex-col-reverse gap-2 border-t border-zinc-100 pt-4 sm:flex-row sm:justify-end">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full sm:w-auto"
+                    disabled={reverseMut.isPending}
+                    onClick={() => setReversePoolId(null)}
+                  >
+                    {t("common.cancel")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    className="inline-flex w-full items-center justify-center gap-2 sm:w-auto"
+                    disabled={reverseMut.isPending || reversePreviewQ.isPending}
+                    onClick={() => void submitReverseAllocation()}
+                  >
+                    <UndoIcon className="h-5 w-5 shrink-0 opacity-90" />
+                    <span>{t("generalOverhead.reverseConfirm")}</span>
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-zinc-500">{t("common.retry")}</p>
+            )}
           </div>
         ) : null}
       </Modal>

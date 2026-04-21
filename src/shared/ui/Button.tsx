@@ -35,7 +35,8 @@ export function Button({
   type = "button",
   disabled,
   onClick,
-  ...props
+  children,
+  ...rest
 }: ButtonProps) {
   const [busy, setBusy] = useState(false);
   const guardRef = useRef(false);
@@ -97,7 +98,7 @@ export function Button({
 
   return (
     <button
-      {...props}
+      {...rest}
       type={type}
       className={cn(
         "relative inline-flex min-h-12 w-full touch-manipulation select-none items-center justify-center overflow-hidden rounded-lg px-4 text-base font-medium sm:w-auto",
@@ -115,6 +116,8 @@ export function Button({
       disabled={mergedDisabled}
       onClick={handleClick}
       aria-busy={showBusyStyle || undefined}
-    />
+    >
+      {children}
+    </button>
   );
 }

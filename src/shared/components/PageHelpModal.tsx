@@ -11,9 +11,11 @@ import { useId } from "react";
 type Props = {
   open: boolean;
   onClose: () => void;
+  /** Varsayılan: «Bu sayfada ne yapabilirim?» */
+  helpTitle?: string;
 } & Omit<PageWhenToUseGuideContentProps, "showTitle" | "title">;
 
-export function PageHelpModal({ open, onClose, ...content }: Props) {
+export function PageHelpModal({ open, onClose, helpTitle, ...content }: Props) {
   const { t } = useI18n();
   const titleId = useId();
 
@@ -22,7 +24,7 @@ export function PageHelpModal({ open, onClose, ...content }: Props) {
       open={open}
       onClose={onClose}
       titleId={titleId}
-      title={t("common.pageWhenToUseTitle")}
+      title={helpTitle ?? t("common.pageWhenToUseTitle")}
       closeButtonLabel={t("common.close")}
       className="max-w-[min(100vw-1rem,26rem)] sm:max-w-md"
     >

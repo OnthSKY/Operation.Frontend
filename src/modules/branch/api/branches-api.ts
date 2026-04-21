@@ -6,17 +6,24 @@ import { apiRequest } from "@/shared/api/client";
 import type {
   Branch,
   BranchDashboard,
+  BranchIncomePeriodSummary,
   BranchRegisterSummary,
   BranchResponsiblePerson,
+  ExpenseGeneralOverheadLine,
+  ExpenseTabBranchOperatingLine,
+  ExpenseTabPeriodBreakdown,
+  ExpenseTabPeriodInsights,
   BranchSeasonStatus,
   BranchStockReceiptRow,
   BranchStockReceiptsPaged,
   BranchTransactionsPaged,
   CreateBranchInput,
+  IncomeCashBranchManagerPersonRow,
   UpdateBranchInput,
 } from "@/types/branch";
 import type { BranchPersonnelMoneySummaryItem } from "@/types/branch-personnel-money";
 import type { BranchTransaction } from "@/types/branch-transaction";
+import { branchTxDirectionAndClassificationFromApi } from "@/modules/branch/lib/map-branch-tx-from-api";
 import type {
   BranchPosSettlementProfile,
   UpsertBranchPosSettlementInput,
@@ -39,6 +46,215 @@ function normalizeResponsibles(raw: unknown): BranchResponsiblePerson[] {
       };
     })
     .filter((x) => x.personnelId > 0);
+}
+
+function normalizeIncomeCashBranchManagerByPersonRows(
+  raw: unknown
+): IncomeCashBranchManagerPersonRow[] {
+  if (!Array.isArray(raw)) return [];
+  const out: IncomeCashBranchManagerPersonRow[] = [];
+  for (const x of raw) {
+    const o = x as Record<string, unknown>;
+    const pidRaw = o.personnelId ?? o.PersonnelId;
+    let personnelId: number | null = null;
+    if (pidRaw != null && pidRaw !== "") {
+      const n = typeof pidRaw === "number" ? pidRaw : parseInt(String(pidRaw).trim(), 10);
+      if (Number.isFinite(n) && n > 0) personnelId = n;
+    }
+    const fullName = String(o.fullName ?? o.FullName ?? "").trim();
+    const amount = Number(o.amount ?? o.Amount ?? 0) || 0;
+    if (Math.abs(amount) <= 0.005) continue;
+    out.push({ personnelId, fullName, amount });
+  }
+  return out;
+}
+
+function numField(o: Record<string, unknown>, camel: string, pascal: string): number {
+  const v = o[camel] ?? o[pascal];
+  const n = typeof v === "number" ? v : Number(v ?? 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
+const EMPTY_EXPENSE_INSIGHTS: ExpenseTabPeriodInsights = {
+  topExpenseMainCategory: null,
+  topExpenseAmount: 0,
+  economicOutTransactionCount: 0,
+  generalOverheadLines: [],
+  branchOperatingExpenseLines: [],
+  generalOverheadPaidByPatronAmount: 0,
+  generalOverheadPaidFromRegisterAmount: 0,
+  generalOverheadPaidFromPersonnelPocketAmount: 0,
+  generalOverheadAmountInBranchOperatingMains: 0,
+};
+
+function normalizeExpenseGeneralOverheadLines(raw: unknown): ExpenseGeneralOverheadLine[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ExpenseGeneralOverheadLine[] = [];
+  for (const x of raw) {
+    const r = x as Record<string, unknown>;
+    const branchTransactionId =
+      Number(r.branchTransactionId ?? r.BranchTransactionId ?? 0) || 0;
+    const poolId = Number(r.poolId ?? r.PoolId ?? 0) || 0;
+    const amount = Number(r.amount ?? r.Amount ?? 0) || 0;
+    const poolTitle = String(r.poolTitle ?? r.PoolTitle ?? "").trim();
+    const transactionDate = String(r.transactionDate ?? r.TransactionDate ?? "").trim();
+    const description = r.description ?? r.Description;
+    const mc =
+      r.classificationCode ??
+      r.ClassificationCode ??
+      r.mainCategory ??
+      r.MainCategory;
+    const cat = r.category ?? r.Category;
+    const eps = r.expensePaymentSource ?? r.ExpensePaymentSource;
+    const ips = r.invoicePaymentStatus ?? r.InvoicePaymentStatus;
+    out.push({
+      branchTransactionId,
+      poolId,
+      poolTitle,
+      amount,
+      transactionDate,
+      description: description != null && String(description).trim() ? String(description).trim() : null,
+      mainCategory: mc != null && String(mc).trim() ? String(mc).trim() : null,
+      category: cat != null && String(cat).trim() ? String(cat).trim() : null,
+      expensePaymentSource: eps != null && String(eps).trim() ? String(eps).trim() : null,
+      invoicePaymentStatus: ips != null && String(ips).trim() ? String(ips).trim() : null,
+    });
+  }
+  return out;
+}
+
+function normalizeBranchOperatingExpenseLines(raw: unknown): ExpenseTabBranchOperatingLine[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ExpenseTabBranchOperatingLine[] = [];
+  for (const x of raw) {
+    const r = x as Record<string, unknown>;
+    const branchTransactionId =
+      Number(r.branchTransactionId ?? r.BranchTransactionId ?? 0) || 0;
+    const amount = Number(r.amount ?? r.Amount ?? 0) || 0;
+    const transactionDate = String(r.transactionDate ?? r.TransactionDate ?? "").trim();
+    const description = r.description ?? r.Description;
+    const mc =
+      r.classificationCode ??
+      r.ClassificationCode ??
+      r.mainCategory ??
+      r.MainCategory;
+    const cat = r.category ?? r.Category;
+    const eps = r.expensePaymentSource ?? r.ExpensePaymentSource;
+    const ips = r.invoicePaymentStatus ?? r.InvoicePaymentStatus;
+    const pidRaw = r.poolId ?? r.PoolId;
+    const poolId =
+      pidRaw != null && pidRaw !== ""
+        ? (() => {
+            const n = typeof pidRaw === "number" ? pidRaw : Number(pidRaw);
+            return Number.isFinite(n) && n > 0 ? n : null;
+          })()
+        : null;
+    const poolTitle = String(r.poolTitle ?? r.PoolTitle ?? "").trim();
+    const goRaw = r.isGeneralOverheadShare ?? r.IsGeneralOverheadShare;
+    const isGeneralOverheadShare =
+      typeof goRaw === "boolean"
+        ? goRaw
+        : String(goRaw ?? "")
+            .trim()
+            .toLowerCase() === "true";
+    out.push({
+      branchTransactionId,
+      amount,
+      transactionDate,
+      description: description != null && String(description).trim() ? String(description).trim() : null,
+      mainCategory: mc != null && String(mc).trim() ? String(mc).trim() : null,
+      category: cat != null && String(cat).trim() ? String(cat).trim() : null,
+      expensePaymentSource: eps != null && String(eps).trim() ? String(eps).trim() : null,
+      invoicePaymentStatus: ips != null && String(ips).trim() ? String(ips).trim() : null,
+      poolId,
+      poolTitle,
+      isGeneralOverheadShare,
+    });
+  }
+  return out;
+}
+
+function normalizeExpenseTabPeriodInsights(raw: unknown): ExpenseTabPeriodInsights {
+  if (!raw || typeof raw !== "object") return EMPTY_EXPENSE_INSIGHTS;
+  const o = raw as Record<string, unknown>;
+  const tm = o.topExpenseMainCategory ?? o.TopExpenseMainCategory;
+  const topExpenseMainCategory = tm != null && String(tm).trim() ? String(tm).trim() : null;
+  return {
+    topExpenseMainCategory,
+    topExpenseAmount: numField(o, "topExpenseAmount", "TopExpenseAmount") || 0,
+    economicOutTransactionCount:
+      Math.round(numField(o, "economicOutTransactionCount", "EconomicOutTransactionCount")) || 0,
+    generalOverheadLines: normalizeExpenseGeneralOverheadLines(
+      o.generalOverheadLines ?? o.GeneralOverheadLines
+    ),
+    branchOperatingExpenseLines: normalizeBranchOperatingExpenseLines(
+      o.branchOperatingExpenseLines ?? o.BranchOperatingExpenseLines
+    ),
+    generalOverheadPaidByPatronAmount:
+      numField(o, "generalOverheadPaidByPatronAmount", "GeneralOverheadPaidByPatronAmount") || 0,
+    generalOverheadPaidFromRegisterAmount:
+      numField(o, "generalOverheadPaidFromRegisterAmount", "GeneralOverheadPaidFromRegisterAmount") || 0,
+    generalOverheadPaidFromPersonnelPocketAmount:
+      numField(
+        o,
+        "generalOverheadPaidFromPersonnelPocketAmount",
+        "GeneralOverheadPaidFromPersonnelPocketAmount"
+      ) || 0,
+    generalOverheadAmountInBranchOperatingMains:
+      numField(
+        o,
+        "generalOverheadAmountInBranchOperatingMains",
+        "GeneralOverheadAmountInBranchOperatingMains"
+      ) || 0,
+  };
+}
+
+function normalizeExpenseTabPeriodBreakdown(raw: unknown): ExpenseTabPeriodBreakdown {
+  if (!raw || typeof raw !== "object") {
+    return {
+      totalIncome: 0,
+      outPaidFromRegister: 0,
+      outPaidFromPatron: 0,
+      outPaidFromPersonnelPocket: 0,
+      outPersonnelExpense: 0,
+      outBranchExpense: 0,
+      outAdvanceNonPnl: 0,
+      outAdvanceNonPnlFromRegister: 0,
+      outAdvanceNonPnlFromPatron: 0,
+      outAdvanceNonPnlFromPersonnelPocket: 0,
+      outGeneralOverheadAllocated: 0,
+      insights: EMPTY_EXPENSE_INSIGHTS,
+    };
+  }
+  const o = raw as Record<string, unknown>;
+  return {
+    totalIncome: numField(o, "totalIncome", "TotalIncome") || 0,
+    outPaidFromRegister: numField(o, "outPaidFromRegister", "OutPaidFromRegister") || 0,
+    outPaidFromPatron: numField(o, "outPaidFromPatron", "OutPaidFromPatron") || 0,
+    outPaidFromPersonnelPocket:
+      numField(o, "outPaidFromPersonnelPocket", "OutPaidFromPersonnelPocket") || 0,
+    outPersonnelExpense: numField(o, "outPersonnelExpense", "OutPersonnelExpense") || 0,
+    outBranchExpense: numField(o, "outBranchExpense", "OutBranchExpense") || 0,
+    outAdvanceNonPnl: numField(o, "outAdvanceNonPnl", "OutAdvanceNonPnl") || 0,
+    outAdvanceNonPnlFromRegister:
+      numField(o, "outAdvanceNonPnlFromRegister", "OutAdvanceNonPnlFromRegister") || 0,
+    outAdvanceNonPnlFromPatron:
+      numField(o, "outAdvanceNonPnlFromPatron", "OutAdvanceNonPnlFromPatron") || 0,
+    outAdvanceNonPnlFromPersonnelPocket:
+      numField(
+        o,
+        "outAdvanceNonPnlFromPersonnelPocket",
+        "OutAdvanceNonPnlFromPersonnelPocket"
+      ) || 0,
+    outGeneralOverheadAllocated:
+      numField(o, "outGeneralOverheadAllocated", "OutGeneralOverheadAllocated") || 0,
+    insights: normalizeExpenseTabPeriodInsights(o.insights ?? o.Insights),
+  };
+}
+
+function normalizeExpenseTabPeriodBreakdownOptional(raw: unknown): ExpenseTabPeriodBreakdown | null {
+  if (raw == null) return null;
+  return normalizeExpenseTabPeriodBreakdown(raw);
 }
 
 function normalizeBranchListRow(
@@ -287,6 +503,7 @@ export async function fetchBranchRegisterSummary(
   const r = await apiRequest<BranchRegisterSummary>(
     `/branches/${id}/register-summary?${q.toString()}`
   );
+  const ro = r as Record<string, unknown>;
   return {
     ...r,
     dayRegisterOwesPersonnel: Number(r.dayRegisterOwesPersonnel ?? 0) || 0,
@@ -303,12 +520,104 @@ export async function fetchBranchRegisterSummary(
         ? String(r.dayTopExpenseMainCategory).trim()
         : null,
     dayTopExpenseAmount: Number(r.dayTopExpenseAmount ?? 0) || 0,
+    dayNonRegisterAdvancePatron:
+      numField(ro, "dayNonRegisterAdvancePatron", "DayNonRegisterAdvancePatron") || 0,
+    dayNonRegisterAdvanceBank:
+      numField(ro, "dayNonRegisterAdvanceBank", "DayNonRegisterAdvanceBank") || 0,
     cumulativeIncomeTotalThroughAsOf:
       Number(r.cumulativeIncomeTotalThroughAsOf ?? 0) || 0,
     cumulativeIncomeCashThroughAsOf:
       Number(r.cumulativeIncomeCashThroughAsOf ?? 0) || 0,
     cumulativeIncomeCardThroughAsOf:
       Number(r.cumulativeIncomeCardThroughAsOf ?? 0) || 0,
+    hasActiveTourismSeasonForAsOf: Boolean(r.hasActiveTourismSeasonForAsOf),
+    activeTourismSeasonYear:
+      r.activeTourismSeasonYear != null ? Number(r.activeTourismSeasonYear) : null,
+    activeTourismSeasonOpenedOn:
+      r.activeTourismSeasonOpenedOn != null && String(r.activeTourismSeasonOpenedOn).trim()
+        ? String(r.activeTourismSeasonOpenedOn).trim()
+        : null,
+    activeTourismSeasonClosedOn:
+      r.activeTourismSeasonClosedOn != null && String(r.activeTourismSeasonClosedOn).trim()
+        ? String(r.activeTourismSeasonClosedOn).trim()
+        : null,
+    seasonCumulativeIncomeTotalThroughAsOf:
+      Number(r.seasonCumulativeIncomeTotalThroughAsOf ?? 0) || 0,
+    seasonCumulativeIncomeCashThroughAsOf:
+      Number(r.seasonCumulativeIncomeCashThroughAsOf ?? 0) || 0,
+    seasonCumulativeIncomeCardThroughAsOf:
+      Number(r.seasonCumulativeIncomeCardThroughAsOf ?? 0) || 0,
+    cumulativeIncomeCashPatronThroughAsOf:
+      Number(r.cumulativeIncomeCashPatronThroughAsOf ?? 0) || 0,
+    cumulativeIncomeCashBranchManagerThroughAsOf:
+      Number(r.cumulativeIncomeCashBranchManagerThroughAsOf ?? 0) || 0,
+    cumulativeIncomeCashRemainsAtBranchThroughAsOf:
+      Number(r.cumulativeIncomeCashRemainsAtBranchThroughAsOf ?? 0) || 0,
+    cumulativeIncomeCashUnspecifiedThroughAsOf:
+      Number(r.cumulativeIncomeCashUnspecifiedThroughAsOf ?? 0) || 0,
+    seasonCumulativeIncomeCashPatronThroughAsOf:
+      Number(r.seasonCumulativeIncomeCashPatronThroughAsOf ?? 0) || 0,
+    seasonCumulativeIncomeCashBranchManagerThroughAsOf:
+      Number(r.seasonCumulativeIncomeCashBranchManagerThroughAsOf ?? 0) || 0,
+    seasonCumulativeIncomeCashRemainsAtBranchThroughAsOf:
+      Number(r.seasonCumulativeIncomeCashRemainsAtBranchThroughAsOf ?? 0) || 0,
+    seasonCumulativeIncomeCashUnspecifiedThroughAsOf:
+      Number(r.seasonCumulativeIncomeCashUnspecifiedThroughAsOf ?? 0) || 0,
+    dayIncomeCashPatron: Number(r.dayIncomeCashPatron ?? 0) || 0,
+    dayIncomeCashBranchManager: Number(r.dayIncomeCashBranchManager ?? 0) || 0,
+    dayIncomeCashRemainsAtBranch: Number(r.dayIncomeCashRemainsAtBranch ?? 0) || 0,
+    dayIncomeCashUnspecified: Number(r.dayIncomeCashUnspecified ?? 0) || 0,
+    cumulativeIncomeCashBranchManagerByPersonThroughAsOf:
+      normalizeIncomeCashBranchManagerByPersonRows(
+        (r as BranchRegisterSummary).cumulativeIncomeCashBranchManagerByPersonThroughAsOf
+      ),
+    seasonCumulativeIncomeCashBranchManagerByPersonThroughAsOf:
+      normalizeIncomeCashBranchManagerByPersonRows(
+        (r as BranchRegisterSummary).seasonCumulativeIncomeCashBranchManagerByPersonThroughAsOf
+      ),
+    dayIncomeCashBranchManagerByPerson: normalizeIncomeCashBranchManagerByPersonRows(
+      (r as BranchRegisterSummary).dayIncomeCashBranchManagerByPerson
+    ),
+    expenseOverviewLifetimeThroughAsOf: normalizeExpenseTabPeriodBreakdown(
+      (r as Record<string, unknown>).expenseOverviewLifetimeThroughAsOf ??
+        (r as Record<string, unknown>).ExpenseOverviewLifetimeThroughAsOf
+    ),
+    expenseOverviewSeasonThroughAsOf: normalizeExpenseTabPeriodBreakdownOptional(
+      (r as Record<string, unknown>).expenseOverviewSeasonThroughAsOf ??
+        (r as Record<string, unknown>).ExpenseOverviewSeasonThroughAsOf
+    ),
+    expenseOverviewOnAsOfDay: normalizeExpenseTabPeriodBreakdown(
+      (r as Record<string, unknown>).expenseOverviewOnAsOfDay ??
+        (r as Record<string, unknown>).ExpenseOverviewOnAsOfDay
+    ),
+  };
+}
+
+export async function fetchBranchIncomePeriodSummary(
+  branchId: number,
+  from: string,
+  to: string
+): Promise<BranchIncomePeriodSummary> {
+  const id = Number(branchId);
+  if (!Number.isFinite(id) || id <= 0) {
+    throw new Error("Invalid branch id");
+  }
+  const q = new URLSearchParams({ from, to });
+  const r = await apiRequest<BranchIncomePeriodSummary>(
+    `/branches/${id}/income-period-summary?${q.toString()}`
+  );
+  return {
+    ...r,
+    totalIncome: Number(r.totalIncome ?? 0) || 0,
+    incomeCash: Number(r.incomeCash ?? 0) || 0,
+    incomeCard: Number(r.incomeCard ?? 0) || 0,
+    incomeCashPatron: Number(r.incomeCashPatron ?? 0) || 0,
+    incomeCashBranchManager: Number(r.incomeCashBranchManager ?? 0) || 0,
+    incomeCashRemainsAtBranch: Number(r.incomeCashRemainsAtBranch ?? 0) || 0,
+    incomeCashUnspecified: Number(r.incomeCashUnspecified ?? 0) || 0,
+    incomeCashBranchManagerByPerson: normalizeIncomeCashBranchManagerByPersonRows(
+      (r as BranchIncomePeriodSummary).incomeCashBranchManagerByPerson
+    ),
   };
 }
 
@@ -326,10 +635,27 @@ export async function fetchBranchPersonnelMoneySummaries(
     grossPocketExpense: Number(r.grossPocketExpense ?? 0) || 0,
     pocketRepaidFromRegister: Number(r.pocketRepaidFromRegister ?? 0) || 0,
     pocketRepaidFromPatron: Number(r.pocketRepaidFromPatron ?? 0) || 0,
+    pocketClaimTransferNet: Number(r.pocketClaimTransferNet ?? 0) || 0,
     netRegisterOwesPocket: Number(r.netRegisterOwesPocket ?? 0) || 0,
     pocketCurrencyCode: r.pocketCurrencyCode?.trim() || null,
     pocketMixedCurrencies: Boolean(r.pocketMixedCurrencies),
   }));
+}
+
+/** GET /branches/{id}/held-register-cash-by-person — seçilen tarihe kadar net kasa parası (tutar &gt; 0). */
+export async function fetchBranchHeldRegisterCashByPerson(
+  branchId: number,
+  asOfIsoDate: string
+): Promise<IncomeCashBranchManagerPersonRow[]> {
+  const id = Number(branchId);
+  if (!Number.isFinite(id) || id <= 0) {
+    throw new Error("Invalid branch id");
+  }
+  const q = new URLSearchParams({ asOfDate: asOfIsoDate });
+  const raw = await apiRequest<unknown>(
+    `/branches/${id}/held-register-cash-by-person?${q.toString()}`
+  );
+  return normalizeIncomeCashBranchManagerByPersonRows(raw);
 }
 
 function normalizeCurrency(v: unknown): string {
@@ -400,8 +726,12 @@ function normalizeBranchTx(
     typeof r.cashSettlementPersonnelJobTitle === "string" && r.cashSettlementPersonnelJobTitle.trim()
       ? r.cashSettlementPersonnelJobTitle.trim().toUpperCase()
       : null;
+  const { type: mappedType, mainCategory: mappedMain } =
+    branchTxDirectionAndClassificationFromApi(r as Record<string, unknown>);
   return {
     ...r,
+    type: mappedType,
+    mainCategory: mappedMain,
     currencyCode: normalizeCurrency(r.currencyCode),
     cashAmount: r.cashAmount ?? null,
     cardAmount: r.cardAmount ?? null,
@@ -523,6 +853,8 @@ export type BranchTxPageParams = {
   expensePaymentSource?: string;
   expensePocketPersonnelId?: number;
   excludeSettledPocketExpenses?: boolean;
+  /** Şube gider sekmesi: patron/cep borç kapatma OUT satırlarını gizler; ana kategori filtresi varken API yine listeler. */
+  excludeDebtClosureOuts?: boolean;
 };
 
 export async function fetchBranchTransactionsPaged(
@@ -547,7 +879,9 @@ export async function fetchBranchTransactionsPaged(
     q.set("expensePocketPersonnelId", String(params.expensePocketPersonnelId));
   if (params.excludeSettledPocketExpenses === true)
     q.set("excludeSettledPocketExpenses", "true");
+  if (params.excludeDebtClosureOuts === true) q.set("excludeDebtClosureOuts", "true");
   const raw = await apiRequest<{
+    filteredAmountTotal?: number;
     patronExpenseTotal?: number;
     patronIncomeToPatron?: {
       total?: number;
@@ -587,6 +921,10 @@ export async function fetchBranchTransactionsPaged(
   const pin = raw.patronIncomeToPatron;
   return {
     ...raw,
+    filteredAmountTotal:
+      typeof raw.filteredAmountTotal === "number" && Number.isFinite(raw.filteredAmountTotal)
+        ? raw.filteredAmountTotal
+        : 0,
     patronExpenseTotal:
       typeof raw.patronExpenseTotal === "number" && Number.isFinite(raw.patronExpenseTotal)
         ? raw.patronExpenseTotal

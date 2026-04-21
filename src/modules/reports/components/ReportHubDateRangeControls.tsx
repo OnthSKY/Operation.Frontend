@@ -39,6 +39,9 @@ export function ReportHubDateRangeControls({
 
   return (
     <div className={className ?? "flex flex-col gap-4"}>
+      <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-zinc-500">
+        {t("reports.hubQuickFilterSeasonYear")}
+      </p>
       <div className="flex flex-wrap gap-2">
         <Button
           type="button"

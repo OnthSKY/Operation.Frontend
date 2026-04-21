@@ -2,7 +2,8 @@
 
 import { useI18n } from "@/i18n/context";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { isPersonnelPortalRole } from "@/lib/auth/roles";
+import { canSeeUiModule, PERM } from "@/lib/auth/permissions";
+import { isPersonnelPortalRole, postLoginHomePath } from "@/lib/auth/roles";
 import { DashboardCumulativeStorySection } from "@/modules/dashboard/components/DashboardCumulativeStorySection";
 import { DashboardFinanceTab } from "@/modules/dashboard/components/DashboardFinanceTab";
 import { DashboardOperationsRegistryTab } from "@/modules/dashboard/components/DashboardOperationsRegistryTab";
@@ -54,8 +55,13 @@ export function DashboardScreen() {
     reportYearQuickSelectTopYear()
   );
   useEffect(() => {
-    if (isPersonnelPortalRole(user?.role)) router.replace("/branches");
-  }, [user?.role, router]);
+    if (!user) return;
+    if (isPersonnelPortalRole(user.role)) {
+      router.replace("/branches");
+      return;
+    }
+    if (!canSeeUiModule(user, PERM.uiDashboard)) router.replace(postLoginHomePath(user));
+  }, [user, router]);
 
   useEffect(() => {
     if (prevMainTab.current === null) {

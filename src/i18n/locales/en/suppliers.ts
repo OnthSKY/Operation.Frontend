@@ -7,6 +7,8 @@ export const suppliers = {
   invoicesPageTitle: "Supplier invoices",
   invoicesPageSubtitle:
     "Filter purchase invoices by supplier, date range, invoice total amount, and paid vs. open balance.",
+  filterDrawerTitle: "Filters",
+  invoicePaidBadge: "Paid",
   filterLinesTotalMin: "Min. invoice total",
   filterLinesTotalMax: "Max. invoice total",
   filterPaymentStatus: "Payment status",
@@ -62,6 +64,9 @@ export const suppliers = {
   noProduct: "—",
   warehouseMovementId: "Warehouse IN movement ID (optional)",
   addLine: "Add line",
+  invoiceLinesInvalidSummary:
+    "Add at least one line with a valid positive line amount, or open each row and save it.",
+  lineBranchRequired: "Select a receiving branch when using branch delivery on a line.",
   removeLine: "Remove",
   openAmount: "Open",
   paidTotal: "Paid",

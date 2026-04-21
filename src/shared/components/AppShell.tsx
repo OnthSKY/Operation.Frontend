@@ -1,6 +1,13 @@
 "use client";
 
 import { useAuth } from "@/lib/auth/AuthContext";
+import {
+  canSeeDailyBranchRegister,
+  canSeeUiModule,
+  hasPermissionCode,
+  hasStaffOperationsNotifications,
+  PERM,
+} from "@/lib/auth/permissions";
 import { isDriverPortalRole, isPersonnelPortalRole } from "@/lib/auth/roles";
 import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
@@ -14,7 +21,7 @@ import { StaffHeaderNotifications } from "@/shared/components/StaffHeaderNotific
 import { Tooltip } from "@/shared/ui/Tooltip";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 const personnelSubNav = [
   { href: "/personnel", labelKey: "nav.personnelList", icon: "personnel" as const },
@@ -25,32 +32,20 @@ const personnelSubNav = [
   },
 ] as const;
 
-const reportsHubSubNav = [
-  {
-    href: "/reports/financial",
-    labelKey: "reports.tabFinancial",
-    icon: "/reports" as const,
-    hintKey: "nav.tooltip.reportsHubFinancial" as const,
-  },
-  {
-    href: "/reports/position",
-    labelKey: "reports.tabCashPosition",
-    icon: "/reports" as const,
-    hintKey: "nav.tooltip.reportsHubCash" as const,
-  },
-  {
-    href: "/reports/stock",
-    labelKey: "reports.tabStock",
-    icon: "/reports" as const,
-    hintKey: "nav.tooltip.reportsHubStock" as const,
-  },
-  {
-    href: "/daily-branch-register",
-    labelKey: "nav.dailyBranchRegister",
-    icon: "dailyBranchRegister" as const,
-    hintKey: "nav.tooltip.reportsHubDailyRegister" as const,
-  },
-] as const;
+function reportsHubLinkActive(pathname: string, href: string): boolean {
+  const p = pathname.split("?")[0] ?? pathname;
+  if (href === "/reports/financial") return p.startsWith("/reports/financial");
+  if (href === "/reports/stock") return p.startsWith("/reports/stock");
+  if (href === "/reports/patron-flow") return p.startsWith("/reports/patron-flow");
+  if (href === "/reports/cash") return p.startsWith("/reports/cash");
+  if (href === "/reports/branches") return p.startsWith("/reports/branches");
+  return p.startsWith(href);
+}
+
+function isReportsSidebarContext(pathname: string): boolean {
+  const p = pathname.split("?")[0] ?? pathname;
+  return p.startsWith("/reports") || p.startsWith("/daily-branch-register");
+}
 
 const suppliersSubNav = [
   { href: "/suppliers", labelKey: "nav.suppliers", icon: "/suppliers" as const, hintKey: "nav.tooltip.suppliers" as const },
@@ -81,9 +76,17 @@ type NavIconName =
   | "settings"
   | "authz"
   | "notificationsBell"
+  | "branding"
   | "insurances"
   | "generalOverhead"
-  | "dailyBranchRegister";
+  | "dailyBranchRegister"
+  | "reportSummary"
+  | "reportTrend"
+  | "reportTable"
+  | "reportFlow"
+  | "reportCash"
+  | "reportStock"
+  | "reportCompare";
 
 function NavGlyph({ name }: { name: NavIconName }) {
   const common = {
@@ -160,6 +163,14 @@ function NavGlyph({ name }: { name: NavIconName }) {
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
       );
+    case "branding":
+      return (
+        <svg {...common}>
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+          <circle cx="8.5" cy="8.5" r="1.5" />
+          <path d="m21 15-5-5L5 21" />
+        </svg>
+      );
     case "/branches":
       return (
         <svg {...common}>
@@ -223,10 +234,119 @@ function NavGlyph({ name }: { name: NavIconName }) {
           <path d="M22 12A10 10 0 0 0 12 2v10z" />
         </svg>
       );
+    case "reportSummary":
+      return (
+        <svg {...common}>
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+          <path d="M8 7h8M8 11h6" />
+        </svg>
+      );
+    case "reportTrend":
+      return (
+        <svg {...common}>
+          <path d="M3 3v18h18" />
+          <path d="m19 9-5 5-4-4-3 3" />
+        </svg>
+      );
+    case "reportTable":
+      return (
+        <svg {...common}>
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <path d="M3 9h18M9 21V9" />
+        </svg>
+      );
+    case "reportFlow":
+      return (
+        <svg {...common}>
+          <path d="M12 3v6l4-2" />
+          <path d="M12 21v-6l-4 2" />
+          <circle cx="12" cy="12" r="2" />
+          <path d="M4 12h2M18 12h2" />
+        </svg>
+      );
+    case "reportCash":
+      return (
+        <svg {...common}>
+          <rect x="2" y="6" width="20" height="12" rx="2" />
+          <circle cx="12" cy="12" r="2" />
+          <path d="M6 10h.01M18 14h.01" />
+        </svg>
+      );
+    case "reportStock":
+      return (
+        <svg {...common}>
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+        </svg>
+      );
+    case "reportCompare":
+      return (
+        <svg {...common}>
+          <path d="M8 6v14M16 6v14M4 20h16" />
+          <path d="M8 6a4 4 0 1 1 8 0" />
+        </svg>
+      );
     default:
       return null;
   }
 }
+
+type ReportSidebarNavItem = {
+  readonly href: string;
+  readonly labelKey: string;
+  readonly icon: NavIconName;
+  readonly hintKey: string;
+};
+
+/** Şirket / kasa — tek finans girişi (sayfa içi sekmeler); kasa özeti ayrı. */
+const reportsFinSystemSubNav: readonly ReportSidebarNavItem[] = [
+  {
+    href: "/reports/financial",
+    labelKey: "reports.sidebarFinances",
+    icon: "reportSummary",
+    hintKey: "nav.tooltip.reportsFinOneEntry",
+  },
+  {
+    href: "/reports/position",
+    labelKey: "reports.tabCashPosition",
+    icon: "reportCash",
+    hintKey: "nav.tooltip.reportsHubCash",
+  },
+];
+
+const reportsPatronSubNav: readonly ReportSidebarNavItem[] = [
+  {
+    href: "/reports/patron-flow",
+    labelKey: "reports.finNavCashFlow",
+    icon: "reportFlow",
+    hintKey: "nav.tooltip.reportsHubFinCashFlow",
+  },
+];
+
+const reportsStockSubNav: readonly ReportSidebarNavItem[] = [
+  {
+    href: "/reports/stock",
+    labelKey: "reports.tabStock",
+    icon: "reportStock",
+    hintKey: "nav.tooltip.reportsHubStock",
+  },
+];
+
+const reportsOtherSubNav: readonly ReportSidebarNavItem[] = [
+  {
+    href: "/reports/branches",
+    labelKey: "reports.navBranchComparison",
+    icon: "reportCompare",
+    hintKey: "nav.tooltip.reportsHubBranches",
+  },
+  {
+    href: "/daily-branch-register",
+    labelKey: "nav.dailyBranchRegister",
+    icon: "dailyBranchRegister",
+    hintKey: "nav.tooltip.reportsHubDailyRegister",
+  },
+];
 
 const navLinkBase =
   "flex min-h-12 items-center gap-3 rounded-xl text-sm font-semibold transition-all duration-200 md:min-h-0";
@@ -234,8 +354,28 @@ const navLinkActive =
   "bg-zinc-900 text-white shadow-lg shadow-zinc-900/25 ring-1 ring-zinc-900/20";
 const navLinkIdle =
   "text-zinc-600 hover:bg-white/80 hover:text-zinc-900 hover:shadow-md hover:shadow-zinc-900/[0.04] hover:ring-1 hover:ring-zinc-200/90";
-const navSectionTitle =
-  "min-w-0 px-3 pb-1.5 text-[0.65rem] font-bold uppercase tracking-[0.18em] text-zinc-400";
+/** Level 1: ana grup (Raporlar, Personel, Şube, …) */
+const navSidebarL1Label =
+  "min-w-0 px-3 py-1 text-[0.7rem] font-extrabold uppercase tracking-[0.13em] text-zinc-800";
+/** Level 2: Raporlar altındaki alt gruplar */
+const navSidebarL2Label =
+  "min-w-0 px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-[0.09em] text-zinc-600 md:px-2.5";
+/** Rapor alt grupları — çok hafif violet wash (tema ile uyumlu) */
+const navReportsSubgroupBlock =
+  "flex flex-col gap-1 rounded-xl border-t border-zinc-200/50 bg-gradient-to-br from-violet-50/45 via-white/75 to-zinc-50/40 px-1.5 pb-1 pt-2.5 shadow-sm shadow-violet-950/[0.025] first:border-t-0 first:pt-0.5";
+/** Alt grup içi sayfa linkleri — hafif girinti, mobilde dar kenar */
+const navReportsLeafStack =
+  "flex flex-col gap-1 rounded-lg bg-white/35 py-0.5 pl-2 sm:pl-2.5 md:gap-1.5 md:bg-white/25";
+const navLinkReportsLeaf =
+  `${navLinkBase} min-w-0 rounded-xl py-2.5 pl-2.5 pr-2 text-sm font-semibold leading-snug md:min-h-0 md:rounded-lg md:py-2 md:pl-3`;
+const navSectionToggleBtn =
+  "flex min-h-11 w-full min-w-0 items-center justify-between gap-2 rounded-xl px-1 py-0.5 text-left transition-[background-color,box-shadow,transform,color] duration-200 ease-out hover:bg-zinc-100/90 active:scale-[0.99] motion-reduce:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/80 motion-reduce:transition-none";
+const navSectionToggleBtnOpen =
+  "bg-gradient-to-b from-violet-50/85 to-zinc-50/55 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.75)] shadow-sm shadow-violet-900/[0.04] ring-1 ring-violet-200/45";
+const navCollapsibleChevron =
+  "mr-1 shrink-0 text-zinc-500 transition-transform duration-300 ease-[cubic-bezier(0.33,1.2,0.68,1)] motion-reduce:duration-150 motion-reduce:ease-out";
+const navCollapsibleGrid =
+  "grid transition-[grid-template-rows] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:duration-0 motion-reduce:transition-none";
 const navSectionBlock = "mt-2 border-t border-zinc-200/80 pt-2";
 /** Sağdaki (i) sütunu tüm satırlarda aynı x konumunda tutar. */
 const navItemRow =
@@ -272,6 +412,34 @@ function AdminSectionShieldIcon() {
     >
       <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
     </svg>
+  );
+}
+
+function NavCollapsiblePanel({
+  id,
+  labelledBy,
+  open,
+  contentClassName,
+  children,
+}: {
+  id: string;
+  labelledBy: string;
+  open: boolean;
+  contentClassName?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      id={id}
+      role="region"
+      aria-labelledby={labelledBy}
+      aria-hidden={!open}
+      className={`${navCollapsibleGrid} ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+    >
+      <div className="min-h-0 overflow-hidden" inert={open ? undefined : true}>
+        <div className={contentClassName}>{children}</div>
+      </div>
+    </div>
   );
 }
 
@@ -312,6 +480,114 @@ function NavMenuHint({ hintKey }: { hintKey: string }) {
   );
 }
 
+function ReportsNavSubgroup({
+  subgroupId,
+  titleKey,
+  items,
+  pathname,
+  user,
+  onItemClick,
+}: {
+  subgroupId: string;
+  titleKey: string;
+  items: readonly ReportSidebarNavItem[];
+  pathname: string;
+  user: ReturnType<typeof useAuth>["user"];
+  onItemClick: () => void;
+}) {
+  const { t } = useI18n();
+  const visible = useMemo(
+    () =>
+      items.filter((item) =>
+        item.href === "/daily-branch-register"
+          ? canSeeDailyBranchRegister(user)
+          : canSeeUiModule(user, PERM.uiReports)
+      ),
+    [items, user]
+  );
+  const hasActive = useMemo(
+    () => visible.some((item) => reportsHubLinkActive(pathname, item.href)),
+    [visible, pathname]
+  );
+  const [open, setOpen] = useState(hasActive);
+  const toggleId = `sidebar-report-sub-${subgroupId}-toggle`;
+  const panelId = `sidebar-report-sub-${subgroupId}-panel`;
+
+  useEffect(() => {
+    if (hasActive) setOpen(true);
+  }, [hasActive]);
+
+  if (visible.length === 0) return null;
+  return (
+    <div className={navReportsSubgroupBlock}>
+      <button
+        type="button"
+        id={toggleId}
+        className={`${navSectionToggleBtn} md:min-h-9 md:rounded-lg ${
+          open ? navSectionToggleBtnOpen : ""
+        }`}
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((o) => !o)}
+        aria-label={
+          open
+            ? `${t(titleKey)} — ${t("nav.collapseReportSubgroup")}`
+            : `${t(titleKey)} — ${t("nav.expandReportSubgroup")}`
+        }
+      >
+        <span className={`${navSidebarL2Label} flex min-w-0 flex-1 items-center`}>
+          {t(titleKey)}
+        </span>
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={`${navCollapsibleChevron} ${open ? "rotate-180" : ""}`}
+          aria-hidden
+        >
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      <NavCollapsiblePanel
+        id={panelId}
+        labelledBy={toggleId}
+        open={open}
+        contentClassName="pb-0.5 pt-1"
+      >
+        <div className={navReportsLeafStack}>
+          {visible.map((item) => {
+            const subActive = reportsHubLinkActive(pathname, item.href);
+            return (
+              <div key={item.href} className={navItemRow}>
+                <Link
+                  href={item.href}
+                  onClick={onItemClick}
+                  className={`${navLinkReportsLeaf} ${
+                    subActive ? navLinkActive : navLinkIdle
+                  }`}
+                >
+                  <NavGlyph name={item.icon} />
+                  <span className="min-w-0 normal-case tracking-normal">
+                    {t(item.labelKey)}
+                  </span>
+                </Link>
+                <div className={navHintCol}>
+                  <NavMenuHint hintKey={item.hintKey} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </NavCollapsiblePanel>
+    </div>
+  );
+}
+
 function LocaleToggle() {
   const { t, locale, setLocale } = useI18n();
   return (
@@ -344,7 +620,24 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { logout, user } = useAuth();
   const personnelPortal = isPersonnelPortalRole(user?.role);
   const driverPortal = isDriverPortalRole(user?.role);
-  const staffFullNav = !personnelPortal && !driverPortal;
+  const u = user;
+  const showHome = canSeeUiModule(u, PERM.uiDashboard);
+  const showReportsBlock = canSeeUiModule(u, PERM.uiReports) || canSeeDailyBranchRegister(u);
+  const showPersonnelFull = !personnelPortal && canSeeUiModule(u, PERM.uiPersonnel);
+  const showPersonnelAdvancesOnly = personnelPortal && canSeeUiModule(u, PERM.uiMyAdvances);
+  const showBranches = canSeeUiModule(u, PERM.uiBranches);
+  const showDocuments = showBranches;
+  const showGeneralOverhead =
+    !personnelPortal && !driverPortal && canSeeUiModule(u, PERM.uiGeneralOverhead);
+  const showInsurances = !personnelPortal && !driverPortal && canSeeUiModule(u, PERM.uiInsurances);
+  const showInvShell =
+    driverPortal || canSeeUiModule(u, PERM.uiWarehouse) || canSeeUiModule(u, PERM.uiProducts);
+  const showWarehouseLink = driverPortal || canSeeUiModule(u, PERM.uiWarehouse);
+  const showProductsBlock = !driverPortal && canSeeUiModule(u, PERM.uiProducts);
+  const showProcurement = !personnelPortal && !driverPortal && canSeeUiModule(u, PERM.uiSuppliers);
+  const showFleet = !personnelPortal && !driverPortal && canSeeUiModule(u, PERM.uiVehicles);
+  const showStaffNotifications = hasStaffOperationsNotifications(u);
+  const isSystemAdmin = hasPermissionCode(u, PERM.systemAdmin);
   const { data: branding, isSuccess: brandingLoaded } = useSystemBrandingQuery(Boolean(user));
   const brandingTitle = branding?.companyName?.trim() || t("common.appName");
   const brandingIsCustom = Boolean(branding?.companyName?.trim());
@@ -355,6 +648,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       )
     : "";
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [reportsNavOpen, setReportsNavOpen] = useState(() =>
+    isReportsSidebarContext(pathname)
+  );
+
+  useEffect(() => {
+    if (isReportsSidebarContext(pathname)) setReportsNavOpen(true);
+  }, [pathname]);
 
   useEffect(() => {
     setMobileNavOpen(false);
@@ -443,7 +743,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-2 pb-2"
         aria-label={t("nav.mainNav")}
       >
-        {staffFullNav ? (
+        {showHome ? (
           <div className={navItemRow}>
             <Link
               href="/"
@@ -460,43 +760,92 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
           </div>
         ) : null}
-        {staffFullNav ? (
+        {showReportsBlock ? (
           <div className={navSectionBlock}>
             <div className={navItemRow}>
-              <p className={navSectionTitle}>{t("nav.reportsSection")}</p>
+              <button
+                type="button"
+                id="sidebar-reports-toggle"
+                className={`${navSectionToggleBtn} md:min-h-10 ${
+                  reportsNavOpen ? navSectionToggleBtnOpen : ""
+                }`}
+                aria-expanded={reportsNavOpen}
+                aria-controls="sidebar-reports-panel"
+                onClick={() => setReportsNavOpen((o) => !o)}
+                aria-label={
+                  reportsNavOpen
+                    ? t("nav.collapseReportsSection")
+                    : t("nav.expandReportsSection")
+                }
+              >
+                <span className={`${navSidebarL1Label} flex min-w-0 flex-1 items-center`}>
+                  {t("nav.reportsSection")}
+                </span>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className={`${navCollapsibleChevron} ${reportsNavOpen ? "rotate-180" : ""}`}
+                  aria-hidden
+                >
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
               <div className={navHintCol}>
                 <NavMenuHint hintKey="nav.tooltip.reports" />
               </div>
             </div>
-            <div className="flex flex-col gap-0.5">
-              {reportsHubSubNav.map((item) => {
-                const subActive = pathname.startsWith(item.href);
-                return (
-                  <div key={item.href} className={navItemRow}>
-                    <Link
-                      href={item.href}
-                      onClick={() => setMobileNavOpen(false)}
-                      className={`${navLinkBase} min-w-0 py-2 pl-4 pr-2 ${
-                        subActive ? navLinkActive : navLinkIdle
-                      }`}
-                    >
-                      <NavGlyph name={item.icon} />
-                      <span className="min-w-0">{t(item.labelKey)}</span>
-                    </Link>
-                    <div className={navHintCol}>
-                      <NavMenuHint hintKey={item.hintKey} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <NavCollapsiblePanel
+              id="sidebar-reports-panel"
+              labelledBy="sidebar-reports-toggle"
+              open={reportsNavOpen}
+              contentClassName="flex flex-col gap-0.5 pt-1"
+            >
+              <ReportsNavSubgroup
+                subgroupId="fin-system"
+                titleKey="nav.reportsFinSystemSection"
+                items={reportsFinSystemSubNav}
+                pathname={pathname}
+                user={u}
+                onItemClick={() => setMobileNavOpen(false)}
+              />
+              <ReportsNavSubgroup
+                subgroupId="patron"
+                titleKey="nav.reportsPatronSection"
+                items={reportsPatronSubNav}
+                pathname={pathname}
+                user={u}
+                onItemClick={() => setMobileNavOpen(false)}
+              />
+              <ReportsNavSubgroup
+                subgroupId="stock"
+                titleKey="nav.reportsStockSection"
+                items={reportsStockSubNav}
+                pathname={pathname}
+                user={u}
+                onItemClick={() => setMobileNavOpen(false)}
+              />
+              <ReportsNavSubgroup
+                subgroupId="other"
+                titleKey="nav.reportsOtherSection"
+                items={reportsOtherSubNav}
+                pathname={pathname}
+                user={u}
+                onItemClick={() => setMobileNavOpen(false)}
+              />
+            </NavCollapsiblePanel>
           </div>
         ) : null}
 
-        {staffFullNav ? (
+        {showPersonnelFull ? (
           <div className={navSectionBlock}>
             <div className={navItemRow}>
-              <p className={navSectionTitle}>{t("nav.personnelSection")}</p>
+              <p className={navSidebarL1Label}>{t("nav.personnelSection")}</p>
               <div className={navHintCol}>
                 <NavMenuHint hintKey="nav.tooltip.personnelSection" />
               </div>
@@ -531,10 +880,10 @@ export function AppShell({ children }: { children: ReactNode }) {
               })}
             </div>
           </div>
-        ) : (
+        ) : showPersonnelAdvancesOnly ? (
           <div className={navSectionBlock}>
             <div className={navItemRow}>
-              <p className={navSectionTitle}>{t("nav.personnelSection")}</p>
+              <p className={navSidebarL1Label}>{t("nav.personnelSection")}</p>
               <div className={navHintCol}>
                 <NavMenuHint hintKey="nav.tooltip.personnelSection" />
               </div>
@@ -559,11 +908,32 @@ export function AppShell({ children }: { children: ReactNode }) {
               </div>
             </div>
           </div>
-        )}
+        ) : null}
 
+        {showDocuments ? (
+          <div className={navSectionBlock}>
+            <div className={navItemRow}>
+              <Link
+                href="/documents"
+                onClick={() => setMobileNavOpen(false)}
+                className={`${navLinkBase} min-w-0 px-3 py-2.5 ${
+                  pathname.startsWith("/documents") ? navLinkActive : navLinkIdle
+                }`}
+              >
+                <NavGlyph name="reportTable" />
+                <span className="min-w-0">{t("nav.documents")}</span>
+              </Link>
+              <div className={navHintCol}>
+                <NavMenuHint hintKey="nav.tooltip.documents" />
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {showBranches ? (
         <div className={navSectionBlock}>
           <div className={navItemRow}>
-            <p className={navSectionTitle}>{t("nav.branchSection")}</p>
+            <p className={navSidebarL1Label}>{t("nav.branchSection")}</p>
             <div className={navHintCol}>
               <NavMenuHint hintKey="nav.tooltip.branchSection" />
             </div>
@@ -584,7 +954,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <NavMenuHint hintKey="nav.tooltip.branch" />
               </div>
             </div>
-            {staffFullNav ? (
+            {showGeneralOverhead ? (
               <div className={navItemRow}>
                 <Link
                   href="/general-overhead"
@@ -603,11 +973,12 @@ export function AppShell({ children }: { children: ReactNode }) {
             ) : null}
           </div>
         </div>
+        ) : null}
 
-        {staffFullNav ? (
+        {showInsurances ? (
           <div className={navSectionBlock}>
             <div className={navItemRow}>
-              <p className={navSectionTitle}>{t("nav.insuranceSection")}</p>
+              <p className={navSidebarL1Label}>{t("nav.insuranceSection")}</p>
               <div className={navHintCol}>
                 <NavMenuHint hintKey="nav.tooltip.insuranceSection" />
               </div>
@@ -632,16 +1003,17 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         ) : null}
 
-        {staffFullNav || driverPortal ? (
+        {showInvShell ? (
           <>
             <div className={navSectionBlock}>
               <div className={navItemRow}>
-                <p className={navSectionTitle}>{t("nav.inventorySection")}</p>
+                <p className={navSidebarL1Label}>{t("nav.inventorySection")}</p>
                 <div className={navHintCol}>
                   <NavMenuHint hintKey="nav.tooltip.inventorySection" />
                 </div>
               </div>
               <div className="flex flex-col gap-0.5">
+                {showWarehouseLink ? (
                 <div className={navItemRow}>
                   <Link
                     href="/warehouses"
@@ -659,7 +1031,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <NavMenuHint hintKey="nav.tooltip.warehouse" />
                   </div>
                 </div>
-                {staffFullNav ? (
+                ) : null}
+                {showProductsBlock ? (
                   <>
                     <div className={navItemRow}>
                       <Link
@@ -693,71 +1066,105 @@ export function AppShell({ children }: { children: ReactNode }) {
                         <NavMenuHint hintKey="nav.tooltip.productCategories" />
                       </div>
                     </div>
+                    <div className={navItemRow}>
+                      <Link
+                        href="/products/cost-history"
+                        onClick={() => setMobileNavOpen(false)}
+                        className={`${navLinkBase} min-w-0 py-2 pl-4 pr-2 ${
+                          pathname.startsWith("/products/cost-history")
+                            ? navLinkActive
+                            : navLinkIdle
+                        }`}
+                      >
+                        <NavGlyph name="reportTable" />
+                        <span className="min-w-0">{t("nav.productCostHistory")}</span>
+                      </Link>
+                      <div className={navHintCol}>
+                        <NavMenuHint hintKey="nav.tooltip.productCostHistory" />
+                      </div>
+                    </div>
+                    <div className={navItemRow}>
+                      <Link
+                        href="/products/order-account-statement"
+                        onClick={() => setMobileNavOpen(false)}
+                        className={`${navLinkBase} min-w-0 py-2 pl-4 pr-2 ${
+                          pathname.startsWith("/products/order-account-statement")
+                            ? navLinkActive
+                            : navLinkIdle
+                        }`}
+                      >
+                        <NavGlyph name="reportTable" />
+                        <span className="min-w-0">{t("reports.sidebarOrderAccountStatement")}</span>
+                      </Link>
+                      <div className={navHintCol}>
+                        <NavMenuHint hintKey="nav.tooltip.productsOrderAccountStatement" />
+                      </div>
+                    </div>
                   </>
                 ) : null}
               </div>
             </div>
-            {staffFullNav ? (
-              <>
-                <div className={navSectionBlock}>
-                  <div className={navItemRow}>
-                    <p className={navSectionTitle}>{t("nav.procurementSection")}</p>
-                    <div className={navHintCol}>
-                      <NavMenuHint hintKey="nav.tooltip.procurementSection" />
-                    </div>
+            {showProcurement ? (
+              <div className={navSectionBlock}>
+                <div className={navItemRow}>
+                  <p className={navSidebarL1Label}>{t("nav.procurementSection")}</p>
+                  <div className={navHintCol}>
+                    <NavMenuHint hintKey="nav.tooltip.procurementSection" />
                   </div>
-                  <div className="flex flex-col gap-0.5">
-                    {procurementSubNav.map((item) => {
-                      const subActive =
-                        item.href === "/suppliers"
-                          ? pathname === "/suppliers"
-                          : pathname.startsWith(item.href);
-                      return (
-                        <div key={item.href} className={navItemRow}>
-                          <Link
-                            href={item.href}
-                            onClick={() => setMobileNavOpen(false)}
-                            className={`${navLinkBase} min-w-0 py-2 pl-4 pr-2 ${
-                              subActive ? navLinkActive : navLinkIdle
-                            }`}
-                          >
-                            <NavGlyph name={item.icon} />
-                            <span className="min-w-0">{t(item.labelKey)}</span>
-                          </Link>
-                          <div className={navHintCol}>
-                            <NavMenuHint hintKey={item.hintKey} />
-                          </div>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  {procurementSubNav.map((item) => {
+                    const subActive =
+                      item.href === "/suppliers"
+                        ? pathname === "/suppliers"
+                        : pathname.startsWith(item.href);
+                    return (
+                      <div key={item.href} className={navItemRow}>
+                        <Link
+                          href={item.href}
+                          onClick={() => setMobileNavOpen(false)}
+                          className={`${navLinkBase} min-w-0 py-2 pl-4 pr-2 ${
+                            subActive ? navLinkActive : navLinkIdle
+                          }`}
+                        >
+                          <NavGlyph name={item.icon} />
+                          <span className="min-w-0">{t(item.labelKey)}</span>
+                        </Link>
+                        <div className={navHintCol}>
+                          <NavMenuHint hintKey={item.hintKey} />
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className={navSectionBlock}>
-                  <div className={navItemRow}>
-                    <p className={navSectionTitle}>{t("nav.fleetSection")}</p>
-                    <div className={navHintCol}>
-                      <NavMenuHint hintKey="nav.tooltip.fleetSection" />
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <div className={navItemRow}>
-                      <Link
-                        href="/vehicles"
-                        onClick={() => setMobileNavOpen(false)}
-                        className={`${navLinkBase} min-w-0 py-2 pl-4 pr-2 ${
-                          pathname.startsWith("/vehicles") ? navLinkActive : navLinkIdle
-                        }`}
-                      >
-                        <NavGlyph name="/vehicles" />
-                        <span className="min-w-0">{t("nav.vehicles")}</span>
-                      </Link>
-                      <div className={navHintCol}>
-                        <NavMenuHint hintKey="nav.tooltip.vehicles" />
                       </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+            {showFleet ? (
+              <div className={navSectionBlock}>
+                <div className={navItemRow}>
+                  <p className={navSidebarL1Label}>{t("nav.fleetSection")}</p>
+                  <div className={navHintCol}>
+                    <NavMenuHint hintKey="nav.tooltip.fleetSection" />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <div className={navItemRow}>
+                    <Link
+                      href="/vehicles"
+                      onClick={() => setMobileNavOpen(false)}
+                      className={`${navLinkBase} min-w-0 py-2 pl-4 pr-2 ${
+                        pathname.startsWith("/vehicles") ? navLinkActive : navLinkIdle
+                      }`}
+                    >
+                      <NavGlyph name="/vehicles" />
+                      <span className="min-w-0">{t("nav.vehicles")}</span>
+                    </Link>
+                    <div className={navHintCol}>
+                      <NavMenuHint hintKey="nav.tooltip.vehicles" />
                     </div>
                   </div>
                 </div>
-              </>
+              </div>
             ) : null}
           </>
         ) : null}
@@ -782,7 +1189,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         ) : null}
 
-        {user?.role === "ADMIN" ? (
+        {isSystemAdmin ? (
           <div className={`${navSectionBlock} border-t-transparent pt-3`}>
             <div className={adminNavCard}>
               <div className={navItemRow}>
@@ -870,6 +1277,23 @@ export function AppShell({ children }: { children: ReactNode }) {
                     </Link>
                     <div className={navHintCol}>
                       <NavMenuHint hintKey="nav.tooltip.adminNavNotifications" />
+                    </div>
+                  </div>
+                  <div className={navItemRow}>
+                    <Link
+                      href="/admin/settings/branding"
+                      onClick={() => setMobileNavOpen(false)}
+                      className={`${adminNavLinkBase} min-w-0 py-2.5 pl-2 pr-2 ${
+                        pathname.startsWith("/admin/settings/branding")
+                          ? adminNavLinkActive
+                          : adminNavLinkIdle
+                      }`}
+                    >
+                      <NavGlyph name="branding" />
+                      <span className="min-w-0">{t("nav.adminNavBranding")}</span>
+                    </Link>
+                    <div className={navHintCol}>
+                      <NavMenuHint hintKey="nav.tooltip.adminNavBranding" />
                     </div>
                   </div>
                   <div className={navItemRow}>
@@ -983,7 +1407,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Tooltip>
           <AppGlobalSearch />
           <div className="ml-auto flex shrink-0 items-center gap-2 sm:gap-3">
-            {user && staffFullNav ? <StaffHeaderNotifications /> : null}
+            {user && showStaffNotifications ? <StaffHeaderNotifications /> : null}
             {user ? (
               <UserAccountMenu triggerLabel={displayName} />
             ) : null}

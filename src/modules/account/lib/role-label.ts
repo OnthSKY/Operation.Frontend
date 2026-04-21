@@ -10,6 +10,14 @@ export function accountRoleLabel(
       return t("profile.roleStaff");
     case "PERSONNEL":
       return t("profile.rolePersonnel");
+    case "DRIVER":
+      return t("profile.roleDriver");
+    case "VIEWER":
+      return t("profile.roleViewer");
+    case "FINANCE":
+      return t("profile.roleFinance");
+    case "PROCUREMENT":
+      return t("profile.roleProcurement");
     default:
       return role;
   }

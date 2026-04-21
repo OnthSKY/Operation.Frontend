@@ -28,12 +28,15 @@ type Props = {
   value: WarehouseScopeFiltersValue;
   onChange: (next: WarehouseScopeFiltersValue) => void;
   disabled?: boolean;
+  /** Çekmece / modal içinde açılır liste z-index (ör. RightDrawer). */
+  menuZIndex?: number;
 };
 
 export function WarehouseProductScopeFilters({
   value,
   onChange,
   disabled,
+  menuZIndex,
 }: Props) {
   const { t } = useI18n();
   const { data: categories = [], isPending: catLoading } = useProductCategories(true);
@@ -138,6 +141,7 @@ export function WarehouseProductScopeFilters({
             label={t("warehouse.scopeMainCategory")}
             name="wh-scope-main-category"
             options={mainCategoryOptions}
+            menuZIndex={menuZIndex}
             value={mainPick}
             onChange={(e) => {
               const v = e.target.value;
@@ -156,6 +160,7 @@ export function WarehouseProductScopeFilters({
             label={t("warehouse.scopeSubCategory")}
             name="wh-scope-sub-category"
             options={subCategoryOptions}
+            menuZIndex={menuZIndex}
             value={mainUnset ? "" : subPick}
             onChange={(e) => {
               const v = e.target.value;
@@ -174,6 +179,7 @@ export function WarehouseProductScopeFilters({
             label={t("warehouse.scopeMainProduct")}
             name="wh-scope-parent"
             options={parentOptions}
+            menuZIndex={menuZIndex}
             value={parPick}
             onChange={(e) => {
               const v = e.target.value;
@@ -191,6 +197,7 @@ export function WarehouseProductScopeFilters({
             label={t("warehouse.scopeSubProduct")}
             name="wh-scope-product"
             options={productOptions}
+            menuZIndex={menuZIndex}
             value={prodPick}
             onChange={(e) => {
               const v = e.target.value;

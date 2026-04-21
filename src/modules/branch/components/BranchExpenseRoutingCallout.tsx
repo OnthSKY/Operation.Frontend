@@ -45,6 +45,12 @@ export function BranchExpenseRoutingCallout({ variant }: { variant: Variant }) {
             {t("branch.txExpenseRoutingPersonnelHrefLabel")}
           </Link>
         </li>
+        <li>
+          <span className="font-medium text-sky-950">{t("branch.txExpenseRoutingVehicleCosts")}</span>{" "}
+          <Link href="/vehicles" className={linkClass}>
+            {t("branch.txExpenseRoutingVehicleHrefLabel")}
+          </Link>
+        </li>
       </ul>
       <p className="mt-2 border-t border-sky-200/60 pt-2 text-[0.7rem] text-sky-900/82 sm:text-xs">
         {t("branch.txExpenseRoutingBranchForm")}

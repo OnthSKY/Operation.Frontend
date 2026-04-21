@@ -12,10 +12,14 @@ import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { useMediaMinWidth } from "@/shared/lib/use-media-min-width";
 import { useMemo } from "react";
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
+  Cell,
   Legend,
   Line,
   LineChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -35,6 +39,9 @@ const BRANCH_LINE_COLORS = [
   "#059669",
 ];
 
+const COL_NET = "#059669";
+const COL_EXPENSE = "#dc2626";
+
 function monthTickLabel(iso: string, locale: Locale): string {
   const ymd = iso.slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return iso;
@@ -46,6 +53,12 @@ function monthTickLabel(iso: string, locale: Locale): string {
   });
 }
 
+function truncLabel(s: string, max: number): string {
+  const t = s.trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, Math.max(0, max - 1))}…`;
+}
+
 export function ReportFinancialTimeSeriesCharts({
   t,
   locale,
@@ -53,6 +66,7 @@ export function ReportFinancialTimeSeriesCharts({
   monthlyRows,
   branchMonthlyRows,
   showBranchNetByMonth,
+  suppressSectionIntro = false,
 }: {
   t: TFn;
   locale: Locale;
@@ -60,6 +74,7 @@ export function ReportFinancialTimeSeriesCharts({
   monthlyRows: FinancialMonthlyBreakdownRow[] | null | undefined;
   branchMonthlyRows: FinancialBranchMonthlyBreakdownRow[] | undefined;
   showBranchNetByMonth: boolean;
+  suppressSectionIntro?: boolean;
 }) {
   const smUp = useMediaMinWidth(640);
 
@@ -75,6 +90,8 @@ export function ReportFinancialTimeSeriesCharts({
         net: r.netCash,
       }));
   }, [monthlyRows, currencyCode, locale]);
+
+  const useMonthlyBars = monthlyChartData.length > 0 && monthlyChartData.length <= 2;
 
   const branchChart = useMemo(() => {
     if (!showBranchNetByMonth || !branchMonthlyRows?.length) return null;
@@ -117,8 +134,26 @@ export function ReportFinancialTimeSeriesCharts({
       name: branchScores.get(id)?.name ?? `#${id}`,
     }));
 
-    return { rows, branchMeta };
+    return { rows, branchMeta, monthCount: months.length };
   }, [branchMonthlyRows, currencyCode, locale, showBranchNetByMonth, t]);
+
+  const branchSingleMonthBars = useMemo(() => {
+    if (!branchChart || branchChart.monthCount !== 1 || !branchChart.rows[0]) {
+      return null;
+    }
+    const row = branchChart.rows[0];
+    return branchChart.branchMeta
+      .map((b) => {
+        const net = Number(row[`b${b.id}`] ?? 0);
+        return {
+          id: b.id,
+          label: truncLabel(b.name, smUp ? 26 : 12),
+          labelFull: b.name,
+          net,
+        };
+      })
+      .sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
+  }, [branchChart, smUp]);
 
   const fmtAxisTick = (v: number) => {
     if (smUp) {
@@ -143,6 +178,14 @@ export function ReportFinancialTimeSeriesCharts({
     return formatLocaleAmount(Number.isFinite(n) ? n : 0, locale, currencyCode);
   };
 
+  const monthlyBarH = Math.min(320, 140 + monthlyChartData.length * 72);
+  const branchBarH = branchSingleMonthBars
+    ? Math.min(440, 72 + branchSingleMonthBars.length * 44)
+    : 320;
+
+  const showDotsOnMonthlyLine =
+    monthlyChartData.length >= 3 && monthlyChartData.length <= 14;
+
   if (!monthlyChartData.length && !branchChart?.rows.length) {
     return null;
   }
@@ -151,100 +194,272 @@ export function ReportFinancialTimeSeriesCharts({
     <div className="flex flex-col gap-4 sm:gap-6">
       {monthlyChartData.length > 0 ? (
         <div>
-          <p className="mb-1 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-zinc-400">
-            {t("reports.sectionMonthlyTrends")}
-          </p>
-          <p className="mb-3 break-words text-xs leading-relaxed text-zinc-500">
-            {t("reports.chartMonthlyTrendCaption")}
-          </p>
-          <Card className="min-w-0" title={t("reports.chartMonthlyExpenseNet")}>
-            <RechartsMeasureBox className="h-[240px] w-full min-w-0 sm:h-[280px]">
-              {({ width, height }) => (
-                <ResponsiveContainer width={width} height={height}>
-                  <LineChart
-                    data={monthlyChartData}
-                    margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-                    <XAxis dataKey="label" tick={{ fontSize: smUp ? 11 : 9 }} />
-                    <YAxis
-                      tick={{ fontSize: smUp ? 11 : 9 }}
-                      tickFormatter={fmtAxisTick}
-                      width={smUp ? 72 : 56}
-                    />
-                    <Tooltip
-                      formatter={(v) => tooltipMoney(v)}
-                      labelFormatter={(_, p) =>
-                        (p?.[0]?.payload as { label?: string })?.label ?? ""
-                      }
-                    />
-                    <Legend wrapperStyle={{ fontSize: smUp ? 12 : 10 }} />
-                    <Line
-                      type="monotone"
-                      dataKey="expense"
-                      name={t("reports.chartMonthlyExpense")}
-                      stroke="#dc2626"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="net"
-                      name={t("reports.chartMonthlyNet")}
-                      stroke="#059669"
-                      strokeWidth={2}
-                      dot={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-            </RechartsMeasureBox>
+          {!suppressSectionIntro ? (
+            <>
+              <p className="mb-1 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-zinc-400">
+                {t("reports.sectionMonthlyTrends")}
+              </p>
+              <p className="mb-3 break-words text-xs leading-relaxed text-zinc-500">
+                {t("reports.chartMonthlyTrendCaption")}
+              </p>
+            </>
+          ) : null}
+          <Card
+            className="min-w-0"
+            title={t("reports.chartMonthlyExpenseNet")}
+            description={useMonthlyBars ? t("reports.chartMonthlyBarsNote") : undefined}
+          >
+            {useMonthlyBars ? (
+              <RechartsMeasureBox
+                className="w-full min-w-0"
+                style={{ height: monthlyBarH }}
+              >
+                {({ width, height }) => (
+                  <ResponsiveContainer width={width} height={height}>
+                    <BarChart
+                      data={monthlyChartData}
+                      margin={{ top: 12, right: 12, left: 4, bottom: 28 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: smUp ? 12 : 10 }} />
+                      <YAxis
+                        tick={{ fontSize: smUp ? 11 : 9 }}
+                        tickFormatter={fmtAxisTick}
+                        width={smUp ? 76 : 60}
+                      />
+                      <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="4 4" />
+                      <Tooltip
+                        formatter={(v) => tooltipMoney(v)}
+                        labelFormatter={(_, p) =>
+                          (p?.[0]?.payload as { label?: string })?.label ?? ""
+                        }
+                        contentStyle={{
+                          borderRadius: 12,
+                          border: "1px solid #e4e4e7",
+                          fontSize: 12,
+                        }}
+                      />
+                      <Legend
+                        wrapperStyle={{ fontSize: smUp ? 12 : 10, paddingTop: 8 }}
+                      />
+                      <Bar
+                        dataKey="net"
+                        name={t("reports.chartMonthlyNet")}
+                        fill={COL_NET}
+                        radius={[6, 6, 0, 0]}
+                        maxBarSize={52}
+                      >
+                        {monthlyChartData.map((d, i) => (
+                          <Cell
+                            key={`n-${i}`}
+                            fill={d.net >= 0 ? COL_NET : "#b91c1c"}
+                          />
+                        ))}
+                      </Bar>
+                      <Bar
+                        dataKey="expense"
+                        name={t("reports.chartMonthlyExpense")}
+                        fill={COL_EXPENSE}
+                        radius={[6, 6, 0, 0]}
+                        maxBarSize={52}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </RechartsMeasureBox>
+            ) : (
+              <RechartsMeasureBox className="h-[248px] w-full min-w-0 sm:h-[292px]">
+                {({ width, height }) => (
+                  <ResponsiveContainer width={width} height={height}>
+                    <LineChart
+                      data={monthlyChartData}
+                      margin={{ top: 12, right: 12, left: 4, bottom: 8 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                      <XAxis dataKey="label" tick={{ fontSize: smUp ? 12 : 10 }} />
+                      <YAxis
+                        tick={{ fontSize: smUp ? 11 : 9 }}
+                        tickFormatter={fmtAxisTick}
+                        width={smUp ? 76 : 60}
+                      />
+                      <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="4 4" />
+                      <Tooltip
+                        formatter={(v) => tooltipMoney(v)}
+                        labelFormatter={(_, p) =>
+                          (p?.[0]?.payload as { label?: string })?.label ?? ""
+                        }
+                        contentStyle={{
+                          borderRadius: 12,
+                          border: "1px solid #e4e4e7",
+                          fontSize: 12,
+                        }}
+                      />
+                      <Legend
+                        wrapperStyle={{ fontSize: smUp ? 12 : 10, paddingTop: 4 }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="expense"
+                        name={t("reports.chartMonthlyExpense")}
+                        stroke={COL_EXPENSE}
+                        strokeWidth={2.5}
+                        dot={
+                          showDotsOnMonthlyLine
+                            ? { r: 3, strokeWidth: 2, fill: COL_EXPENSE }
+                            : false
+                        }
+                        activeDot={{ r: 5 }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="net"
+                        name={t("reports.chartMonthlyNet")}
+                        stroke={COL_NET}
+                        strokeWidth={2.5}
+                        dot={
+                          showDotsOnMonthlyLine
+                            ? { r: 3, strokeWidth: 2, fill: COL_NET }
+                            : false
+                        }
+                        activeDot={{ r: 5 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </RechartsMeasureBox>
+            )}
           </Card>
         </div>
       ) : null}
 
       {branchChart && branchChart.rows.length > 0 && branchChart.branchMeta.length > 0 ? (
         <div>
-          <p className="mb-1 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-zinc-400">
-            {t("reports.sectionBranchMonthly")}
-          </p>
-          <p className="mb-3 break-words text-xs leading-relaxed text-zinc-500">
-            {t("reports.chartBranchMonthlyHint")}
-          </p>
-          <Card className="min-w-0" title={t("reports.chartBranchMonthlyNet")}>
-            <RechartsMeasureBox className="h-[260px] w-full min-w-0 sm:h-[320px]">
-              {({ width, height }) => (
-                <ResponsiveContainer width={width} height={height}>
-                  <LineChart
-                    data={branchChart.rows}
-                    margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
-                    <XAxis dataKey="label" tick={{ fontSize: smUp ? 11 : 9 }} />
-                    <YAxis
-                      tick={{ fontSize: smUp ? 11 : 9 }}
-                      tickFormatter={fmtAxisTick}
-                      width={smUp ? 72 : 56}
-                    />
-                    <Tooltip formatter={(v) => tooltipMoney(v)} />
-                    <Legend wrapperStyle={{ fontSize: smUp ? 11 : 10 }} />
-                    {branchChart.branchMeta.map((b, i) => (
-                      <Line
-                        key={b.id}
-                        type="monotone"
-                        dataKey={`b${b.id}`}
-                        name={b.name}
-                        stroke={
-                          BRANCH_LINE_COLORS[i % BRANCH_LINE_COLORS.length]
-                        }
-                        strokeWidth={2}
-                        dot={false}
+          {!suppressSectionIntro ? (
+            <>
+              <p className="mb-1 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-zinc-400">
+                {t("reports.sectionBranchMonthly")}
+              </p>
+              <p className="mb-3 break-words text-xs leading-relaxed text-zinc-500">
+                {t("reports.chartBranchMonthlyHint")}
+              </p>
+            </>
+          ) : null}
+          <Card
+            className="min-w-0"
+            title={t("reports.chartBranchMonthlyNet")}
+            description={
+              branchSingleMonthBars
+                ? t("reports.chartBranchSingleMonthBarsNote")
+                : undefined
+            }
+          >
+            {branchSingleMonthBars ? (
+              <RechartsMeasureBox
+                className="w-full min-w-0"
+                style={{ height: branchBarH }}
+              >
+                {({ width, height }) => (
+                  <ResponsiveContainer width={width} height={height}>
+                    <BarChart
+                      layout="vertical"
+                      data={branchSingleMonthBars}
+                      margin={{ top: 8, right: smUp ? 20 : 12, left: 4, bottom: 8 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" horizontal />
+                      <XAxis
+                        type="number"
+                        tick={{ fontSize: smUp ? 11 : 9 }}
+                        tickFormatter={fmtAxisTick}
                       />
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
-              )}
-            </RechartsMeasureBox>
+                      <ReferenceLine x={0} stroke="#94a3b8" strokeDasharray="4 4" />
+                      <YAxis
+                        type="category"
+                        dataKey="label"
+                        width={smUp ? 148 : 92}
+                        tick={{ fontSize: smUp ? 11 : 9 }}
+                      />
+                      <Tooltip
+                        formatter={(v) => tooltipMoney(v)}
+                        labelFormatter={(_, p) => {
+                          const pl = p?.[0]?.payload as { labelFull?: string };
+                          return pl?.labelFull ?? "";
+                        }}
+                        contentStyle={{
+                          borderRadius: 12,
+                          border: "1px solid #e4e4e7",
+                          fontSize: 12,
+                        }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: smUp ? 12 : 10 }} />
+                      <Bar
+                        dataKey="net"
+                        name={t("reports.chartMonthlyNet")}
+                        radius={[0, 6, 6, 0]}
+                        maxBarSize={28}
+                      >
+                        {branchSingleMonthBars.map((e, i) => (
+                          <Cell
+                            key={e.id}
+                            fill={e.net >= 0 ? COL_NET : "#b91c1c"}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </RechartsMeasureBox>
+            ) : (
+              <RechartsMeasureBox className="h-[268px] w-full min-w-0 sm:h-[328px]">
+                {({ width, height }) => (
+                  <ResponsiveContainer width={width} height={height}>
+                    <LineChart
+                      data={branchChart.rows}
+                      margin={{ top: 12, right: 12, left: 4, bottom: 8 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                      <XAxis dataKey="label" tick={{ fontSize: smUp ? 12 : 10 }} />
+                      <YAxis
+                        tick={{ fontSize: smUp ? 11 : 9 }}
+                        tickFormatter={fmtAxisTick}
+                        width={smUp ? 76 : 60}
+                      />
+                      <ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="4 4" />
+                      <Tooltip
+                        formatter={(v) => tooltipMoney(v)}
+                        contentStyle={{
+                          borderRadius: 12,
+                          border: "1px solid #e4e4e7",
+                          fontSize: 12,
+                        }}
+                      />
+                      <Legend wrapperStyle={{ fontSize: smUp ? 11 : 10, paddingTop: 4 }} />
+                      {branchChart.branchMeta.map((b, i) => (
+                        <Line
+                          key={b.id}
+                          type="monotone"
+                          dataKey={`b${b.id}`}
+                          name={b.name}
+                          stroke={
+                            BRANCH_LINE_COLORS[i % BRANCH_LINE_COLORS.length]
+                          }
+                          strokeWidth={2.5}
+                          dot={
+                            branchChart.rows.length <= 5
+                              ? {
+                                  r: 3,
+                                  strokeWidth: 2,
+                                  fill: BRANCH_LINE_COLORS[i % BRANCH_LINE_COLORS.length],
+                                }
+                              : false
+                          }
+                          activeDot={{ r: 5 }}
+                        />
+                      ))}
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </RechartsMeasureBox>
+            )}
           </Card>
         </div>
       ) : null}

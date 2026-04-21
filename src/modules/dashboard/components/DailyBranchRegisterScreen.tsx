@@ -1,6 +1,7 @@
 "use client";
 
 import { useI18n } from "@/i18n/context";
+import type { Locale } from "@/i18n/messages";
 import { isPersonnelPortalRole } from "@/lib/auth/roles";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
@@ -45,14 +46,14 @@ function sumBranchRegisterRows(rows: BranchTodayRow[]): {
   cash: number;
   card: number;
   expenseOut: number;
-  expense: number;
+  expenseFromRegister: number;
   net: number;
 } | null {
   let income = 0;
   let cash = 0;
   let card = 0;
   let expenseOut = 0;
-  let expense = 0;
+  let expenseFromRegister = 0;
   let net = 0;
   let has = false;
   for (const r of rows) {
@@ -62,7 +63,7 @@ function sumBranchRegisterRows(rows: BranchTodayRow[]): {
     cash += r.incomeCash;
     card += r.incomeCard;
     expenseOut += r.totalExpenseOut;
-    expense += r.expenseFromRegister;
+    expenseFromRegister += r.expenseFromRegister;
     net += r.netCash;
   }
   if (!has) return null;
@@ -70,7 +71,7 @@ function sumBranchRegisterRows(rows: BranchTodayRow[]): {
     cash = income;
     card = 0;
   }
-  return { income, cash, card, expenseOut, expense, net };
+  return { income, cash, card, expenseOut, expenseFromRegister, net };
 }
 
 function splitIncomeDisplay(row: BranchTodayRow): { cash: number; card: number } {
@@ -83,6 +84,26 @@ function splitIncomeDisplay(row: BranchTodayRow): { cash: number; card: number }
 }
 
 const EXP_EPS = 0.005;
+
+function expenseRegisterSplit(totalOut: number, fromRegister: number) {
+  const total = Math.max(0, totalOut);
+  const fromReg = Math.max(0, fromRegister);
+  const fromRegCapped = total > EXP_EPS ? Math.min(fromReg, total) : fromReg;
+  const outside = Math.max(0, total - fromRegCapped);
+  const denom = total > EXP_EPS ? total : null;
+  const ratioRegister = denom != null ? fromRegCapped / denom : 0;
+  const ratioOutside = denom != null ? outside / denom : 0;
+  return { total, fromRegCapped, outside, ratioRegister, ratioOutside };
+}
+
+function formatPercentRatio(ratio: number, locale: Locale) {
+  const loc = locale === "tr" ? "tr-TR" : "en-US";
+  return new Intl.NumberFormat(loc, {
+    style: "percent",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1,
+  }).format(ratio);
+}
 
 function branchExpenseDetailItems(row: BranchTodayRow) {
   return [
@@ -101,6 +122,50 @@ function branchExpenseDetailItems(row: BranchTodayRow) {
       labelKey: "dashboard.dailyRegisterDetailPatronDebtRepaidRegister" as const,
     },
   ].filter((x) => x.v > EXP_EPS);
+}
+
+function DailyRegisterExpenseSplit({
+  totalOut,
+  fromRegister,
+  locale,
+  labelRegister,
+  labelOutside,
+  labelNoOutHint,
+  className,
+}: {
+  totalOut: number;
+  fromRegister: number;
+  locale: Locale;
+  labelRegister: string;
+  labelOutside: string;
+  labelNoOutHint: string;
+  className?: string;
+}) {
+  const s = expenseRegisterSplit(totalOut, fromRegister);
+  if (s.total <= EXP_EPS && s.fromRegCapped <= EXP_EPS && s.outside <= EXP_EPS) return null;
+  if (s.total <= EXP_EPS) {
+    return (
+      <div className={cn("text-[0.65rem] leading-snug text-zinc-500", className)}>
+        {labelNoOutHint}
+      </div>
+    );
+  }
+  return (
+    <div className={cn("space-y-0.5 text-[0.65rem] leading-snug text-zinc-600", className)}>
+      <p>
+        <span className="text-zinc-500">{labelRegister}</span>{" "}
+        <span className="font-medium text-zinc-800">
+          {formatPercentRatio(s.ratioRegister, locale)} · {formatLocaleAmount(s.fromRegCapped, locale)}
+        </span>
+      </p>
+      <p>
+        <span className="text-zinc-500">{labelOutside}</span>{" "}
+        <span className="font-medium text-zinc-800">
+          {formatPercentRatio(s.ratioOutside, locale)} · {formatLocaleAmount(s.outside, locale)}
+        </span>
+      </p>
+    </div>
+  );
 }
 
 export function DailyBranchRegisterScreen() {
@@ -560,15 +625,12 @@ export function DailyBranchRegisterScreen() {
           ) : null}
 
           {totalsStrip ? (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
               {(
                 [
                   ["income", totalsStrip.income, "text-zinc-900"],
                   ["cash", totalsStrip.cash, "text-emerald-900"],
                   ["pos", totalsStrip.card, "text-sky-900"],
-                  ["expenseOut", totalsStrip.expenseOut, "text-orange-950"],
-                  ["expense", totalsStrip.expense, "text-red-900"],
-                  ["net", totalsStrip.net, "text-violet-950"],
                 ] as const
               ).map(([key, val, color]) => (
                 <div
@@ -583,6 +645,31 @@ export function DailyBranchRegisterScreen() {
                   </p>
                 </div>
               ))}
+              <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/80 px-3 py-2.5 shadow-sm">
+                <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-500">
+                  {t("dashboard.dailyRegisterTotal_expense_primary")}
+                </p>
+                <p className="mt-1 text-sm font-semibold tabular-nums text-orange-950">
+                  {formatLocaleAmount(totalsStrip.expenseOut, locale)}
+                </p>
+                <DailyRegisterExpenseSplit
+                  totalOut={totalsStrip.expenseOut}
+                  fromRegister={totalsStrip.expenseFromRegister}
+                  locale={locale}
+                  labelRegister={t("dashboard.dailyRegisterExpenseShareRegister")}
+                  labelOutside={t("dashboard.dailyRegisterExpenseShareOutside")}
+                  labelNoOutHint={t("dashboard.dailyRegisterExpenseNoOutHint")}
+                  className="mt-1.5"
+                />
+              </div>
+              <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/80 px-3 py-2.5 shadow-sm">
+                <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-500">
+                  {t("dashboard.dailyRegisterTotal_net")}
+                </p>
+                <p className="mt-1 text-sm font-semibold tabular-nums text-violet-950">
+                  {formatLocaleAmount(totalsStrip.net, locale)}
+                </p>
+              </div>
             </div>
           ) : null}
 
@@ -624,22 +711,25 @@ export function DailyBranchRegisterScreen() {
                               {formatLocaleAmount(row.income, locale)}
                             </dd>
                           </div>
-                          <div className="flex items-baseline justify-between gap-2">
-                            <dt className="text-zinc-600">{t("dashboard.dailyRegisterCardExpenseOutTotal")}</dt>
-                            <dd className="tabular-nums font-semibold text-orange-950">
-                              {formatLocaleAmount(row.totalExpenseOut, locale)}
-                            </dd>
-                          </div>
-                          <div className="flex items-baseline justify-between gap-2">
-                            <dt className="min-w-0 flex-1 text-zinc-500">
-                              <span className="block">{t("dashboard.dailyRegisterCardRegisterOut")}</span>
-                              <span className="mt-0.5 block text-[0.65rem] font-normal leading-snug text-zinc-400">
-                                {t("dashboard.dailyRegisterCardRegisterOutHint")}
-                              </span>
-                            </dt>
-                            <dd className="shrink-0 tabular-nums font-medium text-red-800/90">
-                              {formatLocaleAmount(row.expenseFromRegister, locale)}
-                            </dd>
+                          <div className="space-y-1.5 border-t border-zinc-100 pt-2">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <dt className="text-zinc-600">{t("dashboard.dailyRegisterCardExpenseHeadline")}</dt>
+                              <dd className="tabular-nums font-semibold text-orange-950">
+                                {formatLocaleAmount(row.totalExpenseOut, locale)}
+                              </dd>
+                            </div>
+                            <DailyRegisterExpenseSplit
+                              totalOut={row.totalExpenseOut}
+                              fromRegister={row.expenseFromRegister}
+                              locale={locale}
+                              labelRegister={t("dashboard.dailyRegisterExpenseShareRegister")}
+                              labelOutside={t("dashboard.dailyRegisterExpenseShareOutside")}
+                              labelNoOutHint={t("dashboard.dailyRegisterExpenseNoOutHint")}
+                              className="pl-0.5"
+                            />
+                            <p className="text-[0.65rem] leading-snug text-zinc-400">
+                              {t("dashboard.dailyRegisterCardExpenseFootnote")}
+                            </p>
                           </div>
                           <div className="flex items-baseline justify-between gap-2 border-t border-zinc-100 pt-2">
                             <dt className="font-medium text-zinc-800">{t("dashboard.dailyRegisterCardNet")}</dt>

@@ -97,7 +97,9 @@ export function DashboardOperationsTab({
                   <StatSkeleton />
                 </div>
               ) : overview.isError ? (
-                <p className="mt-4 text-sm text-red-600">{toErrorMessage(overview.error)}</p>
+                <p className="mt-4 text-sm text-red-600">
+                  {toErrorMessage((overview as UseQueryResult<DashboardOverview>).error)}
+                </p>
               ) : (
                 (() => {
                   const ws = normalizeWarehouseStock(overview.data?.operations?.warehouseStock);

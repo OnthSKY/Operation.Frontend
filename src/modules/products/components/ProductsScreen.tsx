@@ -32,7 +32,7 @@ import {
 } from "@/shared/ui/Table";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import type { ProductListItem } from "@/types/product";
-import { ToolbarGlyphPackage } from "@/shared/ui/ToolbarGlyph";
+import { ToolbarGlyphPackage, ToolbarGlyphReceipt } from "@/shared/ui/ToolbarGlyph";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -95,6 +95,11 @@ export function ProductsScreen() {
         onSelect: () => router.push("/products/categories"),
       },
       {
+        id: "costHistory",
+        label: t("nav.productCostHistory"),
+        onSelect: () => router.push("/products/cost-history"),
+      },
+      {
         id: "addCategory",
         label: t("products.addCategory"),
         onSelect: () => setAddCategoryOpen(true),
@@ -106,6 +111,17 @@ export function ProductsScreen() {
   const productCardHeaderActions = (
     <>
       <TableToolbarMoreMenu menuId="products-toolbar-more" items={productsMoreItems} />
+      <Button
+        type="button"
+        variant="secondary"
+        className="hidden sm:inline-flex"
+        onClick={() => router.push("/products/cost-history")}
+      >
+        <span className="mr-2 inline-flex items-center">
+          <ToolbarGlyphReceipt className="h-4 w-4" />
+        </span>
+        {t("nav.productCostHistory")}
+      </Button>
       <Tooltip content={t("products.addProduct")} delayMs={200}>
         <Button
           type="button"

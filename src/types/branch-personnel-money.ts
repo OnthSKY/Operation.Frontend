@@ -7,6 +7,8 @@ export type BranchPersonnelMoneySummaryItem = {
   grossPocketExpense: number;
   pocketRepaidFromRegister: number;
   pocketRepaidFromPatron: number;
+  /** OUT_PERSONNEL_POCKET_CLAIM_TRANSFER neti (+ alan, − devreden) */
+  pocketClaimTransferNet: number;
   netRegisterOwesPocket: number;
   pocketCurrencyCode: string | null;
   pocketMixedCurrencies: boolean;

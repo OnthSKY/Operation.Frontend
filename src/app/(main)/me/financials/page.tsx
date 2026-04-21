@@ -32,7 +32,7 @@ export default function MyFinancialsPage() {
       router.replace("/login");
       return;
     }
-    if (!allowed) router.replace(postLoginHomePath(user.role));
+    if (!allowed) router.replace(postLoginHomePath(user));
   }, [isReady, user, allowed, router]);
 
   const advQ = useQuery({

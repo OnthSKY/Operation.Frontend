@@ -88,6 +88,14 @@ export const GLOBAL_SEARCH_ITEMS: GlobalSearchItemDef[] = [
       "bildirim notifications hatırlatıcı reminder zil bell toast kurum organization sistem system admin operasyon operational z raporu gün sonu",
   },
   {
+    id: "admin-branding",
+    href: "/admin/settings/branding",
+    titleKey: "settings.brandingCardTitle",
+    subtitleKey: "search.subBranding",
+    match:
+      "marka branding logo şirket adı company name kurum görünümü sidebar sol menü görsel identity kimlik",
+  },
+  {
     id: "admin-tourism-season-policy",
     href: "/admin/settings/tourism-season-closed-policy",
     titleKey: "settings.tourismSeasonCardTitle",
@@ -141,6 +149,14 @@ export const GLOBAL_SEARCH_ITEMS: GlobalSearchItemDef[] = [
     subtitleKey: "search.subProductCategories",
     match:
       "kategori categories ana alt sub parent hiyerarşi taxonomy sınıf class grup group ürün kategorileri",
+  },
+  {
+    id: "product-cost-history",
+    href: "/products/cost-history",
+    titleKey: "nav.productCostHistory",
+    subtitleKey: "search.subProductCostHistory",
+    match:
+      "ürün maliyet cost history kdv vat dahil hariç purchase satın alma alış fiyat date tarih değişim",
   },
   {
     id: "suppliers",

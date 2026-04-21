@@ -35,6 +35,8 @@ type Props = {
   open: boolean;
   onClose: () => void;
   personnelId: number;
+  /** Güncel açık dönem `seasonArrivalDate`; yoksa sigorta dönemi eklenemez. */
+  seasonArrivalDate?: string | null;
   /** Varsayılan seçili şube (ör. personelin atanmış şubesi) */
   defaultBranchId?: number | null;
   /** Liste / detaydan gelen görünen ad (üst bilgi kartı). */
@@ -45,6 +47,7 @@ export function AddPersonnelInsurancePeriodModal({
   open,
   onClose,
   personnelId,
+  seasonArrivalDate,
   defaultBranchId,
   personnelDisplayName,
 }: Props) {
@@ -82,33 +85,43 @@ export function AddPersonnelInsurancePeriodModal({
     );
   }, [open, personnelId, defaultBranchId]);
 
+  const seasonArrivalMissing =
+    seasonArrivalDate == null ||
+    (typeof seasonArrivalDate === "string" && seasonArrivalDate.trim() === "");
+  const startIso = start.trim();
+  const endIso = end.trim();
+  const branchIdValue = parseInt(branchId.trim(), 10);
+  const hasValidBranch = Number.isFinite(branchIdValue) && branchIdValue > 0;
+  const hasValidStart = /^\d{4}-\d{2}-\d{2}$/.test(startIso);
+  const hasValidEnd = endIso === "" || /^\d{4}-\d{2}-\d{2}$/.test(endIso);
+  const hasDateOrderError = hasValidStart && hasValidEnd && endIso !== "" && endIso < startIso;
+  const saveBlockedReason = mut.isPending
+    ? null
+    : seasonArrivalMissing
+      ? t("personnel.insuranceAddPeriodSaveBlockedSeasonArrival")
+      : !hasValidBranch
+        ? t("personnel.insuranceAddPeriodSaveBlockedBranch")
+        : !hasValidStart
+          ? t("personnel.insuranceAddPeriodSaveBlockedStartDate")
+          : !hasValidEnd
+            ? t("personnel.insuranceAddPeriodSaveBlockedEndDate")
+            : hasDateOrderError
+              ? t("personnel.insuranceAddPeriodSaveBlockedDateOrder")
+              : null;
+  const isSaveDisabled = mut.isPending || saveBlockedReason != null;
+
   const submit = async () => {
-    const s = start.trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-      notify.error(t("common.required"));
+    if (saveBlockedReason != null) {
+      notify.error(saveBlockedReason);
       return;
     }
-    const e = end.trim();
-    if (e !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(e)) {
-      notify.error(t("common.required"));
-      return;
-    }
-    if (e !== "" && e < s) {
-      notify.error(t("personnel.insuranceDateOrderInvalid"));
-      return;
-    }
-    const br = branchId.trim();
-    const registeredBranchId = parseInt(br, 10);
-    if (!Number.isFinite(registeredBranchId) || registeredBranchId <= 0) {
-      notify.error(t("personnel.insuranceAddPeriodBranchRequired"));
-      return;
-    }
+    const registeredBranchId = branchIdValue;
     try {
       await mut.mutateAsync({
         personnelId,
         input: {
-          coverageStartDate: s,
-          coverageEndDate: e === "" ? null : e,
+          coverageStartDate: startIso,
+          coverageEndDate: endIso === "" ? null : endIso,
           notes: notes.trim() !== "" ? notes.trim() : null,
           registeredBranchId,
         },
@@ -136,6 +149,14 @@ export function AddPersonnelInsurancePeriodModal({
       closeButtonLabel={t("common.close")}
     >
       <div className="mt-4 flex flex-col gap-4">
+        {seasonArrivalMissing ? (
+          <div
+            className="rounded-2xl border border-amber-200/90 bg-amber-50/90 px-4 py-3 text-sm text-amber-950 shadow-sm"
+            role="alert"
+          >
+            {t("personnel.insuranceAddPeriodSeasonArrivalBlocked")}
+          </div>
+        ) : null}
         {nameChip ? (
           <div className="flex items-center gap-3 rounded-2xl border border-emerald-200/70 bg-gradient-to-br from-emerald-50/95 via-white to-sky-50/40 p-3 shadow-sm ring-1 ring-emerald-900/[0.04]">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-800">
@@ -198,14 +219,25 @@ export function AddPersonnelInsurancePeriodModal({
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 border-t border-zinc-100 pt-4 sm:flex-row sm:justify-end">
+        <div className="flex flex-col gap-3 border-t border-zinc-100 pt-4 sm:flex-row sm:items-center sm:justify-end">
+          {saveBlockedReason ? (
+            <p
+              className="text-xs leading-relaxed text-amber-700 sm:mr-auto sm:max-w-[65%]"
+              role="status"
+              aria-live="polite"
+            >
+              {saveBlockedReason}
+            </p>
+          ) : (
+            <span className="hidden sm:mr-auto sm:block" aria-hidden />
+          )}
           <Button type="button" variant="secondary" onClick={onClose}>
             {t("common.cancel")}
           </Button>
           <Button
             type="button"
             variant="primary"
-            disabled={mut.isPending}
+            disabled={isSaveDisabled}
             onClick={() => void submit()}
           >
             {mut.isPending ? t("common.saving") : t("common.save")}

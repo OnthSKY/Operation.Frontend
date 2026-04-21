@@ -1,10 +1,11 @@
 "use client";
 
 import { useI18n } from "@/i18n/context";
+import { PageWhenToUseInfoButton } from "@/shared/components/PageWhenToUseInfoButton";
 
-type Tab = "financial" | "cash" | "stock";
+export type ReportsPatronHubTab = "financial" | "cash" | "stock";
 
-export const PATRON_TAB_STORY_KEYS: Record<Tab, readonly string[]> = {
+export const PATRON_TAB_STORY_KEYS: Record<ReportsPatronHubTab, readonly string[]> = {
   financial: [
     "reports.patronStoryFin1",
     "reports.patronStoryFin2",
@@ -25,19 +26,16 @@ export const PATRON_TAB_STORY_KEYS: Record<Tab, readonly string[]> = {
   ],
 };
 
-export function ReportsPatronTabStory({ tab }: { tab: Tab }) {
+/** Patron «bakış sırası» metnini (i) ile modalda gösterir. */
+export function ReportsPatronStoryInfoButton({ tab }: { tab: ReportsPatronHubTab }) {
   const { t } = useI18n();
-  const keys = PATRON_TAB_STORY_KEYS[tab];
   return (
-    <aside className="rounded-xl border border-violet-200/70 bg-gradient-to-br from-violet-50/95 to-white p-3 shadow-sm ring-1 ring-violet-100/50 sm:p-4">
-      <p className="text-[0.65rem] font-bold uppercase tracking-wide text-violet-800/85">
-        {t("reports.patronStoryBoxTitle")}
-      </p>
-      <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-sm leading-snug text-zinc-800">
-        {keys.map((key) => (
-          <li key={key}>{t(key)}</li>
-        ))}
-      </ol>
-    </aside>
+    <PageWhenToUseInfoButton
+      className="shrink-0 self-start"
+      ariaLabel={t("reports.patronStoryInfoAria")}
+      helpTitle={t("reports.patronStoryBoxTitle")}
+      listVariant="ordered"
+      items={PATRON_TAB_STORY_KEYS[tab].map((key) => ({ text: t(key) }))}
+    />
   );
 }

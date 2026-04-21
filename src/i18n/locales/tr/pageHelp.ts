@@ -78,14 +78,14 @@ export const pageHelp = {
     step3Link: "Yetkilendirme matrisi",
   },
   reportsHub: {
-    intro: "Finansal dönem, kasa, stok, şube kıyası ve patron akışı raporlarına giriş.",
-    step1: "Sorunuza uygun raporu seçin (kasa mı, stok mu, özet tablo mu).",
+    intro: "Analitik raporlara giriş: finans (faaliyet geliri KPI’ları), kasa anlık görünümü, stok, şube kıyası, patron akışı.",
+    step1: "Sorunuza uygun raporu seçin (çekmece anlık mı, stok mu, faaliyet özet tablosu mu).",
     step2: "Her raporun istediği sezon, yıl veya tarih aralığını uygulayın; ipuçları sayfada yer alır.",
     step3: "Günlük satır satır kasa hareketi şube ekranındadır; burası özetler içindir.",
     step3Link: "Şubeler",
   },
   reportsFinancial: {
-    intro: "Finansal dönem tablosu: gelir ve gider kırılımları.",
+    intro: "Finansal dönem tablosu: faaliyet geliri ve operasyonel gider kırılımları (özet kartlarla aynı KPI).",
     step1: "Dönem veya filtreleri seçip tabloyu yükleyin.",
     step2: "Muhasebe süreciniz gerekiyorsa rakamları dışa aktarın veya kopyalayın.",
     step3: "Şüpheli kategorileri şube işlemlerindeki kategori seçimleriyle karşılaştırın.",
@@ -107,7 +107,7 @@ export const pageHelp = {
     step3Link: "Şubeler",
   },
   reportsBranches: {
-    intro: "Seçilen rapor penceresinde şubeleri yan yana kıyaslama.",
+    intro: "Finans özetiyle aynı faaliyet geliri ve gider KPI’larıyla şubeleri yan yana kıyaslama.",
     step1: "Şube ve metrikleri seçin; kıyaslama tablosunu tarayın.",
     step2: "İşlem satırı kanıtı gerektiğinde tek şubeyi açın.",
     step2Link: "Şubeler",

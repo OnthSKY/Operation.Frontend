@@ -14,7 +14,7 @@ import {
   startOfMonthIso,
 } from "@/modules/reports/lib/report-period-helpers";
 import { reportBranchLabel } from "@/modules/reports/lib/report-branch-label";
-import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
+import { PageWhenToUseInfoButton } from "@/shared/components/PageWhenToUseInfoButton";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
@@ -28,7 +28,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/Table";
-import { useEffect, useMemo, useState } from "react";
+import { expensePaymentSourceLabel } from "@/modules/branch/lib/branch-transaction-options";
+import { cn } from "@/lib/cn";
+import type { FinancialBranchBreakdownRow } from "@/types/reports";
+import { Fragment, useEffect, useMemo, useState } from "react";
 
 function fillTemplate(template: string, vars: Record<string, string>): string {
   return template.replace(
@@ -38,6 +41,20 @@ function fillTemplate(template: string, vars: Record<string, string>): string {
 }
 
 type SortCol = "branchName" | "currencyCode" | "totalIncome" | "totalExpense" | "netCash";
+
+function iso4217OrUndefined(code: string): string | undefined {
+  const c = code.trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(c) ? c : undefined;
+}
+
+function currencyTableLabel(code: string): string {
+  const t = code.trim();
+  return t.length > 0 ? t : "—";
+}
+
+function branchComparisonRowKey(row: FinancialBranchBreakdownRow): string {
+  return `${row.branchId}-${row.currencyCode || ""}`;
+}
 
 export function BranchComparisonReportScreen() {
   const { t, locale } = useI18n();
@@ -49,12 +66,17 @@ export function BranchComparisonReportScreen() {
   const [sortBy, setSortBy] = useState<SortCol>("netCash");
   const [sortDescending, setSortDescending] = useState(true);
   const [dateRangeLock, setDateRangeLock] = useState<ReportHubRangeLock>("manual");
+  const [expandedRowKey, setExpandedRowKey] = useState<string | null>(null);
 
   const { data: branches = [] } = useBranchesList();
 
   useEffect(() => {
     setPage(1);
   }, [dateFrom, dateTo, branchId, pageSize]);
+
+  useEffect(() => {
+    setExpandedRowKey(null);
+  }, [dateFrom, dateTo, branchId, page, pageSize, sortBy, sortDescending]);
 
   const params = useMemo(
     () => ({
@@ -135,14 +157,78 @@ export function BranchComparisonReportScreen() {
   const headerSortSuffix = (col: SortCol) =>
     sortBy === col ? ` · ${sortDescending ? t("reports.sortStateDesc") : t("reports.sortStateAsc")}` : "";
 
+  const filterDrawerBody = (
+    <div className="flex flex-col gap-4">
+      <ReportHubDateRangeControls
+        t={t}
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        rangeLock={dateRangeLock}
+        onUnlockCalendarYear={() => setDateRangeLock("manual")}
+        onPreset={(key) => {
+          setDateRangeLock("preset");
+          applyDatePreset(key);
+        }}
+        onCalendarYearRange={(f, d) => {
+          setDateRangeLock("calendarYear");
+          setDateFrom(f);
+          setDateTo(d);
+        }}
+        onDateFromChange={(v) => {
+          setDateRangeLock("manual");
+          setDateFrom(v);
+        }}
+        onDateToChange={(v) => {
+          setDateRangeLock("manual");
+          setDateTo(v);
+        }}
+      />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="flex min-w-0 flex-col gap-1 text-sm">
+          <span className="font-medium text-zinc-700">{t("reports.colBranch")}</span>
+          <select
+            value={branchId}
+            onChange={(e) => setBranchId(e.target.value)}
+            className="min-h-11 w-full rounded-lg border border-zinc-200 px-3 py-2 text-base sm:min-h-10 sm:text-sm"
+          >
+            <option value="">{t("reports.allBranches")}</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex min-w-0 flex-col gap-1 text-sm">
+          <span className="font-medium text-zinc-700">{t("reports.branchComparisonPageSize")}</span>
+          <select
+            value={pageSize}
+            onChange={(e) => setPageSize(Number(e.target.value))}
+            className="min-h-11 w-full rounded-lg border border-zinc-200 px-3 py-2 text-base sm:min-h-10 sm:text-sm"
+          >
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+            <option value={200}>200</option>
+          </select>
+        </label>
+      </div>
+    </div>
+  );
+
   return (
     <ReportTablesPageShell
       title={t("reports.tablesPageBranchComparisonTitle")}
       subtitle={t("reports.tablesPageBranchComparisonSubtitle")}
+      introCallout={
+        <p className="rounded-lg border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-xs leading-relaxed text-amber-950 sm:text-sm">
+          {t("reports.branchComparisonKpiScopeCallout")}
+        </p>
+      }
       pageGuide={
-        <PageWhenToUseGuide
+        <PageWhenToUseInfoButton
+          ariaLabel={t("common.pageHelpHintLabel")}
           guideTab="reports"
-          title={t("common.pageWhenToUseTitle")}
           description={t("pageHelp.reportsBranches.intro")}
           listVariant="ordered"
           items={[
@@ -156,273 +242,297 @@ export function BranchComparisonReportScreen() {
       }
     >
       <ReportMobileFilterSurface
+        variant="drawerOnly"
         filtersActive={filtersActive}
         drawerTitle={t("reports.filtersSectionTitle")}
         resetKey="branch-comparison"
         preview={filterPreview}
         onRefetch={() => void q.refetch()}
         isRefetching={q.isFetching}
-      >
-        <p className="-mt-1 mb-2 text-xs leading-relaxed text-zinc-500 sm:mt-0">
-          {t("reports.branchComparisonPeriodHelp")}
-        </p>
-        <div className="flex flex-col gap-4">
-          <ReportHubDateRangeControls
-            t={t}
-            dateFrom={dateFrom}
-            dateTo={dateTo}
-            rangeLock={dateRangeLock}
-            onUnlockCalendarYear={() => setDateRangeLock("manual")}
-            onPreset={(key) => {
-              setDateRangeLock("preset");
-              applyDatePreset(key);
-            }}
-            onCalendarYearRange={(f, d) => {
-              setDateRangeLock("calendarYear");
-              setDateFrom(f);
-              setDateTo(d);
-            }}
-            onDateFromChange={(v) => {
-              setDateRangeLock("manual");
-              setDateFrom(v);
-            }}
-            onDateToChange={(v) => {
-              setDateRangeLock("manual");
-              setDateTo(v);
-            }}
-          />
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="flex min-w-0 flex-col gap-1 text-sm">
-              <span className="font-medium text-zinc-700">
-                {t("reports.colBranch")}
-              </span>
-              <select
-                value={branchId}
-                onChange={(e) => setBranchId(e.target.value)}
-                className="min-h-11 w-full rounded-lg border border-zinc-200 px-3 py-2 text-base sm:min-h-10 sm:text-sm"
-              >
-                <option value="">{t("reports.allBranches")}</option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex min-w-0 flex-col gap-1 text-sm">
-              <span className="font-medium text-zinc-700">
-                {t("reports.branchComparisonPageSize")}
-              </span>
-              <select
-                value={pageSize}
-                onChange={(e) => setPageSize(Number(e.target.value))}
-                className="min-h-11 w-full rounded-lg border border-zinc-200 px-3 py-2 text-base sm:min-h-10 sm:text-sm"
-              >
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
-                <option value={200}>200</option>
-              </select>
-            </label>
+        belowToolbar={
+          <div className="space-y-2 text-xs leading-relaxed text-zinc-700">
+            <p>{t("reports.branchComparisonPeriodHelp")}</p>
+            <p className="text-zinc-600">{t("reports.branchComparisonScopeNote")}</p>
           </div>
-        </div>
-      </ReportMobileFilterSurface>
+        }
+        main={
+          <>
+            {q.isFetching && q.data ? (
+              <p className="text-center text-xs text-zinc-400" aria-live="polite">
+                {t("reports.updatingHint")}
+              </p>
+            ) : null}
 
-      {q.isFetching && q.data ? (
-        <p className="text-center text-xs text-zinc-400" aria-live="polite">
-          {t("reports.updatingHint")}
-        </p>
-      ) : null}
+            <p className="text-xs text-zinc-500">{t("reports.branchComparisonSortHint")}</p>
 
-      <p className="text-xs text-zinc-500">{t("reports.branchComparisonSortHint")}</p>
+            {q.isError ? (
+              <p className="text-sm text-red-600">
+                {t("reports.error")} {toErrorMessage(q.error)}
+              </p>
+            ) : null}
 
-      {q.isError ? (
-        <p className="text-sm text-red-600">
-          {t("reports.error")} {toErrorMessage(q.error)}
-        </p>
-      ) : null}
+            {q.isPending ? (
+              <p className="text-sm text-zinc-500">{t("reports.loading")}</p>
+            ) : null}
 
-      {q.isPending ? (
-        <p className="text-sm text-zinc-500">{t("reports.loading")}</p>
-      ) : null}
-
-      {q.data ? (
-        <div className="space-y-4 rounded-2xl border border-zinc-200 bg-white px-3 py-4 sm:px-5 sm:py-6">
-          {q.data.items.length === 0 ? (
-            <p className="text-sm text-zinc-600">{t("reports.branchComparisonEmpty")}</p>
-          ) : (
-            <>
-              <div className="hidden overflow-x-auto sm:block">
-                <Table>
-                  <TableHead>
-                    <TableRow>
-                      <TableHeader className="w-[28%]">
-                        <button
-                          type="button"
-                          className="font-semibold text-left underline-offset-2 hover:underline"
-                          onClick={() => onSort("branchName")}
-                        >
-                          {t("reports.colBranch")}
-                          {headerSortSuffix("branchName")}
-                        </button>
-                      </TableHeader>
-                      <TableHeader>
-                        <button
-                          type="button"
-                          className="font-semibold text-left underline-offset-2 hover:underline"
-                          onClick={() => onSort("currencyCode")}
-                        >
-                          {t("reports.colCurrency")}
-                          {headerSortSuffix("currencyCode")}
-                        </button>
-                      </TableHeader>
-                      <TableHeader className="text-right">
-                        <button
-                          type="button"
-                          className="inline font-semibold underline-offset-2 hover:underline"
-                          onClick={() => onSort("totalIncome")}
-                        >
-                          {t("reports.colIncome")}
-                          {headerSortSuffix("totalIncome")}
-                        </button>
-                      </TableHeader>
-                      <TableHeader className="text-right">
-                        <button
-                          type="button"
-                          className="inline font-semibold underline-offset-2 hover:underline"
-                          onClick={() => onSort("totalExpense")}
-                        >
-                          {t("reports.colExpense")}
-                          {headerSortSuffix("totalExpense")}
-                        </button>
-                      </TableHeader>
-                      <TableHeader className="text-right text-xs font-semibold normal-case text-zinc-600">
-                        {t("reports.colSupplierRegisterPaid")}
-                      </TableHeader>
-                      <TableHeader className="text-right">
-                        <button
-                          type="button"
-                          className="inline font-semibold underline-offset-2 hover:underline"
-                          onClick={() => onSort("netCash")}
-                        >
-                          {t("reports.colNet")}
-                          {headerSortSuffix("netCash")}
-                        </button>
-                      </TableHeader>
-                    </TableRow>
-                  </TableHead>
+            {q.data ? (
+              <div className="w-full min-w-0 space-y-4 rounded-2xl border border-zinc-200 bg-white px-2 py-4 sm:px-4 sm:py-5">
+                {q.data.items.length === 0 ? (
+                  <p className="text-sm text-zinc-600">{t("reports.branchComparisonEmpty")}</p>
+                ) : (
+                  <>
+                    <div className="w-full min-w-0">
+                      <Table mobileCards className="w-full text-sm lg:min-w-[44rem]">
+                        <TableHead>
+                          <TableRow>
+                            <TableHeader className="min-w-[7.5rem] max-w-[11rem] sm:max-w-none">
+                              <button
+                                type="button"
+                                className="font-semibold text-left underline-offset-2 hover:underline"
+                                onClick={() => onSort("branchName")}
+                              >
+                                {t("reports.colBranch")}
+                                {headerSortSuffix("branchName")}
+                              </button>
+                            </TableHeader>
+                            <TableHeader className="w-14 shrink-0 whitespace-nowrap sm:w-auto">
+                              <button
+                                type="button"
+                                className="font-semibold text-left underline-offset-2 hover:underline"
+                                onClick={() => onSort("currencyCode")}
+                              >
+                                {t("reports.colCurrency")}
+                                {headerSortSuffix("currencyCode")}
+                              </button>
+                            </TableHeader>
+                            <TableHeader className="min-w-[5.5rem] text-right whitespace-nowrap">
+                              <button
+                                type="button"
+                                className="inline font-semibold underline-offset-2 hover:underline"
+                                onClick={() => onSort("totalIncome")}
+                              >
+                                {t("reports.colIncome")}
+                                {headerSortSuffix("totalIncome")}
+                              </button>
+                            </TableHeader>
+                            <TableHeader className="min-w-[5.5rem] text-right whitespace-nowrap">
+                              <button
+                                type="button"
+                                className="inline font-semibold underline-offset-2 hover:underline"
+                                onClick={() => onSort("totalExpense")}
+                              >
+                                {t("reports.colExpense")}
+                                {headerSortSuffix("totalExpense")}
+                              </button>
+                            </TableHeader>
+                            <TableHeader className="min-w-[6rem] max-w-[9rem] text-right text-[0.65rem] font-semibold normal-case leading-tight text-zinc-600 sm:max-w-none sm:text-xs">
+                              {t("reports.colSupplierRegisterPaid")}
+                            </TableHeader>
+                            <TableHeader className="min-w-[5.5rem] text-right whitespace-nowrap">
+                              <button
+                                type="button"
+                                className="inline font-semibold underline-offset-2 hover:underline"
+                                onClick={() => onSort("netCash")}
+                              >
+                                {t("reports.colNet")}
+                                {headerSortSuffix("netCash")}
+                              </button>
+                            </TableHeader>
+                          </TableRow>
+                        </TableHead>
                   <TableBody>
-                    {q.data.items.map((row) => (
-                      <TableRow key={`${row.branchId}-${row.currencyCode}`}>
-                        <TableCell className="font-medium text-zinc-900">
-                          {reportBranchLabel(
-                            row.branchId,
-                            row.branchName,
-                            t
-                          )}
-                        </TableCell>
-                        <TableCell className="tabular-nums text-zinc-700">
-                          {row.currencyCode}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums">
-                          {formatLocaleAmount(row.totalIncome, locale)}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums text-red-800/90">
-                          {formatLocaleAmount(row.totalExpense, locale)}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums text-zinc-700">
-                          {formatLocaleAmount(
-                            row.totalSupplierRegisterCashPaid ?? 0,
-                            locale
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right tabular-nums font-semibold text-zinc-900">
-                          {formatLocaleAmount(row.netCash, locale)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {q.data.items.map((row) => {
+                      const ccy = iso4217OrUndefined(row.currencyCode);
+                      const rk = branchComparisonRowKey(row);
+                      const expanded = expandedRowKey === rk;
+                      const ic = row.totalIncomeCash ?? 0;
+                      const idc = row.totalIncomeCard ?? 0;
+                      const ip = row.totalIncomeCashTaggedPatron ?? 0;
+                      const er = row.totalExpenseRegister ?? 0;
+                      const ep = row.totalExpensePatron ?? 0;
+                      const epp = row.totalExpensePersonnelPocket ?? 0;
+                      const eph = row.totalExpensePersonnelHeldRegisterCash ?? 0;
+                      const eu = row.totalExpenseUnset ?? 0;
+                      return (
+                        <Fragment key={rk}>
+                          <TableRow className="align-middle">
+                            <TableCell className="max-w-[12rem] font-medium text-zinc-900 sm:max-w-none">
+                              <div className="flex min-w-0 items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  className={cn(
+                                    "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900",
+                                    expanded && "bg-zinc-100 text-zinc-900"
+                                  )}
+                                  aria-expanded={expanded}
+                                  aria-label={
+                                    expanded
+                                      ? t("reports.branchComparisonExpandHide")
+                                      : t("reports.branchComparisonExpandShow")
+                                  }
+                                  onClick={() =>
+                                    setExpandedRowKey((k) => (k === rk ? null : rk))
+                                  }
+                                >
+                                  <svg
+                                    viewBox="0 0 24 24"
+                                    className={cn(
+                                      "h-4 w-4 transition-transform",
+                                      expanded ? "rotate-90" : ""
+                                    )}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    aria-hidden
+                                  >
+                                    <path d="m9 18 6-6-6-6" />
+                                  </svg>
+                                </button>
+                                <span className="min-w-0 truncate">
+                                  {reportBranchLabel(row.branchId, row.branchName, t)}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap tabular-nums text-zinc-700">
+                              {currencyTableLabel(row.currencyCode)}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-right tabular-nums">
+                              {formatLocaleAmount(row.totalIncome, locale, ccy)}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-right tabular-nums text-red-800/90">
+                              {formatLocaleAmount(row.totalExpense, locale, ccy)}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-right tabular-nums text-zinc-700">
+                              {formatLocaleAmount(
+                                row.totalSupplierRegisterCashPaid ?? 0,
+                                locale,
+                                ccy
+                              )}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-right tabular-nums font-semibold text-zinc-900">
+                              {formatLocaleAmount(row.netCash, locale, ccy)}
+                            </TableCell>
+                          </TableRow>
+                          {expanded ? (
+                            <TableRow className="bg-zinc-50/90">
+                              <TableCell colSpan={6} className="p-0">
+                                <div className="border-t border-zinc-200/80 p-3 sm:p-4">
+                                  <div className="grid gap-4 sm:grid-cols-2">
+                                    <div className="min-w-0">
+                                      <p className="mb-2 text-[0.65rem] font-bold uppercase tracking-wide text-zinc-400">
+                                        {t("reports.branchComparisonDetailIncomeTitle")}
+                                      </p>
+                                      <dl className="space-y-1.5 text-xs">
+                                        <div className="flex justify-between gap-3">
+                                          <dt className="text-zinc-600">
+                                            {t("reports.branchComparisonIncomeCash")}
+                                          </dt>
+                                          <dd className="tabular-nums font-medium text-zinc-900">
+                                            {formatLocaleAmount(ic, locale, ccy)}
+                                          </dd>
+                                        </div>
+                                        <div className="flex justify-between gap-3">
+                                          <dt className="text-zinc-600">
+                                            {t("reports.branchComparisonIncomeCard")}
+                                          </dt>
+                                          <dd className="tabular-nums font-medium text-zinc-900">
+                                            {formatLocaleAmount(idc, locale, ccy)}
+                                          </dd>
+                                        </div>
+                                        <div className="flex justify-between gap-3">
+                                          <dt className="text-zinc-600">
+                                            {t("reports.branchComparisonIncomeCashPatron")}
+                                          </dt>
+                                          <dd className="tabular-nums font-medium text-zinc-900">
+                                            {formatLocaleAmount(ip, locale, ccy)}
+                                          </dd>
+                                        </div>
+                                      </dl>
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="mb-2 text-[0.65rem] font-bold uppercase tracking-wide text-zinc-400">
+                                        {t("reports.branchComparisonDetailExpenseTitle")}
+                                      </p>
+                                      <dl className="space-y-1.5 text-xs">
+                                        {[
+                                          { label: expensePaymentSourceLabel("REGISTER", t), v: er },
+                                          { label: expensePaymentSourceLabel("PATRON", t), v: ep },
+                                          { label: expensePaymentSourceLabel("PERSONNEL_POCKET", t), v: epp },
+                                          {
+                                            label: expensePaymentSourceLabel(
+                                              "PERSONNEL_HELD_REGISTER_CASH",
+                                              t
+                                            ),
+                                            v: eph,
+                                          },
+                                          { label: t("branch.expensePaymentUnset"), v: eu },
+                                        ].map((line) => (
+                                          <div
+                                            key={line.label}
+                                            className="flex justify-between gap-3"
+                                          >
+                                            <dt className="min-w-0 shrink text-zinc-600">
+                                              {line.label}
+                                            </dt>
+                                            <dd className="tabular-nums font-medium text-zinc-900">
+                                              {formatLocaleAmount(line.v, locale, ccy)}
+                                            </dd>
+                                          </div>
+                                        ))}
+                                      </dl>
+                                    </div>
+                                  </div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ) : null}
+                        </Fragment>
+                      );
+                    })}
                   </TableBody>
-                </Table>
-              </div>
+                      </Table>
+                    </div>
 
-              <ul className="space-y-2 sm:hidden">
-                {q.data.items.map((row) => (
-                  <li
-                    key={`${row.branchId}-${row.currencyCode}`}
-                    className="rounded-xl border border-zinc-200/80 bg-zinc-50/40 px-3 py-2.5"
-                  >
-                    <p className="text-sm font-semibold text-zinc-900">
-                      {reportBranchLabel(row.branchId, row.branchName, t)}
-                    </p>
-                    <p className="text-xs text-zinc-500">{row.currencyCode}</p>
-                    <dl className="mt-2 grid gap-1 text-xs">
-                      <div className="flex justify-between gap-2">
-                        <dt className="text-zinc-500">{t("reports.colIncome")}</dt>
-                        <dd className="tabular-nums font-medium">
-                          {formatLocaleAmount(row.totalIncome, locale)}
-                        </dd>
+                    <div className="flex flex-col gap-2 border-t border-zinc-100 pt-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-zinc-600">
+                        {fillTemplate(t("reports.branchComparisonPaging"), {
+                          page: String(pageClamped),
+                          totalPages: String(totalPages),
+                          total: String(q.data.totalCount),
+                        })}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="min-h-10"
+                          disabled={pageClamped <= 1 || q.isFetching}
+                          onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        >
+                          {t("reports.branchComparisonPrev")}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="min-h-10"
+                          disabled={pageClamped >= totalPages || q.isFetching}
+                          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        >
+                          {t("reports.branchComparisonNext")}
+                        </Button>
                       </div>
-                      <div className="flex justify-between gap-2">
-                        <dt className="text-zinc-500">{t("reports.colExpense")}</dt>
-                        <dd className="tabular-nums font-medium text-red-800/90">
-                          {formatLocaleAmount(row.totalExpense, locale)}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between gap-2">
-                        <dt className="text-zinc-500">
-                          {t("reports.colSupplierRegisterPaid")}
-                        </dt>
-                        <dd className="tabular-nums font-medium text-zinc-800">
-                          {formatLocaleAmount(
-                            row.totalSupplierRegisterCashPaid ?? 0,
-                            locale
-                          )}
-                        </dd>
-                      </div>
-                      <div className="flex justify-between gap-2 border-t border-zinc-200 pt-1">
-                        <dt className="font-medium text-zinc-700">{t("reports.colNet")}</dt>
-                        <dd className="tabular-nums font-semibold">
-                          {formatLocaleAmount(row.netCash, locale)}
-                        </dd>
-                      </div>
-                    </dl>
-                  </li>
-                ))}
-              </ul>
-
-              <div className="flex flex-col gap-2 border-t border-zinc-100 pt-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-zinc-600">
-                  {fillTemplate(t("reports.branchComparisonPaging"), {
-                    page: String(pageClamped),
-                    totalPages: String(totalPages),
-                    total: String(q.data.totalCount),
-                  })}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="min-h-10"
-                    disabled={pageClamped <= 1 || q.isFetching}
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  >
-                    {t("reports.branchComparisonPrev")}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="min-h-10"
-                    disabled={pageClamped >= totalPages || q.isFetching}
-                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  >
-                    {t("reports.branchComparisonNext")}
-                  </Button>
-                </div>
+                    </div>
+                  </>
+                )}
               </div>
-            </>
-          )}
-        </div>
-      ) : null}
+            ) : null}
+          </>
+        }
+      >
+        {filterDrawerBody}
+      </ReportMobileFilterSurface>
     </ReportTablesPageShell>
   );
 }

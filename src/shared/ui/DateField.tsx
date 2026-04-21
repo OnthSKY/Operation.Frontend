@@ -774,7 +774,9 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
     ) : null;
 
     return (
-      <div className={cn("flex w-full min-w-0 max-w-full flex-col gap-1", className)}>
+      <div
+        className={cn("flex w-full min-w-0 max-w-full flex-col gap-1", className)}
+      >
         {label ? (
           <label
             htmlFor={inputId}

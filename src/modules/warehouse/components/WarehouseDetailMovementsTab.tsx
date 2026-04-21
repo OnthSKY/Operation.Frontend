@@ -1,10 +1,15 @@
 "use client";
 
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
+import { FilterFunnelIcon } from "@/shared/components/FilterFunnelIcon";
+import { RightDrawer } from "@/shared/components/RightDrawer";
+import { OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
 import {
   WarehouseProductScopeFilters,
   type WarehouseScopeFiltersValue,
 } from "@/modules/warehouse/components/WarehouseProductScopeFilters";
+import { WarehouseMovementRowCard } from "@/modules/warehouse/components/WarehouseMovementRowCard";
+import { WarehouseOperationsTab } from "@/modules/warehouse/components/WarehouseOperationsTab";
 import { warehouseScopeEffectiveCategoryId } from "@/modules/warehouse/lib/warehouse-scope-filters";
 import { useWarehouseMovementsPage } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import { useI18n } from "@/i18n/context";
@@ -13,7 +18,7 @@ import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
 import { Select, type SelectOption } from "@/shared/ui/Select";
-import { warehouseMovementInvoicePhotoUrl } from "@/modules/warehouse/api/warehouse-movements-api";
+import { Tooltip } from "@/shared/ui/Tooltip";
 import type { WarehouseMovementItem, WarehouseMovementsPageParams } from "@/types/warehouse";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
@@ -21,16 +26,7 @@ import {
   formatWarehouseShipmentDisplay,
   warehouseMovementShipmentGroupKey,
 } from "@/shared/lib/in-batch-group-label";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-
-function movementKv(label: string, value: ReactNode) {
-  return (
-    <div className="min-w-0">
-      <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">{label}</p>
-      <div className="mt-0.5 break-words text-sm text-zinc-900">{value}</div>
-    </div>
-  );
-}
+import { useEffect, useMemo, useState } from "react";
 
 function shipmentListPreview(movements: WarehouseMovementItem[]): string {
   if (movements.length === 0) return "";
@@ -58,98 +54,24 @@ function shipmentBranchSummary(movements: WarehouseMovementItem[]): string | nul
   return `${first ?? ""} +${names.length - 1}`;
 }
 
-function WarehouseMovementMobileCard({
-  m,
-  fmtDate,
-  t,
-  hideShipmentGroup,
-}: {
-  m: WarehouseMovementItem;
-  fmtDate: (iso: string) => string;
-  t: (key: string) => string;
-  hideShipmentGroup?: boolean;
-}) {
-  const typeIn = m.type === "IN";
-  const typeLabel = typeIn ? t("products.typeIn") : t("products.typeOut");
-  const batchCell = formatWarehouseShipmentDisplay(m.inBatchGroupId, m.id);
-  return (
-    <div className="touch-manipulation rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm shadow-zinc-900/5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-medium text-zinc-800">{fmtDate(m.movementDate)}</p>
-        <span
-          className={cn(
-            "shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold",
-            typeIn ? "bg-emerald-100 text-emerald-900" : "bg-red-100 text-red-900"
-          )}
-        >
-          {typeLabel}
-        </span>
-      </div>
-      <div className="mt-3">
-        {m.parentProductName?.trim() ? (
-          <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-violet-800">
-            {m.parentProductName}
-          </p>
-        ) : null}
-        <p className="text-base font-semibold leading-snug text-zinc-900">
-          {m.productName}
-          {m.unit ? (
-            <span className="ml-1.5 text-sm font-normal text-zinc-500">({m.unit})</span>
-          ) : null}
-        </p>
-      </div>
-      <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0">
-        <span className="text-2xl font-bold tabular-nums text-zinc-900">{m.quantity}</span>
-        <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-          {t("products.colQty")}
-        </span>
-      </div>
-      <div className="mt-4 space-y-3 border-t border-zinc-100 pt-3">
-        {!hideShipmentGroup
-          ? movementKv(
-              t("warehouse.movementBatchGroup"),
-              <span className="font-mono text-xs" title={batchCell.title}>
-                {batchCell.text}
-              </span>
-            )
-          : null}
-        {m.type === "OUT" && m.outDestinationBranchName?.trim()
-          ? movementKv(
-              t("warehouse.movementOutBranch"),
-              <span className="text-sm font-medium text-violet-900">{m.outDestinationBranchName.trim()}</span>
-            )
-          : null}
-        {movementKv(t("warehouse.movementNote"), m.description?.trim() ? m.description : "—")}
-        {movementKv(t("warehouse.movementCheckedBy"), m.checkedByPersonnelName ?? "—")}
-        {movementKv(t("warehouse.movementApprovedBy"), m.approvedByPersonnelName ?? "—")}
-        {m.type === "IN" && m.hasInvoicePhoto ? (
-          <div className="min-w-0">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
-              {t("warehouse.mColInvoice")}
-            </p>
-            <a
-              href={warehouseMovementInvoicePhotoUrl(m.id)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-0.5 inline-flex text-sm font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-600"
-            >
-              {t("warehouse.openInvoicePhoto")}
-            </a>
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
 const PAGE_SIZE = 20;
+const DRAWER_SELECT_Z = 280;
 
 type Props = {
   warehouseId: number;
+  warehouseName: string;
   enabled: boolean;
+  onOpenAddProduct: () => void;
+  onDeleted: () => void;
 };
 
-export function WarehouseDetailMovementsTab({ warehouseId, enabled }: Props) {
+export function WarehouseDetailMovementsTab({
+  warehouseId,
+  warehouseName,
+  enabled,
+  onOpenAddProduct,
+  onDeleted,
+}: Props) {
   const { t, locale } = useI18n();
   const { data: branches = [] } = useBranchesList();
   const [scope, setScope] = useState<WarehouseScopeFiltersValue>({
@@ -166,8 +88,10 @@ export function WarehouseDetailMovementsTab({ warehouseId, enabled }: Props) {
   const [expandedShipmentKeys, setExpandedShipmentKeys] = useState<ReadonlySet<string>>(
     () => new Set()
   );
+  const [filtersDrawerOpen, setFiltersDrawerOpen] = useState(false);
 
   useEffect(() => {
+    setFiltersDrawerOpen(false);
     setScope({
       mainCategoryId: null,
       subCategoryId: null,
@@ -183,6 +107,30 @@ export function WarehouseDetailMovementsTab({ warehouseId, enabled }: Props) {
 
   useEffect(() => {
     setPage(1);
+  }, [
+    scope.mainCategoryId,
+    scope.subCategoryId,
+    scope.parentProductId,
+    scope.productId,
+    type,
+    branchId,
+    dateFrom,
+    dateTo,
+  ]);
+
+  const movementFiltersActive = useMemo(() => {
+    if (
+      scope.mainCategoryId != null ||
+      scope.subCategoryId != null ||
+      scope.parentProductId != null ||
+      scope.productId != null
+    ) {
+      return true;
+    }
+    if (type === "IN" || type === "OUT") return true;
+    if (branchId !== "" && Number(branchId) > 0) return true;
+    if (dateFrom.length === 10 || dateTo.length === 10) return true;
+    return false;
   }, [
     scope.mainCategoryId,
     scope.subCategoryId,
@@ -284,61 +232,129 @@ export function WarehouseDetailMovementsTab({ warehouseId, enabled }: Props) {
   const totalOutQty = Number(data?.totalOutQuantity ?? 0);
 
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
-      <WarehouseProductScopeFilters value={scope} onChange={setScope} />
-      <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 [&>*]:min-w-0">
-        <Select
-          label={t("products.filterType")}
-          options={typeOptions}
-          value={type}
-          onChange={(e) => setType(e.target.value)}
-          onBlur={() => {}}
-          name="wh-mv-type"
-          className="min-w-0 max-w-full"
-        />
-        <div className="col-span-full min-w-0 sm:col-span-2 lg:col-span-1 xl:col-span-1">
-          <Select
-            label={t("warehouse.filterMovementBranch")}
-            options={branchOptions}
-            value={branchId}
-            onChange={(e) => setBranchId(e.target.value)}
-            onBlur={() => {}}
-            name="wh-mv-branch"
-            className="min-w-0 max-w-full"
-          />
-          <p className="mt-1 text-[0.65rem] leading-snug text-zinc-500">
-            {t("warehouse.filterMovementBranchHint")}
-          </p>
-        </div>
-        <div
-          className={cn(
-            "col-span-full grid min-w-0 grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:col-span-2 lg:col-span-3 xl:col-span-2"
-          )}
-        >
-          <DateField
-            label={t("products.filterDateFrom")}
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="min-w-0 max-w-full"
-          />
-          <DateField
-            label={t("products.filterDateTo")}
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="min-w-0 max-w-full"
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-6">
+      <section
+        className="rounded-2xl border border-zinc-200/90 bg-zinc-50/30 p-4 shadow-sm ring-1 ring-zinc-950/[0.03] sm:p-5"
+        aria-label={t("warehouse.movementsIntegratedStockTitle")}
+      >
+        <h2 className="text-sm font-semibold text-zinc-900 sm:text-base">
+          {t("warehouse.movementsIntegratedStockTitle")}
+        </h2>
+        <p className="mt-1 text-xs leading-relaxed text-zinc-600 sm:text-sm">
+          {t("warehouse.movementsIntegratedStockHint")}
+        </p>
+        <div className="mt-4">
+          <WarehouseOperationsTab
+            warehouseId={warehouseId}
+            warehouseName={warehouseName}
+            active={enabled}
+            onOpenAddProduct={onOpenAddProduct}
+            onDeleted={onDeleted}
+            hideRecentMovements
           />
         </div>
-        <div className="col-span-full flex items-end sm:col-span-2 lg:col-span-3 xl:col-span-1">
-          <Button
+      </section>
+
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200/80 pb-3">
+        <h2 className="text-sm font-semibold text-zinc-900 sm:text-base">{t("warehouse.movementsHistoryTitle")}</h2>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+        <Tooltip content={t("warehouse.movementsFiltersToggle")} delayMs={200}>
+          <button
             type="button"
-            variant="secondary"
-            className="min-h-12 w-full touch-manipulation"
-            onClick={() => refetch()}
+            className="relative flex h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white px-3 text-zinc-700 shadow-sm transition hover:bg-zinc-50"
+            aria-expanded={filtersDrawerOpen}
+            aria-haspopup="dialog"
+            aria-label={t("warehouse.movementsFilterIconAria")}
+            onClick={() => setFiltersDrawerOpen(true)}
           >
-            {t("products.filterApplyRefresh")}
-          </Button>
+            <FilterFunnelIcon className="h-5 w-5" />
+            {movementFiltersActive ? (
+              <span
+                className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-violet-500 ring-2 ring-white"
+                aria-hidden
+              />
+            ) : null}
+          </button>
+        </Tooltip>
+        <Button
+          type="button"
+          variant="secondary"
+          className="min-h-11 touch-manipulation"
+          onClick={() => void refetch()}
+        >
+          {t("products.filterApplyRefresh")}
+        </Button>
         </div>
       </div>
+
+      <RightDrawer
+        open={filtersDrawerOpen}
+        onClose={() => setFiltersDrawerOpen(false)}
+        title={t("warehouse.movementsFiltersTitle")}
+        closeLabel={t("common.close")}
+        backdropCloseRequiresConfirm={false}
+        className="max-w-lg"
+        rootClassName={OVERLAY_Z_TW.modalNested}
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-xs leading-relaxed text-zinc-600">{t("warehouse.movementsFilterDrawerHint")}</p>
+          <WarehouseProductScopeFilters
+            value={scope}
+            onChange={setScope}
+            menuZIndex={DRAWER_SELECT_Z}
+          />
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+            <Select
+              label={t("products.filterType")}
+              options={typeOptions}
+              value={type}
+              onChange={(e) => setType(e.target.value)}
+              onBlur={() => {}}
+              name="wh-mv-type"
+              menuZIndex={DRAWER_SELECT_Z}
+              className="min-w-0 max-w-full"
+            />
+            <div className="min-w-0 sm:col-span-2">
+              <Select
+                label={t("warehouse.filterMovementBranch")}
+                options={branchOptions}
+                value={branchId}
+                onChange={(e) => setBranchId(e.target.value)}
+                onBlur={() => {}}
+                name="wh-mv-branch"
+                menuZIndex={DRAWER_SELECT_Z}
+                className="min-w-0 max-w-full"
+              />
+              <p className="mt-1 text-[0.65rem] leading-snug text-zinc-500">
+                {t("warehouse.filterMovementBranchHint")}
+              </p>
+            </div>
+            <DateField
+              label={t("products.filterDateFrom")}
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="min-w-0 max-w-full"
+            />
+            <DateField
+              label={t("products.filterDateTo")}
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="min-w-0 max-w-full"
+            />
+          </div>
+          <Button
+            type="button"
+            className="min-h-11 w-full"
+            onClick={() => {
+              void refetch();
+              setFiltersDrawerOpen(false);
+            }}
+          >
+            {t("warehouse.movementsFilterApplyClose")}
+          </Button>
+        </div>
+      </RightDrawer>
 
       {isError && <p className="text-sm text-red-600">{toErrorMessage(error)}</p>}
 
@@ -403,6 +419,7 @@ export function WarehouseDetailMovementsTab({ warehouseId, enabled }: Props) {
                     : `${t("products.typeIn")}/${t("products.typeOut")}`;
               const preview = shipmentListPreview(movements);
               const branchSummary = shipmentBranchSummary(movements);
+              const hasInvoiceAttachment = movements.some((m) => m.type === "IN" && m.hasInvoicePhoto);
               return (
                 <div key={key} className="min-w-0 bg-white first:rounded-t-lg last:rounded-b-lg">
                   <button
@@ -466,6 +483,14 @@ export function WarehouseDetailMovementsTab({ warehouseId, enabled }: Props) {
                     <span className="shrink-0 tabular-nums text-xs text-zinc-500">
                       {movements.length}×
                     </span>
+                    {hasInvoiceAttachment ? (
+                      <span
+                        className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[0.65rem] font-semibold text-amber-950 ring-1 ring-amber-100 sm:text-xs"
+                        title={t("warehouse.shipmentHasAttachmentHint")}
+                      >
+                        {t("warehouse.shipmentHasAttachmentBadge")}
+                      </span>
+                    ) : null}
                     <span className="min-w-0 flex-1 basis-[min(100%,12rem)] truncate text-xs text-zinc-600 sm:text-sm">
                       {preview}
                     </span>
@@ -478,7 +503,7 @@ export function WarehouseDetailMovementsTab({ warehouseId, enabled }: Props) {
                       aria-labelledby={`wh-shipment-h-${safeKey}`}
                     >
                       {movements.map((m) => (
-                        <WarehouseMovementMobileCard
+                        <WarehouseMovementRowCard
                           key={m.id}
                           m={m}
                           fmtDate={fmtDate}
@@ -529,6 +554,7 @@ export function WarehouseDetailMovementsTab({ warehouseId, enabled }: Props) {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

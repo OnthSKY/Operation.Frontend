@@ -20,6 +20,8 @@ export const toast = {
   branchNoteSaved: "Not eklendi",
   branchNoteUpdated: "Not güncellendi",
   branchNoteDeleted: "Not silindi",
+  branchDocumentUploaded: "Belge yüklendi",
+  branchDocumentDeleted: "Belge silindi",
   personnelNoteSaved: "Not eklendi",
   personnelNoteUpdated: "Not güncellendi",
   personnelNoteDeleted: "Not silindi",

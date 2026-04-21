@@ -7,24 +7,29 @@ import {
 } from "@/modules/branch/components/BranchQuickActionsMenu";
 import { fetchPersonnelList } from "@/modules/personnel/api/personnel-api";
 import { vehiclePhotoUrl } from "@/modules/vehicles/api/vehicles-api";
+import { fetchVehicleDocumentBlob } from "@/modules/vehicles/api/vehicle-documents-api";
 import { VehicleDetailAuditTab } from "@/modules/vehicles/components/VehicleDetailAuditTab";
 import {
   useCreateVehicle,
   useCreateVehicleExpense,
   useCreateVehicleInsurance,
   useCreateVehicleMaintenance,
+  useDeleteVehicle,
+  useDeleteVehicleDocument,
   useDeleteVehicleExpense,
   useDeleteVehicleInsurance,
   useDeleteVehicleMaintenance,
   useDeleteVehiclePhoto,
   usePatchVehicleOdometer,
   useUpdateVehicle,
+  useUploadVehicleDocument,
   useUpdateVehicleExpense,
   useUpdateVehicleInsurance,
   useUpdateVehicleMaintenance,
   usePatchVehicleAssignment,
   useUploadVehiclePhoto,
   useVehicle,
+  useVehicleDocuments,
   useVehicleExpenseSummary,
   useVehicles,
 } from "@/modules/vehicles/hooks/useVehicleQueries";
@@ -44,10 +49,24 @@ import {
   isKnownVehicleMaintenanceType,
   labelVehicleMaintenanceType,
 } from "@/modules/vehicles/lib/vehicle-maintenance-types";
+import {
+  VEHICLE_INSURANCE_COMPANY_ALIASES,
+  VEHICLE_INSURANCE_COMPANY_SLUGS,
+  VEHICLE_INSURANCE_OTHER_SLUG,
+  VEHICLE_INSURANCE_TYPE_ALIASES,
+  VEHICLE_INSURANCE_TYPE_SLUGS,
+  matchInsurancePresetSlug,
+} from "@/modules/vehicles/lib/vehicle-insurance-presets";
 import { TABLE_TOOLBAR_ICON_BTN, TableToolbarSplit } from "@/shared/components/TableToolbar";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
-import { formatLocaleAmount } from "@/shared/lib/locale-amount";
+import {
+  formatLocaleAmount,
+  formatLocaleAmountInput,
+  formatAmountInputOnBlur,
+  parseLocaleAmount,
+} from "@/shared/lib/locale-amount";
+import { OVERLAY_Z_INDEX } from "@/shared/overlays/z-layers";
 import { notifyDefaults } from "@/shared/lib/notify";
 import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { toErrorMessage } from "@/shared/lib/error-message";
@@ -56,7 +75,7 @@ import { DateField } from "@/shared/ui/DateField";
 import { detailOpenIconButtonClass, EyeIcon, PencilIcon, PlusIcon } from "@/shared/ui/EyeIcon";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
-import { Select } from "@/shared/ui/Select";
+import { Select, type SelectOption } from "@/shared/ui/Select";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import {
   Table,
@@ -73,15 +92,38 @@ import type {
   VehicleListItem,
   VehicleMaintenance,
 } from "@/types/vehicle";
+import type { VehicleDocumentKind } from "@/types/vehicle-document";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FocusEventHandler, type ReactNode } from "react";
 import { toast } from "react-toastify";
 
-type DetailTab = "overview" | "service" | "assignments" | "insurances" | "costs" | "audit";
+type DetailTab = "overview" | "service" | "documents" | "assignments" | "insurances" | "costs" | "audit";
 type CostsSubTab = "ledger" | "report";
 type AssignMode = "idle" | "personnel" | "branch";
+type VehicleDocumentPreviewMode = "image" | "pdf" | "other";
+
+const VEHICLE_DOCUMENT_KIND_OPTIONS: { value: VehicleDocumentKind; labelKey: string }[] = [
+  { value: "REGISTRATION", labelKey: "vehicles.docKindRegistration" },
+  { value: "INSPECTION", labelKey: "vehicles.docKindInspection" },
+  { value: "INSURANCE_POLICY", labelKey: "vehicles.docKindInsurancePolicy" },
+  { value: "OTHER", labelKey: "vehicles.docKindOther" },
+];
+const NOOP_BLUR: FocusEventHandler<HTMLInputElement> = () => {};
+
+function formatGroupedIntegerInput(raw: string, locale: string): string {
+  const digits = raw.replace(/\D+/g, "");
+  if (!digits) return "";
+  return new Intl.NumberFormat(locale === "tr" ? "tr-TR" : "en-US").format(Number(digits));
+}
+
+function parseGroupedIntegerInput(raw: string): number | null {
+  const digits = raw.replace(/\D+/g, "");
+  if (!digits) return null;
+  const parsed = Number.parseInt(digits, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
 
 function vehicleExpenseBranchPostingDetail(x: VehicleExpense, t: (key: string) => string): string | null {
   if (x.postedBranchId == null || x.postedBranchId <= 0) return null;
@@ -100,6 +142,7 @@ function buildVehicleRowMenuSections(params: {
   t: (key: string) => string;
   onView: () => void;
   onEdit: () => void;
+  onDelete?: () => void;
   onAddMaintenance: () => void;
   onEditKm: () => void;
   onChangeAssignment?: () => void;
@@ -113,6 +156,7 @@ function buildVehicleRowMenuSections(params: {
     t,
     onView,
     onEdit,
+    onDelete,
     onAddMaintenance,
     onEditKm,
     onChangeAssignment,
@@ -126,6 +170,7 @@ function buildVehicleRowMenuSections(params: {
     if (canEdit) {
       items.push(
         { id: "edit", label: t("common.edit"), onSelect: onEdit },
+        ...(onDelete ? [{ id: "delete", label: t("vehicles.deleteVehicle"), onSelect: onDelete }] : []),
         { id: "maint", label: t("vehicles.rowAddMaintenance"), onSelect: onAddMaintenance },
         { id: "km", label: t("vehicles.rowEditOdometer"), onSelect: onEditKm }
       );
@@ -143,6 +188,9 @@ function buildVehicleRowMenuSections(params: {
     }
     if (onAddInsurance) {
       items.push({ id: "insurance", label: t("vehicles.addInsurance"), onSelect: onAddInsurance });
+    }
+    if (onDelete) {
+      items.push({ id: "delete", label: t("vehicles.deleteVehicle"), onSelect: onDelete });
     }
     items.push(
       { id: "maint", label: t("vehicles.rowAddMaintenance"), onSelect: onAddMaintenance },
@@ -211,6 +259,7 @@ export function VehiclesScreen() {
   }, [isError, error]);
 
   const createV = useCreateVehicle();
+  const deleteV = useDeleteVehicle();
   const updateV = useUpdateVehicle();
   const patchOdometerMut = usePatchVehicleOdometer();
   const patchAssignmentMut = usePatchVehicleAssignment();
@@ -279,7 +328,11 @@ export function VehiclesScreen() {
     if (editFormDetail.id !== editRow.id) return;
     if (syncedVehicleFormDetail.current === editRow.id) return;
     syncedVehicleFormDetail.current = editRow.id;
-    setOdometerKmStr(editFormDetail.odometerKm != null ? String(editFormDetail.odometerKm) : "");
+    setOdometerKmStr(
+      editFormDetail.odometerKm != null
+        ? formatGroupedIntegerInput(String(editFormDetail.odometerKm), locale)
+        : ""
+    );
     setInspectionUntil(editFormDetail.inspectionValidUntil ?? "");
     setNotes(editFormDetail.notes ?? "");
     setDriverSrc(editFormDetail.driverSrcValidUntil ?? "");
@@ -290,7 +343,7 @@ export function VehiclesScreen() {
     setServiceIntervalMonthsStr(
       editFormDetail.serviceIntervalMonths != null ? String(editFormDetail.serviceIntervalMonths) : ""
     );
-  }, [vehicleModal, editRow, editFormDetail]);
+  }, [vehicleModal, editRow, editFormDetail, locale]);
 
   const openAdd = () => {
     setEditRow(null);
@@ -434,7 +487,7 @@ export function VehiclesScreen() {
     const ab =
       assignMode === "branch" && branchId.trim() ? parseInt(branchId, 10) : null;
     const odomRaw = odometerKmStr.trim();
-    const odomParsed = odomRaw ? parseInt(odomRaw, 10) : null;
+    const odomParsed = parseGroupedIntegerInput(odomRaw);
     const odometerKm =
       odomParsed != null && Number.isFinite(odomParsed) && odomParsed >= 0 ? odomParsed : null;
     const inspectionIso = inspectionUntil.trim() || null;
@@ -494,6 +547,90 @@ export function VehiclesScreen() {
     }
   };
 
+  const confirmDeleteVehicle = (vehicleId: number) => {
+    void notifyConfirmToast({
+      toastId: `vehicle-delete-${vehicleId}`,
+      message: t("vehicles.confirmDeleteVehicle"),
+      confirmLabel: t("vehicles.deleteVehicle"),
+      cancelLabel: t("common.cancel"),
+      onConfirm: async () => {
+        try {
+          await deleteV.mutateAsync(vehicleId);
+          if (detailId === vehicleId) setDetailId(null);
+          if (vehicleModal === "edit" && editRow?.id === vehicleId) setVehicleModal(null);
+          toast.success(t("common.saved"), { ...notifyDefaults });
+        } catch (err) {
+          toast.error(toErrorMessage(err), { ...notifyDefaults });
+        }
+      },
+    });
+  };
+
+  const vehicleDocKindLabel = (kind: VehicleDocumentKind) => {
+    const opt = VEHICLE_DOCUMENT_KIND_OPTIONS.find((x) => x.value === kind);
+    return opt ? t(opt.labelKey) : kind;
+  };
+
+  const openVehicleDoc = async (vehicleId: number, documentId: number) => {
+    setOpeningVehicleDocId(documentId);
+    try {
+      const { blob, contentType } = await fetchVehicleDocumentBlob(vehicleId, documentId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const ext =
+        contentType === "application/pdf"
+          ? "pdf"
+          : contentType.includes("png")
+            ? "png"
+            : contentType.includes("webp")
+              ? "webp"
+              : "jpg";
+      a.download = `vehicle-${vehicleId}-doc-${documentId}.${ext}`;
+      a.rel = "noopener";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    } finally {
+      setOpeningVehicleDocId(null);
+    }
+  };
+
+  const submitVehicleDocUpload = async () => {
+    if (!detailId || detailId <= 0) return;
+    setDocFormError(null);
+    if (!docFile || docFile.size <= 0) {
+      setDocFormError(t("vehicles.documentsFileRequired"));
+      return;
+    }
+    try {
+      await uploadVehicleDocumentMut.mutateAsync({
+        file: docFile,
+        kind: docKind,
+        notes: docNotes.trim() || null,
+      });
+      notify.success(t("common.saved"));
+      setDocFormOpen(false);
+      setDocFile(null);
+      setDocNotes("");
+      setDocKind("REGISTRATION");
+    } catch (e) {
+      setDocFormError(toErrorMessage(e));
+    }
+  };
+
+  const confirmVehicleDocDelete = async () => {
+    if (!docDeleteId || !detailId) return;
+    try {
+      await deleteVehicleDocumentMut.mutateAsync(docDeleteId);
+      notify.success(t("common.saved"));
+      setDocDeleteId(null);
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    }
+  };
+
   const [detailId, setDetailId] = useState<number | null>(null);
   const [detailTab, setDetailTab] = useState<DetailTab>("overview");
   const [costsSubTab, setCostsSubTab] = useState<CostsSubTab>("ledger");
@@ -524,8 +661,52 @@ export function VehiclesScreen() {
 
   const detailEnabled = detailId != null && detailId > 0;
   const { data: detail, isPending: detailPending } = useVehicle(detailId, detailEnabled);
+  const currentVehicleId = detailId ?? 0;
+  const {
+    data: vehicleDocuments = [],
+    isPending: vehicleDocumentsPending,
+    isError: vehicleDocumentsError,
+    error: vehicleDocumentsErrorValue,
+  } = useVehicleDocuments(detailId, detailEnabled);
+  const uploadVehicleDocumentMut = useUploadVehicleDocument(currentVehicleId);
+  const deleteVehicleDocumentMut = useDeleteVehicleDocument(currentVehicleId);
 
   const [maintLogFilterType, setMaintLogFilterType] = useState("");
+  const [docFormOpen, setDocFormOpen] = useState(false);
+  const [docKind, setDocKind] = useState<VehicleDocumentKind>("REGISTRATION");
+  const [docNotes, setDocNotes] = useState("");
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docFormError, setDocFormError] = useState<string | null>(null);
+  const [docDeleteId, setDocDeleteId] = useState<number | null>(null);
+  const [openingVehicleDocId, setOpeningVehicleDocId] = useState<number | null>(null);
+
+  const selectedVehicleDocType = docFile?.type?.toLowerCase() ?? "";
+  const vehicleDocPreviewMode: VehicleDocumentPreviewMode = !docFile
+    ? "other"
+    : selectedVehicleDocType.startsWith("image/")
+      ? "image"
+      : selectedVehicleDocType === "application/pdf"
+        ? "pdf"
+        : "other";
+  const vehicleDocPreviewUrl = useMemo(() => {
+    if (!docFile || vehicleDocPreviewMode === "other") return null;
+    return URL.createObjectURL(docFile);
+  }, [docFile, vehicleDocPreviewMode]);
+
+  useEffect(() => {
+    if (!vehicleDocPreviewUrl) return;
+    return () => URL.revokeObjectURL(vehicleDocPreviewUrl);
+  }, [vehicleDocPreviewUrl]);
+
+  useEffect(() => {
+    if (!detailEnabled) {
+      setDocFormOpen(false);
+      setDocDeleteId(null);
+      setDocFile(null);
+      setDocNotes("");
+      setDocFormError(null);
+    }
+  }, [detailEnabled]);
 
   const filteredVehicleMaintenances = useMemo(() => {
     const m = detail?.maintenances ?? [];
@@ -624,8 +805,10 @@ export function VehiclesScreen() {
 
   const [insModal, setInsModal] = useState<"add" | "edit" | null>(null);
   const [insEditId, setInsEditId] = useState<number | null>(null);
-  const [insType, setInsType] = useState("");
-  const [insProvider, setInsProvider] = useState("");
+  const [insTypeSlug, setInsTypeSlug] = useState("");
+  const [insTypeCustom, setInsTypeCustom] = useState("");
+  const [insProvSlug, setInsProvSlug] = useState("");
+  const [insProvCustom, setInsProvCustom] = useState("");
   const [insPolicy, setInsPolicy] = useState("");
   const [insStart, setInsStart] = useState("");
   const [insEnd, setInsEnd] = useState("");
@@ -665,6 +848,34 @@ export function VehiclesScreen() {
   const [assignDlgMode, setAssignDlgMode] = useState<AssignMode>("idle");
   const [assignDlgPersonnelId, setAssignDlgPersonnelId] = useState("");
   const [assignDlgBranchId, setAssignDlgBranchId] = useState("");
+
+  const insuranceTypeSelectOptions = useMemo((): SelectOption[] => {
+    return [
+      { value: "", label: t("vehicles.insuranceSelectType") },
+      ...VEHICLE_INSURANCE_TYPE_SLUGS.map((slug) => ({
+        value: slug,
+        label: t(`vehicles.insuranceTypeOptions.${slug}`),
+      })),
+      {
+        value: VEHICLE_INSURANCE_OTHER_SLUG,
+        label: t("vehicles.insuranceTypeOptions.other"),
+      },
+    ];
+  }, [t]);
+
+  const insuranceCompanySelectOptions = useMemo((): SelectOption[] => {
+    return [
+      { value: "", label: t("vehicles.insuranceSelectCompany") },
+      ...VEHICLE_INSURANCE_COMPANY_SLUGS.map((slug) => ({
+        value: slug,
+        label: t(`vehicles.insuranceCompanyOptions.${slug}`),
+      })),
+      {
+        value: VEHICLE_INSURANCE_OTHER_SLUG,
+        label: t("vehicles.insuranceCompanyOptions.other"),
+      },
+    ];
+  }, [t]);
 
   const maintenanceTypeFormSelectOptions = useMemo(() => {
     const base = VEHICLE_MAINTENANCE_TYPE_IDS.map((id) => ({
@@ -817,8 +1028,10 @@ export function VehiclesScreen() {
   const openAddInsuranceForVehicle = (vehicleId: number) => {
     setInsModalVehicleId(vehicleId);
     setInsEditId(null);
-    setInsType("");
-    setInsProvider("");
+    setInsTypeSlug("");
+    setInsTypeCustom("");
+    setInsProvSlug("");
+    setInsProvCustom("");
     setInsPolicy("");
     setInsStart(localIsoDate());
     setInsEnd(localIsoDate());
@@ -834,40 +1047,87 @@ export function VehiclesScreen() {
   const openEditInsurance = (x: VehicleInsurance) => {
     if (detailId) setInsModalVehicleId(detailId);
     setInsEditId(x.id);
-    setInsType(x.insuranceType);
-    setInsProvider(x.provider ?? "");
+    const tm = matchInsurancePresetSlug(
+      x.insuranceType,
+      [...VEHICLE_INSURANCE_TYPE_SLUGS],
+      VEHICLE_INSURANCE_OTHER_SLUG,
+      t,
+      "vehicles.insuranceTypeOptions",
+      VEHICLE_INSURANCE_TYPE_ALIASES
+    );
+    setInsTypeSlug(tm.slug);
+    setInsTypeCustom(tm.custom);
+    const pm = matchInsurancePresetSlug(
+      x.provider ?? "",
+      [...VEHICLE_INSURANCE_COMPANY_SLUGS],
+      VEHICLE_INSURANCE_OTHER_SLUG,
+      t,
+      "vehicles.insuranceCompanyOptions",
+      VEHICLE_INSURANCE_COMPANY_ALIASES
+    );
+    setInsProvSlug(pm.slug);
+    setInsProvCustom(pm.custom);
     setInsPolicy(x.policyNumber ?? "");
     setInsStart(x.startDate.slice(0, 10));
     setInsEnd(x.endDate.slice(0, 10));
-    setInsAmount(x.amount != null ? String(x.amount) : "");
+    setInsAmount(
+      x.amount != null && Number.isFinite(x.amount)
+        ? formatLocaleAmountInput(x.amount, locale)
+        : ""
+    );
     setInsModal("edit");
   };
 
   const saveInsurance = async () => {
     const vid = insModalVehicleId ?? detailId;
     if (!vid) return;
-    const amt = insAmount.trim() ? parseFloat(insAmount.replace(",", ".")) : null;
+    const resolvedType =
+      insTypeSlug === VEHICLE_INSURANCE_OTHER_SLUG
+        ? insTypeCustom.trim()
+        : insTypeSlug
+          ? t(`vehicles.insuranceTypeOptions.${insTypeSlug}`)
+          : "";
+    const resolvedProvider =
+      insProvSlug === VEHICLE_INSURANCE_OTHER_SLUG
+        ? insProvCustom.trim()
+        : insProvSlug
+          ? t(`vehicles.insuranceCompanyOptions.${insProvSlug}`)
+          : "";
+    const sd = insStart.trim();
+    const ed = insEnd.trim();
+    if (
+      !resolvedType ||
+      !resolvedProvider ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(sd) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(ed)
+    ) {
+      toast.error(t("vehicles.insuranceFillRequired"), { ...notifyDefaults });
+      return;
+    }
+    const amtParsed = parseLocaleAmount(insAmount.trim(), locale);
+    const amt =
+      insAmount.trim() === "" || !Number.isFinite(amtParsed) ? null : amtParsed;
     try {
       if (insModal === "add") {
         await insCreate.mutateAsync({
           vehicleId: vid,
-          insuranceType: insType.trim(),
-          provider: insProvider.trim() || null,
+          insuranceType: resolvedType,
+          provider: resolvedProvider || null,
           policyNumber: insPolicy.trim() || null,
-          startDate: insStart,
-          endDate: insEnd,
-          amount: amt != null && Number.isFinite(amt) ? amt : null,
+          startDate: sd,
+          endDate: ed,
+          amount: amt,
         });
       } else if (insEditId) {
         await insUpdate.mutateAsync({
           vehicleId: vid,
           insuranceId: insEditId,
-          insuranceType: insType.trim(),
-          provider: insProvider.trim() || null,
+          insuranceType: resolvedType,
+          provider: resolvedProvider || null,
           policyNumber: insPolicy.trim() || null,
-          startDate: insStart,
-          endDate: insEnd,
-          amount: amt != null && Number.isFinite(amt) ? amt : null,
+          startDate: sd,
+          endDate: ed,
+          amount: amt,
         });
       }
       toast.success(t("common.saved"), { ...notifyDefaults });
@@ -990,6 +1250,7 @@ export function VehiclesScreen() {
     const base: { id: DetailTab; label: string }[] = [
       { id: "overview", label: t("vehicles.tabOverview") },
       { id: "service", label: t("vehicles.tabService") },
+      { id: "documents", label: t("vehicles.tabDocuments") },
       { id: "assignments", label: t("vehicles.tabAssignments") },
       { id: "insurances", label: t("vehicles.tabInsurances") },
       { id: "costs", label: t("vehicles.tabCosts") },
@@ -1072,6 +1333,7 @@ export function VehiclesScreen() {
                     setDetailTab("overview");
                   },
                   onEdit: () => openEdit(r),
+                  onDelete: () => confirmDeleteVehicle(r.id),
                   onAddMaintenance: () => openAddMaintenanceForVehicle(r.id),
                   onEditKm: () => openKmModal(r.id),
                   onChangeAssignment: () => openAssignmentFromListRow(r),
@@ -1135,6 +1397,15 @@ export function VehiclesScreen() {
                           <PencilIcon className="shrink-0 opacity-90" />
                           {t("common.edit")}
                         </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="inline-flex min-h-12 shrink-0 touch-manipulation items-center justify-center px-3 text-base font-medium text-red-700 sm:min-h-11 sm:text-sm"
+                          disabled={deleteV.isPending}
+                          onClick={() => confirmDeleteVehicle(r.id)}
+                        >
+                          {t("vehicles.delete")}
+                        </Button>
                         {extrasSections.length > 0 ? (
                           <div className="flex shrink-0 items-stretch">
                             <BranchQuickActionsMenu
@@ -1179,6 +1450,7 @@ export function VehiclesScreen() {
                           setDetailTab("overview");
                         },
                         onEdit: () => openEdit(r),
+                        onDelete: () => confirmDeleteVehicle(r.id),
                         onAddMaintenance: () => openAddMaintenanceForVehicle(r.id),
                         onEditKm: () => openKmModal(r.id),
                         onChangeAssignment: () => openAssignmentFromListRow(r),
@@ -1240,6 +1512,36 @@ export function VehiclesScreen() {
                                     onClick={() => openEdit(r)}
                                   >
                                     <PencilIcon />
+                                  </Button>
+                                </Tooltip>
+                              ) : null}
+                              {canEdit ? (
+                                <Tooltip content={t("vehicles.deleteVehicle")} delayMs={200}>
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    className={cn(detailOpenIconButtonClass, "text-red-700")}
+                                    aria-label={t("vehicles.deleteVehicle")}
+                                    title={t("vehicles.deleteVehicle")}
+                                    disabled={deleteV.isPending}
+                                    onClick={() => confirmDeleteVehicle(r.id)}
+                                  >
+                                    <svg
+                                      viewBox="0 0 24 24"
+                                      width={15}
+                                      height={15}
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      aria-hidden
+                                    >
+                                      <path d="M3 6h18" />
+                                      <path d="M8 6V4h8v2" />
+                                      <path d="M19 6l-1 14H6L5 6" />
+                                      <path d="M10 11v6M14 11v6" />
+                                    </svg>
                                   </Button>
                                 </Tooltip>
                               ) : null}
@@ -1337,7 +1639,7 @@ export function VehiclesScreen() {
           <Input
             label={t("vehicles.odometerKm")}
             value={odometerKmStr}
-            onChange={(e) => setOdometerKmStr(e.target.value)}
+            onChange={(e) => setOdometerKmStr(formatGroupedIntegerInput(e.target.value, locale))}
             inputMode="numeric"
             placeholder="—"
           />
@@ -1582,6 +1884,7 @@ export function VehiclesScreen() {
                           ) : null}
                         </div>
                       ) : null}
+
                     </section>
 
                     <div className="min-w-0 space-y-4">
@@ -2200,6 +2503,77 @@ export function VehiclesScreen() {
               </div>
             ) : null}
 
+            {detailTab === "documents" ? (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm text-zinc-600">{t("vehicles.vehicleDocuments")}</p>
+                  {canEdit ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="min-h-10 px-3 py-2 text-sm"
+                      onClick={() => {
+                        setDocKind("REGISTRATION");
+                        setDocNotes("");
+                        setDocFile(null);
+                        setDocFormError(null);
+                        setDocFormOpen(true);
+                      }}
+                    >
+                      {t("vehicles.addVehicleDocument")}
+                    </Button>
+                  ) : null}
+                </div>
+                {vehicleDocumentsError ? (
+                  <p className="text-sm text-red-600">{toErrorMessage(vehicleDocumentsErrorValue)}</p>
+                ) : vehicleDocumentsPending ? (
+                  <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+                ) : vehicleDocuments.length === 0 ? (
+                  <p className="text-sm text-zinc-500">{t("vehicles.documentsEmpty")}</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {vehicleDocuments.map((doc) => (
+                      <li
+                        key={doc.id}
+                        className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-zinc-200 bg-white p-3"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium text-zinc-900">{vehicleDocKindLabel(doc.kind)}</div>
+                          <div className="truncate text-sm text-zinc-600">
+                            {doc.originalFileName ?? doc.contentType}
+                          </div>
+                          {doc.notes ? (
+                            <div className="mt-1 text-sm text-zinc-500">{doc.notes}</div>
+                          ) : null}
+                        </div>
+                        <div className="flex shrink-0 flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="min-h-10 px-3 py-2 text-sm"
+                            disabled={openingVehicleDocId === doc.id}
+                            onClick={() => void openVehicleDoc(detail.id, doc.id)}
+                          >
+                            {openingVehicleDocId === doc.id ? t("common.loading") : t("documents.open")}
+                          </Button>
+                          {canEdit ? (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className="min-h-10 px-3 py-2 text-sm"
+                              onClick={() => setDocDeleteId(doc.id)}
+                            >
+                              {t("common.delete")}
+                            </Button>
+                          ) : null}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ) : null}
+
             {detailTab === "insurances" ? (
               <div className="flex flex-col gap-3">
                 {canEdit ? (
@@ -2688,17 +3062,50 @@ export function VehiclesScreen() {
         closeButtonLabel={t("common.close")}
       >
         <div className="flex flex-col gap-3 p-1">
-          <Input
+          <Select
+            name="vehicle-insurance-type"
             label={t("vehicles.insuranceType")}
-            value={insType}
-            onChange={(e) => setInsType(e.target.value)}
-            placeholder="trafik / kasko"
+            labelRequired
+            menuZIndex={OVERLAY_Z_INDEX.dateFieldPopover + 5}
+            value={insTypeSlug}
+            onBlur={() => {}}
+            onChange={(e) => {
+              setInsTypeSlug(e.target.value);
+              if (e.target.value !== VEHICLE_INSURANCE_OTHER_SLUG) setInsTypeCustom("");
+            }}
+            options={insuranceTypeSelectOptions}
           />
-          <Input
+          {insTypeSlug === VEHICLE_INSURANCE_OTHER_SLUG ? (
+            <Input
+              label={t("vehicles.insuranceCustomTypeLabel")}
+              labelRequired
+              value={insTypeCustom}
+              onChange={(e) => setInsTypeCustom(e.target.value)}
+              autoComplete="off"
+            />
+          ) : null}
+          <Select
+            name="vehicle-insurance-company"
             label={t("vehicles.provider")}
-            value={insProvider}
-            onChange={(e) => setInsProvider(e.target.value)}
+            labelRequired
+            menuZIndex={OVERLAY_Z_INDEX.dateFieldPopover + 5}
+            value={insProvSlug}
+            onBlur={() => {}}
+            onChange={(e) => {
+              setInsProvSlug(e.target.value);
+              if (e.target.value !== VEHICLE_INSURANCE_OTHER_SLUG) setInsProvCustom("");
+            }}
+            options={insuranceCompanySelectOptions}
           />
+          {insProvSlug === VEHICLE_INSURANCE_OTHER_SLUG ? (
+            <Input
+              label={t("vehicles.insuranceCustomCompanyLabel")}
+              labelRequired
+              value={insProvCustom}
+              onChange={(e) => setInsProvCustom(e.target.value)}
+              autoComplete="off"
+            />
+          ) : null}
           <Input
             label={t("vehicles.policyNumber")}
             value={insPolicy}
@@ -2706,11 +3113,15 @@ export function VehiclesScreen() {
           />
           <DateField
             label={t("vehicles.startDate")}
+            labelRequired
+            required
             value={insStart}
             onChange={(e) => setInsStart(e.target.value)}
           />
           <DateField
             label={t("vehicles.endDate")}
+            labelRequired
+            required
             value={insEnd}
             onChange={(e) => setInsEnd(e.target.value)}
           />
@@ -2718,6 +3129,9 @@ export function VehiclesScreen() {
             label={t("vehicles.amount")}
             value={insAmount}
             onChange={(e) => setInsAmount(e.target.value)}
+            onBlur={() => setInsAmount((s) => formatAmountInputOnBlur(s, locale))}
+            inputMode="decimal"
+            autoComplete="off"
           />
           <div className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button
@@ -3083,6 +3497,109 @@ export function VehiclesScreen() {
               {t("common.save")}
             </Button>
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={docFormOpen}
+        onClose={() => {
+          setDocFormOpen(false);
+          setDocFile(null);
+          setDocFormError(null);
+        }}
+        titleId="vehicle-doc-upload-title"
+        title={t("vehicles.vehicleDocumentsUploadTitle")}
+        closeButtonLabel={t("common.close")}
+        nested
+        className="max-w-lg"
+      >
+        <div className="space-y-3 p-1">
+          <Select
+            name="vehicleDocumentKind"
+            label={t("vehicles.vehicleDocumentsKindLabel")}
+            value={docKind}
+            onChange={(e) => setDocKind(e.target.value as VehicleDocumentKind)}
+            onBlur={NOOP_BLUR}
+            options={VEHICLE_DOCUMENT_KIND_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }))}
+            menuZIndex={320}
+          />
+          <div>
+            <label className="mb-1 block text-sm font-medium text-zinc-700">{t("vehicles.vehicleDocumentsFileLabel")}</label>
+            <label
+              htmlFor="vehicle-doc-file-input"
+              className="flex min-h-24 cursor-pointer items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-4 text-center text-sm text-zinc-600 transition-colors hover:border-zinc-500 hover:bg-zinc-100"
+            >
+              {docFile ? docFile.name : t("vehicles.vehicleDocumentsFileLabel")}
+            </label>
+            <input
+              id="vehicle-doc-file-input"
+              type="file"
+              accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp"
+              className="sr-only"
+              onChange={(e) => setDocFile(e.target.files?.[0] ?? null)}
+            />
+            {docFile ? (
+              <div className="mt-2 rounded-xl border border-zinc-200 bg-white p-2">
+                {vehicleDocPreviewMode === "image" && vehicleDocPreviewUrl ? (
+                  <img src={vehicleDocPreviewUrl} alt={docFile.name} className="h-40 w-full rounded-lg object-cover" />
+                ) : vehicleDocPreviewMode === "pdf" && vehicleDocPreviewUrl ? (
+                  <iframe src={vehicleDocPreviewUrl} title={docFile.name} className="h-48 w-full rounded-lg border border-zinc-200" />
+                ) : (
+                  <div className="rounded-lg bg-zinc-100 px-3 py-2 text-sm text-zinc-700">{docFile.name}</div>
+                )}
+                <div className="mt-2 text-xs text-zinc-500">{(docFile.size / 1024 / 1024).toFixed(2)} MB</div>
+              </div>
+            ) : null}
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-zinc-700">{t("vehicles.vehicleDocumentsNotesLabel")}</label>
+            <textarea
+              className="min-h-[72px] w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+              value={docNotes}
+              onChange={(e) => setDocNotes(e.target.value)}
+              maxLength={500}
+              placeholder={t("vehicles.vehicleDocumentsNotesPlaceholder")}
+            />
+          </div>
+          {docFormError ? <p className="text-sm text-red-600">{docFormError}</p> : null}
+          <div className="flex flex-wrap justify-end gap-2 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setDocFormOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              disabled={uploadVehicleDocumentMut.isPending}
+              onClick={() => void submitVehicleDocUpload()}
+            >
+              {uploadVehicleDocumentMut.isPending ? t("common.loading") : t("vehicles.vehicleDocumentsUploadSubmit")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={docDeleteId != null}
+        onClose={() => setDocDeleteId(null)}
+        titleId="vehicle-doc-delete-title"
+        title={t("vehicles.vehicleDocumentsDeleteTitle")}
+        closeButtonLabel={t("common.close")}
+        nested
+        className="max-w-md"
+      >
+        <p className="text-sm text-zinc-600">{t("vehicles.vehicleDocumentsDeleteConfirm")}</p>
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <Button type="button" variant="secondary" onClick={() => setDocDeleteId(null)}>
+            {t("common.cancel")}
+          </Button>
+          <Button
+            type="button"
+            className="bg-red-600 hover:bg-red-700"
+            disabled={deleteVehicleDocumentMut.isPending}
+            onClick={() => void confirmVehicleDocDelete()}
+          >
+            {deleteVehicleDocumentMut.isPending ? t("common.loading") : t("common.delete")}
+          </Button>
         </div>
       </Modal>
     </>

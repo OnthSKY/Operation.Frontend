@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }),
       });
       setUser(me);
-      router.replace(postLoginHomePath(me.role));
+      router.replace(postLoginHomePath(me));
     },
     [router]
   );

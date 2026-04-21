@@ -89,6 +89,7 @@ export function fetchFinancialReport(
     byExpensePaymentSource: r.byExpensePaymentSource ?? [],
     supplierPayments: r.supplierPayments ?? [],
     vehicleExpensesOffRegister: r.vehicleExpensesOffRegister ?? [],
+    incomeRegisterBreakdownByCurrency: r.incomeRegisterBreakdownByCurrency ?? [],
   }));
 }
 
@@ -175,6 +176,50 @@ export type BranchComparisonParams = {
   sortDescending?: boolean;
 };
 
+function asFiniteMoney(n: unknown): number {
+  if (typeof n === "number" && Number.isFinite(n)) return n;
+  if (typeof n === "string" && n.trim() !== "") {
+    const v = Number(n);
+    if (Number.isFinite(v)) return v;
+  }
+  return 0;
+}
+
+type BranchBreakdownApiRow = Partial<FinancialBranchBreakdownRow> &
+  Pick<FinancialBranchBreakdownRow, "branchId">;
+
+function normalizeFinancialBranchBreakdownRow(row: BranchBreakdownApiRow): FinancialBranchBreakdownRow {
+  const income = asFiniteMoney(row.totalIncome);
+  const expense = asFiniteMoney(row.totalExpense);
+  const sup = asFiniteMoney(row.totalSupplierRegisterCashPaid);
+  const sal = asFiniteMoney(row.totalSalaryPaid);
+  const adv = asFiniteMoney(row.totalAdvanceGiven);
+  const netRaw = row.netCash;
+  const net =
+    typeof netRaw === "number" && Number.isFinite(netRaw)
+      ? netRaw
+      : income - expense - sup - sal - adv;
+  return {
+    branchId: row.branchId,
+    branchName: row.branchName ?? "",
+    currencyCode: (row.currencyCode ?? "").trim(),
+    totalIncome: income,
+    totalIncomeCash: asFiniteMoney(row.totalIncomeCash),
+    totalIncomeCard: asFiniteMoney(row.totalIncomeCard),
+    totalIncomeCashTaggedPatron: asFiniteMoney(row.totalIncomeCashTaggedPatron),
+    totalExpense: expense,
+    totalExpenseRegister: asFiniteMoney(row.totalExpenseRegister),
+    totalExpensePatron: asFiniteMoney(row.totalExpensePatron),
+    totalExpensePersonnelPocket: asFiniteMoney(row.totalExpensePersonnelPocket),
+    totalExpensePersonnelHeldRegisterCash: asFiniteMoney(row.totalExpensePersonnelHeldRegisterCash),
+    totalExpenseUnset: asFiniteMoney(row.totalExpenseUnset),
+    totalSupplierRegisterCashPaid: sup,
+    totalSalaryPaid: sal,
+    totalAdvanceGiven: adv,
+    netCash: net,
+  };
+}
+
 export function fetchBranchComparison(
   params: BranchComparisonParams
 ): Promise<ReportPagedResponse<FinancialBranchBreakdownRow>> {
@@ -188,7 +233,15 @@ export function fetchBranchComparison(
       sortBy: params.sortBy,
       sortDescending: params.sortDescending,
     })}`
-  );
+  ).then((r) => ({
+    ...r,
+    items: Array.isArray(r.items)
+      ? r.items.map((x) => normalizeFinancialBranchBreakdownRow(x as BranchBreakdownApiRow))
+      : [],
+    totalCount: typeof r.totalCount === "number" ? r.totalCount : 0,
+    page: typeof r.page === "number" ? r.page : params.page ?? 1,
+    pageSize: typeof r.pageSize === "number" ? r.pageSize : params.pageSize ?? 50,
+  }));
 }
 
 export function fetchPatronFlowOverview(

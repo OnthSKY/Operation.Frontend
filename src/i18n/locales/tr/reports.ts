@@ -1,11 +1,13 @@
-export const reports = {
+﻿export const reports = {
   title: "Raporlar",
   subtitle:
-    "Önce üstteki kısa haritayı okuyun; sonra sekme seçin. Her sekmede «ne bakmalıyım» listesi ve altta özet — detay için tablolar veya tam sayfa linkleri.",
-  tabOneLinerFinancial: "Şube kasası: gelir, gider ve net.",
+    "Finans, nakit ve stok için ayrı menü veya tam sayfa linkleri. Bu ekranda (i) ile kısa harita; aşağıda özet ve filtreler.",
+  tabOneLinerFinancial:
+    "Şube kasası: faaliyet geliri, operasyonel gider ve net (finans özetiyle aynı KPI kuralları).",
   tabOneLinerCash: "Şubelerde tahmini nakit ve kasanın personele / patrona borçları.",
   tabOneLinerStock: "Depo hareketi ve şubelere giren mal.",
   patronStoryBoxTitle: "Bu sekmede bakış sırası (4 adım)",
+  patronStoryInfoAria: "Bu raporda bakış sırası — yardım",
   patronStoryFin1:
     "Önce seçili para birimindeki NET KASA’ya bakın: yeşil iyi, kırmızı dikkat.",
   patronStoryFin2:
@@ -25,7 +27,7 @@ export const reports = {
   patronStoryStock3:
     "Miktar aramak ve sıralamak için “Tablolar” sekmesini kullanın.",
   patronStoryFin4:
-    "Maaş ve avans bu ekranda ayrı toplamlarda görünür; kişi kişi detay için Personel › Maliyetler veya alttaki tam sayfa finans tablolarına gidin. Kasadan çıkmayan (size ait) ödemeler «gider ödeme kaynağı» kırılımında veya Patron akışı raporunda listelenir.",
+    "Buradaki «gelir» faaliyet geliridir: kasaya konan patron nakdi ve iç kasa devri IN satırları toplama dahil edilmez (K/K ile uyum). Maaş ve avans ayrı toplamlarda; kişi bazı için Personel › Maliyetler veya tam sayfa finans tabloları. Kasadan çıkmayan ödemeler ödeme kaynağı veya Patron akışında.",
   patronStoryCash4:
     "Bu sekme tek bir tarihe kadar «çekmecede ne var / kasanın kime borcu var» özetidir; dönem içi gelir–gider trendi için Finans sekmesine dönün.",
   patronStoryStock4:
@@ -36,7 +38,7 @@ export const reports = {
   patronHubGuideClosedHint:
     "Sistemde kasa, patron cebi, depo ve personel rakamlarını nerede bulacağınızı görmek için açın.",
   patronHubGuideIntroFinancial:
-    "Bu sekme seçtiğiniz tarihlerde şube kasasına yazılan gelir ve giderlerin özetini ve grafiklerini gösterir. Günlük satır satır kasa fişleri Şubeler ekranındadır; kişi bazlı maaş ve avans Personel maliyetlerindedir.",
+    "Bu sekme seçtiğiniz tarihlerde şube kasasındaki faaliyet geliri ve operasyonel gider özetini gösterir (iç nakit IN’ler gelire dahil edilmez; borç kapatma OUT’ları gider KPI’sından çıkarılır). Günlük satırlar Şubeler’de; maaş/avans Personel maliyetlerinde.",
   patronHubGuideIntroCash:
     "Bu sekme belirttiğiniz güne kadar şubelerde tahmini çekmece nakdini ve kasanın personele / size net borçlarını gösterir. Dönem içi gelir–gider özeti için Finans sekmesine geçin.",
   patronHubGuideIntroStock:
@@ -60,7 +62,7 @@ export const reports = {
     "Miktar detayı için «Tablolar» veya tam sayfa stok tablosuna geçin.",
   patronHubGuideThisTabTitle: "Bu sekme hangi soruya cevap verir?",
   patronHubGuideTabFinancial:
-    "Seçtiğiniz tarihlerde şube kasasına yazılan gelir ve giderlerin özeti; şube ve kategori kırılımı. Grafikler ek filtreleri (para birimi vb.) her zaman uygulamaz — uyarı metnine bakın.",
+    "Faaliyet geliri ve gider KPI’ları; şube ve kategori kırılımı (finans tablolarıyla aynı mantık). Grafikler ek filtreleri her zaman uygulamaz — uyarı metnine bakın.",
   patronHubGuideTabCash:
     "Belirttiğiniz güne kadar tahmini çekmece nakdi ve kasanın personele / size net borçları; dönemsel kar–zarar değildir.",
   patronHubGuideTabStock:
@@ -74,15 +76,15 @@ export const reports = {
     "Maaş, avans ve ilgili personel giderlerini kişi ve dönem üzerinden görmek için.",
   patronHubGuideLinkWarehousesLabel: "Depolar",
   patronHubGuideLinkWarehousesDesc: "Depo bazlı stok ve transferler; rafta ne var sorusu.",
-  patronHubGuideLinkPatronFlowLabel: "Patron akışı (tam sayfa)",
+  patronHubGuideLinkPatronFlowLabel: "Cebimden neye gitti (tam sayfa)",
   patronHubGuideLinkPatronFlowDesc:
     "Patrondan nakit giriş ve patron ödemeli gider satırlarının tek listede toplanmış hali.",
   patronHubGuideLinkBranchCompareLabel: "Şube karşılaştırma (tam sayfa)",
   patronHubGuideLinkBranchCompareDesc:
-    "Şubeleri aynı dönemde yan yana gelir, gider, net ile kıyaslamak için.",
+    "Şubeleri aynı dönemde faaliyet geliri, operasyonel gider ve net ile kıyaslamak için.",
   patronHubGuideLinkFinancialHubLabel: "Finans özeti (hub)",
   patronHubGuideLinkFinancialHubDesc:
-    "Seçilen dönemde kasaya yazılan gelir, gider ve net trendi.",
+    "Seçilen dönemde faaliyet geliri, operasyonel gider ve net (KPI kapsamı).",
   patronHubGuideLinkCashTablesLabel: "Kasa tablosu (tam sayfa)",
   patronHubGuideLinkCashTablesDesc:
     "Nakit pozisyonu ile aynı mantıkta sıralı tablo ve dışa aktarım.",
@@ -101,18 +103,37 @@ export const reports = {
   cashPatronMaxDrawer: "En yüksek çekmece: {{name}}",
   cashSnapshotPanelTitle: "Kasa özeti",
   cashSnapshotPanelHint:
-    "Rapor tarihi ve kapsama göre: çekmecedeki tahmini nakit, personele net cebi pozisyonu ve patrona net pozisyon — soldan sağa.",
+    "Rapor tarihi ve kapsama göre: çekmecedeki tahmini nakit, personelde toplanan kasa nakiti (gelirde kasa sorumlusu), personele net cebi borcu ve patrona net pozisyon.",
   cashSnapshotMoreHint:
     "Satır bazlı hareket için Şubeler veya aşağıdaki tabloyu kullanın; üstteki filtreler nelerin dahil olduğunu belirler.",
   cashSnapshotBadgeDrawer: "1 · Çekmece",
   cashSnapshotBadgePocket: "2 · Personel cebi",
   cashSnapshotBadgePatron: "3 · Patron",
+  cashSnapshotBadgeHeldPersonnel: "4 · Personelde kasa",
   cashSnapshotDescDrawer: "Kasa çekmecesindeki tahmini fiili nakit (dahil şubeler).",
   cashSnapshotDescPocket:
     "Kasa ↔ personel cebi neti (pozitifse kasa cebi borçludur).",
   cashSnapshotDescPatron: "Kasa ↔ patron neti (pozitifse kasa patrona borçludur).",
+  cashSnapshotDescHeldPersonnel:
+    "Gelir satırlarında nakit tarafı «kasa sorumlusunda» olarak işaretlenen tutarların rapor tarihine kadar toplamı (fiili dağılım).",
+  cashPersonnelHeldBreakdownToggle: "Kimde (şube ve personel)",
+  cashPersonnelHeldUnknownPerson: "İsimsiz / atanmamış",
+  cashDrawerWhyShort:
+    "Çekmece nakdi, rapor tarihine kadar kümülatif IN nakit − kasadan ödenen (REGISTER) OUT tutarlarıdır (şube kasa özetiyle aynı kurallar). Bir şubede, o güne kadar kasadan ödenen nakit giderler nakit gelirden fazlaysa değer eksi çıkabilir.",
+  cashPatronWhyShort:
+    "Patron borcu; kayıtlı hareketlerden kasa ↔ patron netine (patronla ödenen giderler, patron nakit girişi, kasadan patrona ödeme vb.) ek olarak rapor tarihine kadar şubeye yazılan açık patron avanslarının toplamıdır.",
+  cashDrawerBreakdownToggle: "Şubelere göre (çekmece)",
+  cashPatronBreakdownToggle: "Şubelere göre (patron borcu)",
+  cashPocketBreakdownToggle: "Şubelere göre (cebi borcu)",
+  cashAsOfCumulativeExplain:
+    "Tüm rakamlar {{date}} tarihine kadar (dahil) kayıtlı kasa hareketlerinin kümülasyonudur; bu ekranda tek bir «kötü gün» ayrıştırılmaz. Şube bağlantıları Şubeler’i Özet sekmesinde açar ve kasa gününü {{date}} olarak ayarlar (buradaki kurallarla uyumlu); o günün satır detayı için Gelir ve Gider listeleri aynı güne çekilir, patrona ilişkin hareketler için dönem bazında Patron akışı raporunu kullanın.",
+  cashBreakdownOpenBranchHint:
+    "Şubeye dokunun: Özet sekmesi, kasa günü = rapor tarihi; Gelir ve Gider listeleri bu güne ayarlanır.",
+  cashPatronFlowScreenLink: "Patron akışı",
+  cashPatronFlowScreenHint:
+    "Tarih aralığında patron nakit girişi, patronla ödenen giderler ve kasadan patrona ödemeler (tek tarih anlık görünümü değildir).",
   tabHint: "Finans: kasa ve şube. Stok: depo ve şubeye sevkiyat.",
-  tabCashPosition: "Nakit pozisyonu",
+  tabCashPosition: "Kasa özeti",
   tabHintCash:
     "Şube kasasındaki tahmini fiili nakit ve kasanın personele / patrona net borçları (şube kasa özeti ile aynı kurallar).",
   cashPeriodHelp: "Rapor tarihi: kasa hareketleri bu güne kadar (dahil) hesaplanır.",
@@ -125,18 +146,30 @@ export const reports = {
   cashPositionEmpty:
     "Seçilen kriterlere uyan şube yok. Tüm şubeleri görmek için “Yalnız turizm sezonu açık şubeler” seçimini kaldırın.",
   cashColDrawer: "Tahmini nakit (çekmece)",
+  cashColHeldPersonnel: "Personelde kasa nakiti",
   cashColPocketDebt: "Net pers. cebi borcu",
   cashColPatronDebt: "Net patron borcu",
   cashTotalsRow: "Toplam",
+  hubFilterEffectsTitle: "Seçimlerin uygulandığı yerler",
+  hubFilterEffectsScopeLeadCash:
+    "Bu ekran dönemsel gelir–gider özeti değildir: rapor tarihine göre anlık tahmini çekmece ve kasa borçlarıdır; özet ile tablolar aynı tarih ve kapsamı paylaşır.",
+  hubFilterEffectsScopeLeadStock:
+    "Stok özetinde «filtreli / kümülatif» ayrımı yok: grafikler ve tablolar aynı tarih + depo/şube/ürün kapsamı filtresine göredir.",
+  hubFilterEffectsCash1:
+    "Özet vurguları ve üst blok: rapor tarihi ile şube kapsamı (yalnız açık sezon / tüm şubeler).",
+  hubFilterEffectsCash2: "«Tablolar» sekmesi: aynı tarih ve kapsamdaki şube satırları.",
+  hubFilterEffectsStock1:
+    "Grafikler ve dönem özeti: seçilen tarih aralığı ile depo, şube ve ürün kapsamı filtreleri.",
+  hubFilterEffectsStock2: "«Tablolar» sekmesi: aynı filtrelerle satır detayı.",
   filtersSectionTitle: "Dönem ve filtre",
   finAdvancedFilters: "Ek finans filtreleri",
   finAdvancedFiltersHint:
-    "Para birimi, yön (gelir/gider), kategori ve gider ödeme kaynağı — listeler seçili dönem ve şubeye göre dolar. Aşağıdaki özet grafikler yalnızca tarih ve şube kullanır.",
+    "Para birimi, yön (gelir/gider), kategori ve gider ödeme kaynağı — tablolar ve KPI kartları tam filtreyle. Para birimi seçiliyse hunideki küçük grafikler de o para biriminde; seçili değilse TRY veya ilk mevcut para birimi. “Ay bazlı trend” ve “şube — ay bazlı net” grafikleri yalnızca tarih (ve şube, uygunsa) kullanır; diğer ek filtreleri uygulamaz.",
   finFilterAny: "Tümü",
   finFilterCurrency: "Para birimi",
   finFilterDirection: "Hareket yönü",
   finDirectionAll: "Gelir ve gider",
-  finDirectionIn: "Yalnız gelir (IN)",
+  finDirectionIn: "Yalnız IN (faaliyet geliri kapsamı)",
   finDirectionOut: "Yalnız gider (OUT)",
   finFilterMainCategory: "Ana kategori",
   finFilterCategory: "Alt kategori",
@@ -144,7 +177,32 @@ export const reports = {
   finExpenseAll: "Tüm kaynaklar",
   finFilterOptionsError: "Filtre listesi yüklenemedi; alanlar yine de kullanılabilir.",
   finChartsScopeNote:
-    "Not: Üstteki aylık / şube grafikleri ek finans filtrelerini (para birimi, kategori vb.) uygulamaz.",
+    "Hatırlatma: Ay ay birikimli yalnızca tarih + şube kullanır. Özet, Önceki döneme göre, Grafikler ve Tablolar hunideki tüm filtreleri uygular.",
+  finChartsScopeNoteTrend:
+    "Hunide ek filtreler açık — bu sayfadaki çizgileri değiştirmezler. Özet, Önceki döneme göre, Grafikler veya Tablolar’a dönünce yine geçerlidirler.",
+  finChartsPageScopeReminder:
+    "Filtre ağırlıklı görseller için doğru sekmedesiniz. Ay ay birikimli yalnızca takvim ayı serileri içindir (tarih + şube).",
+  finScopeStripAria: "Finans verisi hangi filtreye göre",
+  finScopeStripCumulativeAria: "Kümülatif grafikler — ay trendi ve şube sezon görünümü",
+  finScopeStripTitle: "Veri kapsamı",
+  finScopeStripBranch: "Şube filtresi",
+  finScopeBucketFilter: "Filtreye göre",
+  finScopeBucketYear: "Kümül yıl (aylık trend)",
+  finScopeBucketSeason: "Kümül sezon (şubeler, ay bazlı)",
+  finScopeBucketFilterBody:
+    "KPI kartları, pasta ve şube çubukları, gider ödeme kaynağı dağılımı ve Tablolar sekmesindeki tüm satırlar: seçilen tarih aralığı, şube ve ek finans filtreleri (para birimi, yön, kategori, ödeme kaynağı) ile hesaplanır. Para birimi seçiliyse bu hunideki grafikler de o para biriminde gösterilir.",
+  finScopeBucketYearBody:
+    "“Ay bazlı trend” grafiği: yalnızca tarih aralığı + şube. Para birimi, kategori ve gider ödeme kaynağı filtreleri bu grafiğe uygulanmaz.",
+  finScopeBucketSeasonBody:
+    "“Şube — ay bazlı net” çizelgesi: yalnızca tarih aralığı, tüm şubeler. Şube seçimi ve ek finans filtreleri bu grafiğe uygulanmaz.",
+  finScopeBucketSeasonHiddenWhenBranch:
+    "Şube seçiliyken bu grafik gizlenir (yalnızca “tüm şubeler” görünümünde anlamlıdır).",
+  finScopeTablesFilterBody:
+    "Bu sayfadaki tüm tablolar seçilen tarih, şube ve ek finans filtreleriyle hesaplanır.",
+  finScopeTablesYearBody:
+    "“Şubeye göre” tablosundaki önceki dönem farkı (Δ) ile para birimi net karşılaştırması: seçilen aralığın hemen öncesindeki eşit uzunluktaki aralığa göredir; aynı filtreler her iki pencereye de uygulanır.",
+  finScopeTablesSeasonBody:
+    "Üstteki takvim yılı veya sezon yılı hızlı seçimi yalnızca dönem uçlarını ayarlar; tablolar her zaman o seçilen penceredeki işlemleri gösterir.",
   stockOptionalFilters: "İsteğe bağlı: depo, şube, ürün",
   stockOptionalFiltersOpen: "Daraltmak için depo, şube veya ürün seçin.",
   stockScopeFiltersTitle: "Depo, şube, kategori ve ürün filtreleri",
@@ -215,7 +273,7 @@ export const reports = {
   chipNegativeNet: "Bir para biriminde net negatif",
   chipTopExpense: "Baskın gider: {{cat}} (~%{{pct}})",
   tabFinancial: "Finans",
-  tabStock: "Stok",
+  tabStock: "Stok özeti",
   dateFrom: "Başlangıç",
   dateTo: "Bitiş",
   allBranches: "Tüm şubeler",
@@ -223,10 +281,11 @@ export const reports = {
   apply: "Yenile",
   loading: "Rapor yükleniyor…",
   error: "Rapor yüklenemedi.",
+  hubQuickFilterSeasonYear: "Hızlı filtre:",
   presetThisMonth: "Bu ay",
   presetLast30: "Son 30 gün",
   presetLast7: "Son 7 gün",
-  seasonYearQuickPick: "Hızlı: takvim yılı",
+  seasonYearQuickPick: "Hızlı: Sezon yılı",
   seasonYearPickPlaceholder: "— yıl seçin —",
   seasonYearOption: "{year} tam yıl",
   seasonYearHint:
@@ -237,7 +296,7 @@ export const reports = {
   cashFilterModeCustomAsOf: "Özel tarih",
   cashFilterPeriodModeHint:
     "Takvim yılı: yıl sonu anlık görüntü. Özel tarih: istediğiniz güne göre kasa; üstteki yıl listesi bu modda kullanılmaz.",
-  cashCalendarYearQuickPick: "Takvim yılı",
+  cashCalendarYearQuickPick: "Hızlı: takvim yılı",
   cashAsOfSeasonYearQuickPick: "Hızlı: yıl sonu anlık görüntü",
   cashAsOfSeasonYearOption: "{year} yıl sonu (31 Ara)",
   cashAsOfSeasonYearHint:
@@ -245,6 +304,8 @@ export const reports = {
   cashAsOfSeasonYearCrossTabHint:
     "Bu hub’da Finans ve Stok sekmelerinin başlangıç/bitiş tarihleri de aynı takvim yılına (1 Oca–31 Ara) çekilir.",
   sectionTotals: "Para birimine göre özet",
+  sectionTotalsFinancialKpiNote:
+    "Gelir = faaliyet geliri (kasaya patron nakdi ve iç kasa devri IN’leri hariç). Gider = operasyonel OUT (kasadan cebi ve patron borcu kapatma satırları hariç). Finans özeti ve şube karşılaştırma ile aynıdır.",
   sectionByBranch: "Şubeye göre",
   sectionByCategory: "Kırılım (kategori)",
   sectionAdvances: "Dönem avansları",
@@ -267,10 +328,10 @@ export const reports = {
   sectionProductFlow: "En yoğun ürün hareketleri",
   sectionBranchReceipts: "Şubeye giriş (miktar)",
   colCurrency: "Para birimi",
-  colIncome: "Gelir",
+  colIncome: "Faaliyet geliri",
   colExpense: "Gider",
   colNet: "Net",
-  colInCount: "Gelir kayıtları",
+  colInCount: "Faaliyet geliri kayıtları",
   colOutCount: "Gider kayıtları",
   colBranch: "Şube",
   colType: "Tip",
@@ -291,7 +352,7 @@ export const reports = {
   colReceiptLines: "Satır",
   insightsTitle: "Süreç notları",
   insightNegativeNet:
-    "En az bir para biriminde dönem neti negatif; gider kayıtları ve avansları kontrol edin.",
+    "En az bir para biriminde net negatif; gider kayıtları ve avansları kontrol edin.",
   insightTopExpense:
     "En büyük gider kalemi: {{cat}} (gider toplamının ~%{{pct}}’i).",
   insightTopReceipt:
@@ -301,17 +362,65 @@ export const reports = {
   storyTitle: "Özet",
   storyDesc:
     "Önceki dönemle karşılaştırma, seçili para birimi için geçerlidir.",
+  finStoryPageLead:
+    "Seçilen filtrelere göre dönem özeti. Alt sekmelerden önceki döneme göre sapma, grafikler, ay ay birikimli görünüm veya tablolara geçin — aynı filtre hunisi geçerli.",
+  finStoryComparePageLead:
+    "Önceki dönem neti, ödeme kaynağı ve şube özeti (Özet sekmesiyle aynı filtreler).",
+  finIncomeKpiPos: "POS (kart)",
+  finIncomeKpiCash: "Nakit",
+  finIncomeKpiPctOfIncome: "gelirin %{{pct}}’i",
+  finIncomeKpiPctOfCash: "nakitin %{{pct}}’i",
+  finIncomeKpiCashDrawer: "Kasada (çekmece)",
+  finIncomeKpiCashPatron: "Patronda",
+  finIncomeKpiCashPersonnel: "Personelde",
+  finIncomeKpiCashOther: "Nakit (dağılım belirtilmemiş)",
+  finIncomeKpiBreakdownMissing:
+    "POS/nakit kırılımı yanıtta yok. Finans API güncellemesi ve sayfa yenilemesi gerekir (detay: Gelir kartı altı).",
+  finExpenseKpiPctOfExpense: "giderin %{{pct}}’i",
+  finExpenseKpiByBranch: "Şubeye göre (üst)",
+  finExpenseKpiBreakdownMissing:
+    "Ödeme kaynağı kırılımı yanıtta yok. Finans API ve sayfa yenilemesi gerekir (detay: Gider kartı altı).",
+  finSummaryKpiSupplierRegister: "Kasadan tedarikçi",
+  finSummaryKpiAdvances: "Avanslar",
+  finSummaryKpiOverhead: "Genel gider payı",
+  finSummaryKpiVehicleOffReg: "Araç (kasa dışı)",
+  finSummaryKpiRowMetaRecords: "{{n}} kayıt",
+  finSummaryKpiRowMetaLines: "{{n}} satır",
+  finStoryScopeBadgeFilter: "Filtreye göre",
+  finStoryScopeBadgeCumulative: "Kümülatif",
+  finStoryScopeBadgeDistribution: "Dağılım",
+  finStoryScopeBadgeRanking: "Şube sırası",
+  finStoryFilterSectionTitle: "Net ve şube sinyalleri",
+  finStoryFilterSectionDesc:
+    "Para birimi, yön, kategori ve ödeme kaynağı dahil — önceki dönem karşılaştırması ve ödeme kaynağı bu bloktadır.",
+  finStoryCumulativeSectionTitle: "Ay ve şube çizelgeleri",
+  finStoryCumulativeSectionDesc:
+    "Yalnızca tarih aralığı ve (şube–ay grafiğinde) tüm şubeler görünümü; ek finans filtreleri bu çizgilere uygulanmaz.",
+  finStoryDistributionSectionTitle: "Gelir, gider ve kategori pastası",
+  finStoryDistributionSectionDesc:
+    "Seçtiğiniz tüm finans filtreleri bu grafiklere uygulanır.",
+  finStoryRankingSectionTitle: "Şube neti ve önceki döneme göre değişim",
+  finStoryRankingSectionDesc:
+    "Bu dönem filtresiyle sıralı çubuklar; mobilde yatay kaydırarak tüm şubeleri görebilirsiniz.",
   storyDeckHint:
-    "Önce dönem netine bakın; yanındaki kartlar değişimi, ödeme kaynağını ve şubeleri özetler.",
+    "Kartları soldan sağa: net → önceki dönem → gider ödeme kaynağı; altta şube iyileşme sayıları ve öne çıkanlar.",
+  storyDeckHintSummary:
+    "Karşılaştırma, ödeme kaynağı ve şube sinyalleri aynı filtrelerle; kategori grafikleri en sonda.",
+  storyDeckHintCharts:
+    "Çubuklar bu pencerede sıralıdır; pastalar seçtiğiniz tüm finans filtrelerini yansıtır.",
+  storyDeckHintCompare:
+    "Mobilde ödeme kaynağı kartını kaydırın; şube sayıları önceki döneme göre hareketi özetler.",
   storyCardNetEyebrow: "Öne çıkan",
-  storyCardNetTitle: "Dönem neti",
+  storyCardNetTitle: "Net",
   storyCardCompareTitle: "Önceki döneme göre",
   storyCardCompareWindow: "{{from}} – {{to}}",
   storyCardComparePrevLabel: "Önceki dönem neti",
+  storyCardCompareCurrentLabel: "Bu dönem neti",
+  storyCardCompareDiffLabel: "Fark",
   storyCardCompareDeltaLabel: "Net değişim",
   storyCardCompareTrend: "Trend: {{dir}}",
   storyCardPayMixTitle: "Gider — ödeme kaynağı",
-  storyCardPayMixCaption: "Bu para biriminde operasyonel giderler kasadan mı, patrondan mı, cepten mi?",
+  storyCardPayMixCaption: "Kasa / patron / cebi (operasyonel OUT).",
   storyCardBranchTrendTitle: "Şubeler",
   storyCardBranchTrendCaption: "Önceki döneme göre net değişim",
   storyCardBranchUpLabel: "İyileşen",
@@ -322,7 +431,7 @@ export const reports = {
   storyDetailsShow: "Ödeme kaynağı, şubeler ve öne çıkanlar — göster",
   storyDetailsHide: "Ek özet kartlarını gizle",
   storyOpenBranchLink: "Şubeyi aç → hareketler",
-  storyNetPeriod: "Dönem neti ({{ccy}}): {{net}}.",
+  storyNetPeriod: "Net ({{ccy}}): {{net}}.",
   storyVsPrevious:
     "{{prevFrom}}–{{prevTo}} öncesi net: {{prevNet}}; değişim {{delta}} ({{dir}}).",
   storyDirBetter: "iyiye",
@@ -346,9 +455,6 @@ export const reports = {
   chartExpensePayHint:
     "Yeşil: şube kasası · mor: patron · kehribar: personel cebi · gri: kaynak seçilmemiş.",
   compareCaption: "Karşılaştırılan önceki pencere",
-  chartCurrency: "Grafik para birimi",
-  chartCurrencyScopeHint:
-    "Aşağıdaki özet kartları ve grafikler yalnızca seçtiğiniz para birimi içindir; başka para birimleri için listeden değiştirin.",
   financialEmptyTitle: "Bu dönem ve filtrede hareket yok",
   financialEmptyBody:
     "Şubelerde gelir veya gider kaydı girdikçe burada dönem özeti ve grafikler oluşur. Tarih aralığını genişletmeyi veya şube filtresini kaldırmayı deneyin.",
@@ -369,26 +475,30 @@ export const reports = {
   chartBranchInboundMix: "Şubeye gelen miktar (sıralı)",
   sectionStockCharts: "Dağılım",
   sectionCharts: "Grafikler",
-  sectionMonthlyTrends: "Ay bazlı trend",
-  sectionBranchMonthly: "Şube — ay bazlı net",
+  sectionMonthlyTrends: "1 · Aya göre toplamlar",
+  sectionBranchMonthly: "2 · Şubeler, ay ay",
   chartMonthlyTrendCaption:
-    "Operasyonel gider ve net nakit (maaş/avans düşülmüş), seçili para birimi.",
+    "Yatay eksen = seçtiğiniz tarih aralığındaki takvim ayları. Kırmızı = operasyonel gider; yeşil = net nakit (kasa görünümü, maaş/avans düşümü varsa uygulanır).",
   chartMonthlyExpenseNet: "Aylık gider ve net",
   chartMonthlyExpense: "Operasyonel gider",
   chartMonthlyNet: "Net nakit",
   chartBranchMonthlyNet: "Şubelere göre aylık net",
   chartBranchMonthlyHint:
-    "Tüm şubeler seçiliyken: hareket hacmine göre en üst 8 şube, aynı para birimi.",
+    "Yalnızca tüm şubeler seçiliyken görünür. Her çizgi = bir şubenin o ayki neti; gösterilen şubeler en yoğun olanlar (efsaneyi sade tutmak için).",
+  chartMonthlyBarsNote:
+    "Az sayıda ay: net ve gider yan yana çubuklarla gösterilir; uzun dönem seçince çizgi trendi belirir.",
+  chartBranchSingleMonthBarsNote:
+    "Tek ay seçili: her şubenin o aydaki neti yatay çubukla sıralanır (çok aylı seçimde çizgi kullanılır).",
   colDeltaPrior: "Önceki döneme Δ",
   finance: {
     direction: {
-      in: "Gelir",
+      in: "Faaliyet geliri (IN)",
       out: "Gider",
     },
   },
   financialSummary: {
     kpi: {
-      totalIncomeThisPeriod: "Toplam gelir (bu dönem)",
+      totalIncomeThisPeriod: "Faaliyet geliri (bu dönem)",
       totalExpenseThisPeriod: "Toplam operasyonel gider (bu dönem)",
       totalSalaryPaidThisPeriod: "Ödenen toplam maaş (bu dönem)",
       totalAdvanceGivenThisPeriod: "Verilen toplam avans (bu dönem)",
@@ -411,7 +521,7 @@ export const reports = {
   },
   export: {
     financial: {
-      totalIncome: "Toplam gelir",
+      totalIncome: "Faaliyet geliri",
       totalExpenseOperational: "Operasyonel gider (maaş ve avans hariç)",
       totalSalaryPaid: "Ödenen maaş",
       totalAdvanceGiven: "Verilen avans",
@@ -427,30 +537,95 @@ export const reports = {
   tablesHubCollapsedHint:
     "Tam ekran tablo sayfaları: finans, stok, nakit pozisyonu, şube karşılaştırma, patron akışı.",
   navFinancialTables: "Finans · tablolar",
-  navStockTables: "Stok · tablolar",
-  navCashReport: "Nakit pozisyonu · tablo",
-  navPatronFlow: "Patron akışı · tablo",
-  navBranchComparison: "Şube karşılaştırma",
+  navStockTables: "Stok — tüm tablolar",
+  navCashReport: "Kasa — tam tablo",
+  navPatronFlow: "Cebimden neye gitti",
+  navBranchComparison: "Şubeleri yan yana",
   navBackToReportsHub: "Tüm raporlar",
+  sidebarFinances: "Dönem finansı",
+  sidebarOrderAccountStatement: "Sipariş / hesap dökümü",
+  hubOpenCashFullTable: "Tam kasa tablosu (sıralama, dışa aktarma)",
+  hubOpenStockFullTables: "Stok — tam tablolar sayfası",
+  finReportsLayoutTitle: "Finans raporları",
+  finToolbarPreviewEyebrow: "Seçili dönem",
+  finReportsLayoutSubtitle:
+    "Özet · Önceki döneme göre · Grafikler · Ay ay birikimli · Tablolar — üstteki sekmeler; huni ortak.",
+  finNavSummary: "Dönem özeti",
+  finNavCompare: "Önceki döneme göre",
+  finNavCharts: "Grafikler ve dağılım",
+  finNavTrend: "Ay ay birikimli",
+  finNavTables: "Finans tabloları",
+  finNavCashFlow: "Patron cebi ve kasa hareketleri",
+  finSummaryPageLead:
+    "Kartlar hunideki dönem ve ek filtrelere göredir. Sinyal ve grafik için üstteki sekmeleri kullanın.",
+  finChartsPageIntroEyebrow: "Bu sekme kısaca",
+  finChartsPageIntroBody: `Pasta ve şube çubukları Özet sekmesiyle aynı finans filtreleriyle hesaplanır (tarih, şube, para birimi, yön, kategori, ödeme kaynağı vb.).
+
+Üstte: seçilen dönem için şube netleri ve bir önceki pencereye göre değişim.
+Altta: gelir–gider pastası ve kategori / ödeme dağılımı — yine aynı filtre dilimi.
+
+Kategori filtresiz ay ay çizgi istiyorsanız «Ay ay birikimli» sekmesine geçin.`,
+  finComparePageLead:
+    "Önceki döneme göre net; gider kaynağı ve şubeler.",
+  finCompareCurrentPeriodLabel: "Seçili dönem",
+  finComparePriorPeriodLabel: "Önceki dönem (karşılaştırma)",
+  finComparePriorPeriodHint:
+    "Net değişim kartları bu tarihlerle önceki dönem netine göre hesaplanır.",
+  finTrendPageIntroEyebrow: "Bu sekme kısaca",
+  finTrendPageIntroBody: `Grafikler seçtiğiniz başlangıç–bitiş aralığındaki kasa hareketlerini takvim ayına göre toplar. Uzun dönem ve şube kıyasının bozulmaması için hunideki ek filtreler bilinçli olarak devre dışıdır.
+
+X ekseni = ay, Y ekseni = tutar. Net, kasadaki gelir eksi giderdir. İlk grafik: her ay şirket geneli operasyonel gider (kırmızı) ve net nakit (yeşil). İkinci grafik yalnızca «tüm şubeler» seçiliyken; her çizgi bir şubenin aylık neti.
+
+Para birimi / kategori / yön / ödeme kaynağı filtreleri bu çizgilere uygulanmaz; o dilim için Özet veya Grafikler sekmesini kullanın.`,
+  finReportsNavAria: "Finans raporu bölümleri",
   tablesPageFinTitle: "Finans raporu — tablolar",
   tablesPageFinSubtitle:
-    "Dönem özeti, şubeler, kategoriler ve avanslar — her bölümde ayrı filtre.",
+    "Soldaki (masaüstü) veya üstteki (mobil) listeden tablo bloğunu seçin; her blokta arama/sıralama vardır, hunideki finans filtreleri ortaktır.",
+  finTablesSubnavAria: "Finans tabloları — blok seçin",
+  finTablesTotalsPageIntroEyebrow: "Bu blok kısaca",
+  finTablesTotalsPageIntroBody: `Her para birimi için faaliyet geliri, operasyonel gider ve net; hunideki dönem, şube ve finans filtreleri bu tabloya da uygulanır — Özet sekmesiyle aynı dilim.
+
+Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI dışıdır (tüm finans raporlarında aynı kural).
+
+Önceki döneme göre fark (Δ) ve şube kıyası «Şubeye göre» ve diğer alt sekmelerde; soldaki menüden geçiş.`,
   tablesPageStockTitle: "Stok raporu — tablolar",
   tablesPageStockSubtitle:
     "Depolar, akışlar ve şube girişleri — her bölümde ayrı filtre.",
   tablesPageCashTitle: "Nakit pozisyonu",
   tablesPageCashSubtitle: "Şube çekmecesi ve kasa borçları.",
-  tablesPagePatronFlowTitle: "Patron akışı",
+  tablesPagePatronFlowTitle: "Cebimden neye gitti?",
   tablesPagePatronFlowSubtitle:
-    "Patrondan nakit giriş, patron ödemeli tedarikçi ve muhasebe/yasal ödemeler, diğer patron ödemeli giderler — dönem ve şubeye göre filtre.",
+    "Kasa defterine işlenmiş patron hareketleri: cebinizden kasaya, gelirde size yazılan nakit payı, kasadan size dönüş, giderde «ödeyen: patron» satırları — tam liste; şube ve tarih filtreleyin.",
+  patronFlowScopeNote:
+    "«Cebinden verilen» = giderde ödeme kaynağı Patron olan OUT satırları (tedarikçi / muhasebe / diğer ayrımı akış tipinde). Kasaya nakit koyma ve gelirde patron payı ayrı satırlardadır. Satırda Patron seçilmemişse (ör. maaş kaydı varsayılan kasa) burada görünmez — finans özetinden farklıdır.",
+  patronPocketStoryTitle: "Cüzdan özeti",
+  patronPocketStoryHeadlineOut:
+    "Bu dönem cebinizden toplam {{amount}} {{currency}} çıktı.",
+  patronPocketStoryInOnly:
+    "Bu dilimde kasadan size doğru net {{amount}} {{currency}} (nakit yatırım + gelirde patron payı); cebinizden çıkan gider satırı yok.",
+  patronPocketStoryCashInAlso: "Kasadan size doğru girişler (nakit yatırım + gelir payı): {{amount}} {{currency}}.",
+  patronPocketStoryWhere: "Paranın gittiği yerler",
+  patronPocketStoryNoMovement: "Bu para birimi için hareket yok.",
   patronFlowLead:
-    "Satırlar şube kasası hareketlerinden sınıflanır (IN patron nakit, OUT ödeyen patron, tedarikçi bağlantılı OUT, OUT_TAX). POS etiketleri aşağıdaki şube profilinden gelir.",
+    "Şube kasası satırları: patron nakit girişi, gelirde nakit lehtarı patron, kasadan patrona ödeme (borç kapatma / patrona kayıt devri), patron ödemeli OUT (tedarikçi, OUT_TAX, diğer). POS etiketi şube profilinden.",
   patronFlowTotalsTitle: "Akış tipine göre toplamlar",
   patronFlowKindPatronCashIn: "Patron nakit girişi",
+  patronFlowKindRegisterIncomeToPatron: "Kasadaki gelir (patron nakit payı)",
+  patronFlowKindRegisterPaidToPatron: "Kasadan patrona (borç kapatma)",
+  patronFlowKindPocketClaimToPatron: "Patrona kayıt devri (kasa)",
+  patronFlowStoryInflowBreakdown:
+    "Dağılım: patron nakit {{deposit}} · gelirde size yazılan pay {{incomeShare}} {{currency}}.",
+  patronFlowStoryRegisterReturns:
+    "Kasadan size dönen (borç kapatma / patrona kayıt devri): {{amount}} {{currency}}.",
   patronFlowKindSupplierPaidByPatron: "Tedarikçi (patron öder)",
   patronFlowKindAccountingPaidByPatron: "Muhasebe / yasal (patron öder)",
   patronFlowKindOtherPaidByPatron: "Diğer (patron öder)",
+  patronFlowKindAdvanceFromPatron: "Avans (patron kasadan dışı)",
+  patronFlowKindSalaryFromPatron: "Maaş (patron kaynaklı, legacy)",
   patronFlowEmpty: "Seçilen dönem ve filtreler için patron akışı hareketi yok.",
+  patronFlowEmptyWhy:
+    "Patron akışı kurallarına uyan satır yok: bu pencerede patron nakit girişi, gelirde patron nakit payı, kasadan patrona dönüş veya patron ödemeli gider kaydı bulunmuyor.",
+  patronFlowEmptyTrendCta: "Şirket geneli net nakit (aylık) → Finans › Ay ay birikimli",
   patronFlowLinesSectionTitle: "Hareket satırları",
   patronFlowColDate: "Tarih",
   patronFlowColKind: "Akış tipi",
@@ -460,7 +635,7 @@ export const reports = {
   patronFlowColDescription: "Açıklama",
   patronFlowPosSectionTitle: "POS yerleşim profili (şube bazında)",
   patronFlowPosSectionLead:
-    "Kart/POS tahsilatının raporda patrona mı, şube personeline mi, diğer tarafa mı yazılacağını işaretler. Kaydet seçili şube için master veriyi günceller.",
+    "Kart/POS kazancının raporda kime yazılacağını işaretler. Franchise, ortaklık veya diğer seçildiğinde kimin / hangi yapının lehtar olduğu notta yazılmalıdır. Kaydet seçili şube için profili günceller.",
   patronFlowBranchesMissingProfile:
     "{{count}} şubenin henüz profili yok; yine de listede görünür — POS satırlarını etiketlemek için profil tanımlayın.",
   patronFlowProfileBranchLabel: "Şube",
@@ -479,12 +654,23 @@ export const reports = {
   patronFlowBeneficiaryOther: "Diğer",
   patronFlowPickBranchFirst: "Önce şube seçin.",
   patronFlowPersonnelRequired: "Lehtar personel ise şube personeli seçin.",
-  tablesPageBranchComparisonTitle: "Şube karşılaştırma — kasa toplamları",
+  tablesPageBranchComparisonTitle: "Şube karşılaştırma — faaliyet KPI’ları",
   tablesPageBranchComparisonSubtitle:
-    "Seçilen dönemde şube ve para birimine göre gelir, gider ve net (sayfalı; isteğe bağlı tek şube).",
+    "Seçilen dönemde şube ve para birimine göre faaliyet geliri, operasyonel gider ve net. Satırdaki okla geliri nakit/kart/patron nakit, giderleri ödeme kaynağına göre açın.",
+  branchComparisonKpiScopeCallout:
+    "Gelir ve gider sütunları finans özetiyle aynı KPI kurallarını kullanır (gelirde iç nakit IN’ler yok; giderde kasadan cebi ve patron borcu kapatma yok). Nakit sekmesindeki çekmece bakiyesi fiili anlık görünüm olabilir, farklıdır.",
+  branchComparisonScopeNote:
+    "Şube karşılaştırma, seçilen aralıkta finans raporundaki faaliyet geliri ve operasyonel gider tanımlarını kullanır — ham «tüm IN/OUT ciro» değildir.",
   branchComparisonPeriodHelp:
     "Tarih aralığındaki şube kasası hareketlerine dayanır. Sütun başlığına tıklayarak sıralayın.",
   branchComparisonSortHint: "Sıralamak için sütun başlığına tıklayın; tekrar ters çevirir.",
+  branchComparisonExpandShow: "Gelir/gider ayrıntısını göster",
+  branchComparisonExpandHide: "Ayrıntıyı gizle",
+  branchComparisonDetailIncomeTitle: "Faaliyet geliri — nakit ve kart",
+  branchComparisonDetailExpenseTitle: "Gider — ödeme kaynağı",
+  branchComparisonIncomeCash: "Nakit (gelir)",
+  branchComparisonIncomeCard: "Kart / POS (gelir)",
+  branchComparisonIncomeCashPatron: "Nakit içinden patrona yazılan",
   branchComparisonEmpty: "Bu dönem ve filtreler için satır yok.",
   branchComparisonPageSize: "Sayfa başına satır",
   branchComparisonPaging: "Sayfa {{page}} / {{totalPages}} · toplam {{total}} satır",
@@ -501,4 +687,133 @@ export const reports = {
   sortDescAria: "Azalan sırala",
   sortStateAsc: "A→Z / küçük→büyük",
   sortStateDesc: "Z→A / büyük→küçük",
+  orderAccountStatementTitle: "Sipariş ve hesap dökümü (PDF)",
+  orderAccountStatementSubtitle:
+    "Solda bilgileri doldurun; sağdaki önizleme indirilecek PDF ile aynıdır.",
+  orderAccountStatementHeaderCompany: "Üst başlık (kurum)",
+  orderAccountStatementHeaderBranch: "Alt başlık (şube / birim)",
+  orderAccountStatementEmblem: "Amblem (opsiyonel)",
+  orderAccountStatementEmblemHelp: "PDF başlığında sol üstte görünmesi için logo resmi yükleyin.",
+  orderAccountStatementEmblemUseInstitutionImage: "Kurum görselini al",
+  orderAccountStatementEmblemFetching: "Kurum görseli alınıyor…",
+  orderAccountStatementEmblemFetchError: "Kurum görseli alınamadı. Önce sistem logonuzu yükleyip tekrar deneyin.",
+  orderAccountStatementEmblemClear: "Amblemi kaldır",
+  orderAccountStatementDocTitle: "Belge başlığı",
+  orderAccountStatementShowTagline: "PDF’te “Sipariş özeti · Hesap dökümü” satırını göster",
+  orderAccountStatementShowTaglineHelp:
+    "Kapatırsanız bu alt başlık belgede ve indirilen PDF’te yer almaz.",
+  orderAccountStatementLayoutTemplate: "PDF yerleşimi",
+  orderAccountStatementLayoutCorporate: "Kurumsal (ferah)",
+  orderAccountStatementLayoutCompact: "Sıkı (daha çok satır)",
+  orderAccountStatementLayoutMinimal: "Sade (düz, az süsleme)",
+  orderAccountStatementLayoutInvoiceClassic: "Klasik Fatura",
+  orderAccountStatementLayoutEInvoice: "E-Fatura",
+  orderAccountStatementLayoutProforma: "Proforma",
+  orderAccountStatementLayoutDispatch: "Sevk İrsaliyesi",
+  orderAccountStatementLayoutServiceForm: "Hizmet Formu",
+  orderAccountStatementContentTemplate: "Örnek içerik",
+  orderAccountStatementContentCustom: "Özel (mevcut veriyi koru)",
+  orderAccountStatementContentTekin: "Toptan / hesap özeti örneği",
+  orderAccountStatementContentCafe: "Kafe / perakende örneği",
+  orderAccountStatementContentBakery: "Fırın / unlu mamül örneği",
+  orderAccountStatementContentCatering: "Catering / etkinlik örneği",
+  orderAccountStatementPreviewTemplateHint:
+    "Yerleşim ve örnek seti buradan da seçebilirsiniz; kutuya yazarak filtreleyin.",
+  orderAccountStatementLinesTitle: "Kalemler",
+  orderAccountStatementColProduct: "Ürün açıklaması",
+  orderAccountStatementColAmount: "Tutar (₺)",
+  orderAccountStatementColQty: "Adet",
+  orderAccountStatementColQtyShort: "Adet",
+  orderAccountStatementColQtyPlaceholder: "örn. 12 veya 3 koli",
+  orderAccountStatementUnit: "Birim",
+  orderAccountStatementUnitPlaceholder: "kg / koli / adet",
+  orderAccountStatementShowQtyColumn: "PDF'te adet, birim ve birim fiyatı göster",
+  orderAccountStatementShowQtyColumnHelp:
+    "Açıkken her satıra adet, birim ve birim fiyatı girebilirsiniz; PDF'te ayrı sütunlarda görünür. Adet ve birim fiyat birlikte girilirse otomatik tutar önerisi hesaplanır.",
+  orderAccountStatementAmount: "Tutar",
+  orderAccountStatementAddLine: "Satır ekle",
+  orderAccountStatementRemove: "Sil",
+  orderAccountStatementGift: "Hediye",
+  orderAccountStatementGiftSuffix: "Hediye",
+  orderAccountStatementPickProduct: "Ürün kataloğundan açıklama doldur",
+  orderAccountStatementCatalogNone: "— seçin —",
+  orderAccountStatementAdjustments: "İndirim ve ön ödeme",
+  orderAccountStatementPromoDiscount: "Hediye / promosyon indirimi (toplamdan düşülecek)",
+  orderAccountStatementAdvance: "Ön ödeme (toplamdan düşülecek)",
+  orderAccountStatementPromoLine: "Hediye / Promosyon",
+  orderAccountStatementAdvanceLine: "Ön Ödeme",
+  orderAccountStatementPaidOnBehalfTitle: "Bizden çıkmayan, alınana ödediğiniz",
+  orderAccountStatementPaidOnBehalfHelp:
+    "Örneğin tedarikçiye sizin ödediğiniz ama stoğu size gelmeyen kalemler. Net tutara eklenir.",
+  orderAccountStatementAddPaidLine: "Bu gruba satır ekle",
+  orderAccountStatementGross: "Genel Toplam",
+  orderAccountStatementSubtotal: "ARA TOPLAM",
+  orderAccountStatementNet: "NET ÖDENECEK TUTAR",
+  orderAccountStatementPreviewTitle: "Önizleme (A4)",
+  orderAccountStatementPreviewHint: "Tek sayfa A4 PDF; uzun içerik otomatik küçültülerek sığar.",
+  orderAccountStatementOpenFullscreenPreview: "Önizle ve indir",
+  orderAccountStatementPreviewIntro:
+    "Önizlemeyi açmadan sayfa uzamaz; A4 düzenini tam ekranda inceleyebilir ve PDF'i oradan indirebilirsiniz.",
+  orderAccountStatementPreviewEmpty: "Henüz kalem yok — yukarıdaki formdan satır ekleyin.",
+  orderAccountStatementStepHead: "1 · Üst bilgi",
+  orderAccountStatementStepLines: "2 · Kalemler",
+  orderAccountStatementLinesSectionExpand: "Kalemler bölümünü aç",
+  orderAccountStatementLinesSectionCollapse: "Kalemler bölümünü daralt",
+  orderAccountStatementStepPromoLines: "3 · Promosyon ve ön ödeme",
+  orderAccountStatementStepExtraPaid: "4 · Size gelmeyen, sizin ödediğiniz",
+  orderAccountStatementLinePlaceholder: "Örn. 304 Küvet (1.216 kg)",
+  orderAccountStatementAddPromoLine: "Promosyon satırı ekle",
+  orderAccountStatementGiftAutoHint:
+    "«Hediye» işaretli kalemlerin tutarları genel toplamdan otomatik düşer; PDF ve önizlemede ayrı satır olarak gösterilir.",
+  orderAccountStatementPromoLinesHelp:
+    "Ek indirim veya kampanyayı açıklama + tutar ile satır ekleyin (ör. «Sepet indirimi»). Tutar genel toplamdan düşülür; hediye işaretli ürünler ayrıca otomatik düşer.",
+  orderAccountStatementPromoLinesEmpty: "Henüz promosyon satırı yok — ek indirim yoksa boş bırakabilirsiniz.",
+  orderAccountStatementPromoLineDesc: "Promosyon açıklaması",
+  orderAccountStatementPromoLineAmount: "Tutar (₺)",
+  orderAccountStatementDocumentTagline: "Sipariş özeti · Hesap dökümü",
+  orderAccountStatementIssuedPrefix: "Düzenleme tarihi",
+  orderAccountStatementGiftTotalLine: "Hediye ürün kalemleri",
+  orderAccountStatementPaidSectionPdf: "Dışarıdan temin edilen",
+  orderAccountStatementPromoLineFallback: "Promosyon",
+  orderAccountStatementAdvanceShort: "Ön ödeme",
+  orderAccountStatementPaidEmpty: "Bu grupta satır yok; gerekirse «Bu gruba satır ekle» ile ekleyin.",
+  orderAccountStatementColRow: "Sıra",
+  orderAccountStatementColActions: "İşlem",
+  orderAccountStatementTableScrollHint:
+    "Telefonda her satır kart olarak listelenir; tablet ve üzeri genişlikte satırlar tabloya eklenir.",
+  orderAccountStatementCalcHint: "Tutar önerisi (isteğe bağlı)",
+  orderAccountStatementPriceModeLabel: "Hesaplama türü",
+  orderAccountStatementPriceModePiece: "Adet (parça)",
+  orderAccountStatementPriceModeKg: "Kilogram (kg)",
+  orderAccountStatementCalcHintPiece: "Adet ve birim tutarını (₺) girin. Öneri: adet × birim tutar.",
+  orderAccountStatementCalcHintKg: "Toplam kg ve kg başına tutarı (₺/kg) girin. Öneri: kg × (₺/kg).",
+  orderAccountStatementQty: "Adet",
+  orderAccountStatementUnitPrice: "Birim tutar (₺)",
+  orderAccountStatementKg: "Kg",
+  orderAccountStatementTryPerKg: "Kg tutarı (₺/kg)",
+  orderAccountStatementSuggestedTotal: "Önerilen tutar",
+  orderAccountStatementApplySuggestion: "Tutara yaz",
+  orderAccountStatementPriceCalcToggleShow: "Tutar önerisi ve hesaplamayı göster",
+  orderAccountStatementPriceCalcToggleHide: "Tutar önerisini gizle",
+  orderAccountStatementDownloadPdf: "PDF indir",
+  orderAccountStatementSystemSaveToggle: "İndirilen belgeyi sistemde de sakla",
+  orderAccountStatementSystemSaveToggleHelp:
+    "Açıkken PDF, şube belgesi olarak sisteme de yüklenir ve Belgeler/Şube detayında görünür.",
+  orderAccountStatementSystemBranchLabel: "Sistem eşleşme şubesi",
+  orderAccountStatementSystemBranchHelp:
+    "Belgenin hangi şube altında görüneceğini seçin. Seçili şubenin belge listesine kaydedilir.",
+  orderAccountStatementSystemBranchNone: "Şube seçin…",
+  orderAccountStatementSystemBranchRequired:
+    "Sisteme kaydetmek için bir şube seçin.",
+  orderAccountStatementSystemSaved:
+    "PDF indirildi ve seçili şubenin belgelerine kaydedildi.",
+  orderAccountStatementSystemNotePrefix: "Sipariş-hesap dökümü PDF",
+  orderAccountStatementGeneratingPdf: "Oluşturuluyor…",
+  orderAccountStatementPdfError: "PDF oluşturulamadı. Sayfayı yenileyip tekrar deneyin.",
+  orderAccountStatementFillSample: "Örnek doldur",
+  orderAccountStatementFillSampleDetail:
+    "Üstteki «Örnek içerik» seçimine göre formu doldurur: özel seçiliyken varsayılan toptan örneği yüklenir; diğer şablonlarda ilgili örnek seti doldurulur.",
+  orderAccountStatementReset: "Tümünü temizle",
+  orderAccountStatementNoAccess: "Bu sayfayı görmek için raporlar erişimi gerekir.",
 } as const;
+

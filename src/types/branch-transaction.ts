@@ -16,7 +16,7 @@ export type BranchTransaction = {
   cashSettlementPersonnelId: number | null;
   cashSettlementPersonnelFullName: string | null;
   cashSettlementPersonnelJobTitle: string | null;
-  /** OUT: REGISTER | PATRON | PERSONNEL_POCKET */
+  /** OUT: REGISTER | PATRON | PERSONNEL_POCKET | PERSONNEL_HELD_REGISTER_CASH */
   expensePaymentSource: string | null;
   /** OUT + OUT_OPS + OPS_INVOICE: UNPAID | PAID */
   invoicePaymentStatus: string | null;
@@ -34,6 +34,8 @@ export type BranchTransaction = {
   linkedPersonnelFullName: string | null;
   /** Otomatik satırda kaynak işlem (örn. gün sonu geliri). */
   sourceTransactionId?: number | null;
+  /** OUT: düşülen kasa devri IN satırı (denetim). */
+  settlesCashHandoverTransactionId?: number | null;
   linkedSupplierInvoiceLineId?: number | null;
   /** Araç giderinden şube kasasına yansıyan satır. */
   linkedVehicleExpenseId?: number | null;
@@ -48,6 +50,8 @@ export type BranchTransaction = {
 export type CreateBranchTransactionInput = {
   /** Atlanırsa veya null: şubesiz merkez gideri (yalnız OUT) */
   branchId?: number | null;
+  /** Doğrudan ledger kodu; yoksa type + mainCategory + category üretilir. */
+  classificationCode?: string | null;
   type: string;
   mainCategory?: string | null;
   category?: string | null;
@@ -73,4 +77,8 @@ export type CreateBranchTransactionInput = {
   linkedPocketExpenseTransactionIds?: number[];
   /** Gün sonu + PATRON: kasadan patron borcu düşümü (varsayılan API’de true) */
   applyPatronDebtRepayFromDayClose?: boolean;
+  /** OUT + REGISTER|PATRON: hangi kasa devri IN satırından düşüleceği (isteğe bağlı). */
+  settlesCashHandoverTransactionId?: number | null;
+  /** OUT_PATRON_DEBT_REPAY + REGISTER: tek OUT ile birden fazla kasa devri IN tahsisi (settlesCashHandoverTransactionId ile birlikte kullanılamaz). */
+  cashHandoverSettlements?: { handoverTransactionId: number; amount: number }[];
 };

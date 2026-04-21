@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@/lib/auth/AuthContext";
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
 import {
@@ -13,6 +14,8 @@ import type { BranchTourismSeasonPeriod } from "@/types/branch-tourism-season";
 import { formatLocaleDate, formatLocaleDateTime } from "@/shared/lib/locale-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
+import { userCanManageTourismSeasonClosedPolicy } from "@/shared/lib/resolve-localized-api-error";
+import { BranchTourismSeasonWorkflowCard } from "@/modules/branch/components/BranchTourismSeasonWorkflowCard";
 import { Card } from "@/shared/components/Card";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
@@ -34,6 +37,8 @@ type Props = { branchId: number; active: boolean };
 
 export function BranchTourismSeasonTab({ branchId, active }: Props) {
   const { t, locale } = useI18n();
+  const { user } = useAuth();
+  const canManageClosedSeasonPolicy = userCanManageTourismSeasonClosedPolicy(user?.role);
   const [yearFilter, setYearFilter] = useState("");
   const effectiveYear = useMemo(() => {
     const s = yearFilter.trim();
@@ -163,6 +168,7 @@ export function BranchTourismSeasonTab({ branchId, active }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
+      <BranchTourismSeasonWorkflowCard t={t} showAdminPolicyLink={canManageClosedSeasonPolicy} />
       <p className="text-sm text-zinc-600">{t("branch.tSeasonHint")}</p>
 
       <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-zinc-50/80 p-3 sm:flex-row sm:flex-wrap sm:items-end">

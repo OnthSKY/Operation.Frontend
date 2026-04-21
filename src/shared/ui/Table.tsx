@@ -110,7 +110,7 @@ export function TableCell({
         "px-3 py-3 align-middle first:pl-4 last:pr-4",
         mobileCards &&
           hasLabel &&
-          "max-md:flex max-md:w-full max-md:items-start max-md:justify-between max-md:gap-3 max-md:border-b max-md:border-zinc-100 max-md:py-2.5 max-md:first:pt-2 max-md:last:border-b-0",
+          "max-md:flex max-md:min-w-0 max-md:w-full max-md:items-start max-md:justify-between max-md:gap-3 max-md:border-b max-md:border-zinc-100 max-md:py-2.5 max-md:first:pt-2 max-md:last:border-b-0",
         mobileCards &&
           !hasLabel &&
           "max-md:block max-md:w-full max-md:border-b max-md:border-zinc-100 max-md:py-2.5 max-md:first:pt-2 max-md:last:border-b-0",

@@ -30,10 +30,15 @@ import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
 import { TableToolbarMoreMenu } from "@/shared/components/TableToolbarMoreMenu";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
+import { FilterFunnelIcon } from "@/shared/components/FilterFunnelIcon";
 import { RightDrawer } from "@/shared/components/RightDrawer";
 import { DateField } from "@/shared/ui/DateField";
 import { toErrorMessage } from "@/shared/lib/error-message";
-import { formatLocaleAmount } from "@/shared/lib/locale-amount";
+import {
+  formatAmountInputOnBlur,
+  formatLocaleAmount,
+  parseLocaleAmount,
+} from "@/shared/lib/locale-amount";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
@@ -41,13 +46,35 @@ import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
 import { Switch } from "@/shared/ui/Switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/Table";
+import { PencilIcon } from "@/shared/ui/EyeIcon";
 import { Tooltip } from "@/shared/ui/Tooltip";
+import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { ToolbarGlyphReceipt } from "@/shared/ui/ToolbarGlyph";
 import { apiFetch } from "@/shared/api/client";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 type LineReceiveTarget = "none" | "warehouse" | "branch";
+
+type InvCreateFormErrors = Partial<{
+  supplier: string;
+  documentDate: string;
+  lines: string;
+  whChecked: string;
+  whApproved: string;
+}>;
+
+type InvLineEditFormErrors = Partial<{
+  lineAmount: string;
+  receiveBranch: string;
+  receiveWarehouse: string;
+  product: string;
+  quantity: string;
+}>;
+
+type PayFormErrors = Partial<{ date: string; amount: string; branch: string }>;
+
+type EditInvFormErrors = Partial<{ documentDate: string }>;
 
 type InvoiceLineDraft = {
   key: string;
@@ -87,6 +114,18 @@ function parseIntId(s: string): number | null {
   if (!t) return null;
   const n = parseInt(t, 10);
   return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function supplierInvoiceLooksPaid(row: SupplierInvoiceListItem): boolean {
+  return row.openAmount <= 0.005 || row.paymentMarkedComplete;
+}
+
+function InvoiceFilterDrawerIconWrap({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50 text-zinc-600">
+      {children}
+    </div>
+  );
 }
 
 const AUDIT_HEADER_KEYS = [
@@ -572,6 +611,7 @@ export function SupplierInvoicesScreen() {
   const [minLinesTotalStr, setMinLinesTotalStr] = useState("");
   const [maxLinesTotalStr, setMaxLinesTotalStr] = useState("");
   const [payFilter, setPayFilter] = useState<"" | "paid" | "unpaid">("");
+  const [invFiltersDrawerOpen, setInvFiltersDrawerOpen] = useState(false);
 
   const invFilters = useMemo(() => {
     const minN = parseDec(minLinesTotalStr);
@@ -657,6 +697,17 @@ export function SupplierInvoicesScreen() {
     [t]
   );
 
+  const invoiceFiltersActive = useMemo(
+    () =>
+      invSupplierId !== "" ||
+      !!invDateFrom.trim() ||
+      !!invDateTo.trim() ||
+      !!minLinesTotalStr.trim() ||
+      !!maxLinesTotalStr.trim() ||
+      payFilter !== "",
+    [invSupplierId, invDateFrom, invDateTo, minLinesTotalStr, maxLinesTotalStr, payFilter]
+  );
+
   const [invOpen, setInvOpen] = useState(false);
   const [invSupplierPick, setInvSupplierPick] = useState<number | "">("");
   const [invDocNo, setInvDocNo] = useState("");
@@ -667,8 +718,12 @@ export function SupplierInvoicesScreen() {
   const [invPaymentMarked, setInvPaymentMarked] = useState(false);
   const [invFormalIssued, setInvFormalIssued] = useState(false);
   const [invLines, setInvLines] = useState<InvoiceLineDraft[]>(() => [emptyLine()]);
+  const [invLineEditKey, setInvLineEditKey] = useState<string | null>(null);
+  const [invLineEditDraft, setInvLineEditDraft] = useState<InvoiceLineDraft | null>(null);
   const [invWhCheckedBy, setInvWhCheckedBy] = useState("");
   const [invWhApprovedBy, setInvWhApprovedBy] = useState("");
+  const [invCreateFieldErrors, setInvCreateFieldErrors] = useState<InvCreateFormErrors>({});
+  const [invLineEditErrors, setInvLineEditErrors] = useState<InvLineEditFormErrors>({});
 
   const [editInvOpen, setEditInvOpen] = useState(false);
   const [editInvDocNo, setEditInvDocNo] = useState("");
@@ -678,6 +733,7 @@ export function SupplierInvoicesScreen() {
   const [editInvPaymentMarked, setEditInvPaymentMarked] = useState(false);
   const [editInvFormalIssued, setEditInvFormalIssued] = useState(false);
   const [editChangeNote, setEditChangeNote] = useState("");
+  const [editInvFieldErrors, setEditInvFieldErrors] = useState<EditInvFormErrors>({});
 
   const { data: warehouses = [] } = useWarehousesList();
   const { data: whPeopleRaw = [] } = useWarehousePeopleOptions(invOpen);
@@ -710,6 +766,73 @@ export function SupplierInvoicesScreen() {
     [invLines]
   );
 
+  useEffect(() => {
+    if (!invOpen) return;
+    setInvCreateFieldErrors({});
+  }, [
+    invOpen,
+    invSupplierPick,
+    invDocDate,
+    invDue,
+    invDesc,
+    invCur,
+    invPaymentMarked,
+    invFormalIssued,
+    invWhCheckedBy,
+    invWhApprovedBy,
+  ]);
+
+  const closeInvLineEditor = useCallback(() => {
+    setInvLineEditKey(null);
+    setInvLineEditDraft(null);
+    setInvLineEditErrors({});
+  }, []);
+
+  const openInvLineEditor = useCallback(
+    (key: string) => {
+      const line = invLines.find((l) => l.key === key);
+      if (!line) return;
+      setInvLineEditErrors({});
+      setInvLineEditDraft({ ...line });
+      setInvLineEditKey(key);
+    },
+    [invLines]
+  );
+
+  const applyInvLineEditor = useCallback(() => {
+    if (!invLineEditKey || !invLineEditDraft) return;
+    const draft = invLineEditDraft;
+    const lineErrs: InvLineEditFormErrors = {};
+    const n = parseLocaleAmount(draft.lineAmount, locale);
+    if (!Number.isFinite(n) || n <= 0) {
+      lineErrs.lineAmount = t("common.formFieldRequiredHint");
+    }
+    if (draft.receiveTarget === "branch" && parseIntId(draft.receiveBranchId) == null) {
+      lineErrs.receiveBranch = t("suppliers.lineBranchRequired");
+    }
+    if (draft.receiveTarget === "warehouse") {
+      if (parseIntId(draft.productId) == null) {
+        lineErrs.product = t("common.formFieldRequiredHint");
+      }
+      const wq = parseDec(draft.quantity);
+      if (wq == null || wq <= 0) {
+        lineErrs.quantity = t("common.formFieldRequiredHint");
+      }
+      if (parseIntId(draft.receiveWarehouseId) == null) {
+        lineErrs.receiveWarehouse = t("common.formFieldRequiredHint");
+      }
+    }
+    if (Object.keys(lineErrs).length > 0) {
+      setInvLineEditErrors(lineErrs);
+      notify.error(t("common.formFillRequiredSummary"));
+      return;
+    }
+    const key = invLineEditKey;
+    const formattedAmt = formatAmountInputOnBlur(draft.lineAmount, locale);
+    setInvLines((rows) => rows.map((r) => (r.key === key ? { ...draft, lineAmount: formattedAmt } : r)));
+    closeInvLineEditor();
+  }, [invLineEditKey, invLineEditDraft, locale, t, closeInvLineEditor]);
+
   const prepNewInvoiceModal = useCallback((supplierPick: number | "") => {
     setInvSupplierPick(supplierPick);
     setInvDocNo("");
@@ -720,6 +843,9 @@ export function SupplierInvoicesScreen() {
     setInvPaymentMarked(false);
     setInvFormalIssued(false);
     setInvLines([emptyLine()]);
+    setInvLineEditKey(null);
+    setInvLineEditDraft(null);
+    setInvCreateFieldErrors({});
     setInvWhCheckedBy("");
     setInvWhApprovedBy("");
     setInvOpen(true);
@@ -747,42 +873,50 @@ export function SupplierInvoicesScreen() {
   }, [searchParams, router, prepNewInvoiceModal]);
 
   const saveInvoice = async () => {
+    const err: InvCreateFormErrors = {};
     if (invSupplierPick === "" || invSupplierPick <= 0) {
-      notify.error(t("common.required"));
-      return;
+      err.supplier = t("common.formFieldRequiredHint");
     }
     if (!invDocDate.trim()) {
-      notify.error(t("common.required"));
-      return;
+      err.documentDate = t("common.formFieldRequiredHint");
     }
     if (invNeedsWhPersonnel) {
-      const wck = parseIntId(invWhCheckedBy);
-      const wap = parseIntId(invWhApprovedBy);
-      if (wck == null || wap == null) {
-        notify.error(t("suppliers.whIntakePersonnelRequired"));
-        return;
+      if (parseIntId(invWhCheckedBy) == null) {
+        err.whChecked = t("common.formFieldRequiredHint");
+      }
+      if (parseIntId(invWhApprovedBy) == null) {
+        err.whApproved = t("common.formFieldRequiredHint");
       }
     }
+    let lineBlockMsg: string | undefined;
     for (const l of invLines) {
-      if (l.receiveTarget !== "warehouse") continue;
-      if (parseIntId(l.productId) == null) {
-        notify.error(t("suppliers.whIntakeProductRequired"));
-        return;
+      if (l.receiveTarget === "branch" && parseIntId(l.receiveBranchId) == null) {
+        lineBlockMsg = t("suppliers.lineBranchRequired");
+        break;
       }
-      const wq = parseDec(l.quantity);
-      if (wq == null || wq <= 0) {
-        notify.error(t("suppliers.whIntakeQuantityRequired"));
-        return;
-      }
-      if (parseIntId(l.receiveWarehouseId) == null) {
-        notify.error(t("suppliers.whIntakeWarehouseRequired"));
-        return;
+    }
+    if (!lineBlockMsg) {
+      for (const l of invLines) {
+        if (l.receiveTarget !== "warehouse") continue;
+        if (parseIntId(l.productId) == null) {
+          lineBlockMsg = t("suppliers.whIntakeProductRequired");
+          break;
+        }
+        const wq = parseDec(l.quantity);
+        if (wq == null || wq <= 0) {
+          lineBlockMsg = t("suppliers.whIntakeQuantityRequired");
+          break;
+        }
+        if (parseIntId(l.receiveWarehouseId) == null) {
+          lineBlockMsg = t("suppliers.whIntakeWarehouseRequired");
+          break;
+        }
       }
     }
     const lines = invLines
       .map((l) => {
-        const amt = parseDec(l.lineAmount);
-        if (amt == null || amt <= 0) return null;
+        const amt = parseLocaleAmount(l.lineAmount, locale);
+        if (!Number.isFinite(amt) || amt <= 0) return null;
         const pid = parseIntId(l.productId);
         const rwid = l.receiveTarget === "warehouse" ? parseIntId(l.receiveWarehouseId) : null;
         const bid = l.receiveTarget === "branch" ? parseIntId(l.receiveBranchId) : null;
@@ -807,13 +941,23 @@ export function SupplierInvoicesScreen() {
       receiveWarehouseId: number | null;
       receiveBranchId: number | null;
     }>;
-    if (lines.length === 0) {
-      notify.error(t("common.required"));
+    if (!lineBlockMsg && lines.length === 0) {
+      lineBlockMsg = t("suppliers.invoiceLinesInvalidSummary");
+    }
+    if (lineBlockMsg) {
+      err.lines = lineBlockMsg;
+    }
+    setInvCreateFieldErrors(err);
+    const hasErr = Object.values(err).some((v) => v != null && String(v).trim() !== "");
+    if (hasErr) {
+      notify.error(t("common.formFillRequiredSummary"));
       return;
     }
+    setInvCreateFieldErrors({});
+    const supplierIdForApi = typeof invSupplierPick === "number" ? invSupplierPick : Number(invSupplierPick);
     try {
       await createInv.mutateAsync({
-        supplierId: invSupplierPick,
+        supplierId: supplierIdForApi,
         documentNumber: invDocNo.trim() || null,
         documentDate: invDocDate.trim(),
         dueDate: invDue.trim() || null,
@@ -826,6 +970,9 @@ export function SupplierInvoicesScreen() {
         lines,
       });
       notify.success(t("toast.supplierInvoiceCreated"));
+      setInvLineEditKey(null);
+      setInvLineEditDraft(null);
+      setInvCreateFieldErrors({});
       setInvOpen(false);
     } catch (e) {
       notify.error(toErrorMessage(e));
@@ -894,11 +1041,18 @@ export function SupplierInvoicesScreen() {
     setEditInvPaymentMarked(viewInvoice.paymentMarkedComplete);
     setEditInvFormalIssued(viewInvoice.formalSupplierInvoiceIssued);
     setEditChangeNote("");
+    setEditInvFieldErrors({});
     setEditInvOpen(true);
   };
 
   const saveEditInvoice = async () => {
     if (!viewInvoice || viewId == null) return;
+    if (!editInvDocDate.trim()) {
+      setEditInvFieldErrors({ documentDate: t("common.formFieldRequiredHint") });
+      notify.error(t("common.formFillRequiredSummary"));
+      return;
+    }
+    setEditInvFieldErrors({});
     try {
       await updateInv.mutateAsync({
         id: viewId,
@@ -925,6 +1079,11 @@ export function SupplierInvoicesScreen() {
   const [paySrc, setPaySrc] = useState("PATRON");
   const [payBranchId, setPayBranchId] = useState("");
   const [payDesc, setPayDesc] = useState("");
+  const [payFieldErrors, setPayFieldErrors] = useState<PayFormErrors>({});
+
+  useEffect(() => {
+    setPayFieldErrors({});
+  }, [payTarget]);
 
   const openPay = (row: SupplierInvoiceListItem) => {
     setPayTarget(row);
@@ -933,6 +1092,7 @@ export function SupplierInvoicesScreen() {
     setPaySrc("PATRON");
     setPayBranchId("");
     setPayDesc("");
+    setPayFieldErrors({});
   };
 
   const invoiceToolbarMoreItems = useMemo(
@@ -948,16 +1108,24 @@ export function SupplierInvoicesScreen() {
 
   const savePay = async () => {
     if (!payTarget) return;
-    const amt = parseDec(payAmt);
-    if (!payDate.trim() || amt == null || amt <= 0) {
-      notify.error(t("common.required"));
-      return;
+    const pe: PayFormErrors = {};
+    if (!payDate.trim()) {
+      pe.date = t("common.formFieldRequiredHint");
+    }
+    const amt = parseLocaleAmount(payAmt, locale);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      pe.amount = t("common.formFieldRequiredHint");
     }
     const cashBranch = paySrc === "CASH" ? parseIntId(payBranchId) : null;
     if (paySrc === "CASH" && cashBranch == null) {
-      notify.error(t("common.required"));
+      pe.branch = t("common.formFieldRequiredHint");
+    }
+    setPayFieldErrors(pe);
+    if (Object.values(pe).some((v) => v != null && String(v).trim() !== "")) {
+      notify.error(t("common.formFillRequiredSummary"));
       return;
     }
+    setPayFieldErrors({});
     try {
       await createPay.mutateAsync({
         paymentDate: payDate.trim(),
@@ -974,6 +1142,39 @@ export function SupplierInvoicesScreen() {
     } catch (e) {
       notify.error(toErrorMessage(e));
     }
+  };
+
+  const invDraftReceiveSummary = (line: InvoiceLineDraft) => {
+    if (line.receiveTarget === "none") return t("suppliers.lineReceiveNone");
+    if (line.receiveTarget === "warehouse") {
+      const wid = parseIntId(line.receiveWarehouseId);
+      const wn = wid != null ? warehouses.find((w) => w.id === wid)?.name : undefined;
+      return wn ? `${t("suppliers.lineReceiveWarehouse")}: ${wn}` : t("suppliers.lineReceiveWarehouse");
+    }
+    const bid = parseIntId(line.receiveBranchId);
+    const bn = bid != null ? branches.find((b) => b.id === bid)?.name : undefined;
+    return bn ? `${t("suppliers.lineReceiveBranch")}: ${bn}` : t("suppliers.lineReceiveBranch");
+  };
+
+  const invDraftProductCell = (line: InvoiceLineDraft) => {
+    const pid = parseIntId(line.productId);
+    if (pid == null) return t("suppliers.noProduct");
+    return catalog.find((p) => p.id === pid)?.name ?? t("suppliers.noProduct");
+  };
+
+  const invDraftAmountCell = (line: InvoiceLineDraft) => {
+    const n = parseLocaleAmount(line.lineAmount, locale);
+    const cur = invCur.trim() || "TRY";
+    if (!Number.isFinite(n) || n <= 0) return line.lineAmount.trim() ? line.lineAmount : "—";
+    return formatLocaleAmount(n, locale, cur);
+  };
+
+  const closeCreateInvoiceModal = () => {
+    setInvLineEditKey(null);
+    setInvLineEditDraft(null);
+    setInvLineEditErrors({});
+    setInvCreateFieldErrors({});
+    setInvOpen(false);
   };
 
   return (
@@ -1011,6 +1212,23 @@ export function SupplierInvoicesScreen() {
             headerActions={
               <>
                 <TableToolbarMoreMenu menuId="supplier-inv-toolbar-more" items={invoiceToolbarMoreItems} />
+                <Tooltip content={t("suppliers.filterDrawerTitle")} delayMs={200}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className={cn(TABLE_TOOLBAR_ICON_BTN, "relative")}
+                    onClick={() => setInvFiltersDrawerOpen(true)}
+                    aria-label={t("suppliers.filterDrawerTitle")}
+                  >
+                    <FilterFunnelIcon className="h-5 w-5" />
+                    {invoiceFiltersActive ? (
+                      <span
+                        className="absolute right-1 top-1 h-2 w-2 rounded-full bg-violet-500 ring-2 ring-white"
+                        aria-hidden
+                      />
+                    ) : null}
+                  </Button>
+                </Tooltip>
                 <Tooltip content={t("suppliers.newInvoice")} delayMs={200}>
                   <Button
                     type="button"
@@ -1025,44 +1243,6 @@ export function SupplierInvoicesScreen() {
               </>
             }
           >
-        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          <div className="min-w-0 sm:col-span-2 lg:col-span-1">
-            <Select
-              name="invSupplierFilter"
-              label={t("suppliers.filterSupplier")}
-              options={supplierFilterOptions}
-              value={invSupplierId === "" ? "" : String(invSupplierId)}
-              onChange={(e) => setInvSupplierId(e.target.value === "" ? "" : Number(e.target.value))}
-              onBlur={() => {}}
-              className="min-h-11 sm:min-h-10 sm:text-sm"
-            />
-          </div>
-          <DateField label={t("suppliers.dateFrom")} value={invDateFrom} onChange={(e) => setInvDateFrom(e.target.value)} />
-          <DateField label={t("suppliers.dateTo")} value={invDateTo} onChange={(e) => setInvDateTo(e.target.value)} />
-          <Input
-            label={t("suppliers.filterLinesTotalMin")}
-            value={minLinesTotalStr}
-            onChange={(e) => setMinLinesTotalStr(e.target.value)}
-            className="min-h-11 sm:min-h-10 sm:text-sm"
-          />
-          <Input
-            label={t("suppliers.filterLinesTotalMax")}
-            value={maxLinesTotalStr}
-            onChange={(e) => setMaxLinesTotalStr(e.target.value)}
-            className="min-h-11 sm:min-h-10 sm:text-sm"
-          />
-          <div className="min-w-0 sm:col-span-2 lg:col-span-1">
-            <Select
-              name="invPaymentStatus"
-              label={t("suppliers.filterPaymentStatus")}
-              options={paymentStatusOptions}
-              value={payFilter}
-              onChange={(e) => setPayFilter((e.target.value as "" | "paid" | "unpaid") || "")}
-              onBlur={() => {}}
-              className="min-h-11 sm:min-h-10 sm:text-sm"
-            />
-          </div>
-        </div>
         {invErr ? (
           <p className="text-sm text-red-600">{toErrorMessage(invError)}</p>
         ) : invPending ? (
@@ -1070,7 +1250,50 @@ export function SupplierInvoicesScreen() {
         ) : invoices.length === 0 ? (
           <p className="text-sm text-zinc-600">{t("suppliers.noInvoices")}</p>
         ) : (
-          <div className="-mx-1 overflow-x-auto px-1">
+          <>
+          <div className="space-y-3 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] lg:hidden">
+            {invoices.map((row) => (
+              <div key={row.id} className="rounded-xl border border-zinc-200 bg-zinc-50/40 p-3 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-zinc-900">{row.supplierName}</p>
+                    <p className="mt-1 text-xs text-zinc-600">{row.documentDate}</p>
+                    <p className="mt-1 truncate text-xs text-zinc-500">{row.documentNumber ?? "—"}</p>
+                  </div>
+                  {supplierInvoiceLooksPaid(row) ? (
+                    <span className="inline-flex shrink-0 items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-900 ring-1 ring-emerald-200/90">
+                      {t("suppliers.invoicePaidBadge")}
+                    </span>
+                  ) : null}
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 border-t border-zinc-200/80 pt-3">
+                  <div>
+                    <p className="text-xs text-zinc-500">{t("suppliers.linesTotal")}</p>
+                    <p className="text-sm font-semibold tabular-nums text-zinc-900">
+                      {formatLocaleAmount(row.linesTotal, locale, row.currencyCode)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-zinc-500">{t("suppliers.openAmount")}</p>
+                    <p className="text-sm font-semibold tabular-nums text-zinc-900">
+                      {formatLocaleAmount(row.openAmount, locale, row.currencyCode)}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-3 flex flex-col gap-2">
+                  <Button type="button" variant="secondary" className="min-h-11 w-full touch-manipulation" onClick={() => setViewId(row.id)}>
+                    {t("suppliers.view")}
+                  </Button>
+                  {row.openAmount > 0.005 && !row.paymentMarkedComplete ? (
+                    <Button type="button" className="min-h-11 w-full touch-manipulation" onClick={() => openPay(row)}>
+                      {t("suppliers.pay")}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="-mx-1 hidden overflow-x-auto px-1 lg:block">
             <Table>
               <TableHead>
                 <TableRow>
@@ -1089,7 +1312,14 @@ export function SupplierInvoicesScreen() {
                       {row.documentDate}
                     </TableCell>
                     <TableCell dataLabel={t("suppliers.name")} className="text-zinc-900">
-                      {row.supplierName}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="min-w-0">{row.supplierName}</span>
+                        {supplierInvoiceLooksPaid(row) ? (
+                          <span className="inline-flex shrink-0 items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-900 ring-1 ring-emerald-200/90">
+                            {t("suppliers.invoicePaidBadge")}
+                          </span>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell dataLabel={t("suppliers.documentNumber")} className="text-zinc-600">
                       {row.documentNumber ?? "—"}
@@ -1105,7 +1335,7 @@ export function SupplierInvoicesScreen() {
                         <Button type="button" variant="secondary" className="min-h-9" onClick={() => setViewId(row.id)}>
                           {t("suppliers.view")}
                         </Button>
-                        {row.openAmount > 0.005 ? (
+                        {row.openAmount > 0.005 && !row.paymentMarkedComplete ? (
                           <Button type="button" className="min-h-9" onClick={() => openPay(row)}>
                             {t("suppliers.pay")}
                           </Button>
@@ -1117,14 +1347,135 @@ export function SupplierInvoicesScreen() {
               </TableBody>
             </Table>
           </div>
+          </>
         )}
           </Card>
         }
       />
 
+      <RightDrawer
+        open={invFiltersDrawerOpen}
+        onClose={() => setInvFiltersDrawerOpen(false)}
+        title={t("suppliers.filterDrawerTitle")}
+        closeLabel={t("common.close")}
+        backdropCloseRequiresConfirm={false}
+      >
+        <div className="flex flex-col gap-5">
+          <div className="flex gap-3">
+            <InvoiceFilterDrawerIconWrap>
+              <svg
+                className="h-5 w-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+              </svg>
+            </InvoiceFilterDrawerIconWrap>
+            <div className="min-w-0 flex-1">
+              <Select
+                name="invSupplierFilter"
+                label={t("suppliers.filterSupplier")}
+                options={supplierFilterOptions}
+                value={invSupplierId === "" ? "" : String(invSupplierId)}
+                onChange={(e) => setInvSupplierId(e.target.value === "" ? "" : Number(e.target.value))}
+                onBlur={() => {}}
+                className="min-h-11 sm:min-h-10 sm:text-sm"
+              />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <InvoiceFilterDrawerIconWrap>
+              <svg
+                className="h-5 w-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                <path d="M16 2v4M8 2v4M3 10h18" />
+              </svg>
+            </InvoiceFilterDrawerIconWrap>
+            <div className="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
+              <DateField label={t("suppliers.dateFrom")} value={invDateFrom} onChange={(e) => setInvDateFrom(e.target.value)} />
+              <DateField label={t("suppliers.dateTo")} value={invDateTo} onChange={(e) => setInvDateTo(e.target.value)} />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <InvoiceFilterDrawerIconWrap>
+              <svg
+                className="h-5 w-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+            </InvoiceFilterDrawerIconWrap>
+            <div className="grid min-w-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
+              <Input
+                label={t("suppliers.filterLinesTotalMin")}
+                value={minLinesTotalStr}
+                onChange={(e) => setMinLinesTotalStr(e.target.value)}
+                className="min-h-11 sm:min-h-10 sm:text-sm"
+              />
+              <Input
+                label={t("suppliers.filterLinesTotalMax")}
+                value={maxLinesTotalStr}
+                onChange={(e) => setMaxLinesTotalStr(e.target.value)}
+                className="min-h-11 sm:min-h-10 sm:text-sm"
+              />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <InvoiceFilterDrawerIconWrap>
+              <svg
+                className="h-5 w-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                <path d="m22 4-10 10-3-3" />
+              </svg>
+            </InvoiceFilterDrawerIconWrap>
+            <div className="min-w-0 flex-1">
+              <Select
+                name="invPaymentStatus"
+                label={t("suppliers.filterPaymentStatus")}
+                options={paymentStatusOptions}
+                value={payFilter}
+                onChange={(e) => setPayFilter((e.target.value as "" | "paid" | "unpaid") || "")}
+                onBlur={() => {}}
+                className="min-h-11 sm:min-h-10 sm:text-sm"
+              />
+            </div>
+          </div>
+        </div>
+      </RightDrawer>
+
       <Modal
         open={invOpen}
-        onClose={() => setInvOpen(false)}
+        onClose={closeCreateInvoiceModal}
         titleId="inv-create-title"
         title={t("suppliers.newInvoice")}
         wide
@@ -1135,6 +1486,14 @@ export function SupplierInvoicesScreen() {
           <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden [-webkit-overflow-scrolling:touch]">
             <div className="flex min-w-0 flex-col gap-3 pr-0.5 pt-1">
               <p className="text-xs leading-snug text-zinc-500">{t("suppliers.intakeFormHint")}</p>
+              {Object.values(invCreateFieldErrors).some((v) => v != null && String(v).trim() !== "") ? (
+                <div
+                  className="rounded-xl border border-red-300 bg-white px-3 py-2.5 text-sm text-red-900 shadow-sm"
+                  role="alert"
+                >
+                  <p className="font-semibold leading-snug">{t("common.formFillRequiredSummary")}</p>
+                </div>
+              ) : null}
               <Select
                 name="invSupplierPick"
                 label={t("suppliers.name")}
@@ -1143,11 +1502,18 @@ export function SupplierInvoicesScreen() {
                 value={invSupplierPick === "" ? "" : String(invSupplierPick)}
                 onChange={(e) => setInvSupplierPick(e.target.value === "" ? "" : Number(e.target.value))}
                 onBlur={() => {}}
+                error={invCreateFieldErrors.supplier}
                 className="min-h-12 text-base sm:min-h-10 sm:text-sm"
               />
               <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
                 <Input label={t("suppliers.documentNumber")} value={invDocNo} onChange={(e) => setInvDocNo(e.target.value)} />
-                <DateField label={t("suppliers.documentDate")} labelRequired value={invDocDate} onChange={(e) => setInvDocDate(e.target.value)} />
+                <DateField
+                  label={t("suppliers.documentDate")}
+                  labelRequired
+                  value={invDocDate}
+                  onChange={(e) => setInvDocDate(e.target.value)}
+                  error={invCreateFieldErrors.documentDate}
+                />
                 <DateField label={t("suppliers.dueDate")} value={invDue} onChange={(e) => setInvDue(e.target.value)} />
                 <Input label={t("suppliers.currency")} value={invCur} onChange={(e) => setInvCur(e.target.value)} />
               </div>
@@ -1182,6 +1548,7 @@ export function SupplierInvoicesScreen() {
                       value={invWhCheckedBy}
                       onChange={(e) => setInvWhCheckedBy(e.target.value)}
                       onBlur={() => {}}
+                      error={invCreateFieldErrors.whChecked}
                       className="min-h-12 text-base sm:min-h-10 sm:text-sm"
                     />
                     <Select
@@ -1192,180 +1559,160 @@ export function SupplierInvoicesScreen() {
                       value={invWhApprovedBy}
                       onChange={(e) => setInvWhApprovedBy(e.target.value)}
                       onBlur={() => {}}
+                      error={invCreateFieldErrors.whApproved}
                       className="min-h-12 text-base sm:min-h-10 sm:text-sm"
                     />
                   </div>
                 </div>
               ) : null}
-              <div>
-                <p className="text-sm font-semibold text-zinc-800">{t("suppliers.lines")}</p>
-                <p className="mt-1 text-xs leading-snug text-zinc-500">{t("suppliers.invoiceLinesSectionHint")}</p>
-              </div>
-              {invLines.map((line, idx) => (
-                <div
-                  key={line.key}
-                  className="min-w-0 rounded-xl border border-zinc-200 bg-gradient-to-b from-white to-zinc-50/90 p-3 shadow-sm sm:p-4"
-                >
-                  <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <span className="text-xs font-bold tracking-wide text-zinc-400">#{idx + 1}</span>
-                    {invLines.length > 1 ? (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="min-h-11 w-full shrink-0 text-xs sm:min-h-8 sm:w-auto"
-                        onClick={() => setInvLines((rows) => rows.filter((r) => r.key !== line.key))}
-                      >
-                        {t("suppliers.removeLine")}
-                      </Button>
-                    ) : null}
-                  </div>
-                  <div className="flex min-w-0 flex-col gap-3">
-                    <Select
-                      name={`invLineProduct-${line.key}`}
-                      label={t("suppliers.product")}
-                      options={productLineSelectOptions}
-                      value={line.productId}
-                      onChange={(e) =>
-                        setInvLines((rows) =>
-                          rows.map((r) => (r.key === line.key ? { ...r, productId: e.target.value } : r))
-                        )
-                      }
-                      onBlur={() => {}}
-                      className="min-h-12 text-base sm:min-h-10 sm:text-sm"
-                    />
-                    <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3">
-                      <Input
-                        label={t("suppliers.lineAmount")}
-                        labelRequired
-                        value={line.lineAmount}
-                        onChange={(e) =>
-                          setInvLines((rows) =>
-                            rows.map((r) => (r.key === line.key ? { ...r, lineAmount: e.target.value } : r))
-                          )
-                        }
-                      />
-                      <Input
-                        label={t("suppliers.quantity")}
-                        value={line.quantity}
-                        onChange={(e) =>
-                          setInvLines((rows) =>
-                            rows.map((r) => (r.key === line.key ? { ...r, quantity: e.target.value } : r))
-                          )
-                        }
-                      />
-                      <Input
-                        label={t("suppliers.unitPrice")}
-                        value={line.unitPrice}
-                        onChange={(e) =>
-                          setInvLines((rows) =>
-                            rows.map((r) => (r.key === line.key ? { ...r, unitPrice: e.target.value } : r))
-                          )
-                        }
-                      />
-                    </div>
-                    <Input
-                      label={t("suppliers.lineDescription")}
-                      value={line.description}
-                      onChange={(e) =>
-                        setInvLines((rows) =>
-                          rows.map((r) => (r.key === line.key ? { ...r, description: e.target.value } : r))
-                        )
-                      }
-                    />
-                    <div className="rounded-lg border border-zinc-200/90 bg-zinc-50/80 p-3">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                        {t("suppliers.lineReceiveTarget")}
-                      </p>
-                      <p className="mt-1 text-xs text-zinc-500">{t("suppliers.movementHint")}</p>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {(
-                          [
-                            ["none", t("suppliers.lineReceiveNone")] as const,
-                            ["warehouse", t("suppliers.lineReceiveWarehouse")] as const,
-                            ["branch", t("suppliers.lineReceiveBranch")] as const,
-                          ] as const
-                        ).map(([mode, label]) => (
-                          <button
-                            key={mode}
-                            type="button"
-                            onClick={() =>
-                              setInvLines((rows) =>
-                                rows.map((r) =>
-                                  r.key === line.key
-                                    ? {
-                                        ...r,
-                                        receiveTarget: mode,
-                                        ...(mode !== "warehouse" ? { receiveWarehouseId: "" } : {}),
-                                        ...(mode !== "branch" ? { receiveBranchId: "" } : {}),
-                                      }
-                                    : r
-                                )
-                              )
-                            }
-                            className={cn(
-                              "rounded-lg border px-3 py-2 text-xs font-semibold transition sm:text-sm",
-                              line.receiveTarget === mode
-                                ? "border-violet-500 bg-violet-50 text-violet-900"
-                                : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
-                            )}
-                          >
-                            {label}
-                          </button>
-                        ))}
-                      </div>
-                      {line.receiveTarget === "warehouse" ? (
-                        <div className="mt-3">
-                          <Select
-                            name={`invLineWh-${line.key}`}
-                            label={t("suppliers.receiveWarehouseLabel")}
-                            labelRequired
-                            options={warehouseLineSelectOptions}
-                            value={line.receiveWarehouseId}
-                            onChange={(e) =>
-                              setInvLines((rows) =>
-                                rows.map((r) =>
-                                  r.key === line.key ? { ...r, receiveWarehouseId: e.target.value } : r
-                                )
-                              )
-                            }
-                            onBlur={() => {}}
-                            className="min-h-12 text-base sm:min-h-10 sm:text-sm"
-                          />
-                        </div>
-                      ) : null}
-                      {line.receiveTarget === "branch" ? (
-                        <div className="mt-3">
-                          <Select
-                            name={`invLineBranch-${line.key}`}
-                            label={t("suppliers.receiveBranchLabel")}
-                            options={branchLineSelectOptions}
-                            value={line.receiveBranchId}
-                            onChange={(e) =>
-                              setInvLines((rows) =>
-                                rows.map((r) => (r.key === line.key ? { ...r, receiveBranchId: e.target.value } : r))
-                              )
-                            }
-                            onBlur={() => {}}
-                            className="min-h-12 text-base sm:min-h-10 sm:text-sm"
-                          />
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              <Button
-                type="button"
-                variant="secondary"
-                className="min-h-11 w-full sm:min-h-9 sm:w-fit"
-                onClick={() => setInvLines((r) => [...r, emptyLine()])}
+              <div
+                className={cn(
+                  "flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between",
+                  invCreateFieldErrors.lines &&
+                    "rounded-xl border border-red-300 p-3 sm:items-start sm:justify-between"
+                )}
               >
-                {t("suppliers.addLine")}
-              </Button>
+                <div className="min-w-0">
+                  {invCreateFieldErrors.lines ? (
+                    <p className="text-sm font-medium text-red-700">{invCreateFieldErrors.lines}</p>
+                  ) : null}
+                  <p className="text-sm font-semibold text-zinc-800">{t("suppliers.lines")}</p>
+                  <p className="mt-1 text-xs leading-snug text-zinc-500">{t("suppliers.invoiceLinesSectionHint")}</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="min-h-11 w-full shrink-0 sm:min-h-9 sm:w-auto"
+                  onClick={() => {
+                    const nl = emptyLine();
+                    setInvLines((r) => [...r, nl]);
+                    setInvLineEditDraft({ ...nl });
+                    setInvLineEditKey(nl.key);
+                  }}
+                >
+                  {t("suppliers.addLine")}
+                </Button>
+              </div>
+              <div className="space-y-2 lg:hidden">
+                {invLines.map((line, idx) => (
+                  <div
+                    key={line.key}
+                    role="button"
+                    tabIndex={0}
+                    className="min-w-0 rounded-xl border border-zinc-200 bg-white p-3 text-left shadow-sm outline-none ring-violet-500/30 transition hover:border-violet-200 hover:bg-violet-50/20 focus-visible:ring-2"
+                    onClick={() => openInvLineEditor(line.key)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        openInvLineEditor(line.key);
+                      }
+                    }}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-zinc-400">#{idx + 1}</p>
+                        <p className="mt-0.5 truncate text-sm font-medium text-zinc-900">{invDraftProductCell(line)}</p>
+                        <p className="mt-1 text-xs text-zinc-500">{invDraftReceiveSummary(line)}</p>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-2">
+                        <p className="text-sm font-semibold tabular-nums text-zinc-900">{invDraftAmountCell(line)}</p>
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-violet-700 transition hover:bg-violet-50"
+                            aria-label={t("common.edit")}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openInvLineEditor(line.key);
+                            }}
+                          >
+                            <PencilIcon className="h-4 w-4" />
+                          </button>
+                          {invLines.length > 1 ? (
+                            <button
+                              type="button"
+                              className={cn(trashIconActionButtonClass, "h-9 w-9 rounded-lg")}
+                              aria-label={t("suppliers.removeLine")}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setInvLines((rows) => rows.filter((r) => r.key !== line.key));
+                              }}
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden overflow-x-auto rounded-xl border border-zinc-200/90 sm:block">
+                <Table>
+                  <TableHead>
+                    <TableRow className="bg-zinc-50/90">
+                      <TableHeader className="w-10 whitespace-nowrap">#</TableHeader>
+                      <TableHeader>{t("suppliers.product")}</TableHeader>
+                      <TableHeader className="text-right whitespace-nowrap">{t("suppliers.lineAmount")}</TableHeader>
+                      <TableHeader className="min-w-[8rem]">{t("suppliers.lineReceiveTarget")}</TableHeader>
+                      <TableHeader className="w-28 text-right whitespace-nowrap">{t("common.actions")}</TableHeader>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {invLines.map((line, idx) => (
+                      <TableRow
+                        key={line.key}
+                        className="cursor-pointer transition-colors hover:bg-violet-50/35"
+                        onClick={() => openInvLineEditor(line.key)}
+                      >
+                        <TableCell className="align-middle text-xs font-semibold text-zinc-500">{idx + 1}</TableCell>
+                        <TableCell
+                          className="max-w-[14rem] truncate align-middle text-sm text-zinc-900"
+                          title={invDraftProductCell(line)}
+                        >
+                          {invDraftProductCell(line)}
+                        </TableCell>
+                        <TableCell className="align-middle text-right text-sm font-semibold tabular-nums text-zinc-900">
+                          {invDraftAmountCell(line)}
+                        </TableCell>
+                        <TableCell className="align-middle text-xs leading-snug text-zinc-600">
+                          {invDraftReceiveSummary(line)}
+                        </TableCell>
+                        <TableCell className="align-middle text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex justify-end gap-1">
+                            <Tooltip content={t("common.edit")} delayMs={200}>
+                              <button
+                                type="button"
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-violet-700 transition hover:bg-violet-50"
+                                aria-label={t("common.edit")}
+                                onClick={() => openInvLineEditor(line.key)}
+                              >
+                                <PencilIcon className="h-4 w-4" />
+                              </button>
+                            </Tooltip>
+                            {invLines.length > 1 ? (
+                              <Tooltip content={t("suppliers.removeLine")} delayMs={200}>
+                                <button
+                                  type="button"
+                                  className={cn(trashIconActionButtonClass, "h-9 w-9 rounded-lg")}
+                                  aria-label={t("suppliers.removeLine")}
+                                  onClick={() => setInvLines((rows) => rows.filter((r) => r.key !== line.key))}
+                                >
+                                  <TrashIcon className="h-4 w-4" />
+                                </button>
+                              </Tooltip>
+                            ) : null}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           </div>
           <div className="mt-2 flex shrink-0 flex-col gap-2 border-t border-zinc-100 bg-white pt-3 sm:flex-row sm:justify-end">
-            <Button type="button" variant="secondary" className="min-h-11 w-full sm:min-h-9 sm:w-auto" onClick={() => setInvOpen(false)}>
+            <Button type="button" variant="secondary" className="min-h-11 w-full sm:min-h-9 sm:w-auto" onClick={closeCreateInvoiceModal}>
               {t("common.cancel")}
             </Button>
             <Button
@@ -1378,6 +1725,184 @@ export function SupplierInvoicesScreen() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        nested
+        open={invLineEditKey != null && invLineEditDraft != null}
+        onClose={closeInvLineEditor}
+        titleId="inv-line-edit-title"
+        title={`${t("suppliers.lines")} #${invLineEditKey != null ? invLines.findIndex((l) => l.key === invLineEditKey) + 1 : ""}`}
+        narrow
+        closeButtonLabel={t("common.close")}
+        backdropCloseRequiresConfirm={false}
+        className="!max-w-[min(100vw-1rem,36rem)] sm:!max-w-xl"
+      >
+        {invLineEditDraft ? (
+          <div className="flex max-h-[min(78dvh,36rem)] min-h-0 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-2 pt-0 sm:px-5 sm:pb-3">
+              <div className="flex flex-col gap-3 pt-1">
+                {Object.keys(invLineEditErrors).length > 0 ? (
+                  <div
+                    className="rounded-xl border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-900 shadow-sm"
+                    role="alert"
+                  >
+                    {t("common.formFillRequiredSummary")}
+                  </div>
+                ) : null}
+                <Select
+                  name="invLineEditProduct"
+                  label={t("suppliers.product")}
+                  options={productLineSelectOptions}
+                  value={invLineEditDraft.productId}
+                  onChange={(e) =>
+                    setInvLineEditDraft((d) => (d ? { ...d, productId: e.target.value } : d))
+                  }
+                  onBlur={() => {}}
+                  error={invLineEditDraft.receiveTarget === "warehouse" ? invLineEditErrors.product : undefined}
+                  className="min-h-12 text-base sm:min-h-10 sm:text-sm"
+                />
+                <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-3">
+                  <Input
+                    label={t("suppliers.lineAmount")}
+                    labelRequired
+                    value={invLineEditDraft.lineAmount}
+                    inputMode="decimal"
+                    onChange={(e) =>
+                      setInvLineEditDraft((d) => (d ? { ...d, lineAmount: e.target.value } : d))
+                    }
+                    onBlur={() =>
+                      setInvLineEditDraft((d) =>
+                        d ? { ...d, lineAmount: formatAmountInputOnBlur(d.lineAmount, locale) } : d
+                      )
+                    }
+                    error={invLineEditErrors.lineAmount}
+                  />
+                  <Input
+                    label={t("suppliers.quantity")}
+                    value={invLineEditDraft.quantity}
+                    onChange={(e) =>
+                      setInvLineEditDraft((d) => (d ? { ...d, quantity: e.target.value } : d))
+                    }
+                    error={invLineEditDraft.receiveTarget === "warehouse" ? invLineEditErrors.quantity : undefined}
+                  />
+                  <Input
+                    label={t("suppliers.unitPrice")}
+                    value={invLineEditDraft.unitPrice}
+                    onChange={(e) =>
+                      setInvLineEditDraft((d) => (d ? { ...d, unitPrice: e.target.value } : d))
+                    }
+                  />
+                </div>
+                <Input
+                  label={t("suppliers.lineDescription")}
+                  value={invLineEditDraft.description}
+                  onChange={(e) =>
+                    setInvLineEditDraft((d) => (d ? { ...d, description: e.target.value } : d))
+                  }
+                />
+                <div
+                  className={cn(
+                    "rounded-xl border p-3 sm:p-4",
+                    invLineEditErrors.receiveBranch || invLineEditErrors.receiveWarehouse
+                      ? "border-red-400 bg-zinc-50/80"
+                      : "border-zinc-200/90 bg-zinc-50/80"
+                  )}
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    {t("suppliers.lineReceiveTarget")}
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-600">{t("suppliers.movementHint")}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {(
+                      [
+                        ["none", t("suppliers.lineReceiveNone")] as const,
+                        ["warehouse", t("suppliers.lineReceiveWarehouse")] as const,
+                        ["branch", t("suppliers.lineReceiveBranch")] as const,
+                      ] as const
+                    ).map(([mode, label]) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() =>
+                          setInvLineEditDraft((d) =>
+                            d
+                              ? {
+                                  ...d,
+                                  receiveTarget: mode,
+                                  ...(mode !== "warehouse" ? { receiveWarehouseId: "" } : {}),
+                                  ...(mode !== "branch" ? { receiveBranchId: "" } : {}),
+                                }
+                              : d
+                          )
+                        }
+                        className={cn(
+                          "rounded-lg border px-3 py-2 text-xs font-semibold transition sm:text-sm",
+                          invLineEditDraft.receiveTarget === mode
+                            ? "border-violet-500 bg-violet-50 text-violet-900"
+                            : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300"
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {invLineEditDraft.receiveTarget === "warehouse" ? (
+                    <div className="mt-3">
+                      <Select
+                        name="invLineEditWh"
+                        label={t("suppliers.receiveWarehouseLabel")}
+                        labelRequired
+                        options={warehouseLineSelectOptions}
+                        value={invLineEditDraft.receiveWarehouseId}
+                        onChange={(e) =>
+                          setInvLineEditDraft((d) =>
+                            d ? { ...d, receiveWarehouseId: e.target.value } : d
+                          )
+                        }
+                        onBlur={() => {}}
+                        error={invLineEditErrors.receiveWarehouse}
+                        className="min-h-12 text-base sm:min-h-10 sm:text-sm"
+                      />
+                    </div>
+                  ) : null}
+                  {invLineEditDraft.receiveTarget === "branch" ? (
+                    <div className="mt-3">
+                      <Select
+                        name="invLineEditBranch"
+                        label={t("suppliers.receiveBranchLabel")}
+                        labelRequired
+                        options={branchLineSelectOptions}
+                        value={invLineEditDraft.receiveBranchId}
+                        onChange={(e) =>
+                          setInvLineEditDraft((d) =>
+                            d ? { ...d, receiveBranchId: e.target.value } : d
+                          )
+                        }
+                        onBlur={() => {}}
+                        error={invLineEditErrors.receiveBranch}
+                        className="min-h-12 text-base sm:min-h-10 sm:text-sm"
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+            <div className="flex shrink-0 flex-col gap-2 border-t border-zinc-100 bg-white px-3 py-3 sm:flex-row sm:justify-end sm:px-5">
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-11 w-full sm:min-h-9 sm:w-auto"
+                onClick={closeInvLineEditor}
+              >
+                {t("common.cancel")}
+              </Button>
+              <Button type="button" className="min-h-11 w-full sm:min-h-9 sm:w-auto" onClick={applyInvLineEditor}>
+                {t("common.save")}
+              </Button>
+            </div>
+          </div>
+        ) : null}
       </Modal>
 
       <Modal
@@ -1400,7 +1925,7 @@ export function SupplierInvoicesScreen() {
             </div>
             <SupplierInvoiceAuditHistoryPanel invoiceId={viewInvoice.id} locale={locale} t={t} />
 
-            <div className="mt-5 space-y-3 sm:hidden">
+            <div className="mt-5 space-y-3 lg:hidden">
               {viewInvoice.lines.map((l) => {
                 const stockLinked =
                   (l.warehouseMovementId != null && l.warehouseMovementId > 0) ||
@@ -1543,7 +2068,10 @@ export function SupplierInvoicesScreen() {
 
       <Modal
         open={editInvOpen}
-        onClose={() => setEditInvOpen(false)}
+        onClose={() => {
+          setEditInvFieldErrors({});
+          setEditInvOpen(false);
+        }}
         titleId="inv-edit-title"
         title={t("suppliers.invoiceEdit")}
         wide
@@ -1556,6 +2084,14 @@ export function SupplierInvoicesScreen() {
             <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden [-webkit-overflow-scrolling:touch]">
               <div className="flex min-w-0 flex-col gap-3 pr-0.5 pt-1">
                 <p className="text-xs leading-snug text-zinc-500">{t("suppliers.invoiceEditHint")}</p>
+                {editInvFieldErrors.documentDate ? (
+                  <div
+                    className="rounded-xl border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-900 shadow-sm"
+                    role="alert"
+                  >
+                    {t("common.formFillRequiredSummary")}
+                  </div>
+                ) : null}
                 <p className="text-sm font-semibold text-zinc-900">{viewInvoice.supplierName}</p>
                 <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
                   <Input label={t("suppliers.documentNumber")} value={editInvDocNo} onChange={(e) => setEditInvDocNo(e.target.value)} />
@@ -1564,6 +2100,7 @@ export function SupplierInvoicesScreen() {
                     labelRequired
                     value={editInvDocDate}
                     onChange={(e) => setEditInvDocDate(e.target.value)}
+                    error={editInvFieldErrors.documentDate}
                   />
                   <DateField label={t("suppliers.dueDate")} value={editInvDue} onChange={(e) => setEditInvDue(e.target.value)} />
                   <Input
@@ -1609,7 +2146,15 @@ export function SupplierInvoicesScreen() {
               </div>
             </div>
             <div className="mt-2 flex shrink-0 flex-col gap-2 border-t border-zinc-100 bg-white pt-3 sm:flex-row sm:justify-end">
-              <Button type="button" variant="secondary" className="min-h-11 w-full sm:min-h-9 sm:w-auto" onClick={() => setEditInvOpen(false)}>
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-11 w-full sm:min-h-9 sm:w-auto"
+                onClick={() => {
+                  setEditInvFieldErrors({});
+                  setEditInvOpen(false);
+                }}
+              >
                 {t("common.cancel")}
               </Button>
               <Button
@@ -1638,7 +2183,10 @@ export function SupplierInvoicesScreen() {
 
       <Modal
         open={payTarget != null}
-        onClose={() => setPayTarget(null)}
+        onClose={() => {
+          setPayFieldErrors({});
+          setPayTarget(null);
+        }}
         titleId="pay-title"
         title={t("suppliers.paymentTitle")}
         narrow
@@ -1647,12 +2195,32 @@ export function SupplierInvoicesScreen() {
         {payTarget ? (
           <div className="flex flex-col gap-3 p-1">
             <p className="text-xs text-zinc-600">{t("suppliers.allocationsHint")}</p>
+            {Object.values(payFieldErrors).some((v) => v != null && String(v).trim() !== "") ? (
+              <div
+                className="rounded-xl border border-red-300 bg-white px-3 py-2 text-sm font-semibold text-red-900 shadow-sm"
+                role="alert"
+              >
+                {t("common.formFillRequiredSummary")}
+              </div>
+            ) : null}
             <p className="text-sm text-zinc-800">
               {payTarget.supplierName} · #{payTarget.id} · {t("suppliers.openAmount")}:{" "}
               {formatLocaleAmount(payTarget.openAmount, locale, payTarget.currencyCode)}
             </p>
-            <DateField label={t("suppliers.paymentDate")} labelRequired value={payDate} onChange={(e) => setPayDate(e.target.value)} />
-            <Input label={t("suppliers.paymentAmount")} labelRequired value={payAmt} onChange={(e) => setPayAmt(e.target.value)} />
+            <DateField
+              label={t("suppliers.paymentDate")}
+              labelRequired
+              value={payDate}
+              onChange={(e) => setPayDate(e.target.value)}
+              error={payFieldErrors.date}
+            />
+            <Input
+              label={t("suppliers.paymentAmount")}
+              labelRequired
+              value={payAmt}
+              onChange={(e) => setPayAmt(e.target.value)}
+              error={payFieldErrors.amount}
+            />
             <Select
               name="paySourceType"
               label={t("suppliers.sourceType")}
@@ -1675,12 +2243,20 @@ export function SupplierInvoicesScreen() {
                 value={payBranchId}
                 onChange={(e) => setPayBranchId(e.target.value)}
                 onBlur={() => {}}
+                error={payFieldErrors.branch}
                 className="min-h-11 sm:min-h-10 sm:text-sm"
               />
             ) : null}
             <Input label={t("suppliers.description")} value={payDesc} onChange={(e) => setPayDesc(e.target.value)} />
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="secondary" onClick={() => setPayTarget(null)}>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setPayFieldErrors({});
+                  setPayTarget(null);
+                }}
+              >
                 {t("common.cancel")}
               </Button>
               <Button type="button" onClick={() => void savePay()} disabled={createPay.isPending}>

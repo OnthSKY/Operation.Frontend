@@ -10,6 +10,7 @@ export const search = {
   subSystemSettings: "Users, roles, permission matrix",
   subAuthorizationMatrix: "Role ↔ permission grid",
   subOrgNotifications: "Organization-wide operational reminders",
+  subBranding: "Company name and sidebar logo",
   subTourismSeasonPolicy: "Allow register flows when tourism season is closed",
   subReports: "Financial & stock period reports",
   subBranchComparison: "Income, expense, net by branch",
@@ -19,6 +20,7 @@ export const search = {
   subWarehouse: "Warehouse / stock",
   subProducts: "Product list by warehouse",
   subProductCategories: "Main and sub product categories",
+  subProductCostHistory: "Manage product costs by date with VAT excl./incl.",
   subSuppliers: "Vendors, purchase invoices, AP balance, payments",
   subSupplierInvoices: "Purchase invoice list, filters, pay from open balance",
   subGeneralOverhead:

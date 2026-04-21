@@ -20,6 +20,8 @@ export const toast = {
   branchNoteSaved: "Note added",
   branchNoteUpdated: "Note updated",
   branchNoteDeleted: "Note deleted",
+  branchDocumentUploaded: "Document uploaded",
+  branchDocumentDeleted: "Document deleted",
   personnelNoteSaved: "Note added",
   personnelNoteUpdated: "Note updated",
   personnelNoteDeleted: "Note deleted",

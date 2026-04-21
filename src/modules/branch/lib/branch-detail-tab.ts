@@ -6,6 +6,7 @@ export type BranchDetailTabId =
   | "stock"
   | "tourismSeason"
   | "zReportAccounting"
+  | "documents"
   | "notes";
 
 const VALID: ReadonlySet<string> = new Set<BranchDetailTabId>([
@@ -16,6 +17,7 @@ const VALID: ReadonlySet<string> = new Set<BranchDetailTabId>([
   "stock",
   "tourismSeason",
   "zReportAccounting",
+  "documents",
   "notes",
 ]);
 
@@ -30,6 +32,7 @@ const ESS_HIDDEN_TABS: ReadonlySet<BranchDetailTabId> = new Set([
   "personnel",
   "tourismSeason",
   "zReportAccounting",
+  "documents",
 ]);
 
 /** Şube değişiminde URL/`initialTab` ile varsayılan sekmeyi seçer (personel portalı kısıtları dahil). */

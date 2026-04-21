@@ -13,7 +13,7 @@ import {
 } from "@/modules/warehouse/lib/warehouse-scope-filters";
 import { WarehouseStockGroupHeader } from "@/modules/warehouse/components/WarehouseStockGroupHeader";
 import { WarehouseStockLine } from "@/modules/warehouse/components/WarehouseStockLine";
-import { WarehouseOverviewStorySection } from "@/modules/warehouse/components/WarehouseOverviewStorySection";
+import { WarehouseOperationsRecentMovements } from "@/modules/warehouse/components/WarehouseOperationsRecentMovements";
 import { WarehouseStockSectionHeader } from "@/modules/warehouse/components/WarehouseStockSectionHeader";
 import {
   buildWarehouseStockGroupedSections,
@@ -34,7 +34,6 @@ import { notify } from "@/shared/lib/notify";
 import { notifyWarehouseDeleteConfirm } from "@/shared/lib/notify-warehouse-delete";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
-import { Input } from "@/shared/ui/Input";
 import { Select } from "@/shared/ui/Select";
 import {
   Table,
@@ -51,6 +50,8 @@ type Props = {
   active: boolean;
   onOpenAddProduct: () => void;
   onDeleted: () => void;
+  /** Son hareket kartları; depo hareketleri sekmesiyle birleştirildiğinde false. */
+  hideRecentMovements?: boolean;
   onOpenMovementsTab?: () => void;
 };
 
@@ -60,6 +61,7 @@ export function WarehouseOperationsTab({
   active,
   onOpenAddProduct,
   onDeleted,
+  hideRecentMovements = false,
   onOpenMovementsTab,
 }: Props) {
   const { t } = useI18n();
@@ -171,15 +173,13 @@ export function WarehouseOperationsTab({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-2xl border border-zinc-200/85 bg-white p-4 shadow-sm ring-1 ring-zinc-950/[0.04] sm:p-5">
-        <WarehouseOverviewStorySection
+      {!hideRecentMovements && onOpenMovementsTab ? (
+        <WarehouseOperationsRecentMovements
           warehouseId={warehouseId}
-          active={active}
-          productCatalog={productCatalog}
-          productCategories={productCategories}
-          onOpenMovementsTab={onOpenMovementsTab}
+          enabled={active}
+          onViewAllMovements={onOpenMovementsTab}
         />
-      </div>
+      ) : null}
 
       <p className="text-sm text-zinc-500">{t("warehouse.stockHint")}</p>
 

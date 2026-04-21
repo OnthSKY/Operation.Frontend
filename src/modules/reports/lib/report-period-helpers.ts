@@ -17,6 +17,11 @@ export function startOfMonthIso(d = new Date()): string {
   return `${y}-${m}-01`;
 }
 
+/** Yılın 1 Ocak tarihi (ISO); patron/ dar kapsamlı raporlarda «bu ay boş» hissini azaltır. */
+export function startOfCalendarYearIso(d = new Date()): string {
+  return `${d.getFullYear()}-01-01`;
+}
+
 export function addDaysFromIso(iso: string, deltaDays: number): string {
   const [y, mo, da] = iso.split("-").map(Number);
   const dt = new Date(y, mo - 1, da);

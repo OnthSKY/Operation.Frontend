@@ -44,7 +44,7 @@ export function PageWhenToUseGuideContent({
     <>
       {showTitle && title ? <p className={titleCls}>{title}</p> : null}
       {description ? (
-        <p className={cn("leading-relaxed text-zinc-700", hasHead ? "mt-2" : "")}>{description}</p>
+        <div className={cn("leading-relaxed text-zinc-700", hasHead ? "mt-2" : "")}>{description}</div>
       ) : null}
       {items && items.length > 0 ? (
         listVariant === "ordered" ? (

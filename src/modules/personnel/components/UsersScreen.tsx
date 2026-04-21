@@ -107,6 +107,9 @@ export function UsersScreen() {
       { value: "ADMIN", label: t("users.roleAdmin") },
       { value: "PERSONNEL", label: t("users.rolePersonnel") },
       { value: "DRIVER", label: t("users.roleDriver") },
+      { value: "VIEWER", label: t("users.roleViewer") },
+      { value: "FINANCE", label: t("users.roleFinance") },
+      { value: "PROCUREMENT", label: t("users.roleProcurement") },
     ],
     [t]
   );
@@ -307,7 +310,7 @@ export function UsersScreen() {
           </div>
         ) : (
           <>
-            <ul className="flex flex-col gap-3 p-3 md:hidden">
+            <ul className="flex flex-col gap-3 p-3 lg:hidden">
               {rows.map((r) => (
                 <li
                   key={r.id}
@@ -395,7 +398,7 @@ export function UsersScreen() {
               ))}
             </ul>
 
-            <div className="hidden md:block md:overflow-x-auto">
+            <div className="hidden lg:block lg:overflow-x-auto">
               <table className="w-full min-w-[760px] border-collapse text-left text-sm">
                 <thead className="border-b border-zinc-200 bg-zinc-50 text-zinc-700">
                   <tr>

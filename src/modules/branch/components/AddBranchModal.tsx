@@ -7,6 +7,7 @@ import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
+import { requiresPosDestinationNotes } from "@/modules/branch/lib/pos-settlement-beneficiary";
 import type { BranchPosSettlementBeneficiaryType } from "@/types/branch";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -24,17 +25,29 @@ type Props = {
 
 const TITLE_ID = "add-branch-title";
 
-const POS_OPTIONS: { value: BranchPosSettlementBeneficiaryType; labelKey: string }[] =
-  [
-    { value: "PATRON", labelKey: "branch.posSettlementPatron" },
-    { value: "FRANCHISE", labelKey: "branch.posSettlementFranchise" },
-    { value: "JOINT_VENTURE", labelKey: "branch.posSettlementJoint" },
-    {
-      value: "BRANCH_PERSONNEL",
-      labelKey: "branch.posSettlementBranchPersonnel",
-    },
-    { value: "OTHER", labelKey: "branch.posSettlementOther" },
-  ];
+const POS_OPTIONS: {
+  value: BranchPosSettlementBeneficiaryType;
+  labelKey: string;
+  hintKey: string;
+}[] = [
+  { value: "PATRON", labelKey: "branch.posSettlementPatron", hintKey: "branch.posSettlementPatronHint" },
+  {
+    value: "FRANCHISE",
+    labelKey: "branch.posSettlementFranchise",
+    hintKey: "branch.posSettlementFranchiseHint",
+  },
+  {
+    value: "JOINT_VENTURE",
+    labelKey: "branch.posSettlementJoint",
+    hintKey: "branch.posSettlementJointHint",
+  },
+  {
+    value: "BRANCH_PERSONNEL",
+    labelKey: "branch.posSettlementBranchPersonnel",
+    hintKey: "branch.posSettlementBranchPersonnelHint",
+  },
+  { value: "OTHER", labelKey: "branch.posSettlementOther", hintKey: "branch.posSettlementOtherHint" },
+];
 
 export function AddBranchModal({ open, onClose }: Props) {
   const { t } = useI18n();
@@ -54,6 +67,7 @@ export function AddBranchModal({ open, onClose }: Props) {
   });
 
   const posType = watch("posSettlementBeneficiaryType");
+  const notesRequired = requiresPosDestinationNotes(posType);
 
   useEffect(() => {
     if (!open) reset();
@@ -116,7 +130,10 @@ export function AddBranchModal({ open, onClose }: Props) {
                     required: t("common.required"),
                   })}
                 />
-                <span className="text-sm text-zinc-800">{t(opt.labelKey)}</span>
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="text-sm font-medium text-zinc-800">{t(opt.labelKey)}</span>
+                  <span className="text-xs leading-snug text-zinc-500">{t(opt.hintKey)}</span>
+                </span>
               </label>
             ))}
           </div>
@@ -129,11 +146,27 @@ export function AddBranchModal({ open, onClose }: Props) {
 
         <Input
           label={t("branch.posSettlementNotesLabel")}
-          {...register("posSettlementNotes", { maxLength: 500 })}
+          labelRequired={notesRequired}
+          {...register("posSettlementNotes", {
+            maxLength: { value: 500, message: t("branch.posSettlementNotesMaxLength") },
+            validate: (v) =>
+              !notesRequired ||
+              (typeof v === "string" && v.trim().length > 0) ||
+              t("branch.posSettlementNotesRequired"),
+          })}
           error={errors.posSettlementNotes?.message}
           maxLength={500}
-          placeholder={t("branch.posSettlementNotesPlaceholder")}
+          placeholder={
+            notesRequired
+              ? t("branch.posSettlementNotesPlaceholderRequired")
+              : t("branch.posSettlementNotesPlaceholder")
+          }
         />
+        {notesRequired ? (
+          <p className="-mt-2 text-xs leading-snug text-zinc-600">
+            {t("branch.posSettlementNotesRequiredHint")}
+          </p>
+        ) : null}
 
         <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Button

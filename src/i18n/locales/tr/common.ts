@@ -12,6 +12,9 @@ export const common = {
   all: "Tümü",
   invalid: "Geçersiz değer",
   required: "Zorunlu",
+  formFillRequiredSummary:
+    "Lütfen aşağıda vurgulanan tüm zorunlu alanları doldurup tekrar deneyin.",
+  formFieldRequiredHint: "Bu alan zorunludur.",
   yes: "Evet",
   no: "Hayır",
   comboboxNoMatches: "Sonuç yok",
@@ -43,6 +46,7 @@ export const common = {
   pageWhenToUseTitle: "Bu sayfada ne yapabilirim?",
   openInGuide: "«Nasıl kullanırım» kılavuzunda bu bölümü aç →",
   pageHelpHintLabel: "Bu sayfada ne yapabilirim? — Kısa yardım",
+  pageInfoTooltip: "Sayfa bilgisini aç",
   pageSectionIntro: "Giriş",
   pageSectionSummary: "Özet",
   pageSectionMain: "Kayıtlar",

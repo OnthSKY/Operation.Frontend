@@ -3,6 +3,15 @@ export const nav = {
   reports: "Reports",
   /** Sidebar group for hub tabs */
   reportsSection: "Reports",
+  expandReportsSection: "Expand reports",
+  collapseReportsSection: "Collapse reports",
+  expandReportSubgroup: "Show links",
+  collapseReportSubgroup: "Hide links",
+  reportsFinSection: "Financial reports",
+  reportsFinSystemSection: "Finance & cash",
+  reportsPatronSection: "Owner pocket & register",
+  reportsStockSection: "Stock",
+  reportsOtherSection: "Branches & register day",
   personnel: "Personnel management",
   personnelSection: "Personnel management",
   personnelList: "Staff",
@@ -17,6 +26,7 @@ export const nav = {
   systemUsers: "Users",
   adminNavAuthorization: "Roles & permissions",
   adminNavNotifications: "Notifications",
+  adminNavBranding: "Branding",
   adminNavTourismSeasonPolicy: "Tourism season expense policy",
   branchSection: "Branch",
   inventorySection: "Warehouse & products",
@@ -24,11 +34,13 @@ export const nav = {
   fleetSection: "Fleet",
   insuranceSection: "Insurance & coverage",
   branch: "Branch management",
+  documents: "Documents",
   dailyBranchRegister: "Register day (all branches)",
   generalOverhead: "General overhead",
   warehouse: "Warehouse",
   products: "Products",
   productCategories: "Categories",
+  productCostHistory: "Product cost history",
   suppliers: "Suppliers",
   supplierInvoices: "Supplier invoices",
   vehicles: "Vehicles",
@@ -50,14 +62,36 @@ export const nav = {
       "Today’s income, expense, and net cash plus the branches daily grid—a snapshot of patron/branch cash activity. Use Reports for category and period breakdowns.",
     reports:
       "Financial periods (income/expense lines and category concentration), cash position, branch comparison, warehouse/branch stock. Answers “where money came from and went” and “which branch burns stock”.",
+    reportsFinOneEntry:
+      "One sidebar entry: open the page and use the top tabs (summary, vs prior, charts, monthly, tables).",
     reportsHubFinancial:
       "Period charts and tables: income, expense, and net with branch and advanced filters.",
+    reportsHubFinSummary:
+      "Period-at-a-glance for your filters; open vs prior period for deltas or Charts for mix and branch bars.",
+    reportsHubFinCompare:
+      "Prior-period net change, payment mix, and branch highlights — same financial filters as the KPI tab.",
+    reportsHubFinCharts:
+      "Branch ranking bars and income/expense mix charts for the same filtered slice as the KPI tab.",
+    reportsHubFinTrend:
+      "Monthly cumulative: net and expense by month (and by branch when all branches are selected). Same date and filter drawer as the Summary tab.",
+    reportsHubFinTables:
+      "Full financial tables (categories, branches, advances). Own screen; filters are independent from Summary/Trend for now.",
+    reportsHubFinCashFlow:
+      "Owner-specific register lines (owner cash-in, owner-paid expenses). For overall net cash, use Financial · Monthly cumulative.",
+    reportsHubCashTable:
+      "Full-page cash position table: same balances as the hub snapshot, with sortable rows and export-friendly layout.",
+    reportsHubStockTables:
+      "Stock report tables: warehouse flows, branch receipts, and product-level lines with per-block filters.",
+    reportsHubBranches:
+      "Compare branches for a period: income, expense, and net side by side to spot outliers.",
     reportsHubCash:
       "Cash position by branch: drawer estimate and net pocket/patron balances for an as-of date.",
     reportsHubStock:
       "Stock summary charts and tables: warehouse scope, branch receipts, and product filters.",
     reportsHubDailyRegister:
       "Same calendar day, every branch: cash vs card/POS intake, register-paid outflows, and net — alongside period and position reports.",
+    reportsOrderAccountStatement:
+      "Order & account statement: line items, gifts and promotions, prepayment, items you paid for but did not receive into stock, and net due. A4 preview and PDF download.",
     personnelSection:
       "Staff master data and the patron–personnel money line: advances and personnel expenses live here.",
     personnelList:
@@ -68,6 +102,8 @@ export const nav = {
       "Operational cash: daily branch transactions. This is where on-the-ground income and spending are captured for the system.",
     branch:
       "Record cash in/out, patron-to-till transfers, sales income, expenses, and ops lines. Accurate daily posting underpins all financial reports.",
+    documents:
+      "See system-wide documents in one place; search and filter branch documents and personnel ID images.",
     dailyBranchRegister:
       "Same-day snapshot per branch: cash vs card intake, register-paid expenses, and net — without opening each branch card.",
     generalOverhead:
@@ -86,6 +122,10 @@ export const nav = {
       "Product master and movement hints. Read warehouse/branch stock reports together to see quantities by location.",
     productCategories:
       "Group products for cleaner lists and analysis under consistent headings.",
+    productCostHistory:
+      "Record product purchase/cost values by date with VAT-included and VAT-excluded amounts to track historical cost changes.",
+    productsOrderAccountStatement:
+      "Order & account statement: fill lines from the product catalog, amounts, gifts and promotions, prepayment, paid-but-not-received items, and net due. A4 preview and PDF.",
     suppliers:
       "Vendor master records and contacts; use Supplier invoices for purchase invoices and payments.",
     supplierInvoices:
@@ -104,6 +144,8 @@ export const nav = {
       "Edit which permissions each system role has (staff, driver, admin).",
     adminNavNotifications:
       "Organization-wide toggles for operational reminders and the daily toast.",
+    adminNavBranding:
+      "Company display name and sidebar logo shown to all signed-in users.",
     adminNavTourismSeasonPolicy:
       "Which branch-register flows may run when the tourism season is closed for the transaction date.",
     systemUsers:

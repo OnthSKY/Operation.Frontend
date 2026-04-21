@@ -5,6 +5,7 @@ import {
   usePersonnelAccountClosurePreview,
   usePersonnelEmploymentTerms,
   usePersonnelYearAccountPreview,
+  useUploadPersonnelYearClosurePdf,
 } from "@/modules/personnel/hooks/usePersonnelQueries";
 import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
@@ -344,6 +345,7 @@ export function PersonnelAccountClosureSheet({
   const [settlementPdfAcknowledged, setSettlementPdfAcknowledged] =
     useState(false);
   const [printSettlementBusy, setPrintSettlementBusy] = useState(false);
+  const [closurePdfFile, setClosurePdfFile] = useState<File | null>(null);
   const [closureWorkedDays, setClosureWorkedDays] = useState("");
   const [closureExpectedSalary, setClosureExpectedSalary] = useState("");
   const [closureSalaryCurrency, setClosureSalaryCurrency] = useState("TRY");
@@ -375,6 +377,7 @@ export function PersonnelAccountClosureSheet({
       setSelectedTermId(null);
       setCloseNotes("");
       setSettlementPdfAcknowledged(false);
+      setClosurePdfFile(null);
       setClosureWorkedDays("");
       setClosureExpectedSalary("");
       setSalaryBalanceSettled(false);
@@ -394,6 +397,7 @@ export function PersonnelAccountClosureSheet({
       setSelectedTermId(null);
       setCloseNotes("");
       setSettlementPdfAcknowledged(false);
+      setClosurePdfFile(null);
       setClosureWorkedDays(
         (() => {
           const w = suggestClosureWorkedDaysFromSeasonStart(pick, personnelSeasonArrivalDate);
@@ -412,6 +416,7 @@ export function PersonnelAccountClosureSheet({
     setSelectedTermId(null);
     setCloseNotes("");
     setSettlementPdfAcknowledged(false);
+    setClosurePdfFile(null);
     setClosureWorkedDays(
       (() => {
         const yy = new Date().getFullYear();
@@ -451,6 +456,7 @@ export function PersonnelAccountClosureSheet({
   useEffect(() => {
     if (!open) return;
     setSettlementPdfAcknowledged(false);
+    setClosurePdfFile(null);
   }, [open, selectedYear]);
 
   useEffect(() => {
@@ -488,6 +494,7 @@ export function PersonnelAccountClosureSheet({
   );
 
   const closeYear = useClosePersonnelYearAccount(personnelId);
+  const uploadClosurePdf = useUploadPersonnelYearClosurePdf(personnelId);
 
   const termOptions: SelectOption[] = useMemo(
     () =>
@@ -538,9 +545,7 @@ export function PersonnelAccountClosureSheet({
   const salarySourceOk =
     !salaryBalanceSettled ||
     (salaryPaymentSourceType.trim().length > 0 &&
-      ["CASH", "PATRON_BRANCH", "PATRON"].includes(
-        salaryPaymentSourceType.trim().toUpperCase(),
-      ));
+      ["CASH", "PATRON"].includes(salaryPaymentSourceType.trim().toUpperCase()));
 
   const netSalaryPreview =
     scope === "year" &&
@@ -560,10 +565,6 @@ export function PersonnelAccountClosureSheet({
       {
         value: "CASH",
         label: t("personnel.accountClosure.salarySourceCash"),
-      },
-      {
-        value: "PATRON_BRANCH",
-        label: t("personnel.accountClosure.salarySourcePatronBranch"),
       },
       {
         value: "PATRON",
@@ -698,7 +699,7 @@ export function PersonnelAccountClosureSheet({
           className={cn(
             "min-h-0 flex-1 overscroll-contain px-3 pt-2 sm:px-6 sm:pt-3",
             step === 2 && yearCloseTabs
-              ? "flex flex-col overflow-hidden pb-20 sm:pb-5 [-webkit-overflow-scrolling:touch]"
+              ? "flex min-h-0 flex-col overflow-hidden pb-3 [-webkit-overflow-scrolling:touch] sm:pb-4"
               : cn(
                   "overflow-y-auto [-webkit-overflow-scrolling:touch]",
                   step === 2
@@ -1152,18 +1153,6 @@ export function PersonnelAccountClosureSheet({
                             </ol>
                           </Card>
                         ) : null}
-                        {yearCloseTabs && yearCloseTab === "overview" ? (
-                          <div className="mt-4">
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="min-h-12 w-full touch-manipulation"
-                              onClick={() => setYearCloseTab("pdf")}
-                            >
-                              {t("personnel.accountClosure.closeYearGoPdfTab")}
-                            </Button>
-                          </div>
-                        ) : null}
                         </div>
                         <div
                           className={cn(
@@ -1193,6 +1182,24 @@ export function PersonnelAccountClosureSheet({
                               ? t("common.loading")
                               : t("personnel.accountClosure.settlementPdfOpenButton")}
                           </Button>
+                          <div className="mt-3">
+                            <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-zinc-500">
+                              {t("personnel.yearClosuresUploadPdf")}
+                            </label>
+                            <input
+                              type="file"
+                              accept="application/pdf,.pdf"
+                              className="block w-full text-sm text-zinc-700"
+                              onChange={(e) =>
+                                setClosurePdfFile(e.target.files?.[0] ?? null)
+                              }
+                            />
+                            {closurePdfFile ? (
+                              <p className="mt-1 text-xs text-zinc-600">
+                                {closurePdfFile.name}
+                              </p>
+                            ) : null}
+                          </div>
                           <label
                             htmlFor={settlementPdfAckInputId}
                             className={cn(
@@ -1237,33 +1244,6 @@ export function PersonnelAccountClosureSheet({
                             </span>
                           </label>
                         </Card>
-                        {yearCloseTabs && yearCloseTab === "pdf" ? (
-                          <div className="mt-4">
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="min-h-12 w-full touch-manipulation"
-                              disabled={!settlementPdfAcknowledged}
-                              title={
-                                !settlementPdfAcknowledged
-                                  ? t(
-                                      "personnel.accountClosure.closeYearSalaryTabRequiresPdfAck",
-                                    )
-                                  : undefined
-                              }
-                              onClick={() => setYearCloseTab("salary")}
-                            >
-                              {t("personnel.accountClosure.closeYearGoSalaryTab")}
-                            </Button>
-                            {!settlementPdfAcknowledged ? (
-                              <p className="mt-2 text-center text-xs leading-relaxed text-amber-900/90">
-                                {t(
-                                  "personnel.accountClosure.closeYearSalaryTabRequiresPdfAck",
-                                )}
-                              </p>
-                            ) : null}
-                          </div>
-                        ) : null}
                         </div>
                         <div
                           className={cn(
@@ -1587,6 +1567,16 @@ export function PersonnelAccountClosureSheet({
                                 setSalaryBalanceSettled(false);
                                 setSalaryPaymentSourceType("");
                                 setSalarySettlementNote("");
+                                if (closurePdfFile && closurePdfFile.size > 0) {
+                                  await uploadClosurePdf.mutateAsync({
+                                    year: selectedYear,
+                                    file: closurePdfFile,
+                                  });
+                                  notify.success(
+                                    t("personnel.yearClosuresUploadPdfSuccess"),
+                                  );
+                                }
+                                setClosurePdfFile(null);
                               } catch (e) {
                                 notify.error(toErrorMessage(e));
                               }
@@ -1629,18 +1619,66 @@ export function PersonnelAccountClosureSheet({
               </div>
             )}
 
-            <div className="flex flex-col-reverse gap-2 border-t border-zinc-100 pt-4 sm:flex-row sm:justify-end">
-              <Button
-                type="button"
-                className="min-h-12 w-full touch-manipulation sm:min-h-11 sm:w-auto"
-                onClick={onClose}
-              >
-                {t("common.close")}
-              </Button>
-            </div>
+            {step === 2 && !yearCloseTabs ? (
+              <div className="flex flex-col-reverse gap-2 border-t border-zinc-100 pt-4 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  className="min-h-12 w-full touch-manipulation sm:min-h-11 sm:w-auto"
+                  onClick={onClose}
+                >
+                  {t("common.close")}
+                </Button>
+              </div>
+            ) : null}
           </div>
         )}
           </div>
+        {yearCloseTabs && yearCloseTab !== "salary" ? (
+          <div
+            className={cn(
+              "shrink-0 border-t border-zinc-200 bg-white py-3",
+              "pl-[max(0.75rem,env(safe-area-inset-left,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] sm:pl-6 sm:pr-6",
+              "pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]",
+            )}
+          >
+            {yearCloseTab === "pdf" && !settlementPdfAcknowledged ? (
+              <p className="mb-2 text-left text-xs leading-relaxed text-amber-900/90 sm:text-right">
+                {t(
+                  "personnel.accountClosure.closeYearSalaryTabRequiresPdfAck",
+                )}
+              </p>
+            ) : null}
+            <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
+              {yearCloseTab === "overview" ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="min-h-12 w-full touch-manipulation sm:min-h-11 sm:w-auto sm:shrink-0"
+                  onClick={() => setYearCloseTab("pdf")}
+                >
+                  {t("personnel.accountClosure.closeYearGoPdfTab")}
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="min-h-12 w-full touch-manipulation sm:min-h-11 sm:w-auto sm:shrink-0"
+                  disabled={!settlementPdfAcknowledged}
+                  title={
+                    !settlementPdfAcknowledged
+                      ? t(
+                          "personnel.accountClosure.closeYearSalaryTabRequiresPdfAck",
+                        )
+                      : undefined
+                  }
+                  onClick={() => setYearCloseTab("salary")}
+                >
+                  {t("personnel.accountClosure.closeYearGoSalaryTab")}
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : null}
         </div>
       </div>
     </Modal>

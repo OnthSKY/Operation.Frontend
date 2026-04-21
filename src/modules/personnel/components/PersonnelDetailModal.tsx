@@ -10,13 +10,25 @@ import {
 } from "@/modules/personnel/api/personnel-account-closure-api";
 import { AddBranchTransactionModal } from "@/modules/branch/components/AddBranchTransactionModal";
 import { AdvancePersonnelModal } from "@/modules/personnel/components/AdvancePersonnelModal";
+import {
+  fetchBranchPersonnelMoneySummaries,
+} from "@/modules/branch/api/branches-api";
 import { fetchPersonnelAttributedExpenses } from "@/modules/branch/api/branch-transactions-api";
 import { txCategoryLine } from "@/modules/branch/lib/branch-transaction-options";
+import { UI_POCKET_CLAIM_TRANSFER_ENABLED } from "@/modules/branch/lib/product-ui-flags";
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
 import { AddPersonnelInsurancePeriodModal } from "@/modules/personnel/components/AddPersonnelInsurancePeriodModal";
 import { EditPersonnelInsurancePeriodModal } from "@/modules/personnel/components/EditPersonnelInsurancePeriodModal";
 import { PersonnelAccountClosureSheet } from "@/modules/personnel/components/PersonnelAccountClosureSheet";
 import { PersonnelManagementSnapshotSection } from "@/modules/personnel/components/PersonnelManagementSnapshotSection";
+import {
+  PersonnelPocketClaimToPatronDialog,
+  PersonnelPocketClaimToStaffDialog,
+} from "@/modules/personnel/components/PersonnelPocketClaimDialogs";
+import {
+  PersonnelHandoverPatronTransferDialog,
+  type PersonnelHandoverPatronTransferOpen,
+} from "@/modules/personnel/components/PersonnelHandoverPatronTransferDialog";
 import { PersonnelNotesTab } from "@/modules/personnel/components/PersonnelNotesTab";
 import {
   personnelNationalIdPhotoUrl,
@@ -32,14 +44,19 @@ import {
   usePersonnelYearAccountClosures,
   useReopenPersonnelYearAccount,
   useUploadPersonnelYearClosurePdf,
+  personnelKeys,
 } from "@/modules/personnel/hooks/usePersonnelQueries";
-import { useDeleteBranchTransaction } from "@/modules/branch/hooks/useBranchQueries";
+import {
+  branchKeys,
+  useDeleteBranchTransaction,
+} from "@/modules/branch/hooks/useBranchQueries";
 import { fetchWarehouses } from "@/modules/warehouse/api/warehouses-api";
 import {
   useUpdateWarehouse,
   warehouseKeys,
 } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import type { Advance } from "@/types/advance";
+import type { BranchPersonnelMoneySummaryItem } from "@/types/branch-personnel-money";
 import type { BranchTransaction } from "@/types/branch-transaction";
 import type { Personnel, PersonnelInsurancePeriod } from "@/types/personnel";
 import type { PersonnelYearAccountClosureListItem } from "@/types/personnel-account-closure";
@@ -54,7 +71,15 @@ import {
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
-import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileFilters";
+import { FilterFunnelIcon } from "@/shared/components/FilterFunnelIcon";
+import { RightDrawer } from "@/shared/components/RightDrawer";
+import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
+import { OVERLAY_Z_INDEX, OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
+import {
+  CalendarCheckIcon,
+  detailOpenIconButtonClass,
+  PencilIcon,
+} from "@/shared/ui/EyeIcon";
 import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
@@ -68,15 +93,36 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/Table";
-import { useQuery } from "@tanstack/react-query";
+import { Tooltip } from "@/shared/ui/Tooltip";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMatchMedia } from "@/shared/lib/use-match-media";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { localIsoDate } from "@/shared/lib/local-iso-date";
 
 const TITLE_ID = "personnel-detail-modal-title";
 const PAGE_SIZE_OPTIONS = [10, 20, 25, 50] as const;
 
+type PersonnelOrgBranchTxOpen =
+  | { kind: "personnel-expense" }
+  | {
+      kind: "pocket-repay";
+      branchId: number;
+      currency: string;
+      paymentSource: "REGISTER" | "PATRON";
+    }
+  | {
+      kind: "handover-pool-expense-register";
+      branchId: number;
+      currencyCode: string;
+      suggestedAmount: number;
+    };
+
 export type PersonnelDetailTabId =
   | "profile"
+  /** Yönetici özeti (maaş/avans/kasa devri anlatımı). */
+  | "managerSummary"
+  /** Kasada personele devredilen fiziksel nakit, havuz ve devir işlemleri. */
+  | "personnelCashPhysical"
   | "insurance"
   /** Avans listesi + personele yazılmış gider satırları (tek sekme). */
   | "costs"
@@ -441,17 +487,6 @@ function hasLinkedSystemUser(p: Personnel): boolean {
   return normalizePositiveUserId(p.userId) != null;
 }
 
-function depotRolePhrase(
-  tags: readonly string[],
-  t: (k: string) => string,
-): string {
-  const hasM = tags.includes("manager");
-  const hasS = tags.includes("master");
-  if (hasM && hasS) return t("personnel.detailRolesStoryDepotRolesBoth");
-  if (hasM) return t("personnel.detailRolesStoryDepotRolesManager");
-  return t("personnel.detailRolesStoryDepotRolesMaster");
-}
-
 type Props = {
   open: boolean;
   onClose: () => void;
@@ -469,6 +504,7 @@ export function PersonnelDetailModal({
   initialTab = "profile",
 }: Props) {
   const { t, locale } = useI18n();
+  const queryClient = useQueryClient();
   const dash = t("personnel.dash");
   const [tab, setTab] = useState<TabId>("profile");
   /** Avans + gider tabloları — PDF’den bağımsız sezon/turizm yılı filtresi. */
@@ -481,6 +517,15 @@ export function PersonnelDetailModal({
   /** null = automatic page size (20 narrow / 10 desktop) */
   const [advPageSize, setAdvPageSize] = useState<string | null>(null);
   const [printBusy, setPrintBusy] = useState(false);
+  const [costsPdfScopeModalOpen, setCostsPdfScopeModalOpen] = useState(false);
+  const [costsListSeasonModalOpen, setCostsListSeasonModalOpen] =
+    useState(false);
+  const [pdfScopeDraft, setPdfScopeDraft] = useState("");
+  const [costsListSeasonDraft, setCostsListSeasonDraft] = useState("");
+  const costsPdfModalTitleId = useId();
+  const costsListSeasonModalTitleId = useId();
+  const [costsFiltersDrawerOpen, setCostsFiltersDrawerOpen] = useState(false);
+  const [costsActionsDrawerOpen, setCostsActionsDrawerOpen] = useState(false);
   const [accountClosureOpen, setAccountClosureOpen] = useState(false);
   /** true: «Kesilen hesaplar»dan açıldı — doğrudan yıl özeti (2. adım). */
   const [accountClosureYearSummary, setAccountClosureYearSummary] =
@@ -494,7 +539,14 @@ export function PersonnelDetailModal({
   const [assignRole, setAssignRole] = useState<"manager" | "master" | "both">(
     "manager",
   );
-  const [orgTxOpen, setOrgTxOpen] = useState(false);
+  const [orgBranchTx, setOrgBranchTx] = useState<PersonnelOrgBranchTxOpen | null>(
+    null,
+  );
+  const [patronHandoverTransferCtx, setPatronHandoverTransferCtx] =
+    useState<PersonnelHandoverPatronTransferOpen | null>(null);
+  const [pocketClaimTransferCtx, setPocketClaimTransferCtx] = useState<
+    null | { kind: "patron" | "staff"; branchId: number; currency: string }
+  >(null);
   const [detailAdvanceOpen, setDetailAdvanceOpen] = useState(false);
   const [insuranceAddOpen, setInsuranceAddOpen] = useState(false);
   const [insuranceEditPeriod, setInsuranceEditPeriod] =
@@ -528,8 +580,56 @@ export function PersonnelDetailModal({
     error: mgmtSnapErr,
   } = usePersonnelManagementSnapshot(
     open && pid > 0 ? pid : null,
-    open && pid > 0,
+    open &&
+      pid > 0 &&
+      (tab === "costs" ||
+        tab === "managerSummary" ||
+        tab === "personnelCashPhysical" ||
+        tab === "roles"),
   );
+
+  const branchIdsForPocketMoney = useMemo(() => {
+    if (!personnel || personnel.isDeleted) return [];
+    const ids = new Set<number>();
+    if (personnel.branchId != null && personnel.branchId > 0) {
+      ids.add(personnel.branchId);
+    }
+    for (const raw of mgmtSnap?.linkedBranchIds ?? []) {
+      const id = typeof raw === "number" ? raw : parseInt(String(raw), 10);
+      if (Number.isFinite(id) && id > 0) ids.add(id);
+    }
+    return [...ids];
+  }, [personnel, mgmtSnap?.linkedBranchIds]);
+
+  const pocketMoneyQueries = useQueries({
+    queries: branchIdsForPocketMoney.map((branchId) => ({
+      queryKey: branchKeys.personnelMoney(branchId),
+      queryFn: () => fetchBranchPersonnelMoneySummaries(branchId),
+      enabled: open && pid > 0 && !personnel?.isDeleted,
+    })),
+  });
+
+  const pocketMoneyActionsByBranch = useMemo(() => {
+    const out: { branchId: number; row: BranchPersonnelMoneySummaryItem }[] = [];
+    for (let i = 0; i < branchIdsForPocketMoney.length; i++) {
+      const branchId = branchIdsForPocketMoney[i]!;
+      const q = pocketMoneyQueries[i];
+      const rows = q?.data;
+      if (!rows) continue;
+      const row = rows.find((r) => r.personnelId === pid) ?? null;
+      if (
+        !row ||
+        row.pocketMixedCurrencies ||
+        !(row.netRegisterOwesPocket > 0.009)
+      ) {
+        continue;
+      }
+      out.push({ branchId, row });
+    }
+    return out;
+  }, [branchIdsForPocketMoney, pocketMoneyQueries, pid]);
+
+  const pocketMoneyQueriesPending = pocketMoneyQueries.some((q) => q.isPending);
 
   const {
     data: attributedExpenses = [],
@@ -597,42 +697,6 @@ export function PersonnelDetailModal({
     return rows;
   }, [attributedNonAdvanceExpensesForCostsTab, branchFilter]);
 
-  const handoverCashRows = useMemo(() => {
-    if (!mgmtSnap) return [];
-    return mgmtSnap.byCurrency.filter(
-      (r) => r.totalCashHandoverAsResponsibleAllTime > 0,
-    );
-  }, [mgmtSnap]);
-
-  const primaryHandoverRow = useMemo(() => {
-    if (!mgmtSnap || handoverCashRows.length === 0) return null;
-    const pc = mgmtSnap.primaryCurrencyCode?.trim().toUpperCase() || "TRY";
-    return (
-      handoverCashRows.find((r) => r.currencyCode.toUpperCase() === pc) ??
-      handoverCashRows[0]
-    );
-  }, [mgmtSnap, handoverCashRows]);
-
-  const handoverOtherCurrenciesLine = useMemo(() => {
-    if (!primaryHandoverRow || handoverCashRows.length <= 1) return "";
-    const rest = handoverCashRows.filter(
-      (r) =>
-        r.currencyCode.toUpperCase() !==
-        primaryHandoverRow.currencyCode.toUpperCase(),
-    );
-    return rest
-      .map((r) => {
-        const amt = formatMoneyDash(
-          r.totalCashHandoverAsResponsibleAllTime,
-          dash,
-          locale,
-          r.currencyCode,
-        );
-        return `${r.currencyCode} ${amt}`;
-      })
-      .join(" · ");
-  }, [primaryHandoverRow, handoverCashRows, dash, locale]);
-
   const orderedLinkedBranchIds = useMemo(() => {
     const raw = mgmtSnap?.linkedBranchIds ?? [];
     const bid = personnel?.branchId;
@@ -662,6 +726,10 @@ export function PersonnelDetailModal({
     setAssignWarehouseId("");
     setAssignRole("manager");
     setDetailAdvanceOpen(false);
+    setCostsPdfScopeModalOpen(false);
+    setCostsListSeasonModalOpen(false);
+    setCostsFiltersDrawerOpen(false);
+    setCostsActionsDrawerOpen(false);
   }, [open, personnel?.id, initialTab]);
 
   const seasonScopeSelectOptions = useMemo(
@@ -672,6 +740,13 @@ export function PersonnelDetailModal({
   useEffect(() => {
     setAdvPage(1);
   }, [costsListSeason, branchFilter, sourceFilter, advPageSizeVal]);
+
+  useEffect(() => {
+    if (tab !== "costs") {
+      setCostsFiltersDrawerOpen(false);
+      setCostsActionsDrawerOpen(false);
+    }
+  }, [tab]);
 
   const branchOptions = useMemo(
     () => [
@@ -754,6 +829,20 @@ export function PersonnelDetailModal({
     const start = (advSafePage - 1) * advSize;
     return combinedCostsRows.slice(start, start + advSize);
   }, [combinedCostsRows, advSafePage, advSize]);
+  const costsAdvanceTotal = useMemo(
+    () => filteredAdvances.reduce((sum, row) => sum + Number(row.amount ?? 0), 0),
+    [filteredAdvances],
+  );
+  const costsExpenseTotal = useMemo(
+    () =>
+      filteredExpensesForCostsCombo.reduce(
+        (sum, row) => sum + Number(row.amount ?? 0),
+        0,
+      ),
+    [filteredExpensesForCostsCombo],
+  );
+  const costsCombinedTotal = costsAdvanceTotal + costsExpenseTotal;
+  const costsSummaryCurrency = (personnel?.currencyCode ?? "TRY").trim() || "TRY";
 
   const warehouseAssignOptions = useMemo(
     () => [
@@ -831,6 +920,11 @@ export function PersonnelDetailModal({
     ],
   );
 
+  const costsListSeasonFilterYear = useMemo(
+    () => parseSettlementSeasonYearChoice(costsListSeason),
+    [costsListSeason],
+  );
+
   const confirmDeletePersonnelAdvance = useCallback(
     (advanceId: number) => {
       if (!personnel) return;
@@ -875,33 +969,37 @@ export function PersonnelDetailModal({
     [deleteTxMut, personnel, t],
   );
 
-  const runSettlementPrint = useCallback(async () => {
-    if (!personnel) return;
-    const y = parseSettlementSeasonYearChoice(pdfScopeSeason);
-    if (pdfScopeSeason.trim() !== "" && y == null) {
-      notify.error(t("personnel.effectiveYearInvalid"));
-      return;
-    }
-    setPrintBusy(true);
-    try {
-      await openPersonnelSettlementPrintWindow({
-        target: {
-          scope: "personnel",
-          personnelId: personnel.id,
-          title: personnelDisplayName(personnel),
-          seasonArrivalDate: personnel.seasonArrivalDate,
-          ...(y != null ? { seasonYearFilter: y } : {}),
-        },
-        locale,
-        branchNameById,
-        t,
-      });
-    } catch (e) {
-      notify.error(toErrorMessage(e));
-    } finally {
-      setPrintBusy(false);
-    }
-  }, [personnel, pdfScopeSeason, locale, branchNameById, t]);
+  const runSettlementPrint = useCallback(
+    async (seasonRaw?: string) => {
+      if (!personnel) return;
+      const raw = seasonRaw !== undefined ? seasonRaw : pdfScopeSeason;
+      const y = parseSettlementSeasonYearChoice(raw);
+      if (raw.trim() !== "" && y == null) {
+        notify.error(t("personnel.effectiveYearInvalid"));
+        return;
+      }
+      setPrintBusy(true);
+      try {
+        await openPersonnelSettlementPrintWindow({
+          target: {
+            scope: "personnel",
+            personnelId: personnel.id,
+            title: personnelDisplayName(personnel),
+            seasonArrivalDate: personnel.seasonArrivalDate,
+            ...(y != null ? { seasonYearFilter: y } : {}),
+          },
+          locale,
+          branchNameById,
+          t,
+        });
+      } catch (e) {
+        notify.error(toErrorMessage(e));
+      } finally {
+        setPrintBusy(false);
+      }
+    },
+    [personnel, pdfScopeSeason, locale, branchNameById, t],
+  );
 
   const runAssignWarehouse = async () => {
     const uid = normalizePositiveUserId(personnel?.userId);
@@ -942,13 +1040,6 @@ export function PersonnelDetailModal({
       notify.error(toErrorMessage(e));
     }
   };
-
-  const showCashHandoverBanner =
-    !mgmtSnapLoading &&
-    !mgmtSnapError &&
-    primaryHandoverRow != null &&
-    primaryHandoverRow.totalCashHandoverAsResponsibleAllTime > 0 &&
-    mgmtSnap != null;
 
   const tabBtn = (id: TabId, label: string) => (
     <button
@@ -998,6 +1089,8 @@ export function PersonnelDetailModal({
                 className="sticky top-0 z-[1] -mx-4 mb-3 flex flex-wrap gap-1 border-b border-zinc-200 bg-white/95 px-4 py-1 backdrop-blur-sm supports-[backdrop-filter]:bg-white/80 sm:-mx-6 sm:px-6"
               >
                 {tabBtn("profile", t("personnel.detailTabProfile"))}
+                {tabBtn("managerSummary", t("personnel.detailTabManagerSummary"))}
+                {tabBtn("personnelCashPhysical", t("personnel.detailTabPersonnelCashPhysical"))}
                 {tabBtn("insurance", t("personnel.detailTabInsurance"))}
                 {tabBtn("costs", t("personnel.detailTabCosts"))}
                 {tabBtn("yearClosures", t("personnel.detailTabYearClosures"))}
@@ -1013,7 +1106,7 @@ export function PersonnelDetailModal({
 
               <div className="mb-3">
                 {tab === "profile" ? (
-                  <div className="space-y-3 pb-2">
+                  <div className="space-y-4 pb-2">
                     <article
                       className={cn(
                         "mb-3 shrink-0 rounded-2xl border p-4 shadow-sm",
@@ -1087,34 +1180,6 @@ export function PersonnelDetailModal({
                               : dash}
                           </dd>
                         </div>
-                        {primaryHandoverRow &&
-                        primaryHandoverRow.totalCashHandoverAsResponsibleAllTime >
-                          0 ? (
-                          <div className="flex justify-between gap-3 sm:col-span-2 sm:block sm:space-y-1">
-                            <dt className="text-zinc-500">
-                              {t("personnel.detailProfileCashHandoverTotal")}
-                            </dt>
-                            <dd className="font-medium text-zinc-900 sm:text-left">
-                              {formatMoneyDash(
-                                primaryHandoverRow.totalCashHandoverAsResponsibleAllTime,
-                                dash,
-                                locale,
-                                primaryHandoverRow.currencyCode,
-                              )}
-                              {mgmtSnap &&
-                              mgmtSnap.cashHandoverResponsibleRecordCount > 0
-                                ? ` · ${t(
-                                    "personnel.detailProfileCashHandoverCount",
-                                  ).replace(
-                                    "{n}",
-                                    String(
-                                      mgmtSnap.cashHandoverResponsibleRecordCount,
-                                    ),
-                                  )}`
-                                : null}
-                            </dd>
-                          </div>
-                        ) : null}
                         <div className="flex justify-between gap-3 sm:col-span-2 sm:block sm:space-y-1">
                           <dt className="text-zinc-500">
                             {t("personnel.tableSystemUser")}
@@ -1344,110 +1409,115 @@ export function PersonnelDetailModal({
                         </div>
                       </div>
                     </article>
-
-                    {showCashHandoverBanner &&
-                    primaryHandoverRow &&
-                    mgmtSnap &&
-                    personnel ? (
-                      <div
-                        className="mb-3 shrink-0 rounded-2xl border-2 border-sky-600 bg-gradient-to-br from-sky-100 via-sky-50 to-cyan-50 p-4 shadow-lg shadow-sky-900/15 ring-2 ring-sky-500/45 sm:p-5"
-                        role="status"
-                      >
-                        <p className="text-xs font-bold uppercase tracking-widest text-sky-950/90">
-                          {t("personnel.detailCashHandoverBannerTitle")}
-                        </p>
-                        <p className="mt-2 text-base font-semibold leading-snug text-sky-950 sm:text-lg">
-                          {t("personnel.detailCashHandoverBannerLead")
-                            .replace("{name}", personnelDisplayName(personnel))
-                            .replace(
-                              "{total}",
-                              formatMoneyDash(
-                                primaryHandoverRow.totalCashHandoverAsResponsibleAllTime,
-                                dash,
-                                locale,
-                                primaryHandoverRow.currencyCode,
-                              ),
-                            )
-                            .replace("{ccy}", primaryHandoverRow.currencyCode)}
-                        </p>
-                        <p className="mt-2 text-sm font-medium leading-relaxed text-sky-950/90">
-                          {t("personnel.detailCashHandoverBannerSub")
-                            .replace(
-                              "{year}",
-                              String(mgmtSnap.currentCalendarYear),
-                            )
-                            .replace(
-                              "{ytd}",
-                              formatMoneyDash(
-                                primaryHandoverRow.totalCashHandoverAsResponsibleYearToDate,
-                                dash,
-                                locale,
-                                primaryHandoverRow.currencyCode,
-                              ),
-                            )
-                            .replace(
-                              "{count}",
-                              String(
-                                mgmtSnap.cashHandoverResponsibleRecordCount,
-                              ),
-                            )}
-                        </p>
-                        {handoverOtherCurrenciesLine ? (
-                          <p className="mt-2 text-xs font-medium text-sky-950/85">
-                            {t(
-                              "personnel.detailCashHandoverBannerOther",
-                            ).replace("{list}", handoverOtherCurrenciesLine)}
-                          </p>
-                        ) : null}
-                      </div>
-                    ) : null}
-
+                  </div>
+                ) : tab === "managerSummary" ? (
+                  <div className="w-full min-w-0 space-y-3 pb-2">
                     <PersonnelManagementSnapshotSection
+                      viewMode="manager"
                       personnel={personnel}
                       open={open}
+                      branchNameById={branchNameById}
+                      onOpenCostsDetail={() => setTab("costs")}
+                      onHandoverOpenExpenseRegister={(ctx) =>
+                        setOrgBranchTx({
+                          kind: "handover-pool-expense-register",
+                          branchId: ctx.branchId,
+                          currencyCode: ctx.currencyCode,
+                          suggestedAmount: ctx.suggestedAmount,
+                        })
+                      }
+                      onHandoverOpenPatronRegisterRepay={(ctx) => {
+                        if (personnel == null || personnel.isDeleted) return;
+                        setPatronHandoverTransferCtx({
+                          personnel,
+                          branchId: ctx.branchId,
+                          branchName: branchNameById.get(ctx.branchId),
+                          currencyCode: ctx.currencyCode,
+                          suggestedAmount: ctx.suggestedAmount,
+                        });
+                      }}
+                    />
+                  </div>
+                ) : tab === "personnelCashPhysical" ? (
+                  <div className="w-full min-w-0 space-y-3 pb-2">
+                    <PersonnelManagementSnapshotSection
+                      viewMode="cashPhysicalHandover"
+                      personnel={personnel}
+                      open={open}
+                      branchNameById={branchNameById}
+                      onOpenCostsDetail={() => setTab("costs")}
+                      onHandoverOpenExpenseRegister={(ctx) =>
+                        setOrgBranchTx({
+                          kind: "handover-pool-expense-register",
+                          branchId: ctx.branchId,
+                          currencyCode: ctx.currencyCode,
+                          suggestedAmount: ctx.suggestedAmount,
+                        })
+                      }
+                      onHandoverOpenPatronRegisterRepay={(ctx) => {
+                        if (personnel == null || personnel.isDeleted) return;
+                        setPatronHandoverTransferCtx({
+                          personnel,
+                          branchId: ctx.branchId,
+                          branchName: branchNameById.get(ctx.branchId),
+                          currencyCode: ctx.currencyCode,
+                          suggestedAmount: ctx.suggestedAmount,
+                        });
+                      }}
                     />
                   </div>
                 ) : tab === "insurance" ? (
                   <div className="space-y-3 pb-2">
                     <article
                       className={cn(
-                        "mb-3 shrink-0 rounded-2xl border p-4 shadow-sm",
+                        "mb-3 shrink-0 overflow-hidden rounded-2xl border shadow-sm",
                         personnel.isDeleted
                           ? "border-zinc-200/90 bg-zinc-100/50"
-                          : "border-zinc-200 bg-white",
+                          : "border-zinc-200/90 bg-white",
                       )}
                     >
-                      <h4 className="text-sm font-semibold text-zinc-900">
-                        {t("personnel.insuranceSectionTitle")}
-                      </h4>
-                      <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-                        <div className="flex justify-between gap-3 sm:block sm:space-y-1">
-                          <dt className="text-zinc-500">
-                            {t("personnel.insuranceStatusFieldLabel")}
-                          </dt>
-                          <dd className="font-medium text-zinc-900 sm:text-left">
-                            {personnel.insuranceStarted
-                              ? t("personnel.insuranceStatusStarted")
-                              : t("personnel.insuranceStatusPending")}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between gap-3 sm:block sm:space-y-1">
-                          <dt className="text-zinc-500">
+                      <div
+                        className={cn(
+                          "flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3.5 sm:px-5",
+                          personnel.isDeleted
+                            ? "border-zinc-200/80 bg-zinc-100/80"
+                            : "border-zinc-100 bg-gradient-to-r from-sky-50/50 via-white to-violet-50/40",
+                        )}
+                      >
+                        <h4 className="text-sm font-semibold text-zinc-900">
+                          {t("personnel.insuranceSectionTitle")}
+                        </h4>
+                        <span
+                          className={cn(
+                            "rounded-full px-2.5 py-1 text-xs font-semibold",
+                            personnel.insuranceStarted
+                              ? "bg-emerald-100 text-emerald-900"
+                              : "bg-amber-100 text-amber-950",
+                          )}
+                        >
+                          {personnel.insuranceStarted
+                            ? t("personnel.insuranceStatusStarted")
+                            : t("personnel.insuranceStatusPending")}
+                        </span>
+                      </div>
+                      <div className="grid gap-2 p-4 sm:grid-cols-2 sm:gap-3">
+                        <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/40 p-3 sm:p-3.5">
+                          <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
                             {t("personnel.insuranceCurrentOpenStart")}
-                          </dt>
-                          <dd className="font-medium text-zinc-900 sm:text-left">
+                          </p>
+                          <p className="mt-1 text-sm font-semibold tabular-nums text-zinc-900">
                             {formatOptionalIso(
                               personnel.insuranceStartDate,
                               dash,
                               locale,
                             )}
-                          </dd>
+                          </p>
                         </div>
-                        <div className="flex justify-between gap-3 sm:block sm:space-y-1">
-                          <dt className="text-zinc-500">
+                        <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/40 p-3 sm:p-3.5">
+                          <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
                             {t("personnel.insuranceCurrentOpenEnd")}
-                          </dt>
-                          <dd className="font-medium text-zinc-900 sm:text-left">
+                          </p>
+                          <p className="mt-1 text-sm font-semibold tabular-nums text-zinc-900">
                             {!personnel.insuranceStarted
                               ? dash
                               : personnel.insuranceEndDate == null ||
@@ -1459,33 +1529,40 @@ export function PersonnelDetailModal({
                                     dash,
                                     locale,
                                   )}
-                          </dd>
+                          </p>
                         </div>
-                        <div className="flex justify-between gap-3 sm:block sm:space-y-1">
-                          <dt className="text-zinc-500">
+                        <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/40 p-3 sm:p-3.5">
+                          <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
                             {t("personnel.insuranceIntakeDetailLabel")}
-                          </dt>
-                          <dd className="font-medium text-zinc-900 sm:text-left">
+                          </p>
+                          <p className="mt-1 text-sm font-semibold tabular-nums text-zinc-900">
                             {formatOptionalIso(
                               personnel.insuranceIntakeStartDate,
                               dash,
                               locale,
                             )}
-                          </dd>
+                          </p>
                         </div>
-                        <div className="flex justify-between gap-3 sm:col-span-2 sm:block sm:space-y-1">
-                          <dt className="text-zinc-500">
+                        <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/40 p-3 sm:p-3.5">
+                          <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
                             {t(
                               "personnel.insuranceAccountingNotifiedDetailLabel",
                             )}
-                          </dt>
-                          <dd className="font-medium text-zinc-900 sm:text-left">
+                          </p>
+                          <p
+                            className={cn(
+                              "mt-1 text-sm font-semibold",
+                              personnel.insuranceAccountingNotified
+                                ? "text-emerald-800"
+                                : "text-zinc-600",
+                            )}
+                          >
                             {personnel.insuranceAccountingNotified
                               ? t("personnel.insuranceAccountingNotifiedYes")
                               : t("personnel.insuranceAccountingNotifiedNo")}
-                          </dd>
+                          </p>
                         </div>
-                      </dl>
+                      </div>
                     </article>
                     <article
                       className={cn(
@@ -1543,68 +1620,123 @@ export function PersonnelDetailModal({
                               </TableRow>
                             </TableHead>
                             <TableBody>
-                              {insurancePeriods.map((row) => (
-                                <TableRow key={row.id}>
-                                  <TableCell
-                                    dataLabel={t("personnel.insurancePeriodColStart")}
-                                    className="whitespace-nowrap text-zinc-700"
-                                  >
-                                    {formatLocaleDate(
-                                      row.coverageStartDate,
-                                      locale,
-                                      dash,
-                                    )}
-                                  </TableCell>
-                                  <TableCell
-                                    dataLabel={t("personnel.insurancePeriodColEnd")}
-                                    className="whitespace-nowrap text-zinc-700"
-                                  >
-                                    {row.coverageEndDate == null ||
-                                    String(row.coverageEndDate).trim() === ""
-                                      ? t("personnel.insuranceOngoing")
-                                      : formatLocaleDate(
-                                          row.coverageEndDate,
-                                          locale,
-                                          dash,
-                                        )}
-                                  </TableCell>
-                                  <TableCell
-                                    dataLabel={t("personnel.insurancePeriodColBranch")}
-                                    className="max-w-[10rem] truncate text-zinc-700"
-                                    title={
-                                      row.registeredBranchName?.trim() ??
-                                      undefined
-                                    }
-                                  >
-                                    {row.registeredBranchName?.trim()
-                                      ? row.registeredBranchName.trim()
-                                      : dash}
-                                  </TableCell>
-                                  <TableCell
-                                    dataLabel={t("personnel.insurancePeriodColNotes")}
-                                    className="max-w-[14rem] truncate text-zinc-600"
-                                    title={row.notes ?? undefined}
-                                  >
-                                    {row.notes?.trim()
-                                      ? row.notes.trim()
-                                      : dash}
-                                  </TableCell>
-                                  <TableCell
-                                    dataLabel={t("personnel.insurancePeriodColActions")}
-                                    className="text-right"
-                                  >
-                                    <Button
-                                      type="button"
-                                      variant="secondary"
-                                      className="min-h-9 px-2.5 text-xs"
-                                      disabled={personnel.isDeleted}
-                                      onClick={() => setInsuranceEditPeriod(row)}
+                              {insurancePeriods.map((row) => {
+                                const periodOpen =
+                                  row.coverageEndDate == null ||
+                                  String(row.coverageEndDate).trim() === "";
+                                return (
+                                  <TableRow key={row.id}>
+                                    <TableCell
+                                      dataLabel={t(
+                                        "personnel.insurancePeriodColStart",
+                                      )}
+                                      className="whitespace-nowrap text-zinc-700"
                                     >
-                                      {t("personnel.insurancePeriodRowEdit")}
-                                    </Button>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
+                                      {formatLocaleDate(
+                                        row.coverageStartDate,
+                                        locale,
+                                        dash,
+                                      )}
+                                    </TableCell>
+                                    <TableCell
+                                      dataLabel={t(
+                                        "personnel.insurancePeriodColEnd",
+                                      )}
+                                      className="whitespace-nowrap text-zinc-700"
+                                    >
+                                      {periodOpen
+                                        ? t("personnel.insuranceOngoing")
+                                        : formatLocaleDate(
+                                            row.coverageEndDate,
+                                            locale,
+                                            dash,
+                                          )}
+                                    </TableCell>
+                                    <TableCell
+                                      dataLabel={t(
+                                        "personnel.insurancePeriodColBranch",
+                                      )}
+                                      className="max-w-[10rem] truncate text-zinc-700"
+                                      title={
+                                        row.registeredBranchName?.trim() ??
+                                        undefined
+                                      }
+                                    >
+                                      {row.registeredBranchName?.trim()
+                                        ? row.registeredBranchName.trim()
+                                        : dash}
+                                    </TableCell>
+                                    <TableCell
+                                      dataLabel={t(
+                                        "personnel.insurancePeriodColNotes",
+                                      )}
+                                      className="max-w-[14rem] truncate text-zinc-600"
+                                      title={row.notes ?? undefined}
+                                    >
+                                      {row.notes?.trim()
+                                        ? row.notes.trim()
+                                        : dash}
+                                    </TableCell>
+                                    <TableCell
+                                      dataLabel={t(
+                                        "personnel.insurancePeriodColActions",
+                                      )}
+                                      className="text-right"
+                                    >
+                                      {personnel.isDeleted ? null : (
+                                        <div className="flex justify-end gap-1.5">
+                                          {periodOpen ? (
+                                            <Tooltip
+                                              content={t(
+                                                "personnel.insurancePeriodRowCloseTooltip",
+                                              )}
+                                              delayMs={150}
+                                            >
+                                              <Button
+                                                type="button"
+                                                variant="secondary"
+                                                className={
+                                                  detailOpenIconButtonClass
+                                                }
+                                                aria-label={t(
+                                                  "personnel.insurancePeriodRowCloseAria",
+                                                )}
+                                                onClick={() =>
+                                                  setInsuranceEditPeriod(row)
+                                                }
+                                              >
+                                                <CalendarCheckIcon className="mx-auto opacity-90" />
+                                              </Button>
+                                            </Tooltip>
+                                          ) : null}
+                                          <Tooltip
+                                            content={t(
+                                              "personnel.insurancePeriodRowEditTooltip",
+                                            )}
+                                            delayMs={150}
+                                          >
+                                            <Button
+                                              type="button"
+                                              variant="secondary"
+                                              className={
+                                                detailOpenIconButtonClass
+                                              }
+                                              aria-label={t(
+                                                "personnel.insurancePeriodRowEditAria",
+                                              )}
+                                              onClick={() =>
+                                                setInsuranceEditPeriod(row)
+                                              }
+                                            >
+                                              <PencilIcon className="mx-auto opacity-90" />
+                                            </Button>
+                                          </Tooltip>
+                                        </div>
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
                             </TableBody>
                           </Table>
                         </div>
@@ -1612,127 +1744,249 @@ export function PersonnelDetailModal({
                     </article>
                   </div>
                 ) : tab === "costs" ? (
-                  <div className="space-y-8 pb-2">
-                    <div className="flex flex-col gap-3">
-                      <div className="rounded-lg border border-zinc-200 bg-zinc-50/50 p-3">
-                        <Select
-                          name="personnelDetailPdfScopeSeason"
-                          label={t("personnel.detailPdfScopeLabel")}
-                          options={seasonScopeSelectOptions}
-                          value={pdfScopeSeason}
-                          onChange={(e) => setPdfScopeSeason(e.target.value)}
-                          onBlur={() => {}}
-                        />
-                        <p className="mt-2 text-xs text-zinc-500">
-                          {t("personnel.detailPdfScopeHint")}
-                        </p>
-                      </div>
-                      <div className="rounded-lg border border-zinc-200 bg-white p-3 shadow-sm shadow-zinc-900/5">
-                        <Select
-                          name="personnelDetailCostsListSeason"
-                          label={t("personnel.detailCostsListSeasonLabel")}
-                          options={seasonScopeSelectOptions}
-                          value={costsListSeason}
-                          onChange={(e) => setCostsListSeason(e.target.value)}
-                          onBlur={() => {}}
-                        />
-                        <p className="mt-2 text-xs text-zinc-500">
-                          {t("personnel.detailCostsListSeasonHint")}
-                        </p>
-                      </div>
-                      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="min-h-10 w-full sm:w-auto"
-                          disabled={printBusy || personnel.isDeleted}
-                          onClick={() => {
-                            setAccountClosureYearSummary(false);
-                            setAccountClosureOpen(true);
-                          }}
-                        >
-                          {t("personnel.accountClosure.openButton")}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="min-h-10 w-full sm:w-auto"
-                          disabled={printBusy}
-                          onClick={() => void runSettlementPrint()}
-                        >
-                          {t("personnel.settlementPrintOpen")}
-                        </Button>
-                      </div>
-                    </div>
-
-                    <section className="space-y-4">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
-                        <h3 className="text-sm font-semibold text-zinc-900">
-                          {t("personnel.detailTabCosts")}
-                        </h3>
-                        {!personnel.isDeleted ? (
-                          <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="min-h-10 shrink-0"
-                              onClick={() => setDetailAdvanceOpen(true)}
-                            >
-                              {t("personnel.detailCostsGiveAdvance")}
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="min-h-10 shrink-0"
-                              onClick={() => setOrgTxOpen(true)}
-                            >
-                              {t("personnel.detailCostsAddExpense")}
-                            </Button>
-                          </div>
-                        ) : null}
-                      </div>
-                      <CollapsibleMobileFilters
-                        title={t("personnel.detailAdvancesFilters")}
-                        toggleAriaLabel={t("common.filters")}
-                        active={advFiltersActive}
-                        resetKey={personnel.id}
-                        expandLabel={t("common.filtersShow")}
-                        collapseLabel={t("common.filtersHide")}
-                      >
-                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                          <Select
-                            name="advBranch"
-                            label={t("personnel.tableBranch")}
-                            options={branchOptions}
-                            value={branchFilter}
-                            onChange={(e) => setBranchFilter(e.target.value)}
-                            onBlur={() => {}}
-                          />
-                          <Select
-                            name="advSource"
-                            label={t("personnel.sourceType")}
-                            options={sourceOptions}
-                            value={sourceFilter}
-                            onChange={(e) => setSourceFilter(e.target.value)}
-                            onBlur={() => {}}
-                          />
-                          <Select
-                            name="advPageSize"
-                            label={t("personnel.detailPageSize")}
-                            options={pageSizeSelectOptions}
-                            value={advPageSizeVal}
-                            onChange={(e) => setAdvPageSize(e.target.value)}
-                            onBlur={() => {}}
-                          />
+                  <div className="min-w-0 space-y-4 pb-2">
+                    <section className="min-w-0 space-y-4">
+                      {!personnel.isDeleted &&
+                      (pocketMoneyQueriesPending || pocketMoneyActionsByBranch.length > 0) ? (
+                        <div className="rounded-xl border border-amber-200/90 bg-amber-50/40 p-3 shadow-sm sm:p-4">
+                          <h3 className="text-sm font-semibold text-amber-950">
+                            {t("personnel.detailPocketMoneySectionTitle")}
+                          </h3>
+                          <p className="mt-1 text-xs leading-relaxed text-amber-900/80">
+                            {t("personnel.detailPocketMoneySectionHint")}
+                          </p>
+                          {pocketMoneyQueriesPending ? (
+                            <p className="mt-3 text-sm text-zinc-600">
+                              {t("common.loading")}
+                            </p>
+                          ) : (
+                            <ul className="mt-3 space-y-3">
+                              {pocketMoneyActionsByBranch.map(({ branchId, row }) => {
+                                const cur =
+                                  row.pocketCurrencyCode?.trim().toUpperCase() || "TRY";
+                                const bname =
+                                  branchNameById.get(branchId) ?? `#${branchId}`;
+                                return (
+                                  <li
+                                    key={branchId}
+                                    className="flex flex-col gap-3 rounded-lg border border-amber-200/70 bg-white/80 p-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
+                                  >
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-medium text-zinc-900">
+                                        {bname}
+                                      </p>
+                                      <p className="mt-0.5 font-mono text-sm text-amber-950">
+                                        {formatMoneyDash(
+                                          row.netRegisterOwesPocket,
+                                          dash,
+                                          locale as Locale,
+                                          cur,
+                                        )}
+                                      </p>
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5 sm:justify-end">
+                                      <Tooltip
+                                        content={t(
+                                          "personnel.detailPocketActionRegisterTooltip",
+                                        )}
+                                      >
+                                        <Button
+                                          type="button"
+                                          variant="secondary"
+                                          className="min-h-9 shrink-0 px-2.5 text-xs font-semibold"
+                                          aria-label={t(
+                                            "personnel.detailPocketActionRegisterTooltip",
+                                          )}
+                                          onClick={() =>
+                                            setOrgBranchTx({
+                                              kind: "pocket-repay",
+                                              branchId,
+                                              currency: cur,
+                                              paymentSource: "REGISTER",
+                                            })
+                                          }
+                                        >
+                                          {t("personnel.detailPocketActionRegisterShort")}
+                                        </Button>
+                                      </Tooltip>
+                                      <Tooltip
+                                        content={t(
+                                          "personnel.detailPocketActionPatronRepayTooltip",
+                                        )}
+                                      >
+                                        <Button
+                                          type="button"
+                                          variant="secondary"
+                                          className="min-h-9 shrink-0 px-2.5 text-xs font-semibold"
+                                          aria-label={t(
+                                            "personnel.detailPocketActionPatronRepayTooltip",
+                                          )}
+                                          onClick={() =>
+                                            setOrgBranchTx({
+                                              kind: "pocket-repay",
+                                              branchId,
+                                              currency: cur,
+                                              paymentSource: "PATRON",
+                                            })
+                                          }
+                                        >
+                                          {t("personnel.detailPocketActionPatronRepayShort")}
+                                        </Button>
+                                      </Tooltip>
+                                      {UI_POCKET_CLAIM_TRANSFER_ENABLED ? (
+                                        <>
+                                          <Tooltip
+                                            content={t(
+                                              "personnel.detailPocketActionClaimToPatronTooltip",
+                                            )}
+                                          >
+                                            <Button
+                                              type="button"
+                                              variant="secondary"
+                                              className="min-h-9 shrink-0 px-2.5 text-xs font-semibold"
+                                              aria-label={t(
+                                                "personnel.detailPocketActionClaimToPatronTooltip",
+                                              )}
+                                              onClick={() =>
+                                                setPocketClaimTransferCtx({
+                                                  kind: "patron",
+                                                  branchId,
+                                                  currency: cur,
+                                                })
+                                              }
+                                            >
+                                              {t(
+                                                "personnel.detailPocketActionClaimToPatronShort",
+                                              )}
+                                            </Button>
+                                          </Tooltip>
+                                          <Tooltip
+                                            content={t(
+                                              "personnel.detailPocketActionClaimToStaffTooltip",
+                                            )}
+                                          >
+                                            <Button
+                                              type="button"
+                                              variant="secondary"
+                                              className="min-h-9 shrink-0 px-2.5 text-xs font-semibold"
+                                              aria-label={t(
+                                                "personnel.detailPocketActionClaimToStaffTooltip",
+                                              )}
+                                              onClick={() =>
+                                                setPocketClaimTransferCtx({
+                                                  kind: "staff",
+                                                  branchId,
+                                                  currency: cur,
+                                                })
+                                              }
+                                            >
+                                              {t(
+                                                "personnel.detailPocketActionClaimToStaffShort",
+                                              )}
+                                            </Button>
+                                          </Tooltip>
+                                        </>
+                                      ) : null}
+                                    </div>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
                         </div>
-                      </CollapsibleMobileFilters>
+                      ) : null}
+                      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
+                          <h3 className="text-sm font-semibold text-zinc-900">
+                            {t("personnel.detailTabCosts")}
+                          </h3>
+                          <Tooltip
+                            content={t("personnel.detailCostsFiltersDrawerTitle")}
+                            delayMs={200}
+                          >
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className={cn(TABLE_TOOLBAR_ICON_BTN, "relative")}
+                              onClick={() => setCostsFiltersDrawerOpen(true)}
+                              aria-label={t("personnel.detailCostsFiltersDrawerTitle")}
+                            >
+                              <FilterFunnelIcon className="h-5 w-5" />
+                              {advFiltersActive ? (
+                                <span
+                                  className="absolute right-1 top-1 h-2 w-2 rounded-full bg-violet-500 ring-2 ring-white"
+                                  aria-hidden
+                                />
+                              ) : null}
+                            </Button>
+                          </Tooltip>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="min-h-10 w-full shrink-0 sm:w-auto sm:min-w-[10rem]"
+                          onClick={() => setCostsActionsDrawerOpen(true)}
+                        >
+                          {t("personnel.detailCostsActions")}
+                        </Button>
+                      </div>
+                      {costsListSeasonFilterYear != null ? (
+                        <p className="text-xs text-zinc-600">
+                          {t("personnel.detailCostsListSeasonActiveLine").replace(
+                            "{year}",
+                            String(costsListSeasonFilterYear),
+                          )}
+                        </p>
+                      ) : null}
+                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <article className="rounded-xl border border-zinc-200/90 bg-white p-3 shadow-sm shadow-zinc-900/5">
+                          <p className="text-xs font-medium text-zinc-500">
+                            Toplam Tutar
+                          </p>
+                          <p className="mt-1 font-mono text-base font-semibold tabular-nums text-zinc-900">
+                            {formatMoneyDash(
+                              costsCombinedTotal,
+                              dash,
+                              locale,
+                              costsSummaryCurrency,
+                            )}
+                          </p>
+                        </article>
+                        <article className="rounded-xl border border-zinc-200/90 bg-white p-3 shadow-sm shadow-zinc-900/5">
+                          <p className="text-xs font-medium text-zinc-500">
+                            Toplam Avans
+                          </p>
+                          <p className="mt-1 font-mono text-base font-semibold tabular-nums text-zinc-900">
+                            {formatMoneyDash(
+                              costsAdvanceTotal,
+                              dash,
+                              locale,
+                              costsSummaryCurrency,
+                            )}
+                          </p>
+                        </article>
+                        <article className="rounded-xl border border-zinc-200/90 bg-white p-3 shadow-sm shadow-zinc-900/5">
+                          <p className="text-xs font-medium text-zinc-500">
+                            Toplam Gider
+                          </p>
+                          <p className="mt-1 font-mono text-base font-semibold tabular-nums text-zinc-900">
+                            {formatMoneyDash(
+                              costsExpenseTotal,
+                              dash,
+                              locale,
+                              costsSummaryCurrency,
+                            )}
+                          </p>
+                        </article>
+                      </div>
 
+                      <div className="min-w-0 overflow-hidden rounded-xl border border-zinc-200/90 bg-white shadow-sm shadow-zinc-900/5">
                       {advLoading || attrExpLoading ? (
-                        <p className="text-sm text-zinc-500">
+                        <p className="p-4 text-sm text-zinc-500">
                           {t("common.loading")}
                         </p>
                       ) : advError || attrExpError ? (
-                        <div className="space-y-1 text-sm text-red-600">
+                        <div className="space-y-1 p-4 text-sm text-red-600">
                           {advError ? (
                             <p>{toErrorMessage(advErr)}</p>
                           ) : null}
@@ -1741,12 +1995,12 @@ export function PersonnelDetailModal({
                           ) : null}
                         </div>
                       ) : combinedCostsRows.length === 0 ? (
-                        <p className="text-sm text-zinc-600">
+                        <p className="p-4 text-sm text-zinc-600">
                           {t("personnel.detailCostsCombinedEmpty")}
                         </p>
                       ) : (
                         <>
-                          <div className="space-y-3 md:hidden">
+                          <div className="space-y-3 p-3 md:hidden">
                             {costsSlice.map((row) =>
                               row.kind === "advance" ? (
                                 <article
@@ -1879,8 +2133,8 @@ export function PersonnelDetailModal({
                               ),
                             )}
                           </div>
-                          <div className="hidden overflow-x-auto rounded-xl border border-zinc-200/90 md:block">
-                            <Table className="min-w-[48rem] border-0">
+                          <div className="hidden min-w-0 overflow-x-auto md:block">
+                            <Table className="min-w-[44rem] border-0 text-sm">
                               <TableHead>
                                 <TableRow>
                                   <TableHeader className="w-[1%] whitespace-nowrap">
@@ -2050,7 +2304,7 @@ export function PersonnelDetailModal({
                               </TableBody>
                             </Table>
                           </div>
-                          <div className="flex flex-col gap-2 border-t border-zinc-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex flex-col gap-2 border-t border-zinc-100 bg-zinc-50/60 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
                             <p className="text-xs text-zinc-500">
                               {t("personnel.detailShowing")
                                 .replace(
@@ -2100,6 +2354,7 @@ export function PersonnelDetailModal({
                           </div>
                         </>
                       )}
+                      </div>
                     </section>
                   </div>
                 ) : tab === "yearClosures" ? (
@@ -2438,25 +2693,48 @@ export function PersonnelDetailModal({
                   />
                 ) : (
                   <div className="space-y-4 pb-2">
-                    <div className="rounded-xl border border-zinc-200 bg-gradient-to-b from-zinc-50/90 to-white p-4 shadow-sm shadow-zinc-900/5">
+                    <div className="rounded-2xl border border-zinc-200 bg-gradient-to-b from-zinc-50/90 to-white p-4 shadow-sm shadow-zinc-900/5 sm:p-5">
                       <h3 className="text-sm font-semibold text-zinc-900">
                         {t("personnel.detailRolesStoryTitle")}
                       </h3>
-                      <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-                        {t("personnel.detailRolesStoryIntroPerson").replace(
-                          "{name}",
-                          personnelDisplayName(personnel),
-                        )}
+                      <p className="mt-0.5 text-xs font-medium text-zinc-500">
+                        {personnelDisplayName(personnel)}
                       </p>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-xl border border-violet-200/80 bg-violet-50/50 p-3 sm:p-3.5">
+                          <p className="text-[0.65rem] font-bold uppercase tracking-wide text-violet-900">
+                            {t("personnel.detailRolesStorySummaryBranchEyebrow")}
+                          </p>
+                          <p className="mt-2 text-xs leading-relaxed text-zinc-700">
+                            {t("personnel.detailRolesStorySummaryBranchBody")}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-amber-200/80 bg-amber-50/45 p-3 sm:p-3.5">
+                          <p className="text-[0.65rem] font-bold uppercase tracking-wide text-amber-950">
+                            {t(
+                              "personnel.detailRolesStorySummaryWarehouseEyebrow",
+                            )}
+                          </p>
+                          <p className="mt-2 text-xs leading-relaxed text-zinc-800">
+                            {t(
+                              "personnel.detailRolesStorySummaryWarehouseBody",
+                            )}
+                          </p>
+                        </div>
+                      </div>
                     </div>
 
-                    <section className="rounded-xl border border-zinc-200/90 bg-white p-4 shadow-sm">
-                      <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                        {t("personnel.detailRolesBranchesListTitle")}
-                      </h4>
-                      <p className="mt-2 text-xs leading-relaxed text-zinc-500">
-                        {t("personnel.detailRolesBranchesListIntro")}
-                      </p>
+                    <section className="rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm sm:p-5">
+                      <div className="flex flex-wrap items-end justify-between gap-2 border-b border-zinc-100 pb-3">
+                        <div className="min-w-0">
+                          <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                            {t("personnel.detailRolesBranchesListTitle")}
+                          </h4>
+                          <p className="mt-1 max-w-prose text-xs leading-relaxed text-zinc-500">
+                            {t("personnel.detailRolesBranchesListIntro")}
+                          </p>
+                        </div>
+                      </div>
                       {mgmtSnapLoading &&
                       orderedLinkedBranchIds.length === 0 ? (
                         <p className="mt-3 text-sm text-zinc-500">
@@ -2478,7 +2756,7 @@ export function PersonnelDetailModal({
                       {!mgmtSnapLoading &&
                       !mgmtSnapError &&
                       orderedLinkedBranchIds.length > 0 ? (
-                        <ol className="mt-3 list-decimal space-y-2 pl-4 text-sm leading-relaxed text-zinc-800 marker:text-zinc-400">
+                        <ul className="mt-4 grid gap-2">
                           {orderedLinkedBranchIds.map((branchId) => {
                             const nm =
                               branchNameById.get(branchId) ?? `#${branchId}`;
@@ -2487,39 +2765,67 @@ export function PersonnelDetailModal({
                               `personnel.jobTitles.${personnel.jobTitle}`,
                             );
                             return (
-                              <li key={branchId} className="pl-1">
-                                <span className="text-zinc-900">
-                                  {t("personnel.detailRolesBranchItem").replace(
-                                    "{name}",
-                                    nm,
-                                  )}
-                                </span>
-                                {isCurrent ? (
-                                  <>
-                                    <span className="ml-2 inline-flex rounded-md bg-violet-100 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-violet-900">
+                              <li
+                                key={branchId}
+                                className={cn(
+                                  "rounded-xl border p-3.5 shadow-sm transition-colors",
+                                  isCurrent
+                                    ? "border-violet-200 bg-gradient-to-br from-violet-50/90 to-white ring-1 ring-violet-500/[0.12]"
+                                    : "border-zinc-200/90 bg-zinc-50/50",
+                                )}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <p className="min-w-0 text-sm font-semibold leading-snug text-zinc-900">
+                                    {nm}
+                                  </p>
+                                  {isCurrent ? (
+                                    <span className="shrink-0 rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
                                       {t(
                                         "personnel.detailRolesBranchCurrentTag",
                                       )}
                                     </span>
-                                    <span className="ml-2 text-zinc-700">
-                                      ·{" "}
+                                  ) : (
+                                    <span className="shrink-0 rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                                       {t(
-                                        "personnel.detailRolesBranchCurrentRole",
-                                      ).replace("{role}", roleLabel)}
+                                        "personnel.detailRolesBranchHistoricTag",
+                                      )}
                                     </span>
-                                  </>
-                                ) : null}
+                                  )}
+                                </div>
+                                {isCurrent ? (
+                                  <p className="mt-2.5 text-xs text-zinc-600">
+                                    <span className="font-semibold text-zinc-500">
+                                      {t(
+                                        "personnel.detailRolesBranchTitleLabel",
+                                      )}
+                                    </span>{" "}
+                                    <span className="text-sm font-medium text-zinc-800">
+                                      {roleLabel}
+                                    </span>
+                                  </p>
+                                ) : (
+                                  <p className="mt-2.5 text-xs leading-relaxed text-zinc-500">
+                                    {t(
+                                      "personnel.detailRolesBranchHistoricHint",
+                                    )}
+                                  </p>
+                                )}
                               </li>
                             );
                           })}
-                        </ol>
+                        </ul>
                       ) : null}
                     </section>
 
-                    <section className="rounded-xl border border-zinc-200/90 bg-white p-4 shadow-sm">
-                      <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                        {t("personnel.detailRolesWarehousesListTitle")}
-                      </h4>
+                    <section className="rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm sm:p-5">
+                      <div className="border-b border-zinc-100 pb-3">
+                        <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                          {t("personnel.detailRolesWarehousesListTitle")}
+                        </h4>
+                        <p className="mt-2 max-w-prose text-sm leading-relaxed text-zinc-600">
+                          {t("personnel.detailRolesWarehousesSectionPurpose")}
+                        </p>
+                      </div>
 
                       {!hasLinkedSystemUser(personnel) ? (
                         <div className="mt-3 space-y-3 rounded-xl border border-amber-200/80 bg-amber-50/50 p-4">
@@ -2620,27 +2926,41 @@ export function PersonnelDetailModal({
                                 : t("personnel.detailRolesStoryNoDepots")}
                             </p>
                           ) : (
-                            <ol className="mt-4 list-decimal space-y-3 pl-4 text-sm leading-relaxed text-zinc-800 marker:text-zinc-400">
+                            <ul className="mt-4 grid gap-2 sm:grid-cols-2">
                               {warehouseRoles.map(({ warehouse: w, tags }) => (
-                                <li key={w.id} className="pl-1">
-                                  <span className="text-zinc-900">
-                                    {t("personnel.detailRolesStoryDepotLine")
-                                      .replace("{warehouse}", w.name)
-                                      .replace(
-                                        "{roles}",
-                                        depotRolePhrase(tags, t),
-                                      )}
-                                  </span>
+                                <li
+                                  key={w.id}
+                                  className="rounded-xl border border-zinc-200/90 bg-zinc-50/40 p-3.5 shadow-sm"
+                                >
+                                  <p className="text-sm font-semibold text-zinc-900">
+                                    {w.name}
+                                  </p>
+                                  <div className="mt-2 flex flex-wrap gap-1.5">
+                                    {tags.includes("manager") ? (
+                                      <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-[11px] font-semibold text-violet-900">
+                                        {t(
+                                          "personnel.detailRolesAssignRoleManager",
+                                        )}
+                                      </span>
+                                    ) : null}
+                                    {tags.includes("master") ? (
+                                      <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-950">
+                                        {t(
+                                          "personnel.detailRolesAssignRoleMaster",
+                                        )}
+                                      </span>
+                                    ) : null}
+                                  </div>
                                   {w.city?.trim() || w.address?.trim() ? (
-                                    <span className="mt-1 block text-xs text-zinc-500">
+                                    <p className="mt-2 text-xs leading-relaxed text-zinc-500">
                                       {[w.city?.trim(), w.address?.trim()]
                                         .filter(Boolean)
                                         .join(" · ")}
-                                    </span>
+                                    </p>
                                   ) : null}
                                 </li>
                               ))}
-                            </ol>
+                            </ul>
                           )}
                         </>
                       )}
@@ -2652,13 +2972,99 @@ export function PersonnelDetailModal({
           </div>
         )}
       </Modal>
-      <AddBranchTransactionModal
-        open={orgTxOpen && personnel != null && !personnel.isDeleted}
-        onClose={() => setOrgTxOpen(false)}
-        branchId={personnel?.branchId ?? null}
-        defaultLinkedPersonnelId={personnel?.id}
-        defaultType="OUT"
+      <PersonnelHandoverPatronTransferDialog
+        open={
+          patronHandoverTransferCtx != null &&
+          personnel != null &&
+          !personnel.isDeleted
+        }
+        ctx={patronHandoverTransferCtx}
+        onClose={() => {
+          const pid = patronHandoverTransferCtx?.personnel.id;
+          setPatronHandoverTransferCtx(null);
+          if (pid != null) {
+            void queryClient.invalidateQueries({
+              queryKey: personnelKeys.managementSnapshot(pid),
+            });
+          }
+        }}
       />
+      <AddBranchTransactionModal
+        open={orgBranchTx != null && personnel != null && !personnel.isDeleted}
+        onClose={() => setOrgBranchTx(null)}
+        branchId={
+          orgBranchTx?.kind === "pocket-repay" ||
+          orgBranchTx?.kind === "handover-pool-expense-register"
+            ? orgBranchTx.branchId
+            : (personnel?.branchId ?? null)
+        }
+        defaultLinkedPersonnelId={
+          orgBranchTx?.kind === "handover-pool-expense-register"
+            ? undefined
+            : personnel?.id
+        }
+        defaultType="OUT"
+        defaultTransactionDate={localIsoDate()}
+        defaultPocketRepayPersonnelId={
+          orgBranchTx?.kind === "pocket-repay" ? personnel?.id : undefined
+        }
+        defaultPocketRepayCurrencyCode={
+          orgBranchTx?.kind === "pocket-repay" ? orgBranchTx.currency : undefined
+        }
+        defaultExpensePaymentSource={
+          orgBranchTx?.kind === "pocket-repay"
+            ? orgBranchTx.paymentSource
+            : undefined
+        }
+        defaultHandoverSettleKind={
+          orgBranchTx?.kind === "handover-pool-expense-register"
+            ? "expense_register"
+            : undefined
+        }
+        defaultHandoverCurrencyCode={
+          orgBranchTx?.kind === "handover-pool-expense-register"
+            ? orgBranchTx.currencyCode
+            : undefined
+        }
+        defaultHandoverMaxAmount={
+          orgBranchTx?.kind === "handover-pool-expense-register"
+            ? orgBranchTx.suggestedAmount
+            : undefined
+        }
+        defaultHandoverPoolTotalOnly={
+          orgBranchTx?.kind === "handover-pool-expense-register" ? true : undefined
+        }
+      />
+      {personnel != null &&
+      !personnel.isDeleted &&
+      UI_POCKET_CLAIM_TRANSFER_ENABLED ? (
+        <>
+          <PersonnelPocketClaimToPatronDialog
+            open={pocketClaimTransferCtx?.kind === "patron"}
+            onClose={() => setPocketClaimTransferCtx(null)}
+            branchId={pocketClaimTransferCtx?.branchId ?? 0}
+            fromPersonnelId={personnel.id}
+            fromPersonnelDisplayName={personnelDisplayName(personnel)}
+            defaultCurrencyCode={
+              pocketClaimTransferCtx?.currency ??
+              personnel.currencyCode ??
+              "TRY"
+            }
+          />
+          <PersonnelPocketClaimToStaffDialog
+            open={pocketClaimTransferCtx?.kind === "staff"}
+            onClose={() => setPocketClaimTransferCtx(null)}
+            branchId={pocketClaimTransferCtx?.branchId ?? 0}
+            fromPersonnelId={personnel.id}
+            fromPersonnelDisplayName={personnelDisplayName(personnel)}
+            defaultCurrencyCode={
+              pocketClaimTransferCtx?.currency ??
+              personnel.currencyCode ??
+              "TRY"
+            }
+          />
+        </>
+      ) : null}
       {personnel != null && !personnel.isDeleted ? (
         <AdvancePersonnelModal
           open={detailAdvanceOpen}
@@ -2703,6 +3109,218 @@ export function PersonnelDetailModal({
           nested
         />
       ) : null}
+      <Modal
+        nested
+        open={costsPdfScopeModalOpen}
+        onClose={() => setCostsPdfScopeModalOpen(false)}
+        titleId={costsPdfModalTitleId}
+        title={t("personnel.detailCostsPdfModalTitle")}
+        closeButtonLabel={t("common.close")}
+        narrow
+      >
+        <div className="space-y-4 px-1 pb-2 pt-1">
+          <Select
+            name="personnelDetailPdfScopeSeasonModal"
+            label={t("personnel.detailPdfScopeLabel")}
+            options={seasonScopeSelectOptions}
+            value={pdfScopeDraft}
+            onChange={(e) => setPdfScopeDraft(e.target.value)}
+            onBlur={() => {}}
+          />
+          <p className="text-xs text-zinc-500">{t("personnel.detailPdfScopeHint")}</p>
+          <div className="flex flex-wrap justify-end gap-2 pt-1">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setCostsPdfScopeModalOpen(false)}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              type="button"
+              disabled={printBusy}
+              onClick={() => {
+                const y = parseSettlementSeasonYearChoice(pdfScopeDraft);
+                if (pdfScopeDraft.trim() !== "" && y == null) {
+                  notify.error(t("personnel.effectiveYearInvalid"));
+                  return;
+                }
+                setPdfScopeSeason(pdfScopeDraft);
+                setCostsPdfScopeModalOpen(false);
+                void runSettlementPrint(pdfScopeDraft);
+              }}
+            >
+              {t("personnel.settlementPrintSeasonPickerConfirm")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      <Modal
+        nested
+        open={costsListSeasonModalOpen}
+        onClose={() => setCostsListSeasonModalOpen(false)}
+        titleId={costsListSeasonModalTitleId}
+        title={t("personnel.detailCostsListSeasonModalTitle")}
+        closeButtonLabel={t("common.close")}
+        narrow
+      >
+        <div className="space-y-4 px-1 pb-2 pt-1">
+          <Select
+            name="personnelDetailCostsListSeasonModal"
+            label={t("personnel.detailCostsListSeasonLabel")}
+            options={seasonScopeSelectOptions}
+            value={costsListSeasonDraft}
+            onChange={(e) => setCostsListSeasonDraft(e.target.value)}
+            onBlur={() => {}}
+          />
+          <p className="text-xs text-zinc-500">
+            {t("personnel.detailCostsListSeasonHint")}
+          </p>
+          <div className="flex flex-wrap justify-end gap-2 pt-1">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setCostsListSeasonModalOpen(false)}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                const y = parseSettlementSeasonYearChoice(
+                  costsListSeasonDraft,
+                );
+                if (costsListSeasonDraft.trim() !== "" && y == null) {
+                  notify.error(t("personnel.effectiveYearInvalid"));
+                  return;
+                }
+                setCostsListSeason(costsListSeasonDraft);
+                setCostsListSeasonModalOpen(false);
+              }}
+            >
+              {t("personnel.detailCostsListSeasonApply")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      <RightDrawer
+        open={costsFiltersDrawerOpen}
+        onClose={() => setCostsFiltersDrawerOpen(false)}
+        title={t("personnel.detailCostsFiltersDrawerTitle")}
+        closeLabel={t("common.close")}
+        backdropCloseRequiresConfirm={false}
+        rootClassName={OVERLAY_Z_TW.modalNested}
+      >
+        <div className="space-y-4">
+          <p className="text-xs leading-relaxed text-zinc-500">
+            {t("personnel.detailCostsFiltersDrawerHint")}
+          </p>
+          <div className="grid gap-4">
+            <Select
+              name="advBranchDrawer"
+              label={t("personnel.tableBranch")}
+              options={branchOptions}
+              value={branchFilter}
+              onChange={(e) => setBranchFilter(e.target.value)}
+              onBlur={() => {}}
+              menuZIndex={OVERLAY_Z_INDEX.dateFieldPopover + 60}
+            />
+            <Select
+              name="advSourceDrawer"
+              label={t("personnel.sourceType")}
+              options={sourceOptions}
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value)}
+              onBlur={() => {}}
+              menuZIndex={OVERLAY_Z_INDEX.dateFieldPopover + 60}
+            />
+            <Select
+              name="advPageSizeDrawer"
+              label={t("personnel.detailPageSize")}
+              options={pageSizeSelectOptions}
+              value={advPageSizeVal}
+              onChange={(e) => setAdvPageSize(e.target.value)}
+              onBlur={() => {}}
+              menuZIndex={OVERLAY_Z_INDEX.dateFieldPopover + 60}
+            />
+          </div>
+        </div>
+      </RightDrawer>
+      <RightDrawer
+        open={costsActionsDrawerOpen}
+        onClose={() => setCostsActionsDrawerOpen(false)}
+        title={t("personnel.detailCostsActions")}
+        closeLabel={t("common.close")}
+        backdropCloseRequiresConfirm={false}
+        rootClassName={OVERLAY_Z_TW.modalNested}
+      >
+        <div className="flex flex-col gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            className="min-h-11 w-full"
+            disabled={printBusy || personnel?.isDeleted}
+            onClick={() => {
+              setCostsActionsDrawerOpen(false);
+              setAccountClosureYearSummary(false);
+              setAccountClosureOpen(true);
+            }}
+          >
+            {t("personnel.accountClosure.openButton")}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            className="min-h-11 w-full"
+            disabled={printBusy}
+            onClick={() => {
+              setCostsActionsDrawerOpen(false);
+              setPdfScopeDraft(pdfScopeSeason);
+              setCostsPdfScopeModalOpen(true);
+            }}
+          >
+            {t("personnel.settlementPrintOpen")}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            className="min-h-11 w-full"
+            onClick={() => {
+              setCostsActionsDrawerOpen(false);
+              setCostsListSeasonDraft(costsListSeason);
+              setCostsListSeasonModalOpen(true);
+            }}
+          >
+            {t("personnel.detailCostsListSeasonFilterButton")}
+          </Button>
+          {personnel != null && !personnel.isDeleted ? (
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-11 w-full"
+                onClick={() => {
+                  setCostsActionsDrawerOpen(false);
+                  setDetailAdvanceOpen(true);
+                }}
+              >
+                {t("personnel.detailCostsGiveAdvance")}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-11 w-full"
+                onClick={() => {
+                  setCostsActionsDrawerOpen(false);
+                  setOrgBranchTx({ kind: "personnel-expense" });
+                }}
+              >
+                {t("personnel.detailCostsAddExpense")}
+              </Button>
+            </>
+          ) : null}
+        </div>
+      </RightDrawer>
     </>
   );
 }

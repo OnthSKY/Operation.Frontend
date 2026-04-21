@@ -88,7 +88,16 @@ export const personnel = {
     "“All periods” includes every advance and expense line. When you pick a year: advances use the record’s season (effective) year; expenses use the transaction date year (same rules as year-close). Notes use created year; salary-cost section is omitted.",
   detailCostsListSeasonLabel: "List filter — season / tourism year",
   detailCostsListSeasonHint:
-    "Advances: record season year. Expense table: transaction date year. Independent from the PDF setting above; “All periods” shows unfiltered lists.",
+    "Advances: record season year. Expense table: transaction date year. Independent from the PDF scope (chosen when you print); “All periods” shows unfiltered lists.",
+  detailCostsListSeasonFilterButton: "List season / year…",
+  detailCostsPdfModalTitle: "Settlement PDF",
+  detailCostsListSeasonModalTitle: "List filter (season / year)",
+  detailCostsListSeasonApply: "Apply",
+  detailCostsListSeasonActiveLine: "List is filtered by calendar year {year}.",
+  detailCostsActions: "Actions",
+  detailCostsFiltersDrawerTitle: "List filters",
+  detailCostsFiltersDrawerHint:
+    "Branch, payment source, and page size — only affects the advances & expenses list below.",
   settlementPrintSeasonHint:
     "Empty = all periods. With a year: advances match tourism/season year on the record; personnel expenses and (branch PDF) register/stock lines match the movement date year; notes match created year. Salary-cost section is omitted for a filtered year.",
   settlementPrintSeasonAll: "All periods (totals)",
@@ -197,15 +206,101 @@ export const personnel = {
   cardQuickActionsAria: "Open quick actions",
   quickMenuStoryAccess: "Portal access",
   quickMenuStoryMoney: "Advances & day-to-day",
+  quickMenuStoryHandoverPool: "Register physical cash handover",
+  listMenuHandoverPatronPool: "Personnel physical cash handover pool → owner",
+  listMenuHandoverExpensePool: "Branch expense (pool total)",
+  handoverPoolNoRemaining:
+    "No register physical cash handover balance left for this branch and currency (see Manager snapshot › Physical cash handover).",
+  handoverPoolNeedBranch: "Personnel must be assigned to a branch for this action.",
+  cashHandoverToPatronDialogTitle: "Register physical cash handover — overview",
+  cashHandoverToPatronDialogLead:
+    "Top amounts are unsettled remaining (not the same as gross IN assigned to you). The IN line table follows the settlement branch (assigned branch if it has a pool; otherwise the branch with the largest remaining pool).",
+  cashHandoverToPatronDialogAssignedBranchPoolZeroHint:
+    "Unsettled register cash is held under another branch (or the personnel card has no assigned branch). Use the per-branch breakdown below; owner transfer uses the branch with the largest remaining pool for this currency.",
+  cashHandoverToPatronDialogBranchFallback: "Branch #{id}",
+  cashHandoverToPatronDialogBranchPoolLabel: "Remaining at this branch · {branch}",
+  cashHandoverToPatronDialogBranchPoolSub:
+    "The owner-transfer form opened from quick actions targets this branch pool.",
+  cashHandoverToPatronDialogAllBranchesPoolLabel: "Remaining all branches · {ccy}",
+  cashHandoverToPatronDialogAllBranchesPoolSub:
+    "Matches the physical cash handover tab “total unsettled remaining” for this currency.",
+  cashHandoverToPatronDialogTableTitle: "IN lines (settlement branch)",
+  cashHandoverToPatronDialogTableScopeHint: "{branch} only — IN lines at other branches are not listed here.",
+  cashHandoverToPatronDialogLoading: "Loading summary…",
+  cashHandoverToPatronDialogError: "Could not load summary.",
+  cashHandoverToPatronDialogTableLoading: "Loading lines…",
+  cashHandoverToPatronDialogTableError: "Could not load lines.",
+  cashHandoverToPatronDialogTableEmpty:
+    "No physical cash handover IN lines for this branch and currency.",
+  cashHandoverToPatronDialogOpenRegister: "Open owner transfer entry",
+  cashHandoverToPatronDialogPoolByBranchTitle: "Unsettled pool by branch · {ccy}",
+  cashHandoverToPatronDialogPoolByBranchEmpty: "No unsettled pool amounts for this currency.",
+  cashHandoverToPatronDialogPoolThisBranchBadge: "Assigned",
+  cashHandoverToPatronDialogPoolTotalLabel: "Total (all branches)",
+  handoverPatronTransferTitle: "Physical cash handover → owner payment",
+  handoverPatronTransferLead:
+    "The amount you enter is drawn from the unsettled physical cash handover pool at this branch. You do not pick which income (IN) line it hits — the system allocates oldest-first in the ledger (multiple OUT lines if needed). After save, the toast shows only the total you entered; per-line splits are an internal detail.",
+  handoverPatronTransferLoading: "Loading physical cash handover lines…",
+  handoverPatronTransferError: "Could not load physical cash handover lines.",
+  handoverPatronTransferNoLines:
+    "No open physical cash handover IN lines with remaining balance for this branch and currency.",
+  handoverPatronTransferPoolTotalHint: "Unsettled total at this branch (max): {amount}",
+  handoverPatronTransferAmountLabel: "Amount",
+  handoverPatronTransferDateLabel: "Date / time",
+  handoverPatronTransferNoteLabel: "Note (optional)",
+  handoverPatronTransferSubmit: "Save",
+  handoverPatronTransferAmountRequired: "Amount is required.",
+  handoverPatronTransferAmountInvalid: "Enter a valid amount.",
+  handoverPatronTransferAmountExceeds: "Amount exceeds the unsettled total at this branch.",
+  handoverPatronTransferSavedSummary: "{amount} saved as owner payment.",
+  quickMenuStoryPocketClaimNoCash:
+    "Reassign register-owed amount on the books — no new cash leaves the drawer",
   quickMenuStoryInsurance: "Insurance",
   quickMenuInsuranceIntake: "Register insurance coverage",
   quickMenuStoryReports: "Print & export",
   cardQuickAddPersonnelExpense: "Add personnel expense",
+  listMenuPocketClaimToPatron: "Reassign to owner on the books (no cash out)",
+  listMenuPocketClaimToStaff: "Reassign to another staff member on the books (no cash out)",
+  pocketClaimToPatronDialogTitle: "Reassign register-owed amount to owner (book entry)",
+  pocketClaimToPatronDialogLead:
+    "Not a branch expense and no new cash leaves the drawer. This moves who the register owes for cash that was already assigned to you — to the owner on the books.",
+  pocketClaimToStaffDialogTitle: "Reassign register-owed amount to another staff member",
+  pocketClaimToStaffDialogLead:
+    "Not a branch expense and no new cash leaves the drawer. The same booking obligation is carried by another person at this branch.",
+  pocketClaimDialogFromLabel: "From",
+  pocketClaimDialogRecipientLabel: "Receiving staff",
+  pocketClaimDialogRecipientPick: "Choose…",
+  pocketClaimDialogRecipientRequired: "Select who receives the booking.",
+  pocketClaimDialogAmountLabel: "Amount",
+  pocketClaimDialogCurrencyLabel: "Currency",
+  pocketClaimDialogDateLabel: "Date / time",
+  pocketClaimDialogDescriptionOptional: "Note (optional)",
+  pocketClaimDialogSubmit: "Save",
+  pocketClaimDialogAmountInvalid: "Enter a valid amount.",
+  pocketClaimDialogAmountRequired: "Amount is required.",
+  pocketClaimDialogAmountExceedsBalance:
+    "Amount cannot exceed the register-owed balance shown for this branch.",
+  pocketClaimDialogBalanceLoading: "Loading register booking summary…",
+  pocketClaimDialogBalanceError: "Could not load summary; refresh and try again.",
+  pocketClaimDialogBalanceLabel: "Total still booked to you at this branch (cash from the register)",
+  pocketClaimDialogNoRegisterPocket:
+    "Nothing to reassign here for this branch; the balance is zero or not shown in the summary.",
+  pocketClaimDialogNoRegisterPocketShort:
+    "Booked amount to reassign for this branch is zero.",
+  pocketClaimDialogHandoverInsteadHint:
+    "The amount you see in the manager summary is likely register physical cash handover (physical cash on an IN line assigned to you). This dialog only reassigns the booking (who the register owes on paper). To draw down that pool, create a personnel expense on the branch, pick register or owner payment, and optionally link the physical cash handover IN transaction id.",
+  pocketClaimDialogBranchRequired: "A valid branch is required for this action.",
   cardQuickNotes: "Add note",
   rowMenuPdfSettlement:
     "PDF report (advances, expenses, notes — by date)",
   noData: "No personnel yet.",
   listFilters: "Filters",
+  listFiltersDrawerHint:
+    "Changes apply to the list immediately. Close the panel with the top-right control or by tapping outside.",
+  filterInsuranceStatus: "Insurance status",
+  filterInsuranceAll: "All",
+  filterInsuranceStarted: "Has an open coverage period",
+  filterInsuranceNotStarted: "No open coverage period",
   filterSeasonArrivalFrom: "Season arrival from",
   filterSeasonArrivalTo: "Season arrival to",
   filterCompanyHireFrom: "Company hire from",
@@ -334,7 +429,7 @@ export const personnel = {
       "On file: no PDF acknowledgement flag (legacy or pre-update closure).",
     salarySectionTitle: "Salary for this year close-out",
     salarySectionHint:
-      "Enter days worked and the salary amount owed for this calendar year (after your internal rule). We subtract advances, recorded salary payments, and personnel-tagged expenses in the same currency. If the remaining balance was paid, say how (branch register, patron branch register, or patron).",
+      "Enter days worked and the salary amount owed for this calendar year (after your internal rule). We subtract advances, recorded salary payments, and personnel-tagged expenses in the same currency. If the remaining balance was paid, pick branch register or patron; for a positive remainder the system creates a salary payment (register: linked cash-out; patron: off-register).",
     workedDaysLabel: "Days worked (in this year)",
     workedDaysSeasonSuggestion:
       "Season start {arrival}. System suggestion for {year}: {days} calendar days from {from} through {to} (inclusive).",
@@ -471,6 +566,10 @@ export const personnel = {
   insurancePeriodColNotes: "Notes",
   insurancePeriodColActions: "Actions",
   insurancePeriodRowEdit: "Set end / edit",
+  insurancePeriodRowCloseTooltip: "Enter end date — close period",
+  insurancePeriodRowCloseAria: "Save period end",
+  insurancePeriodRowEditTooltip: "Edit end date or notes",
+  insurancePeriodRowEditAria: "Edit period",
   insuranceClosePeriodTitle: "Close insurance period",
   insuranceEditPeriodTitle: "Edit insurance period",
   insuranceEditPeriodHint:
@@ -493,6 +592,18 @@ export const personnel = {
   insuranceAddPeriodEndOptional: "Period end (optional)",
   insuranceAddPeriodEndHelp:
     "Leave empty if this is the current coverage period.",
+  insuranceAddPeriodSeasonArrivalBlocked:
+    "Set the personnel’s tourism season arrival date on their record before adding an insurance period.",
+  insuranceAddPeriodSaveBlockedSeasonArrival:
+    "Enter the personnel's tourism season arrival date before saving.",
+  insuranceAddPeriodSaveBlockedBranch:
+    "Select the branch this insurance registration belongs to before saving.",
+  insuranceAddPeriodSaveBlockedStartDate:
+    "Enter a valid period start date before saving.",
+  insuranceAddPeriodSaveBlockedEndDate:
+    "If end date is filled, it must be a valid date.",
+  insuranceAddPeriodSaveBlockedDateOrder:
+    "End date cannot be before start date.",
   insurancePeriodSaved: "Insurance period saved",
   insuranceIntakeModalPersonCaption: "Personnel",
   detailInsurancePrerequisiteNotes: "Insurance prerequisites / notes",
@@ -531,6 +642,9 @@ export const personnel = {
     "Updates the record. Hire date is historical — change only when correcting data.",
   tableAdvances: "Advances",
   tableCostsAdvancesExpenses: "Advances & expenses",
+  listCashHandoverPoolLabel: "Register cash pool (remaining):",
+  listCashHandoverPoolLoading: "Loading register cash pool…",
+  listCashHandoverPoolError: "Could not load register cash pool.",
   advanceQuickAria: "Give advance to this person",
   advanceHistoryTitle: "Advance history",
   advanceHistoryLast: "Last",
@@ -592,15 +706,38 @@ export const personnel = {
   detailSubtitlePassive: "This record is inactive.",
   viewPersonnelAria: "View personnel",
   detailTabProfile: "Person details",
+  detailTabManagerSummary: "Manager summary",
+  detailTabPersonnelCashPhysical: "Staff register cash",
+  detailCashPhysicalTabTitle: "Staff register cash (physical)",
+  detailCashPhysicalTabBadge: "Physical cash handover",
+  detailCashPhysicalTabLead:
+    "Cash received lines (IN), the unsettled pool by branch and currency, and spending: branch expenses and amounts paid to the owner from the pool. Sub-tabs: cash received / cash spent.",
+  detailCashPhysicalPassiveNotice:
+    "Inactive record: new pool actions are disabled; historical lines are shown read-only.",
   detailTabInsurance: "Insurance",
   detailInsuranceProfileHint:
     "Open the «Insurance» tab for dates, intake, and coverage periods.",
-  detailTabCosts: "Advances & expenses",
+  detailTabCosts: "Costs",
   detailCostsGiveAdvance: "Give advance",
   detailCostsAddExpense: "Add expense",
+  detailPocketMoneySectionTitle: "Branch register — staff pocket summary",
+  detailPocketMoneySectionHint:
+    "When the branch register owes this staff member for pocket-paid expenses, start repayment or on-books reassignment here without opening the branch screen.",
+  detailPocketActionRegisterShort: "Register",
+  detailPocketActionRegisterTooltip:
+    "Repay register pocket debt from the branch cash drawer.",
+  detailPocketActionPatronRepayShort: "Owner pays",
+  detailPocketActionPatronRepayTooltip:
+    "Repay register pocket debt using owner-funded payment.",
+  detailPocketActionClaimToPatronShort: "→ Owner",
+  detailPocketActionClaimToPatronTooltip:
+    "Reassign the register-owed amount to the owner on the books (staff → owner).",
+  detailPocketActionClaimToStaffShort: "→ Staff",
+  detailPocketActionClaimToStaffTooltip:
+    "Reassign the register-owed amount to another staff member on the books; pick the recipient in the form.",
   detailCostsColDetail: "Details",
   detailCostsCombinedEmpty:
-    "No advances or expenses to show. Adjust season year or list filters (branch, source).",
+    "No advances or expenses to show. Adjust season year or list filters (branch, source) via the filter icon.",
   detailTabYearClosures: "Closed accounts",
   yearClosuresIntro:
     "Calendar-year account closures for this person. If a year was closed by mistake, you can reopen it.",
@@ -675,9 +812,13 @@ export const personnel = {
   detailShowing: "{from}–{to} of {total}",
   detailPrev: "Previous",
   detailNext: "Next",
-  detailRolesStoryTitle: "Where they work",
-  detailRolesStoryIntroPerson:
-    "For {name}: branch side follows the assigned branch and job title on the personnel record. Warehouse responsibilities appear here only when this person has a linked system user and that user is selected on the warehouse as responsible manager or master (a «Manager» job title alone does not fill the warehouse list — warehouses store a user, not a job title).",
+  detailRolesStoryTitle: "Responsibilities at a glance",
+  detailRolesStorySummaryBranchEyebrow: "Branches",
+  detailRolesStorySummaryBranchBody:
+    "Current branch and job title live on the personnel card. Below you also see every branch that appears on assignment, employment, transfer, advance, and salary records (deduplicated).",
+  detailRolesStorySummaryWarehouseEyebrow: "Warehouses",
+  detailRolesStorySummaryWarehouseBody:
+    "Warehouse stock uses «responsible manager / master» fields; those slots are filled by picking a system login user, not a free-text name. With no linked user—or if warehouses do not select that user—the warehouse list stays empty; a job title alone does not create a warehouse line.",
   detailRolesWarehouseNeedUserTitle: "If you do not see warehouse lines",
   detailRolesWarehouseNeedUserP1:
     "On each warehouse, «responsible manager» and «responsible master» point to a **system user account**, not to a person’s name by itself. The personnel job title (e.g. Manager) is shown next to the current branch below; the warehouse list is filled only after the steps underneath.",
@@ -701,12 +842,16 @@ export const personnel = {
   detailRolesStoryBranchNone: "No branch is assigned on the personnel record.",
   detailRolesBranchesListTitle: "Branches",
   detailRolesBranchesListIntro:
-    "Branches appearing on assignment, employment, advance, and salary records (deduplicated). The «current assignment» row also shows the job title from the personnel card.",
+    "Violet badge = current branch on the personnel card; gray badge = other branches seen on historical records.",
   detailRolesBranchesEmpty: "No linked branches in records.",
-  detailRolesBranchItem: "«{name}»",
-  detailRolesBranchCurrentTag: "current assignment",
-  detailRolesBranchCurrentRole: "title: {role}",
+  detailRolesBranchCurrentTag: "current",
+  detailRolesBranchHistoricTag: "on file",
+  detailRolesBranchTitleLabel: "Title",
+  detailRolesBranchHistoricHint:
+    "This branch appears on the person’s history; the title is shown only for the current branch card.",
   detailRolesWarehousesListTitle: "Warehouses",
+  detailRolesWarehousesSectionPurpose:
+    "What this is for: lists warehouses where this person’s linked login user is set as responsible manager or master (for stock and warehouse accountability). If there is no account or warehouses do not select that user, the list is empty; you can assign from the form above.",
   detailRolesStoryWarehouseHeading: "Warehouses",
   detailRolesStoryWarehouseHint:
     "This list comes from warehouses where the responsible user matches this person’s linked account (if it looks wrong, check those fields on the warehouse).",
@@ -714,25 +859,75 @@ export const personnel = {
   detailRolesStoryNoDepots:
     "No warehouse records list this user as responsible manager or responsible master.",
   detailRolesStoryNoDepotsMatch: "No warehouses match your search.",
-  detailRolesStoryDepotLine: "At «{warehouse}» warehouse: {roles}.",
-  detailRolesStoryDepotRolesBoth: "both responsible manager and responsible master",
-  detailRolesStoryDepotRolesManager: "responsible manager",
-  detailRolesStoryDepotRolesMaster: "responsible master",
   detailCashHandoverBannerTitle: "Register cash marked in your name",
   detailCashHandoverBannerLead:
     "{name}: income / day-close lines record {total} ({ccy}) of physical cash handed to you as branch lead (all time).",
   detailCashHandoverBannerSub:
     "{year} YTD: {ytd} · {count} register line(s) with this handover.",
   detailCashHandoverBannerOther: "Also in other currencies: {list}",
-  detailProfileCashHandoverTotal: "Register cash handed to you (total)",
+  detailProfileCashHandoverTotal: "Cash received at register (total)",
   detailProfileCashHandoverCount: "{n} line(s)",
-  detailMgmtHandoverLinesTitle: "Register cash lines to you (latest 50)",
+  detailMgmtHandoverSubTabHeroRemaining: "Total unsettled remaining",
+  /** When the personnel card has an assigned branch; owner payment is per branch. */
+  detailMgmtHandoverHeroRemainingAssignedBranch: "Unsettled remaining (assigned branch)",
+  detailMgmtHandoverHeroAllBranchesFootnote:
+    "All branches (same currency) total: {amount}. Owner payments are one branch at a time; open the flow from that branch’s pool row below.",
+  detailMgmtHandoverSubTabHintGross:
+    "Total cash received (IN, gross assigned to you, all time): {gross}",
+  detailMgmtHandoverLinesTitle: "Cash received lines (IN)",
+  detailMgmtHandoverActionsIntro:
+    "Spending covers branch expenses and owner payments from the pool. Actions use the total remaining pool per branch and currency. The “to owner” wizard only needs an amount — it draws from the pool and allocates oldest IN lines automatically (multiple OUTs if needed). The expense wizard can optionally include a specific handover IN #.",
+  detailMgmtHandoverPoolTitle: "Total remaining (branch · currency)",
+  detailMgmtHandoverPoolRemainingLabel: "Remaining total",
+  detailMgmtHandoverLinesEmpty:
+    "No line items in this list yet; the total is above. Rows appear here when available.",
+  detailMgmtHandoverFilterAria: "Physical cash handover filters",
+  detailMgmtHandoverFilterDrawerTitle: "Physical cash handover filters",
+  detailMgmtHandoverFilterBranch: "Branch",
+  detailMgmtHandoverFilterCurrency: "Currency",
+  detailMgmtHandoverFilterDateFrom: "Date from",
+  detailMgmtHandoverFilterDateTo: "Date to",
+  detailMgmtHandoverFilterSearch: "Text search",
+  detailMgmtHandoverFilterSearchHint: "Searches branch name, category, or note.",
+  detailMgmtHandoverFilterApply: "Apply",
+  detailMgmtHandoverFilterReset: "Reset",
+  detailMgmtHandoverPagedRange: "{from}–{to} of {total}",
+  detailMgmtHandoverPagedPages: "Page {page} of {pages}",
+  detailMgmtHandoverPrev: "Previous",
+  detailMgmtHandoverNext: "Next",
+  detailMgmtHandoverNoRowsFilter: "No rows match the filters.",
   detailMgmtHandoverColDate: "Date",
   detailMgmtHandoverColBranch: "Branch",
   detailMgmtHandoverColAmount: "Cash amount",
+  detailMgmtHandoverColSettled: "Applied from pool",
+  detailMgmtHandoverColRemaining: "Remaining",
   detailMgmtHandoverColCategory: "Category",
   detailMgmtHandoverColNote: "Note",
+  detailMgmtHandoverActionExpense: "Branch expense — from register; optional handover IN # in the form",
+  detailMgmtHandoverActionExpenseShort: "Expense",
+  detailMgmtHandoverActionPatron:
+    "Register → owner; enter amount only — pool is reduced automatically (oldest INs first)",
+  detailMgmtHandoverActionPatronShort: "To owner",
+  detailMgmtCashHandoverTabIn: "Cash received",
+  detailMgmtCashHandoverTabOut: "Cash spent",
+  detailMgmtCashHandoverTabsAria: "Cash handover sub-tabs",
+  detailMgmtOutflowsTitle: "Cash spent (expenses and to owner)",
+  detailMgmtOutflowsLead:
+    "Branch expenses from register, draws linked to a handover IN line, and owner payments from the pool. Filters above apply to this list too. Previous/next balance: pool by branch and currency (date range does not narrow the balance chain; search text does not affect balances).",
+  detailMgmtOutflowsEmpty: "No matching OUT rows in this scope yet.",
+  /** Spent-cash table — expense from register cash allocated to you. */
+  detailMgmtOutflowKindHeld: "Expense from cash held for you at the branch",
+  /** Owner payment or expense matched to a received cash (IN) line. */
+  detailMgmtOutflowKindSettles: "Applied from cash you handed in (owner pay or linked expense)",
+  detailMgmtOutflowsColAmount: "Amount",
+  detailMgmtOutflowsColKind: "Type",
+  detailMgmtOutflowsColInRef: "IN #",
+  detailMgmtOutflowsColBalanceBefore: "Balance before",
+  detailMgmtOutflowsColBalanceAfter: "Balance after",
+  detailMgmtOutflowsColInId: "Linked IN line: #{id}",
   detailMgmtTitle: "Manager snapshot",
+  detailMgmtSubTabSummary: "Summary",
+  detailMgmtSubTabHandover: "Physical cash handover",
   detailMgmtBadge: "Key metrics for decisions",
   detailMgmtStoryP1:
     "{name} has been on file for {days} calendar days (hire date: {hire}). This is calendar tenure, not worked days.",
@@ -755,9 +950,21 @@ export const personnel = {
   detailMgmtTileRecordsHint: "{adv} advances · {sal} salary payments",
   detailMgmtTileWarehouses: "Warehouse roles",
   detailMgmtTileWarehousesHint: "Warehouses tied to linked user",
-  detailMgmtTileCashHandover: "Cash to you (register)",
-  detailMgmtTileCashHandoverHint: "Physical cash on IN lines where you are the named responsible",
+  detailMgmtTileCashHandover: "Cash received (register)",
+  detailMgmtTileCashHandoverHint:
+    "Physical cash on income (IN) lines where you are the named responsible",
   detailMgmtMultiTitle: "Other currencies",
   detailMgmtMultiLine: "Advances {adv} · Salary {sal} · Net {net}",
   detailMgmtMultiHandover: "Register handover to you: {hand}",
+  detailMgmtPocketSectionTitle: "Branch register — pocket",
+  detailMgmtPocketSectionHint:
+    "Net register–pocket position for this person at each branch. Expand for line items.",
+  detailMgmtPocketOpenCosts: "Open Costs tab",
+  detailMgmtPocketEmpty: "No register–pocket signal for this summary (or still loading).",
+  detailMgmtPocketOwesShort: "Register owes pocket",
+  detailMgmtPocketDetailToggle: "Line detail",
+  detailMgmtPocketLineGross: "Gross pocket spend",
+  detailMgmtPocketLineRepaidRegister: "Repaid from register",
+  detailMgmtPocketLineRepaidPatron: "Repaid from patron",
+  detailMgmtPocketLineClaimTransfer: "On-books reassignment net",
 } as const;

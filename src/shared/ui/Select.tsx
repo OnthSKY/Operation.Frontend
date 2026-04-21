@@ -175,8 +175,7 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
       [name, onChange]
     );
 
-    const displayValue =
-      open && query.trim() !== "" ? query : selectedLabel;
+    const displayValue = open ? query : selectedLabel;
 
     const onInputChange = (raw: string) => {
       if (!open) {
@@ -325,7 +324,11 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
               disabled={disabled}
               autoComplete="off"
               value={displayValue}
-              placeholder={open && query === "" ? selectedLabel : undefined}
+              placeholder={
+                open && query === "" && selectedLabel
+                  ? selectedLabel
+                  : undefined
+              }
               readOnly={!open}
               onChange={(e) => onInputChange(e.target.value)}
               onClick={() => {

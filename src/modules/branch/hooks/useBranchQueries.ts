@@ -2,6 +2,11 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  deleteBranchDocument,
+  fetchBranchDocuments,
+  uploadBranchDocument,
+} from "@/modules/branch/api/branch-documents-api";
+import {
   createBranchNote,
   deleteBranchNote,
   fetchBranchNotes,
@@ -21,7 +26,9 @@ import {
   updateBranch,
   fetchBranchDashboard,
   fetchBranchPersonnelMoneySummaries,
+  fetchBranchHeldRegisterCashByPerson,
   fetchBranchRegisterSummary,
+  fetchBranchIncomePeriodSummary,
   fetchBranchStockReceiptsPaged,
   fetchBranchTransactionsPaged,
   fetchBranchZReportAccountingYear,
@@ -38,9 +45,28 @@ import {
 import { dashboardSummaryKeys } from "@/modules/dashboard/query-keys";
 import { reportsKeys } from "@/modules/reports/query-keys";
 import type { CreateBranchInput, UpdateBranchInput } from "@/types/branch";
+import type { UploadBranchDocumentInput } from "@/types/branch-document";
 import type { SaveBranchNoteInput } from "@/types/branch-note";
 import type { SaveBranchTourismSeasonPeriodInput } from "@/types/branch-tourism-season";
 import type { CreateBranchTransactionInput } from "@/types/branch-transaction";
+import type { QueryClient } from "@tanstack/react-query";
+
+/**
+ * Şube işlemi sonrası personel «kasa nakit devri» ekranındaki ayrı query key'leri yeniler.
+ * `management-snapshot` dışında kalan: sayfalı IN/OUT listeleri, patrona ödeme önizleme satırları.
+ */
+function invalidatePersonnelCashHandoverUiQueries(qc: QueryClient) {
+  const prefixes = [
+    ["personnel", "cash-handover-lines"],
+    ["personnel", "cash-handover-outflows"],
+    ["personnel", "cash-handover-overview-lines"],
+    ["personnel", "handover-patron-transfer-lines"],
+    ["personnel", "pocket-claim-handover-remain"],
+  ] as const;
+  for (const queryKey of prefixes) {
+    void qc.invalidateQueries({ queryKey: [...queryKey], exact: false });
+  }
+}
 
 export const branchKeys = {
   all: ["branches"] as const,
@@ -49,6 +75,8 @@ export const branchKeys = {
     [...branchKeys.all, "tx", branchId, date] as const,
   registerSummary: (branchId: number, date: string) =>
     [...branchKeys.all, "register-summary", branchId, date] as const,
+  incomePeriod: (branchId: number, from: string, to: string) =>
+    [...branchKeys.all, "income-period", branchId, from, to] as const,
   advancesForBranch: (branchId: number, limit: number) =>
     [...branchKeys.all, "advances", branchId, limit] as const,
   dashboard: (branchId: number, month: string, scopeKey: string) =>
@@ -68,6 +96,7 @@ export const branchKeys = {
       p.expensePaymentSource ?? "",
       p.expensePocketPersonnelId ?? 0,
       p.excludeSettledPocketExpenses === true ? 1 : 0,
+      p.excludeDebtClosureOuts === true ? 1 : 0,
     ] as const,
   stockReceipts: (branchId: number, p: BranchStockPageParams) =>
     [
@@ -89,8 +118,11 @@ export const branchKeys = {
   zReportAccounting: (branchId: number, year: number) =>
     [...branchKeys.all, "z-report-accounting", branchId, year] as const,
   notes: (branchId: number) => [...branchKeys.all, "notes", branchId] as const,
+  documents: (branchId: number) => [...branchKeys.all, "documents", branchId] as const,
   personnelMoney: (branchId: number) =>
     [...branchKeys.all, "personnel-money", branchId] as const,
+  heldRegisterCashByPerson: (branchId: number, asOfDate: string) =>
+    [...branchKeys.all, "held-register-cash-by-person", branchId, asOfDate] as const,
 };
 
 export function useBranchPersonnelMoneySummaries(
@@ -104,6 +136,23 @@ export function useBranchPersonnelMoneySummaries(
         : ([...branchKeys.all, "personnel-money", 0] as const),
     queryFn: () => fetchBranchPersonnelMoneySummaries(branchId!),
     enabled: Boolean(enabled && branchId != null && branchId > 0),
+  });
+}
+
+export function useBranchHeldRegisterCashByPerson(
+  branchId: number | null,
+  asOfDateYmd: string,
+  enabled: boolean
+) {
+  const dateOk = /^\d{4}-\d{2}-\d{2}$/.test(asOfDateYmd);
+  const idOk = branchId != null && branchId > 0;
+  return useQuery({
+    queryKey:
+      idOk && dateOk
+        ? branchKeys.heldRegisterCashByPerson(branchId!, asOfDateYmd)
+        : ([...branchKeys.all, "held-register-cash-by-person", 0, ""] as const),
+    queryFn: () => fetchBranchHeldRegisterCashByPerson(branchId!, asOfDateYmd),
+    enabled: Boolean(enabled && idOk && dateOk),
   });
 }
 
@@ -171,6 +220,27 @@ export function useBranchRegisterSummary(
     queryFn: () => fetchBranchRegisterSummary(branchId!, date),
     enabled:
       enabled && isValidBranchQueryId(branchId) && date.trim().length >= 10,
+  });
+}
+
+export function useBranchIncomePeriodSummary(
+  branchId: number | null,
+  from: string,
+  to: string,
+  enabled: boolean = true
+) {
+  return useQuery({
+    queryKey:
+      isValidBranchQueryId(branchId) && from.length === 10 && to.length === 10
+        ? branchKeys.incomePeriod(branchId, from, to)
+        : ([...branchKeys.all, "income-period", "none", from, to] as const),
+    queryFn: () => fetchBranchIncomePeriodSummary(branchId!, from, to),
+    enabled:
+      enabled &&
+      isValidBranchQueryId(branchId) &&
+      from.length === 10 &&
+      to.length === 10 &&
+      from < to,
   });
 }
 
@@ -387,6 +457,37 @@ export function useDeleteBranchNote(branchId: number) {
   });
 }
 
+export function useBranchDocuments(branchId: number | null, enabled: boolean) {
+  return useQuery({
+    queryKey:
+      branchId != null && branchId > 0
+        ? branchKeys.documents(branchId)
+        : ([...branchKeys.all, "documents", 0] as const),
+    queryFn: () => fetchBranchDocuments(branchId!),
+    enabled: Boolean(enabled && branchId != null && branchId > 0),
+  });
+}
+
+export function useUploadBranchDocument(branchId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UploadBranchDocumentInput) => uploadBranchDocument(branchId, input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: branchKeys.documents(branchId) });
+    },
+  });
+}
+
+export function useDeleteBranchDocument(branchId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (documentId: number) => deleteBranchDocument(branchId, documentId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: branchKeys.documents(branchId) });
+    },
+  });
+}
+
 export function useCreateBranchTransaction() {
   const qc = useQueryClient();
   return useMutation({
@@ -395,6 +496,7 @@ export function useCreateBranchTransaction() {
     onSuccess: (_data, variables) => {
       void qc.invalidateQueries({ queryKey: branchKeys.all });
       void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
+      void qc.refetchQueries({ queryKey: dashboardSummaryKeys.all });
       if (variables.branchId != null && variables.branchId > 0) {
         void qc.invalidateQueries({
           queryKey: branchKeys.registerSummary(
@@ -407,6 +509,7 @@ export function useCreateBranchTransaction() {
         queryKey: ["personnel", "management-snapshot"],
         exact: false,
       });
+      invalidatePersonnelCashHandoverUiQueries(qc);
       void qc.invalidateQueries({
         queryKey: ["personnel", "attributed-expenses"],
         exact: false,
@@ -423,10 +526,12 @@ export function useDeleteBranchTransaction() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: branchKeys.all });
       void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
+      void qc.refetchQueries({ queryKey: dashboardSummaryKeys.all });
       void qc.invalidateQueries({
         queryKey: ["personnel", "management-snapshot"],
         exact: false,
       });
+      invalidatePersonnelCashHandoverUiQueries(qc);
       void qc.invalidateQueries({
         queryKey: ["personnel", "attributed-expenses"],
         exact: false,

@@ -2,6 +2,15 @@ export const nav = {
   home: "Genel bakış",
   reports: "Raporlar",
   reportsSection: "Raporlar",
+  expandReportsSection: "Raporları aç",
+  collapseReportsSection: "Raporları kapat",
+  expandReportSubgroup: "Bağlantıları göster",
+  collapseReportSubgroup: "Bağlantıları gizle",
+  reportsFinSection: "Finans raporları",
+  reportsFinSystemSection: "Finans ve kasa",
+  reportsPatronSection: "Patron cebi ve kasa",
+  reportsStockSection: "Stok",
+  reportsOtherSection: "Şubeler ve kasa günü",
   personnel: "Personel yönetimi",
   personnelSection: "Personel yönetimi",
   personnelList: "Personeller",
@@ -15,6 +24,7 @@ export const nav = {
   systemUsers: "Kullanıcılar",
   adminNavAuthorization: "Roller ve izinler",
   adminNavNotifications: "Bildirimler",
+  adminNavBranding: "Kurum görünümü",
   adminNavTourismSeasonPolicy: "Turizm sezonu Gider Politikası",
   branchSection: "Şube",
   inventorySection: "Depo ve ürünler",
@@ -22,11 +32,13 @@ export const nav = {
   fleetSection: "Filo",
   insuranceSection: "Sigorta ve kapsam",
   branch: "Şube yönetimi",
+  documents: "Belgeler",
   dailyBranchRegister: "Kasa günü (tüm şubeler)",
   generalOverhead: "Genel giderler",
   warehouse: "Depo",
   products: "Ürünler",
   productCategories: "Kategoriler",
+  productCostHistory: "Ürün maliyet geçmişi",
   suppliers: "Tedarikçiler",
   supplierInvoices: "Tedarikçi faturaları",
   vehicles: "Araçlar",
@@ -48,14 +60,36 @@ export const nav = {
       "Bugünkü gelir, gider ve net nakit özeti ile şubelerin günlük durumu. Patron/şube kasasından akan fişlerin anlık fotoğrafı; kategori ve dönem kırılımı için Raporlar’a geçin.",
     reports:
       "Finansal dönem (gelir–gider kalemleri, kategori yoğunluğu), nakit pozisyonu, şube karşılaştırması, depo/şube stok raporları. “Para nereden geldi, nereye gitti?” ve “hangi şubede stok çok gidiyor?” soruları burada toplanır.",
+    reportsFinOneEntry:
+      "Tek menü satırı: sayfayı açın; üstteki sekmelerle özet, önceki döneme göre, grafikler, ay ay birikimli ve tablolar arasında geçin.",
     reportsHubFinancial:
       "Dönem grafikleri ve tablolar: gelir, gider ve net; şube ve ek filtrelerle.",
+    reportsHubFinSummary:
+      "Seçili filtrelere göre dönem özeti; sapma için «Önceki döneme göre», dağılım için «Grafikler» sekmesine geçin.",
+    reportsHubFinCompare:
+      "Önceki döneme göre net, ödeme kaynağı ve şube vurguları — KPI sekmesiyle aynı finans filtreleri.",
+    reportsHubFinCharts:
+      "Şube sıralaması ve gelir–gider / kategori pastaları — KPI sekmesiyle aynı filtre dilimi.",
+    reportsHubFinTrend:
+      "Ay ay birikimli: aya göre net ve gider (tüm şubeler seçiliyse şube serileri). Özet sekmesiyle aynı tarih ve filtre çekmecesi.",
+    reportsHubFinTables:
+      "Tam finans tabloları (kategoriler, şubeler, avanslar). Ayrı ekran; filtreler şu an Özet/Ay ay birikimli ile otomatik paylaşılmaz.",
+    reportsHubFinCashFlow:
+      "Patrona özel kasa satırları (patrondan nakit, patron ödemeli gider). Genel net nakit için Finans › Ay ay birikimli.",
+    reportsHubCashTable:
+      "Tam sayfa nakit pozisyonu tablosu: hub’daki özetle aynı bakiyeler; satırlarda sıralama ve dışa aktarıma uygun düzen.",
+    reportsHubStockTables:
+      "Stok raporu tabloları: depo hareketleri, şube girişleri ve ürün satırları; her blokta ayrı filtre.",
+    reportsHubBranches:
+      "Dönem için şubeleri yan yana karşılaştırın: gelir, gider ve net — sapmaları görmek için.",
     reportsHubCash:
       "Şubelere göre nakit pozisyonu: çekmece tahmini ve pers./patron net bakiyeleri (rapor tarihi).",
     reportsHubStock:
       "Stok özet grafikleri ve tablolar: depo kapsamı, şubeye girişler ve ürün filtreleri.",
     reportsHubDailyRegister:
       "Aynı takvim günü, tüm şubeler: nakit ve kart/POS tahsilat, kasadan ödenenler ve net — dönem ve pozisyon raporlarıyla birlikte.",
+    reportsOrderAccountStatement:
+      "Sipariş ve hesap dökümü: kalem kalem tutar, hediye ve promosyon, ön ödeme, tedarikçiye ödenen ama stoğa gelmeyen kalemler ve net. A4 önizleme ve PDF indirme.",
     personnelSection:
       "Çalışan tanımı ile patron–personel para hattı: avans ve personel giderlerinin izlenmesi bu bloktadır.",
     personnelList:
@@ -66,6 +100,8 @@ export const nav = {
       "Operasyonel kasa: şube bazında günlük işlemler. Sistemde “kazanılan” ve “harcanan” paranın sahadaki kaynağı burada işlenir.",
     branch:
       "Şube detayında kasaya giriş–çıkış, patrondan kasaya aktarım, satış geliri, gider ve operasyon kalemlerini kaydedin. Günlük para akışının doğruluğu raporların temelidir.",
+    documents:
+      "Sistem genelindeki belgeleri tek ekranda görün; şube belgeleri ve personel kimlik görsellerini arama/filtre ile bulun.",
     dailyBranchRegister:
       "Aynı gün için şube şube: nakit ve kart tahsilat, kasadan ödenen gider ve net — her şube kartını tek tek açmadan.",
     generalOverhead:
@@ -84,6 +120,10 @@ export const nav = {
       "Ürün kartı, birim ve hareket özeti. Miktarın “depoda / şubede” dağılımı depo ve şube stok raporlarıyla birlikte okunmalıdır.",
     productCategories:
       "Ürünleri gruplayın; listelerde ve analizde aynı başlık altında toplanmasını kolaylaştırır.",
+    productCostHistory:
+      "Ürünlerin tarih bazlı alış/maliyet değerlerini KDV dahil ve hariç olarak kaydedin; maliyet değişimlerini geçmişte izleyin.",
+    productsOrderAccountStatement:
+      "Sipariş ve hesap dökümü: ürün kataloğundan satır doldurma, kalem tutarları, hediye ve promosyon, ön ödeme, stoğa gelmeyen ödemeler ve net. A4 önizleme ve PDF.",
     suppliers:
       "Tedarikçi kartları ve iletişim; alım faturaları ve ödemeler için «Tedarikçi faturaları» menüsünü kullanın.",
     supplierInvoices:
@@ -102,6 +142,8 @@ export const nav = {
       "Her sistem rolünün hangi izinlere sahip olduğunu düzenleyin (personel, şoför, yönetici).",
     adminNavNotifications:
       "Operasyon hatırlatıcıları ve günlük bildirim için kurum geneli anahtarlar.",
+    adminNavBranding:
+      "Tüm oturum açmış kullanıcılar için sol menüde görünen şirket adı ve logo.",
     adminNavTourismSeasonPolicy:
       "İşlem tarihinde turizm sezonu kapalıyken hangi şube kasası akışlarına izin verileceği.",
     systemUsers:

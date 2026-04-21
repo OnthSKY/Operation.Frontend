@@ -4,6 +4,7 @@ import { auth } from "./auth";
 import { branch } from "./branch";
 import { common } from "./common";
 import { dashboard } from "./dashboard";
+import { documents } from "./documents";
 import { generalOverhead } from "./general-overhead";
 import { guide } from "./guide";
 import { insuranceTrack } from "./insurance-track";
@@ -31,6 +32,7 @@ export const tr = {
   auth,
   common,
   dashboard,
+  documents,
   guide,
   generalOverhead,
   insuranceTrack,

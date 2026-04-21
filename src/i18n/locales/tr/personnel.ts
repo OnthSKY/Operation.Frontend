@@ -90,7 +90,16 @@ export const personnel = {
   /** Personel detay — avans + gider tabloları. */
   detailCostsListSeasonLabel: "Liste filtresi — sezon / turizm yılı",
   detailCostsListSeasonHint:
-    "Avanslar: kayıttaki sezon yılı. Gider tablosu: işlem tarihinin yılı. PDF seçiminden bağımsızdır; «Tüm dönemler» her iki listeyi de sınırsız gösterir.",
+    "Avanslar: kayıttaki sezon yılı. Gider tablosu: işlem tarihinin yılı. PDF kapsamından bağımsızdır (yazdırırken ayrı seçilir); «Tüm dönemler» her iki listeyi de sınırsız gösterir.",
+  detailCostsListSeasonFilterButton: "Liste sezonu / yılı…",
+  detailCostsPdfModalTitle: "Hesap özeti PDF",
+  detailCostsListSeasonModalTitle: "Liste filtresi (sezon / yıl)",
+  detailCostsListSeasonApply: "Uygula",
+  detailCostsListSeasonActiveLine: "Liste takvim yılı {year} ile süzülüyor.",
+  detailCostsActions: "İşlemler",
+  detailCostsFiltersDrawerTitle: "Liste filtreleri",
+  detailCostsFiltersDrawerHint:
+    "Şube, ödeme kaynağı ve sayfa boyutu — yalnızca aşağıdaki avans ve gider listesini etkiler.",
   settlementPrintSeasonHint:
     "Boş = tüm dönemler. Yıl seçince: avanslar kayıttaki turizm/sezon yılına; personel giderleri ve (şube PDF’inde) kasa/stok satırları hareket tarihinin yılına; notlar oluşturulma yılına göre daralır. Maaş maliyeti tablosu yıllık görünümde gösterilmez.",
   settlementPrintSeasonAll: "Tüm dönemler (toplam)",
@@ -201,15 +210,101 @@ export const personnel = {
   cardQuickActionsAria: "Hızlı işlemleri aç",
   quickMenuStoryAccess: "Portal erişimi",
   quickMenuStoryMoney: "Avans ve günlük işlemler",
+  quickMenuStoryHandoverPool: "Kasa nakit para devri",
+  listMenuHandoverPatronPool: "Personel kasa nakit para devrinden patrona",
+  listMenuHandoverExpensePool: "Şube gideri (devir toplamı)",
+  handoverPoolNoRemaining:
+    "Bu şube ve para biriminde kapatılacak kasa nakit para devri kalmadı (yönetici özeti › Kasa nakit para devri).",
+  handoverPoolNeedBranch: "Bu işlem için personele atanmış bir şube gerekir.",
+  cashHandoverToPatronDialogTitle: "Kasa nakit para devri — özet",
+  cashHandoverToPatronDialogLead:
+    "Üstteki tutarlar kapanmamış kalandır (IN brüt devredilen ile aynı değildir). IN satır tablosu, mahsup şubeyi izler (önce atanmış şubede havuz varsa o; yoksa en yüksek kalan havuzlu şube).",
+  cashHandoverToPatronDialogAssignedBranchPoolZeroHint:
+    "Kapanmamış kasa devri tutarı başka bir şubede (veya kartta atanmış şube yok). Aşağıdaki şube kırılımını kullanın; patrona devir bu para biriminde en yüksek kalan havuzlu şube üzerinden önerilir.",
+  cashHandoverToPatronDialogBranchFallback: "Şube #{id}",
+  cashHandoverToPatronDialogBranchPoolLabel: "Bu şubede kalan · {branch}",
+  cashHandoverToPatronDialogBranchPoolSub:
+    "Hızlı menüden açılan patron devir kaydı bu şube havuzu için önerilir.",
+  cashHandoverToPatronDialogAllBranchesPoolLabel: "Tüm şubelerde kalan · {ccy}",
+  cashHandoverToPatronDialogAllBranchesPoolSub:
+    "Yönetici özeti › Kasa nakit para devri sekmesindeki «kapanmamış toplam kalan» ile aynı toplamdır.",
+  cashHandoverToPatronDialogTableTitle: "IN satırları (mahsup şubesi)",
+  cashHandoverToPatronDialogTableScopeHint: "Yalnızca {branch} — diğer şubelerdeki IN’ler burada görünmez.",
+  cashHandoverToPatronDialogLoading: "Özet yükleniyor…",
+  cashHandoverToPatronDialogError: "Özet yüklenemedi.",
+  cashHandoverToPatronDialogTableLoading: "Satır listesi yükleniyor…",
+  cashHandoverToPatronDialogTableError: "Satır listesi yüklenemedi.",
+  cashHandoverToPatronDialogTableEmpty:
+    "Bu şube ve para biriminde kasa nakit para devri IN satırı yok.",
+  cashHandoverToPatronDialogOpenRegister: "Patrona devir kaydı aç",
+  cashHandoverToPatronDialogPoolByBranchTitle: "Şubelere göre kapanmamış havuz · {ccy}",
+  cashHandoverToPatronDialogPoolByBranchEmpty: "Bu para biriminde kapanmamış havuz tutarı yok.",
+  cashHandoverToPatronDialogPoolThisBranchBadge: "Atanan şube",
+  cashHandoverToPatronDialogPoolTotalLabel: "Toplam (tüm şubeler)",
+  handoverPatronTransferTitle: "Kasa nakit para devri → patrona ödeme",
+  handoverPatronTransferLead:
+    "Girdiğiniz tutar bu şubede kapanmamış kasa nakit para devri toplamından düşülür. Hangi gelir (IN) satırından düşüleceğini seçmeniz gerekmez; kayıt tarafında en eski satırlardan başlayarak otomatik bölünür (gerekirse birden fazla OUT). Başarı bildiriminde yalnızca yazdığınız toplam tutar gösterilir.",
+  handoverPatronTransferLoading: "Kasa nakit para devri satırları yükleniyor…",
+  handoverPatronTransferError: "Kasa nakit para devri satırları yüklenemedi.",
+  handoverPatronTransferNoLines:
+    "Bu şube ve para biriminde kalan bakiyeli açık kasa nakit para devri IN satırı yok.",
+  handoverPatronTransferPoolTotalHint: "Bu şubede kapanmamış toplam (üst sınır): {amount}",
+  handoverPatronTransferAmountLabel: "Tutar",
+  handoverPatronTransferDateLabel: "Tarih / saat",
+  handoverPatronTransferNoteLabel: "Açıklama (isteğe bağlı)",
+  handoverPatronTransferSubmit: "Kaydet",
+  handoverPatronTransferAmountRequired: "Tutar zorunludur.",
+  handoverPatronTransferAmountInvalid: "Geçerli bir tutar girin.",
+  handoverPatronTransferAmountExceeds: "Tutar, bu şubede kapanmamış toplamı aşamaz.",
+  handoverPatronTransferSavedSummary: "{amount} patrona ödeme olarak tamamlandı.",
+  quickMenuStoryPocketClaimNoCash:
+    "Kasadan size geçen tutarın kayıtta devri — kasadan yeni nakit çıkmaz",
   quickMenuStoryInsurance: "Sigorta",
   quickMenuInsuranceIntake: "Sigorta girişi yap",
   quickMenuStoryReports: "Yazdır ve dışa aktar",
   cardQuickAddPersonnelExpense: "Personel gideri ekle",
+  listMenuPocketClaimToPatron: "Üzerinizdeki tutarı patrona kayıtta devret (nakit çıkmaz)",
+  listMenuPocketClaimToStaff: "Üzerinizdeki tutarı personele kayıtta devret (nakit çıkmaz)",
+  pocketClaimToPatronDialogTitle: "Üzerinize yazılı tutarı patrona kayıtta devret",
+  pocketClaimToPatronDialogLead:
+    "Şube gideri değildir; kasadan yeni nakit çıkmaz. Kasadan size geçen tutarın kayıttaki sorumluluğunu patrona bırakırsınız.",
+  pocketClaimToStaffDialogTitle: "Üzerinize yazılı tutarı personele kayıtta devret",
+  pocketClaimToStaffDialogLead:
+    "Şube gideri değildir; kasadan yeni nakit çıkmaz. Aynı şubede başka bir personele kayıtta taşırsınız.",
+  pocketClaimDialogFromLabel: "Devreden",
+  pocketClaimDialogRecipientLabel: "Alan personel",
+  pocketClaimDialogRecipientPick: "Seçin…",
+  pocketClaimDialogRecipientRequired: "Devralan personeli seçin.",
+  pocketClaimDialogAmountLabel: "Tutar",
+  pocketClaimDialogCurrencyLabel: "Para birimi",
+  pocketClaimDialogDateLabel: "Tarih / saat",
+  pocketClaimDialogDescriptionOptional: "Açıklama (isteğe bağlı)",
+  pocketClaimDialogSubmit: "Kaydet",
+  pocketClaimDialogAmountInvalid: "Geçerli bir tutar girin.",
+  pocketClaimDialogAmountRequired: "Tutar zorunludur.",
+  pocketClaimDialogAmountExceedsBalance:
+    "Tutar, bu şubede kayıtta size kalan tutardan fazla olamaz.",
+  pocketClaimDialogBalanceLoading: "Kasa kaydı özeti yükleniyor…",
+  pocketClaimDialogBalanceError: "Özet yüklenemedi; sayfayı yenileyip tekrar deneyin.",
+  pocketClaimDialogBalanceLabel: "Bu şubede kayıtta size kalan toplam (kasadan size geçen)",
+  pocketClaimDialogNoRegisterPocket:
+    "Bu şubede kayıtta devredilecek tutar yok; sıfır veya özette görünmüyor.",
+  pocketClaimDialogNoRegisterPocketShort:
+    "Bu şubede kayıtta devredilecek tutar sıfır.",
+  pocketClaimDialogHandoverInsteadHint:
+    "Yönetici özetinde gördüğünüz tutar büyük olasılıkla «kasa nakit para devri» nakdidir (gelir satırında size sorumlu yazılan fiziksel kasa). Bu pencere yalnızca kayıt devridir (üzerinizdeki sorumluluğu başkasına taşıma). Kasa nakit para devrinden düşmek için şubede personel gideri açın; ödeme kaynağı kasa veya patron, uygunsa «kasa nakit para devri IN #» alanına listedeki satır numarasını yazın.",
+  pocketClaimDialogBranchRequired: "Bu işlem için geçerli bir şube gerekir.",
   cardQuickNotes: "Not ekle",
   rowMenuPdfSettlement:
     "PDF çıktısı (avans, gider, notlar — tarihe göre)",
   noData: "Henüz personel yok.",
   listFilters: "Filtreler",
+  listFiltersDrawerHint:
+    "Seçimler anında listeye uygulanır. Paneli sağ üstteki X veya dışarı tıklayarak kapatabilirsiniz.",
+  filterInsuranceStatus: "Sigorta durumu",
+  filterInsuranceAll: "Tümü",
+  filterInsuranceStarted: "Açık sigorta dönemi var",
+  filterInsuranceNotStarted: "Açık sigorta dönemi yok",
   filterSeasonArrivalFrom: "Turizm sezonu gelişi (başlangıç)",
   filterSeasonArrivalTo: "Turizm sezonu gelişi (bitiş)",
   filterCompanyHireFrom: "Şirkette işe başlama (başlangıç)",
@@ -340,7 +435,7 @@ export const personnel = {
       "Kayıt: bu kapanışta PDF mutabakat bayrağı yok (eski kayıt veya sistem öncesi).",
     salarySectionTitle: "Yıl kapanışı — maaş",
     salarySectionHint:
-      "Bu takvim yılı için çalışılan gün ve ödenmesi gereken maaş tutarını girin (iç kuralınıza göre). Aynı para biriminde avanslar, kayıtlı maaş ödemeleri ve personele yazılan giderler düşülür. Kalan bakiye ödendiyse kaynağını (şube kasası, patron şube kasası, patron) seçin.",
+      "Bu takvim yılı için çalışılan gün ve ödenmesi gereken maaş tutarını girin (iç kuralınıza göre). Aynı para biriminde avanslar, kayıtlı maaş ödemeleri ve personele yazılan giderler düşülür. Kalan bakiye ödendiyse kaynağını (şube kasası veya patron) seçin; pozitif kalan için sistem bir maaş ödemesi kaydı oluşturur (şube kasası: kasadan maaş çıkışı, patron: kasa dışı).",
     workedDaysLabel: "Çalışılan gün (bu yıl)",
     workedDaysSeasonSuggestion:
       "Sezon başlangıcı {arrival}. {year} yılı için sistem önerisi: {from} – {to} arası (her iki tarih dahil) {days} gün.",
@@ -479,6 +574,10 @@ export const personnel = {
   insurancePeriodColNotes: "Not",
   insurancePeriodColActions: "İşlem",
   insurancePeriodRowEdit: "Bitiş kaydet / düzenle",
+  insurancePeriodRowCloseTooltip: "Bitiş tarihi gir — dönemi kapat",
+  insurancePeriodRowCloseAria: "Dönem bitişini kaydet",
+  insurancePeriodRowEditTooltip: "Bitiş veya notları düzenle",
+  insurancePeriodRowEditAria: "Dönemi düzenle",
   insuranceClosePeriodTitle: "Sigorta dönemini kapat",
   insuranceEditPeriodTitle: "Sigorta dönemini güncelle",
   insuranceEditPeriodHint:
@@ -501,6 +600,18 @@ export const personnel = {
   insuranceAddPeriodEndOptional: "Dönem bitişi (isteğe bağlı)",
   insuranceAddPeriodEndHelp:
     "Güncel açık dönem ise bitişi boş bırakın.",
+  insuranceAddPeriodSeasonArrivalBlocked:
+    "Sigorta dönemi ekleyebilmek için önce personel kaydında turizm sezonu geliş tarihini girin.",
+  insuranceAddPeriodSaveBlockedSeasonArrival:
+    "Kaydetmek için önce personel kaydında turizm sezonu geliş tarihini girin.",
+  insuranceAddPeriodSaveBlockedBranch:
+    "Kaydetmek için sigorta girişi yapılan şubeyi seçin.",
+  insuranceAddPeriodSaveBlockedStartDate:
+    "Kaydetmek için geçerli bir dönem başlangıç tarihi girin.",
+  insuranceAddPeriodSaveBlockedEndDate:
+    "Bitiş tarihi doluysa geçerli bir tarih olmalı.",
+  insuranceAddPeriodSaveBlockedDateOrder:
+    "Bitiş tarihi başlangıç tarihinden önce olamaz.",
   insurancePeriodSaved: "Sigorta dönemi kaydedildi",
   insuranceIntakeModalPersonCaption: "Personel",
   detailInsurancePrerequisiteNotes: "Sigorta için evrak / notlar",
@@ -539,6 +650,9 @@ export const personnel = {
     "Kayıt güncellenir. İşe başlama tarihi geçmiş dönem bilgisidir; gerektiğinde dikkatli değiştirin.",
   tableAdvances: "Avans",
   tableCostsAdvancesExpenses: "Avans / gider",
+  listCashHandoverPoolLabel: "Kasa devri (kalan):",
+  listCashHandoverPoolLoading: "Kasa devri yükleniyor…",
+  listCashHandoverPoolError: "Kasa devri özeti yüklenemedi.",
   advanceQuickAria: "Bu personele avans ver",
   advanceHistoryTitle: "Avans geçmişi",
   advanceHistoryLast: "Son",
@@ -600,15 +714,38 @@ export const personnel = {
   detailSubtitlePassive: "Bu kayıt pasif.",
   viewPersonnelAria: "Personeli görüntüle",
   detailTabProfile: "Kişi bilgileri",
+  detailTabManagerSummary: "Yönetici özeti",
+  detailTabPersonnelCashPhysical: "Personel kasa nakit",
+  detailCashPhysicalTabTitle: "Personel kasa nakit",
+  detailCashPhysicalTabBadge: "Fiziksel kasa devri",
+  detailCashPhysicalTabLead:
+    "Kasaya alınan nakit satırları (IN), şube ve para birimine göre kapanmamış havuz; harcanan tarafta şube giderleri ve patrona aktarılan tutarlar. Alt sekmeler: alınan nakitler / harcanan nakit.",
+  detailCashPhysicalPassiveNotice:
+    "Pasif kayıt: yeni devir veya havuz işlemi açılamaz; geçmiş satırlar salt okunur listelenir.",
   detailTabInsurance: "Sigorta",
   detailInsuranceProfileHint:
     "Tarihler, süreç ve dönem kayıtları için «Sigorta» sekmesine geçin.",
-  detailTabCosts: "Avans ve giderler",
+  detailTabCosts: "Maliyetler",
   detailCostsGiveAdvance: "Avans ver",
   detailCostsAddExpense: "Gider ekle",
+  detailPocketMoneySectionTitle: "Şube kasası — personel cep özeti",
+  detailPocketMoneySectionHint:
+    "Şubenin bu personele olan kasa–cep borcu için ödeme veya kayıtta devret işlemini şubeden açmadan buradan başlatabilirsiniz.",
+  detailPocketActionRegisterShort: "Kasa",
+  detailPocketActionRegisterTooltip:
+    "Şube kasasından personel cebi borcunu öde (kayıt: cep borcu kapatma).",
+  detailPocketActionPatronRepayShort: "Patron öde",
+  detailPocketActionPatronRepayTooltip:
+    "Patron kaynağından personel cebi borcunu öde.",
+  detailPocketActionClaimToPatronShort: "→ Patron",
+  detailPocketActionClaimToPatronTooltip:
+    "Üzerinize yazılı tutarı patrona kayıtta devret (personel → patron).",
+  detailPocketActionClaimToStaffShort: "→ Personel",
+  detailPocketActionClaimToStaffTooltip:
+    "Üzerinize yazılı tutarı başka personele kayıtta devret; alıcıyı işlem formunda seçin.",
   detailCostsColDetail: "Detay",
   detailCostsCombinedEmpty:
-    "Gösterilecek avans veya gider yok. Sezon yılı veya liste filtrelerini (şube, kaynak) değiştirin.",
+    "Gösterilecek avans veya gider yok. Sezon yılı veya filtre simgesinden liste filtrelerini (şube, kaynak) değiştirin.",
   detailTabYearClosures: "Kesilen hesaplar",
   yearClosuresIntro:
     "Bu personel için takvim yılı bazında kapatılmış (kesilmiş) hesap kayıtları. Yanlış kapanışta ilgili yılı yeniden açabilirsiniz.",
@@ -685,8 +822,12 @@ export const personnel = {
   detailPrev: "Önceki",
   detailNext: "Sonraki",
   detailRolesStoryTitle: "Görev özeti",
-  detailRolesStoryIntroPerson:
-    "{name} için: şube tarafı personel kartındaki atanmış şube ve görev ünvanıyla ilişkilidir. Depo sorumlulukları ise yalnızca bu personele bağlı bir sistem kullanıcısı varken ve depo kaydında o kullanıcı sorumlu olarak seçildiyse burada listelenir (ünvan «Müdür» olsa bile, depo alanı kullanıcıya yazılır).",
+  detailRolesStorySummaryBranchEyebrow: "Şubeler",
+  detailRolesStorySummaryBranchBody:
+    "Hangi şubede çalıştığı ve ünvanı personel kartına yazılır. Aşağıdaki kartlarda ayrıca arama, istihdam, transfer, avans ve maaş kayıtlarında geçen şubeler (yinelenenler tekilleştirilir) görünür.",
+  detailRolesStorySummaryWarehouseEyebrow: "Depolar",
+  detailRolesStorySummaryWarehouseBody:
+    "Depo stoğu ve hareketlerinde «sorumlu müdür / usta» bilgisi tutulur; bu alanlar personel adına değil sistem kullanıcısı seçimiyle doldurulur. Hesap yoksa veya depo kartında bu kullanıcı seçilmediyse depo listesi boş kalır; ünvan tek başına depo satırı oluşturmaz.",
   detailRolesWarehouseNeedUserTitle: "Depo satırı göremiyorsanız",
   detailRolesWarehouseNeedUserP1:
     "Depo kartındaki «sorumlu müdür» ve «sorumlu usta» alanları personel adına değil, **sistem kullanıcı hesabına** bağlanır. Personel kartındaki görev ünvanı (ör. Müdür) şube listesinde «güncel atama» satırında ayrıca gösterilir; depo listesi bununla otomatik dolar.",
@@ -710,12 +851,16 @@ export const personnel = {
   detailRolesStoryBranchNone: "Personel kaydına atanmış bir şube yok.",
   detailRolesBranchesListTitle: "Şubeler",
   detailRolesBranchesListIntro:
-    "Atama, istihdam, avans ve maaş kayıtlarında geçen şubeler (tekilleştirilmiş). «Güncel atama» satırında personel kartındaki görev ünvanı da yazar.",
+    "Mor rozet = personel kartındaki güncel şube; gri rozet = geçmişte kayıtlarda geçen diğer şubeler.",
   detailRolesBranchesEmpty: "Kayıtlarda bağlı şube bulunmuyor.",
-  detailRolesBranchItem: "«{name}»",
-  detailRolesBranchCurrentTag: "güncel atama",
-  detailRolesBranchCurrentRole: "ünvan: {role}",
+  detailRolesBranchCurrentTag: "güncel",
+  detailRolesBranchHistoricTag: "kayıtta",
+  detailRolesBranchTitleLabel: "Ünvan",
+  detailRolesBranchHistoricHint:
+    "Bu şube personel geçmişinde yer almış; ünvan yalnızca güncel şube kartında gösterilir.",
   detailRolesWarehousesListTitle: "Depolar",
+  detailRolesWarehousesSectionPurpose:
+    "Ne işe yarar: Aşağıda, depo kartında sorumlu olarak işaretlenen bu personelin giriş kullanıcısı listelenir (stok ve depo süreçlerinde yetki takibi). Hesabı yoksa veya depoda seçili değilse liste boş olur; üstteki formdan atama da yapabilirsiniz.",
   detailRolesStoryWarehouseHeading: "Depolar",
   detailRolesStoryWarehouseHint:
     "Liste, bu personelin bağlı olduğu kullanıcı ile eşleşen depo kayıtlarından oluşur (yanlış görünüyorsa depo düzenlemede sorumlu alanlarını kontrol edin).",
@@ -723,25 +868,76 @@ export const personnel = {
   detailRolesStoryNoDepots:
     "Bu kullanıcı için depo kartlarında sorumlu müdür veya sorumlu usta olarak tanım yok.",
   detailRolesStoryNoDepotsMatch: "Aramanıza uyan depo yok.",
-  detailRolesStoryDepotLine: "«{warehouse}» deposunda {roles}.",
-  detailRolesStoryDepotRolesBoth: "hem sorumlu müdür hem sorumlu usta",
-  detailRolesStoryDepotRolesManager: "sorumlu müdür",
-  detailRolesStoryDepotRolesMaster: "sorumlu usta",
   detailCashHandoverBannerTitle: "Kasa kayıtlarında size yazılan nakit",
   detailCashHandoverBannerLead:
     "{name}: gelir / gün sonu satırlarında, fiziksel nakit tarafında size (şube sorumlusu) olarak toplam {total} ({ccy}) işlendi (tüm zamanlar).",
   detailCashHandoverBannerSub:
     "{year} yılı (bugüne kadar): {ytd} · bu şekilde {count} kasa satırı.",
   detailCashHandoverBannerOther: "Diğer para birimleri: {list}",
-  detailProfileCashHandoverTotal: "Kasada size devredilen nakit (toplam)",
+  detailProfileCashHandoverTotal: "Kasaya alınan nakit (toplam)",
   detailProfileCashHandoverCount: "{n} kayıt",
-  detailMgmtHandoverLinesTitle: "Size devredilen kasa nakit satırları (son 50)",
+  detailMgmtHandoverSubTabHeroRemaining: "Kapanmamış toplam kalan",
+  /** Personel kartında atanmış şube varken; patrona ödeme şube bazlı olduğundan üst kutu o şubenin kalanı. */
+  detailMgmtHandoverHeroRemainingAssignedBranch: "Kapanmamış kalan (atanan şube)",
+  /** Çok şubede havuz varken toplamı dipnot olarak gösterir. */
+  detailMgmtHandoverHeroAllBranchesFootnote:
+    "Tüm şubeler (aynı para birimi) toplamı: {amount}. Patrona ödeme tek şube kaydıdır; tutarı ilgili şubenin havuz satırından veya aşağıdaki listeden o şubeyle açın.",
+  detailMgmtHandoverSubTabHintGross:
+    "Alınan nakit toplamı (IN, size yazılı brüt, tüm zaman): {gross}",
+  detailMgmtHandoverLinesTitle: "Kasaya alınan nakit satırları (IN)",
+  detailMgmtHandoverActionsIntro:
+    "Harcanan tarafta: şube gideri (kasadan) ve havuzdan patrona ödeme. İşlemler şube ve para birimi bazında toplam kalandan yapılır. «Patrona ödeme» sihirbazında tutarı siz girersiniz; hangi IN satırından düşüleceğini seçmezsiniz — tutar toplamdan düşülür ve kayıt tarafında en eski satırlardan başlayarak otomatik bölünür. Şube gideri sihirbazında isteğe bağlı olarak belirli IN # yazabilirsiniz.",
+  detailMgmtHandoverPoolTitle: "Toplam kalan (şube · para birimi)",
+  detailMgmtHandoverPoolRemainingLabel: "Kalan toplam",
+  detailMgmtHandoverLinesEmpty:
+    "Bu liste için henüz satır yok; toplam yukarıda. Detay satırları eklendikçe burada görünür.",
+  detailMgmtHandoverFilterAria: "Kasa nakit para devri filtreleri",
+  detailMgmtHandoverFilterDrawerTitle: "Kasa nakit para devri filtreleri",
+  detailMgmtHandoverFilterBranch: "Şube",
+  detailMgmtHandoverFilterCurrency: "Para birimi",
+  detailMgmtHandoverFilterDateFrom: "Tarih (başlangıç)",
+  detailMgmtHandoverFilterDateTo: "Tarih (bitiş)",
+  detailMgmtHandoverFilterSearch: "Metin ara",
+  detailMgmtHandoverFilterSearchHint: "Şube adı, kategori veya not içinde arar.",
+  detailMgmtHandoverFilterApply: "Uygula",
+  detailMgmtHandoverFilterReset: "Sıfırla",
+  detailMgmtHandoverPagedRange: "{from}–{to} / {total}",
+  detailMgmtHandoverPagedPages: "Sayfa {page} / {pages}",
+  detailMgmtHandoverPrev: "Önceki",
+  detailMgmtHandoverNext: "Sonraki",
+  detailMgmtHandoverNoRowsFilter: "Filtreyle eşleşen satır yok.",
   detailMgmtHandoverColDate: "Tarih",
   detailMgmtHandoverColBranch: "Şube",
   detailMgmtHandoverColAmount: "Nakit tutarı",
+  detailMgmtHandoverColSettled: "Düşülen (gider)",
+  detailMgmtHandoverColRemaining: "Kalan",
   detailMgmtHandoverColCategory: "Kategori",
   detailMgmtHandoverColNote: "Not",
+  detailMgmtHandoverActionExpense: "Şube gideri — kasadan, isteğe bağlı IN # ile düşüm",
+  detailMgmtHandoverActionExpenseShort: "Gider",
+  detailMgmtHandoverActionPatron:
+    "Kasadan patrona — tutarı yazın; toplamdan düşülür (IN satırı seçilmez, otomatik bölünür)",
+  detailMgmtHandoverActionPatronShort: "Patrona",
+  detailMgmtCashHandoverTabIn: "Alınan nakitler",
+  detailMgmtCashHandoverTabOut: "Harcanan nakit",
+  detailMgmtCashHandoverTabsAria: "Kasa nakit alt sekmeleri",
+  detailMgmtOutflowsTitle: "Harcanan nakit (gider ve patrona)",
+  detailMgmtOutflowsLead:
+    "Kasadan ödenen şube giderleri, kasa devri (IN) satırına bağlı düşümler ve havuzdan patrona yapılan ödemeler. Üstteki filtreler bu liste için de geçerlidir. Önceki/sonraki bakiye: şube ve para birimine göre havuz (tarih aralığı bakiye zincirini daraltmaz; arama metni bakiyeyi etkilemez).",
+  detailMgmtOutflowsEmpty: "Bu kapsamda henüz OUT satırı yok.",
+  /** Harcanan nakit tablosu — kasa sana ayrılmış tutardan gider. */
+  detailMgmtOutflowKindHeld: "Size yazılan kasa parasından gider",
+  /** Patron ödemesi veya alınan nakit satırına bağlı gider mahsubu. */
+  detailMgmtOutflowKindSettles: "Alınan kasa nakidinden mahsup (patron veya bağlı gider)",
+  detailMgmtOutflowsColAmount: "Tutar",
+  detailMgmtOutflowsColKind: "Tür",
+  detailMgmtOutflowsColInRef: "IN #",
+  detailMgmtOutflowsColBalanceBefore: "Önceki bakiye",
+  detailMgmtOutflowsColBalanceAfter: "Sonraki bakiye",
+  detailMgmtOutflowsColInId: "Bağlı IN satırı: #{id}",
   detailMgmtTitle: "Yönetici özeti",
+  detailMgmtSubTabSummary: "Özet",
+  detailMgmtSubTabHandover: "Kasa nakit para devri",
   detailMgmtBadge: "Karar için özet metrikler",
   detailMgmtStoryP1:
     "{name} {days} gündür sistemde kayıtlı (işe giriş: {hire}). Bu süre takvim günü sayılır; fiili çalışma günü değildir.",
@@ -764,9 +960,21 @@ export const personnel = {
   detailMgmtTileRecordsHint: "{adv} avans · {sal} maaş ödemesi",
   detailMgmtTileWarehouses: "Depo sorumluluğu",
   detailMgmtTileWarehousesHint: "Bağlı kullanıcı ile eşleşen depo",
-  detailMgmtTileCashHandover: "Size devredilen (kasa)",
-  detailMgmtTileCashHandoverHint: "Gelir satırlarında sorumlu olarak işaretlenen fiziksel nakit",
+  detailMgmtTileCashHandover: "Kasaya alınan (kasa)",
+  detailMgmtTileCashHandoverHint:
+    "Gelir (IN) satırlarında sorumlu olarak işaretlenen fiziksel nakit",
   detailMgmtMultiTitle: "Diğer para birimleri",
   detailMgmtMultiLine: "Avans {adv} · Maaş {sal} · Net {net}",
   detailMgmtMultiHandover: "Kasada size devredilen: {hand}",
+  detailMgmtPocketSectionTitle: "Şube kasası — cep",
+  detailMgmtPocketSectionHint:
+    "Şubede bu kişi için net kasa–cep ilişkisi. İsterseniz kalemleri aşağıda açabilirsiniz.",
+  detailMgmtPocketOpenCosts: "Maliyetler sekmesine git",
+  detailMgmtPocketEmpty: "Bu özet için gösterilecek cep/kasa sinyali yok (veya henüz yüklenmedi).",
+  detailMgmtPocketOwesShort: "Kasanın cebe borcu",
+  detailMgmtPocketDetailToggle: "Kalem detayı",
+  detailMgmtPocketLineGross: "Brüt cep harcaması",
+  detailMgmtPocketLineRepaidRegister: "Kasadan ödenen",
+  detailMgmtPocketLineRepaidPatron: "Patrondan ödenen",
+  detailMgmtPocketLineClaimTransfer: "Kayıt devri neti",
 } as const;

@@ -22,6 +22,8 @@ type Props = {
   onEditBranch?: () => void;
   onClose: () => void;
   initialTab?: BranchDetailTabId | null;
+  /** `YYYY-MM-DD` from URL (?registerDay=) — register summary day + optional list filters. */
+  initialRegisterDay?: string | null;
 };
 
 function BranchEditIcon({ className }: { className?: string }) {
@@ -52,6 +54,7 @@ export function BranchDetailSheet({
   onEditBranch,
   onClose,
   initialTab = null,
+  initialRegisterDay = null,
 }: Props) {
   const { t } = useI18n();
   const [backdropConfirmOpen, setBackdropConfirmOpen] = useState(false);
@@ -154,6 +157,7 @@ export function BranchDetailSheet({
             staff={staff}
             employeeSelfService={employeeSelfService}
             initialTab={initialTab}
+            initialRegisterDay={initialRegisterDay}
           />
         </div>
       </div>

@@ -6,9 +6,9 @@ import { ReportCashAsOfFilterBlock } from "@/modules/reports/components/ReportCa
 import { ReportMobileFilterSurface } from "@/modules/reports/components/ReportMobileFilterSurface";
 import { ReportTablesPageShell } from "@/modules/reports/components/ReportTablesPageShell";
 import { ReportCashPatronHighlights } from "@/modules/reports/components/ReportCashPatronHighlights";
-import { ReportsPatronTabStory } from "@/modules/reports/components/ReportsPatronTabStory";
+import { ReportsPatronStoryInfoButton } from "@/modules/reports/components/ReportsPatronTabStory";
 import { useCashPositionReport } from "@/modules/reports/hooks/useReportsQueries";
-import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
+import { PageWhenToUseInfoButton } from "@/shared/components/PageWhenToUseInfoButton";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/Table";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { CashPositionBranchRow } from "@/types/reports";
 
@@ -71,9 +72,9 @@ export function CashReportScreen() {
       title={t("reports.tablesPageCashTitle")}
       subtitle={t("reports.tablesPageCashSubtitle")}
       pageGuide={
-        <PageWhenToUseGuide
+        <PageWhenToUseInfoButton
+          ariaLabel={t("common.pageHelpHintLabel")}
           guideTab="reports"
-          title={t("common.pageWhenToUseTitle")}
           description={t("pageHelp.reportsCash.intro")}
           listVariant="ordered"
           items={[
@@ -88,50 +89,73 @@ export function CashReportScreen() {
       }
     >
       <ReportMobileFilterSurface
+        variant="drawerOnly"
         filtersActive={filtersActive}
         drawerTitle={t("reports.filtersSectionTitle")}
         resetKey="cash-report"
         preview={filterPreview}
         onRefetch={() => void cash.refetch()}
         isRefetching={cash.isFetching}
-      >
-        <ReportCashAsOfFilterBlock
-          t={t}
-          asOfDate={cashAsOfDate}
-          onAsOfChange={setCashAsOfDate}
-          openSeasonOnly={cashOpenSeasonOnly}
-          onOpenSeasonOnlyChange={setCashOpenSeasonOnly}
-          mode={cashAsOfMode}
-          onModeChange={setCashAsOfMode}
-        />
-      </ReportMobileFilterSurface>
+        main={
+          <>
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+              <div className="min-w-0 flex-1">
+                <section
+                  className="rounded-xl border border-zinc-200/80 bg-zinc-50/80 p-3 sm:p-4"
+                  aria-label={t("reports.cashAsOfDate")}
+                >
+                  <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                    {t("reports.cashAsOfDate")}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-zinc-900">
+                    {formatLocaleDate(cashAsOfDate, locale)}
+                  </p>
+                  <p className="mt-0.5 text-xs text-zinc-600">
+                    {cashOpenSeasonOnly
+                      ? t("reports.cashOpenSeasonOnlyShort")
+                      : t("reports.cashAllBranchesShort")}
+                  </p>
+                  <div className="mt-3 rounded-lg border border-zinc-200/90 bg-white/90 px-3 py-2">
+                    <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-500">
+                      {t("reports.finScopeBucketFilter")}
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-zinc-700">
+                      {t("reports.hubFilterEffectsScopeLeadCash")}
+                    </p>
+                  </div>
+                </section>
+              </div>
+              <div className="shrink-0 self-end sm:self-start sm:pt-1">
+                <ReportsPatronStoryInfoButton tab="cash" />
+              </div>
+            </div>
 
-      <ReportsPatronTabStory tab="cash" />
+            {cash.isFetching && cash.data ? (
+              <p className="text-center text-xs text-zinc-400" aria-live="polite">
+                {t("reports.updatingHint")}
+              </p>
+            ) : null}
 
-      {cash.isFetching && cash.data ? (
-        <p className="text-center text-xs text-zinc-400" aria-live="polite">
-          {t("reports.updatingHint")}
-        </p>
-      ) : null}
+            {cash.isError ? (
+              <p className="text-sm text-red-600">
+                {t("reports.error")} {toErrorMessage(cash.error)}
+              </p>
+            ) : null}
 
-      {cash.isError ? (
-        <p className="text-sm text-red-600">
-          {t("reports.error")} {toErrorMessage(cash.error)}
-        </p>
-      ) : null}
+            {cash.isPending ? (
+              <p className="text-sm text-zinc-500">{t("reports.loading")}</p>
+            ) : null}
 
-      {cash.isPending ? (
-        <p className="text-sm text-zinc-500">{t("reports.loading")}</p>
-      ) : null}
-
-      {cash.data ? (
+            {cash.data ? (
         <div className="flex flex-col gap-3 sm:gap-4">
           {rows.length > 0 ? (
             <ReportCashPatronHighlights
               branches={rows}
               totals={cash.data.totals}
+              heldLines={cash.data.registerCashHeldByPersonnelLines ?? []}
               t={t}
               locale={locale}
+              asOfDateIso={cash.data.asOfDate}
               asOfLabel={`${cash.data.asOfDate}${
                 cash.data.openSeasonOnly
                   ? ` · ${t("reports.cashOpenSeasonOnlyShort")}`
@@ -163,6 +187,7 @@ export function CashReportScreen() {
                 { id: "branch", label: t("reports.colBranch") },
                 { id: "season", label: t("branch.tableSeason") },
                 { id: "drawer", label: t("reports.cashColDrawer") },
+                { id: "held", label: t("reports.cashColHeldPersonnel") },
                 { id: "pocket", label: t("reports.cashColPocketDebt") },
                 { id: "patron", label: t("reports.cashColPatronDebt") },
               ]}
@@ -177,6 +202,8 @@ export function CashReportScreen() {
                     return seasonStatusLabel(t, r.seasonStatus);
                   case "drawer":
                     return r.cumulativeCashBalance;
+                  case "held":
+                    return r.cumulativeRegisterCashHeldByPersonnel ?? 0;
                   case "pocket":
                     return r.cumulativeNetRegisterOwesPersonnelPocket;
                   case "patron":
@@ -208,7 +235,12 @@ export function CashReportScreen() {
                                   {t("reports.colBranch")}
                                 </dt>
                                 <dd className="text-sm font-medium text-zinc-900">
-                                  {row.branchName}
+                                  <Link
+                                    href={`/branches?openBranch=${row.branchId}&branchTab=dashboard&registerDay=${encodeURIComponent(cash.data.asOfDate)}`}
+                                    className="text-violet-800 underline decoration-violet-200 underline-offset-2 hover:text-violet-950"
+                                  >
+                                    {row.branchName}
+                                  </Link>
                                 </dd>
                               </div>
                               <div className="flex flex-col gap-0.5 border-b border-zinc-100 pb-2">
@@ -226,6 +258,17 @@ export function CashReportScreen() {
                                 <dd className="text-sm tabular-nums text-zinc-900">
                                   {formatLocaleAmount(
                                     row.cumulativeCashBalance,
+                                    locale
+                                  )}
+                                </dd>
+                              </div>
+                              <div className="flex flex-col gap-0.5 border-b border-zinc-100 pb-2">
+                                <dt className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                                  {t("reports.cashColHeldPersonnel")}
+                                </dt>
+                                <dd className="text-sm tabular-nums text-sky-950">
+                                  {formatLocaleAmount(
+                                    row.cumulativeRegisterCashHeldByPersonnel ?? 0,
                                     locale
                                   )}
                                 </dd>
@@ -266,6 +309,9 @@ export function CashReportScreen() {
                                 {t("reports.cashColDrawer")}
                               </TableHeader>
                               <TableHeader className="text-right tabular-nums">
+                                {t("reports.cashColHeldPersonnel")}
+                              </TableHeader>
+                              <TableHeader className="text-right tabular-nums">
                                 {t("reports.cashColPocketDebt")}
                               </TableHeader>
                               <TableHeader className="text-right tabular-nums">
@@ -277,7 +323,12 @@ export function CashReportScreen() {
                             {displayRows.map((row) => (
                               <TableRow key={row.branchId}>
                                 <TableCell className="font-medium text-zinc-900">
-                                  {row.branchName}
+                                  <Link
+                                    href={`/branches?openBranch=${row.branchId}&branchTab=dashboard&registerDay=${encodeURIComponent(cash.data.asOfDate)}`}
+                                    className="text-violet-800 underline decoration-violet-200 underline-offset-2 hover:text-violet-950"
+                                  >
+                                    {row.branchName}
+                                  </Link>
                                 </TableCell>
                                 <TableCell className="text-zinc-600">
                                   {seasonStatusLabel(t, row.seasonStatus)}
@@ -285,6 +336,12 @@ export function CashReportScreen() {
                                 <TableCell className="text-right tabular-nums text-zinc-900">
                                   {formatLocaleAmount(
                                     row.cumulativeCashBalance,
+                                    locale
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums text-sky-950">
+                                  {formatLocaleAmount(
+                                    row.cumulativeRegisterCashHeldByPersonnel ?? 0,
                                     locale
                                   )}
                                 </TableCell>
@@ -315,6 +372,12 @@ export function CashReportScreen() {
                                   locale
                                 )}
                               </TableCell>
+                              <TableCell className="bg-zinc-50/90 text-right tabular-nums font-semibold text-sky-950">
+                                {formatLocaleAmount(
+                                  cash.data.totals.cumulativeRegisterCashHeldByPersonnel ?? 0,
+                                  locale
+                                )}
+                              </TableCell>
                               <TableCell className="bg-zinc-50/90 text-right tabular-nums font-semibold text-zinc-900">
                                 {formatLocaleAmount(
                                   cash.data.totals
@@ -339,7 +402,20 @@ export function CashReportScreen() {
             </ReportInteractiveRows>
           )}
         </div>
-      ) : null}
+            ) : null}
+          </>
+        }
+      >
+        <ReportCashAsOfFilterBlock
+          t={t}
+          asOfDate={cashAsOfDate}
+          onAsOfChange={setCashAsOfDate}
+          openSeasonOnly={cashOpenSeasonOnly}
+          onOpenSeasonOnlyChange={setCashOpenSeasonOnly}
+          mode={cashAsOfMode}
+          onModeChange={setCashAsOfMode}
+        />
+      </ReportMobileFilterSurface>
     </ReportTablesPageShell>
   );
 }

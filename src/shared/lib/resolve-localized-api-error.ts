@@ -1,5 +1,8 @@
 import { ApiError } from "@/lib/api/base-api";
-import { API_ERROR_CODE_TOURISM_SEASON_CLOSED_FOR_REGISTER } from "@/shared/lib/api-error-codes";
+import {
+  API_ERROR_CODE_GENERAL_OVERHEAD_REVERSE_REQUIRES_ACKNOWLEDGEMENT,
+  API_ERROR_CODE_TOURISM_SEASON_CLOSED_FOR_REGISTER,
+} from "@/shared/lib/api-error-codes";
 import { toErrorMessage } from "@/shared/lib/error-message";
 
 export type LocalizedApiErrorContext = {
@@ -28,6 +31,9 @@ export function resolveLocalizedApiError(
     return adminPolicy
       ? t("apiErrors.tourismSeasonClosedForRegisterAdmin")
       : t("apiErrors.tourismSeasonClosedForRegister");
+  }
+  if (code === API_ERROR_CODE_GENERAL_OVERHEAD_REVERSE_REQUIRES_ACKNOWLEDGEMENT) {
+    return t("apiErrors.generalOverheadReverseRequiresAcknowledgement");
   }
   return error.message;
 }

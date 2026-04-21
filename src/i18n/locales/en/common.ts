@@ -12,6 +12,9 @@ export const common = {
   all: "All",
   invalid: "Invalid value",
   required: "Required",
+  formFillRequiredSummary:
+    "Please complete all required fields highlighted below, then try again.",
+  formFieldRequiredHint: "This field is required.",
   yes: "Yes",
   no: "No",
   comboboxNoMatches: "No matches",
@@ -42,6 +45,7 @@ export const common = {
   pageWhenToUseTitle: "What can I do on this page?",
   openInGuide: "Open this section in the “How to use” guide →",
   pageHelpHintLabel: "What can I do here? — Quick help",
+  pageInfoTooltip: "Open page help",
   pageSectionIntro: "Overview",
   pageSectionSummary: "Summary",
   pageSectionMain: "Records",

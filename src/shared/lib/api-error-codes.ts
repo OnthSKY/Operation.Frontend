@@ -1,3 +1,6 @@
 /** API `errorCode` when register / kasa akışı turizm sezonu kapalı olduğu için engellenir. */
 export const API_ERROR_CODE_TOURISM_SEASON_CLOSED_FOR_REGISTER =
   "TOURISM_SEASON_CLOSED_FOR_REGISTER" as const;
+
+export const API_ERROR_CODE_GENERAL_OVERHEAD_REVERSE_REQUIRES_ACKNOWLEDGEMENT =
+  "GENERAL_OVERHEAD_REVERSE_REQUIRES_ACKNOWLEDGEMENT" as const;

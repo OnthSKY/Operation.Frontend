@@ -1,5 +1,5 @@
-import { FinancialReportTablesScreen } from "@/modules/reports/components/FinancialReportTablesScreen";
+import { redirect } from "next/navigation";
 
-export default function FinancialReportTablesPage() {
-  return <FinancialReportTablesScreen />;
+export default function FinancialReportTablesIndexPage() {
+  redirect("/reports/financial/tables/totals");
 }

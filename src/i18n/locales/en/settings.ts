@@ -11,12 +11,17 @@ export const settings = {
   authzPageTitle: "Role & permission matrix",
   authzPageDescription:
     "Check permissions per role and save each row. ADMIN always keeps system.admin.",
+  authzMatrixHint:
+    "Wide layout: each permission column shows the code; hover, focus, or tap the header for the full description. Saved permissions apply on the next request.",
   authzLoadError: "Could not load authorization matrix.",
   authzRole: "Role",
   authzActions: "Actions",
   authzSaveRow: "Save row",
   authzSaved: "Permissions updated",
   authzMobileRolePerms: "Permissions",
+  authzUnsaved: "Unsaved",
+  authzDesktopScrollHint:
+    "Below 1280px width this page uses cards per role. On wide screens, scroll horizontally if needed; role and Actions columns stay pinned.",
   notificationsCardTitle: "Notifications",
   notificationsCardDesc:
     "Turn operational reminders on or off for the whole organization (bell, API, daily toast).",
@@ -59,11 +64,11 @@ export const settings = {
   brandingNeverUpdated: "Not saved yet (defaults apply).",
   tourismSeasonCardTitle: "Tourism season — closed register",
   tourismSeasonCardDesc:
-    "Per flow, allow branch register actions when the branch has no open tourism season for the transaction date.",
+    "When the transaction date is not inside an open tourism window: allow income (IN) and other flows here. If the branch has no tourism season rows at all, expenses stay blocked regardless of these toggles.",
   tourismSeasonCardLink: "Edit closed-season policy",
   tourismSeasonPageTitle: "Tourism season closed — register policy",
   tourismSeasonPageDescription:
-    "When a branch has no open tourism period on the transaction date, these operations are blocked unless you enable the matching toggle. Defaults are off (strict).",
+    "When season rows exist but the date is closed/outside the window, these flows are blocked unless enabled. If there is no open period at all for that date (missing season data), expenses and non-income register flows are always rejected; only register income (IN) can follow the switches on this page.",
   tourismSeasonSectionFlows: "Allowed when season is closed",
   tourismSeasonSectionFlowsHint:
     "Turn on only the flows you want to permit without an open tourism season window for that date.",

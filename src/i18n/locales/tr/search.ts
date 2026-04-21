@@ -10,6 +10,7 @@ export const search = {
   subSystemSettings: "Kullanıcılar, roller, izin matrisi",
   subAuthorizationMatrix: "Rol ve izin matrisi",
   subOrgNotifications: "Kurum geneli operasyon bildirimleri",
+  subBranding: "Şirket adı ve sol menü logosu",
   subTourismSeasonPolicy: "Turizm kapalıyken kasa akışlarına izin verme",
   subReports: "Finans ve stok dönem raporları",
   subBranchComparison: "Şubelere göre gelir, gider, net",
@@ -19,6 +20,7 @@ export const search = {
   subWarehouse: "Depo / stok",
   subProducts: "Depolara göre ürün listesi",
   subProductCategories: "Ana ve alt ürün kategorileri",
+  subProductCostHistory: "Ürün maliyetlerini tarih, KDV dahil/hariç olarak yönet",
   subSuppliers: "Tedarikçi, alım faturası, açık borç, ödemeler",
   subSupplierInvoices: "Alım faturaları listesi, filtreler, açık bakiyeden ödeme",
   subGeneralOverhead:

@@ -38,10 +38,11 @@ export const productKeys = {
     ] as const,
 };
 
-export function useProductsCatalog() {
+export function useProductsCatalog(enabled = true) {
   return useQuery({
     queryKey: productKeys.catalog(),
     queryFn: fetchProductsCatalog,
+    enabled,
   });
 }
 

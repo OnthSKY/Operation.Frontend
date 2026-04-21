@@ -97,7 +97,7 @@ export default function LoginPage() {
   const totpInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (isReady && user) router.replace(postLoginHomePath(user.role));
+    if (isReady && user) router.replace(postLoginHomePath(user));
   }, [isReady, user, router]);
 
   useEffect(() => {
@@ -123,7 +123,7 @@ export default function LoginPage() {
         return;
       }
       if (res.user) {
-        router.replace(postLoginHomePath(res.user.role));
+        router.replace(postLoginHomePath(res.user));
       }
     } catch (err) {
       const message =

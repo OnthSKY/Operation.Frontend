@@ -150,6 +150,7 @@ export function useUpsertBranchPosSettlementProfile() {
     }) => upsertBranchPosSettlementProfile(vars.branchId, vars.body),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: reportsKeys.patronFlowPosProfiles });
+      await qc.invalidateQueries({ queryKey: [...reportsKeys.all, "patronFlow"] });
     },
   });
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth/AuthContext";
+import { canSeeUiModule, PERM } from "@/lib/auth/permissions";
 import { isDriverPortalRole, isPersonnelPortalRole } from "@/lib/auth/roles";
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
@@ -74,23 +75,32 @@ export function MobileNavDock({ onOpenMenu }: { onOpenMenu: () => void }) {
   const { user } = useAuth();
   const personnelPortal = isPersonnelPortalRole(user?.role);
   const driverPortal = isDriverPortalRole(user?.role);
+  const u = user;
 
   const items: DockItem[] = personnelPortal
     ? [
-        {
-          key: "branch",
-          href: "/branches",
-          label: t("nav.branch"),
-          icon: <IconBranch />,
-          active: pathname.startsWith("/branches"),
-        },
-        {
-          key: "personnel-costs",
-          href: "/personnel/costs",
-          label: t("nav.personnelCosts"),
-          icon: <IconAdvances />,
-          active: pathname.startsWith("/personnel/costs"),
-        },
+        ...(canSeeUiModule(u, PERM.uiBranches)
+          ? ([
+              {
+                key: "branch",
+                href: "/branches",
+                label: t("nav.branch"),
+                icon: <IconBranch />,
+                active: pathname.startsWith("/branches"),
+              },
+            ] satisfies DockItem[])
+          : []),
+        ...(canSeeUiModule(u, PERM.uiMyAdvances)
+          ? ([
+              {
+                key: "personnel-costs",
+                href: "/personnel/costs",
+                label: t("nav.personnelCosts"),
+                icon: <IconAdvances />,
+                active: pathname.startsWith("/personnel/costs"),
+              },
+            ] satisfies DockItem[])
+          : []),
         {
           key: "more",
           label: t("nav.dockMore"),
@@ -101,20 +111,28 @@ export function MobileNavDock({ onOpenMenu }: { onOpenMenu: () => void }) {
       ]
     : driverPortal
       ? [
-          {
-            key: "branch",
-            href: "/branches",
-            label: t("nav.branch"),
-            icon: <IconBranch />,
-            active: pathname.startsWith("/branches"),
-          },
-          {
-            key: "warehouse",
-            href: "/warehouses",
-            label: t("nav.warehouse"),
-            icon: <IconWarehouse />,
-            active: pathname.startsWith("/warehouses"),
-          },
+          ...(canSeeUiModule(u, PERM.uiBranches)
+            ? ([
+                {
+                  key: "branch",
+                  href: "/branches",
+                  label: t("nav.branch"),
+                  icon: <IconBranch />,
+                  active: pathname.startsWith("/branches"),
+                },
+              ] satisfies DockItem[])
+            : []),
+          ...(canSeeUiModule(u, PERM.uiWarehouse)
+            ? ([
+                {
+                  key: "warehouse",
+                  href: "/warehouses",
+                  label: t("nav.warehouse"),
+                  icon: <IconWarehouse />,
+                  active: pathname.startsWith("/warehouses"),
+                },
+              ] satisfies DockItem[])
+            : []),
           ...(user?.allowPersonnelSelfFinancials
             ? ([
                 {
@@ -134,36 +152,44 @@ export function MobileNavDock({ onOpenMenu }: { onOpenMenu: () => void }) {
             onClick: onOpenMenu,
           },
         ]
-      : [
-          {
-            key: "home",
-            href: "/",
-            label: t("nav.home"),
-            icon: <IconHome />,
-            active: pathname === "/",
-          },
-          {
-            key: "branch",
-            href: "/branches",
-            label: t("nav.branch"),
-            icon: <IconBranch />,
-            active: pathname.startsWith("/branches"),
-          },
-          {
-            key: "warehouse",
-            href: "/warehouses",
-            label: t("nav.warehouse"),
-            icon: <IconWarehouse />,
-            active: pathname.startsWith("/warehouses"),
-          },
-          {
+      : (() => {
+          const dock: DockItem[] = [];
+          if (canSeeUiModule(u, PERM.uiDashboard)) {
+            dock.push({
+              key: "home",
+              href: "/",
+              label: t("nav.home"),
+              icon: <IconHome />,
+              active: pathname === "/",
+            });
+          }
+          if (canSeeUiModule(u, PERM.uiBranches)) {
+            dock.push({
+              key: "branch",
+              href: "/branches",
+              label: t("nav.branch"),
+              icon: <IconBranch />,
+              active: pathname.startsWith("/branches"),
+            });
+          }
+          if (canSeeUiModule(u, PERM.uiWarehouse)) {
+            dock.push({
+              key: "warehouse",
+              href: "/warehouses",
+              label: t("nav.warehouse"),
+              icon: <IconWarehouse />,
+              active: pathname.startsWith("/warehouses"),
+            });
+          }
+          dock.push({
             key: "more",
             label: t("nav.dockMore"),
             icon: <IconMenu />,
             active: false,
             onClick: onOpenMenu,
-          },
-        ];
+          });
+          return dock;
+        })();
 
   return (
     <nav

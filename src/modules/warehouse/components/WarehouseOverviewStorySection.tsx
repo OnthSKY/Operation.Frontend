@@ -35,6 +35,9 @@ type Props = {
   productCatalog: ProductListItem[];
   productCategories: ProductCategory[];
   onOpenMovementsTab?: () => void;
+  /** Varsayılan depo özeti başlığı yerine (ör. özet kartları alt bölümü). */
+  storyTitle?: string;
+  storyDescription?: string;
 };
 
 export function WarehouseOverviewStorySection({
@@ -43,6 +46,8 @@ export function WarehouseOverviewStorySection({
   productCatalog,
   productCategories,
   onOpenMovementsTab,
+  storyTitle,
+  storyDescription,
 }: Props) {
   const { t, locale } = useI18n();
   const stockQ = useWarehouseStock(active ? warehouseId : null, {});
@@ -94,8 +99,8 @@ export function WarehouseOverviewStorySection({
   return (
     <StoryBlock
       id="warehouse-overview"
-      title={t("warehouse.overviewTitle")}
-      description={t("warehouse.overviewDescription")}
+      title={storyTitle ?? t("warehouse.overviewTitle")}
+      description={storyDescription ?? t("warehouse.overviewDescription")}
     >
       {stockQ.isPending ? (
         <p className="text-sm text-zinc-500">{t("common.loading")}</p>

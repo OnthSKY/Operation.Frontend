@@ -33,6 +33,8 @@ import {
   createPersonnel,
   fetchPersonnelInsurancePeriods,
   fetchPersonnelList,
+  fetchPersonnelCashHandoverLinesPaged,
+  fetchPersonnelCashHandoverOutflowsPaged,
   fetchPersonnelManagementSnapshot,
   fetchPersonnel,
   softDeletePersonnel,
@@ -61,6 +63,8 @@ export type PersonnelListFilters = {
   seasonArrivalTo: string;
   hireDateFrom: string;
   hireDateTo: string;
+  /** "all" | "started" | "not_started" — API'ye yalnız started/not_started gider. */
+  insuranceStatus: "all" | "started" | "not_started";
 };
 
 export const defaultPersonnelListFilters: PersonnelListFilters = {
@@ -72,6 +76,7 @@ export const defaultPersonnelListFilters: PersonnelListFilters = {
   seasonArrivalTo: "",
   hireDateFrom: "",
   hireDateTo: "",
+  insuranceStatus: "all",
 };
 
 export const personnelKeys = {
@@ -88,6 +93,7 @@ export const personnelKeys = {
       f.seasonArrivalTo,
       f.hireDateFrom,
       f.hireDateTo,
+      f.insuranceStatus,
     ] as const,
   /** Tüm filtre kombinasyonlarındaki liste sorgularını geçersiz kılar. */
   listRoot: () => [...personnelKeys.all, "list"] as const,
@@ -96,6 +102,50 @@ export const personnelKeys = {
     [...personnelKeys.all, "non-advance-attributed-expenses", sort] as const,
   managementSnapshot: (personnelId: number) =>
     [...personnelKeys.all, "management-snapshot", personnelId] as const,
+  cashHandoverLines: (
+    personnelId: number,
+    page: number,
+    pageSize: number,
+    branchId: string,
+    currency: string,
+    dateFrom: string,
+    dateTo: string,
+    search: string
+  ) =>
+    [
+      ...personnelKeys.all,
+      "cash-handover-lines",
+      personnelId,
+      page,
+      pageSize,
+      branchId,
+      currency,
+      dateFrom,
+      dateTo,
+      search,
+    ] as const,
+  cashHandoverOutflows: (
+    personnelId: number,
+    page: number,
+    pageSize: number,
+    branchId: string,
+    currency: string,
+    dateFrom: string,
+    dateTo: string,
+    search: string
+  ) =>
+    [
+      ...personnelKeys.all,
+      "cash-handover-outflows",
+      personnelId,
+      page,
+      pageSize,
+      branchId,
+      currency,
+      dateFrom,
+      dateTo,
+      search,
+    ] as const,
   /** @param effectiveYear calendar year — filters API by effectiveYear; omit for all years */
   advances: (personnelId: number, effectiveYear?: number) =>
     [...personnelKeys.all, "advances", personnelId, effectiveYear ?? "all"] as const,
@@ -131,12 +181,23 @@ export const personnelKeys = {
     [...personnelKeys.all, "year-account-closures", personnelId] as const,
 };
 
+/**
+ * @param queryKeySuffix İsteğe bağlı; şube kasa modalı gibi yerlerde aynı filtreyle başka ekranın
+ * React Query önbelleğiyle çakışmayı önlemek için kullanılır (örn. `"branch-tx-modal"`).
+ */
 export function usePersonnelList(
   filters: PersonnelListFilters,
-  enabled: boolean = true
+  enabled: boolean = true,
+  queryKeySuffix?: string
 ) {
+  const baseKey = personnelKeys.list(filters);
+  const queryKey =
+    queryKeySuffix != null && queryKeySuffix.length > 0
+      ? ([...baseKey, queryKeySuffix] as const)
+      : baseKey;
+
   return useQuery({
-    queryKey: personnelKeys.list(filters),
+    queryKey,
     queryFn: () =>
       fetchPersonnelList({
         status: filters.status,
@@ -147,6 +208,12 @@ export function usePersonnelList(
         seasonArrivalTo: filters.seasonArrivalTo.trim() || undefined,
         hireDateFrom: filters.hireDateFrom.trim() || undefined,
         hireDateTo: filters.hireDateTo.trim() || undefined,
+        insuranceStarted:
+          filters.insuranceStatus === "started"
+            ? true
+            : filters.insuranceStatus === "not_started"
+              ? false
+              : undefined,
       }),
     enabled,
   });
@@ -225,6 +292,92 @@ export function usePersonnelManagementSnapshot(
   return useQuery({
     queryKey: personnelKeys.managementSnapshot(personnelId ?? 0),
     queryFn: () => fetchPersonnelManagementSnapshot(personnelId!),
+    enabled: enabled && personnelId != null && personnelId > 0,
+  });
+}
+
+export type PersonnelCashHandoverLinesFilterState = {
+  branchId: string;
+  currency: string;
+  dateFrom: string;
+  dateTo: string;
+  search: string;
+};
+
+export function usePersonnelCashHandoverLinesPaged(
+  personnelId: number | null | undefined,
+  page: number,
+  pageSize: number,
+  filters: PersonnelCashHandoverLinesFilterState,
+  enabled: boolean
+) {
+  const branchIdKey = filters.branchId.trim();
+  const currencyKey = filters.currency.trim();
+  const dateFromKey = filters.dateFrom.trim();
+  const dateToKey = filters.dateTo.trim();
+  const searchKey = filters.search.trim();
+  const bid = branchIdKey ? parseInt(branchIdKey, 10) : NaN;
+
+  return useQuery({
+    queryKey: personnelKeys.cashHandoverLines(
+      personnelId ?? 0,
+      page,
+      pageSize,
+      branchIdKey,
+      currencyKey,
+      dateFromKey,
+      dateToKey,
+      searchKey
+    ),
+    queryFn: () =>
+      fetchPersonnelCashHandoverLinesPaged(personnelId!, {
+        page,
+        pageSize,
+        branchId: Number.isFinite(bid) && bid > 0 ? bid : undefined,
+        currencyCode: currencyKey || undefined,
+        dateFrom: dateFromKey || undefined,
+        dateTo: dateToKey || undefined,
+        search: searchKey || undefined,
+      }),
+    enabled: enabled && personnelId != null && personnelId > 0,
+  });
+}
+
+export function usePersonnelCashHandoverOutflowsPaged(
+  personnelId: number | null | undefined,
+  page: number,
+  pageSize: number,
+  filters: PersonnelCashHandoverLinesFilterState,
+  enabled: boolean
+) {
+  const branchIdKey = filters.branchId.trim();
+  const currencyKey = filters.currency.trim();
+  const dateFromKey = filters.dateFrom.trim();
+  const dateToKey = filters.dateTo.trim();
+  const searchKey = filters.search.trim();
+  const bid = branchIdKey ? parseInt(branchIdKey, 10) : NaN;
+
+  return useQuery({
+    queryKey: personnelKeys.cashHandoverOutflows(
+      personnelId ?? 0,
+      page,
+      pageSize,
+      branchIdKey,
+      currencyKey,
+      dateFromKey,
+      dateToKey,
+      searchKey
+    ),
+    queryFn: () =>
+      fetchPersonnelCashHandoverOutflowsPaged(personnelId!, {
+        page,
+        pageSize,
+        branchId: Number.isFinite(bid) && bid > 0 ? bid : undefined,
+        currencyCode: currencyKey || undefined,
+        dateFrom: dateFromKey || undefined,
+        dateTo: dateToKey || undefined,
+        search: searchKey || undefined,
+      }),
     enabled: enabled && personnelId != null && personnelId > 0,
   });
 }

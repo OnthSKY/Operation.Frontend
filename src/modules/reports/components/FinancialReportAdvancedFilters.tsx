@@ -1,7 +1,10 @@
 "use client";
 
 import { useI18n } from "@/i18n/context";
-import { expensePaymentSourceLabel } from "@/modules/branch/lib/branch-transaction-options";
+import {
+  expensePaymentSourceLabel,
+  txCodeLabel,
+} from "@/modules/branch/lib/branch-transaction-options";
 import { useFinancialReportFilterOptions } from "@/modules/reports/hooks/useReportsQueries";
 import type { SelectOption } from "@/shared/ui/Select";
 import { Select } from "@/shared/ui/Select";
@@ -69,11 +72,14 @@ export function FinancialReportAdvancedFilters({
       .filter((c) => c != null && String(c).trim() !== "")
       .map((c) => {
         const v = String(c).trim();
-        return { value: v, label: v };
+        return { value: v, label: txCodeLabel(v, t) || v };
       });
     return mergeSelectedOption(
       [{ value: "", label: emptyLabel }, ...fromApi],
+      values.mainCategory,
       values.mainCategory
+        ? txCodeLabel(values.mainCategory, t) || values.mainCategory
+        : undefined
     );
   }, [optsQ.data?.mainCategories, values.mainCategory, t]);
 
@@ -83,11 +89,14 @@ export function FinancialReportAdvancedFilters({
       .filter((c) => c != null && String(c).trim() !== "")
       .map((c) => {
         const v = String(c).trim();
-        return { value: v, label: v };
+        return { value: v, label: txCodeLabel(v, t) || v };
       });
     return mergeSelectedOption(
       [{ value: "", label: emptyLabel }, ...fromApi],
+      values.category,
       values.category
+        ? txCodeLabel(values.category, t) || values.category
+        : undefined
     );
   }, [optsQ.data?.categories, values.category, t]);
 

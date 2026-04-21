@@ -11,12 +11,17 @@ export const settings = {
   authzPageTitle: "Rol ve izin matrisi",
   authzPageDescription:
     "Her rol için izinleri işaretleyip satır bazında kaydedin. ADMIN rolünde system.admin her zaman kalır.",
+  authzMatrixHint:
+    "Geniş görünümde sütunlarda teknik kod görünür; başlığın üzerine gelin, odaklayın veya dokunun — tam açıklama balonunda. Kayıt sonrası izinler bir sonraki istekte geçerlidir.",
   authzLoadError: "Yetkilendirme matrisi yüklenemedi.",
   authzRole: "Rol",
   authzActions: "İşlemler",
   authzSaveRow: "Satırı kaydet",
   authzSaved: "İzinler güncellendi",
   authzMobileRolePerms: "İzinler",
+  authzUnsaved: "Kaydedilmedi",
+  authzDesktopScrollHint:
+    "1280px genişliğin altında her rol için kart görünümü kullanılır. Geniş ekranda gerekirse yatay kaydırın; Rol ve İşlemler sütunları sabit kalır.",
   notificationsCardTitle: "Bildirimler",
   notificationsCardDesc:
     "Kurum genelinde operasyon hatırlatıcılarını (zil, API, günlük toast) açıp kapatabilirsiniz.",
@@ -59,11 +64,11 @@ export const settings = {
   brandingNeverUpdated: "Henüz kayıt yok (varsayılanlar geçerli).",
   tourismSeasonCardTitle: "Turizm sezonu — kapalı kasa",
   tourismSeasonCardDesc:
-    "İşlem tarihinde açık turizm dönemi yokken, akış bazında şube kasası hareketlerine izin verilip verilmeyeceğini seçin.",
+    "İşlem tarihi açık bir turizm aralığına düşmüyorsa: gelir (IN) ve diğer akışlar için istisna verirsiniz. Şubede hiç turizm sezonu kaydı yokken giderler yine de kayda kapalıdır (politika ile açılamaz).",
   tourismSeasonCardLink: "Kapalı sezon politikasını düzenle",
   tourismSeasonPageTitle: "Turizm kapalıyken kasa politikası",
   tourismSeasonPageDescription:
-    "Şubenin işlem tarihinde açık turizm sezonu yoksa aşağıdaki işlemler engellenir; yalnızca ilgili anahtarı açarsanız izin verilir. Varsayılan: hepsi kapalı (sıkı).",
+    "Turizm sezonu satırı varken ama işlem tarihi kapalı / dış aralıkta ise aşağıdaki akışlar varsayılan olarak engellenir; anahtar açınca izin verilir. Şubede o tarih için hiç açık dönem yoksa (kayıt eksikse) gider ve gelir dışı hareketler politika dışı daima reddedilir — yalnızca gelir (IN) buradaki izne bağlı kalır.",
   tourismSeasonSectionFlows: "Sezon kapalıyken izin ver",
   tourismSeasonSectionFlowsHint:
     "Turizm penceresi olmadan yapılmasını istediğiniz akışları tek tek açın.",

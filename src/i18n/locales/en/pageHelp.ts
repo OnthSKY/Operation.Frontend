@@ -76,14 +76,14 @@ export const pageHelp = {
     step3Link: "Authorization matrix",
   },
   reportsHub: {
-    intro: "Entry point to analytical reports: financial periods, cash, stock, branches, patron flow.",
-    step1: "Choose the report that matches your question (cash vs stock vs P&L style summaries).",
+    intro: "Entry point to analytical reports: financial periods (operating-income KPIs), cash snapshots, stock, branches, patron flow.",
+    step1: "Choose the report that matches your question (drawer snapshot vs stock vs P&L-style operating totals).",
     step2: "Set season, year, or date ranges as each report requires—hints sit on the report page.",
     step3: "For day-to-day branch lines, work from the Branches screen; this area aggregates.",
     step3Link: "Branches",
   },
   reportsFinancial: {
-    intro: "Table-style financial period report: income and expense breakdowns.",
+    intro: "Table-style financial period report: operating income and operating expense breakdowns (same KPI rules as summary cards).",
     step1: "Select financial period or filters, then load the grid.",
     step2: "Export or copy figures for accounting when your process requires.",
     step3: "Cross-check unusual categories against branch transaction categories.",
@@ -105,7 +105,7 @@ export const pageHelp = {
     step3Link: "Branches",
   },
   reportsBranches: {
-    intro: "Compare branches side by side for the selected reporting window.",
+    intro: "Compare branches side by side using the same operating income and expense KPIs as the financial summary.",
     step1: "Pick branches and metrics; scan the comparison grid.",
     step2: "Open a single branch when you need transaction-level proof.",
     step2Link: "Branches",

@@ -1,7 +1,8 @@
 "use client";
 
 import { compareValues, rowMatchesQuery, type SortDir } from "@/modules/reports/lib/report-table-utils";
-import { useMemo, useState, type ReactNode } from "react";
+import { Select } from "@/shared/ui/Select";
+import { useId, useMemo, useState, type ReactNode } from "react";
 
 export type SortOption<K extends string> = { id: K; label: string };
 
@@ -30,6 +31,7 @@ function ReportSectionToolbar<K extends string>({
   total: number;
   t: TFn;
 }) {
+  const sortSelectName = useId().replace(/:/g, "");
   return (
     <div
       className="mb-3 flex flex-col gap-2 border-b border-zinc-100 pb-3 sm:mb-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-3 sm:pb-3.5"
@@ -48,22 +50,18 @@ function ReportSectionToolbar<K extends string>({
           className="min-h-11 w-full rounded-lg border border-zinc-200 bg-zinc-50/80 px-3 py-2 text-base text-zinc-900 placeholder:text-zinc-400 sm:min-h-10 sm:text-sm"
         />
       </label>
-      <label className="flex min-w-0 flex-col gap-1 sm:w-[min(100%,14rem)]">
-        <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
-          {t("reports.sectionSortBy")}
-        </span>
-        <select
+      <div className="min-w-0 sm:w-[min(100%,18rem)]">
+        <Select
+          name={`report-table-sort-${sortSelectName}`}
+          label={t("reports.sectionSortBy")}
+          options={sortOptions.map((o) => ({ value: o.id, label: o.label }))}
           value={sortKey}
           onChange={(e) => onSortKeyChange(e.target.value as K)}
-          className="min-h-11 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-base sm:min-h-10 sm:text-sm"
-        >
-          {sortOptions.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </label>
+          onBlur={() => {}}
+          menuZIndex={200}
+          className="min-h-11 rounded-xl border border-zinc-200/90 text-base shadow-sm ring-zinc-950/[0.03] sm:min-h-10 sm:text-sm"
+        />
+      </div>
       <div className="flex items-end gap-2">
         <button
           type="button"

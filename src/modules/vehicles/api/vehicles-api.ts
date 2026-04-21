@@ -45,6 +45,10 @@ export async function createVehicle(body: {
   });
 }
 
+export async function deleteVehicle(id: number): Promise<void> {
+  await apiRequest<null>(`/vehicles/${id}`, { method: "DELETE" });
+}
+
 export async function updateVehicle(
   id: number,
   body: {

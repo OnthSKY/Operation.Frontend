@@ -1,12 +1,26 @@
 export type FinancialCurrencyTotalsRow = {
   currencyCode: string;
+  /** Faaliyet geliri KPI (iç nakit IN’ler hariç); API `totalIncome` ile aynı. */
   totalIncome: number;
   totalExpense: number;
   incomeTransactionCount: number;
   expenseTransactionCount: number;
   /** Şube kasasından tedarikçi (CASH); netCash buna göre düşülmüş. */
   totalSupplierRegisterCashPaid?: number;
+  totalSalaryPaid?: number;
+  totalAdvanceGiven?: number;
   netCash: number;
+};
+
+/** Faaliyet geliri KPI: kart / nakit ve nakit tarafında kasa–patron–personel dağılımı (iç nakit IN’ler hariç; API ile aynı). */
+export type FinancialIncomeRegisterBreakdownRow = {
+  currencyCode: string;
+  incomeCard: number;
+  incomeCash: number;
+  cashPatron: number;
+  cashBranchManager: number;
+  cashRemainsAtBranch: number;
+  cashUnspecified: number;
 };
 
 export type FinancialBranchBreakdownRow = {
@@ -14,9 +28,23 @@ export type FinancialBranchBreakdownRow = {
   branchId: number;
   branchName: string;
   currencyCode: string;
+  /** Faaliyet geliri KPI toplamı. */
   totalIncome: number;
+  /** Şube karşılaştırma: faaliyet geliri nakit bacağı */
+  totalIncomeCash?: number;
+  /** Şube karşılaştırma: faaliyet geliri kart bacağı */
+  totalIncomeCard?: number;
+  /** Şube karşılaştırma: faaliyet geliri nakit içinden patrona yazılan */
+  totalIncomeCashTaggedPatron?: number;
   totalExpense: number;
+  totalExpenseRegister?: number;
+  totalExpensePatron?: number;
+  totalExpensePersonnelPocket?: number;
+  totalExpensePersonnelHeldRegisterCash?: number;
+  totalExpenseUnset?: number;
   totalSupplierRegisterCashPaid?: number;
+  totalSalaryPaid?: number;
+  totalAdvanceGiven?: number;
   netCash: number;
 };
 
@@ -107,6 +135,7 @@ export type FinancialReport = {
   supplierPayments?: FinancialSupplierPaymentBreakdownRow[];
   vehicleExpensesOffRegister?: FinancialVehicleExpenseOffRegisterRow[];
   generalOverheadAllocated?: FinancialGeneralOverheadAllocatedRow[];
+  incomeRegisterBreakdownByCurrency?: FinancialIncomeRegisterBreakdownRow[];
 };
 
 export type WarehousePeriodSummaryRow = {
@@ -219,12 +248,22 @@ export type CashPositionBranchRow = {
   cumulativeCashBalance: number;
   cumulativeNetRegisterOwesPersonnelPocket: number;
   cumulativeNetRegisterOwesPatron: number;
+  cumulativeRegisterCashHeldByPersonnel: number;
 };
 
 export type CashPositionTotalsRow = {
   cumulativeCashBalance: number;
   cumulativeNetRegisterOwesPersonnelPocket: number;
   cumulativeNetRegisterOwesPatron: number;
+  cumulativeRegisterCashHeldByPersonnel: number;
+};
+
+export type CashPositionHeldRegisterCashLine = {
+  branchId: number;
+  branchName: string;
+  personnelId: number | null;
+  fullName: string;
+  amount: number;
 };
 
 export type CashPositionReport = {
@@ -232,4 +271,5 @@ export type CashPositionReport = {
   openSeasonOnly: boolean;
   branches: CashPositionBranchRow[];
   totals: CashPositionTotalsRow;
+  registerCashHeldByPersonnelLines: CashPositionHeldRegisterCashLine[];
 };

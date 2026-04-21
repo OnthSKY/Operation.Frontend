@@ -2,8 +2,8 @@
 
 import { WarehouseDetailAuditTab } from "@/modules/warehouse/components/WarehouseDetailAuditTab";
 import { WarehouseDetailMovementsTab } from "@/modules/warehouse/components/WarehouseDetailMovementsTab";
+import { WarehouseDetailSummaryTab } from "@/modules/warehouse/components/WarehouseDetailSummaryTab";
 import { EditWarehouseModal } from "@/modules/warehouse/components/EditWarehouseModal";
-import { WarehouseOperationsTab } from "@/modules/warehouse/components/WarehouseOperationsTab";
 import { useWarehouseDetail } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
@@ -39,7 +39,7 @@ function WarehouseDetailMetaCard({
     </div>
   );
   return (
-    <div className="mb-3 shrink-0 rounded-xl border border-zinc-200/70 bg-zinc-50/90 p-4 shadow-sm shadow-zinc-900/5">
+    <div className="shrink-0 rounded-xl border border-zinc-200/70 bg-zinc-50/90 p-4 shadow-sm shadow-zinc-900/5 sm:p-5">
       <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
         {t("warehouse.detailGeneralTitle")}
       </p>
@@ -60,7 +60,7 @@ function WarehouseDetailMetaCard({
   );
 }
 
-type Tab = "ops" | "movements" | "audit";
+type Tab = "general" | "summary" | "movements" | "audit";
 
 type Props = {
   open: boolean;
@@ -71,7 +71,7 @@ type Props = {
 
 export function WarehouseDetailModal({ open, warehouseId, onClose, onOpenAddProduct }: Props) {
   const { t, locale } = useI18n();
-  const [tab, setTab] = useState<Tab>("ops");
+  const [tab, setTab] = useState<Tab>("general");
   const [editOpen, setEditOpen] = useState(false);
   const { data: detail, isPending: detailLoading, isError, error } = useWarehouseDetail(
     open ? warehouseId : null,
@@ -79,7 +79,7 @@ export function WarehouseDetailModal({ open, warehouseId, onClose, onOpenAddProd
   );
 
   useEffect(() => {
-    if (open) setTab("ops");
+    if (open) setTab("general");
   }, [open, warehouseId]);
 
   useEffect(() => {
@@ -93,7 +93,7 @@ export function WarehouseDetailModal({ open, warehouseId, onClose, onOpenAddProd
       role="tab"
       aria-selected={tab === id}
       className={cn(
-        "min-h-11 flex-1 rounded-t-lg px-3 py-2 text-sm font-medium transition-colors sm:flex-none sm:min-w-[7.5rem]",
+        "min-h-11 shrink-0 whitespace-nowrap rounded-t-lg px-2.5 py-2 text-xs font-medium transition-colors sm:px-3 sm:text-sm",
         tab === id
           ? "border-b-2 border-zinc-900 bg-zinc-50 text-zinc-900"
           : "border-b-2 border-transparent text-zinc-600 hover:bg-zinc-50/80"
@@ -106,72 +106,80 @@ export function WarehouseDetailModal({ open, warehouseId, onClose, onOpenAddProd
 
   return (
     <>
-    <Modal
-      open={open}
-      onClose={onClose}
-      titleId={TITLE_ID}
-      title={detail?.name ?? (detailLoading ? t("common.loading") : t("warehouse.title"))}
-      description={undefined}
-      closeButtonLabel={t("common.close")}
-      wide
-      wideFixedHeight
-      wideExpanded
-      className="!p-0"
-    >
-      <div className="mt-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-4 pb-4 sm:px-6">
-        {isError ? (
-          <p className="text-sm text-red-600">{toErrorMessage(error)}</p>
-        ) : detailLoading && !detail ? (
-          <p className="text-sm text-zinc-500">{t("common.loading")}</p>
-        ) : detail ? (
-          <>
-            <WarehouseDetailMetaCard detail={detail} t={t} locale={locale} />
-            <div className="mb-3 flex shrink-0 justify-end">
-              <Button type="button" variant="secondary" className="min-h-10" onClick={() => setEditOpen(true)}>
-                {t("warehouse.editWarehouse")}
-              </Button>
-            </div>
-            <div
-              role="tablist"
-              className="flex shrink-0 flex-wrap gap-1 border-b border-zinc-200"
-            >
-              {tabBtn("ops", t("warehouse.tabOperations"))}
-              {tabBtn("movements", t("warehouse.tabMovements"))}
-              {tabBtn("audit", t("warehouse.tabAudit"))}
-            </div>
-            <div className="mt-4 min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-4 [-webkit-overflow-scrolling:touch]">
-              {tab === "ops" ? (
-                <WarehouseOperationsTab
-                  warehouseId={warehouseId}
-                  warehouseName={detail.name}
-                  active={open && tab === "ops"}
-                  onOpenAddProduct={onOpenAddProduct}
-                  onDeleted={onClose}
-                  onOpenMovementsTab={() => setTab("movements")}
-                />
-              ) : null}
-              {tab === "movements" ? (
-                <WarehouseDetailMovementsTab
-                  warehouseId={warehouseId}
-                  enabled={open && tab === "movements"}
-                />
-              ) : null}
-              {tab === "audit" ? (
-                <WarehouseDetailAuditTab
-                  warehouseId={warehouseId}
-                  enabled={open && tab === "audit"}
-                />
-              ) : null}
-            </div>
-          </>
-        ) : null}
-      </div>
-    </Modal>
-    <EditWarehouseModal
-      open={editOpen && open}
-      warehouseId={warehouseId}
-      onClose={() => setEditOpen(false)}
-    />
+      <Modal
+        open={open}
+        onClose={onClose}
+        titleId={TITLE_ID}
+        title={detail?.name ?? (detailLoading ? t("common.loading") : t("warehouse.title"))}
+        description={undefined}
+        closeButtonLabel={t("common.close")}
+        wide
+        wideFixedHeight
+        wideExpanded
+        className="!p-0"
+      >
+        <div className="mt-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-3 pb-3 sm:px-6 sm:pb-4">
+          {isError ? (
+            <p className="text-sm text-red-600">{toErrorMessage(error)}</p>
+          ) : detailLoading && !detail ? (
+            <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+          ) : detail ? (
+            <>
+              <div
+                role="tablist"
+                className="-mx-1 flex min-h-[2.75rem] shrink-0 snap-x snap-mandatory gap-0.5 overflow-x-auto overflow-y-hidden border-b border-zinc-200 px-1 pb-px [-webkit-overflow-scrolling:touch] sm:mx-0 sm:flex-wrap sm:gap-1 sm:overflow-visible sm:px-0 sm:pb-0"
+              >
+                {tabBtn("general", t("warehouse.tabGeneral"))}
+                {tabBtn("summary", t("warehouse.tabSummary"))}
+                {tabBtn("movements", t("warehouse.tabMovements"))}
+                {tabBtn("audit", t("warehouse.tabAudit"))}
+              </div>
+              <div className="mt-3 min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-2 [-webkit-overflow-scrolling:touch] sm:mt-4 sm:pb-4">
+                {tab === "general" ? (
+                  <div className="flex flex-col gap-3">
+                    <WarehouseDetailMetaCard detail={detail} t={t} locale={locale} />
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="min-h-11 w-full sm:ml-auto sm:w-auto sm:self-end"
+                      onClick={() => setEditOpen(true)}
+                    >
+                      {t("warehouse.editWarehouse")}
+                    </Button>
+                  </div>
+                ) : null}
+                {tab === "summary" ? (
+                  <WarehouseDetailSummaryTab
+                    warehouseId={warehouseId}
+                    enabled={open && tab === "summary"}
+                    onOpenMovementsTab={() => setTab("movements")}
+                  />
+                ) : null}
+                {tab === "movements" ? (
+                  <WarehouseDetailMovementsTab
+                    warehouseId={warehouseId}
+                    warehouseName={detail.name}
+                    enabled={open && tab === "movements"}
+                    onOpenAddProduct={onOpenAddProduct}
+                    onDeleted={onClose}
+                  />
+                ) : null}
+                {tab === "audit" ? (
+                  <WarehouseDetailAuditTab
+                    warehouseId={warehouseId}
+                    enabled={open && tab === "audit"}
+                  />
+                ) : null}
+              </div>
+            </>
+          ) : null}
+        </div>
+      </Modal>
+      <EditWarehouseModal
+        open={editOpen && open}
+        warehouseId={warehouseId}
+        onClose={() => setEditOpen(false)}
+      />
     </>
   );
 }

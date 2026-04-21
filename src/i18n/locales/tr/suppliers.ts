@@ -7,6 +7,8 @@ export const suppliers = {
   invoicesPageTitle: "Tedarikçi faturaları",
   invoicesPageSubtitle:
     "Alım faturalarını tedarikçi, tarih aralığı, fatura toplam tutarı ve ödenmiş / ödenmemiş durumuna göre süzün.",
+  filterDrawerTitle: "Süzme",
+  invoicePaidBadge: "Ödendi",
   filterLinesTotalMin: "Min. fatura tutarı",
   filterLinesTotalMax: "Max. fatura tutarı",
   filterPaymentStatus: "Ödeme durumu",
@@ -62,6 +64,9 @@ export const suppliers = {
   noProduct: "—",
   warehouseMovementId: "Depo GİRİŞ hareket no (isteğe bağlı)",
   addLine: "Satır ekle",
+  invoiceLinesInvalidSummary:
+    "En az bir satırda geçerli ve pozitif satır tutarı olmalı; satırları açıp «Kaydet» ile kaydettiğinizden emin olun.",
+  lineBranchRequired: "Şube teslimi seçili satırda teslim şubesini seçin.",
   removeLine: "Kaldır",
   openAmount: "Açık",
   paidTotal: "Ödenen",

@@ -8,6 +8,7 @@ import {
   fetchPersonnelOrgExpenseLinkSalaryPayments,
 } from "@/modules/branch/api/branches-api";
 import {
+  useBranchHeldRegisterCashByPerson,
   useBranchesList,
   useCreateBranchTransaction,
 } from "@/modules/branch/hooks/useBranchQueries";
@@ -19,14 +20,27 @@ import {
 } from "@/modules/personnel/hooks/usePersonnelQueries";
 import { BranchExpenseRoutingCallout } from "@/modules/branch/components/BranchExpenseRoutingCallout";
 import {
+  branchTxFormIsSupplierInvoiceLine,
   buildExpensePaymentSelectOptions,
+  isNonPnlMemoClassificationMain,
+  isOutPersonnelClassificationMain,
+  isPatronCashIncomeMain,
+  isOutOtherExpenseClassificationMain,
+  isPatronDebtRepayClassificationMain,
+  isPersonnelPocketRepayClassificationMain,
+  isPocketClaimTransferClassificationMain,
+  isRegisterDayCloseIncomeRow,
   orderBranchExpenseMainOptions,
+  outPersonnelCategoryEffective,
   outPersonnelSubcategoryNeedsFinancialLink,
+  TX_MAIN_OUT,
+  txCodeLabel,
   txMainNeedsSubCategory,
   txMainOptions,
   txSubOptions,
   txSubOptionsForRegisterExpenseModal,
 } from "@/modules/branch/lib/branch-transaction-options";
+import { UI_POCKET_CLAIM_TRANSFER_ENABLED } from "@/modules/branch/lib/product-ui-flags";
 import {
   formatLocaleAmount,
   parseLocaleAmount,
@@ -41,6 +55,7 @@ import { DateField } from "@/shared/ui/DateField";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
+import type { SelectOption } from "@/shared/ui/Select";
 import {
   currencySelectOptions,
   DEFAULT_CURRENCY,
@@ -53,6 +68,7 @@ import { validateImageFileForUpload } from "@/shared/lib/validate-image-upload";
 import { ApiError } from "@/lib/api/base-api";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { BRANCH_API_ERROR_TOURISM_SEASON_CLOSED_FOR_REGISTER } from "@/modules/branch/lib/branch-api-error-codes";
+import { branchTourismSeasonDeepLink } from "@/modules/branch/lib/branch-tourism-season-nav";
 import {
   resolveLocalizedApiError,
   userCanManageTourismSeasonClosedPolicy,
@@ -61,6 +77,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useController, useForm, useWatch } from "react-hook-form";
+import type { IncomeCashBranchManagerPersonRow } from "@/types/branch";
+
+/** useQuery `data` yokken `?? []` kullanmayın — her render yeni dizi → useEffect sonsuz döngü. */
+const EMPTY_HELD_REGISTER_ROWS: IncomeCashBranchManagerPersonRow[] = [];
 
 type FormValues = {
   type: string;
@@ -76,6 +96,8 @@ type FormValues = {
   cashSettlementPersonnelId: string;
   expensePaymentSource: string;
   expensePocketPersonnelId: string;
+  /** OUT_PERSONNEL_POCKET_CLAIM_TRANSFER: alacağı devreden personel (linkedPersonnelId) */
+  pocketClaimFromPersonnelId: string;
   /** OUT_OPS + OPS_INVOICE: UNPAID | PAID */
   invoicePaymentStatus: string;
   /** adv:{id} | sal:{id} */
@@ -88,6 +110,14 @@ type FormValues = {
   personnelExpenseBranchId: string;
   /** Gün sonu + PATRON: otomatik patron borcu düşümü */
   applyPatronDebtRepayFromDayClose: boolean;
+  /** Gün sonu ile birlikte (isteğe bağlı) aynı güne şube gideri */
+  dayCloseBundledExpenseAmount: string;
+  dayCloseBundledExpenseMainCategory: string;
+  dayCloseBundledExpenseCategory: string;
+  dayCloseBundledExpenseDescription: string;
+  dayCloseBundledExpensePaymentSource: string;
+  /** OUT + kasa/patron ödeme: kasa devri IN satır id (isteğe bağlı). */
+  settlesCashHandoverTransactionId: string;
 };
 
 type Props = {
@@ -106,6 +136,26 @@ type Props = {
   /** Şube: personel cebi borcu ödeme — OUT + OUT_PERSONNEL_POCKET_REPAY + personel + kasa kaynağı. */
   defaultPocketRepayPersonnelId?: number;
   defaultPocketRepayCurrencyCode?: string;
+  /** POCKET_REPAY açılışında ödeme kaynağı (REGISTER | PATRON). */
+  defaultExpensePaymentSource?: string;
+  /** OUT_PERSONNEL_POCKET_CLAIM_TRANSFER: devreden personel (defaultMainCategory ile birlikte). */
+  defaultPocketClaimFromPersonnelId?: number;
+  /** OUT_PERSONNEL_POCKET_CLAIM_TRANSFER alt kodu (örn. POCKET_CLAIM_TRANSFER_TO_PATRON). */
+  defaultCategory?: string;
+  /**
+   * Personel kasa devri: OUT + kasa/patron ödemede IN satırına bağlanır.
+   * `defaultHandoverSettleKind` ile birlikte kullanın.
+   */
+  defaultSettlesCashHandoverTransactionId?: number;
+  defaultHandoverSettleKind?: "expense_register" | "patron_register_debt_repay";
+  defaultHandoverCurrencyCode?: string;
+  /** Örn. kalan devir tutarı — tutar alanına yazılır (> 0 ise). */
+  defaultHandoverMaxAmount?: number;
+  /**
+   * true: şube+para birimi toplam kalanından işlem; IN # alanı boş bırakılır (hangi devir satırından
+   * düşüleceğini formda elle girersiniz). Tek OUT yalnızca bir IN’e bağlanabilir.
+   */
+  defaultHandoverPoolTotalOnly?: boolean;
   /** Yeni avans (kasadan) için sezon yılı varsayılanı — boşsa takvim yılı. */
   defaultEffectiveYear?: number;
   /**
@@ -117,6 +167,36 @@ type Props = {
 
 const TITLE_ID = "branch-tx-title";
 
+/** Gün sonu ile birlikte hızlı gider: personel / cebi / patron borcu vb. hariç şube gider ana kodları */
+const DAY_CLOSE_BUNDLED_OUT_MAINS = new Set([
+  "OUT_OPS",
+  "OUT_TAX",
+  "OUT_GOODS",
+  "OUT_OTHER",
+]);
+
+const DAY_CLOSE_BUNDLED_EXPENSE_MAX = 3;
+
+function formatHandoverAmountPrefill(n: number): string {
+  if (!Number.isFinite(n) || n <= 0) return "";
+  return (Math.round(n * 100) / 100).toFixed(2);
+}
+
+type DayCloseBundledConfirmedLine = {
+  id: string;
+  amount: number;
+  mainCategory: string;
+  category: string | null;
+  paymentSource: "REGISTER" | "PATRON";
+  description: string | null;
+};
+
+function newBundledExpenseLineId(): string {
+  const c = globalThis.crypto;
+  if (c && typeof c.randomUUID === "function") return c.randomUUID();
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 export function AddBranchTransactionModal({
   open,
   onClose,
@@ -127,6 +207,14 @@ export function AddBranchTransactionModal({
   defaultMainCategory,
   defaultPocketRepayPersonnelId,
   defaultPocketRepayCurrencyCode,
+  defaultExpensePaymentSource,
+  defaultPocketClaimFromPersonnelId,
+  defaultCategory,
+  defaultSettlesCashHandoverTransactionId,
+  defaultHandoverSettleKind,
+  defaultHandoverCurrencyCode,
+  defaultHandoverMaxAmount,
+  defaultHandoverPoolTotalOnly,
   defaultEffectiveYear,
   personnelDirectExpenseEntry,
 }: Props) {
@@ -143,7 +231,8 @@ export function AddBranchTransactionModal({
         registerBranchId != null && Number.isFinite(registerBranchId) && registerBranchId > 0
           ? registerBranchId
           : null;
-      if (id == null) return false;
+      const href = branchTourismSeasonDeepLink(id, false);
+      if (href == null) return false;
       notifyErrorWithAction({
         message: resolveLocalizedApiError(e, t, {
           canManageTourismSeasonClosedPolicy: canManageTourismPolicy,
@@ -152,7 +241,7 @@ export function AddBranchTransactionModal({
         autoCloseMs: 10_000,
         onAction: () => {
           onClose();
-          router.push(`/branches?openBranch=${id}&branchTab=tourismSeason`);
+          router.push(href);
         },
       });
       return true;
@@ -173,7 +262,8 @@ export function AddBranchTransactionModal({
   const createAdvanceMut = useCreateAdvance();
   const { data: personnelListResult } = usePersonnelList(
     defaultPersonnelListFilters,
-    open
+    open,
+    "branch-tx-modal"
   );
   const allPersonnel = personnelListResult?.items ?? [];
   const { data: branchesForPersonnelExpense = [] } = useBranchesList();
@@ -203,6 +293,7 @@ export function AddBranchTransactionModal({
       cashSettlementPersonnelId: "",
       expensePaymentSource: "",
       expensePocketPersonnelId: "",
+      pocketClaimFromPersonnelId: "",
       invoicePaymentStatus: "",
       expenseFinancialLink: "",
       expenseLinkPersonnelId: "",
@@ -210,6 +301,12 @@ export function AddBranchTransactionModal({
       effectiveYear: "",
       personnelExpenseBranchId: "",
       applyPatronDebtRepayFromDayClose: true,
+      dayCloseBundledExpenseAmount: "",
+      dayCloseBundledExpenseMainCategory: "",
+      dayCloseBundledExpenseCategory: "",
+      dayCloseBundledExpenseDescription: "",
+      dayCloseBundledExpensePaymentSource: "",
+      settlesCashHandoverTransactionId: "",
     },
   });
 
@@ -218,6 +315,11 @@ export function AddBranchTransactionModal({
     sum: number;
     currencyOk: boolean;
   }>({ ids: [], sum: 0, currencyOk: true });
+  /** Gün sonu + aynı güne bağlı gider: alanlar kapalı; işaretlenince açılır. */
+  const [dayCloseBundledExpenseOpen, setDayCloseBundledExpenseOpen] = useState(false);
+  const [dayCloseBundledConfirmedLines, setDayCloseBundledConfirmedLines] = useState<
+    DayCloseBundledConfirmedLine[]
+  >([]);
 
   const currencyOptions = useMemo(() => currencySelectOptions(), []);
 
@@ -227,9 +329,11 @@ export function AddBranchTransactionModal({
   const invoicePaymentWatch = useWatch({ control, name: "invoicePaymentStatus" });
   const isInvoiceOpsLine = useMemo(
     () =>
-      txType.trim().toUpperCase() === "OUT" &&
-      String(mainCategoryWatch ?? "").trim() === "OUT_OPS" &&
-      String(categoryWatch ?? "").trim().toUpperCase() === "OPS_INVOICE",
+      branchTxFormIsSupplierInvoiceLine({
+        type: txType,
+        mainCategory: mainCategoryWatch,
+        category: categoryWatch,
+      }),
     [txType, mainCategoryWatch, categoryWatch]
   );
   const isInvoiceUnpaid = isInvoiceOpsLine && String(invoicePaymentWatch ?? "").trim().toUpperCase() === "UNPAID";
@@ -246,7 +350,27 @@ export function AddBranchTransactionModal({
 
   useEffect(() => {
     if (!open) return;
+    const pocketClaimPrefill =
+      !orgMode &&
+      propBranchId != null &&
+      propBranchId > 0 &&
+      String(defaultMainCategory ?? "").trim().toUpperCase() ===
+        "OUT_PERSONNEL_POCKET_CLAIM_TRANSFER" &&
+      defaultPocketClaimFromPersonnelId != null &&
+      defaultPocketClaimFromPersonnelId > 0;
+    const handoverPrefill =
+      !orgMode &&
+      propBranchId != null &&
+      propBranchId > 0 &&
+      defaultHandoverSettleKind != null &&
+      (defaultHandoverSettleKind === "expense_register" ||
+        defaultHandoverSettleKind === "patron_register_debt_repay") &&
+      (defaultHandoverPoolTotalOnly === true ||
+        (defaultSettlesCashHandoverTransactionId != null &&
+          defaultSettlesCashHandoverTransactionId > 0));
     const pocketRepayPrefill =
+      !pocketClaimPrefill &&
+      !handoverPrefill &&
       !orgMode &&
       defaultPocketRepayPersonnelId != null &&
       defaultPocketRepayPersonnelId > 0;
@@ -254,49 +378,94 @@ export function AddBranchTransactionModal({
       defaultLinkedPersonnelId != null && defaultLinkedPersonnelId > 0;
     const personnelCostsDirectEntry =
       orgMode && personnelDirectExpenseEntry === true;
-    const nextType = personnelExpensePrefill || personnelCostsDirectEntry
-      ? "OUT"
-      : orgMode
+    const nextType =
+      pocketClaimPrefill ||
+      handoverPrefill ||
+      personnelExpensePrefill ||
+      personnelCostsDirectEntry
         ? "OUT"
-        : pocketRepayPrefill
+        : orgMode
           ? "OUT"
-          : (defaultType ?? "IN");
-    const repayCur = (defaultPocketRepayCurrencyCode ?? "").trim().toUpperCase();
+          : pocketRepayPrefill
+            ? "OUT"
+            : (defaultType ?? "IN");
+    const prefillCur = (defaultPocketRepayCurrencyCode ?? "").trim().toUpperCase();
     const currencyForReset =
-      pocketRepayPrefill && /^[A-Z]{3}$/.test(repayCur) ? repayCur : DEFAULT_CURRENCY;
+      (pocketClaimPrefill || pocketRepayPrefill) && /^[A-Z]{3}$/.test(prefillCur)
+        ? prefillCur
+        : DEFAULT_CURRENCY;
+    const pocketClaimCategory =
+      String(defaultCategory ?? "").trim().toUpperCase() === "POCKET_CLAIM_TRANSFER_TO_PATRON"
+        ? "POCKET_CLAIM_TRANSFER_TO_PATRON"
+        : "POCKET_CLAIM_TRANSFER";
+    const repayPaySrc =
+      String(defaultExpensePaymentSource ?? "REGISTER").trim().toUpperCase() === "PATRON"
+        ? "PATRON"
+        : "REGISTER";
     const dayClosePrefill =
       !orgMode &&
+      !pocketClaimPrefill &&
       !pocketRepayPrefill &&
+      !handoverPrefill &&
       !personnelExpensePrefill &&
       !personnelCostsDirectEntry &&
       (defaultType ?? "IN") === "IN" &&
       String(defaultMainCategory ?? "").trim().toUpperCase() === "IN_DAY_CLOSE";
+    const handoverCurRaw = (defaultHandoverCurrencyCode ?? "").trim().toUpperCase();
+    const handoverCur = /^[A-Z]{3}$/.test(handoverCurRaw) ? handoverCurRaw : DEFAULT_CURRENCY;
     reset({
       type: nextType,
-      mainCategory: pocketRepayPrefill
-        ? "OUT_PERSONNEL_POCKET_REPAY"
-        : personnelExpensePrefill || personnelCostsDirectEntry
-          ? "OUT_PERSONNEL"
-          : dayClosePrefill
-            ? "IN_DAY_CLOSE"
+      mainCategory: pocketClaimPrefill
+        ? "OUT_PERSONNEL_POCKET_CLAIM_TRANSFER"
+        : handoverPrefill
+          ? defaultHandoverSettleKind === "patron_register_debt_repay"
+            ? "OUT_PATRON_DEBT_REPAY"
+            : ""
+          : pocketRepayPrefill
+            ? "OUT_PERSONNEL_POCKET_REPAY"
+            : personnelExpensePrefill || personnelCostsDirectEntry
+              ? "OUT_PERSONNEL"
+              : dayClosePrefill
+                ? "IN_DAY_CLOSE"
+                : "",
+      category: pocketClaimPrefill
+        ? pocketClaimCategory
+        : handoverPrefill
+          ? defaultHandoverSettleKind === "patron_register_debt_repay"
+            ? "PATRON_DEBT_REPAY"
+            : ""
+          : pocketRepayPrefill
+            ? "POCKET_REPAY"
             : "",
-      category: pocketRepayPrefill ? "POCKET_REPAY" : "",
-      amount: "",
+      amount:
+        handoverPrefill &&
+        defaultHandoverMaxAmount != null &&
+        defaultHandoverMaxAmount > 0
+          ? formatHandoverAmountPrefill(defaultHandoverMaxAmount)
+          : "",
       amountCash: "",
       amountCard: "",
-      currencyCode: currencyForReset,
+      currencyCode: handoverPrefill ? handoverCur : currencyForReset,
       transactionDate: defaultDateTimeFromInput(defaultTransactionDate),
       description: "",
       cashSettlementParty: "",
       cashSettlementPersonnelId: "",
-      expensePaymentSource: pocketRepayPrefill ? "REGISTER" : "",
+      expensePaymentSource: handoverPrefill
+        ? "REGISTER"
+        : pocketRepayPrefill
+          ? repayPaySrc
+          : "",
       expensePocketPersonnelId: pocketRepayPrefill
         ? String(defaultPocketRepayPersonnelId)
         : "",
-      expenseFinancialLink: "",
-      expenseLinkPersonnelId: personnelExpensePrefill
-        ? String(defaultLinkedPersonnelId)
+      pocketClaimFromPersonnelId: pocketClaimPrefill
+        ? String(defaultPocketClaimFromPersonnelId)
         : "",
+      expenseFinancialLink: "",
+      expenseLinkPersonnelId:
+        pocketClaimPrefill || handoverPrefill || !personnelExpensePrefill
+          ? ""
+          : String(defaultLinkedPersonnelId),
       advanceExpenseMode: "existing",
       effectiveYear:
         defaultEffectiveYear != null &&
@@ -307,16 +476,36 @@ export function AddBranchTransactionModal({
       personnelExpenseBranchId: "",
       invoicePaymentStatus: "",
       applyPatronDebtRepayFromDayClose: true,
+      dayCloseBundledExpenseAmount: "",
+      dayCloseBundledExpenseMainCategory: "",
+      dayCloseBundledExpenseCategory: "",
+      dayCloseBundledExpenseDescription: "",
+      dayCloseBundledExpensePaymentSource: "",
+      settlesCashHandoverTransactionId:
+        handoverPrefill &&
+        defaultHandoverPoolTotalOnly !== true &&
+        defaultSettlesCashHandoverTransactionId != null &&
+        defaultSettlesCashHandoverTransactionId > 0
+          ? String(defaultSettlesCashHandoverTransactionId)
+          : "",
     });
     setPocketRepaySettlement({ ids: [], sum: 0, currencyOk: true });
+    setDayCloseBundledExpenseOpen(false);
+    setDayCloseBundledConfirmedLines([]);
     prevType.current = nextType;
-    prevMain.current = pocketRepayPrefill
-      ? "OUT_PERSONNEL_POCKET_REPAY"
-      : personnelExpensePrefill || personnelCostsDirectEntry
-        ? "OUT_PERSONNEL"
-        : dayClosePrefill
-          ? "IN_DAY_CLOSE"
-          : "";
+    prevMain.current = pocketClaimPrefill
+      ? "OUT_PERSONNEL_POCKET_CLAIM_TRANSFER"
+      : handoverPrefill
+        ? defaultHandoverSettleKind === "patron_register_debt_repay"
+          ? "OUT_PATRON_DEBT_REPAY"
+          : ""
+        : pocketRepayPrefill
+          ? "OUT_PERSONNEL_POCKET_REPAY"
+          : personnelExpensePrefill || personnelCostsDirectEntry
+            ? "OUT_PERSONNEL"
+            : dayClosePrefill
+              ? "IN_DAY_CLOSE"
+              : "";
     if (receiptPhotoRef.current) receiptPhotoRef.current.value = "";
     setReceiptPhotoPick(null);
   }, [
@@ -325,8 +514,17 @@ export function AddBranchTransactionModal({
     defaultTransactionDate,
     defaultType,
     orgMode,
+    propBranchId,
     defaultPocketRepayPersonnelId,
     defaultPocketRepayCurrencyCode,
+    defaultExpensePaymentSource,
+    defaultPocketClaimFromPersonnelId,
+    defaultCategory,
+    defaultSettlesCashHandoverTransactionId,
+    defaultHandoverSettleKind,
+    defaultHandoverCurrencyCode,
+    defaultHandoverMaxAmount,
+    defaultHandoverPoolTotalOnly,
     defaultLinkedPersonnelId,
     defaultMainCategory,
     defaultEffectiveYear,
@@ -343,11 +541,18 @@ export function AddBranchTransactionModal({
       setValue("cashSettlementPersonnelId", "");
       setValue("expensePaymentSource", "");
       setValue("expensePocketPersonnelId", "");
+      setValue("pocketClaimFromPersonnelId", "");
       setValue("expenseFinancialLink", "");
       setValue("expenseLinkPersonnelId", "");
       setValue("advanceExpenseMode", "existing");
       setValue("effectiveYear", "");
       setValue("applyPatronDebtRepayFromDayClose", true);
+      setValue("dayCloseBundledExpenseAmount", "");
+      setValue("dayCloseBundledExpenseMainCategory", "");
+      setValue("dayCloseBundledExpenseCategory", "");
+      setValue("dayCloseBundledExpenseDescription", "");
+      setValue("dayCloseBundledExpensePaymentSource", "");
+      setDayCloseBundledConfirmedLines([]);
       setPocketRepaySettlement({ ids: [], sum: 0, currencyOk: true });
       if (receiptPhotoRef.current) receiptPhotoRef.current.value = "";
       setReceiptPhotoPick(null);
@@ -362,12 +567,19 @@ export function AddBranchTransactionModal({
       setValue("cashSettlementPersonnelId", "");
       setValue("expensePaymentSource", "");
       setValue("expensePocketPersonnelId", "");
+      setValue("pocketClaimFromPersonnelId", "");
       setValue("invoicePaymentStatus", "");
       setValue("expenseFinancialLink", "");
       setValue("expenseLinkPersonnelId", "");
       setValue("advanceExpenseMode", "existing");
       setValue("effectiveYear", "");
       setValue("applyPatronDebtRepayFromDayClose", true);
+      setValue("dayCloseBundledExpenseAmount", "");
+      setValue("dayCloseBundledExpenseMainCategory", "");
+      setValue("dayCloseBundledExpenseCategory", "");
+      setValue("dayCloseBundledExpenseDescription", "");
+      setValue("dayCloseBundledExpensePaymentSource", "");
+      setDayCloseBundledConfirmedLines([]);
       setPocketRepaySettlement({ ids: [], sum: 0, currencyOk: true });
       prevMain.current = mainCategoryWatch;
     }
@@ -398,23 +610,46 @@ export function AddBranchTransactionModal({
   }, [isInvoiceOpsLine, trigger]);
 
   useEffect(() => {
+    const m = String(mainCategoryWatch ?? "").trim();
+    const c = (String(categoryWatch ?? "").trim() || "").toUpperCase();
+    const mU = m.toUpperCase();
+    if (
+      isPocketClaimTransferClassificationMain(m) &&
+      (c === "POCKET_CLAIM_TRANSFER_TO_PATRON" || mU === "OUT_POCKET_CLAIM_TO_PATRON")
+    ) {
+      setValue("expensePocketPersonnelId", "");
+    }
+  }, [mainCategoryWatch, categoryWatch, setValue]);
+
+  useEffect(() => {
     const ty = txType.toUpperCase();
     const m = String(mainCategoryWatch ?? "").trim();
-    if (ty === "OUT" && m === "OUT_OTHER") setValue("category", "EXP_OTHER");
-    if (ty === "OUT" && m === "OUT_PERSONNEL_POCKET_REPAY") setValue("category", "POCKET_REPAY");
-    if (ty === "OUT" && m === "OUT_PATRON_DEBT_REPAY") setValue("category", "PATRON_DEBT_REPAY");
-    if (ty === "OUT" && m === "OUT_NON_PNL") setValue("category", "NON_PNL_MEMO");
+    if (ty === "OUT" && isOutOtherExpenseClassificationMain(m)) setValue("category", "EXP_OTHER");
+    if (ty === "OUT" && isPersonnelPocketRepayClassificationMain(m)) {
+      setValue("category", m.toUpperCase() === "OUT_POCKET_REPAY" ? "" : "POCKET_REPAY");
+    }
+    if (ty === "OUT" && isPocketClaimTransferClassificationMain(m)) {
+      const curCat = String(getValues("category") ?? "").trim();
+      if (!curCat && m.toUpperCase() === "OUT_PERSONNEL_POCKET_CLAIM_TRANSFER") {
+        setValue("category", "POCKET_CLAIM_TRANSFER");
+      }
+    }
+    if (ty === "OUT" && isPatronDebtRepayClassificationMain(m))
+      setValue("category", "PATRON_DEBT_REPAY");
+    if (ty === "OUT" && isNonPnlMemoClassificationMain(m)) {
+      setValue("category", m.toUpperCase() === "MEMO_NON_PNL" ? "" : "NON_PNL_MEMO");
+    }
     if (ty === "IN" && m === "IN_DAY_CLOSE") setValue("category", "");
-    if (ty === "IN" && m === "IN_PATRON") {
-      setValue("category", "PATRON_CASH");
+    if (ty === "IN" && isPatronCashIncomeMain(m)) {
+      setValue("category", m.toUpperCase() === "IN_PATRON_CASH" ? "" : "PATRON_CASH");
       setValue("amountCash", "");
       setValue("amountCard", "");
     }
-  }, [txType, mainCategoryWatch, setValue]);
+  }, [txType, mainCategoryWatch, setValue, getValues]);
 
   useEffect(() => {
     const m = String(mainCategoryWatch ?? "").trim();
-    if (txType.toUpperCase() === "OUT" && m === "OUT_PATRON_DEBT_REPAY") {
+    if (txType.toUpperCase() === "OUT" && isPatronDebtRepayClassificationMain(m)) {
       setValue("expensePaymentSource", "REGISTER");
       setValue("expensePocketPersonnelId", "");
     }
@@ -496,17 +731,25 @@ export function AddBranchTransactionModal({
 
   const mainCat = String(mainCategoryWatch ?? "").trim();
   const isPocketRepayMain =
-    txType.toUpperCase() === "OUT" && mainCat === "OUT_PERSONNEL_POCKET_REPAY";
+    txType.toUpperCase() === "OUT" && isPersonnelPocketRepayClassificationMain(mainCat);
+  /** Önceki cep satırları seçimi — yalnız şemsiye ana kodda (granüler OUT_POCKET_REPAY kilit göstermez). */
+  const isPocketRepaySettlementUmbrellaMain =
+    txType.toUpperCase() === "OUT" &&
+    mainCat.trim().toUpperCase() === "OUT_PERSONNEL_POCKET_REPAY";
+  const isPocketClaimTransferMain =
+    txType.toUpperCase() === "OUT" && isPocketClaimTransferClassificationMain(mainCat);
   const isPatronDebtRepayMain =
-    txType.toUpperCase() === "OUT" && mainCat === "OUT_PATRON_DEBT_REPAY";
+    txType.toUpperCase() === "OUT" && isPatronDebtRepayClassificationMain(mainCat);
   const isNonPnlMemoMain =
-    txType.toUpperCase() === "OUT" && mainCat === "OUT_NON_PNL";
-  const subCat = String(categoryWatch ?? "").trim().toUpperCase();
+    txType.toUpperCase() === "OUT" && isNonPnlMemoClassificationMain(mainCat);
+  const subCat = outPersonnelCategoryEffective(mainCat, categoryWatch).toUpperCase();
   const needsExpenseAdvancePick =
-    txType.toUpperCase() === "OUT" && mainCat === "OUT_PERSONNEL" && subCat === "PER_ADVANCE";
+    txType.toUpperCase() === "OUT" &&
+    isOutPersonnelClassificationMain(mainCat) &&
+    subCat === "PER_ADVANCE";
   const needsExpenseSalaryPick =
     txType.toUpperCase() === "OUT" &&
-    mainCat === "OUT_PERSONNEL" &&
+    isOutPersonnelClassificationMain(mainCat) &&
     (subCat === "PER_SALARY" || subCat === "PER_BONUS");
   const needsExpenseFinancialPersonnelPick =
     needsExpenseAdvancePick || needsExpenseSalaryPick;
@@ -514,7 +757,7 @@ export function AddBranchTransactionModal({
   const needsDirectPersonnelPickForPersonnelExpense = useMemo(() => {
     if (!personnelExpenseFlow || personnelLinkedExpenseContext) return false;
     if (txType.trim().toUpperCase() !== "OUT") return false;
-    if (mainCat !== "OUT_PERSONNEL") return false;
+    if (!isOutPersonnelClassificationMain(mainCat)) return false;
     if (!subCat) return false;
     if (needsExpenseFinancialPersonnelPick) return false;
     return !outPersonnelSubcategoryNeedsFinancialLink(subCat);
@@ -609,13 +852,13 @@ export function AddBranchTransactionModal({
   ]);
 
   const financialAmountLocked = useMemo(() => {
-    if (isPocketRepayMain) return true;
+    if (isPocketRepaySettlementUmbrellaMain) return true;
     const link = String(expenseFinancialLinkWatch ?? "").trim();
     if (needsExpenseSalaryPick && link.startsWith("sal:")) return true;
     if (needsExpenseAdvanceExisting && link.startsWith("adv:")) return true;
     return false;
   }, [
-    isPocketRepayMain,
+    isPocketRepaySettlementUmbrellaMain,
     needsExpenseSalaryPick,
     needsExpenseAdvanceExisting,
     expenseFinancialLinkWatch,
@@ -686,26 +929,66 @@ export function AddBranchTransactionModal({
       validate: (v) => {
         if (txType.toUpperCase() !== "OUT") return true;
         const main = String(mainCategoryWatch ?? "").trim();
-        const catI = (String(getValues("category") ?? "").trim() || "").toUpperCase();
         const inv = (String(getValues("invoicePaymentStatus") ?? "").trim() || "").toUpperCase();
-        if (main === "OUT_OPS" && catI === "OPS_INVOICE" && inv === "UNPAID") return true;
+        if (
+          branchTxFormIsSupplierInvoiceLine({
+            type: txType,
+            mainCategory: main,
+            category: String(getValues("category") ?? ""),
+          }) &&
+          inv === "UNPAID"
+        )
+          return true;
         if (!main.toUpperCase().startsWith("OUT_")) return true;
-        if (main === "OUT_NON_PNL") return true;
-        if (main === "OUT_PATRON_DEBT_REPAY") {
+        if (isNonPnlMemoClassificationMain(main)) return true;
+        if (isPocketClaimTransferClassificationMain(main)) return true;
+        if (isPatronDebtRepayClassificationMain(main)) {
           return String(v ?? "").trim().toUpperCase() === "REGISTER" ? true : reqVal;
         }
-        if (main === "OUT_PERSONNEL_POCKET_REPAY") {
+        if (isPersonnelPocketRepayClassificationMain(main)) {
           const u = String(v ?? "").trim().toUpperCase();
           return u === "REGISTER" || u === "PATRON" ? true : reqVal;
         }
-        if (main === "OUT_PERSONNEL" && String(v ?? "").trim().toUpperCase() === "PERSONNEL_POCKET")
+        if (
+          isOutPersonnelClassificationMain(main) &&
+          String(v ?? "").trim().toUpperCase() === "PERSONNEL_POCKET"
+        )
           return reqVal;
         return String(v ?? "").trim() ? true : reqVal;
       },
     },
   });
 
+  const { field: dayCloseBundledMainField } = useController({
+    name: "dayCloseBundledExpenseMainCategory",
+    control,
+    defaultValue: "",
+  });
+
+  const { field: dayCloseBundledSubField } = useController({
+    name: "dayCloseBundledExpenseCategory",
+    control,
+    defaultValue: "",
+  });
+
+  const { field: dayCloseBundledExpensePayField } = useController({
+    name: "dayCloseBundledExpensePaymentSource",
+    control,
+    defaultValue: "",
+  });
+
   const expensePayWatch = useWatch({ control, name: "expensePaymentSource" });
+  const transactionDateWatch = useWatch({ control, name: "transactionDate" });
+
+  const expensePayUForHandover = String(expensePayWatch ?? "").trim().toUpperCase();
+  const cashHandoverSettleFieldVisible =
+    txType.toUpperCase() === "OUT" &&
+    !isPocketRepayMain &&
+    !isPocketClaimTransferMain &&
+    !isPatronDebtRepayMain &&
+    !isNonPnlMemoMain &&
+    !isInvoiceUnpaid &&
+    (expensePayUForHandover === "REGISTER" || expensePayUForHandover === "PATRON");
 
   useEffect(() => {
     void trigger("personnelExpenseBranchId");
@@ -714,11 +997,16 @@ export function AddBranchTransactionModal({
   useEffect(() => {
     if (resolvedBranchId != null && resolvedBranchId > 0) return;
     const pay = String(expensePayWatch ?? "").trim().toUpperCase();
-    if (pay !== "REGISTER") return;
+    if (pay !== "REGISTER" && pay !== "PERSONNEL_HELD_REGISTER_CASH") return;
     setValue("expensePaymentSource", "");
   }, [resolvedBranchId, expensePayWatch, setValue]);
 
   const expensePocketPersonnelWatch = useWatch({ control, name: "expensePocketPersonnelId" });
+  useEffect(() => {
+    void trigger("pocketClaimFromPersonnelId");
+    void trigger("expensePocketPersonnelId");
+  }, [expensePocketPersonnelWatch, mainCategoryWatch, categoryWatch, trigger]);
+
   const expensePocketRepayPidNum = useMemo(() => {
     const n = parseInt(String(expensePocketPersonnelWatch ?? "").trim(), 10);
     return Number.isFinite(n) && n > 0 ? n : 0;
@@ -734,16 +1022,51 @@ export function AddBranchTransactionModal({
         const main = String(mainCategoryWatch ?? "").trim();
         if (!main.toUpperCase().startsWith("OUT_")) return true;
         const pay = String(getValues("expensePaymentSource") ?? "").trim().toUpperCase();
-        if (main === "OUT_NON_PNL") return true;
-        if (main === "OUT_PATRON_DEBT_REPAY") return true;
-        if (main === "OUT_PERSONNEL_POCKET_REPAY") {
+        if (isNonPnlMemoClassificationMain(main)) return true;
+        if (isPocketClaimTransferClassificationMain(main)) {
+          const cat = (String(getValues("category") ?? "").trim() || "").toUpperCase();
+          const mU = main.toUpperCase();
+          if (cat === "POCKET_CLAIM_TRANSFER_TO_PATRON" || mU === "OUT_POCKET_CLAIM_TO_PATRON")
+            return true;
+          const from = String(getValues("pocketClaimFromPersonnelId") ?? "").trim();
+          const to = String(v ?? "").trim();
+          if (!from || !to) return reqVal;
+          if (from === to) return reqVal;
+          return true;
+        }
+        if (isPatronDebtRepayClassificationMain(main)) return true;
+        if (isPersonnelPocketRepayClassificationMain(main)) {
           if (pay !== "REGISTER" && pay !== "PATRON") return true;
           return String(v ?? "").trim() ? true : reqVal;
         }
-        if (main === "OUT_PERSONNEL") return true;
-        if (String(expensePayWatch ?? "").trim().toUpperCase() !== "PERSONNEL_POCKET")
-          return true;
+        if (isOutPersonnelClassificationMain(main)) return true;
+        const payU = String(expensePayWatch ?? "").trim().toUpperCase();
+        if (payU !== "PERSONNEL_POCKET" && payU !== "PERSONNEL_HELD_REGISTER_CASH") return true;
         return String(v ?? "").trim() ? true : reqVal;
+      },
+    },
+  });
+
+  const { field: pocketClaimFromPersonnelField } = useController({
+    name: "pocketClaimFromPersonnelId",
+    control,
+    defaultValue: "",
+    rules: {
+      validate: (v) => {
+        if (txType.toUpperCase() !== "OUT") return true;
+        const main = String(mainCategoryWatch ?? "").trim();
+        if (!isPocketClaimTransferClassificationMain(main)) return true;
+        const cat = (String(getValues("category") ?? "").trim() || "").toUpperCase();
+        const from = String(v ?? "").trim();
+        if (
+          cat === "POCKET_CLAIM_TRANSFER_TO_PATRON" ||
+          main.toUpperCase() === "OUT_POCKET_CLAIM_TO_PATRON"
+        )
+          return from ? true : reqVal;
+        const to = String(getValues("expensePocketPersonnelId") ?? "").trim();
+        if (!from || !to) return reqVal;
+        if (from === to) return reqVal;
+        return true;
       },
     },
   });
@@ -752,20 +1075,27 @@ export function AddBranchTransactionModal({
   const amountCardWatch = useWatch({ control, name: "amountCard" });
   const currencyWatch = useWatch({ control, name: "currencyCode" });
 
-  const isPatronCashIncomeMain =
-    txType.toUpperCase() === "IN" &&
-    String(mainCategoryWatch ?? "").trim() === "IN_PATRON";
+  const patronCashIncomeMainActive =
+    txType.toUpperCase() === "IN" && isPatronCashIncomeMain(mainCategoryWatch);
 
   const incomeSplitActive =
     txType.toUpperCase() === "IN" &&
-    !isPatronCashIncomeMain &&
+    !patronCashIncomeMainActive &&
     (String(amountCashWatch ?? "").trim() !== "" ||
       String(amountCardWatch ?? "").trim() !== "");
 
-  const registerDayClose =
-    txType.toUpperCase() === "IN" &&
-    (mainCategoryWatch === "IN_DAY_CLOSE" ||
-      (mainCategoryWatch === "IN_OTHER" && categoryWatch === "INC_REGISTER"));
+  const registerDayClose = isRegisterDayCloseIncomeRow(
+    txType,
+    mainCategoryWatch,
+    categoryWatch
+  );
+
+  useEffect(() => {
+    if (!registerDayClose || orgMode) {
+      setDayCloseBundledExpenseOpen(false);
+      setDayCloseBundledConfirmedLines([]);
+    }
+  }, [registerDayClose, orgMode]);
 
   const parsedCashPositive = useMemo(() => {
     if (txType.toUpperCase() !== "IN") return false;
@@ -804,9 +1134,9 @@ export function AddBranchTransactionModal({
   }, [advanceExpenseModeWatch, trigger]);
 
   useEffect(() => {
-    const main = String(mainCategoryWatch ?? "").trim().toUpperCase();
+    const main = String(mainCategoryWatch ?? "").trim();
     const pay = String(expensePayWatch ?? "").trim().toUpperCase();
-    if (main !== "OUT_PERSONNEL" || pay !== "PERSONNEL_POCKET") return;
+    if (!isOutPersonnelClassificationMain(main) || pay !== "PERSONNEL_POCKET") return;
     setValue("expensePaymentSource", "");
     setValue("expensePocketPersonnelId", "");
   }, [mainCategoryWatch, expensePayWatch, setValue]);
@@ -814,21 +1144,22 @@ export function AddBranchTransactionModal({
   useEffect(() => {
     const main = String(mainCategoryWatch ?? "").trim();
     const pay = String(expensePayWatch ?? "").trim().toUpperCase();
-    if (main === "OUT_NON_PNL") {
+    if (isNonPnlMemoClassificationMain(main)) {
       setValue("expensePaymentSource", "");
       setValue("expensePocketPersonnelId", "");
       return;
     }
-    if (main === "OUT_PATRON_DEBT_REPAY") {
+    if (isPatronDebtRepayClassificationMain(main)) {
       setValue("expensePocketPersonnelId", "");
       return;
     }
-    if (main === "OUT_PERSONNEL_POCKET_REPAY" && pay === "PERSONNEL_POCKET") {
+    if (isPersonnelPocketRepayClassificationMain(main) && pay === "PERSONNEL_POCKET") {
       setValue("expensePaymentSource", "");
       return;
     }
-    if (main === "OUT_PERSONNEL_POCKET_REPAY") return;
-    if (pay !== "PERSONNEL_POCKET") setValue("expensePocketPersonnelId", "");
+    if (isPersonnelPocketRepayClassificationMain(main)) return;
+    if (pay !== "PERSONNEL_POCKET" && pay !== "PERSONNEL_HELD_REGISTER_CASH")
+      setValue("expensePocketPersonnelId", "");
   }, [expensePayWatch, mainCategoryWatch, setValue]);
 
   useEffect(() => {
@@ -844,6 +1175,7 @@ export function AddBranchTransactionModal({
         isNonPnlMemoMain,
         isPatronDebtRepayMain,
         isPocketRepayMain,
+        isPocketClaimTransferMain,
         t,
       }),
     [
@@ -853,6 +1185,7 @@ export function AddBranchTransactionModal({
       isNonPnlMemoMain,
       isPatronDebtRepayMain,
       isPocketRepayMain,
+      isPocketClaimTransferMain,
       t,
     ]
   );
@@ -885,6 +1218,84 @@ export function AddBranchTransactionModal({
         })),
     ];
   }, [allPersonnel, resolvedBranchId, locale, t]);
+
+  /** Gün sonu / IN nakit devirinde sorumlu: tüm aktif personel (şube filtresi yok). */
+  const cashSettlementResponsibleOptions = useMemo(() => {
+    const list = allPersonnel.filter((p) => !p.isDeleted);
+    const loc = locale === "tr" ? "tr" : "en";
+    return [
+      { value: "", label: t("branch.cashSettlementResponsiblePick") },
+      ...[...list]
+        .sort((a, b) => a.fullName.localeCompare(b.fullName, loc))
+        .map((p) => ({
+          value: String(p.id),
+          label: `${personnelDisplayName(p)} · ${t(`personnel.jobTitles.${p.jobTitle}`)}`,
+        })),
+    ];
+  }, [allPersonnel, locale, t]);
+
+  const asOfDateYmd = useMemo(() => {
+    const s = String(transactionDateWatch ?? "").trim().slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : "";
+  }, [transactionDateWatch]);
+
+  const heldRegisterPickerEnabled =
+    open &&
+    resolvedBranchId != null &&
+    resolvedBranchId > 0 &&
+    String(expensePayWatch ?? "").trim().toUpperCase() === "PERSONNEL_HELD_REGISTER_CASH";
+
+  const { data: heldRegisterCashData, isPending: heldRegisterCashLoading } =
+    useBranchHeldRegisterCashByPerson(
+      resolvedBranchId,
+      asOfDateYmd,
+      heldRegisterPickerEnabled
+    );
+  const heldRegisterCashRows = heldRegisterCashData ?? EMPTY_HELD_REGISTER_ROWS;
+
+  /** Cebinde net kasa parası &gt; 0 olanlar; etikette tutar (işlem tarihine kadar). */
+  const heldRegisterPersonOptions = useMemo(() => {
+    const empty = { value: "", label: t("branch.cashSettlementResponsiblePick") };
+    const loc = locale === "tr" ? "tr" : "en";
+    const rows = heldRegisterCashRows.filter(
+      (r) => r.personnelId != null && r.personnelId > 0 && r.amount > 0.005
+    );
+    const opts = [...rows]
+      .sort((a, b) =>
+        (a.fullName || "").localeCompare(b.fullName || "", loc)
+      )
+      .map((r) => {
+        const pid = r.personnelId as number;
+        const p = allPersonnel.find((x) => x.id === pid);
+        const namePart = p
+          ? `${personnelDisplayName(p)} · ${t(`personnel.jobTitles.${p.jobTitle}`)}`
+          : r.fullName || `#${pid}`;
+        const amt = formatLocaleAmount(r.amount, locale);
+        return {
+          value: String(pid),
+          label: `${namePart} — ${t("branch.heldRegisterCashDropdownAmountLabel")}: ${amt}`,
+        };
+      });
+    return [empty, ...opts];
+  }, [heldRegisterCashRows, allPersonnel, locale, t]);
+
+  useEffect(() => {
+    if (!heldRegisterPickerEnabled) return;
+    const sel = String(expensePocketPersonnelWatch ?? "").trim();
+    if (!sel) return;
+    const inList = heldRegisterCashRows.some(
+      (r) =>
+        r.personnelId != null &&
+        String(r.personnelId) === sel &&
+        r.amount > 0.005
+    );
+    if (!inList) setValue("expensePocketPersonnelId", "");
+  }, [heldRegisterPickerEnabled, heldRegisterCashRows, expensePocketPersonnelWatch, setValue]);
+
+  useEffect(() => {
+    if (!heldRegisterPickerEnabled) return;
+    void trigger("expensePocketPersonnelId");
+  }, [heldRegisterPickerEnabled, heldRegisterCashRows, trigger]);
 
   const expenseLinkStaffOptions = useMemo(() => {
     const list = allPersonnel.filter(
@@ -964,21 +1375,26 @@ export function AddBranchTransactionModal({
   const mainOpts = useMemo(() => {
     const base = txMainOptions(txType, t);
     const ty = txType.trim().toUpperCase();
+    let opts: SelectOption[];
     if (personnelExpenseFlow && ty === "OUT") {
-      return base.filter((o) => o.value === "OUT_PERSONNEL");
-    }
-    if (orgMode) {
+      opts = base.filter((o) => o.value === "OUT_PERSONNEL");
+    } else if (orgMode) {
       const filtered = base.filter(
         (o) =>
           o.value !== "OUT_PERSONNEL_POCKET_REPAY" &&
           o.value !== "OUT_PATRON_DEBT_REPAY" &&
           o.value !== "OUT_NON_PNL"
       );
-      if (ty === "OUT") return orderBranchExpenseMainOptions(filtered);
-      return filtered;
+      opts = ty === "OUT" ? orderBranchExpenseMainOptions(filtered) : filtered;
+    } else if (ty === "OUT") {
+      opts = orderBranchExpenseMainOptions(base);
+    } else {
+      opts = base;
     }
-    if (ty === "OUT") return orderBranchExpenseMainOptions(base);
-    return base;
+    if (ty === "OUT" && !UI_POCKET_CLAIM_TRANSFER_ENABLED) {
+      opts = opts.filter((o) => o.value !== "OUT_PERSONNEL_POCKET_CLAIM_TRANSFER");
+    }
+    return opts;
   }, [txType, t, orgMode, personnelExpenseFlow]);
   const subOpts = useMemo(() => {
     const ty = txType.trim().toUpperCase();
@@ -988,14 +1404,183 @@ export function AddBranchTransactionModal({
     return txSubOptions(mainCategoryWatch, t);
   }, [txType, mainCategoryWatch, t]);
 
+  const dayCloseBundledMainOpts = useMemo(() => {
+    const empty = { value: "", label: t("branch.txSelectPlaceholder") };
+    const rows = TX_MAIN_OUT.filter((x) => DAY_CLOSE_BUNDLED_OUT_MAINS.has(x.value));
+    return [empty, ...rows.map((x) => ({ value: x.value, label: t(x.labelKey) }))];
+  }, [t]);
+
+  const dayCloseBundledSubOpts = useMemo(() => {
+    const m = String(dayCloseBundledMainField.value ?? "").trim();
+    if (!m) return [{ value: "", label: t("branch.txSelectPlaceholder") }];
+    return txSubOptionsForRegisterExpenseModal(m, t);
+  }, [dayCloseBundledMainField.value, t]);
+
+  const bundledDayCloseNeedsSubCategory = txMainNeedsSubCategory(
+    "OUT",
+    String(dayCloseBundledMainField.value ?? "")
+  );
+
+  const dayCloseBundledAmtWatch = useWatch({ control, name: "dayCloseBundledExpenseAmount" });
+  const dayCloseBundledDescWatch = useWatch({ control, name: "dayCloseBundledExpenseDescription" });
+
+  const dayCloseBundledExpensePreview = useMemo(() => {
+    const raw = String(dayCloseBundledAmtWatch ?? "").trim();
+    if (!raw) return null;
+    const amt = parseLocaleAmount(raw, locale);
+    if (!Number.isFinite(amt) || amt <= 0) return null;
+    const main = String(dayCloseBundledMainField.value ?? "").trim();
+    if (!main || !DAY_CLOSE_BUNDLED_OUT_MAINS.has(main)) return null;
+    const mainLabel =
+      dayCloseBundledMainOpts.find((o) => o.value === main)?.label ?? main;
+    const sub = String(dayCloseBundledSubField.value ?? "").trim();
+    const subNeeded = txMainNeedsSubCategory("OUT", main);
+    let subLabel: string | null = null;
+    if (subNeeded) {
+      if (!sub) {
+        return {
+          line: `${mainLabel} · ${formatLocaleAmount(amt, locale, currencyWatch)}`,
+          incomplete: true as const,
+        };
+      }
+      subLabel =
+        dayCloseBundledSubOpts.find((o) => o.value === sub)?.label ?? sub;
+    }
+    const pay = String(dayCloseBundledExpensePayField.value ?? "").trim().toUpperCase();
+    if (pay !== "REGISTER" && pay !== "PATRON") {
+      return {
+        line: `${mainLabel}${subLabel ? ` · ${subLabel}` : ""} · ${formatLocaleAmount(amt, locale, currencyWatch)}`,
+        incomplete: true as const,
+      };
+    }
+    const payLabel =
+      pay === "REGISTER" ? t("branch.expensePayRegister") : t("branch.expensePayPatron");
+    const desc = String(dayCloseBundledDescWatch ?? "").trim();
+    const base = `${mainLabel}${subLabel ? ` · ${subLabel}` : ""} · ${payLabel} · ${formatLocaleAmount(amt, locale, currencyWatch)}`;
+    return { line: desc ? `${base} — ${desc}` : base, incomplete: false as const };
+  }, [
+    currencyWatch,
+    dayCloseBundledAmtWatch,
+    dayCloseBundledDescWatch,
+    dayCloseBundledExpensePayField.value,
+    dayCloseBundledMainField.value,
+    dayCloseBundledMainOpts,
+    dayCloseBundledSubField.value,
+    dayCloseBundledSubOpts,
+    locale,
+    t,
+  ]);
+
+  const dayCloseBundledTableDisplay = useMemo(
+    () =>
+      dayCloseBundledConfirmedLines.map((line) => {
+        const mainRow = TX_MAIN_OUT.find((x) => x.value === line.mainCategory);
+        const mainLabel =
+          mainRow?.labelKey != null
+            ? t(mainRow.labelKey)
+            : txCodeLabel(line.mainCategory, t) || line.mainCategory;
+        let subLabel = "—";
+        if (line.category) {
+          const subOpts = txSubOptionsForRegisterExpenseModal(line.mainCategory, t);
+          subLabel =
+            subOpts.find((o) => o.value === line.category)?.label ??
+            txCodeLabel(line.category, t) ??
+            line.category;
+        } else if (isOutOtherExpenseClassificationMain(line.mainCategory)) {
+          subLabel = t("branch.txSubExpOther");
+        }
+        const payLabel =
+          line.paymentSource === "REGISTER"
+            ? t("branch.expensePayRegister")
+            : t("branch.expensePayPatron");
+        return {
+          ...line,
+          mainLabel,
+          subLabel,
+          payLabel,
+          amountFmt: formatLocaleAmount(line.amount, locale, currencyWatch),
+        };
+      }),
+    [currencyWatch, dayCloseBundledConfirmedLines, locale, t]
+  );
+
+  const confirmDayCloseBundledExpense = useCallback(() => {
+    if (dayCloseBundledConfirmedLines.length >= DAY_CLOSE_BUNDLED_EXPENSE_MAX) {
+      notify.error(t("branch.txDayCloseBundledExpenseMax"));
+      return;
+    }
+    if (!dayCloseBundledExpensePreview || dayCloseBundledExpensePreview.incomplete) {
+      notify.error(t("branch.txNotifyIncomplete"));
+      return;
+    }
+    const v = getValues();
+    const raw = v.dayCloseBundledExpenseAmount.trim();
+    const amt = parseLocaleAmount(raw, locale);
+    if (!Number.isFinite(amt) || amt <= 0) {
+      notify.error(t("branch.txAmountInvalid"));
+      return;
+    }
+    const bMain = v.dayCloseBundledExpenseMainCategory.trim();
+    if (!bMain || !DAY_CLOSE_BUNDLED_OUT_MAINS.has(bMain)) {
+      notify.error(t("branch.txDayCloseBundledExpenseMainRequired"));
+      return;
+    }
+    let bCat: string | null = v.dayCloseBundledExpenseCategory.trim() || null;
+    if (txMainNeedsSubCategory("OUT", bMain)) {
+      if (!bCat) {
+        notify.error(t("branch.txDayCloseBundledExpenseSubRequired"));
+        return;
+      }
+    } else if (isOutOtherExpenseClassificationMain(bMain)) {
+      bCat = "EXP_OTHER";
+    }
+    const bSrc = v.dayCloseBundledExpensePaymentSource.trim().toUpperCase();
+    if (bSrc !== "REGISTER" && bSrc !== "PATRON") {
+      notify.error(t("branch.txDayCloseBundledExpensePaymentRequired"));
+      return;
+    }
+    const desc = v.dayCloseBundledExpenseDescription.trim() || null;
+    setDayCloseBundledConfirmedLines((prev) => [
+      ...prev,
+      {
+        id: newBundledExpenseLineId(),
+        amount: amt,
+        mainCategory: bMain,
+        category: bCat,
+        paymentSource: bSrc as "REGISTER" | "PATRON",
+        description: desc,
+      },
+    ]);
+    setValue("dayCloseBundledExpenseAmount", "");
+    setValue("dayCloseBundledExpenseDescription", "");
+  }, [
+    dayCloseBundledConfirmedLines.length,
+    dayCloseBundledExpensePreview,
+    getValues,
+    locale,
+    setValue,
+    t,
+  ]);
+
+  const prevBundledDayCloseMain = useRef("");
+  useEffect(() => {
+    const m = String(dayCloseBundledMainField.value ?? "").trim();
+    const prev = prevBundledDayCloseMain.current;
+    if (prev === m) return;
+    if (prev !== "" && prev !== m) setValue("dayCloseBundledExpenseCategory", "");
+    prevBundledDayCloseMain.current = m;
+  }, [dayCloseBundledMainField.value, setValue]);
+
   const expenseMainRoutingHint = useMemo(() => {
     if (personnelLinkedExpenseContext) return null;
     if (txType.trim().toUpperCase() !== "OUT") return null;
     const m = String(mainCategoryWatch ?? "").trim();
-    if (m === "OUT_GOODS") return "branch.txRoutingHintOutGoods" as const;
-    if (m === "OUT_OPS") return "branch.txRoutingHintOutOps" as const;
+    const u = m.toUpperCase();
+    if (u === "OUT_GOODS" || u.startsWith("OUT_GOODS_")) return "branch.txRoutingHintOutGoods" as const;
+    if (u === "OUT_OPS" || (u.startsWith("OUT_OPS_") && u !== "OUT_OPS_INVOICE"))
+      return "branch.txRoutingHintOutOps" as const;
     if (
-      m === "OUT_PERSONNEL" &&
+      (u === "OUT_PERSONNEL" || u.startsWith("OUT_PER_")) &&
       !personnelLinkedExpenseContext &&
       personnelDirectExpenseEntry !== true
     ) {
@@ -1042,7 +1627,7 @@ export function AddBranchTransactionModal({
 
     if (
       values.type.toUpperCase() === "IN" &&
-      values.mainCategory.trim() === "IN_PATRON" &&
+      isPatronCashIncomeMain(values.mainCategory) &&
       splitIncome
     ) {
       notify.error(t("branch.txPatronCashNoSplit"));
@@ -1071,10 +1656,11 @@ export function AddBranchTransactionModal({
       }
     }
 
-    const registerDayCloseSubmit =
-      values.type.toUpperCase() === "IN" &&
-      (values.mainCategory === "IN_DAY_CLOSE" ||
-        (values.mainCategory === "IN_OTHER" && values.category === "INC_REGISTER"));
+    const registerDayCloseSubmit = isRegisterDayCloseIncomeRow(
+      values.type,
+      values.mainCategory,
+      values.category
+    );
     const hasCashPortion = cashAmount != null && cashAmount > 0;
     let cashSettlementParty: string | null = null;
     if (registerDayCloseSubmit || hasCashPortion) {
@@ -1094,22 +1680,34 @@ export function AddBranchTransactionModal({
     }
 
     let categoryOut: string | null = values.category.trim() || null;
-    if (values.type.toUpperCase() === "OUT" && values.mainCategory === "OUT_OTHER")
+    if (values.type.toUpperCase() === "OUT" && isOutOtherExpenseClassificationMain(values.mainCategory))
       categoryOut = "EXP_OTHER";
-    if (values.type.toUpperCase() === "OUT" && values.mainCategory === "OUT_PERSONNEL_POCKET_REPAY")
-      categoryOut = "POCKET_REPAY";
-    if (values.type.toUpperCase() === "OUT" && values.mainCategory === "OUT_PATRON_DEBT_REPAY")
+    if (values.type.toUpperCase() === "OUT" && isPersonnelPocketRepayClassificationMain(values.mainCategory)) {
+      categoryOut =
+        values.mainCategory.trim().toUpperCase() === "OUT_POCKET_REPAY" ? null : "POCKET_REPAY";
+    }
+    if (values.type.toUpperCase() === "OUT" && isPatronDebtRepayClassificationMain(values.mainCategory))
       categoryOut = "PATRON_DEBT_REPAY";
-    if (values.type.toUpperCase() === "OUT" && values.mainCategory.trim() === "OUT_NON_PNL")
-      categoryOut = "NON_PNL_MEMO";
-    if (values.type.toUpperCase() === "IN" && values.mainCategory === "IN_DAY_CLOSE")
-      categoryOut = null;
-    if (values.type.toUpperCase() === "IN" && values.mainCategory.trim() === "IN_PATRON")
-      categoryOut = "PATRON_CASH";
+    if (values.type.toUpperCase() === "OUT" && isNonPnlMemoClassificationMain(values.mainCategory)) {
+      categoryOut =
+        values.mainCategory.trim().toUpperCase() === "MEMO_NON_PNL"
+          ? null
+          : "NON_PNL_MEMO";
+    }
+    if (values.type.toUpperCase() === "IN") {
+      const mm = values.mainCategory.trim().toUpperCase();
+      if (mm === "IN_DAY_CLOSE") categoryOut = null;
+      else if (mm === "IN_PATRON") categoryOut = "PATRON_CASH";
+      else if (mm === "IN_PATRON_CASH") categoryOut = null;
+    }
 
     const mc = values.mainCategory.trim();
-    const sc = (categoryOut ?? (values.category.trim() || "")).toUpperCase();
-    const isInvRow = values.type.toUpperCase() === "OUT" && mc === "OUT_OPS" && sc === "OPS_INVOICE";
+    const sc = outPersonnelCategoryEffective(mc, categoryOut).toUpperCase();
+    const isInvRow = branchTxFormIsSupplierInvoiceLine({
+      type: values.type,
+      mainCategory: mc,
+      category: values.category.trim(),
+    });
     const invStatusRaw = values.invoicePaymentStatus.trim().toUpperCase();
     if (isInvRow && invStatusRaw !== "UNPAID" && invStatusRaw !== "PAID") {
       notify.error(t("branch.txNotifyIncomplete"));
@@ -1118,7 +1716,9 @@ export function AddBranchTransactionModal({
 
     const mainTrimEarly = values.mainCategory.trim();
     const expensePaymentSource =
-      values.type.toUpperCase() === "OUT" && mainTrimEarly !== "OUT_NON_PNL"
+      values.type.toUpperCase() === "OUT" &&
+      !isNonPnlMemoClassificationMain(mainTrimEarly) &&
+      !isPocketClaimTransferClassificationMain(mainTrimEarly)
         ? values.expensePaymentSource.trim()
           ? values.expensePaymentSource.trim().toUpperCase()
           : null
@@ -1127,10 +1727,35 @@ export function AddBranchTransactionModal({
     const effExpensePay =
       isInvRow && invStatusRaw === "UNPAID" ? null : expensePaymentSource;
 
+    const allowsCashHandoverSettle =
+      values.type.toUpperCase() === "OUT" &&
+      effExpensePay != null &&
+      (effExpensePay === "REGISTER" || effExpensePay === "PATRON") &&
+      !isPersonnelPocketRepayClassificationMain(mainTrimEarly) &&
+      !isPocketClaimTransferClassificationMain(mainTrimEarly) &&
+      (!isPatronDebtRepayClassificationMain(mainTrimEarly) || effExpensePay === "REGISTER") &&
+      !isNonPnlMemoClassificationMain(mainTrimEarly) &&
+      !(isInvRow && invStatusRaw === "UNPAID");
+
+    let settlesCashHandoverTransactionId: number | undefined;
+    const settlesRaw = values.settlesCashHandoverTransactionId.trim();
+    if (settlesRaw !== "") {
+      const sid = parseInt(settlesRaw, 10);
+      if (!Number.isFinite(sid) || sid <= 0) {
+        notify.error(t("branch.txSettlesCashHandoverInvalid"));
+        return;
+      }
+      if (!allowsCashHandoverSettle) {
+        notify.error(t("branch.txSettlesCashHandoverNotAllowed"));
+        return;
+      }
+      settlesCashHandoverTransactionId = sid;
+    }
+
     let expensePocketPersonnelId: number | undefined;
     if (
       values.type.toUpperCase() === "OUT" &&
-      values.mainCategory.trim() === "OUT_PERSONNEL_POCKET_REPAY"
+      isPersonnelPocketRepayClassificationMain(values.mainCategory)
     ) {
       const n = parseInt(values.expensePocketPersonnelId.trim(), 10);
       if (!Number.isFinite(n) || n <= 0) {
@@ -1138,13 +1763,29 @@ export function AddBranchTransactionModal({
         return;
       }
       expensePocketPersonnelId = n;
-    } else if (values.type.toUpperCase() === "OUT" && effExpensePay === "PERSONNEL_POCKET") {
+    } else if (
+      values.type.toUpperCase() === "OUT" &&
+      (effExpensePay === "PERSONNEL_POCKET" || effExpensePay === "PERSONNEL_HELD_REGISTER_CASH")
+    ) {
       const n = parseInt(values.expensePocketPersonnelId.trim(), 10);
       if (!Number.isFinite(n) || n <= 0) {
         notify.error(t("branch.txExpensePocketPersonnelRequired"));
         return;
       }
       expensePocketPersonnelId = n;
+    } else if (values.type.toUpperCase() === "OUT" && isPocketClaimTransferClassificationMain(mainTrimEarly)) {
+      const catXfer = (values.category ?? "").trim().toUpperCase();
+      const toPatronXfer =
+        catXfer === "POCKET_CLAIM_TRANSFER_TO_PATRON" ||
+        mainTrimEarly.toUpperCase() === "OUT_POCKET_CLAIM_TO_PATRON";
+      if (!toPatronXfer) {
+        const n = parseInt(values.expensePocketPersonnelId.trim(), 10);
+        if (!Number.isFinite(n) || n <= 0) {
+          notify.error(t("branch.txExpensePocketPersonnelRequired"));
+          return;
+        }
+        expensePocketPersonnelId = n;
+      }
     }
 
     const receiptFile =
@@ -1182,7 +1823,7 @@ export function AddBranchTransactionModal({
       branchForTx != null && branchForTx > 0 ? branchForTx : undefined;
 
     if (
-      effExpensePay === "REGISTER" &&
+      (effExpensePay === "REGISTER" || effExpensePay === "PERSONNEL_HELD_REGISTER_CASH") &&
       values.type.toUpperCase() === "OUT" &&
       (effBranchId == null || effBranchId <= 0)
     ) {
@@ -1190,14 +1831,24 @@ export function AddBranchTransactionModal({
       return;
     }
 
+    if (
+      isPocketClaimTransferClassificationMain(mc) &&
+      (effBranchId == null || effBranchId <= 0)
+    ) {
+      notify.error(t("branch.txPocketClaimTransferNeedBranch"));
+      return;
+    }
+
     const reqExpenseAdvance =
-      values.type.toUpperCase() === "OUT" && mc === "OUT_PERSONNEL" && sc === "PER_ADVANCE";
+      values.type.toUpperCase() === "OUT" &&
+      isOutPersonnelClassificationMain(mc) &&
+      sc === "PER_ADVANCE";
     const reqExpenseSalary =
       values.type.toUpperCase() === "OUT" &&
-      mc === "OUT_PERSONNEL" &&
+      isOutPersonnelClassificationMain(mc) &&
       (sc === "PER_SALARY" || sc === "PER_BONUS");
 
-    if (mc === "OUT_PERSONNEL_POCKET_REPAY") {
+    if (mc.toUpperCase() === "OUT_PERSONNEL_POCKET_REPAY") {
       if (pocketRepaySettlement.ids.length === 0) {
         notify.error(t("branch.pocketRepayPickRequired"));
         return;
@@ -1316,8 +1967,27 @@ export function AddBranchTransactionModal({
     }
 
     let linkedPersonnelIdOut: number | undefined;
-    if (
-      mc === "OUT_PERSONNEL" &&
+    if (isPocketClaimTransferClassificationMain(mc)) {
+      const fromN = parseInt(values.pocketClaimFromPersonnelId.trim(), 10);
+      if (!Number.isFinite(fromN) || fromN <= 0) {
+        notify.error(t("branch.txPocketClaimTransferFromRequired"));
+        return;
+      }
+      const catXfer = (values.category ?? "").trim().toUpperCase();
+      const toPatronXfer =
+        catXfer === "POCKET_CLAIM_TRANSFER_TO_PATRON" ||
+        mc.toUpperCase() === "OUT_POCKET_CLAIM_TO_PATRON";
+      if (
+        !toPatronXfer &&
+        expensePocketPersonnelId != null &&
+        fromN === expensePocketPersonnelId
+      ) {
+        notify.error(t("branch.txPocketClaimTransferSamePerson"));
+        return;
+      }
+      linkedPersonnelIdOut = fromN;
+    } else if (
+      isOutPersonnelClassificationMain(mc) &&
       !outPersonnelSubcategoryNeedsFinancialLink(sc) &&
       personnelExpenseFlow
     ) {
@@ -1332,6 +2002,45 @@ export function AddBranchTransactionModal({
         return;
       }
       linkedPersonnelIdOut = lp;
+    }
+
+    const dayCloseBundledExpensePayloads: {
+      amount: number;
+      mainCategory: string;
+      category: string | null;
+      paymentSource: string;
+      description: string | null;
+    }[] = [];
+    if (registerDayCloseSubmit) {
+      const draftRaw = values.dayCloseBundledExpenseAmount.trim();
+      if (dayCloseBundledExpenseOpen && draftRaw !== "") {
+        notify.error(t("branch.txDayCloseBundledExpenseDraftNotConfirmed"));
+        return;
+      }
+      for (const row of dayCloseBundledConfirmedLines) {
+        if (!DAY_CLOSE_BUNDLED_OUT_MAINS.has(row.mainCategory)) {
+          notify.error(t("branch.txDayCloseBundledExpenseMainRequired"));
+          return;
+        }
+        const src = row.paymentSource.trim().toUpperCase();
+        if (src !== "REGISTER" && src !== "PATRON") {
+          notify.error(t("branch.txDayCloseBundledExpensePaymentRequired"));
+          return;
+        }
+        dayCloseBundledExpensePayloads.push({
+          amount: row.amount,
+          mainCategory: row.mainCategory,
+          category: row.category,
+          paymentSource: src,
+          description: row.description,
+        });
+      }
+      if (dayCloseBundledExpensePayloads.length > 0) {
+        if (effBranchId == null || effBranchId <= 0) {
+          notify.error(t("branch.txRegisterPaymentNeedBranch"));
+          return;
+        }
+      }
     }
 
     try {
@@ -1366,13 +2075,37 @@ export function AddBranchTransactionModal({
         linkFinancialPid > 0
           ? { linkedFinancialPersonnelId: linkFinancialPid }
           : {}),
-        ...(mc === "OUT_PERSONNEL_POCKET_REPAY"
+        ...(mc.toUpperCase() === "OUT_PERSONNEL_POCKET_REPAY"
           ? { linkedPocketExpenseTransactionIds: [...pocketRepaySettlement.ids] }
           : {}),
         ...(linkedPersonnelIdOut != null && linkedPersonnelIdOut > 0
           ? { linkedPersonnelId: linkedPersonnelIdOut }
           : {}),
+        ...(settlesCashHandoverTransactionId != null
+          ? { settlesCashHandoverTransactionId }
+          : {}),
       });
+      for (const pl of dayCloseBundledExpensePayloads) {
+        try {
+          await createTx.mutateAsync({
+            branchId: effBranchId,
+            type: "OUT",
+            mainCategory: pl.mainCategory,
+            category: pl.category,
+            amount: pl.amount,
+            currencyCode: cur,
+            transactionDate: values.transactionDate,
+            description: pl.description,
+            expensePaymentSource: pl.paymentSource,
+          });
+        } catch (be) {
+          if (!tryTourismSeasonClosedRedirect(be, effBranchId)) {
+            notify.error(
+              `${t("branch.txDayCloseBundledExpenseFailedAfterIncome")} ${toErrorMessage(be)}`
+            );
+          }
+        }
+      }
       notify.success(t("toast.branchTxCreated"));
       onClose();
     } catch (e) {
@@ -1511,7 +2244,7 @@ export function AddBranchTransactionModal({
                 />
               </div>
             ) : null}
-            {isPatronCashIncomeMain ? (
+            {patronCashIncomeMainActive ? (
               <p className="rounded-lg border border-amber-100 bg-amber-50/60 px-3 py-2.5 text-xs leading-relaxed text-balance text-amber-950 sm:col-span-2 sm:text-sm">
                 {t("branch.txPatronCashIncomeHint")}
               </p>
@@ -1706,7 +2439,7 @@ export function AddBranchTransactionModal({
                 onBlur={currencyField.onBlur}
                 ref={currencyField.ref}
                 error={errors.currencyCode?.message}
-                disabled={financialAmountLocked && !isPocketRepayMain}
+                disabled={financialAmountLocked && !isPocketRepaySettlementUmbrellaMain}
               />
             </div>
             <div className="min-w-0">
@@ -1722,7 +2455,7 @@ export function AddBranchTransactionModal({
                 error={transactionDateFieldState.error?.message}
               />
             </div>
-            {txType.toUpperCase() === "IN" && !isPatronCashIncomeMain ? (
+            {txType.toUpperCase() === "IN" && !patronCashIncomeMainActive ? (
               <>
                 <p className="text-xs text-zinc-500 lg:col-span-2">{t("branch.txAmountSplitHint")}</p>
                 <div className="min-w-0">
@@ -1802,7 +2535,7 @@ export function AddBranchTransactionModal({
                 />
                 {financialAmountLocked ? (
                   <p className="mt-1 text-xs text-zinc-500">
-                    {isPocketRepayMain
+                    {isPocketRepaySettlementUmbrellaMain
                       ? t("branch.pocketRepayAmountFromSelectionHint")
                       : t("branch.txAmountLockedHint")}
                   </p>
@@ -1856,7 +2589,7 @@ export function AddBranchTransactionModal({
                       <Select
                         label={t("branch.cashSettlementResponsiblePerson")}
                         labelRequired
-                        options={branchStaffOptions}
+                        options={cashSettlementResponsibleOptions}
                         name={settlementPersonnelField.name}
                         value={String(settlementPersonnelField.value ?? "")}
                         onChange={(e) => settlementPersonnelField.onChange(e.target.value)}
@@ -1865,17 +2598,232 @@ export function AddBranchTransactionModal({
                         error={errors.cashSettlementPersonnelId?.message}
                       />
                     </div>
-                    {branchStaffOptions.length <= 1 ? (
+                    {cashSettlementResponsibleOptions.length <= 1 ? (
                       <p className="text-xs leading-relaxed text-amber-900 lg:col-span-2">
-                        {t("branch.cashSettlementResponsibleEmpty")}
+                        {t("branch.cashSettlementResponsibleEmptyGlobal")}
                       </p>
                     ) : null}
                   </>
                 ) : null}
               </>
             ) : null}
+            {registerDayClose && !orgMode ? (
+              <div className="min-w-0 space-y-3 rounded-2xl border border-zinc-200/90 bg-gradient-to-b from-zinc-50/90 to-white px-3 py-3 shadow-sm ring-1 ring-zinc-950/[0.03] sm:px-4 sm:py-4 lg:col-span-2">
+                <div>
+                  <p className="text-sm font-semibold text-zinc-900">
+                    {t("branch.txDayCloseOptionalExpenseTitle")}
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-zinc-600">
+                    {t("branch.txDayCloseOptionalExpenseHint")}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={dayCloseBundledExpenseOpen}
+                  aria-label={t("branch.txDayCloseBundledExpenseCheckbox")}
+                  onClick={() => {
+                    const on = !dayCloseBundledExpenseOpen;
+                    setDayCloseBundledExpenseOpen(on);
+                    if (on) {
+                      setValue("dayCloseBundledExpenseMainCategory", "OUT_OPS");
+                      setValue("dayCloseBundledExpenseCategory", "OPS_OTHER");
+                      setValue("dayCloseBundledExpensePaymentSource", "REGISTER");
+                    } else {
+                      setDayCloseBundledConfirmedLines([]);
+                      setValue("dayCloseBundledExpenseAmount", "");
+                      setValue("dayCloseBundledExpenseMainCategory", "");
+                      setValue("dayCloseBundledExpenseCategory", "");
+                      setValue("dayCloseBundledExpenseDescription", "");
+                      setValue("dayCloseBundledExpensePaymentSource", "");
+                    }
+                  }}
+                  className={cn(
+                    "flex w-full min-w-0 items-center justify-between gap-3 rounded-xl border px-3 py-3 text-left transition sm:px-3.5 sm:py-3.5",
+                    dayCloseBundledExpenseOpen
+                      ? "border-emerald-200/90 bg-emerald-50/40 shadow-sm"
+                      : "border-zinc-200 bg-white/90 hover:border-zinc-300"
+                  )}
+                >
+                  <span className="min-w-0 flex-1 pr-2">
+                    <span className="block text-sm font-medium text-zinc-900">
+                      {t("branch.txDayCloseBundledExpenseCheckbox")}
+                    </span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-zinc-600">
+                      {t("branch.txDayCloseBundledExpenseCheckboxHint")}
+                    </span>
+                  </span>
+                  <span
+                    className={cn(
+                      "inline-flex h-7 w-[2.75rem] shrink-0 cursor-pointer items-center rounded-full p-0.5 transition-colors duration-200",
+                      dayCloseBundledExpenseOpen ? "justify-end bg-emerald-600" : "justify-start bg-zinc-300"
+                    )}
+                  >
+                    <span className="pointer-events-none size-6 rounded-full bg-white shadow-md ring-1 ring-zinc-950/10" />
+                  </span>
+                </button>
+                {dayCloseBundledExpenseOpen && dayCloseBundledTableDisplay.length > 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                      {t("branch.txDayCloseBundledExpenseListTitle")}
+                    </p>
+                    <div className="overflow-x-auto rounded-xl border border-zinc-200/90 bg-white shadow-sm">
+                      <table className="w-full min-w-[32rem] border-collapse text-left text-sm">
+                        <thead>
+                          <tr className="border-b border-zinc-200 bg-zinc-50/95 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                            <th className="px-2 py-2.5 pl-3 sm:px-3">
+                              {t("branch.txDayCloseBundledExpenseTableType")}
+                            </th>
+                            <th className="px-2 py-2.5 sm:px-3">
+                              {t("branch.txDayCloseBundledExpenseTableSub")}
+                            </th>
+                            <th className="px-2 py-2.5 sm:px-3">
+                              {t("branch.txDayCloseBundledExpenseTablePay")}
+                            </th>
+                            <th className="px-2 py-2.5 text-right sm:px-3">
+                              {t("branch.txDayCloseBundledExpenseTableAmount")}
+                            </th>
+                            <th className="hidden min-w-[6rem] px-2 py-2.5 lg:table-cell lg:px-3">
+                              {t("branch.txDayCloseBundledExpenseTableNote")}
+                            </th>
+                            <th className="w-10 px-2 py-2.5 pr-3 text-right sm:px-3" />
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-zinc-100">
+                          {dayCloseBundledTableDisplay.map((row) => (
+                            <tr key={row.id} className="align-top text-zinc-800">
+                              <td className="px-2 py-2.5 pl-3 font-medium sm:px-3">
+                                {row.mainLabel}
+                              </td>
+                              <td className="px-2 py-2.5 text-zinc-600 sm:px-3">{row.subLabel}</td>
+                              <td className="px-2 py-2.5 text-zinc-600 sm:px-3">{row.payLabel}</td>
+                              <td className="px-2 py-2.5 text-right font-semibold tabular-nums sm:px-3">
+                                {row.amountFmt}
+                              </td>
+                              <td className="hidden max-w-[10rem] truncate px-2 py-2.5 text-xs text-zinc-500 lg:table-cell lg:px-3">
+                                {row.description ?? "—"}
+                              </td>
+                              <td className="px-2 py-2 pr-3 sm:px-3">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  className="h-8 min-w-0 shrink-0 px-2 text-xs text-red-700 hover:bg-red-50 hover:text-red-800"
+                                  onClick={() =>
+                                    setDayCloseBundledConfirmedLines((prev) =>
+                                      prev.filter((x) => x.id !== row.id)
+                                    )
+                                  }
+                                >
+                                  {t("branch.txDayCloseBundledExpenseRemove")}
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                ) : null}
+                {dayCloseBundledExpenseOpen &&
+                dayCloseBundledConfirmedLines.length >= DAY_CLOSE_BUNDLED_EXPENSE_MAX ? (
+                  <p className="rounded-lg border border-amber-200/80 bg-amber-50/70 px-3 py-2 text-xs font-medium text-amber-950">
+                    {t("branch.txDayCloseBundledExpenseMax")}
+                  </p>
+                ) : null}
+                {dayCloseBundledExpenseOpen &&
+                dayCloseBundledConfirmedLines.length < DAY_CLOSE_BUNDLED_EXPENSE_MAX ? (
+                  <div className="space-y-3 border-t border-zinc-200/80 pt-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <div className="min-w-0 sm:col-span-2">
+                        <Input
+                          label={t("branch.txDayCloseOptionalExpenseAmount")}
+                          inputMode="decimal"
+                          autoComplete="off"
+                          {...register("dayCloseBundledExpenseAmount")}
+                        />
+                      </div>
+                      <div
+                        className={cn(
+                          "min-w-0",
+                          !bundledDayCloseNeedsSubCategory ? "sm:col-span-2" : ""
+                        )}
+                      >
+                        <Select
+                          label={t("branch.txDayCloseBundledExpenseMainLabel")}
+                          labelRequired
+                          options={dayCloseBundledMainOpts}
+                          name={dayCloseBundledMainField.name}
+                          value={String(dayCloseBundledMainField.value ?? "")}
+                          onChange={(e) => dayCloseBundledMainField.onChange(e.target.value)}
+                          onBlur={dayCloseBundledMainField.onBlur}
+                          ref={dayCloseBundledMainField.ref}
+                        />
+                      </div>
+                      {bundledDayCloseNeedsSubCategory ? (
+                        <div className="min-w-0">
+                          <Select
+                            label={t("branch.txDayCloseBundledExpenseSubLabel")}
+                            labelRequired
+                            options={dayCloseBundledSubOpts}
+                            name={dayCloseBundledSubField.name}
+                            value={String(dayCloseBundledSubField.value ?? "")}
+                            onChange={(e) => dayCloseBundledSubField.onChange(e.target.value)}
+                            onBlur={dayCloseBundledSubField.onBlur}
+                            ref={dayCloseBundledSubField.ref}
+                          />
+                        </div>
+                      ) : null}
+                      <div className="min-w-0 sm:col-span-2">
+                        <Input
+                          label={t("branch.txDayCloseOptionalExpenseDescription")}
+                          {...register("dayCloseBundledExpenseDescription")}
+                        />
+                      </div>
+                      <div className="min-w-0 sm:col-span-2">
+                        <Select
+                          label={t("branch.expensePaymentLabel")}
+                          labelRequired
+                          options={[
+                            { value: "", label: t("branch.expensePaymentUnset") },
+                            { value: "REGISTER", label: t("branch.expensePayRegister") },
+                            { value: "PATRON", label: t("branch.expensePayPatron") },
+                          ]}
+                          name={dayCloseBundledExpensePayField.name}
+                          value={String(dayCloseBundledExpensePayField.value ?? "")}
+                          onChange={(e) => dayCloseBundledExpensePayField.onChange(e.target.value)}
+                          onBlur={dayCloseBundledExpensePayField.onBlur}
+                          ref={dayCloseBundledExpensePayField.ref}
+                        />
+                        <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">
+                          {t("branch.txDayCloseBundledExpensePaymentHint")}
+                        </p>
+                      </div>
+                    </div>
+                    {dayCloseBundledExpensePreview?.incomplete ? (
+                      <p className="text-xs text-amber-900/90">
+                        {t("branch.txDayCloseBundledExpensePreviewIncomplete")}
+                      </p>
+                    ) : null}
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="w-full sm:w-auto"
+                      disabled={
+                        !dayCloseBundledExpensePreview ||
+                        dayCloseBundledExpensePreview.incomplete ||
+                        dayCloseBundledConfirmedLines.length >= DAY_CLOSE_BUNDLED_EXPENSE_MAX
+                      }
+                      onClick={confirmDayCloseBundledExpense}
+                    >
+                      {t("branch.txDayCloseBundledExpenseConfirm")}
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             {txType.toUpperCase() === "OUT" &&
             !isNonPnlMemoMain &&
+            !isPocketClaimTransferMain &&
             !isInvoiceUnpaid ? (
               <div className="min-w-0 lg:col-span-2">
                 {personnelExpenseFlow &&
@@ -1927,13 +2875,34 @@ export function AddBranchTransactionModal({
                   ref={expensePayField.ref}
                   error={errors.expensePaymentSource?.message}
                 />
+                {cashHandoverSettleFieldVisible ? (
+                  <div className="mt-3 min-w-0">
+                    <label
+                      htmlFor="branch-tx-settles-handover-id"
+                      className="mb-1 block text-sm font-medium text-zinc-700"
+                    >
+                      {t("branch.txSettlesCashHandoverLabel")}
+                    </label>
+                    <input
+                      id="branch-tx-settles-handover-id"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                      {...register("settlesCashHandoverTransactionId")}
+                    />
+                    <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                      {t("branch.txSettlesCashHandoverHint")}
+                    </p>
+                  </div>
+                ) : null}
                 {String(expensePayWatch ?? "").trim().toUpperCase() === "PERSONNEL_POCKET" ? (
                   <>
                     <div className="min-w-0 lg:col-span-2">
                       <Select
                         label={t("branch.expensePocketPersonLabel")}
                         labelRequired
-                        options={branchStaffOptions}
+                        options={cashSettlementResponsibleOptions}
                         name={expensePocketPersonnelField.name}
                         value={String(expensePocketPersonnelField.value ?? "")}
                         onChange={(e) => expensePocketPersonnelField.onChange(e.target.value)}
@@ -1942,14 +2911,42 @@ export function AddBranchTransactionModal({
                         error={errors.expensePocketPersonnelId?.message}
                       />
                     </div>
-                    {branchStaffOptions.length <= 1 ? (
+                    {cashSettlementResponsibleOptions.length <= 1 ? (
                       <p className="text-xs leading-relaxed text-amber-900 lg:col-span-2">
                         {t("branch.cashSettlementResponsibleEmpty")}
                       </p>
                     ) : null}
                   </>
+                ) : String(expensePayWatch ?? "").trim().toUpperCase() === "PERSONNEL_HELD_REGISTER_CASH" ? (
+                  <>
+                    <div className="min-w-0 lg:col-span-2">
+                      <Select
+                        label={t("branch.expenseHeldRegisterPersonLabel")}
+                        labelRequired
+                        options={heldRegisterPersonOptions}
+                        name={expensePocketPersonnelField.name}
+                        value={String(expensePocketPersonnelField.value ?? "")}
+                        onChange={(e) => expensePocketPersonnelField.onChange(e.target.value)}
+                        onBlur={expensePocketPersonnelField.onBlur}
+                        ref={expensePocketPersonnelField.ref}
+                        error={errors.expensePocketPersonnelId?.message}
+                        disabled={heldRegisterCashLoading}
+                      />
+                    </div>
+                    {heldRegisterCashLoading ? (
+                      <p className="text-xs leading-relaxed text-zinc-500 lg:col-span-2">
+                        {t("branch.expenseHeldRegisterPersonPickerLoading")}
+                      </p>
+                    ) : heldRegisterPersonOptions.length <= 1 ? (
+                      <p className="text-xs leading-relaxed text-amber-900 lg:col-span-2">
+                        {!asOfDateYmd
+                          ? t("branch.expenseHeldRegisterPersonPickerNeedDate")
+                          : t("branch.expenseHeldRegisterPersonPickerEmpty")}
+                      </p>
+                    ) : null}
+                  </>
                 ) : null}
-                {isPocketRepayMain &&
+                {isPocketRepaySettlementUmbrellaMain &&
                 (String(expensePayWatch ?? "").trim().toUpperCase() === "REGISTER" ||
                   String(expensePayWatch ?? "").trim().toUpperCase() === "PATRON") ? (
                   <>
@@ -1973,7 +2970,7 @@ export function AddBranchTransactionModal({
                     ) : null}
                   </>
                 ) : null}
-                {isPocketRepayMain &&
+                {isPocketRepaySettlementUmbrellaMain &&
                 (String(expensePayWatch ?? "").trim().toUpperCase() === "REGISTER" ||
                   String(expensePayWatch ?? "").trim().toUpperCase() === "PATRON") &&
                 expensePocketRepayPidNum > 0 ? (
@@ -1982,7 +2979,9 @@ export function AddBranchTransactionModal({
                       branchId={resolvedBranchId ?? 0}
                       personnelId={expensePocketRepayPidNum}
                       enabled={
-                        open && isPocketRepayMain && expensePocketRepayPidNum > 0
+                        open &&
+                        isPocketRepaySettlementUmbrellaMain &&
+                        expensePocketRepayPidNum > 0
                       }
                       excludeSettledPocketExpenses={true}
                       locale={locale}
@@ -1991,6 +2990,47 @@ export function AddBranchTransactionModal({
                       onSettlementChange={handlePocketRepaySettlementChange}
                     />
                   </div>
+                ) : null}
+              </div>
+            ) : null}
+            {txType.toUpperCase() === "OUT" &&
+            isPocketClaimTransferMain &&
+            resolvedBranchId != null &&
+            resolvedBranchId > 0 ? (
+              <div className="min-w-0 space-y-3 lg:col-span-2">
+                <p className="text-xs leading-relaxed text-zinc-600">
+                  {t("branch.txPocketClaimTransferModalHint")}
+                </p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <Select
+                    label={t("branch.txPocketClaimTransferFromLabel")}
+                    labelRequired
+                    options={branchStaffOptions}
+                    name={pocketClaimFromPersonnelField.name}
+                    value={String(pocketClaimFromPersonnelField.value ?? "")}
+                    onChange={(e) => pocketClaimFromPersonnelField.onChange(e.target.value)}
+                    onBlur={pocketClaimFromPersonnelField.onBlur}
+                    ref={pocketClaimFromPersonnelField.ref}
+                    error={errors.pocketClaimFromPersonnelId?.message}
+                  />
+                  {subCat !== "POCKET_CLAIM_TRANSFER_TO_PATRON" ? (
+                    <Select
+                      label={t("branch.txPocketClaimTransferToLabel")}
+                      labelRequired
+                      options={branchStaffOptions}
+                      name={expensePocketPersonnelField.name}
+                      value={String(expensePocketPersonnelField.value ?? "")}
+                      onChange={(e) => expensePocketPersonnelField.onChange(e.target.value)}
+                      onBlur={expensePocketPersonnelField.onBlur}
+                      ref={expensePocketPersonnelField.ref}
+                      error={errors.expensePocketPersonnelId?.message}
+                    />
+                  ) : null}
+                </div>
+                {branchStaffOptions.length <= 1 ? (
+                  <p className="text-xs leading-relaxed text-amber-900">
+                    {t("branch.cashSettlementResponsibleEmpty")}
+                  </p>
                 ) : null}
               </div>
             ) : null}

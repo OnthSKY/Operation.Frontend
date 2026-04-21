@@ -9,6 +9,7 @@ import type { Personnel } from "@/types/personnel";
 import { ApiError } from "@/lib/api/base-api";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { BRANCH_API_ERROR_TOURISM_SEASON_CLOSED_FOR_REGISTER } from "@/modules/branch/lib/branch-api-error-codes";
+import { branchTourismSeasonDeepLink } from "@/modules/branch/lib/branch-tourism-season-nav";
 import {
   resolveLocalizedApiError,
   userCanManageTourismSeasonClosedPolicy,
@@ -112,11 +113,11 @@ export function InvoiceSettleModal({ open, onClose, row, branchStaff }: Props) {
       notify.success(t("toast.branchInvoiceSettled"));
       onClose();
     } catch (e) {
+      const tourismHref = branchTourismSeasonDeepLink(branchId, false);
       if (
         e instanceof ApiError &&
         e.errorCode === BRANCH_API_ERROR_TOURISM_SEASON_CLOSED_FOR_REGISTER &&
-        branchId != null &&
-        branchId > 0
+        tourismHref
       ) {
         notifyErrorWithAction({
           message: resolveLocalizedApiError(e, t, {
@@ -126,7 +127,7 @@ export function InvoiceSettleModal({ open, onClose, row, branchStaff }: Props) {
           autoCloseMs: 10_000,
           onAction: () => {
             onClose();
-            router.push(`/branches?openBranch=${branchId}&branchTab=tourismSeason`);
+            router.push(tourismHref);
           },
         });
       } else {

@@ -116,7 +116,7 @@ export function ReportStockCharts({ data }: Props) {
   }
 
   const chartScrollWrap =
-    "-mx-1 w-[calc(100%+0.5rem)] min-w-0 touch-pan-x overflow-x-auto overscroll-x-contain px-1 sm:mx-0 sm:w-full sm:overflow-visible sm:px-0";
+    "-mx-1 w-[calc(100%+0.5rem)] min-w-0 touch-pan-x overflow-x-auto overscroll-x-contain px-1 lg:mx-0 lg:w-full lg:overflow-visible lg:px-0";
 
   return (
     <div className="flex flex-col gap-4">
@@ -138,7 +138,7 @@ export function ReportStockCharts({ data }: Props) {
           >
             <div className={chartScrollWrap} style={{ height: barH(whBar.length) }}>
               <RechartsMeasureBox
-                className="h-full min-w-[min(100%,280px)] sm:min-w-0"
+                className="h-full min-w-[min(100%,280px)] lg:min-w-0"
                 style={{ minWidth: smUp ? undefined : 300 }}
               >
                 {({ width, height }) => (
@@ -207,7 +207,7 @@ export function ReportStockCharts({ data }: Props) {
           >
             <div className={chartScrollWrap} style={{ height: barH(brBar.length) }}>
               <RechartsMeasureBox
-                className="h-full min-w-[min(100%,280px)] sm:min-w-0"
+                className="h-full min-w-[min(100%,280px)] lg:min-w-0"
                 style={{ minWidth: smUp ? undefined : 300 }}
               >
                 {({ width, height }) => (

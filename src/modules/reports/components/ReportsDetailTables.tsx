@@ -32,8 +32,8 @@ const td =
   "border-b border-zinc-100 px-2 py-2 text-xs text-zinc-800 sm:px-3 sm:text-sm";
 
 const mobileCard =
-  "rounded-xl border border-zinc-200 bg-white p-3 shadow-sm sm:hidden";
-const mobileCardStack = "flex flex-col gap-3 sm:hidden";
+  "rounded-xl border border-zinc-200 bg-white p-3 shadow-sm lg:hidden";
+const mobileCardStack = "flex flex-col gap-3 lg:hidden";
 
 function MobileKv({
   label,
@@ -64,6 +64,18 @@ function MobileCard({ children }: { children: ReactNode }) {
 
 type TFn = (key: string) => string;
 
+/** Finans tabloları tek sayfada (`all`) veya alt sayfa (`panel`) için. */
+export type FinancialReportTablesPanel =
+  | "all"
+  | "totals"
+  | "branches"
+  | "expense-payment"
+  | "by-category"
+  | "overhead"
+  | "supplier-payments"
+  | "vehicle-off-register"
+  | "advances";
+
 function supplierPaySourceLabel(sourceType: string, t: TFn): string {
   const u = sourceType.trim().toUpperCase();
   if (u === "CASH") return t("reports.supplierPaySourceCash");
@@ -78,13 +90,18 @@ export function FinancialReportDetailTables({
   t,
   locale,
   interactive = false,
+  panel = "all",
 }: {
   data: FinancialReport;
   branchTrendMap: Map<string, number>;
   t: TFn;
   locale: Locale;
   interactive?: boolean;
+  panel?: FinancialReportTablesPanel;
 }) {
+  const show = (p: Exclude<FinancialReportTablesPanel, "all">) =>
+    panel === "all" || panel === p;
+
   const expensePayRows = useMemo(() => {
     const raw = data.byExpensePaymentSource ?? [];
     const codes = [...new Set(raw.map((r) => r.currencyCode))].sort();
@@ -97,7 +114,11 @@ export function FinancialReportDetailTables({
 
   return (
     <>
-      <Card title={t("reports.sectionTotals")}>
+      {show("totals") ? (
+      <Card
+        title={t("reports.sectionTotals")}
+        description={t("reports.sectionTotalsFinancialKpiNote")}
+      >
         <ReportInteractiveRows
           interactive={interactive}
           rows={data.totalsByCurrency}
@@ -204,7 +225,7 @@ export function FinancialReportDetailTables({
                       </MobileCard>
                     ))}
                   </div>
-                  <div className={`${tableWrap} hidden sm:block`}>
+                  <div className={`${tableWrap} hidden lg:block`}>
                     <table className="min-w-full border-collapse">
                       <thead>
                         <tr>
@@ -272,8 +293,12 @@ export function FinancialReportDetailTables({
           )}
         </ReportInteractiveRows>
       </Card>
-
-      <Card title={t("reports.sectionByBranch")}>
+      ) : null}
+      {show("branches") ? (
+      <Card
+        title={t("reports.sectionByBranch")}
+        description={t("reports.sectionTotalsFinancialKpiNote")}
+      >
         <ReportInteractiveRows
           interactive={interactive}
           rows={data.byBranch}
@@ -412,7 +437,7 @@ export function FinancialReportDetailTables({
                       );
                     })}
                   </div>
-                  <div className={`${tableWrap} hidden sm:block`}>
+                  <div className={`${tableWrap} hidden lg:block`}>
                     <table className="min-w-full border-collapse">
                       <thead>
                         <tr>
@@ -515,7 +540,8 @@ export function FinancialReportDetailTables({
           )}
         </ReportInteractiveRows>
       </Card>
-
+      ) : null}
+      {show("expense-payment") ? (
       <Card
         title={t("reports.sectionExpensePayment")}
         description={t("reports.sectionExpensePaymentDesc")}
@@ -621,7 +647,7 @@ export function FinancialReportDetailTables({
                       );
                     })}
                   </div>
-                  <div className={`${tableWrap} hidden sm:block`}>
+                  <div className={`${tableWrap} hidden lg:block`}>
                     <table className="min-w-full border-collapse">
                       <thead>
                         <tr>
@@ -686,7 +712,8 @@ export function FinancialReportDetailTables({
           )}
         </ReportInteractiveRows>
       </Card>
-
+      ) : null}
+      {show("by-category") ? (
       <Card title={t("reports.sectionByCategory")}>
         <ReportInteractiveRows
           interactive={interactive}
@@ -783,7 +810,7 @@ export function FinancialReportDetailTables({
                       </MobileCard>
                     ))}
                   </div>
-                  <div className={`${tableWrap} hidden sm:block`}>
+                  <div className={`${tableWrap} hidden lg:block`}>
                     <table className="min-w-full border-collapse">
                       <thead>
                         <tr>
@@ -835,7 +862,8 @@ export function FinancialReportDetailTables({
           )}
         </ReportInteractiveRows>
       </Card>
-
+      ) : null}
+      {show("overhead") ? (
       <Card title={t("reports.sectionGeneralOverheadAllocated")}>
         <ReportInteractiveRows
           interactive={interactive}
@@ -911,7 +939,7 @@ export function FinancialReportDetailTables({
                       </MobileCard>
                     ))}
                   </div>
-                  <div className={`${tableWrap} hidden sm:block`}>
+                  <div className={`${tableWrap} hidden lg:block`}>
                     <table className="min-w-full border-collapse">
                       <thead>
                         <tr>
@@ -949,7 +977,8 @@ export function FinancialReportDetailTables({
           )}
         </ReportInteractiveRows>
       </Card>
-
+      ) : null}
+      {show("supplier-payments") ? (
       <Card title={t("reports.sectionSupplierPayments")}>
         <ReportInteractiveRows
           interactive={interactive}
@@ -1021,7 +1050,7 @@ export function FinancialReportDetailTables({
                       </MobileCard>
                     ))}
                   </div>
-                  <div className={`${tableWrap} hidden sm:block`}>
+                  <div className={`${tableWrap} hidden lg:block`}>
                     <table className="min-w-full border-collapse">
                       <thead>
                         <tr>
@@ -1061,7 +1090,8 @@ export function FinancialReportDetailTables({
           )}
         </ReportInteractiveRows>
       </Card>
-
+      ) : null}
+      {show("vehicle-off-register") ? (
       <Card title={t("reports.sectionVehicleExpensesOffRegister")}>
         {data.branchIdFilter != null ? (
           <p className="text-sm text-zinc-600">
@@ -1132,7 +1162,7 @@ export function FinancialReportDetailTables({
                           </MobileCard>
                         ))}
                       </div>
-                      <div className={`${tableWrap} hidden sm:block`}>
+                      <div className={`${tableWrap} hidden lg:block`}>
                         <table className="min-w-full border-collapse">
                           <thead>
                             <tr>
@@ -1168,7 +1198,8 @@ export function FinancialReportDetailTables({
           </>
         )}
       </Card>
-
+      ) : null}
+      {show("advances") ? (
       <Card title={t("reports.sectionAdvances")}>
         <ReportInteractiveRows
           interactive={interactive}
@@ -1230,7 +1261,7 @@ export function FinancialReportDetailTables({
                       </MobileCard>
                     ))}
                   </div>
-                  <div className={`${tableWrap} hidden sm:block`}>
+                  <div className={`${tableWrap} hidden lg:block`}>
                     <table className="min-w-full border-collapse">
                       <thead>
                         <tr>
@@ -1264,6 +1295,7 @@ export function FinancialReportDetailTables({
           )}
         </ReportInteractiveRows>
       </Card>
+      ) : null}
     </>
   );
 }
@@ -1362,7 +1394,7 @@ export function StockReportDetailTables({
                       </MobileCard>
                     ))}
                   </div>
-                  <div className={`${tableWrap} hidden sm:block`}>
+                  <div className={`${tableWrap} hidden lg:block`}>
                     <table className="min-w-full border-collapse">
                       <thead>
                         <tr>
@@ -1464,7 +1496,7 @@ export function StockReportDetailTables({
                       </MobileCard>
                     ))}
                   </div>
-                  <div className={`${tableWrap} hidden sm:block`}>
+                  <div className={`${tableWrap} hidden lg:block`}>
                     <table className="min-w-full border-collapse">
                       <thead>
                         <tr>
@@ -1555,7 +1587,7 @@ export function StockReportDetailTables({
                       </MobileCard>
                     ))}
                   </div>
-                  <div className={`${tableWrap} hidden sm:block`}>
+                  <div className={`${tableWrap} hidden lg:block`}>
                     <table className="min-w-full border-collapse">
                       <thead>
                         <tr>
@@ -1671,7 +1703,7 @@ export function StockReportDetailTables({
                       </MobileCard>
                     ))}
                   </div>
-                  <div className={`${tableWrap} hidden sm:block`}>
+                  <div className={`${tableWrap} hidden lg:block`}>
                     <table className="min-w-full border-collapse">
                       <thead>
                         <tr>
@@ -1771,7 +1803,7 @@ export function StockReportDetailTables({
                       </MobileCard>
                     ))}
                   </div>
-                  <div className={`${tableWrap} hidden sm:block`}>
+                  <div className={`${tableWrap} hidden lg:block`}>
                     <table className="min-w-full border-collapse">
                       <thead>
                         <tr>
