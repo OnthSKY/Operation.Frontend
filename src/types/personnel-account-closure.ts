@@ -9,7 +9,38 @@ export type PersonnelEmploymentTerm = {
   currencyCode: string;
   salaryType: string;
   employmentType: string;
+  isManualEmployerCostOverride: boolean;
+  manualTotalEmployerCost: number | null;
+  manualOverrideNote: string | null;
   isOpen: boolean;
+};
+
+/** POST /api/personnel/{id}/salary-terms */
+export type CreatePersonnelEmploymentTermBody = {
+  validFrom: string;
+  arrivalDate: string;
+  branchId?: number | null;
+  salary?: number | null;
+  currencyCode: string;
+  salaryType: string;
+  employmentType: string;
+  isManualEmployerCostOverride: boolean;
+  manualTotalEmployerCost?: number | null;
+  manualOverrideNote?: string | null;
+};
+
+/** PUT /api/personnel/{id}/salary-terms/{termId} */
+export type UpdatePersonnelEmploymentTermBody = {
+  validFrom?: string | null;
+  arrivalDate?: string | null;
+  branchId?: number | null;
+  salary?: number | null;
+  currencyCode: string;
+  salaryType: string;
+  employmentType: string;
+  isManualEmployerCostOverride: boolean;
+  manualTotalEmployerCost?: number | null;
+  manualOverrideNote?: string | null;
 };
 
 /** GET /api/personnel/{id}/account-closure-preview */

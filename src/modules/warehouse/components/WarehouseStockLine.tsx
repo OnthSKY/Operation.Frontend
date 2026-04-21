@@ -53,8 +53,9 @@ type TransferInput = {
   lines: { productId: number; quantity: number }[];
   movementDate: string;
   description?: string | null;
-  checkedByPersonnelId: number;
-  approvedByPersonnelId: number;
+  transportedByPersonnelId: number;
+  sentByPersonnelId: number;
+  receivedByPersonnelId: number;
   freightAmount?: number | null;
   freightExpensePaymentSource?: string | null;
   freightExpensePocketPersonnelId?: number | null;
@@ -98,8 +99,9 @@ export function WarehouseStockLine({
   const [tDesc, setTDesc] = useState("");
   const [inCheckedBy, setInCheckedBy] = useState("");
   const [inApprovedBy, setInApprovedBy] = useState("");
-  const [trCheckedBy, setTrCheckedBy] = useState("");
-  const [trApprovedBy, setTrApprovedBy] = useState("");
+  const [trTransportedBy, setTrTransportedBy] = useState("");
+  const [trSentBy, setTrSentBy] = useState("");
+  const [trReceivedBy, setTrReceivedBy] = useState("");
   const [freightAmount, setFreightAmount] = useState("");
   const [freightPay, setFreightPay] = useState<WarehouseFreightPaymentSource>("REGISTER");
   const [freightPocket, setFreightPocket] = useState("");
@@ -129,8 +131,9 @@ export function WarehouseStockLine({
     setBranchId("");
     setTQty("1");
     setTDesc("");
-    setTrCheckedBy("");
-    setTrApprovedBy("");
+    setTrTransportedBy("");
+    setTrSentBy("");
+    setTrReceivedBy("");
     setFreightAmount("");
     setFreightPay("REGISTER");
     setFreightPocket("");
@@ -243,10 +246,18 @@ export function WarehouseStockLine({
       notify.error(t("warehouse.invalidQuantity"));
       return;
     }
-    const ck = Number(trCheckedBy);
-    const ap = Number(trApprovedBy);
-    if (!Number.isFinite(ck) || ck <= 0 || !Number.isFinite(ap) || ap <= 0) {
-      notify.error(t("warehouse.personnelVerifierRequired"));
+    const transportedBy = Number(trTransportedBy);
+    const sentBy = Number(trSentBy);
+    const receivedBy = Number(trReceivedBy);
+    if (
+      !Number.isFinite(transportedBy) ||
+      transportedBy <= 0 ||
+      !Number.isFinite(sentBy) ||
+      sentBy <= 0 ||
+      !Number.isFinite(receivedBy) ||
+      receivedBy <= 0
+    ) {
+      notify.error(t("warehouse.transferPersonnelRolesRequired"));
       return;
     }
     const frN = Number(freightAmount.replace(",", "."));
@@ -268,8 +279,9 @@ export function WarehouseStockLine({
         lines: [{ productId: row.productId, quantity: n }],
         movementDate,
         description: tDesc.trim() ? tDesc.trim() : null,
-        checkedByPersonnelId: ck,
-        approvedByPersonnelId: ap,
+        transportedByPersonnelId: transportedBy,
+        sentByPersonnelId: sentBy,
+        receivedByPersonnelId: receivedBy,
         ...(hasFreight
           ? {
               freightAmount: frN,
@@ -570,22 +582,32 @@ export function WarehouseStockLine({
           disabled={off}
         />
         <Select
-          label={t("warehouse.checkedByPersonnel")}
+          label={t("warehouse.transportedByPersonnel")}
           labelRequired
-          name={`wh-tr-ck-${warehouseId}-${row.productId}`}
+          name={`wh-tr-transported-${warehouseId}-${row.productId}`}
           options={personnelSelectOptions}
-          value={trCheckedBy}
-          onChange={(e) => setTrCheckedBy(e.target.value)}
+          value={trTransportedBy}
+          onChange={(e) => setTrTransportedBy(e.target.value)}
           onBlur={() => {}}
           disabled={off}
         />
         <Select
-          label={t("warehouse.approvedByPersonnel")}
+          label={t("warehouse.sentByPersonnel")}
           labelRequired
-          name={`wh-tr-ap-${warehouseId}-${row.productId}`}
+          name={`wh-tr-sent-${warehouseId}-${row.productId}`}
           options={personnelSelectOptions}
-          value={trApprovedBy}
-          onChange={(e) => setTrApprovedBy(e.target.value)}
+          value={trSentBy}
+          onChange={(e) => setTrSentBy(e.target.value)}
+          onBlur={() => {}}
+          disabled={off}
+        />
+        <Select
+          label={t("warehouse.receivedByPersonnel")}
+          labelRequired
+          name={`wh-tr-received-${warehouseId}-${row.productId}`}
+          options={personnelSelectOptions}
+          value={trReceivedBy}
+          onChange={(e) => setTrReceivedBy(e.target.value)}
           onBlur={() => {}}
           disabled={off}
         />

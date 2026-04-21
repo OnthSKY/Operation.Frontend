@@ -231,6 +231,11 @@ export const warehouse = {
   transferFreightNote: "Nakliye notu (isteğe bağlı)",
   transferFreightNotePlaceholder: "ör. kargo firması, irsaliye no",
   transferFreightPocketRequired: "Cebinden ödeme seçildiğinde personel seçilmelidir.",
+  transportedByPersonnel: "Taşıma yapan personel",
+  sentByPersonnel: "Depodan gönderen personel",
+  receivedByPersonnel: "Teslim alan personel",
+  transferPersonnelRolesRequired:
+    "Taşıma yapan, depodan gönderen ve teslim alan personeli seçin.",
   checkedByPersonnel: "Kontrol eden personel",
   approvedByPersonnel: "Onaylayan personel",
   personnelPickPlaceholder: "— Seçin —",

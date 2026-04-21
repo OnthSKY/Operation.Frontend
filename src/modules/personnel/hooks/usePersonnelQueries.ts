@@ -13,11 +13,14 @@ import { dashboardSummaryKeys } from "@/modules/dashboard/query-keys";
 import { reportsKeys } from "@/modules/reports/query-keys";
 import {
   closePersonnelYearAccount,
+  createPersonnelEmploymentTerm,
+  deleteOpenPersonnelEmploymentTerm,
   fetchPersonnelAccountClosurePreview,
   fetchPersonnelEmploymentTerms,
   fetchPersonnelYearAccountClosures,
   fetchPersonnelYearAccountPreview,
   reopenPersonnelYearAccount,
+  updatePersonnelEmploymentTerm,
   uploadPersonnelYearClosurePdf,
   type ClosePersonnelYearAccountBody,
 } from "@/modules/personnel/api/personnel-account-closure-api";
@@ -53,6 +56,10 @@ import type {
   CreatePersonnelInput,
   UpdatePersonnelInput,
 } from "@/types/personnel";
+import type {
+  CreatePersonnelEmploymentTermBody,
+  UpdatePersonnelEmploymentTermBody,
+} from "@/types/personnel-account-closure";
 
 export type PersonnelListFilters = {
   status: "all" | "active" | "passive";
@@ -543,6 +550,52 @@ export function usePersonnelEmploymentTerms(
     queryKey: personnelKeys.employmentTerms(personnelId),
     queryFn: () => fetchPersonnelEmploymentTerms(personnelId),
     enabled: enabled && personnelId > 0,
+  });
+}
+
+function invalidatePersonnelAfterEmploymentTermChange(
+  qc: ReturnType<typeof useQueryClient>,
+  personnelId: number
+) {
+  void qc.invalidateQueries({ queryKey: personnelKeys.employmentTerms(personnelId) });
+  void qc.invalidateQueries({ queryKey: personnelKeys.detail(personnelId) });
+  void qc.invalidateQueries({ queryKey: personnelKeys.listRoot() });
+}
+
+export function useCreatePersonnelEmploymentTerm(personnelId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: CreatePersonnelEmploymentTermBody) =>
+      createPersonnelEmploymentTerm(personnelId, body),
+    onSuccess: () => {
+      invalidatePersonnelAfterEmploymentTermChange(qc, personnelId);
+    },
+  });
+}
+
+export function useUpdatePersonnelEmploymentTerm(personnelId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      termId,
+      body,
+    }: {
+      termId: number;
+      body: UpdatePersonnelEmploymentTermBody;
+    }) => updatePersonnelEmploymentTerm(personnelId, termId, body),
+    onSuccess: () => {
+      invalidatePersonnelAfterEmploymentTermChange(qc, personnelId);
+    },
+  });
+}
+
+export function useDeleteOpenPersonnelEmploymentTerm(personnelId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => deleteOpenPersonnelEmploymentTerm(personnelId),
+    onSuccess: () => {
+      invalidatePersonnelAfterEmploymentTermChange(qc, personnelId);
+    },
   });
 }
 

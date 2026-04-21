@@ -354,6 +354,38 @@ export const personnel = {
   seasonArrivalDate: "Arrival date for this tourism season",
   seasonArrivalHint:
     "The day they actually started / arrived for this season, even if already on payroll. Insurance intake follows this date.",
+  seasonArrivalsTitle: "Tourism season arrival dates",
+  seasonArrivalsIntro:
+    "Each row is an employment period; “Season arrival” is when they joined the branch / started for that tourism season. You can edit the current period’s arrival or add a new period (salary and settings carry forward from the current period). Trash: removes the latest period; blocked if monthly salary snapshots exist.",
+  seasonArrivalsColArrival: "Season arrival",
+  seasonArrivalsColValidFrom: "Period start",
+  seasonArrivalsColValidTo: "Period end",
+  seasonArrivalsColStatus: "Status",
+  seasonArrivalsColActions: "Actions",
+  seasonArrivalsStatusOpen: "Current",
+  seasonArrivalsStatusClosed: "Closed",
+  seasonArrivalsOpenEnded: "Open",
+  seasonArrivalsSaveArrival: "Save arrival",
+  seasonArrivalsRevertTooltip: "Undo the latest employment period",
+  seasonArrivalsRevertBlockedSingleTerm: "Only one employment period exists.",
+  seasonArrivalsAddSectionTitle: "New season arrival (new period)",
+  seasonArrivalsAddHint:
+    "“Period start” must be after the current period start (now: {date}).",
+  seasonArrivalsNewValidFrom: "New period start",
+  seasonArrivalsNewArrival: "New arrival date",
+  seasonArrivalsAddSubmit: "Add period",
+  seasonArrivalsSalaryCarryNote:
+    "Salary and payroll settings are copied from the current period for the new row.",
+  seasonArrivalsSalaryCarryNoteWithBranch:
+    "Salary and payroll settings are copied from the current period. Branch: {branch}.",
+  seasonArrivalsInvalidDate: "Please fill in the date fields completely.",
+  seasonArrivalsSaveSuccess: "Season arrival date updated.",
+  seasonArrivalsAddSuccess: "New period and arrival date added.",
+  seasonArrivalsRevertConfirmTitle: "Remove latest employment period",
+  seasonArrivalsRevertConfirmMessage:
+    "The current period will be deleted and the previous one reopened. If monthly salary snapshots exist for this period, the action is blocked. Continue?",
+  seasonArrivalsRevertConfirm: "Yes, remove",
+  seasonArrivalsRevertSuccess: "Latest period removed; previous period reopened.",
   fieldSalary: "Salary (optional)",
   fieldBranch: "Branch (optional)",
   branchNone: "No branch",
@@ -715,6 +747,7 @@ export const personnel = {
   detailCashPhysicalPassiveNotice:
     "Inactive record: new pool actions are disabled; historical lines are shown read-only.",
   detailTabInsurance: "Insurance",
+  detailTabSeasonArrivals: "Season arrival",
   detailInsuranceProfileHint:
     "Open the «Insurance» tab for dates, intake, and coverage periods.",
   detailTabCosts: "Costs",

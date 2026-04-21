@@ -30,6 +30,7 @@ import {
   type PersonnelHandoverPatronTransferOpen,
 } from "@/modules/personnel/components/PersonnelHandoverPatronTransferDialog";
 import { PersonnelNotesTab } from "@/modules/personnel/components/PersonnelNotesTab";
+import { PersonnelSeasonArrivalsTab } from "@/modules/personnel/components/PersonnelSeasonArrivalsTab";
 import {
   personnelNationalIdPhotoUrl,
   personnelProfilePhotoUrl,
@@ -124,6 +125,8 @@ export type PersonnelDetailTabId =
   /** Kasada personele devredilen fiziksel nakit, havuz ve devir işlemleri. */
   | "personnelCashPhysical"
   | "insurance"
+  /** Turizm sezonu geliş tarihleri (istihdam dönemleri). */
+  | "seasonArrivals"
   /** Avans listesi + personele yazılmış gider satırları (tek sekme). */
   | "costs"
   /** Takvim yılı hesap kesimi (kapanış) kayıtları. */
@@ -1092,6 +1095,7 @@ export function PersonnelDetailModal({
                 {tabBtn("managerSummary", t("personnel.detailTabManagerSummary"))}
                 {tabBtn("personnelCashPhysical", t("personnel.detailTabPersonnelCashPhysical"))}
                 {tabBtn("insurance", t("personnel.detailTabInsurance"))}
+                {tabBtn("seasonArrivals", t("personnel.detailTabSeasonArrivals"))}
                 {tabBtn("costs", t("personnel.detailTabCosts"))}
                 {tabBtn("yearClosures", t("personnel.detailTabYearClosures"))}
                 {tabBtn("notes", t("personnel.detailTabNotes"))}
@@ -1743,6 +1747,13 @@ export function PersonnelDetailModal({
                       )}
                     </article>
                   </div>
+                ) : tab === "seasonArrivals" ? (
+                  <PersonnelSeasonArrivalsTab
+                    personnelId={personnel.id}
+                    active={tab === "seasonArrivals"}
+                    readOnly={personnel.isDeleted}
+                    branchNameById={branchNameById}
+                  />
                 ) : tab === "costs" ? (
                   <div className="min-w-0 space-y-4 pb-2">
                     <section className="min-w-0 space-y-4">

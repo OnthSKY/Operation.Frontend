@@ -359,6 +359,38 @@ export const personnel = {
   seasonArrivalDate: "Bu turizm sezonuna geliş tarihi",
   seasonArrivalHint:
     "Şirkette daha önce kayıtlı olsa bile, bu sezon için fiilen işe başladığı / şubeye geldiği gün. Sigorta başlangıcı bu tarihe göre düşünülür.",
+  seasonArrivalsTitle: "Turizm sezonu geliş tarihleri",
+  seasonArrivalsIntro:
+    "Her satır bir istihdam dönemidir; «Sezon gelişi» turizm sezonunda şubeye geliş / çalışmaya başlama tarihidir. Güncel dönem için tarihi düzenleyebilir veya yeni dönem ekleyebilirsiniz (maaş ve tür bilgileri güncel dönemden devralınır). Çöp kutusu: son eklenen dönemi kaldırır; maaş ayı hesapları oluştuysa engellenir.",
+  seasonArrivalsColArrival: "Sezon gelişi",
+  seasonArrivalsColValidFrom: "Dönem başı",
+  seasonArrivalsColValidTo: "Dönem sonu",
+  seasonArrivalsColStatus: "Durum",
+  seasonArrivalsColActions: "İşlemler",
+  seasonArrivalsStatusOpen: "Güncel",
+  seasonArrivalsStatusClosed: "Kapalı",
+  seasonArrivalsOpenEnded: "Açık",
+  seasonArrivalsSaveArrival: "Gelişi kaydet",
+  seasonArrivalsRevertTooltip: "Son istihdam dönemini geri al",
+  seasonArrivalsRevertBlockedSingleTerm: "Yalnızca tek istihdam dönemi var.",
+  seasonArrivalsAddSectionTitle: "Yeni sezon gelişi (yeni dönem)",
+  seasonArrivalsAddHint:
+    "«Dönem başı» güncel dönemin başlangıcından sonra olmalıdır (şu an: {date}).",
+  seasonArrivalsNewValidFrom: "Yeni dönem başlangıcı",
+  seasonArrivalsNewArrival: "Yeni geliş tarihi",
+  seasonArrivalsAddSubmit: "Dönem ekle",
+  seasonArrivalsSalaryCarryNote:
+    "Yeni dönemde maaş ve SGK hesap türü güncel dönemle aynı devralınır.",
+  seasonArrivalsSalaryCarryNoteWithBranch:
+    "Yeni dönemde maaş ve SGK hesap türü güncel dönemle aynı devralınır. Şube: {branch}.",
+  seasonArrivalsInvalidDate: "Tarih alanlarını tam doldurun.",
+  seasonArrivalsSaveSuccess: "Sezon geliş tarihi güncellendi.",
+  seasonArrivalsAddSuccess: "Yeni dönem ve geliş tarihi eklendi.",
+  seasonArrivalsRevertConfirmTitle: "Son istihdam dönemini kaldır",
+  seasonArrivalsRevertConfirmMessage:
+    "Güncel dönem silinir; bir önceki dönem yeniden açılır. Bu dönem için maaş ayı hesapları varsa işlem yapılamaz. Devam edilsin mi?",
+  seasonArrivalsRevertConfirm: "Evet, kaldır",
+  seasonArrivalsRevertSuccess: "Son dönem kaldırıldı; önceki dönem yeniden açıldı.",
   fieldSalary: "Maaş (isteğe bağlı)",
   fieldBranch: "Şube (isteğe bağlı)",
   branchNone: "Şube yok",
@@ -723,6 +755,7 @@ export const personnel = {
   detailCashPhysicalPassiveNotice:
     "Pasif kayıt: yeni devir veya havuz işlemi açılamaz; geçmiş satırlar salt okunur listelenir.",
   detailTabInsurance: "Sigorta",
+  detailTabSeasonArrivals: "Sezon gelişi",
   detailInsuranceProfileHint:
     "Tarihler, süreç ve dönem kayıtları için «Sigorta» sekmesine geçin.",
   detailTabCosts: "Maliyetler",

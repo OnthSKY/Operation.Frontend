@@ -12,7 +12,6 @@ import { Card } from "@/shared/components/Card";
 import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import {
   TABLE_TOOLBAR_ICON_BTN,
-  TABLE_TOOLBAR_ICON_LINK,
   TableToolbarRow,
 } from "@/shared/components/TableToolbar";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
@@ -23,9 +22,8 @@ import { detailOpenIconButtonClass, PencilIcon, PlusIcon } from "@/shared/ui/Eye
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Tooltip } from "@/shared/ui/Tooltip";
-import { ToolbarGlyphArrowLeft, ToolbarGlyphPackage } from "@/shared/ui/ToolbarGlyph";
+import { ToolbarGlyphPackage } from "@/shared/ui/ToolbarGlyph";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
-import Link from "next/link";
 import { useMemo, useState } from "react";
 
 type TreeNode = ProductCategory & { children: ProductCategory[] };
@@ -165,15 +163,6 @@ export function ProductCategoriesScreen() {
             ) : tree.length === 0 ? (
               <Card title={t("products.categoriesPage.title")}>
                 <TableToolbarRow className="mb-4">
-                  <Tooltip content={t("products.categoriesPage.backToProducts")} delayMs={200}>
-                    <Link
-                      href="/products"
-                      className={TABLE_TOOLBAR_ICON_LINK}
-                      aria-label={t("products.categoriesPage.backToProducts")}
-                    >
-                      <ToolbarGlyphArrowLeft className="h-5 w-5" />
-                    </Link>
-                  </Tooltip>
                   <Tooltip content={t("products.categoriesPage.addRoot")} delayMs={200}>
                     <Button
                       type="button"
@@ -190,15 +179,6 @@ export function ProductCategoriesScreen() {
             ) : (
               <>
                 <TableToolbarRow className="mb-4">
-                  <Tooltip content={t("products.categoriesPage.backToProducts")} delayMs={200}>
-                    <Link
-                      href="/products"
-                      className={TABLE_TOOLBAR_ICON_LINK}
-                      aria-label={t("products.categoriesPage.backToProducts")}
-                    >
-                      <ToolbarGlyphArrowLeft className="h-5 w-5" />
-                    </Link>
-                  </Tooltip>
                   <Tooltip content={t("products.categoriesPage.addRoot")} delayMs={200}>
                     <Button
                       type="button"

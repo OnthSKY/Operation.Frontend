@@ -230,6 +230,11 @@ export const warehouse = {
   transferFreightNote: "Freight note (optional)",
   transferFreightNotePlaceholder: "e.g. carrier, invoice no.",
   transferFreightPocketRequired: "Select the staff member when freight is paid from pocket.",
+  transportedByPersonnel: "Transported by (personnel)",
+  sentByPersonnel: "Sent from warehouse by (personnel)",
+  receivedByPersonnel: "Received by (personnel)",
+  transferPersonnelRolesRequired:
+    "Select transport, sender, and receiver personnel.",
   checkedByPersonnel: "Checked by (personnel)",
   approvedByPersonnel: "Approved by (personnel)",
   personnelPickPlaceholder: "— Select —",
