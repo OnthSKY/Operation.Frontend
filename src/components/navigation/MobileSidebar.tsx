@@ -15,6 +15,8 @@ import {
   type NavBadgeState,
 } from "./navigation-utils";
 import type { NavigationItem } from "./navigation-mapper";
+import { useSystemBrandingQuery } from "@/modules/admin/hooks/useSystemBrandingQuery";
+import { SidebarBrandingLogo } from "@/shared/components/SidebarBrandingLogo";
 
 type MobileSidebarProps = {
   open: boolean;
@@ -27,6 +29,9 @@ export function MobileSidebar({ open, onClose, badgeState }: MobileSidebarProps)
   const pathname = usePathname() ?? "/";
   const { user } = useAuth();
   const { t } = useI18n();
+  const { data: branding, isSuccess: brandingLoaded } = useSystemBrandingQuery(Boolean(user));
+  const brandingTitle = branding?.companyName?.trim() || t("common.appName");
+  const brandingIsCustom = Boolean(branding?.companyName?.trim());
   const panelRef = useRef<HTMLElement | null>(null);
   const navScrollRef = useRef<HTMLDivElement | null>(null);
   const savedScrollTop = useRef(0);
@@ -140,8 +145,26 @@ export function MobileSidebar({ open, onClose, badgeState }: MobileSidebarProps)
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex min-h-14 items-center justify-between border-b border-zinc-200/80 bg-white/80 px-4">
-          <p className="text-sm font-semibold text-zinc-900">{t("nav.mainNav")}</p>
+        <div className="flex min-h-14 items-center justify-between gap-2 border-b border-zinc-200/80 bg-white/80 px-4">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            {brandingLoaded && branding?.hasLogo ? (
+              <SidebarBrandingLogo
+                hasLogo
+                updatedAtUtc={branding.updatedAtUtc}
+                className="h-9 w-9 shrink-0 rounded-lg bg-white object-contain ring-1 ring-zinc-200/70"
+              />
+            ) : null}
+            <p
+              className={
+                brandingIsCustom
+                  ? "min-w-0 flex-1 truncate text-sm font-bold leading-tight text-zinc-900"
+                  : "min-w-0 flex-1 truncate text-[0.65rem] font-bold uppercase tracking-[0.18em] text-zinc-600"
+              }
+              title={brandingTitle}
+            >
+              {brandingTitle}
+            </p>
+          </div>
           <button
             type="button"
             className="min-h-11 rounded-lg px-3 text-sm font-medium text-zinc-600 hover:bg-zinc-100"

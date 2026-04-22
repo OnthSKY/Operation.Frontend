@@ -16,6 +16,8 @@ import {
 } from "./navigation-utils";
 import type { NavigationItem } from "./navigation-mapper";
 import { Tooltip } from "@/shared/ui/Tooltip";
+import { useSystemBrandingQuery } from "@/modules/admin/hooks/useSystemBrandingQuery";
+import { SidebarBrandingLogo } from "@/shared/components/SidebarBrandingLogo";
 
 export function DesktopSidebar({ badgeState }: { badgeState: NavBadgeState }) {
   const STORAGE_GROUPS_KEY = "ops.nav.desktop.openGroups";
@@ -23,6 +25,9 @@ export function DesktopSidebar({ badgeState }: { badgeState: NavBadgeState }) {
   const pathname = usePathname() ?? "/";
   const { user } = useAuth();
   const { t } = useI18n();
+  const { data: branding, isSuccess: brandingLoaded } = useSystemBrandingQuery(Boolean(user));
+  const brandingTitle = branding?.companyName?.trim() || t("common.appName");
+  const brandingIsCustom = Boolean(branding?.companyName?.trim());
   const navRef = useRef<HTMLElement | null>(null);
   const sortedItems = useMemo(
     () => getVisibleNavItems(user, t),
@@ -113,6 +118,46 @@ export function DesktopSidebar({ badgeState }: { badgeState: NavBadgeState }) {
           }
         }}
       >
+        <div
+          className={`mb-2 border-b border-zinc-100 pb-2 ${collapsed ? "flex flex-col items-center gap-2" : ""}`}
+        >
+          {collapsed ? (
+            <Tooltip content={brandingTitle} side="right">
+              <div className="flex justify-center" aria-label={brandingTitle}>
+                {brandingLoaded && branding?.hasLogo ? (
+                  <SidebarBrandingLogo
+                    hasLogo
+                    updatedAtUtc={branding.updatedAtUtc}
+                    className="h-9 w-9 rounded-lg bg-white object-contain ring-1 ring-zinc-200/70"
+                  />
+                ) : (
+                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-indigo-700 text-[10px] font-bold uppercase leading-none text-white">
+                    {brandingTitle.trim().slice(0, 2) || "—"}
+                  </span>
+                )}
+              </div>
+            </Tooltip>
+          ) : (
+            <div className="flex min-w-0 items-center gap-2 px-1">
+              {brandingLoaded && branding?.hasLogo ? (
+                <SidebarBrandingLogo
+                  hasLogo
+                  updatedAtUtc={branding.updatedAtUtc}
+                  className="h-10 w-10 shrink-0 rounded-lg bg-white object-contain ring-1 ring-zinc-200/70"
+                />
+              ) : null}
+              <p
+                className={
+                  brandingIsCustom
+                    ? "min-w-0 flex-1 truncate text-sm font-bold leading-tight text-zinc-900"
+                    : "min-w-0 flex-1 text-[0.65rem] font-bold uppercase tracking-[0.18em] text-zinc-600"
+                }
+              >
+                {brandingTitle}
+              </p>
+            </div>
+          )}
+        </div>
         <div className={`mb-1 flex items-center ${collapsed ? "justify-center" : "justify-end"} px-1`}>
           <Tooltip content={collapsed ? "Expand sidebar" : "Collapse sidebar"} side="right">
             <button
