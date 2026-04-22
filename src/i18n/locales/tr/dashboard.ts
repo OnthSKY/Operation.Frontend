@@ -7,6 +7,10 @@ export const dashboard = {
   scopeFilterBarTitle: "Şube kasası — nasıl toplansın",
   scopeFilterBarHint:
     "Tek gün: bir takvim tarihi. Tek sezon: şube bazında turizm dönemi toplamı. Birden fazla sezon: seçtiğiniz yılların bu toplamlarının özeti. Tüm veriler: birikmiş net ve güncel kayıt özetleri; şube kasası toplamı bu modda yoktur.",
+  filtersActiveCount: "{{count}} aktif",
+  filtersClearAll: "Tümünü temizle",
+  filtersApply: "Uygula",
+  filtersDetail: "Detay filtreler",
   cashFilterModeAria: "Kasa özeti toplama türü",
   cashFilterModeDay: "Tek gün",
   cashFilterModeSeasonSingle: "Tek sezon",

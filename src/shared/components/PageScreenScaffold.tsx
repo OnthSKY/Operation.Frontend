@@ -20,6 +20,7 @@ type Props = {
   className?: string;
   /** Bölümlerin üstünde (örn. geri linki) */
   top?: ReactNode;
+  variant?: "dashboard" | "report" | "form";
 };
 
 /**
@@ -32,6 +33,7 @@ export function PageScreenScaffold({
   main,
   className,
   top,
+  variant = "report",
 }: Props) {
   const { t } = useI18n();
   const rid = useId().replace(/:/g, "");
@@ -60,7 +62,10 @@ export function PageScreenScaffold({
   return (
     <div
       className={cn(
-        "mx-auto flex w-full min-w-0 max-w-full flex-col gap-6 app-page-max",
+        "flex w-full min-w-0 flex-col gap-6",
+        variant === "dashboard" && "w-full px-4 sm:px-6",
+        variant === "report" && "w-full px-4 sm:px-6",
+        variant === "form" && "w-full px-4 sm:px-6",
         className
       )}
     >

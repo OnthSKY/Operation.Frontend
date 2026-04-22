@@ -20,6 +20,7 @@ import { validateImageFileForUpload } from "@/shared/lib/validate-image-upload";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { apiUserFacingMessage } from "@/shared/lib/api-user-facing-message";
 import { notify } from "@/shared/lib/notify";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
 import { Input } from "@/shared/ui/Input";
@@ -121,6 +122,17 @@ export function WarehouseListDepoInModal({
 
   const disabled = stockLoading || peopleLoading || pending || movement.isPending;
   const desc = whName ? `${whName} · ${t("warehouse.depoInModalHint")}` : t("warehouse.depoInModalHint");
+  const depoInDirty =
+    lines.some((l) => l.productId.trim() !== "" || l.qty.trim() !== "1") ||
+    inCheckedBy.trim() !== "" ||
+    inApprovedBy.trim() !== "" ||
+    invoiceFile != null;
+  const requestDepoInClose = useDirtyGuard({
+    isDirty: depoInDirty,
+    isBlocked: pending || movement.isPending,
+    confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
+    onClose,
+  });
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -180,10 +192,7 @@ export function WarehouseListDepoInModal({
   return (
     <Modal
       open={open}
-      onClose={() => {
-        if (pending) return;
-        onClose();
-      }}
+      onClose={requestDepoInClose}
       titleId={DEPO_TITLE_ID}
       title={t("warehouse.actionDepoProductIn")}
       description={desc}
@@ -327,7 +336,7 @@ export function WarehouseListDepoInModal({
               variant="secondary"
               className="min-h-11 w-full sm:w-auto sm:min-w-[7rem]"
               disabled={disabled}
-              onClick={onClose}
+              onClick={requestDepoInClose}
             >
               {t("common.cancel")}
             </Button>
@@ -451,6 +460,22 @@ export function WarehouseListTransferModal({
     transfer.isPending ||
     inStockRows.length === 0;
   const desc = whName ? `${whName} · ${t("warehouse.transferModalHint")}` : t("warehouse.transferModalHint");
+  const transferDirty =
+    lines.some((l) => l.productId.trim() !== "" || l.qty.trim() !== "1") ||
+    branchId.trim() !== "" ||
+    tDesc.trim() !== "" ||
+    trTransportedBy.trim() !== "" ||
+    trSentBy.trim() !== "" ||
+    trReceivedBy.trim() !== "" ||
+    freightAmount.trim() !== "" ||
+    freightPocket.trim() !== "" ||
+    freightNote.trim() !== "";
+  const requestTransferClose = useDirtyGuard({
+    isDirty: transferDirty,
+    isBlocked: pending || transfer.isPending,
+    confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
+    onClose,
+  });
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -537,10 +562,7 @@ export function WarehouseListTransferModal({
   return (
     <Modal
       open={open}
-      onClose={() => {
-        if (pending) return;
-        onClose();
-      }}
+      onClose={requestTransferClose}
       titleId={TRANSFER_TITLE_ID}
       title={t("warehouse.transferRowTitle")}
       description={desc}
@@ -693,7 +715,7 @@ export function WarehouseListTransferModal({
               variant="secondary"
               className="min-h-11 w-full sm:w-auto sm:min-w-[7rem]"
               disabled={disabled}
-              onClick={onClose}
+              onClick={requestTransferClose}
             >
               {t("common.cancel")}
             </Button>

@@ -15,6 +15,7 @@ import {
 } from "@/modules/personnel/lib/settlement-print-season";
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
 import type { Personnel } from "@/types/personnel";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
@@ -185,11 +186,23 @@ export function PersonnelSettlementPrintModal({
         ? "border-violet-300 bg-violet-50 text-violet-900"
         : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
     );
+  const isDirty =
+    seasonChoice.trim() !== "" ||
+    scope !== "personnel" ||
+    personnelId.trim() !== "" ||
+    branchId.trim() !== "" ||
+    JSON.stringify(branchPdfOpts) !== JSON.stringify(defaultBranchSettlementPdfOptions());
+  const requestClose = useDirtyGuard({
+    isDirty,
+    isBlocked: busy,
+    confirmMessage: t("common.unsavedChangesConfirm"),
+    onClose,
+  });
 
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={requestClose}
       titleId={TITLE_ID}
       title={t("personnel.settlementPrintModalTitle")}
       description={t("personnel.settlementPrintModalIntro")}
@@ -283,7 +296,7 @@ export function PersonnelSettlementPrintModal({
             variant="secondary"
             className="w-full sm:w-auto"
             disabled={busy}
-            onClick={onClose}
+            onClick={requestClose}
           >
             {t("common.cancel")}
           </Button>

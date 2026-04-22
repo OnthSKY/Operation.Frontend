@@ -250,7 +250,8 @@ export function FinancialReportsShell({ children }: { children: ReactNode }) {
 
   return (
     <PageScreenScaffold
-      className="w-full min-w-0 app-page-max pb-6 pt-2 sm:pb-8 sm:pt-4 md:pt-0"
+      variant="report"
+      className="w-full min-w-0 pb-6 pt-2 sm:pb-8 sm:pt-4 md:pt-0"
       intro={
         <div className="space-y-3">
           <div className="flex items-start gap-2">

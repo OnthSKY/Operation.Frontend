@@ -5,6 +5,8 @@ import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { useCreateAdvance } from "@/modules/personnel/hooks/usePersonnelQueries";
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
 import type { Personnel } from "@/types/personnel";
+import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import {
   formatLocaleAmount,
   parseLocaleAmount,
@@ -62,7 +64,7 @@ export function AdvancePersonnelModal({
     register,
     handleSubmit,
     control,
-    formState: { errors },
+    formState: { errors, isDirty },
     reset,
     setValue,
     setFocus,
@@ -266,156 +268,158 @@ export function AdvancePersonnelModal({
       notify.error(toErrorMessage(e));
     }
   });
+  const resetForm = () =>
+    reset({
+      personnelId: "",
+      branchId: "",
+      sourceType: "CASH",
+      currencyCode: DEFAULT_CURRENCY,
+      advanceDate: localIsoDateTime(),
+      effectiveYear: currentCalendarYear(),
+      amount: "",
+      description: "",
+    });
+  const requestClose = useDirtyGuard({
+    isDirty,
+    isBlocked: createAdvance.isPending,
+    confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
+    onClose: () => {
+      resetForm();
+      onClose();
+    },
+  });
 
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={requestClose}
       titleId={TITLE_ID}
       title={t("personnel.advanceTitle")}
       description={t("personnel.advanceHint")}
       closeButtonLabel={t("common.close")}
+      className="w-full max-w-xl"
     >
-      <form className="mt-4 flex flex-col gap-3" onSubmit={onSubmit}>
-        <Select
-          label={t("nav.personnel")}
-          labelRequired
-          options={options}
-          name={personnelField.name}
-          value={String(personnelField.value ?? "")}
-          onChange={(e) => personnelField.onChange(e.target.value)}
-          onBlur={personnelField.onBlur}
-          ref={personnelField.ref}
-          error={errors.personnelId?.message}
+      <form onSubmit={onSubmit}>
+        <ModalFormLayout
+          body={
+            <>
+              <FormSection>
+                <Select
+                  label={t("nav.personnel")}
+                  labelRequired
+                  options={options}
+                  name={personnelField.name}
+                  value={String(personnelField.value ?? "")}
+                  onChange={(e) => personnelField.onChange(e.target.value)}
+                  onBlur={personnelField.onBlur}
+                  ref={personnelField.ref}
+                  error={errors.personnelId?.message}
+                />
+                <Select
+                  label={t("personnel.sourceType")}
+                  labelRequired
+                  options={sourceOptions}
+                  name={sourceField.name}
+                  value={String(sourceField.value ?? "CASH")}
+                  onChange={(e) => sourceField.onChange(e.target.value)}
+                  onBlur={sourceField.onBlur}
+                  ref={sourceField.ref}
+                  error={errors.sourceType?.message}
+                />
+                <Select
+                  label={t("personnel.branchForAdvance")}
+                  labelRequired={(sourceTypeWatch || "CASH").toUpperCase() === "CASH"}
+                  options={branchOptions}
+                  name={branchField.name}
+                  value={String(branchField.value ?? "")}
+                  onChange={(e) => branchField.onChange(e.target.value)}
+                  onBlur={branchField.onBlur}
+                  ref={branchField.ref}
+                  error={errors.branchId?.message}
+                />
+                {selectedPersonnel?.branchId != null && selectedPersonnel.branchId > 0 ? (
+                  <p className="text-xs text-zinc-500">{t("personnel.advanceBranchPrefilledHint")}</p>
+                ) : null}
+                {(sourceTypeWatch || "CASH").toUpperCase() !== "CASH" ? (
+                  <p className="text-xs text-zinc-500">{t("personnel.advanceBranchOptionalWhenNotCash")}</p>
+                ) : null}
+              </FormSection>
+              <FormSection>
+                <DateField
+                  label={t("personnel.advanceDate")}
+                  labelRequired
+                  required
+                  mode="datetime-local"
+                  {...register("advanceDate", { required: t("common.required") })}
+                  error={errors.advanceDate?.message}
+                />
+                <Input
+                  label={t("personnel.effectiveYear")}
+                  type="number"
+                  inputMode="numeric"
+                  min={1900}
+                  max={9999}
+                  step={1}
+                  labelRequired
+                  required
+                  {...register("effectiveYear", {
+                    required: t("common.required"),
+                    validate: (v) => {
+                      const n = Math.trunc(Number(v));
+                      if (!Number.isFinite(n) || n < 1900 || n > 9999) {
+                        return t("personnel.effectiveYearInvalid");
+                      }
+                      return true;
+                    },
+                  })}
+                  error={errors.effectiveYear?.message}
+                />
+                <p className="-mt-0.5 text-xs leading-relaxed text-zinc-500">{t("personnel.effectiveYearHint")}</p>
+                <Select
+                  label={t("personnel.advanceCurrency")}
+                  labelRequired
+                  options={currencyOptions}
+                  name={currencyField.name}
+                  value={String(currencyField.value ?? DEFAULT_CURRENCY)}
+                  onChange={(e) => currencyField.onChange(e.target.value)}
+                  onBlur={currencyField.onBlur}
+                  ref={currencyField.ref}
+                  error={errors.currencyCode?.message}
+                />
+                <Input
+                  label={t("personnel.amount")}
+                  labelRequired
+                  inputMode="decimal"
+                  autoComplete="off"
+                  name={amountField.name}
+                  value={amountField.value}
+                  onChange={(e) => amountField.onChange(e.target.value)}
+                  onBlur={(e) => {
+                    const n = parseLocaleAmount(e.target.value, locale);
+                    if (Number.isFinite(n) && n > 0) {
+                      const code = String(currencyCodeWatch ?? DEFAULT_CURRENCY).trim();
+                      amountField.onChange(formatLocaleAmount(n, locale, code || DEFAULT_CURRENCY));
+                    }
+                    amountField.onBlur();
+                  }}
+                  ref={amountField.ref}
+                  error={errors.amount?.message}
+                />
+                <Input label={t("personnel.note")} {...register("description")} error={errors.description?.message} />
+              </FormSection>
+            </>
+          }
+          footer={
+            <>
+              <Button type="button" variant="secondary" className="min-w-[120px]" onClick={requestClose}>
+                {t("common.cancel")}
+              </Button>
+              <Button type="submit" className="min-w-[120px]" disabled={createAdvance.isPending}>
+                {createAdvance.isPending ? t("common.saving") : t("common.submit")}
+              </Button>
+            </>
+          }
         />
-        <Select
-          label={t("personnel.sourceType")}
-          labelRequired
-          options={sourceOptions}
-          name={sourceField.name}
-          value={String(sourceField.value ?? "CASH")}
-          onChange={(e) => sourceField.onChange(e.target.value)}
-          onBlur={sourceField.onBlur}
-          ref={sourceField.ref}
-          error={errors.sourceType?.message}
-        />
-        <Select
-          label={t("personnel.branchForAdvance")}
-          labelRequired={(sourceTypeWatch || "CASH").toUpperCase() === "CASH"}
-          options={branchOptions}
-          name={branchField.name}
-          value={String(branchField.value ?? "")}
-          onChange={(e) => branchField.onChange(e.target.value)}
-          onBlur={branchField.onBlur}
-          ref={branchField.ref}
-          error={errors.branchId?.message}
-        />
-        {selectedPersonnel?.branchId != null && selectedPersonnel.branchId > 0 ? (
-          <p className="text-xs text-zinc-500">{t("personnel.advanceBranchPrefilledHint")}</p>
-        ) : null}
-        {(sourceTypeWatch || "CASH").toUpperCase() !== "CASH" ? (
-          <p className="text-xs text-zinc-500">
-            {t("personnel.advanceBranchOptionalWhenNotCash")}
-          </p>
-        ) : null}
-        <DateField
-          label={t("personnel.advanceDate")}
-          labelRequired
-          required
-          mode="datetime-local"
-          {...register("advanceDate", { required: t("common.required") })}
-          error={errors.advanceDate?.message}
-        />
-        <Input
-          label={t("personnel.effectiveYear")}
-          type="number"
-          inputMode="numeric"
-          min={1900}
-          max={9999}
-          step={1}
-          labelRequired
-          required
-          {...register("effectiveYear", {
-            required: t("common.required"),
-            validate: (v) => {
-              const n = Math.trunc(Number(v));
-              if (!Number.isFinite(n) || n < 1900 || n > 9999) {
-                return t("personnel.effectiveYearInvalid");
-              }
-              return true;
-            },
-          })}
-          error={errors.effectiveYear?.message}
-        />
-        <p className="-mt-0.5 text-xs leading-relaxed text-zinc-500">
-          {t("personnel.effectiveYearHint")}
-        </p>
-        <Select
-          label={t("personnel.advanceCurrency")}
-          labelRequired
-          options={currencyOptions}
-          name={currencyField.name}
-          value={String(currencyField.value ?? DEFAULT_CURRENCY)}
-          onChange={(e) => currencyField.onChange(e.target.value)}
-          onBlur={currencyField.onBlur}
-          ref={currencyField.ref}
-          error={errors.currencyCode?.message}
-        />
-        <Input
-          label={t("personnel.amount")}
-          labelRequired
-          inputMode="decimal"
-          autoComplete="off"
-          name={amountField.name}
-          value={amountField.value}
-          onChange={(e) => amountField.onChange(e.target.value)}
-          onBlur={(e) => {
-            const n = parseLocaleAmount(e.target.value, locale);
-            if (Number.isFinite(n) && n > 0) {
-              const code = String(currencyCodeWatch ?? DEFAULT_CURRENCY).trim();
-              amountField.onChange(
-                formatLocaleAmount(n, locale, code || DEFAULT_CURRENCY)
-              );
-            }
-            amountField.onBlur();
-          }}
-          ref={amountField.ref}
-          error={errors.amount?.message}
-        />
-        <Input
-          label={t("personnel.note")}
-          {...register("description")}
-          error={errors.description?.message}
-        />
-        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:justify-end">
-          <Button
-            type="button"
-            variant="secondary"
-            className="sm:min-w-[120px]"
-            onClick={() => {
-              reset({
-                personnelId: "",
-                branchId: "",
-                sourceType: "CASH",
-                currencyCode: DEFAULT_CURRENCY,
-                advanceDate: localIsoDateTime(),
-                effectiveYear: currentCalendarYear(),
-                amount: "",
-                description: "",
-              });
-              onClose();
-            }}
-          >
-            {t("common.cancel")}
-          </Button>
-          <Button
-            type="submit"
-            className="sm:min-w-[120px]"
-            disabled={createAdvance.isPending}
-          >
-            {createAdvance.isPending ? t("common.saving") : t("common.submit")}
-          </Button>
-        </div>
       </form>
     </Modal>
   );

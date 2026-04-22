@@ -113,24 +113,9 @@ body {
     }
   }
 
-  /* Ana içerik: mobilde ~max-w-4xl; lg+ ve ultra geniş ekranda eski 7xl tavanını aşar. */
+  /* Ana içerik: tüm kırılımlarda tam genişlik. */
   .app-page-max {
-    max-width: min(100%, 56rem);
-  }
-  @media (min-width: 1024px) {
-    .app-page-max {
-      max-width: min(100%, 92rem);
-    }
-  }
-  @media (min-width: 1280px) {
-    .app-page-max {
-      max-width: min(100%, 104rem);
-    }
-  }
-  @media (min-width: 1536px) {
-    .app-page-max {
-      max-width: min(100%, 118rem);
-    }
+    max-width: 100%;
   }
 }
 

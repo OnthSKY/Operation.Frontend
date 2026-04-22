@@ -2,6 +2,8 @@
 
 import { useI18n } from "@/i18n/context";
 import { useUpdatePersonnelInsurancePeriod } from "@/modules/personnel/hooks/usePersonnelQueries";
+import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
@@ -81,82 +83,88 @@ export function EditPersonnelInsurancePeriodModal({
   const title = isOpenPeriod
     ? t("personnel.insuranceClosePeriodTitle")
     : t("personnel.insuranceEditPeriodTitle");
+  const isDirty = end.trim() !== "" || notes.trim() !== "";
+  const requestClose = useDirtyGuard({
+    isDirty,
+    isBlocked: mut.isPending,
+    confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
+    onClose,
+  });
 
   if (!period) return null;
 
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={requestClose}
       narrow
       titleId="edit-insurance-period-title"
       title={title}
       description={t("personnel.insuranceEditPeriodHint")}
       closeButtonLabel={t("common.close")}
+      className="w-full max-w-lg"
     >
-      <div className="mt-4 flex flex-col gap-4">
-        {nameChip ? (
-          <div className="rounded-xl border border-zinc-200/90 bg-zinc-50 px-3 py-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-              {t("personnel.insuranceIntakeModalPersonCaption")}
-            </p>
-            <p className="truncate text-sm font-semibold text-zinc-900">{nameChip}</p>
-          </div>
-        ) : null}
-
-        <div className="rounded-xl border border-zinc-200/80 bg-white px-3 py-2 text-xs text-zinc-600">
-          <span className="font-medium text-zinc-700">
-            {t("personnel.insuranceAddPeriodStartLabel")}:{" "}
-          </span>
-          <span className="font-mono text-zinc-900">
-            {period.coverageStartDate.slice(0, 10)}
-          </span>
-        </div>
-
-        <div className="space-y-4 rounded-2xl border border-zinc-200/90 bg-zinc-50/60 p-4 sm:p-5">
-          <DateField
-            label={t("personnel.insuranceEditPeriodEndLabel")}
-            labelRequired
-            required
-            value={end}
-            onChange={(ev) => setEnd(ev.target.value)}
-          />
-          <p className="-mt-2 text-xs text-zinc-500">
-            {t("personnel.insuranceEditPeriodEndHelp")}
-          </p>
-          <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor="edit-ins-period-notes"
-              className="text-sm font-medium text-zinc-800"
-            >
-              {t("personnel.fieldInsurancePrerequisiteNotes")}
-            </label>
-            <textarea
-              id="edit-ins-period-notes"
-              className="min-h-[88px] w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-base text-zinc-900 shadow-sm outline-none transition-[border-color,box-shadow] placeholder:text-zinc-400 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20"
-              rows={3}
-              value={notes}
-              onChange={(ev) => setNotes(ev.target.value)}
-              autoComplete="off"
-              placeholder={t("personnel.insuranceEditPeriodNotesPlaceholder")}
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2 border-t border-zinc-100 pt-4 sm:flex-row sm:justify-end">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            {t("common.cancel")}
-          </Button>
-          <Button
-            type="button"
-            variant="primary"
-            disabled={mut.isPending}
-            onClick={() => void submit()}
-          >
-            {mut.isPending ? t("common.saving") : t("common.save")}
-          </Button>
-        </div>
-      </div>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void submit();
+        }}
+      >
+        <ModalFormLayout
+          body={
+            <>
+              <FormSection>
+                {nameChip ? (
+                  <div className="rounded-xl border border-zinc-200/90 bg-zinc-50 px-3 py-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                      {t("personnel.insuranceIntakeModalPersonCaption")}
+                    </p>
+                    <p className="truncate text-sm font-semibold text-zinc-900">{nameChip}</p>
+                  </div>
+                ) : null}
+                <div className="rounded-xl border border-zinc-200/80 bg-white px-3 py-2 text-xs text-zinc-600">
+                  <span className="font-medium text-zinc-700">{t("personnel.insuranceAddPeriodStartLabel")}: </span>
+                  <span className="font-mono text-zinc-900">{period.coverageStartDate.slice(0, 10)}</span>
+                </div>
+              </FormSection>
+              <FormSection>
+                <DateField
+                  label={t("personnel.insuranceEditPeriodEndLabel")}
+                  labelRequired
+                  required
+                  value={end}
+                  onChange={(ev) => setEnd(ev.target.value)}
+                />
+                <p className="-mt-2 text-xs text-zinc-500">{t("personnel.insuranceEditPeriodEndHelp")}</p>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="edit-ins-period-notes" className="text-sm font-medium text-zinc-800">
+                    {t("personnel.fieldInsurancePrerequisiteNotes")}
+                  </label>
+                  <textarea
+                    id="edit-ins-period-notes"
+                    className="min-h-[88px] w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-base text-zinc-900 shadow-sm outline-none transition-[border-color,box-shadow] placeholder:text-zinc-400 focus:border-emerald-500/60 focus:ring-2 focus:ring-emerald-500/20"
+                    rows={3}
+                    value={notes}
+                    onChange={(ev) => setNotes(ev.target.value)}
+                    autoComplete="off"
+                    placeholder={t("personnel.insuranceEditPeriodNotesPlaceholder")}
+                  />
+                </div>
+              </FormSection>
+            </>
+          }
+          footer={
+            <>
+              <Button type="button" variant="secondary" onClick={requestClose}>
+                {t("common.cancel")}
+              </Button>
+              <Button type="submit" variant="primary" disabled={mut.isPending}>
+                {mut.isPending ? t("common.saving") : t("common.save")}
+              </Button>
+            </>
+          }
+        />
+      </form>
     </Modal>
   );
 }

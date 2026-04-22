@@ -4,6 +4,7 @@ import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { useUpdatePersonnel } from "@/modules/personnel/hooks/usePersonnelQueries";
 import type { Branch } from "@/types/branch";
 import type { Personnel } from "@/types/personnel";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { cn } from "@/lib/cn";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
@@ -132,11 +133,21 @@ export function AssignPersonnelToBranchModal({
     setPending(null);
     setStep("pick");
   };
+  const isDirty =
+    step === "confirm" ||
+    selectedId != null ||
+    filter.trim() !== "";
+  const requestClose = useDirtyGuard({
+    isDirty,
+    isBlocked: updatePersonnel.isPending,
+    confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
+    onClose,
+  });
 
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={requestClose}
       titleId={TITLE_ID}
       title={t("branch.assignPersonnelTitle")}
       description={t("branch.assignPersonnelHint")}
@@ -280,7 +291,7 @@ export function AssignPersonnelToBranchModal({
               type="button"
               variant="secondary"
               className="min-h-12 w-full touch-manipulation sm:min-h-11 sm:w-auto sm:min-w-[120px]"
-              onClick={onClose}
+              onClick={requestClose}
             >
               {t("common.cancel")}
             </Button>

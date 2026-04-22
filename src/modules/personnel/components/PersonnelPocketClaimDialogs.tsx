@@ -20,6 +20,7 @@ import {
 import { defaultDateTimeFromInput, localIsoDate } from "@/shared/lib/local-iso-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
@@ -288,6 +289,17 @@ export function PersonnelPocketClaimToPatronDialog({
     amountExceeds ||
     (!amountMissing &&
       (!Number.isFinite(amountNum) || amountNum <= 0));
+  const requestClose = useDirtyGuard({
+    isDirty:
+      amount.trim() !== "" ||
+      description.trim() !== "" ||
+      transactionDate.trim() !== defaultDateTimeFromInput(localIsoDate()) ||
+      currencyCode.trim().toUpperCase() !==
+        ((defaultCurrencyCode ?? DEFAULT_CURRENCY).trim().toUpperCase() || DEFAULT_CURRENCY),
+    isBlocked: createTx.isPending,
+    confirmMessage: t("common.unsavedChangesConfirm"),
+    onClose,
+  });
 
   const onSubmit = async () => {
     if (amount.trim() === "") {
@@ -333,7 +345,7 @@ export function PersonnelPocketClaimToPatronDialog({
   return (
     <Modal
       open={dialogOpen}
-      onClose={onClose}
+      onClose={requestClose}
       titleId={TITLE_PATRON}
       title={t("personnel.pocketClaimToPatronDialogTitle")}
       description={t("personnel.pocketClaimToPatronDialogLead")}
@@ -402,7 +414,7 @@ export function PersonnelPocketClaimToPatronDialog({
           autoComplete="off"
         />
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="secondary" className="min-h-10" onClick={onClose}>
+          <Button type="button" variant="secondary" className="min-h-10" onClick={requestClose}>
             {t("common.cancel")}
           </Button>
           <Button
@@ -492,6 +504,18 @@ export function PersonnelPocketClaimToStaffDialog({
     amountExceeds ||
     (!amountMissing &&
       (!Number.isFinite(amountNum) || amountNum <= 0));
+  const requestClose = useDirtyGuard({
+    isDirty:
+      toPersonnelId.trim() !== "" ||
+      amount.trim() !== "" ||
+      description.trim() !== "" ||
+      transactionDate.trim() !== defaultDateTimeFromInput(localIsoDate()) ||
+      currencyCode.trim().toUpperCase() !==
+        ((defaultCurrencyCode ?? DEFAULT_CURRENCY).trim().toUpperCase() || DEFAULT_CURRENCY),
+    isBlocked: createTx.isPending,
+    confirmMessage: t("common.unsavedChangesConfirm"),
+    onClose,
+  });
 
   const onSubmit = async () => {
     const to = parseInt(toPersonnelId.trim(), 10);
@@ -547,7 +571,7 @@ export function PersonnelPocketClaimToStaffDialog({
   return (
     <Modal
       open={dialogOpen}
-      onClose={onClose}
+      onClose={requestClose}
       titleId={TITLE_STAFF}
       title={t("personnel.pocketClaimToStaffDialogTitle")}
       description={t("personnel.pocketClaimToStaffDialogLead")}
@@ -625,7 +649,7 @@ export function PersonnelPocketClaimToStaffDialog({
           autoComplete="off"
         />
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="secondary" className="min-h-10" onClick={onClose}>
+          <Button type="button" variant="secondary" className="min-h-10" onClick={requestClose}>
             {t("common.cancel")}
           </Button>
           <Button

@@ -3,6 +3,7 @@
 import { fillDashboardTemplate } from "@/modules/dashboard/components/dashboard-utils";
 import { MetricValue } from "@/modules/dashboard/components/DashboardMetricValue";
 import { DashboardStorySlide } from "@/modules/dashboard/components/DashboardStoryPrimitives";
+import { KpiCard, UI } from "@/modules/dashboard/components/dashboard-ui";
 import type { SummaryAggregateState } from "@/modules/dashboard/hooks/useTodayBranchesSummary";
 import type { Locale } from "@/i18n/messages";
 import { Card } from "@/shared/components/Card";
@@ -32,12 +33,17 @@ function StoryMetricCard({
 }) {
   return (
     <DashboardStorySlide>
-      <Card className={`h-full min-h-[11rem] bg-white/95 ${className ?? ""}`}>
-        {storyBadge(badge)}
-        <h3 className="text-base font-semibold leading-snug text-zinc-900">{title}</h3>
-        <p className="mt-1 text-sm leading-relaxed text-zinc-600">{description}</p>
-        <div className="mt-3 min-h-[3.25rem]">{children}</div>
-      </Card>
+      <KpiCard
+        className={`h-full min-h-[11rem] ${className ?? ""}`}
+        title={title}
+        description={
+          <div>
+            {storyBadge(badge)}
+            <p className="line-clamp-2 text-sm leading-relaxed text-zinc-500">{description}</p>
+          </div>
+        }
+        value={<div className="min-h-[3.25rem]">{children}</div>}
+      />
     </DashboardStorySlide>
   );
 }
@@ -128,11 +134,10 @@ export function DashboardDayStoryCard({
         scope: snapshotDateLabel,
       });
 
-  const gridClass =
-    "mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4";
+  const gridClass = "mt-4 grid grid-cols-1 gap-3 lg:grid-cols-4 lg:gap-4";
 
   return (
-    <div className="rounded-2xl border border-zinc-200/80 bg-gradient-to-br from-violet-50/90 via-white to-fuchsia-50/40 p-4 shadow-sm ring-1 ring-violet-200/25 sm:p-5">
+    <div className={`${UI.surface} p-4 shadow-sm sm:p-5`}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0">
           <h2 className="text-base font-semibold text-zinc-900 sm:text-lg">
@@ -195,12 +200,13 @@ export function DashboardDayStoryCard({
               dash="—"
               locale={locale}
               pick={(s) => s.totalIncome}
-              valueClassName="tabular-nums text-emerald-900 sm:text-3xl"
+              valueClassName="tabular-nums text-3xl font-bold text-emerald-900"
               footnote={sumBranchesFootnote}
               loadingLabel={t("common.loading")}
               emptyHint={t("dashboard.noBranches")}
               onRetry={onCashRetry}
               retryLabel={t("common.retry")}
+              zeroHint={t("dashboard.noData")}
             />
             {state.kind === "ok" ? (
               <dl className="mt-3 space-y-1.5 border-t border-zinc-200/80 pt-3 text-sm">
@@ -236,12 +242,13 @@ export function DashboardDayStoryCard({
               dash="—"
               locale={locale}
               pick={(s) => s.totalExpenseFromRegister}
-              valueClassName="tabular-nums text-red-800 sm:text-3xl"
+              valueClassName="tabular-nums text-3xl font-bold text-red-800"
               footnote={sumBranchesFootnote}
               loadingLabel={t("common.loading")}
               emptyHint={t("dashboard.noBranches")}
               onRetry={onCashRetry}
               retryLabel={t("common.retry")}
+              zeroHint={t("dashboard.noData")}
             />
             {state.kind === "ok" ? (
               <p className="mt-2 text-xs leading-relaxed text-zinc-500">
@@ -264,12 +271,13 @@ export function DashboardDayStoryCard({
               dash="—"
               locale={locale}
               pick={(s) => s.netCash}
-              valueClassName="tabular-nums text-violet-950 sm:text-3xl"
+              valueClassName="tabular-nums text-3xl font-bold text-violet-950"
               footnote={sumBranchesFootnote}
               loadingLabel={t("common.loading")}
               emptyHint={t("dashboard.noBranches")}
               onRetry={onCashRetry}
               retryLabel={t("common.retry")}
+              zeroHint={t("dashboard.noData")}
             />
             {state.kind === "ok" ? (
               <p className="mt-2 text-xs text-violet-900/70">
@@ -286,12 +294,12 @@ export function DashboardDayStoryCard({
           >
             {state.kind === "empty" ? (
               <>
-                <p className="text-2xl font-semibold text-zinc-400 sm:text-3xl">—</p>
+                <p className="text-3xl font-bold text-zinc-400">—</p>
                 <p className="mt-1 text-xs text-zinc-500">{t("dashboard.noBranches")}</p>
               </>
             ) : (
               <>
-                <p className="text-2xl font-semibold tabular-nums text-zinc-900 sm:text-3xl">
+                <p className="text-3xl font-bold tabular-nums text-zinc-900">
                   {state.branchCount}
                 </p>
                 <p className="mt-1 text-xs text-zinc-400">{sumBranchesFootnote}</p>

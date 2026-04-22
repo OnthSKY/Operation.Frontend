@@ -11,6 +11,7 @@ import { personnelKeys } from "@/modules/personnel/hooks/usePersonnelQueries";
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
 import {
@@ -262,11 +263,16 @@ export function PersonnelCashHandoverToPatronDialog({
     poolTotalAllBranchesSameCcy > 0.009 &&
     poolTotalThisBranch <= 0.009 &&
     poolTotalAllBranchesSameCcy > poolTotalThisBranch + 0.009;
+  const requestClose = useDirtyGuard({
+    isDirty: false,
+    confirmMessage: t("common.unsavedChangesConfirm"),
+    onClose,
+  });
 
   return (
     <Modal
       open={dialogOpen}
-      onClose={onClose}
+      onClose={requestClose}
       titleId={TITLE_ID}
       title={t("personnel.cashHandoverToPatronDialogTitle")}
       description={t("personnel.cashHandoverToPatronDialogLead")}
@@ -435,7 +441,7 @@ export function PersonnelCashHandoverToPatronDialog({
         </div>
 
         <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end sm:gap-3">
-          <Button type="button" variant="secondary" className="min-h-11 w-full sm:w-auto" onClick={onClose}>
+          <Button type="button" variant="secondary" className="min-h-11 w-full sm:w-auto" onClick={requestClose}>
             {t("common.close")}
           </Button>
           <Button

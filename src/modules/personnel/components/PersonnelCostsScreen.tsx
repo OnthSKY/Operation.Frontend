@@ -634,7 +634,7 @@ export function PersonnelCostsScreen() {
   }, [personnelPortal, searchParams, router]);
 
   return (
-    <div className="mx-auto flex w-full min-w-0 max-w-full flex-col gap-6 p-4 pb-8 app-page-max">
+    <div className="flex w-full min-w-0 max-w-full flex-col gap-6 px-4 pb-8 pt-4 sm:px-6 lg:px-8">
       <PageContentSection
         variant="intro"
         eyebrow={t("common.pageSectionIntro")}
@@ -674,7 +674,7 @@ export function PersonnelCostsScreen() {
             <p className="text-xs leading-relaxed text-zinc-600">
               {t("personnel.costsPaymentSourceSplitHint")}
             </p>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 lg:gap-4">
               <Card
                 title={t("personnel.costsPatronOutCardTitle")}
                 description={t("personnel.costsPatronOutCardDesc")}
@@ -765,7 +765,7 @@ export function PersonnelCostsScreen() {
         eyebrow={t("common.pageSectionMain")}
         sectionLabelId="personnel-costs-section-main"
       >
-        <div className="min-w-0 overflow-hidden bg-white" aria-labelledby="personnel-costs-table-title">
+        <div className="min-w-0 bg-white" aria-labelledby="personnel-costs-table-title">
           {!personnelPortal ? (
             <div
               className="flex flex-wrap gap-2 border-b border-zinc-100 bg-zinc-50/80 px-2 py-2 sm:px-3"
@@ -873,7 +873,7 @@ export function PersonnelCostsScreen() {
             </div>
           </div>
 
-          <div className="min-w-0 space-y-3 p-3 sm:p-4">
+          <div className="min-w-0 space-y-3 p-4 sm:p-5">
             <NonAdvanceExpenseSortBar
               value={displaySort}
               onChange={setCostsSort}
@@ -943,7 +943,7 @@ export function PersonnelCostsScreen() {
                       columns={costColumns}
                       rows={displayRowsFiltered}
                       getRowKey={(r) => r.key}
-                      tableClassName="min-w-[72rem]"
+                      tableClassName="min-w-[70rem] lg:min-w-[78rem]"
                     />
                   }
                 />

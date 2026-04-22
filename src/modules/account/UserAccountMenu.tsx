@@ -11,6 +11,7 @@ import { AccountProfilePanel } from "@/modules/account/components/AccountProfile
 import { AccountSecurityPanel } from "@/modules/account/components/AccountSecurityPanel";
 import { AccountSettingsPanel } from "@/modules/account/components/AccountSettingsPanel";
 import { useI18n } from "@/i18n/context";
+import { accountRoleLabel } from "@/modules/account/lib/role-label";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type Props = {
@@ -65,6 +66,7 @@ export function UserAccountMenu({ triggerLabel }: Props) {
     !status.enabled &&
     status.pendingSetup &&
     Boolean(status.setupOtpAuthUri);
+  const roleLabel = accountRoleLabel(user.role, t);
 
   const sectionBody =
     section === "profile" ? (
@@ -97,14 +99,14 @@ export function UserAccountMenu({ triggerLabel }: Props) {
       <div className="relative" ref={menuRootRef}>
         <button
           type="button"
-          className="flex min-w-0 max-w-[12rem] items-center gap-2 rounded-lg py-1 pl-1 pr-2 text-left transition hover:bg-zinc-100 md:max-w-[18rem]"
+          className="flex min-w-0 max-w-[14rem] items-center gap-2 rounded-lg py-1 pl-1 pr-2 text-left transition-all duration-200 hover:bg-zinc-100 md:max-w-[18rem]"
           aria-expanded={menuOpen}
           aria-haspopup="menu"
           aria-controls="account-menu-popover"
           onClick={() => setMenuOpen((o) => !o)}
         >
           <span
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-white"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-white shadow-sm"
             aria-hidden
           >
             <svg
@@ -121,7 +123,7 @@ export function UserAccountMenu({ triggerLabel }: Props) {
               <circle cx="12" cy="7" r="4" />
             </svg>
           </span>
-          <span className="truncate text-xs font-bold uppercase tracking-wide text-zinc-900">
+          <span className="hidden truncate text-sm font-semibold text-zinc-900 sm:inline">
             {triggerLabel}
           </span>
           <span className="sr-only">{t("profile.menuOpen")}</span>
@@ -129,6 +131,7 @@ export function UserAccountMenu({ triggerLabel }: Props) {
 
         {menuOpen ? (
           <AccountMenuPopover
+            roleLabel={roleLabel}
             onProfile={() => openPanel("profile")}
             onSecurity={() => openPanel("security")}
             onActivity={() => openPanel("activity")}

@@ -133,7 +133,7 @@ export default function GuidePage() {
     : tabIds[0]!;
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-5 px-3 pb-28 pt-4 sm:space-y-6 sm:px-4 sm:pb-10 sm:pt-6 md:max-w-5xl md:px-6 md:py-8 lg:max-w-6xl xl:max-w-7xl 2xl:max-w-screen-2xl min-[1920px]:max-w-[min(112rem,calc(100vw-4rem))]">
+    <div className="w-full min-w-0 space-y-5 px-4 pb-28 pt-4 sm:space-y-6 sm:px-6 sm:pb-10 sm:pt-6 md:py-8">
       <header className="space-y-3 sm:space-y-4">
         <h1 className="text-pretty text-2xl font-bold tracking-tight text-zinc-900 sm:text-3xl">
           {t("guide.pageTitle")}

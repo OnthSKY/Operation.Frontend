@@ -3,6 +3,7 @@
 import { useI18n } from "@/i18n/context";
 
 type Props = {
+  roleLabel: string;
   onProfile: () => void;
   onSecurity: () => void;
   onActivity: () => void;
@@ -14,6 +15,7 @@ const itemClass =
   "flex w-full min-h-12 items-center gap-3 rounded-xl px-3 text-left text-sm font-semibold text-zinc-800 transition hover:bg-zinc-100 active:bg-zinc-200/80";
 
 export function AccountMenuPopover({
+  roleLabel,
   onProfile,
   onSecurity,
   onActivity,
@@ -28,6 +30,11 @@ export function AccountMenuPopover({
       role="menu"
       className="absolute right-0 top-[calc(100%+0.35rem)] z-[60] w-[min(calc(100vw-1.25rem),17rem)] rounded-2xl border border-zinc-200/95 bg-white py-2 shadow-xl shadow-zinc-900/10 ring-1 ring-zinc-900/[0.04]"
     >
+      <div className="mb-1 flex items-center gap-2 px-3 py-2 text-xs font-medium text-zinc-600">
+        <MenuRoleGlyph />
+        <span className="truncate">{roleLabel}</span>
+      </div>
+      <div className="mb-1 border-t border-zinc-100" role="separator" />
       <button type="button" role="menuitem" className={itemClass} onClick={onProfile}>
         <MenuUserGlyph />
         {t("profile.menuProfile")}
@@ -72,6 +79,24 @@ function MenuUserGlyph() {
     >
       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
       <circle cx="12" cy="7" r="4" />
+    </svg>
+  );
+}
+
+function MenuRoleGlyph() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      className="shrink-0 text-zinc-500"
+      aria-hidden
+    >
+      <path d="M12 3 5 6v6c0 4.6 2.9 7.8 7 9 4.1-1.2 7-4.4 7-9V6z" />
+      <path d="M9.5 12.5 11 14l3.5-3.5" />
     </svg>
   );
 }

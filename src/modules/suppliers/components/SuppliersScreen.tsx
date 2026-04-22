@@ -15,7 +15,9 @@ import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
 import { TableToolbarMoreMenu } from "@/shared/components/TableToolbarMoreMenu";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
+import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
 import { StatusBadge } from "@/shared/components/StatusBadge";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
@@ -52,6 +54,34 @@ export function SuppliersScreen() {
   const [sfNotes, setSfNotes] = useState("");
   const [sfTerms, setSfTerms] = useState("");
   const [sfCur, setSfCur] = useState("TRY");
+  const isSupplierFormDirty =
+    supplierModal === "add"
+      ? [
+          sfName.trim(),
+          sfTax.trim(),
+          sfPhone.trim(),
+          sfEmail.trim(),
+          sfNotes.trim(),
+          sfTerms.trim(),
+          sfCur.trim() !== "TRY",
+        ].some(Boolean)
+      : editSupplier != null &&
+        (sfName !== editSupplier.name ||
+          sfTax !== (editSupplier.taxId ?? "") ||
+          sfPhone !== (editSupplier.phone ?? "") ||
+          sfEmail !== (editSupplier.email ?? "") ||
+          sfNotes !== (editSupplier.notes ?? "") ||
+          sfTerms !==
+            (editSupplier.defaultPaymentTermsDays != null ? String(editSupplier.defaultPaymentTermsDays) : "") ||
+          sfCur !== (editSupplier.currencyCode || "TRY"));
+
+  const closeSupplierModal = () => setSupplierModal(null);
+  const requestCloseSupplierModal = useDirtyGuard({
+    isDirty: isSupplierFormDirty,
+    isBlocked: createSup.isPending || updateSup.isPending,
+    confirmMessage: t("common.unsavedChangesConfirm"),
+    onClose: closeSupplierModal,
+  });
 
   const openAddSupplier = () => {
     setEditSupplier(null);
@@ -310,32 +340,45 @@ export function SuppliersScreen() {
 
       <Modal
         open={supplierModal != null}
-        onClose={() => setSupplierModal(null)}
+        onClose={requestCloseSupplierModal}
         titleId="supplier-form-title"
         title={supplierModal === "add" ? t("suppliers.addSupplier") : t("suppliers.editSupplier")}
         narrow
       >
-        <div className="flex flex-col gap-3 p-1">
-          <Input label={t("suppliers.name")} labelRequired value={sfName} onChange={(e) => setSfName(e.target.value)} />
-          <Input label={t("suppliers.taxId")} value={sfTax} onChange={(e) => setSfTax(e.target.value)} />
-          <Input label={t("suppliers.phone")} value={sfPhone} onChange={(e) => setSfPhone(e.target.value)} />
-          <Input label={t("suppliers.email")} value={sfEmail} onChange={(e) => setSfEmail(e.target.value)} />
-          <Input label={t("suppliers.notes")} value={sfNotes} onChange={(e) => setSfNotes(e.target.value)} />
-          <Input
-            label={t("suppliers.paymentTermsDays")}
-            value={sfTerms}
-            onChange={(e) => setSfTerms(e.target.value)}
-          />
-          <Input label={t("suppliers.currency")} value={sfCur} onChange={(e) => setSfCur(e.target.value)} />
-          <div className="mt-2 flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={() => setSupplierModal(null)}>
-              {t("common.cancel")}
-            </Button>
-            <Button type="button" onClick={() => void saveSupplier()} disabled={createSup.isPending || updateSup.isPending}>
-              {t("common.save")}
-            </Button>
-          </div>
-        </div>
+        <ModalFormLayout
+          className="mt-0"
+          body={
+            <FormSection>
+              <Input
+                label={t("suppliers.name")}
+                labelRequired
+                value={sfName}
+                onChange={(e) => setSfName(e.target.value)}
+                autoFocus
+              />
+              <Input label={t("suppliers.taxId")} value={sfTax} onChange={(e) => setSfTax(e.target.value)} />
+              <Input label={t("suppliers.phone")} value={sfPhone} onChange={(e) => setSfPhone(e.target.value)} />
+              <Input label={t("suppliers.email")} value={sfEmail} onChange={(e) => setSfEmail(e.target.value)} />
+              <Input label={t("suppliers.notes")} value={sfNotes} onChange={(e) => setSfNotes(e.target.value)} />
+              <Input
+                label={t("suppliers.paymentTermsDays")}
+                value={sfTerms}
+                onChange={(e) => setSfTerms(e.target.value)}
+              />
+              <Input label={t("suppliers.currency")} value={sfCur} onChange={(e) => setSfCur(e.target.value)} />
+            </FormSection>
+          }
+          footer={
+            <>
+              <Button type="button" variant="secondary" onClick={requestCloseSupplierModal}>
+                {t("common.cancel")}
+              </Button>
+              <Button type="button" onClick={() => void saveSupplier()} disabled={createSup.isPending || updateSup.isPending}>
+                {t("common.save")}
+              </Button>
+            </>
+          }
+        />
       </Modal>
     </>
   );

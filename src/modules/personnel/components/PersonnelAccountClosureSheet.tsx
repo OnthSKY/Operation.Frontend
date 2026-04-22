@@ -18,6 +18,7 @@ import {
 } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { notify } from "@/shared/lib/notify";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { Card } from "@/shared/components/Card";
 import { cn } from "@/lib/cn";
 import { Button } from "@/shared/ui/Button";
@@ -680,17 +681,30 @@ export function PersonnelAccountClosureSheet({
       setPrintSettlementBusy(false);
     }
   };
+  const requestClose = useDirtyGuard({
+    isDirty:
+      step === 2 ||
+      scope !== "year" ||
+      closeNotes.trim() !== "" ||
+      settlementPdfAcknowledged ||
+      closurePdfFile != null ||
+      salaryBalanceSettled ||
+      salaryPaymentSourceType.trim() !== "" ||
+      salarySettlementNote.trim() !== "",
+    isBlocked: closeYear.isPending || uploadClosurePdf.isPending || printSettlementBusy,
+    confirmMessage: t("common.unsavedChangesConfirm"),
+    onClose,
+  });
 
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={requestClose}
       titleId={titleId}
       title={t("personnel.accountClosure.title")}
       description={personnelDisplayName}
       closeButtonLabel={t("common.close")}
       wide
-      wideFixedHeight
       wideExpanded
       nested={nested}
     >
@@ -867,7 +881,7 @@ export function PersonnelAccountClosureSheet({
                 type="button"
                 variant="secondary"
                 className="min-h-11 w-full sm:w-auto"
-                onClick={onClose}
+                onClick={requestClose}
               >
                 {t("common.cancel")}
               </Button>
@@ -1624,7 +1638,7 @@ export function PersonnelAccountClosureSheet({
                 <Button
                   type="button"
                   className="min-h-12 w-full touch-manipulation sm:min-h-11 sm:w-auto"
-                  onClick={onClose}
+                  onClick={requestClose}
                 >
                   {t("common.close")}
                 </Button>

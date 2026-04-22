@@ -10,6 +10,7 @@ import { useI18n } from "@/i18n/context";
 import { apiUserFacingMessage } from "@/shared/lib/api-user-facing-message";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { notify } from "@/shared/lib/notify";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { cn } from "@/lib/cn";
 import { LocalImageFileThumb } from "@/shared/components/LocalImageFileThumb";
 import { IMAGE_FILE_INPUT_ACCEPT } from "@/shared/lib/image-upload-limits";
@@ -349,15 +350,40 @@ export function WarehouseStockLine({
   const depoInFormId = `wh-depo-in-form-${warehouseId}-${row.productId}`;
   const transferTitleId = `wh-transfer-title-${warehouseId}-${row.productId}`;
   const transferFormId = `wh-transfer-form-${warehouseId}-${row.productId}`;
+  const depoInDirty =
+    qty.trim() !== "1" ||
+    inCheckedBy.trim() !== "" ||
+    inApprovedBy.trim() !== "" ||
+    invoiceFile != null ||
+    inUnitCost.trim() !== "";
+  const transferDirty =
+    branchId.trim() !== "" ||
+    tQty.trim() !== "1" ||
+    tDesc.trim() !== "" ||
+    trTransportedBy.trim() !== "" ||
+    trSentBy.trim() !== "" ||
+    trReceivedBy.trim() !== "" ||
+    freightAmount.trim() !== "" ||
+    freightPocket.trim() !== "" ||
+    freightNote.trim() !== "";
+  const requestDepoInClose = useDirtyGuard({
+    isDirty: depoInDirty,
+    isBlocked: pending === "in",
+    confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
+    onClose: () => setDepoInOpen(false),
+  });
+  const requestTransferClose = useDirtyGuard({
+    isDirty: transferDirty,
+    isBlocked: pending === "transfer",
+    confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
+    onClose: () => setTransferOpen(false),
+  });
 
   const depoInModal = (
     <Modal
       nested
       open={depoInOpen}
-      onClose={() => {
-        if (pending === "in") return;
-        setDepoInOpen(false);
-      }}
+      onClose={requestDepoInClose}
       titleId={depoInTitleId}
       title={t("warehouse.actionDepoProductIn")}
       description={t("warehouse.depoInModalHint")}
@@ -481,7 +507,7 @@ export function WarehouseStockLine({
             variant="secondary"
             className="min-h-11 w-full sm:w-auto sm:min-w-[7rem]"
             disabled={off}
-            onClick={() => setDepoInOpen(false)}
+            onClick={requestDepoInClose}
           >
             {t("common.cancel")}
           </Button>
@@ -497,10 +523,7 @@ export function WarehouseStockLine({
     <Modal
       nested
       open={transferOpen}
-      onClose={() => {
-        if (pending === "transfer") return;
-        setTransferOpen(false);
-      }}
+      onClose={requestTransferClose}
       titleId={transferTitleId}
       title={t("warehouse.transferRowTitle")}
       description={t("warehouse.transferModalHint")}
@@ -617,7 +640,7 @@ export function WarehouseStockLine({
             variant="secondary"
             className="min-h-11 w-full sm:w-auto sm:min-w-[7rem]"
             disabled={off}
-            onClick={() => setTransferOpen(false)}
+            onClick={requestTransferClose}
           >
             {t("common.cancel")}
           </Button>

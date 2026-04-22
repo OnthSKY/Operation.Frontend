@@ -12,6 +12,14 @@ export const nav = {
   reportsPatronSection: "Owner pocket & register",
   reportsStockSection: "Stock",
   reportsOtherSection: "Branches & register day",
+  groupOverview: "Overview",
+  groupFinanceReporting: "Finance & Reporting",
+  groupOperations: "Operations",
+  groupWarehouseProducts: "Warehouse & Products",
+  groupPeopleOrganization: "People & Organization",
+  groupDocumentsRecords: "Documents & Records",
+  groupProcurement: "Supply & Procurement",
+  groupSystemManagement: "System Management",
   personnel: "Personnel management",
   personnelSection: "Personnel management",
   personnelList: "Staff",
@@ -55,6 +63,8 @@ export const nav = {
   menuClose: "Close menu",
   dockMore: "Full menu",
   dockNav: "Quick navigation",
+  mobileGroupHintTitle: "Quick hint",
+  mobileGroupHintBody: "Tap a group title to expand or collapse its links.",
   tooltip: {
     guide:
       "Module purpose, daily tips, and the Mission tab map how cash and stock tracking fits together.",

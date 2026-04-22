@@ -8,6 +8,8 @@ import {
   type BranchSettlementPdfOptions,
   openPersonnelSettlementPrintWindow,
 } from "@/modules/personnel/lib/personnel-settlement-print";
+import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import {
   parseSettlementSeasonYearChoice,
   settlementSeasonYearSelectOptions,
@@ -50,6 +52,14 @@ export function BranchPdfSettlementOptionsModal({
   }, [branch]);
 
   const open = branch != null;
+  const requestClose = useDirtyGuard({
+    isDirty:
+      seasonChoice.trim() !== "" ||
+      JSON.stringify(opts) !== JSON.stringify(defaultBranchSettlementPdfOptions()),
+    isBlocked: busy,
+    confirmMessage: t("common.unsavedChangesConfirm"),
+    onClose,
+  });
 
   const seasonOptions = useMemo(() => settlementSeasonYearSelectOptions(t), [t]);
 
@@ -85,47 +95,58 @@ export function BranchPdfSettlementOptionsModal({
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={requestClose}
       titleId={TITLE_ID}
       title={t("branch.branchPdfOptionsTitle")}
       description={t("branch.branchPdfOptionsIntro")}
       closeButtonLabel={t("common.close")}
     >
-      <div className="space-y-4 px-4 pb-4 pt-1">
-        <div className="rounded-lg border border-zinc-200 bg-zinc-50/40 p-3">
-          <Select
-            name="branchPdfSeason"
-            label={t("personnel.settlementPrintSeasonLabel")}
-            options={seasonOptions}
-            value={seasonChoice}
-            onChange={(e) => setSeasonChoice(e.target.value)}
-            onBlur={() => {}}
-          />
-          <p className="mt-2 text-xs text-zinc-500">
-            {t("personnel.settlementPrintSeasonHint")}
-          </p>
-        </div>
-        <BranchPdfSettlementOptionsFields value={opts} onChange={setOpts} />
-        <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
-          <Button
-            type="button"
-            variant="secondary"
-            className="w-full sm:w-auto"
-            disabled={busy}
-            onClick={onClose}
-          >
-            {t("common.cancel")}
-          </Button>
-          <Button
-            type="button"
-            className="w-full sm:w-auto"
-            disabled={busy}
-            onClick={() => void run()}
-          >
-            {t("branch.branchPdfConfirm")}
-          </Button>
-        </div>
-      </div>
+      <ModalFormLayout
+        className="mt-0"
+        body={
+          <>
+            <FormSection>
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50/40 p-3">
+                <Select
+                  name="branchPdfSeason"
+                  label={t("personnel.settlementPrintSeasonLabel")}
+                  options={seasonOptions}
+                  value={seasonChoice}
+                  onChange={(e) => setSeasonChoice(e.target.value)}
+                  onBlur={() => {}}
+                />
+                <p className="mt-2 text-xs text-zinc-500">
+                  {t("personnel.settlementPrintSeasonHint")}
+                </p>
+              </div>
+            </FormSection>
+            <FormSection>
+              <BranchPdfSettlementOptionsFields value={opts} onChange={setOpts} />
+            </FormSection>
+          </>
+        }
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full sm:w-auto"
+              disabled={busy}
+              onClick={requestClose}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              disabled={busy}
+              onClick={() => void run()}
+            >
+              {t("branch.branchPdfConfirm")}
+            </Button>
+          </>
+        }
+      />
     </Modal>
   );
 }

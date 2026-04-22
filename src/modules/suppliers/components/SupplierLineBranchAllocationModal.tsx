@@ -8,6 +8,7 @@ import {
 } from "@/modules/suppliers/hooks/useSupplierQueries";
 import { cn } from "@/lib/cn";
 import { useI18n } from "@/i18n/context";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
@@ -274,11 +275,22 @@ export function SupplierLineBranchAllocationModal({ open, onClose, lineId, onPos
   const lineLabel = data
     ? `${t("suppliers.lineShort")} ${data.lineNo}${data.lineDescription ? ` — ${data.lineDescription}` : ""}`
     : "";
+  const isDirty =
+    rows.some((r) => r.branchId.trim() !== "" || r.amount.trim() !== "") ||
+    postDate.trim() !== new Date().toISOString().slice(0, 10) ||
+    expensePreset !== "default" ||
+    postBranchPaid;
+  const requestClose = useDirtyGuard({
+    isDirty,
+    isBlocked: setMut.isPending || postMut.isPending,
+    confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
+    onClose,
+  });
 
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={requestClose}
       titleId="supplier-line-alloc-title"
       title={t("suppliers.allocModalTitle")}
       wide
@@ -469,7 +481,7 @@ export function SupplierLineBranchAllocationModal({ open, onClose, lineId, onPos
             {!data.isPosted ? (
               <div className="shrink-0 border-t border-zinc-200 bg-white px-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-3 sm:px-4">
                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                  <Button type="button" variant="secondary" className="min-h-11 w-full sm:w-auto" onClick={onClose}>
+                  <Button type="button" variant="secondary" className="min-h-11 w-full sm:w-auto" onClick={requestClose}>
                     {t("common.cancel")}
                   </Button>
                   <Button
@@ -493,7 +505,7 @@ export function SupplierLineBranchAllocationModal({ open, onClose, lineId, onPos
               </div>
             ) : (
               <div className="shrink-0 border-t border-zinc-200 bg-white px-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-3 sm:px-4">
-                <Button type="button" className="min-h-11 w-full sm:w-auto" onClick={onClose}>
+                <Button type="button" className="min-h-11 w-full sm:w-auto" onClick={requestClose}>
                   {t("common.close")}
                 </Button>
               </div>

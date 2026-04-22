@@ -1,6 +1,6 @@
 "use client";
 
-import type { NavigationItem } from "@/config/navigation.config";
+import type { NavigationItem } from "./navigation-mapper";
 
 export function NavIcon({ icon }: { icon: NavigationItem["icon"] }) {
   const common = {

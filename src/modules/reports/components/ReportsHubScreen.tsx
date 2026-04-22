@@ -320,7 +320,8 @@ export function ReportsHubScreen({ routeTab }: { routeTab: ReportsHubTab }) {
   return (
     <>
       <PageScreenScaffold
-        className="w-full min-w-0 app-page-max pb-6 pt-2 sm:pb-8 sm:pt-4 md:pt-0"
+        variant="report"
+        className="w-full min-w-0 pb-6 pt-2 sm:pb-8 sm:pt-4 md:pt-0"
         intro={
           <>
             <div className="flex items-start gap-2">
@@ -405,7 +406,7 @@ export function ReportsHubScreen({ routeTab }: { routeTab: ReportsHubTab }) {
 
       {((tab === "stock" && stock.data) || (tab === "cash" && cash.data)) ? (
         <div
-          className="sticky top-2 z-10 grid grid-cols-2 gap-1 rounded-xl border border-zinc-200/80 bg-zinc-50/95 p-1 shadow-sm backdrop-blur-sm sm:p-1.5"
+          className="sticky top-2 z-10 grid grid-cols-2 gap-1 rounded-lg border border-zinc-200 bg-zinc-100 p-1 shadow-sm backdrop-blur-sm sm:p-1"
           role="tablist"
           aria-label={t("reports.reportViewSwitchAria")}
         >
@@ -414,9 +415,9 @@ export function ReportsHubScreen({ routeTab }: { routeTab: ReportsHubTab }) {
             role="tab"
             aria-selected={reportView === "summary"}
             onClick={() => setReportView("summary")}
-            className={`min-h-11 touch-manipulation rounded-lg px-2 py-2 text-sm font-semibold transition sm:min-h-10 sm:px-4 sm:py-2 ${
+            className={`min-h-11 touch-manipulation rounded-md px-4 py-2 text-sm font-semibold transition sm:min-h-10 ${
               reportView === "summary"
-                ? "bg-white text-zinc-900 shadow-sm"
+                ? "bg-white text-zinc-900 shadow"
                 : "text-zinc-600 active:bg-zinc-200/80 sm:hover:text-zinc-900"
             }`}
           >
@@ -427,9 +428,9 @@ export function ReportsHubScreen({ routeTab }: { routeTab: ReportsHubTab }) {
             role="tab"
             aria-selected={reportView === "tables"}
             onClick={() => setReportView("tables")}
-            className={`min-h-11 touch-manipulation rounded-lg px-2 py-2 text-sm font-semibold transition sm:min-h-10 sm:px-4 sm:py-2 ${
+            className={`min-h-11 touch-manipulation rounded-md px-4 py-2 text-sm font-semibold transition sm:min-h-10 ${
               reportView === "tables"
-                ? "bg-white text-zinc-900 shadow-sm"
+                ? "bg-white text-zinc-900 shadow"
                 : "text-zinc-600 active:bg-zinc-200/80 sm:hover:text-zinc-900"
             }`}
           >

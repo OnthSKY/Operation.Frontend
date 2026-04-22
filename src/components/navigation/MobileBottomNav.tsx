@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useI18n } from "@/i18n/context";
 import {
   getVisibleNavItems,
   isActiveRoute,
@@ -22,12 +23,13 @@ type MobileBottomNavProps = {
 export function MobileBottomNav({ onOpenMore, badgeState }: MobileBottomNavProps) {
   const pathname = usePathname() ?? "/";
   const { user } = useAuth();
+  const { t } = useI18n();
   const mobileItems = useMemo(
     () =>
-      getVisibleNavItems(user)
+      getVisibleNavItems(user, t)
         .filter((x) => x.mobileVisible)
         .slice(0, 4),
-    [user]
+    [user, t]
   );
 
   return (
@@ -64,7 +66,7 @@ export function MobileBottomNav({ onOpenMore, badgeState }: MobileBottomNavProps
         <button
           type="button"
           className="flex min-h-11 flex-col items-center justify-center gap-0.5 px-1 text-[11px] text-zinc-600"
-          aria-label="More menu"
+          aria-label={t("nav.menuOpen")}
           onClick={onOpenMore}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
@@ -72,7 +74,7 @@ export function MobileBottomNav({ onOpenMore, badgeState }: MobileBottomNavProps
             <circle cx="12" cy="12" r="1.5" />
             <circle cx="19" cy="12" r="1.5" />
           </svg>
-          <span>More</span>
+          <span>{t("nav.dockMore")}</span>
         </button>
       </div>
     </nav>

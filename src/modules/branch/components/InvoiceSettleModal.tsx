@@ -15,6 +15,8 @@ import {
   userCanManageTourismSeasonClosedPolicy,
 } from "@/shared/lib/resolve-localized-api-error";
 import { useI18n } from "@/i18n/context";
+import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { notify } from "@/shared/lib/notify";
 import { notifyErrorWithAction } from "@/shared/lib/notify-error-with-action";
 import { toErrorMessage } from "@/shared/lib/error-message";
@@ -85,6 +87,14 @@ export function InvoiceSettleModal({ open, onClose, row, branchStaff }: Props) {
   }, [branchStaff, branchId, locale, t]);
 
   const payU = expensePaymentSource.trim().toUpperCase();
+  const isDirty =
+    expensePaymentSource.trim() !== "" || expensePocketPersonnelId.trim() !== "";
+  const requestClose = useDirtyGuard({
+    isDirty,
+    isBlocked: busy,
+    confirmMessage: t("common.unsavedChangesConfirm"),
+    onClose,
+  });
 
   const submit = useCallback(async () => {
     if (!row) return;
@@ -153,42 +163,49 @@ export function InvoiceSettleModal({ open, onClose, row, branchStaff }: Props) {
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={requestClose}
       titleId="invoice-settle-title"
       title={t("branch.invoiceSettleTitle")}
       description={t("branch.invoiceSettleHint")}
       closeButtonLabel={t("common.close")}
     >
-      <div className="mt-3 space-y-3">
-        <Select
-          label={t("branch.expensePaymentLabel")}
-          labelRequired
-          options={payOptions}
-          name="invoice-settle-pay"
-          value={expensePaymentSource}
-          onChange={(e) => setExpensePaymentSource(e.target.value)}
-          onBlur={() => {}}
-        />
-        {payU === "PERSONNEL_POCKET" ? (
-          <Select
-            label={t("branch.expensePocketPersonLabel")}
-            labelRequired
-            options={staffOptions}
-            name="invoice-settle-pocket"
-            value={expensePocketPersonnelId}
-            onChange={(e) => setExpensePocketPersonnelId(e.target.value)}
-            onBlur={() => {}}
-          />
-        ) : null}
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose} disabled={busy}>
-            {t("common.close")}
-          </Button>
-          <Button type="button" onClick={() => void submit()} disabled={busy}>
-            {t("branch.invoiceSettleSubmit")}
-          </Button>
-        </div>
-      </div>
+      <ModalFormLayout
+        className="mt-0"
+        body={
+          <FormSection>
+            <Select
+              label={t("branch.expensePaymentLabel")}
+              labelRequired
+              options={payOptions}
+              name="invoice-settle-pay"
+              value={expensePaymentSource}
+              onChange={(e) => setExpensePaymentSource(e.target.value)}
+              onBlur={() => {}}
+            />
+            {payU === "PERSONNEL_POCKET" ? (
+              <Select
+                label={t("branch.expensePocketPersonLabel")}
+                labelRequired
+                options={staffOptions}
+                name="invoice-settle-pocket"
+                value={expensePocketPersonnelId}
+                onChange={(e) => setExpensePocketPersonnelId(e.target.value)}
+                onBlur={() => {}}
+              />
+            ) : null}
+          </FormSection>
+        }
+        footer={
+          <>
+            <Button type="button" variant="secondary" onClick={requestClose} disabled={busy}>
+              {t("common.close")}
+            </Button>
+            <Button type="button" onClick={() => void submit()} disabled={busy}>
+              {t("branch.invoiceSettleSubmit")}
+            </Button>
+          </>
+        }
+      />
     </Modal>
   );
 }

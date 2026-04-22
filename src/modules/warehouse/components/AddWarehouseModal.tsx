@@ -7,6 +7,7 @@ import {
 } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
+import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
 import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
@@ -37,7 +38,7 @@ export function AddWarehouseModal({ open, onClose }: Props) {
     register,
     handleSubmit,
     control,
-    formState: { errors },
+    formState: { errors, isDirty },
     reset,
   } = useForm<FormValues>({
     defaultValues: {
@@ -83,80 +84,94 @@ export function AddWarehouseModal({ open, onClose }: Props) {
     }
   });
 
+  const requestClose = () => {
+    if (
+      isDirty &&
+      !createWh.isPending &&
+      !window.confirm(t("common.modalConfirmOutsideCloseMessage"))
+    ) {
+      return;
+    }
+    onClose();
+  };
+
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      titleId={TITLE_ID}
-      title={t("warehouse.addWarehouseTitle")}
-      description={t("warehouse.addWarehouseHint")}
-    >
-      <form className="mt-4 flex max-h-[min(70dvh,520px)] flex-col gap-3 overflow-y-auto pr-1" onSubmit={onSubmit}>
-        <Input
-          label={t("warehouse.fieldName")}
-          labelRequired
-          required
-          {...register("name", { required: t("common.required") })}
-          error={errors.name?.message}
-          autoComplete="off"
-          maxLength={100}
-        />
-        <Input
-          label={t("warehouse.fieldCity")}
-          {...register("city")}
-          autoComplete="address-level2"
-          maxLength={100}
-        />
-        <div className="flex w-full flex-col gap-1">
-          <label htmlFor="warehouse-address" className="text-sm font-medium text-zinc-700">
-            {t("warehouse.fieldAddress")}
-          </label>
-          <textarea
-            id="warehouse-address"
-            rows={3}
-            className="min-h-[5.5rem] w-full resize-y rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base text-zinc-900 outline-none ring-zinc-900 focus:border-zinc-900 focus:ring-2"
-            {...register("address")}
-            maxLength={4000}
-            autoComplete="street-address"
+    <>
+      <Modal
+        open={open}
+        onClose={requestClose}
+        titleId={TITLE_ID}
+        title={t("warehouse.addWarehouseTitle")}
+        description={t("warehouse.addWarehouseHint")}
+        className="w-full max-w-xl"
+      >
+        <form onSubmit={onSubmit}>
+          <ModalFormLayout
+            body={
+              <FormSection>
+                <Input
+                  label={t("warehouse.fieldName")}
+                  labelRequired
+                  required
+                  {...register("name", { required: t("common.required") })}
+                  error={errors.name?.message}
+                  autoComplete="off"
+                  maxLength={100}
+                />
+                <Input
+                  label={t("warehouse.fieldCity")}
+                  {...register("city")}
+                  autoComplete="address-level2"
+                  maxLength={100}
+                />
+                <div className="flex w-full flex-col gap-1">
+                  <label htmlFor="warehouse-address" className="text-sm font-medium text-zinc-700">
+                    {t("warehouse.fieldAddress")}
+                  </label>
+                  <textarea
+                    id="warehouse-address"
+                    rows={3}
+                    className="min-h-[5.5rem] w-full resize-y rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base text-zinc-900 outline-none ring-zinc-900 focus:border-zinc-900 focus:ring-2"
+                    {...register("address")}
+                    maxLength={4000}
+                    autoComplete="street-address"
+                  />
+                </div>
+                <Select
+                  label={t("warehouse.responsibleManager")}
+                  options={userSelectOptions}
+                  name={mgrField.field.name}
+                  value={String(mgrField.field.value ?? "")}
+                  onChange={(e) => mgrField.field.onChange(e.target.value)}
+                  onBlur={mgrField.field.onBlur}
+                  ref={mgrField.field.ref}
+                  disabled={usersLoading}
+                />
+                <Select
+                  label={t("warehouse.responsibleMaster")}
+                  options={userSelectOptions}
+                  name={masterField.field.name}
+                  value={String(masterField.field.value ?? "")}
+                  onChange={(e) => masterField.field.onChange(e.target.value)}
+                  onBlur={masterField.field.onBlur}
+                  ref={masterField.field.ref}
+                  disabled={usersLoading}
+                />
+              </FormSection>
+            }
+            footer={
+              <>
+                <Button type="button" variant="secondary" className="min-w-[120px]" onClick={requestClose}>
+                  {t("common.cancel")}
+                </Button>
+                <Button type="submit" className="min-w-[120px]" disabled={createWh.isPending}>
+                  {createWh.isPending ? t("common.saving") : t("common.save")}
+                </Button>
+              </>
+            }
           />
-        </div>
-        <Select
-          label={t("warehouse.responsibleManager")}
-          options={userSelectOptions}
-          name={mgrField.field.name}
-          value={String(mgrField.field.value ?? "")}
-          onChange={(e) => mgrField.field.onChange(e.target.value)}
-          onBlur={mgrField.field.onBlur}
-          ref={mgrField.field.ref}
-          disabled={usersLoading}
-        />
-        <Select
-          label={t("warehouse.responsibleMaster")}
-          options={userSelectOptions}
-          name={masterField.field.name}
-          value={String(masterField.field.value ?? "")}
-          onChange={(e) => masterField.field.onChange(e.target.value)}
-          onBlur={masterField.field.onBlur}
-          ref={masterField.field.ref}
-          disabled={usersLoading}
-        />
-        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:justify-end">
-          <Button
-            type="button"
-            variant="secondary"
-            className="sm:min-w-[120px]"
-            onClick={() => {
-              reset();
-              onClose();
-            }}
-          >
-            {t("common.cancel")}
-          </Button>
-          <Button type="submit" className="sm:min-w-[120px]" disabled={createWh.isPending}>
-            {createWh.isPending ? t("common.saving") : t("common.save")}
-          </Button>
-        </div>
-      </form>
-    </Modal>
+        </form>
+      </Modal>
+    </>
   );
 }

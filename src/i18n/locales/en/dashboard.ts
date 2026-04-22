@@ -7,6 +7,10 @@ export const dashboard = {
   scopeFilterBarTitle: "Branch register — how to aggregate",
   scopeFilterBarHint:
     "Day: one calendar date. Season: each branch’s tourism-period total. Multiple seasons: those totals summed across the years you pick. All data: cumulative net and live-record summaries; branch register rollups are not shown in this mode.",
+  filtersActiveCount: "{{count}} active",
+  filtersClearAll: "Clear all",
+  filtersApply: "Apply",
+  filtersDetail: "Detailed filters",
   cashFilterModeAria: "Register summary aggregation mode",
   cashFilterModeDay: "One day",
   cashFilterModeSeasonSingle: "One season",

@@ -13,6 +13,8 @@ import {
   formatLocaleAmount,
   parseLocaleAmount,
 } from "@/shared/lib/locale-amount";
+import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import {
   personnelNationalIdPhotoUrl,
   personnelProfilePhotoUrl,
@@ -172,7 +174,7 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
     register,
     control,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
     reset,
     setFocus,
     setValue,
@@ -557,21 +559,45 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
       notify.error(toErrorMessage(e));
     }
   });
+  const hasPhotoDraft =
+    idPhotoFront != null ||
+    idPhotoBack != null ||
+    profilePhoto1 != null ||
+    profilePhoto2 != null;
+  const requestClose = useDirtyGuard({
+    isDirty: isDirty || hasPhotoDraft,
+    isBlocked: pending,
+    confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
+    onClose: () => {
+      reset();
+      setIdPhotoFront(null);
+      setIdPhotoBack(null);
+      setProfilePhoto1(null);
+      setProfilePhoto2(null);
+      onClose();
+    },
+  });
 
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={requestClose}
       titleId={titleId}
       title={isEdit ? t("personnel.editTitle") : t("personnel.addTitle")}
       description={isEdit ? t("personnel.editHint") : t("personnel.addHint")}
       closeButtonLabel={t("common.close")}
+      className="w-full max-w-2xl lg:max-w-3xl"
     >
-      <form className="mt-4 flex flex-col gap-4" onSubmit={onSubmit}>
+      <form onSubmit={onSubmit}>
+        <ModalFormLayout
+          body={
+            <>
+              <FormSection>
         <Input
           label={t("personnel.fieldFullName")}
           labelRequired
           required
+          autoFocus
           {...register("fullName", { required: t("common.required") })}
           error={errors.fullName?.message}
           autoComplete="name"
@@ -1119,26 +1145,20 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
             ) : null}
           </div>
         ) : null}
-        <div className="flex flex-col gap-2 border-t border-zinc-100 pt-4 sm:flex-row sm:justify-end">
-          <Button
-            type="button"
-            variant="secondary"
-            className="sm:min-w-[120px]"
-            onClick={() => {
-              reset();
-              onClose();
-            }}
-          >
-            {t("common.cancel")}
-          </Button>
-          <Button
-            type="submit"
-            className="sm:min-w-[120px]"
-            disabled={pending}
-          >
-            {pending ? t("common.saving") : t("common.save")}
-          </Button>
-        </div>
+              </FormSection>
+            </>
+          }
+          footer={
+            <>
+              <Button type="button" variant="secondary" className="min-w-[120px]" onClick={requestClose}>
+                {t("common.cancel")}
+              </Button>
+              <Button type="submit" className="min-w-[120px]" disabled={pending}>
+                {pending ? t("common.saving") : t("common.save")}
+              </Button>
+            </>
+          }
+        />
       </form>
     </Modal>
   );

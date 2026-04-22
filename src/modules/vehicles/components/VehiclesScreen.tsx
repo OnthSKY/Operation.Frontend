@@ -59,6 +59,7 @@ import {
 } from "@/modules/vehicles/lib/vehicle-insurance-presets";
 import { TABLE_TOOLBAR_ICON_BTN, TableToolbarSplit } from "@/shared/components/TableToolbar";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import {
   formatLocaleAmount,
@@ -396,6 +397,61 @@ export function VehiclesScreen() {
     syncedVehicleFormDetail.current = null;
     setVehicleModal("edit");
   };
+
+  const isVehicleFormDirty =
+    vehicleModal === "add"
+      ? plate.trim() !== "" ||
+        brand.trim() !== "" ||
+        model.trim() !== "" ||
+        year.trim() !== "" ||
+        status !== "ACTIVE" ||
+        assignMode !== "idle" ||
+        personnelId.trim() !== "" ||
+        branchId.trim() !== "" ||
+        odometerKmStr.trim() !== "" ||
+        inspectionUntil.trim() !== "" ||
+        notes.trim() !== "" ||
+        driverSrc.trim() !== "" ||
+        driverPsy.trim() !== "" ||
+        serviceIntervalKmStr.trim() !== "" ||
+        serviceIntervalMonthsStr.trim() !== ""
+      : editRow != null &&
+        (plate !== editRow.plateNumber ||
+          brand !== editRow.brand ||
+          model !== editRow.model ||
+          year !== (editRow.year != null ? String(editRow.year) : "") ||
+          status !== editRow.status ||
+          (assignMode === "personnel" ? personnelId : "") !==
+            (editRow.assignedPersonnelId != null ? String(editRow.assignedPersonnelId) : "") ||
+          (assignMode === "branch" ? branchId : "") !==
+            (editRow.assignedBranchId != null ? String(editRow.assignedBranchId) : "") ||
+          (assignMode === "idle" && (editRow.assignedPersonnelId != null || editRow.assignedBranchId != null)) ||
+          (editFormDetail != null &&
+            (odometerKmStr !==
+              (editFormDetail.odometerKm != null
+                ? formatGroupedIntegerInput(String(editFormDetail.odometerKm), locale)
+                : "") ||
+              inspectionUntil !== (editFormDetail.inspectionValidUntil ?? "") ||
+              notes !== (editFormDetail.notes ?? "") ||
+              driverSrc !== (editFormDetail.driverSrcValidUntil ?? "") ||
+              driverPsy !== (editFormDetail.driverPsychotechnicalValidUntil ?? "") ||
+              serviceIntervalKmStr !==
+                (editFormDetail.serviceIntervalKm != null ? String(editFormDetail.serviceIntervalKm) : "") ||
+              serviceIntervalMonthsStr !==
+                (editFormDetail.serviceIntervalMonths != null
+                  ? String(editFormDetail.serviceIntervalMonths)
+                  : ""))));
+
+  const closeVehicleModal = () => setVehicleModal(null);
+  const requestCloseVehicleModal = useDirtyGuard({
+    isDirty: isVehicleFormDirty,
+    isBlocked:
+      createV.isPending ||
+      updateV.isPending ||
+      (vehicleModal === "edit" && editRow != null && editFormDetailPending),
+    confirmMessage: t("common.unsavedChangesConfirm"),
+    onClose: closeVehicleModal,
+  });
 
   const openAssignmentDialogFromDetail = () => {
     if (!detail || !canEdit) return;
@@ -1569,13 +1625,14 @@ export function VehiclesScreen() {
 
       <Modal
         open={vehicleModal != null}
-        onClose={() => setVehicleModal(null)}
+        onClose={requestCloseVehicleModal}
         titleId="vehicle-form-title"
         title={vehicleModal === "add" ? t("vehicles.addVehicle") : t("vehicles.editVehicle")}
         narrow
+        className="lg:!max-w-4xl xl:!max-w-5xl"
         nested={detailId != null}
       >
-        <div className="flex flex-col gap-3 p-1">
+        <div className="grid grid-cols-1 gap-3 p-1 lg:grid-cols-2">
           <Input label={t("vehicles.plate")} value={plate} onChange={(e) => setPlate(e.target.value)} />
           <Input label={t("vehicles.brand")} value={brand} onChange={(e) => setBrand(e.target.value)} />
           <Input label={t("vehicles.model")} value={model} onChange={(e) => setModel(e.target.value)} />
@@ -1662,7 +1719,7 @@ export function VehiclesScreen() {
             inputMode="numeric"
             placeholder="—"
           />
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 lg:col-span-2">
             <label className="text-sm font-medium text-zinc-700" htmlFor="vehicle-notes">
               {t("vehicles.notes")}
             </label>
@@ -1689,12 +1746,12 @@ export function VehiclesScreen() {
               />
             </>
           ) : null}
-          <div className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <div className="mt-2 flex flex-col-reverse gap-2 lg:col-span-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
               variant="secondary"
               className="w-full !min-h-12 touch-manipulation sm:!min-h-10 sm:w-auto"
-              onClick={() => setVehicleModal(null)}
+              onClick={requestCloseVehicleModal}
             >
               {t("common.cancel")}
             </Button>

@@ -3,6 +3,7 @@
 import { normalizeWarehouseStock } from "@/modules/dashboard/api/overview-api";
 import { StatSkeleton } from "@/modules/dashboard/components/DashboardMetricValue";
 import { DashboardStorySlide } from "@/modules/dashboard/components/DashboardStoryPrimitives";
+import { DashboardSectionHeader, KpiCard, MiniMetricCard, UI } from "@/modules/dashboard/components/dashboard-ui";
 import type { Locale } from "@/i18n/messages";
 import { cn } from "@/lib/cn";
 import { Card } from "@/shared/components/Card";
@@ -31,17 +32,22 @@ export function DashboardCumulativeStorySection({
     overview.data?.financeExtras.registerCashHeldByPersonnelBreakdown ?? [];
   const heldPreview = heldBreakdown.slice(0, 5);
   const heldMore = Math.max(0, heldBreakdown.length - heldPreview.length);
+  const isUpdating = overview.isFetching;
 
   return (
-      <div className={sectionClassName}>
-        <div>
-          <h3 className="text-base font-semibold text-zinc-900">
-            {t("dashboard.scopeSectionCumulativeTitle")}
-          </h3>
-          <p className="mt-1 text-sm leading-relaxed text-zinc-600">
-            {t("dashboard.scopeSectionCumulativeHint")}
-          </p>
-        </div>
+      <div
+        className={cn(
+          sectionClassName,
+          "transition-opacity duration-200 ease-in-out",
+          isUpdating ? "opacity-90" : "opacity-100"
+        )}
+      >
+        <section className="space-y-4">
+          <DashboardSectionHeader
+            title={t("dashboard.scopeSectionCumulativeTitle")}
+            description={t("dashboard.scopeSectionCumulativeHint")}
+          />
+        </section>
 
         {overview.isPending ? (
           <div className="max-w-xl rounded-2xl border border-zinc-200/90 bg-zinc-50/80 p-6">
@@ -97,193 +103,80 @@ export function DashboardCumulativeStorySection({
           </div>
         ) : null}
 
-      <div
+      <section
         className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
         aria-busy={overview.isPending ? true : undefined}
       >
         <DashboardStorySlide>
-        <Card
+        <KpiCard
           title={t("dashboard.statActivePersonnel")}
           description={t("dashboard.statActivePersonnelDesc")}
-          className="bg-white/90"
-        >
-          {overview.isPending ? (
-            <StatSkeleton />
-          ) : overview.isError ? (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm text-red-600">
-                {toErrorMessage(overview.error)}
+          value={
+            overview.isPending ? (
+              <StatSkeleton />
+            ) : overview.isError ? (
+              <div className="flex flex-col gap-2">
+                <p className="text-sm text-red-600">{toErrorMessage(overview.error)}</p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full sm:w-auto"
+                  onClick={() => void overview.refetch()}
+                >
+                  {t("common.retry")}
+                </Button>
+              </div>
+            ) : (
+              <p className="text-3xl font-bold tabular-nums text-zinc-900">
+                {overview.data?.personnel.activePersonnelCount ?? 0}
               </p>
-              <p className="text-xs text-red-900/80">{t("common.loadErrorHint")}</p>
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full sm:w-auto"
-                onClick={() => void overview.refetch()}
-              >
-                {t("common.retry")}
-              </Button>
-            </div>
-          ) : (
-            <p className="text-2xl font-semibold tabular-nums text-zinc-900 sm:text-3xl">
-              {overview.data?.personnel.activePersonnelCount ?? 0}
-            </p>
-          )}
-        </Card>
+            )
+          }
+        />
         </DashboardStorySlide>
 
         <DashboardStorySlide>
-        <Card
+        <MiniMetricCard
           title={t("dashboard.statBranches")}
           description={t("dashboard.statBranchesDesc")}
-          className="bg-white/90"
-        >
-          {overview.isPending ? (
-            <StatSkeleton />
-          ) : overview.isError ? (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm text-red-600">
-                {toErrorMessage(overview.error)}
-              </p>
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full sm:w-auto"
-                onClick={() => void overview.refetch()}
-              >
-                {t("common.retry")}
-              </Button>
-            </div>
-          ) : (
-            <p className="text-2xl font-semibold tabular-nums text-zinc-900 sm:text-3xl">
-              {overview.data?.operations.activeBranchCount ?? 0}
-            </p>
-          )}
-        </Card>
+          value={overview.isPending ? <StatSkeleton /> : <p className="text-2xl font-semibold tabular-nums text-zinc-900">{overview.data?.operations.activeBranchCount ?? 0}</p>}
+        />
         </DashboardStorySlide>
 
         <DashboardStorySlide>
-        <Card
+        <MiniMetricCard
           title={t("dashboard.statWarehouses")}
           description={t("dashboard.statWarehousesDesc")}
-          className="bg-white/90"
-        >
-          {overview.isPending ? (
-            <StatSkeleton />
-          ) : overview.isError ? (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm text-red-600">
-                {toErrorMessage(overview.error)}
-              </p>
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full sm:w-auto"
-                onClick={() => void overview.refetch()}
-              >
-                {t("common.retry")}
-              </Button>
-            </div>
-          ) : (
-            <p className="text-2xl font-semibold tabular-nums text-zinc-900 sm:text-3xl">
-              {overview.data?.operations.activeWarehouseCount ?? 0}
-            </p>
-          )}
-        </Card>
+          value={overview.isPending ? <StatSkeleton /> : <p className="text-2xl font-semibold tabular-nums text-zinc-900">{overview.data?.operations.activeWarehouseCount ?? 0}</p>}
+        />
         </DashboardStorySlide>
 
         <DashboardStorySlide>
-        <Card
+        <MiniMetricCard
           title={t("dashboard.statActiveSuppliers")}
           description={t("dashboard.statActiveSuppliersDesc")}
-          className="bg-white/90"
-        >
-          {overview.isPending ? (
-            <StatSkeleton />
-          ) : overview.isError ? (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm text-red-600">
-                {toErrorMessage(overview.error)}
-              </p>
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full sm:w-auto"
-                onClick={() => void overview.refetch()}
-              >
-                {t("common.retry")}
-              </Button>
-            </div>
-          ) : (
-            <p className="text-2xl font-semibold tabular-nums text-zinc-900 sm:text-3xl">
-              {overview.data?.operations.activeSupplierCount ?? 0}
-            </p>
-          )}
-        </Card>
+          value={overview.isPending ? <StatSkeleton /> : <p className="text-2xl font-semibold tabular-nums text-zinc-900">{overview.data?.operations.activeSupplierCount ?? 0}</p>}
+        />
         </DashboardStorySlide>
 
         <DashboardStorySlide>
-        <Card
+        <MiniMetricCard
           title={t("dashboard.statActiveVehicles")}
           description={t("dashboard.statActiveVehiclesDesc")}
-          className="bg-white/90"
-        >
-          {overview.isPending ? (
-            <StatSkeleton />
-          ) : overview.isError ? (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm text-red-600">
-                {toErrorMessage(overview.error)}
-              </p>
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full sm:w-auto"
-                onClick={() => void overview.refetch()}
-              >
-                {t("common.retry")}
-              </Button>
-            </div>
-          ) : (
-            <p className="text-2xl font-semibold tabular-nums text-zinc-900 sm:text-3xl">
-              {overview.data?.operations.activeVehicleCount ?? 0}
-            </p>
-          )}
-        </Card>
+          value={overview.isPending ? <StatSkeleton /> : <p className="text-2xl font-semibold tabular-nums text-zinc-900">{overview.data?.operations.activeVehicleCount ?? 0}</p>}
+        />
         </DashboardStorySlide>
 
         <DashboardStorySlide>
-        <Card
+        <MiniMetricCard
           title={t("dashboard.statActiveProducts")}
           description={t("dashboard.statActiveProductsDesc")}
-          className="bg-white/90"
-        >
-          {overview.isPending ? (
-            <StatSkeleton />
-          ) : overview.isError ? (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm text-red-600">
-                {toErrorMessage(overview.error)}
-              </p>
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full sm:w-auto"
-                onClick={() => void overview.refetch()}
-              >
-                {t("common.retry")}
-              </Button>
-            </div>
-          ) : (
-            <p className="text-2xl font-semibold tabular-nums text-zinc-900 sm:text-3xl">
-              {overview.data?.operations.activeProductCount ?? 0}
-            </p>
-          )}
-        </Card>
+          value={overview.isPending ? <StatSkeleton /> : <p className="text-2xl font-semibold tabular-nums text-zinc-900">{overview.data?.operations.activeProductCount ?? 0}</p>}
+        />
         </DashboardStorySlide>
-      </div>
+      </section>
 
-      <div className="mt-4 rounded-xl border border-teal-200/70 bg-gradient-to-br from-teal-50/85 via-white to-emerald-50/30 p-4 shadow-sm ring-1 ring-teal-100/45 sm:p-5">
+      <section className={`${UI.surface} mt-4 space-y-4 p-3 shadow-sm sm:p-4`}>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-zinc-900">
@@ -370,7 +263,7 @@ export function DashboardCumulativeStorySection({
             );
           })()
         )}
-      </div>
+      </section>
 
       {heldPreview.length > 0 ? (
         <div className="mt-4 rounded-xl border border-sky-200/60 bg-white/70 p-3 shadow-sm">

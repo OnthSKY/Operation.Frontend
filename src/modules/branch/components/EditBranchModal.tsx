@@ -2,6 +2,8 @@
 
 import { useI18n } from "@/i18n/context";
 import { useUpdateBranch } from "@/modules/branch/hooks/useBranchQueries";
+import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import type { Branch } from "@/types/branch";
 import type { Personnel } from "@/types/personnel";
 import { cn } from "@/lib/cn";
@@ -32,7 +34,7 @@ export function EditBranchModal({ open, branch, staff, onClose }: Props) {
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
     reset,
   } = useForm<FormValues>({ defaultValues: { name: "", address: "" } });
 
@@ -81,79 +83,88 @@ export function EditBranchModal({ open, branch, staff, onClose }: Props) {
       notify.error(toErrorMessage(e));
     }
   });
+  const requestClose = useDirtyGuard({
+    isDirty,
+    isBlocked: updateBranchMut.isPending,
+    confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
+    onClose,
+  });
 
   return (
     <Modal
       open={open && branch != null}
-      onClose={onClose}
+      onClose={requestClose}
       titleId={TITLE_ID}
       title={t("branch.editTitle")}
       description={t("branch.editHint")}
+      className="w-full max-w-xl"
     >
-      <form className="mt-4 flex max-h-[min(70vh,32rem)] flex-col gap-3 overflow-y-auto pr-1" onSubmit={onSubmit}>
-        <Input
-          label={t("branch.fieldName")}
-          labelRequired
-          required
-          {...register("name", { required: t("common.required") })}
-          error={errors.name?.message}
-          autoComplete="organization"
-          maxLength={100}
-        />
-        <div className="flex w-full flex-col gap-1">
-          <label htmlFor="edit-branch-address" className="text-sm font-medium text-zinc-700">
-            {t("branch.fieldAddress")}
-          </label>
-          <textarea
-            id="edit-branch-address"
-            rows={3}
-            className={cn(
-              "min-h-[4.5rem] w-full resize-y rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base text-zinc-900 outline-none ring-zinc-900 focus:border-zinc-900 focus:ring-2"
-            )}
-            maxLength={2000}
-            {...register("address")}
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium text-zinc-700">{t("branch.fieldResponsibles")}</p>
-          <p className="text-xs text-zinc-500">{t("branch.responsiblesHint")}</p>
-          {activeStaff.length === 0 ? (
-            <p className="text-sm text-zinc-500">{t("branch.responsiblesEmptyStaff")}</p>
-          ) : (
-            <ul className="flex max-h-40 flex-col gap-2 overflow-y-auto rounded-lg border border-zinc-200 p-2">
-              {activeStaff.map((p) => (
-                <li key={p.id}>
-                  <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-800">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-zinc-300"
-                      checked={selectedIds.has(p.id)}
-                      onChange={() => togglePid(p.id)}
-                    />
-                    <span className="min-w-0 truncate">{p.fullName}</span>
+      <form onSubmit={onSubmit}>
+        <ModalFormLayout
+          body={
+            <>
+              <FormSection>
+                <Input
+                  label={t("branch.fieldName")}
+                  labelRequired
+                  required
+                  autoFocus
+                  {...register("name", { required: t("common.required") })}
+                  error={errors.name?.message}
+                  autoComplete="organization"
+                  maxLength={100}
+                />
+                <div className="flex w-full flex-col gap-1">
+                  <label htmlFor="edit-branch-address" className="text-sm font-medium text-zinc-700">
+                    {t("branch.fieldAddress")}
                   </label>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:justify-end">
-          <Button
-            type="button"
-            variant="secondary"
-            className="sm:min-w-[120px]"
-            onClick={onClose}
-          >
-            {t("common.cancel")}
-          </Button>
-          <Button
-            type="submit"
-            className="sm:min-w-[120px]"
-            disabled={updateBranchMut.isPending}
-          >
-            {updateBranchMut.isPending ? t("common.saving") : t("common.save")}
-          </Button>
-        </div>
+                  <textarea
+                    id="edit-branch-address"
+                    rows={3}
+                    className={cn(
+                      "min-h-[4.5rem] w-full resize-y rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base text-zinc-900 outline-none ring-zinc-900 focus:border-zinc-900 focus:ring-2"
+                    )}
+                    maxLength={2000}
+                    {...register("address")}
+                  />
+                </div>
+              </FormSection>
+              <FormSection>
+                <p className="text-sm font-medium text-zinc-700">{t("branch.fieldResponsibles")}</p>
+                <p className="text-xs text-zinc-500">{t("branch.responsiblesHint")}</p>
+                {activeStaff.length === 0 ? (
+                  <p className="text-sm text-zinc-500">{t("branch.responsiblesEmptyStaff")}</p>
+                ) : (
+                  <ul className="flex max-h-40 flex-col gap-2 overflow-y-auto rounded-lg border border-zinc-200 p-2">
+                    {activeStaff.map((p) => (
+                      <li key={p.id}>
+                        <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-800">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-zinc-300"
+                            checked={selectedIds.has(p.id)}
+                            onChange={() => togglePid(p.id)}
+                          />
+                          <span className="min-w-0 truncate">{p.fullName}</span>
+                        </label>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </FormSection>
+            </>
+          }
+          footer={
+            <>
+              <Button type="button" variant="secondary" className="min-w-[120px]" onClick={requestClose}>
+                {t("common.cancel")}
+              </Button>
+              <Button type="submit" className="min-w-[120px]" disabled={updateBranchMut.isPending}>
+                {updateBranchMut.isPending ? t("common.saving") : t("common.save")}
+              </Button>
+            </>
+          }
+        />
       </form>
     </Modal>
   );

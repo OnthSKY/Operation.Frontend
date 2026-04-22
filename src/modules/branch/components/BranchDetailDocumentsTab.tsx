@@ -9,6 +9,8 @@ import { fetchBranchDocumentBlob } from "@/modules/branch/api/branch-documents-a
 import { useI18n } from "@/i18n/context";
 import type { BranchDocumentKind } from "@/types/branch-document";
 import { formatLocaleDateTime } from "@/shared/lib/locale-date";
+import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
@@ -135,9 +137,19 @@ export function BranchDetailDocumentsTab({ branchId, active, readOnly = false }:
     const opt = KIND_OPTIONS.find((o) => o.value === k);
     return opt ? t(opt.labelKey) : k;
   };
+  const isUploadDirty =
+    kind !== "TAX_BASE" ||
+    notes.trim() !== "" ||
+    file != null;
+  const requestUploadClose = useDirtyGuard({
+    isDirty: isUploadDirty,
+    isBlocked: uploadMut.isPending,
+    confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
+    onClose: closeForm,
+  });
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="w-full min-w-0 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-zinc-600">{t("branch.documentsIntro")}</p>
         {!readOnly ? (
@@ -207,97 +219,103 @@ export function BranchDetailDocumentsTab({ branchId, active, readOnly = false }:
 
       <Modal
         open={formOpen}
-        onClose={closeForm}
+        onClose={requestUploadClose}
         titleId={UPLOAD_MODAL_TITLE_ID}
         title={t("branch.documentsUploadTitle")}
         closeButtonLabel={t("common.close")}
         nested
         className="max-w-lg"
       >
-        <div className="space-y-3 p-1">
-          <div>
-            <Select
-              name="branchDocumentKind"
-              label={t("branch.documentsKindLabel")}
-              value={kind}
-              onChange={(e) => setKind(e.target.value as BranchDocumentKind)}
-              onBlur={NOOP_BLUR}
-              options={KIND_OPTIONS.map((o) => ({
-                value: o.value,
-                label: t(o.labelKey),
-              }))}
-              menuZIndex={320}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-700">
-              {t("branch.documentsFileLabel")}
-            </label>
-            <label
-              htmlFor="branch-doc-file-input"
-              className="flex min-h-24 cursor-pointer items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-4 text-center text-sm text-zinc-600 transition-colors hover:border-zinc-500 hover:bg-zinc-100"
-            >
-              {file ? file.name : t("branch.documentsFileLabel")}
-            </label>
-            <input
-              id="branch-doc-file-input"
-              type="file"
-              accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp"
-              className="sr-only"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            />
-            {file ? (
-              <div className="mt-2 rounded-xl border border-zinc-200 bg-white p-2">
-                {filePreviewMode === "image" && filePreviewUrl ? (
-                  <img
-                    src={filePreviewUrl}
-                    alt={file.name}
-                    className="h-40 w-full rounded-lg object-cover"
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submitUpload();
+          }}
+        >
+          <ModalFormLayout
+            body={
+              <FormSection>
+                <Select
+                  name="branchDocumentKind"
+                  label={t("branch.documentsKindLabel")}
+                  value={kind}
+                  onChange={(e) => setKind(e.target.value as BranchDocumentKind)}
+                  onBlur={NOOP_BLUR}
+                  options={KIND_OPTIONS.map((o) => ({
+                    value: o.value,
+                    label: t(o.labelKey),
+                  }))}
+                  menuZIndex={320}
+                />
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-zinc-700">
+                    {t("branch.documentsFileLabel")}
+                  </label>
+                  <label
+                    htmlFor="branch-doc-file-input"
+                    className="flex min-h-24 cursor-pointer items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-4 text-center text-sm text-zinc-600 transition-colors hover:border-zinc-500 hover:bg-zinc-100"
+                  >
+                    {file ? file.name : t("branch.documentsFileLabel")}
+                  </label>
+                  <input
+                    id="branch-doc-file-input"
+                    type="file"
+                    accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp"
+                    className="sr-only"
+                    onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                   />
-                ) : filePreviewMode === "pdf" && filePreviewUrl ? (
-                  <iframe
-                    src={filePreviewUrl}
-                    title={file.name}
-                    className="h-48 w-full rounded-lg border border-zinc-200"
-                  />
-                ) : (
-                  <div className="rounded-lg bg-zinc-100 px-3 py-2 text-sm text-zinc-700">
-                    {file.name}
-                  </div>
-                )}
-                <div className="mt-2 text-xs text-zinc-500">
-                  {(file.size / 1024 / 1024).toFixed(2)} MB
+                  {file ? (
+                    <div className="mt-2 rounded-xl border border-zinc-200 bg-white p-2">
+                      {filePreviewMode === "image" && filePreviewUrl ? (
+                        <img
+                          src={filePreviewUrl}
+                          alt={file.name}
+                          className="h-40 w-full rounded-lg object-cover"
+                        />
+                      ) : filePreviewMode === "pdf" && filePreviewUrl ? (
+                        <iframe
+                          src={filePreviewUrl}
+                          title={file.name}
+                          className="h-48 w-full rounded-lg border border-zinc-200"
+                        />
+                      ) : (
+                        <div className="rounded-lg bg-zinc-100 px-3 py-2 text-sm text-zinc-700">
+                          {file.name}
+                        </div>
+                      )}
+                      <div className="mt-2 text-xs text-zinc-500">
+                        {(file.size / 1024 / 1024).toFixed(2)} MB
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
-              </div>
-            ) : null}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-700">
-              {t("branch.documentsNotesLabel")}
-            </label>
-            <textarea
-              className="min-h-[72px] w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              maxLength={500}
-              placeholder={t("branch.documentsNotesPlaceholder")}
-            />
-          </div>
-          {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
-          <div className="flex flex-wrap justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={closeForm}>
-              {t("common.cancel")}
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              disabled={uploadMut.isPending}
-              onClick={() => void submitUpload()}
-            >
-              {uploadMut.isPending ? t("common.loading") : t("branch.documentsUploadSubmit")}
-            </Button>
-          </div>
-        </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-zinc-700">
+                    {t("branch.documentsNotesLabel")}
+                  </label>
+                  <textarea
+                    className="min-h-[72px] w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    maxLength={500}
+                    placeholder={t("branch.documentsNotesPlaceholder")}
+                  />
+                </div>
+                {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
+              </FormSection>
+            }
+            footer={
+              <>
+                <Button type="button" variant="secondary" onClick={requestUploadClose}>
+                  {t("common.cancel")}
+                </Button>
+                <Button type="submit" variant="primary" disabled={uploadMut.isPending}>
+                  {uploadMut.isPending ? t("common.loading") : t("branch.documentsUploadSubmit")}
+                </Button>
+              </>
+            }
+          />
+        </form>
       </Modal>
 
       <Modal

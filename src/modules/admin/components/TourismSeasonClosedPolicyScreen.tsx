@@ -7,16 +7,19 @@ import {
   useUpdateTourismSeasonClosedPolicyMutation,
 } from "@/modules/admin/hooks/useTourismSeasonClosedPolicyQuery";
 import { useI18n } from "@/i18n/context";
+import { StickyActionBar } from "@/components/mobile/StickyActionBar";
 import { Card } from "@/shared/components/Card";
+import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatLocaleDateTime } from "@/shared/lib/locale-date";
 import { notify } from "@/shared/lib/notify";
+import { Button } from "@/shared/ui/Button";
 import { Switch } from "@/shared/ui/Switch";
 import { cn } from "@/lib/cn";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   listTourismSeasonPolicyWarningIds,
   tourismSeasonPolicyWarningI18nKey,
@@ -30,6 +33,7 @@ export function TourismSeasonClosedPolicyScreen() {
     Boolean(user && user.role === "ADMIN")
   );
   const mut = useUpdateTourismSeasonClosedPolicyMutation();
+  const [draft, setDraft] = useState<UpdateTourismSeasonClosedPolicyBody>({});
 
   useEffect(() => {
     if (isReady && user && user.role !== "ADMIN") router.replace("/personnel");
@@ -51,9 +55,27 @@ export function TourismSeasonClosedPolicyScreen() {
     );
   }
 
-  const save = async (patch: UpdateTourismSeasonClosedPolicyBody) => {
+  useEffect(() => {
+    if (!data) return;
+    setDraft({
+      allowRegisterIncomeWhenSeasonClosed: data.allowRegisterIncomeWhenSeasonClosed,
+      allowRegisterPersonnelExpenseWhenSeasonClosed:
+        data.allowRegisterPersonnelExpenseWhenSeasonClosed,
+      allowRegisterPocketRepayExpenseWhenSeasonClosed:
+        data.allowRegisterPocketRepayExpenseWhenSeasonClosed,
+      allowRegisterOtherExpenseWhenSeasonClosed: data.allowRegisterOtherExpenseWhenSeasonClosed,
+      allowAdvanceBranchCashWhenSeasonClosed: data.allowAdvanceBranchCashWhenSeasonClosed,
+      allowSupplierBranchAllocationPostWhenSeasonClosed:
+        data.allowSupplierBranchAllocationPostWhenSeasonClosed,
+      allowGeneralOverheadAllocateWhenSeasonClosed:
+        data.allowGeneralOverheadAllocateWhenSeasonClosed,
+      allowVehicleBranchExpenseWhenSeasonClosed: data.allowVehicleBranchExpenseWhenSeasonClosed,
+    });
+  }, [data]);
+
+  const save = async () => {
     try {
-      await mut.mutateAsync(patch);
+      await mut.mutateAsync(draft);
       notify.success(t("settings.tourismSeasonSaved"));
     } catch (e) {
       notify.error(toErrorMessage(e));
@@ -108,62 +130,68 @@ export function TourismSeasonClosedPolicyScreen() {
   ];
 
   const policyWarnings = useMemo(
-    () => (data ? listTourismSeasonPolicyWarningIds(data) : []),
-    [data]
+    () => (data ? listTourismSeasonPolicyWarningIds({ ...data, ...draft }) : []),
+    [data, draft]
   );
+  const hasChanges =
+    data != null &&
+    rows.some((row) => Boolean(data[row.key]) !== Boolean(draft[row.key]));
 
   return (
-    <div
-      className={cn(
-        "mx-auto flex w-full min-h-0 min-w-0 app-page-max flex-1 flex-col gap-5 sm:gap-6",
-        "max-md:pt-2 md:pt-0 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] sm:pb-8"
-      )}
-    >
-      <div className="min-w-0">
-        <Link
-          href="/admin/settings"
-          className="inline-flex min-h-11 max-w-full items-center rounded-lg py-1.5 text-sm font-semibold text-violet-700 underline-offset-2 hover:text-violet-900 hover:underline active:bg-violet-50"
-        >
-          ← {t("settings.backToSettings")}
-        </Link>
-        <h1 className="mt-2 break-words text-lg font-bold leading-snug tracking-tight text-zinc-900 sm:mt-3 sm:text-xl md:text-2xl">
-          {t("settings.tourismSeasonPageTitle")}
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-600 sm:text-[0.9375rem]">
-          {t("settings.tourismSeasonPageDescription")}
-        </p>
-      </div>
-
-      <PageWhenToUseGuide
-        guideTab="admin"
-        title={t("common.pageWhenToUseTitle")}
-        description={t("pageHelp.settingsTourismSeason.intro")}
-        listVariant="ordered"
-        items={[
-          { text: t("pageHelp.settingsTourismSeason.step1") },
-          { text: t("pageHelp.settingsTourismSeason.step2") },
-          {
-            text: t("pageHelp.settingsTourismSeason.step3"),
-            link: { href: "/branches", label: t("pageHelp.settingsTourismSeason.step3Link") },
-          },
-        ]}
-      />
-
-      {isPending ? (
-        <p className="text-sm text-zinc-500">{t("common.loading")}</p>
-      ) : isError ? (
-        <div className="rounded-xl border border-red-200 bg-red-50/90 p-4 text-sm text-red-800">
-          <p className="break-words leading-relaxed">{toErrorMessage(error)}</p>
-          <button
-            type="button"
-            className="mt-4 flex min-h-11 w-full items-center justify-center rounded-xl bg-red-100 px-4 text-sm font-semibold text-red-900 ring-1 ring-red-200/80 active:bg-red-200/80 sm:mt-3 sm:w-auto sm:justify-start sm:bg-transparent sm:px-0 sm:ring-0 sm:underline"
-            onClick={() => void refetch()}
+    <>
+      <PageScreenScaffold
+        variant="form"
+        className={cn("w-full pb-24 pt-2 sm:pt-4")}
+        top={
+          <Link
+            href="/admin/settings"
+            className="inline-flex min-h-11 max-w-full items-center rounded-lg py-1.5 text-sm font-semibold text-violet-700 underline-offset-2 hover:text-violet-900 hover:underline active:bg-violet-50"
           >
-            {t("common.retry")}
-          </button>
-        </div>
-      ) : (
-        <div className="flex min-h-0 min-w-0 flex-col gap-4">
+            ← {t("settings.backToSettings")}
+          </Link>
+        }
+        intro={
+          <>
+            <div className="min-w-0">
+              <h1 className="mt-2 break-words text-lg font-bold leading-snug tracking-tight text-zinc-900 sm:mt-3 sm:text-xl md:text-2xl">
+                {t("settings.tourismSeasonPageTitle")}
+              </h1>
+              <p className="mt-2 text-sm leading-relaxed text-zinc-600 sm:text-[0.9375rem]">
+                {t("settings.tourismSeasonPageDescription")}
+              </p>
+            </div>
+            <PageWhenToUseGuide
+              guideTab="admin"
+              title={t("common.pageWhenToUseTitle")}
+              description={t("pageHelp.settingsTourismSeason.intro")}
+              listVariant="ordered"
+              items={[
+                { text: t("pageHelp.settingsTourismSeason.step1") },
+                { text: t("pageHelp.settingsTourismSeason.step2") },
+                {
+                  text: t("pageHelp.settingsTourismSeason.step3"),
+                  link: { href: "/branches", label: t("pageHelp.settingsTourismSeason.step3Link") },
+                },
+              ]}
+            />
+          </>
+        }
+        main={
+          isPending ? (
+            <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+          ) : isError ? (
+            <div className="rounded-xl border border-red-200 bg-red-50/90 p-4 text-sm text-red-800">
+              <p className="break-words leading-relaxed">{toErrorMessage(error)}</p>
+              <button
+                type="button"
+                className="mt-4 flex min-h-11 w-full items-center justify-center rounded-xl bg-red-100 px-4 text-sm font-semibold text-red-900 ring-1 ring-red-200/80 active:bg-red-200/80 sm:mt-3 sm:w-auto sm:justify-start sm:bg-transparent sm:px-0 sm:ring-0 sm:underline"
+                onClick={() => void refetch()}
+              >
+                {t("common.retry")}
+              </button>
+            </div>
+          ) : (
+            <div className="flex min-h-0 min-w-0 flex-col gap-4">
           {policyWarnings.length > 0 ? (
             <div
               className="rounded-xl border border-amber-200/90 bg-amber-50/90 px-4 py-3.5 text-sm text-amber-950 sm:px-5"
@@ -192,7 +220,7 @@ export function TourismSeasonClosedPolicyScreen() {
 
             <ul className="flex flex-col divide-y divide-zinc-100">
               {rows.map((row) => {
-                const checked = Boolean(data?.[row.key]);
+                const checked = Boolean(draft[row.key]);
                 return (
                   <li key={row.key} className={cn(mut.isPending && "pointer-events-none opacity-60")}>
                     <label className="flex min-h-[3.25rem] cursor-pointer gap-3 px-4 py-4 active:bg-zinc-50 sm:min-h-0 sm:items-center sm:px-5 sm:py-4">
@@ -207,7 +235,9 @@ export function TourismSeasonClosedPolicyScreen() {
                       <Switch
                         checked={checked}
                         disabled={mut.isPending}
-                        onCheckedChange={(next) => void save({ [row.key]: next })}
+                        onCheckedChange={(next) =>
+                          setDraft((prev) => ({ ...prev, [row.key]: next }))
+                        }
                         className="self-start sm:self-center"
                       />
                     </label>
@@ -224,8 +254,49 @@ export function TourismSeasonClosedPolicyScreen() {
           </Card>
 
           <p className="text-xs leading-relaxed text-zinc-500 sm:text-sm">{t("settings.tourismSeasonDefaultsNote")}</p>
+            </div>
+          )
+        }
+      />
+      <StickyActionBar>
+        <div className="grid grid-cols-2 gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            className="min-h-11 w-full rounded-xl text-sm font-semibold"
+            disabled={mut.isPending || !data || !hasChanges}
+            onClick={() =>
+              data &&
+              setDraft({
+                allowRegisterIncomeWhenSeasonClosed: data.allowRegisterIncomeWhenSeasonClosed,
+                allowRegisterPersonnelExpenseWhenSeasonClosed:
+                  data.allowRegisterPersonnelExpenseWhenSeasonClosed,
+                allowRegisterPocketRepayExpenseWhenSeasonClosed:
+                  data.allowRegisterPocketRepayExpenseWhenSeasonClosed,
+                allowRegisterOtherExpenseWhenSeasonClosed:
+                  data.allowRegisterOtherExpenseWhenSeasonClosed,
+                allowAdvanceBranchCashWhenSeasonClosed: data.allowAdvanceBranchCashWhenSeasonClosed,
+                allowSupplierBranchAllocationPostWhenSeasonClosed:
+                  data.allowSupplierBranchAllocationPostWhenSeasonClosed,
+                allowGeneralOverheadAllocateWhenSeasonClosed:
+                  data.allowGeneralOverheadAllocateWhenSeasonClosed,
+                allowVehicleBranchExpenseWhenSeasonClosed:
+                  data.allowVehicleBranchExpenseWhenSeasonClosed,
+              })
+            }
+          >
+            {t("common.cancel")}
+          </Button>
+          <Button
+            type="button"
+            className="min-h-11 w-full rounded-xl text-sm font-semibold"
+            disabled={mut.isPending || !data || !hasChanges}
+            onClick={() => void save()}
+          >
+            {mut.isPending ? t("common.saving") : t("common.save")}
+          </Button>
         </div>
-      )}
-    </div>
+      </StickyActionBar>
+    </>
   );
 }

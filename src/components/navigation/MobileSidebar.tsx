@@ -4,15 +4,17 @@ import { Z_INDEX } from "@/config/z-index";
 import { NavIcon } from "./nav-icons";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useI18n } from "@/i18n/context";
 import {
   getVisibleNavItems,
-  isActiveRoute,
+  resolveMostSpecificRoute,
   resolveBadge,
   trackNavClick,
   type NavBadgeState,
 } from "./navigation-utils";
+import type { NavigationItem } from "./navigation-mapper";
 
 type MobileSidebarProps = {
   open: boolean;
@@ -21,15 +23,49 @@ type MobileSidebarProps = {
 };
 
 export function MobileSidebar({ open, onClose, badgeState }: MobileSidebarProps) {
+  const STORAGE_KEY = "ops.nav.mobile.openGroups";
   const pathname = usePathname() ?? "/";
   const { user } = useAuth();
+  const { t } = useI18n();
   const panelRef = useRef<HTMLElement | null>(null);
   const navScrollRef = useRef<HTMLDivElement | null>(null);
   const savedScrollTop = useRef(0);
   const sortedItems = useMemo(
-    () => getVisibleNavItems(user),
-    [user]
+    () => getVisibleNavItems(user, t),
+    [user, t]
   );
+  const activeRoute = useMemo(
+    () => resolveMostSpecificRoute(pathname, sortedItems),
+    [pathname, sortedItems]
+  );
+  const [openGroups, setOpenGroups] = useState<string[]>(["overview-group", "finance-reporting"]);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        setOpenGroups(parsed.filter((x): x is string => typeof x === "string"));
+      }
+    } catch {
+      // Ignore invalid localStorage values
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(openGroups));
+    } catch {
+      // Ignore storage write failures
+    }
+  }, [openGroups]);
+
+  const toggleGroup = (groupId: string) => {
+    setOpenGroups((prev) =>
+      prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId]
+    );
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -100,28 +136,111 @@ export function MobileSidebar({ open, onClose, badgeState }: MobileSidebarProps)
         role="dialog"
         aria-modal="true"
         aria-label="Mobile navigation"
-        className={`absolute inset-y-0 left-0 flex w-[85%] max-w-[18rem] flex-col border-r border-zinc-200 bg-white shadow-xl transition-transform duration-[220ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${
+        className={`absolute inset-y-0 left-0 flex w-[85%] max-w-[18rem] flex-col border-r border-zinc-200 bg-zinc-50 shadow-xl transition-transform duration-[220ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="flex min-h-14 items-center justify-between border-b border-zinc-100 px-4">
-          <p className="text-sm font-semibold text-zinc-900">Menu</p>
+        <div className="flex min-h-14 items-center justify-between border-b border-zinc-200/80 bg-white/80 px-4">
+          <p className="text-sm font-semibold text-zinc-900">{t("nav.mainNav")}</p>
           <button
             type="button"
             className="min-h-11 rounded-lg px-3 text-sm font-medium text-zinc-600 hover:bg-zinc-100"
             onClick={onClose}
-            aria-label="Close menu"
+            aria-label={t("common.close")}
           >
-            Close
+            {t("common.close")}
           </button>
         </div>
         <nav
           ref={navScrollRef}
-          className="flex-1 space-y-1 overflow-y-auto p-2"
+          className="m-2 flex-1 space-y-1 overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-2 shadow-sm"
           aria-label="Primary mobile navigation"
         >
+          <div className="mb-2 rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              {t("nav.mobileGroupHintTitle")}
+            </p>
+            <p className="mt-0.5 text-xs text-zinc-600">{t("nav.mobileGroupHintBody")}</p>
+          </div>
           {sortedItems.map((item) => {
-            const active = isActiveRoute(pathname, item.route);
+            if (item.children?.length) {
+              const isOpen = openGroups.includes(item.id);
+              return (
+                <div key={item.id} className="mt-2 border-t border-zinc-200/70 pt-2 first:mt-0 first:border-t-0 first:pt-0">
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(item.id)}
+                    aria-expanded={isOpen}
+                    className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-zinc-500 transition-all duration-200 ease-in-out hover:bg-zinc-100/80"
+                  >
+                    <span>{item.label}</span>
+                    <svg
+                      width="14"
+                      height="14"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      aria-hidden
+                      className={`transition-transform duration-200 ease-in-out ${isOpen ? "rotate-180" : ""}`}
+                    >
+                      <path d="m6 9 6 6 6-6" />
+                    </svg>
+                  </button>
+                  <div
+                    className={`grid transition-all duration-200 ease-in-out ${
+                      isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                    }`}
+                  >
+                    <div className="min-h-0 overflow-hidden">
+                      {isOpen ? (
+                        <div className="space-y-1 pt-1">
+                          {item.children.map((child: NavigationItem) => {
+                            const active = activeRoute === child.route;
+                            const badge = resolveBadge(child, badgeState);
+                            return (
+                              <Link
+                                key={child.id}
+                                href={child.route}
+                                prefetch
+                                onClick={() => {
+                                  if (navScrollRef.current) savedScrollTop.current = navScrollRef.current.scrollTop;
+                                  trackNavClick(child.route);
+                                  onClose();
+                                }}
+                                className={`relative flex min-h-10 items-center gap-2.5 rounded-xl pl-6 pr-3 text-sm font-medium transition-all duration-200 ${
+                                  active
+                                    ? "border border-indigo-100 bg-indigo-50 text-indigo-700"
+                                    : "text-zinc-600 hover:bg-zinc-100/80 hover:text-zinc-900"
+                                }`}
+                              >
+                                <span
+                                  className={`absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-indigo-500 transition-all duration-200 ${
+                                    active ? "scale-y-100 opacity-100" : "scale-y-0 opacity-0"
+                                  }`}
+                                  aria-hidden
+                                />
+                                <NavIcon icon={child.icon} />
+                                <span className="min-w-0 flex-1">{child.label}</span>
+                                {badge ? (
+                                  <span className={`rounded-full px-1.5 text-[10px] leading-4 ${
+                                    active ? "bg-indigo-600 text-white" : "bg-zinc-900 text-white"
+                                  }`}>
+                                    {badge > 99 ? "99+" : badge}
+                                  </span>
+                                ) : null}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            const active = activeRoute === item.route;
             const badge = resolveBadge(item, badgeState);
             return (
               <Link
@@ -133,14 +252,24 @@ export function MobileSidebar({ open, onClose, badgeState }: MobileSidebarProps)
                   trackNavClick(item.route);
                   onClose();
                 }}
-                className={`flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium ${
-                  active ? "bg-zinc-900 text-white" : "text-zinc-700 hover:bg-zinc-100"
+                className={`relative flex min-h-10 items-center gap-2.5 rounded-xl px-3 text-sm font-medium transition-all duration-200 ${
+                  active
+                    ? "border border-indigo-100 bg-indigo-50 text-indigo-700"
+                    : "text-zinc-600 hover:bg-zinc-100/80 hover:text-zinc-900"
                 }`}
               >
+                <span
+                  className={`absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-indigo-500 transition-all duration-200 ${
+                    active ? "scale-y-100 opacity-100" : "scale-y-0 opacity-0"
+                  }`}
+                  aria-hidden
+                />
                 <NavIcon icon={item.icon} />
-                <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                <span className="min-w-0 flex-1">{item.label}</span>
                 {badge ? (
-                  <span className="rounded-full bg-zinc-900 px-1.5 text-[10px] leading-4 text-white">
+                  <span className={`rounded-full px-1.5 text-[10px] leading-4 ${
+                    active ? "bg-indigo-600 text-white" : "bg-zinc-900 text-white"
+                  }`}>
                     {badge > 99 ? "99+" : badge}
                   </span>
                 ) : null}

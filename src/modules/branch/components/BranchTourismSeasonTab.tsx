@@ -14,6 +14,7 @@ import type { BranchTourismSeasonPeriod } from "@/types/branch-tourism-season";
 import { formatLocaleDate, formatLocaleDateTime } from "@/shared/lib/locale-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { userCanManageTourismSeasonClosedPolicy } from "@/shared/lib/resolve-localized-api-error";
 import { BranchTourismSeasonWorkflowCard } from "@/modules/branch/components/BranchTourismSeasonWorkflowCard";
 import { Card } from "@/shared/components/Card";
@@ -164,6 +165,18 @@ export function BranchTourismSeasonTab({ branchId, active }: Props) {
   };
 
   const saving = createMut.isPending || updateMut.isPending;
+  const formDirty =
+    formOpen &&
+    (seasonYear !== (editing ? String(editing.seasonYear) : String(new Date().getFullYear())) ||
+      openedOn !== (editing ? editing.openedOn.slice(0, 10) : "") ||
+      closedOn !== (editing?.closedOn ? editing.closedOn.slice(0, 10) : "") ||
+      notes !== (editing?.notes ?? ""));
+  const requestCloseForm = useDirtyGuard({
+    isDirty: formDirty,
+    isBlocked: saving,
+    confirmMessage: t("common.unsavedChangesConfirm"),
+    onClose: closeForm,
+  });
   const dash = "—";
 
   return (
@@ -355,7 +368,7 @@ export function BranchTourismSeasonTab({ branchId, active }: Props) {
 
       <Modal
         open={formOpen}
-        onClose={closeForm}
+        onClose={requestCloseForm}
         titleId={FORM_MODAL_TITLE_ID}
         title={editing ? t("branch.tSeasonEditTitle") : t("branch.tSeasonAddTitle")}
         description={t("branch.tSeasonFormHint")}
@@ -465,7 +478,7 @@ export function BranchTourismSeasonTab({ branchId, active }: Props) {
             >
               {saving ? t("common.saving") : t("common.save")}
             </Button>
-            <Button type="button" variant="secondary" className="min-h-11" disabled={saving} onClick={closeForm}>
+            <Button type="button" variant="secondary" className="min-h-11" disabled={saving} onClick={requestCloseForm}>
               {t("common.cancel")}
             </Button>
           </div>

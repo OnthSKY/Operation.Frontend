@@ -4,6 +4,7 @@ import { normalizeWarehouseStock } from "@/modules/dashboard/api/overview-api";
 import { StoryBlock, DashboardStorySlide } from "@/modules/dashboard/components/DashboardStoryPrimitives";
 import { StatSkeleton } from "@/modules/dashboard/components/DashboardMetricValue";
 import { fillDashboardTemplate } from "@/modules/dashboard/components/dashboard-utils";
+import { DashboardSectionHeader, KpiCard, UI } from "@/modules/dashboard/components/dashboard-ui";
 import { Card } from "@/shared/components/Card";
 import type { Locale } from "@/i18n/messages";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
@@ -23,9 +24,15 @@ export function DashboardOperationsTab({
 }) {
   const linkCls =
     "mt-3 inline-block text-sm font-semibold text-violet-800 underline-offset-2 hover:underline";
+  const isUpdating = overview.isFetching;
 
   return (
-    <div className="min-w-0" role="tabpanel">
+    <div
+      className={`min-w-0 transition-opacity duration-200 ease-in-out ${
+        isUpdating ? "opacity-90" : "opacity-100"
+      }`}
+      role="tabpanel"
+    >
       <StoryBlock
         title={t("dashboard.storyOperations")}
         description={t("dashboard.storyOperationsDesc")}
@@ -58,31 +65,35 @@ export function DashboardOperationsTab({
             ) : null}
 
             <div className="grid min-w-0 grid-cols-1 gap-4 sm:max-w-md sm:gap-4">
-              <Card title={t("dashboard.statWarehouses")} description={t("dashboard.statWarehousesDesc")}>
-                {overview.isPending ? (
-                  <StatSkeleton />
-                ) : (
-                  <>
-                    <p className="text-2xl font-semibold text-zinc-900">
+              <KpiCard
+                title={t("dashboard.statWarehouses")}
+                description={t("dashboard.statWarehousesDesc")}
+                value={
+                  overview.isPending ? (
+                    <StatSkeleton />
+                  ) : (
+                    <p className="text-3xl font-bold text-zinc-900">
                       {overview.data?.operations.activeWarehouseCount ?? 0}
                     </p>
+                  )
+                }
+                footer={
+                  !overview.isPending ? (
                     <Link href="/warehouses" className={linkCls}>
                       {t("dashboard.operationsOpenList")}
                     </Link>
-                  </>
-                )}
-              </Card>
+                  ) : null
+                }
+              />
             </div>
 
-            <div className="rounded-xl border border-teal-200/70 bg-gradient-to-br from-teal-50/85 via-white to-emerald-50/30 p-4 shadow-sm ring-1 ring-teal-100/45 sm:p-5">
+            <div className={`${UI.surface} p-4 shadow-sm sm:p-5`}>
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <div className="min-w-0">
-                  <h3 className="text-sm font-semibold text-zinc-900">
-                    {t("dashboard.warehouseStockStoryTitle")}
-                  </h3>
-                  <p className="mt-1 text-xs leading-relaxed text-zinc-600 sm:text-sm">
-                    {t("dashboard.warehouseStockStoryDesc")}
-                  </p>
+                  <DashboardSectionHeader
+                    title={t("dashboard.warehouseStockStoryTitle")}
+                    description={t("dashboard.warehouseStockStoryDesc")}
+                  />
                 </div>
                 <Link
                   href="/warehouses"
@@ -107,7 +118,7 @@ export function DashboardOperationsTab({
                     <>
                       <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
                         <DashboardStorySlide>
-                          <div className="rounded-lg border border-teal-100/90 bg-white/95 p-3 shadow-sm">
+                          <div className={`${UI.elevated} rounded-lg p-3`}>
                             <p className="text-[0.65rem] font-bold uppercase tracking-wide text-teal-900/75">
                               {t("dashboard.warehouseStockKindsLabel")}
                             </p>
@@ -117,7 +128,7 @@ export function DashboardOperationsTab({
                           </div>
                         </DashboardStorySlide>
                         <DashboardStorySlide>
-                          <div className="rounded-lg border border-teal-100/90 bg-white/95 p-3 shadow-sm">
+                          <div className={`${UI.elevated} rounded-lg p-3`}>
                             <p className="text-[0.65rem] font-bold uppercase tracking-wide text-teal-900/75">
                               {t("dashboard.warehouseStockTotalUnitsLabel")}
                             </p>

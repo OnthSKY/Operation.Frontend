@@ -6,6 +6,7 @@ export const common = {
   submit: "Submit",
   saving: "Saving…",
   retry: "Retry",
+  lastUpdated: "Last updated {{time}}",
   loadErrorHint:
     "Check your connection; if it persists, refresh the page or tap Retry again in a moment.",
   loading: "Loading…",

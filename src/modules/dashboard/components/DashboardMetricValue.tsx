@@ -19,6 +19,8 @@ export function MetricValue({
   emptyHint,
   onRetry,
   retryLabel,
+  zeroHint,
+  emptyIcon,
 }: {
   state: SummaryAggregateState;
   dash: string;
@@ -30,6 +32,8 @@ export function MetricValue({
   emptyHint: string;
   onRetry: () => void;
   retryLabel: string;
+  zeroHint?: string;
+  emptyIcon?: ReactNode;
 }): ReactNode {
   const { t } = useI18n();
   if (state.kind === "loading") {
@@ -54,17 +58,21 @@ export function MetricValue({
   if (state.kind === "empty") {
     return (
       <>
+        {emptyIcon ? <div className="text-zinc-400">{emptyIcon}</div> : null}
         <p className="text-2xl font-semibold text-zinc-400">{dash}</p>
         <p className="mt-1 text-xs text-zinc-500">{emptyHint}</p>
       </>
     );
   }
+  const value = pick(state);
+  const isZero = Math.abs(value) < 0.000001;
   return (
     <>
       <p className={`text-2xl font-semibold ${valueClassName}`}>
-        {formatLocaleAmount(pick(state), locale)}
+        {formatLocaleAmount(value, locale)}
       </p>
       <p className="mt-1 text-xs text-zinc-400">{footnote}</p>
+      {isZero && zeroHint ? <p className="mt-1 text-xs text-zinc-500">{zeroHint}</p> : null}
     </>
   );
 }

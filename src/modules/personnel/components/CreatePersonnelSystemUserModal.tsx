@@ -2,6 +2,8 @@
 
 import { useI18n } from "@/i18n/context";
 import { useCreateUser } from "@/modules/personnel/hooks/useUsersQueries";
+import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
@@ -34,7 +36,7 @@ export function CreatePersonnelSystemUserModal({
     register,
     handleSubmit,
     reset,
-    formState: { errors },
+    formState: { errors, isDirty },
     setFocus,
   } = useForm<FormValues>({
     defaultValues: { username: "", password: "", passwordConfirm: "" },
@@ -75,70 +77,75 @@ export function CreatePersonnelSystemUserModal({
       notify.error(toErrorMessage(e));
     }
   });
+  const requestClose = useDirtyGuard({
+    isDirty,
+    isBlocked: createUser.isPending,
+    confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
+    onClose: () => {
+      reset();
+      onClose();
+    },
+  });
 
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={requestClose}
       titleId="create-personnel-user-title"
       title={t("personnel.createSystemUserTitle")}
       description={t("personnel.createSystemUserHint")}
       closeButtonLabel={t("common.close")}
+      className="w-full max-w-lg"
     >
-      <form className="mt-4 flex flex-col gap-4" onSubmit={onSubmit}>
-        {personnel ? (
-          <p className="text-sm text-zinc-600">
-            <span className="font-medium text-zinc-900">
-              {personnel.fullName}
-            </span>
-          </p>
-        ) : null}
-        <Input
-          label={t("personnel.fieldUserUsername")}
-          labelRequired
-          required
-          autoComplete="username"
-          {...register("username", { required: t("common.required") })}
-          error={errors.username?.message}
+      <form onSubmit={onSubmit}>
+        <ModalFormLayout
+          body={
+            <FormSection>
+              {personnel ? (
+                <p className="text-sm text-zinc-600">
+                  <span className="font-medium text-zinc-900">{personnel.fullName}</span>
+                </p>
+              ) : null}
+              <Input
+                label={t("personnel.fieldUserUsername")}
+                labelRequired
+                required
+                autoFocus
+                autoComplete="username"
+                {...register("username", { required: t("common.required") })}
+                error={errors.username?.message}
+              />
+              <Input
+                label={t("personnel.fieldUserPassword")}
+                labelRequired
+                required
+                type="password"
+                autoComplete="new-password"
+                {...register("password", { required: t("common.required") })}
+                error={errors.password?.message}
+              />
+              <Input
+                label={t("personnel.fieldUserPasswordConfirm")}
+                labelRequired
+                required
+                type="password"
+                autoComplete="new-password"
+                {...register("passwordConfirm", { required: t("common.required") })}
+                error={errors.passwordConfirm?.message}
+              />
+            </FormSection>
+          }
+          footer={
+            <>
+              <Button type="button" variant="secondary" className="min-w-[120px]" onClick={requestClose}>
+                {t("common.cancel")}
+              </Button>
+              <Button type="submit" className="min-w-[120px]" disabled={createUser.isPending || !personnel}>
+                {createUser.isPending ? t("common.saving") : t("common.save")}
+              </Button>
+            </>
+          }
         />
-        <Input
-          label={t("personnel.fieldUserPassword")}
-          labelRequired
-          required
-          type="password"
-          autoComplete="new-password"
-          {...register("password", { required: t("common.required") })}
-          error={errors.password?.message}
-        />
-        <Input
-          label={t("personnel.fieldUserPasswordConfirm")}
-          labelRequired
-          required
-          type="password"
-          autoComplete="new-password"
-          {...register("passwordConfirm", { required: t("common.required") })}
-          error={errors.passwordConfirm?.message}
-        />
-        <div className="flex flex-col gap-2 border-t border-zinc-100 pt-4 sm:flex-row sm:justify-end">
-          <Button
-            type="button"
-            variant="secondary"
-            className="sm:min-w-[120px]"
-            onClick={() => {
-              reset();
-              onClose();
-            }}
-          >
-            {t("common.cancel")}
-          </Button>
-          <Button
-            type="submit"
-            className="sm:min-w-[120px]"
-            disabled={createUser.isPending || !personnel}
-          >
-            {createUser.isPending ? t("common.saving") : t("common.save")}
-          </Button>
-        </div>
       </form>
     </Modal>
   );

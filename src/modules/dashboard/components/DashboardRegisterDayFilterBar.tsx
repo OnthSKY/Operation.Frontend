@@ -55,14 +55,14 @@ export function DashboardRegisterDayFilterBar({
 
   const modeBtn = (active: boolean) =>
     cn(
-      "min-h-10 w-full min-w-[8rem] shrink-0 touch-manipulation rounded-lg px-3 py-2 text-center text-xs font-semibold whitespace-nowrap transition sm:min-w-0 sm:text-sm",
+      "min-h-10 w-full min-w-[8rem] shrink-0 touch-manipulation rounded-lg px-3 py-2 text-center text-xs font-semibold whitespace-nowrap transition-all duration-200 ease-in-out sm:min-w-0 sm:text-sm",
       active
         ? "bg-white text-zinc-900 shadow-sm"
         : "text-zinc-600 active:bg-zinc-200/80 hover:text-zinc-900"
     );
 
   return (
-    <div className="sticky top-2 z-[9] min-w-0 rounded-xl border border-zinc-200/90 bg-white/95 p-4 shadow-sm ring-1 ring-zinc-950/[0.04] backdrop-blur-sm sm:p-5">
+    <div className="sticky top-2 z-[9] min-w-0 rounded-xl border border-zinc-200 bg-white p-4 shadow-sm backdrop-blur-sm sm:p-5">
       <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
         {t("dashboard.scopeFilterBarTitle")}
       </p>
@@ -71,7 +71,7 @@ export function DashboardRegisterDayFilterBar({
       </p>
       <div className="relative mt-3">
         <div
-          className="flex w-full min-w-0 gap-1 overflow-x-auto rounded-xl border border-zinc-200/90 bg-zinc-100/85 p-1 pr-14 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-4 sm:overflow-visible sm:pr-1"
+          className="flex w-full min-w-0 gap-1 overflow-x-auto rounded-lg bg-zinc-100 p-1 pr-14 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-4 sm:overflow-visible sm:pr-1"
           role="group"
           aria-label={t("dashboard.cashFilterModeAria")}
         >

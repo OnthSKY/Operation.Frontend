@@ -50,6 +50,7 @@ import { defaultDateTimeFromInput } from "@/shared/lib/local-iso-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { notifyErrorWithAction } from "@/shared/lib/notify-error-with-action";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
 import { Input } from "@/shared/ui/Input";
@@ -275,7 +276,7 @@ export function AddBranchTransactionModal({
     handleSubmit,
     setValue,
     getValues,
-    formState: { errors },
+    formState: { errors, isDirty },
     reset,
     trigger,
   } = useForm<FormValues>({
@@ -2114,11 +2115,17 @@ export function AddBranchTransactionModal({
       }
     }
   });
+  const requestClose = useDirtyGuard({
+    isDirty,
+    isBlocked: createTx.isPending || createAdvanceMut.isPending,
+    confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
+    onClose,
+  });
 
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={requestClose}
       titleId={TITLE_ID}
       title={
         propBranchId == null && resolvedBranchId == null
@@ -3086,7 +3093,7 @@ export function AddBranchTransactionModal({
               type="button"
               variant="secondary"
               className="min-h-12 w-full min-w-0 sm:min-w-[120px] sm:w-auto"
-              onClick={onClose}
+              onClick={requestClose}
             >
               {t("common.cancel")}
             </Button>

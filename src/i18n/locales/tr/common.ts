@@ -6,6 +6,7 @@ export const common = {
   submit: "Gönder",
   saving: "Kaydediliyor…",
   retry: "Yenile",
+  lastUpdated: "Son güncelleme {{time}}",
   loadErrorHint:
     "Bağlantınızı kontrol edin; sorun sürerse sayfayı yenileyin veya bir süre sonra «Yenile» ile tekrar deneyin.",
   loading: "Yükleniyor…",

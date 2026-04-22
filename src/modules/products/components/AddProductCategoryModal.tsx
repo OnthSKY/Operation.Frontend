@@ -5,6 +5,8 @@ import {
   useProductCategories,
 } from "@/modules/products/hooks/useProductQueries";
 import { useI18n } from "@/i18n/context";
+import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
@@ -68,48 +70,65 @@ export function AddProductCategoryModal({ open, onClose }: Props) {
       notify.error(toErrorMessage(e));
     }
   };
+  const isDirty = name.trim().length > 0 || parentRootPick !== "";
+  const requestClose = useDirtyGuard({
+    isDirty,
+    isBlocked: createCategory.isPending,
+    confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
+    onClose,
+  });
 
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={requestClose}
       titleId={TITLE_ID}
       title={t("products.addCategoryModalTitle")}
       description={t("products.addCategoryModalHint")}
+      className="w-full max-w-lg"
     >
-      <div className="mt-4 flex flex-col gap-3">
-        <Select
-          label={t("products.addCategoryParentLabel")}
-          name="add-product-category-parent-root"
-          options={parentRootOptions}
-          value={parentRootPick}
-          disabled={categoriesLoading}
-          onChange={(e) => setParentRootPick(e.target.value)}
-          onBlur={() => {}}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void onSave();
+        }}
+      >
+        <ModalFormLayout
+          body={
+            <FormSection>
+              <Select
+                label={t("products.addCategoryParentLabel")}
+                name="add-product-category-parent-root"
+                options={parentRootOptions}
+                value={parentRootPick}
+                disabled={categoriesLoading}
+                onChange={(e) => setParentRootPick(e.target.value)}
+                onBlur={() => {}}
+              />
+              <Input
+                label={t("products.newCategoryName")}
+                labelRequired
+                required
+                autoFocus
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                autoComplete="off"
+                maxLength={120}
+              />
+            </FormSection>
+          }
+          footer={
+            <>
+              <Button type="button" variant="secondary" className="min-w-[120px]" onClick={requestClose}>
+                {t("common.cancel")}
+              </Button>
+              <Button type="submit" className="min-w-[120px]" disabled={createCategory.isPending}>
+                {createCategory.isPending ? t("common.saving") : t("common.save")}
+              </Button>
+            </>
+          }
         />
-        <Input
-          label={t("products.newCategoryName")}
-          labelRequired
-          required
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          autoComplete="off"
-          maxLength={120}
-        />
-        <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="secondary" className="sm:min-w-[120px]" onClick={onClose}>
-            {t("common.cancel")}
-          </Button>
-          <Button
-            type="button"
-            className="sm:min-w-[120px]"
-            disabled={createCategory.isPending}
-            onClick={() => void onSave()}
-          >
-            {createCategory.isPending ? t("common.saving") : t("common.save")}
-          </Button>
-        </div>
-      </div>
+      </form>
     </Modal>
   );
 }

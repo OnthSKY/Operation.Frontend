@@ -12,6 +12,8 @@ import {
   useUploadProfilePhotos,
 } from "@/modules/personnel/hooks/usePersonnelQueries";
 import { notify } from "@/shared/lib/notify";
+import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
@@ -109,6 +111,22 @@ export function DocumentsHubScreen() {
     setUploadError(null);
     setUploadOpen(true);
   };
+  const quickUploadDirty =
+    uploadCategory !== "BRANCH_DOCUMENT" ||
+    uploadBranchId.trim() !== "" ||
+    uploadBranchKind !== "OTHER" ||
+    uploadPersonnelId.trim() !== "" ||
+    uploadNationalIdSide !== "front" ||
+    uploadProfileSlot !== "1" ||
+    uploadYear !== String(new Date().getFullYear()) ||
+    uploadNotes.trim() !== "" ||
+    uploadFile != null;
+  const requestQuickUploadClose = useDirtyGuard({
+    isDirty: quickUploadDirty,
+    isBlocked: uploadBusy,
+    confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
+    onClose: () => setUploadOpen(false),
+  });
 
   const submitQuickAdd = async () => {
     setUploadError(null);
@@ -338,25 +356,33 @@ export function DocumentsHubScreen() {
       </div>
       <Modal
         open={uploadOpen}
-        onClose={() => setUploadOpen(false)}
+        onClose={requestQuickUploadClose}
         titleId="documents-quick-upload-title"
         title={t("documents.quickAdd")}
         className="max-w-lg"
         nested
       >
-        <div className="space-y-3 p-1">
-          <Select
-            name="documentsUploadCategory"
-            label={t("documents.uploadCategoryLabel")}
-            value={uploadCategory}
-            onChange={(e) => setUploadCategory(e.target.value)}
-            onBlur={NOOP_BLUR}
-            options={uploadCategoryOptions}
-            menuZIndex={320}
-          />
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submitQuickAdd();
+          }}
+        >
+          <ModalFormLayout
+            body={
+              <FormSection>
+                <Select
+                  name="documentsUploadCategory"
+                  label={t("documents.uploadCategoryLabel")}
+                  value={uploadCategory}
+                  onChange={(e) => setUploadCategory(e.target.value)}
+                  onBlur={NOOP_BLUR}
+                  options={uploadCategoryOptions}
+                  menuZIndex={320}
+                />
 
-          {uploadCategory === "BRANCH_DOCUMENT" ? (
-            <>
+                {uploadCategory === "BRANCH_DOCUMENT" ? (
+                  <>
               <Select
                 name="documentsUploadBranch"
                 label={t("documents.uploadBranchLabel")}
@@ -387,23 +413,23 @@ export function DocumentsHubScreen() {
                   placeholder={t("documents.uploadNotesPlaceholder")}
                 />
               </div>
-            </>
-          ) : null}
+                  </>
+                ) : null}
 
-          {uploadCategory === "PERSONNEL_NATIONAL_ID" || uploadCategory === "PERSONNEL_PROFILE" || uploadCategory === "PERSONNEL_YEAR_CLOSURE" ? (
-            <Select
-              name="documentsUploadPersonnel"
-              label={t("documents.uploadPersonnelLabel")}
-              value={uploadPersonnelId}
-              onChange={(e) => setUploadPersonnelId(e.target.value)}
-              onBlur={NOOP_BLUR}
-              options={personnelOptions}
-              menuZIndex={320}
-            />
-          ) : null}
+                {uploadCategory === "PERSONNEL_NATIONAL_ID" || uploadCategory === "PERSONNEL_PROFILE" || uploadCategory === "PERSONNEL_YEAR_CLOSURE" ? (
+                  <Select
+                    name="documentsUploadPersonnel"
+                    label={t("documents.uploadPersonnelLabel")}
+                    value={uploadPersonnelId}
+                    onChange={(e) => setUploadPersonnelId(e.target.value)}
+                    onBlur={NOOP_BLUR}
+                    options={personnelOptions}
+                    menuZIndex={320}
+                  />
+                ) : null}
 
-          {uploadCategory === "PERSONNEL_NATIONAL_ID" ? (
-            <Select
+                {uploadCategory === "PERSONNEL_NATIONAL_ID" ? (
+                  <Select
               name="documentsUploadNationalIdSide"
               label={t("documents.uploadNationalIdSideLabel")}
               value={uploadNationalIdSide}
@@ -414,11 +440,11 @@ export function DocumentsHubScreen() {
                 { value: "back", label: t("documents.personnelNationalIdBack") },
               ]}
               menuZIndex={320}
-            />
-          ) : null}
+                  />
+                ) : null}
 
-          {uploadCategory === "PERSONNEL_PROFILE" ? (
-            <Select
+                {uploadCategory === "PERSONNEL_PROFILE" ? (
+                  <Select
               name="documentsUploadProfileSlot"
               label={t("documents.uploadProfileSlotLabel")}
               value={uploadProfileSlot}
@@ -429,11 +455,11 @@ export function DocumentsHubScreen() {
                 { value: "2", label: t("documents.personnelProfilePhoto2") },
               ]}
               menuZIndex={320}
-            />
-          ) : null}
+                  />
+                ) : null}
 
-          {uploadCategory === "PERSONNEL_YEAR_CLOSURE" ? (
-            <div>
+                {uploadCategory === "PERSONNEL_YEAR_CLOSURE" ? (
+                  <div>
               <label className="mb-1 block text-sm font-medium text-zinc-700">
                 {t("documents.uploadYearLabel")}
               </label>
@@ -445,32 +471,36 @@ export function DocumentsHubScreen() {
                 onChange={(e) => setUploadYear(e.target.value)}
                 className="min-h-10 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
               />
-            </div>
-          ) : null}
+                  </div>
+                ) : null}
 
-          <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-700">
-              {t("documents.uploadFileLabel")}
-            </label>
-            <input
-              type="file"
-              onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
-              accept={uploadCategory === "PERSONNEL_YEAR_CLOSURE" ? "application/pdf,.pdf" : "application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp"}
-              className="block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
-            />
-          </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-zinc-700">
+                    {t("documents.uploadFileLabel")}
+                  </label>
+                  <input
+                    type="file"
+                    onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
+                    accept={uploadCategory === "PERSONNEL_YEAR_CLOSURE" ? "application/pdf,.pdf" : "application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp"}
+                    className="block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+                  />
+                </div>
 
-          {uploadError ? <p className="text-sm text-red-600">{uploadError}</p> : null}
-
-          <div className="flex flex-wrap justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setUploadOpen(false)}>
-              {t("common.cancel")}
-            </Button>
-            <Button type="button" variant="primary" disabled={uploadBusy} onClick={() => void submitQuickAdd()}>
-              {uploadBusy ? t("common.loading") : t("documents.uploadSubmit")}
-            </Button>
-          </div>
-        </div>
+                {uploadError ? <p className="text-sm text-red-600">{uploadError}</p> : null}
+              </FormSection>
+            }
+            footer={
+              <>
+                <Button type="button" variant="secondary" onClick={requestQuickUploadClose}>
+                  {t("common.cancel")}
+                </Button>
+                <Button type="submit" variant="primary" disabled={uploadBusy}>
+                  {uploadBusy ? t("common.loading") : t("documents.uploadSubmit")}
+                </Button>
+              </>
+            }
+          />
+        </form>
       </Modal>
       <Modal
         open={mobilePreviewOpen}

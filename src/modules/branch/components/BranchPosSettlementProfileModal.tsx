@@ -1,6 +1,7 @@
 "use client";
 
 import { useI18n } from "@/i18n/context";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import {
   requiresPosDestinationNotes,
   posSettlementBeneficiaryLabel,
@@ -18,7 +19,7 @@ import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const TITLE_ID = "branch-pos-profile-title";
 
@@ -40,6 +41,7 @@ type InnerProps = {
   personnel: Personnel[];
   listData: BranchPosSettlementList;
   onClose: () => void;
+  onRegisterCloseGuard?: (handler: (() => void) | null) => void;
 };
 
 function BranchPosSettlementProfileFormInner({
@@ -48,6 +50,7 @@ function BranchPosSettlementProfileFormInner({
   personnel,
   listData,
   onClose,
+  onRegisterCloseGuard,
 }: InnerProps) {
   const { t, locale } = useI18n();
   const upsertProfile = useUpsertBranchPosSettlementProfile();
@@ -134,6 +137,20 @@ function BranchPosSettlementProfileFormInner({
       notify.error(toErrorMessage(e));
     }
   };
+  const isDirty =
+    beneficiaryType !== defaults.beneficiaryType ||
+    beneficiaryPersonnelId !== defaults.beneficiaryPersonnelId ||
+    profileNotes.trim() !== defaults.notes.trim();
+  const requestClose = useDirtyGuard({
+    isDirty,
+    isBlocked: upsertProfile.isPending,
+    confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
+    onClose,
+  });
+  useEffect(() => {
+    onRegisterCloseGuard?.(() => requestClose());
+    return () => onRegisterCloseGuard?.(null);
+  }, [onRegisterCloseGuard, requestClose]);
 
   return (
     <div className="space-y-4 px-4 pb-4 pt-1">
@@ -188,7 +205,7 @@ function BranchPosSettlementProfileFormInner({
           variant="secondary"
           className="w-full sm:w-auto"
           disabled={upsertProfile.isPending}
-          onClick={onClose}
+          onClick={requestClose}
         >
           {t("common.cancel")}
         </Button>
@@ -217,6 +234,10 @@ export function BranchPosSettlementProfileModal({
   const { t } = useI18n();
   const open = branch != null;
   const posProfiles = usePatronFlowPosProfiles(open);
+  const [closeGuard, setCloseGuard] = useState<(() => void) | null>(null);
+  useEffect(() => {
+    if (!open) setCloseGuard(null);
+  }, [open]);
 
   const defaults: Defaults | null = useMemo(() => {
     if (!branch) return null;
@@ -245,7 +266,10 @@ export function BranchPosSettlementProfileModal({
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={() => {
+        if (closeGuard) closeGuard();
+        else onClose();
+      }}
       titleId={TITLE_ID}
       title={
         branch
@@ -269,6 +293,7 @@ export function BranchPosSettlementProfileModal({
           personnel={personnel}
           listData={posProfiles.data}
           onClose={onClose}
+          onRegisterCloseGuard={setCloseGuard}
         />
       ) : posProfiles.isPending && branch ? (
         <p className="px-4 pb-4 text-sm text-zinc-500">{t("common.loading")}</p>

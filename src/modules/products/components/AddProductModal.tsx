@@ -6,6 +6,7 @@ import {
   useProductsCatalog,
 } from "@/modules/products/hooks/useProductQueries";
 import { useI18n } from "@/i18n/context";
+import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
@@ -45,7 +46,7 @@ export function AddProductModal({ open, onClose, descriptionKey, fixedParent }: 
   const {
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isDirty },
     reset,
     watch,
     setValue,
@@ -208,99 +209,117 @@ export function AddProductModal({ open, onClose, descriptionKey, fixedParent }: 
     }
   });
 
+  const requestClose = () => {
+    if (
+      isDirty &&
+      !createProduct.isPending &&
+      !window.confirm(t("common.modalConfirmOutsideCloseMessage"))
+    ) {
+      return;
+    }
+    onClose();
+  };
+
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      titleId={TITLE_ID}
-      title={t("products.addModalTitle")}
-      description={t(descriptionKey ?? "products.addModalHint")}
-    >
-      <form className="mt-4 flex flex-col gap-3" onSubmit={onSubmit}>
-        {fixedParent != null ? (
-          <p className="text-sm text-zinc-600">
-            <span className="font-medium text-zinc-800">{t("products.mainProductLabel")}:</span>{" "}
-            {fixedParent.name}
-          </p>
-        ) : (
-          <Select
-            label={t("products.parentProduct")}
-            name="add-product-parent"
-            options={parentSelectOptions}
-            value={parentPick}
-            onChange={(e) => setValue("parentPick", e.target.value)}
-            onBlur={() => {}}
+    <>
+      <Modal
+        open={open}
+        onClose={requestClose}
+        titleId={TITLE_ID}
+        title={t("products.addModalTitle")}
+        description={t(descriptionKey ?? "products.addModalHint")}
+        className="w-full max-w-xl"
+      >
+        <form onSubmit={onSubmit}>
+          <ModalFormLayout
+            body={
+              <>
+                <FormSection>
+                  {fixedParent != null ? (
+                    <p className="text-sm text-zinc-600">
+                      <span className="font-medium text-zinc-800">{t("products.mainProductLabel")}:</span>{" "}
+                      {fixedParent.name}
+                    </p>
+                  ) : (
+                    <Select
+                      label={t("products.parentProduct")}
+                      name="add-product-parent"
+                      options={parentSelectOptions}
+                      value={parentPick}
+                      onChange={(e) => setValue("parentPick", e.target.value)}
+                      onBlur={() => {}}
+                    />
+                  )}
+                  <Input
+                    label={t("warehouse.productName")}
+                    labelRequired
+                    required
+                    {...register("name", { required: t("common.required") })}
+                    error={errors.name?.message}
+                    autoComplete="off"
+                    maxLength={150}
+                  />
+                  <Input
+                    label={t("warehouse.productUnit")}
+                    {...register("unit")}
+                    autoComplete="off"
+                    maxLength={20}
+                  />
+                </FormSection>
+                <FormSection>
+                  {categoriesLoading ? (
+                    <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+                  ) : null}
+                  {categoriesError ? (
+                    <p className="text-sm text-red-600" role="alert">
+                      {t("products.categoryLoadFailed")}
+                    </p>
+                  ) : null}
+                  {!categoriesLoading ? (
+                    <>
+                      <Select
+                        label={t("products.categoryMainLabel")}
+                        name="add-product-category-root"
+                        options={rootCategoryOptions}
+                        value={categoryRootPick}
+                        onChange={(e) => {
+                          setValue("categoryRootPick", e.target.value);
+                          setValue("categorySubPick", "");
+                        }}
+                        onBlur={() => {}}
+                      />
+                      {showSubCategorySelect ? (
+                        <Select
+                          label={t("products.categorySubLabel")}
+                          name="add-product-category-sub"
+                          options={subCategoryOptions}
+                          value={categorySubPick}
+                          onChange={(e) => setValue("categorySubPick", e.target.value)}
+                          onBlur={() => {}}
+                        />
+                      ) : null}
+                    </>
+                  ) : null}
+                </FormSection>
+              </>
+            }
+            footer={
+              <>
+                <Button type="button" variant="secondary" className="min-w-[120px]" onClick={requestClose}>
+                  {t("common.cancel")}
+                </Button>
+                <Button
+                  type="submit"
+                  className="min-w-[120px]"
+                  disabled={createProduct.isPending || (categoriesLoading && !categoriesError)}
+                >
+                  {createProduct.isPending ? t("common.saving") : t("common.save")}
+                </Button>
+              </>
+            }
           />
-        )}
-        <Input
-          label={t("warehouse.productName")}
-          labelRequired
-          required
-          {...register("name", { required: t("common.required") })}
-          error={errors.name?.message}
-          autoComplete="off"
-          maxLength={150}
-        />
-        <Input
-          label={t("warehouse.productUnit")}
-          {...register("unit")}
-          autoComplete="off"
-          maxLength={20}
-        />
-        {categoriesLoading ? (
-          <p className="text-sm text-zinc-500">{t("common.loading")}</p>
-        ) : null}
-        {categoriesError ? (
-          <p className="text-sm text-red-600" role="alert">
-            {t("products.categoryLoadFailed")}
-          </p>
-        ) : null}
-        {!categoriesLoading ? (
-          <>
-            <Select
-              label={t("products.categoryMainLabel")}
-              name="add-product-category-root"
-              options={rootCategoryOptions}
-              value={categoryRootPick}
-              onChange={(e) => {
-                setValue("categoryRootPick", e.target.value);
-                setValue("categorySubPick", "");
-              }}
-              onBlur={() => {}}
-            />
-            {showSubCategorySelect ? (
-              <Select
-                label={t("products.categorySubLabel")}
-                name="add-product-category-sub"
-                options={subCategoryOptions}
-                value={categorySubPick}
-                onChange={(e) => setValue("categorySubPick", e.target.value)}
-                onBlur={() => {}}
-              />
-            ) : null}
-          </>
-        ) : null}
-        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:justify-end">
-          <Button
-            type="button"
-            variant="secondary"
-            className="sm:min-w-[120px]"
-            onClick={() => {
-              reset();
-              onClose();
-            }}
-          >
-            {t("common.cancel")}
-          </Button>
-          <Button
-            type="submit"
-            className="sm:min-w-[120px]"
-            disabled={createProduct.isPending || (categoriesLoading && !categoriesError)}
-          >
-            {createProduct.isPending ? t("common.saving") : t("common.save")}
-          </Button>
-        </div>
-      </form>
-    </Modal>
+        </form>
+      </Modal>
+    </>
   );
 }

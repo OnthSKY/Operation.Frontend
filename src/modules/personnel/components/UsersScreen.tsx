@@ -16,6 +16,7 @@ import {
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { Card } from "@/shared/components/Card";
+import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
 import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
@@ -119,7 +120,7 @@ export function UsersScreen() {
     control,
     handleSubmit,
     reset,
-    formState: { errors },
+    formState: { errors, isDirty },
   } = useForm<FormValues>({
     defaultValues: {
       username: "",
@@ -236,6 +237,17 @@ export function UsersScreen() {
       notify.error(toErrorMessage(e));
     }
   });
+  const requestModalClose = () => {
+    if (
+      isDirty &&
+      !createUser.isPending &&
+      !window.confirm(t("common.modalConfirmOutsideCloseMessage"))
+    ) {
+      return;
+    }
+    setModalOpen(false);
+    reset();
+  };
 
   return (
     <>
@@ -501,86 +513,89 @@ export function UsersScreen() {
 
       <Modal
         open={modalOpen}
-        onClose={() => {
-          setModalOpen(false);
-          reset();
-        }}
+        onClose={requestModalClose}
         titleId="create-user-title"
         title={t("users.modalTitle")}
         description={t("users.modalHint")}
         closeButtonLabel={t("common.close")}
+        className="w-full max-w-lg"
       >
-        <form className="mt-4 flex flex-col gap-4" onSubmit={onSubmit}>
-          <Input
-            label={t("users.fieldUsername")}
-            labelRequired
-            required
-            autoComplete="username"
-            {...register("username", { required: t("common.required") })}
-            error={errors.username?.message}
+        <form onSubmit={onSubmit}>
+          <ModalFormLayout
+            body={
+              <FormSection>
+                <Input
+                  label={t("users.fieldUsername")}
+                  labelRequired
+                  required
+                  autoComplete="username"
+                  {...register("username", { required: t("common.required") })}
+                  error={errors.username?.message}
+                />
+                <Input
+                  label={t("users.fieldPassword")}
+                  labelRequired
+                  required
+                  type="password"
+                  autoComplete="new-password"
+                  {...register("password", { required: t("common.required") })}
+                  error={errors.password?.message}
+                />
+                <Input
+                  label={t("users.fieldPasswordConfirm")}
+                  labelRequired
+                  required
+                  type="password"
+                  autoComplete="new-password"
+                  {...register("passwordConfirm", { required: t("common.required") })}
+                  error={errors.passwordConfirm?.message}
+                />
+                <Input
+                  label={t("users.fieldFullName")}
+                  autoComplete="name"
+                  {...register("fullName")}
+                  error={errors.fullName?.message}
+                />
+                <Select
+                  label={t("users.fieldRole")}
+                  options={roleOptions}
+                  name={roleField.name}
+                  value={String(roleField.value ?? "STAFF")}
+                  onChange={(e) => roleField.onChange(e.target.value as AppUserRole)}
+                  onBlur={roleField.onBlur}
+                  ref={roleField.ref}
+                />
+                <Select
+                  label={t("users.fieldPersonnel")}
+                  options={personnelOptions}
+                  name={personnelField.name}
+                  value={String(personnelField.value ?? "")}
+                  onChange={(e) => personnelField.onChange(e.target.value)}
+                  onBlur={personnelField.onBlur}
+                  ref={personnelField.ref}
+                />
+              </FormSection>
+            }
+            footer={
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="min-w-[120px]"
+                  onClick={requestModalClose}
+                >
+                  {t("common.cancel")}
+                </Button>
+                <Button
+                  type="submit"
+                  className="min-w-[120px]"
+                  disabled={createUser.isPending}
+                >
+                  {createUser.isPending ? t("common.saving") : t("common.save")}
+                </Button>
+              </>
+            }
           />
-          <Input
-            label={t("users.fieldPassword")}
-            labelRequired
-            required
-            type="password"
-            autoComplete="new-password"
-            {...register("password", { required: t("common.required") })}
-            error={errors.password?.message}
-          />
-          <Input
-            label={t("users.fieldPasswordConfirm")}
-            labelRequired
-            required
-            type="password"
-            autoComplete="new-password"
-            {...register("passwordConfirm", { required: t("common.required") })}
-            error={errors.passwordConfirm?.message}
-          />
-          <Input
-            label={t("users.fieldFullName")}
-            autoComplete="name"
-            {...register("fullName")}
-            error={errors.fullName?.message}
-          />
-          <Select
-            label={t("users.fieldRole")}
-            options={roleOptions}
-            name={roleField.name}
-            value={String(roleField.value ?? "STAFF")}
-            onChange={(e) => roleField.onChange(e.target.value as AppUserRole)}
-            onBlur={roleField.onBlur}
-            ref={roleField.ref}
-          />
-          <Select
-            label={t("users.fieldPersonnel")}
-            options={personnelOptions}
-            name={personnelField.name}
-            value={String(personnelField.value ?? "")}
-            onChange={(e) => personnelField.onChange(e.target.value)}
-            onBlur={personnelField.onBlur}
-            ref={personnelField.ref}
-          />
-          <div className="flex flex-col gap-2 border-t border-zinc-100 pt-4 sm:flex-row sm:justify-end">
-            <Button
-              type="button"
-              variant="secondary"
-              className="sm:min-w-[120px]"
-              onClick={() => {
-                setModalOpen(false);
-                reset();
-              }}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              type="submit"
-              className="sm:min-w-[120px]"
-              disabled={createUser.isPending}
-            >
-              {createUser.isPending ? t("common.saving") : t("common.save")}
-            </Button>
-          </div>
         </form>
       </Modal>
     </>

@@ -6,6 +6,8 @@ import {
   useUpdateProduct,
 } from "@/modules/products/hooks/useProductQueries";
 import { useI18n } from "@/i18n/context";
+import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
@@ -135,6 +137,15 @@ export function EditProductModal({ open, product, onClose, onUpdated }: Props) {
     categoryRootPick !== "" &&
     Number(categoryRootPick) > 0 &&
     categories.some((c) => c.parentCategoryId === Math.trunc(Number(categoryRootPick)));
+  const initialCategoryPicks = useMemo(() => {
+    if (product == null) return { root: "", sub: "" };
+    const cid = product.categoryId;
+    if (cid == null || cid <= 0) return { root: "", sub: "" };
+    const cat = categories.find((c) => c.id === cid);
+    if (!cat) return { root: "", sub: "" };
+    if (cat.parentCategoryId == null) return { root: String(cat.id), sub: "" };
+    return { root: String(cat.parentCategoryId), sub: String(cat.id) };
+  }, [categories, product]);
 
   const onSave = async () => {
     if (product == null) return;
@@ -186,91 +197,123 @@ export function EditProductModal({ open, product, onClose, onUpdated }: Props) {
     updateProductMut.isPending ||
     product == null ||
     (categoriesLoading && !categoriesError);
+  const isDirty =
+    product != null &&
+    (name.trim() !== product.name.trim() ||
+      unit.trim() !== (product.unit?.trim() ?? "") ||
+      (hasChildren ? "" : parentPick) !==
+        (hasChildren
+          ? ""
+          : product.parentProductId != null && product.parentProductId > 0
+            ? String(product.parentProductId)
+            : "") ||
+      categoryRootPick !== initialCategoryPicks.root ||
+      categorySubPick !== initialCategoryPicks.sub);
+  const requestClose = useDirtyGuard({
+    isDirty,
+    isBlocked: updateProductMut.isPending,
+    confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
+    onClose,
+  });
 
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={requestClose}
       titleId={TITLE_ID}
       title={t("products.editModalTitle")}
       description={t("products.editModalHint")}
+      className="w-full max-w-xl"
     >
-      <div className="mt-4 flex flex-col gap-3">
-        <Input
-          label={t("warehouse.productName")}
-          labelRequired
-          required
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          autoComplete="off"
-          maxLength={150}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void onSave();
+        }}
+      >
+        <ModalFormLayout
+          body={
+            <>
+              <FormSection>
+                <Input
+                  label={t("warehouse.productName")}
+                  labelRequired
+                  required
+                  autoFocus
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  autoComplete="off"
+                  maxLength={150}
+                />
+                <Input
+                  label={t("warehouse.productUnit")}
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                  autoComplete="off"
+                  maxLength={20}
+                />
+                {hasChildren ? (
+                  <p className="text-sm text-zinc-600">{t("products.editParentLockedHint")}</p>
+                ) : (
+                  <Select
+                    label={t("products.parentProduct")}
+                    name="edit-product-parent"
+                    options={parentSelectOptions}
+                    value={parentPick}
+                    onChange={(e) => setParentPick(e.target.value)}
+                    onBlur={() => {}}
+                  />
+                )}
+              </FormSection>
+              <FormSection>
+                {categoriesLoading ? (
+                  <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+                ) : null}
+                {categoriesError ? (
+                  <p className="text-sm text-red-600" role="alert">
+                    {t("products.categoryLoadFailed")}
+                  </p>
+                ) : null}
+                {!categoriesLoading ? (
+                  <>
+                    <Select
+                      label={t("products.categoryMainLabel")}
+                      name="edit-product-category-root"
+                      options={rootCategoryOptions}
+                      value={categoryRootPick}
+                      onChange={(e) => {
+                        setCategoryRootPick(e.target.value);
+                        setCategorySubPick("");
+                      }}
+                      onBlur={() => {}}
+                    />
+                    {showSubCategorySelect ? (
+                      <Select
+                        label={t("products.categorySubLabel")}
+                        name="edit-product-category-sub"
+                        options={subCategoryOptions}
+                        value={categorySubPick}
+                        onChange={(e) => setCategorySubPick(e.target.value)}
+                        onBlur={() => {}}
+                      />
+                    ) : null}
+                  </>
+                ) : null}
+              </FormSection>
+            </>
+          }
+          footer={
+            <>
+              <Button type="button" variant="secondary" className="min-w-[120px]" onClick={requestClose}>
+                {t("common.cancel")}
+              </Button>
+              <Button type="submit" className="min-w-[120px]" disabled={saveDisabled}>
+                {updateProductMut.isPending ? t("common.saving") : t("common.save")}
+              </Button>
+            </>
+          }
         />
-        <Input
-          label={t("warehouse.productUnit")}
-          value={unit}
-          onChange={(e) => setUnit(e.target.value)}
-          autoComplete="off"
-          maxLength={20}
-        />
-        {hasChildren ? (
-          <p className="text-sm text-zinc-600">{t("products.editParentLockedHint")}</p>
-        ) : (
-          <Select
-            label={t("products.parentProduct")}
-            name="edit-product-parent"
-            options={parentSelectOptions}
-            value={parentPick}
-            onChange={(e) => setParentPick(e.target.value)}
-            onBlur={() => {}}
-          />
-        )}
-        {categoriesLoading ? (
-          <p className="text-sm text-zinc-500">{t("common.loading")}</p>
-        ) : null}
-        {categoriesError ? (
-          <p className="text-sm text-red-600" role="alert">
-            {t("products.categoryLoadFailed")}
-          </p>
-        ) : null}
-        {!categoriesLoading ? (
-          <>
-            <Select
-              label={t("products.categoryMainLabel")}
-              name="edit-product-category-root"
-              options={rootCategoryOptions}
-              value={categoryRootPick}
-              onChange={(e) => {
-                setCategoryRootPick(e.target.value);
-                setCategorySubPick("");
-              }}
-              onBlur={() => {}}
-            />
-            {showSubCategorySelect ? (
-              <Select
-                label={t("products.categorySubLabel")}
-                name="edit-product-category-sub"
-                options={subCategoryOptions}
-                value={categorySubPick}
-                onChange={(e) => setCategorySubPick(e.target.value)}
-                onBlur={() => {}}
-              />
-            ) : null}
-          </>
-        ) : null}
-        <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="secondary" className="sm:min-w-[120px]" onClick={onClose}>
-            {t("common.cancel")}
-          </Button>
-          <Button
-            type="button"
-            className="sm:min-w-[120px]"
-            disabled={saveDisabled}
-            onClick={() => void onSave()}
-          >
-            {updateProductMut.isPending ? t("common.saving") : t("common.save")}
-          </Button>
-        </div>
-      </div>
+      </form>
     </Modal>
   );
 }

@@ -12,7 +12,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-export type TooltipSide = "top" | "bottom";
+export type TooltipSide = "top" | "bottom" | "right";
 
 export type TooltipProps = {
   content: ReactNode;
@@ -50,7 +50,7 @@ export function Tooltip({
   const [coords, setCoords] = useState<{
     top: number;
     left: number;
-    placement: "top" | "bottom";
+    placement: "top" | "bottom" | "right";
   }>({ top: 0, left: 0, placement: "top" });
 
   const showTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -79,8 +79,19 @@ export function Tooltip({
     const gap = 8;
     const pad = 8;
 
-    let placement: "top" | "bottom" = side === "bottom" ? "bottom" : "top";
-    let top = placement === "top" ? rect.top - gap : rect.bottom + gap;
+    let placement: "top" | "bottom" | "right" = side === "right" ? "right" : side === "bottom" ? "bottom" : "top";
+    let top = placement === "top" ? rect.top - gap : placement === "bottom" ? rect.bottom + gap : rect.top + rect.height / 2;
+    let left = placement === "right" ? rect.right + gap : rect.left + rect.width / 2;
+
+    if (placement === "right") {
+      if (window.innerWidth - rect.right < tw + pad) {
+        placement = "top";
+        top = rect.top - gap;
+        left = rect.left + rect.width / 2;
+      } else {
+        top = Math.max(th / 2 + pad, Math.min(top, window.innerHeight - th / 2 - pad));
+      }
+    }
 
     if (placement === "top" && rect.top < th + pad) {
       placement = "bottom";
@@ -93,11 +104,12 @@ export function Tooltip({
       top = rect.top - gap;
     }
 
-    let left = rect.left + rect.width / 2;
-    left = Math.max(
-      tw / 2 + pad,
-      Math.min(left, window.innerWidth - tw / 2 - pad)
-    );
+    if (placement !== "right") {
+      left = Math.max(
+        tw / 2 + pad,
+        Math.min(left, window.innerWidth - tw / 2 - pad)
+      );
+    }
 
     setCoords({ top, left, placement });
     setPlaced(true);
@@ -165,7 +177,16 @@ export function Tooltip({
   const transform =
     coords.placement === "top"
       ? "translate(-50%, -100%)"
-      : "translate(-50%, 0)";
+      : coords.placement === "bottom"
+        ? "translate(-50%, 0)"
+        : "translate(0, -50%)";
+
+  const arrowClass =
+    coords.placement === "top"
+      ? "left-1/2 top-full -translate-x-1/2 border-x-4 border-t-0 border-b-0 border-transparent border-t-zinc-900/96"
+      : coords.placement === "bottom"
+        ? "left-1/2 bottom-full -translate-x-1/2 border-x-4 border-b-0 border-t-0 border-transparent border-b-zinc-900/96"
+        : "right-full top-1/2 -translate-y-1/2 border-y-4 border-l-0 border-r-0 border-transparent border-r-zinc-900/96";
 
   const portal =
     mounted &&
@@ -176,7 +197,7 @@ export function Tooltip({
         id={tooltipId}
         role="tooltip"
         className={cn(
-          "pointer-events-none fixed z-[9998] max-w-[min(18rem,calc(100vw-1rem))] rounded-xl border border-zinc-700/50 bg-zinc-900/96 px-3 py-2 text-left text-xs font-medium leading-snug text-white shadow-[0_16px_48px_-12px_rgba(0,0,0,0.55)] ring-1 ring-white/[0.12] backdrop-blur-md motion-safe:transition-[opacity,transform] motion-safe:duration-150 motion-reduce:transition-none",
+          "pointer-events-none fixed z-[9998] max-w-[min(18rem,calc(100vw-1rem))] rounded-xl border border-zinc-700/45 bg-zinc-900/92 px-3 py-2 text-left text-xs font-medium leading-snug text-white shadow-[0_18px_50px_-14px_rgba(0,0,0,0.6)] ring-1 ring-white/[0.14] backdrop-blur-xl motion-safe:transition-[opacity,transform] motion-safe:duration-150 motion-reduce:transition-none",
           panelClassName,
           placed ? "opacity-100 motion-safe:scale-100" : "opacity-0 motion-safe:scale-[0.97]"
         )}
@@ -186,6 +207,10 @@ export function Tooltip({
           transform,
         }}
       >
+        <span
+          className={cn("absolute h-0 w-0 border-solid", arrowClass)}
+          aria-hidden
+        />
         {content}
       </div>,
       document.body

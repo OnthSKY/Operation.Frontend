@@ -14,6 +14,7 @@ import { currencySelectOptions } from "@/shared/lib/iso4217-currencies";
 import { defaultDateTimeFromInput, localIsoDate } from "@/shared/lib/local-iso-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
 import { Input } from "@/shared/ui/Input";
@@ -176,6 +177,17 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
     amountMissing ||
     amountExceeds ||
     (!amountMissing && (!Number.isFinite(amountNum) || amountNum <= 0));
+  const requestClose = useDirtyGuard({
+    isDirty:
+      amount.trim() !== "" ||
+      description.trim() !== "" ||
+      transactionDate.trim() !== defaultDateTimeFromInput(localIsoDate()) ||
+      currencyCode.trim().toUpperCase() !==
+        (((ctx?.currencyCode ?? "TRY").trim().toUpperCase() || "TRY")),
+    isBlocked: saving || createTx.isPending,
+    confirmMessage: t("common.unsavedChangesConfirm"),
+    onClose,
+  });
 
   const onSubmit = useCallback(async () => {
     if (!ctx || personnel == null) return;
@@ -254,7 +266,7 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
   return (
     <Modal
       open={dialogOpen}
-      onClose={onClose}
+      onClose={requestClose}
       titleId={TITLE_ID}
       title={t("personnel.handoverPatronTransferTitle")}
       description={t("personnel.handoverPatronTransferLead")}
@@ -305,7 +317,7 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
                     {t("personnel.handoverPatronTransferNoLines")}
                   </p>
                   <div className="flex justify-end pt-1">
-                    <Button type="button" variant="secondary" className="min-h-11 w-full sm:w-auto" onClick={onClose}>
+                    <Button type="button" variant="secondary" className="min-h-11 w-full sm:w-auto" onClick={requestClose}>
                       {t("common.close")}
                     </Button>
                   </div>
@@ -367,7 +379,7 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
                     autoComplete="off"
                   />
                   <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end sm:gap-3">
-                    <Button type="button" variant="secondary" className="min-h-11 w-full sm:w-auto" onClick={onClose}>
+                    <Button type="button" variant="secondary" className="min-h-11 w-full sm:w-auto" onClick={requestClose}>
                       {t("common.cancel")}
                     </Button>
                     <Button

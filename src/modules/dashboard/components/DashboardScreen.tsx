@@ -25,10 +25,11 @@ import type {
   DashboardCashFilterMode,
 } from "@/modules/dashboard/types/dashboard-cash-filter";
 import { reportYearQuickSelectTopYear } from "@/modules/reports/lib/report-period-helpers";
+import { PageHeader } from "@/shared/components/PageHeader";
 import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
-import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
+import { Button } from "@/shared/ui/Button";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -163,7 +164,7 @@ export function DashboardScreen() {
   }, [bulkParams, isCalendarToday, snapshotDateLabel, t]);
 
   const tabBtn = (active: boolean) =>
-    `min-h-11 w-full min-w-[8.5rem] shrink-0 touch-manipulation rounded-lg px-3 py-2 text-center text-xs font-semibold whitespace-nowrap transition sm:min-h-10 sm:min-w-0 sm:px-2 sm:text-sm lg:flex-1 ${
+    `min-h-11 w-full min-w-[8.5rem] shrink-0 touch-manipulation rounded-md px-4 py-2 text-center text-xs font-semibold whitespace-nowrap transition-all duration-200 ease-in-out sm:min-h-10 sm:min-w-0 sm:text-sm lg:flex-1 ${
       active
         ? "bg-white text-zinc-900 shadow-sm"
         : "text-zinc-600 active:bg-zinc-200/80 sm:hover:text-zinc-900"
@@ -172,39 +173,45 @@ export function DashboardScreen() {
   return (
     <>
       <PageScreenScaffold
-        className="w-full app-page-max px-4 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pt-4 sm:px-6 sm:pb-6 sm:pt-5"
+        variant="dashboard"
+        className="w-full pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pt-4 sm:pb-8 sm:pt-5"
         intro={
-          <>
-            <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
-              {t("dashboard.title")}
-            </h1>
-            <p className="text-sm text-zinc-500">{t("dashboard.subtitle")}</p>
-            <p className="mt-2 text-sm leading-relaxed text-zinc-600">
-              {t("dashboard.storyFlowHint")}
-            </p>
-            <PageWhenToUseGuide
-              guideTab="dashboard"
-              className="mt-1"
-              title={t("common.pageWhenToUseTitle")}
-              description={t("pageHelp.dashboard.intro")}
-              listVariant="ordered"
-              items={[
-                { text: t("pageHelp.dashboard.step1") },
-                { text: t("pageHelp.dashboard.step2") },
-                { text: t("pageHelp.dashboard.step3") },
-                {
-                  text: t("pageHelp.dashboard.step4"),
-                  link: { href: "/reports/financial", label: t("pageHelp.dashboard.step4Link") },
-                },
-              ]}
-            />
-          </>
+          <PageHeader
+            title={t("dashboard.title")}
+            description={t("dashboard.subtitle")}
+            actions={
+              <>
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-11 flex-1 sm:flex-none"
+                onClick={() => {
+                  const el = document.getElementById("dashboard-filters");
+                  el?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+              >
+                {t("common.filters")}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-11 flex-1 sm:flex-none"
+                onClick={() => {
+                  void refetch();
+                  void overview.refetch();
+                }}
+              >
+                {t("common.retry")}
+              </Button>
+              </>
+            }
+          />
         }
         main={
-          <div className="min-w-0 w-full space-y-4 sm:space-y-5">
+          <div className="min-w-0 w-full space-y-4 sm:space-y-6">
             <div className="sticky top-2 z-10">
               <div
-                className="flex w-full min-w-0 gap-1.5 overflow-x-auto rounded-xl border border-zinc-200/80 bg-zinc-50/95 p-1.5 pr-16 shadow-sm backdrop-blur-sm [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-3 sm:overflow-visible sm:pr-1.5 lg:flex lg:flex-nowrap lg:p-2"
+                className="flex w-full min-w-0 gap-1 overflow-x-auto rounded-lg bg-zinc-100 p-1 pr-16 shadow-sm backdrop-blur-sm [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-3 sm:overflow-visible sm:pr-1 lg:flex lg:flex-nowrap"
                 role="tablist"
                 aria-label={t("dashboard.tabsAria")}
               >
@@ -287,25 +294,27 @@ export function DashboardScreen() {
               </div>
             </div>
 
-            {mainTab === "summary" || mainTab === "finance" ? (
-              <DashboardRegisterDayFilterBar
-                filterMode={cashFilterMode}
-                setFilterMode={setCashFilterMode}
-                branchSummaryDate={branchSummaryDate}
-                setBranchSummaryDate={setBranchSummaryDate}
-                seasonYear={cashSeasonYear}
-                setSeasonYear={setCashSeasonYear}
-                seasonYearFrom={cashSeasonYearFrom}
-                setSeasonYearFrom={setCashSeasonYearFrom}
-                seasonYearTo={cashSeasonYearTo}
-                setSeasonYearTo={setCashSeasonYearTo}
-                isCalendarToday={isCalendarToday}
-                t={t}
-              />
-            ) : null}
+            <div id="dashboard-filters">
+              {mainTab === "summary" || mainTab === "finance" ? (
+                <DashboardRegisterDayFilterBar
+                  filterMode={cashFilterMode}
+                  setFilterMode={setCashFilterMode}
+                  branchSummaryDate={branchSummaryDate}
+                  setBranchSummaryDate={setBranchSummaryDate}
+                  seasonYear={cashSeasonYear}
+                  setSeasonYear={setCashSeasonYear}
+                  seasonYearFrom={cashSeasonYearFrom}
+                  setSeasonYearFrom={setCashSeasonYearFrom}
+                  seasonYearTo={cashSeasonYearTo}
+                  setSeasonYearTo={setCashSeasonYearTo}
+                  isCalendarToday={isCalendarToday}
+                  t={t}
+                />
+              ) : null}
+            </div>
 
             {mainTab === "summary" ? (
-              <div className="flex min-w-0 flex-col gap-5">
+              <div className="flex min-w-0 flex-col gap-5 transition-opacity duration-200 ease-in-out">
                 {cashFilterMode !== "all_data" ? (
                   <DashboardSummaryTab
                     t={t}
@@ -335,36 +344,46 @@ export function DashboardScreen() {
             ) : null}
 
             {mainTab === "finance" ? (
-              <DashboardFinanceTab
-                t={t}
-                locale={locale}
-                state={state}
-                refetch={refetch}
-                overview={overview}
-                bulkParams={bulkParams}
-                isPlainTodayView={isPlainTodayView}
-                snapshotDateLabel={snapshotDateLabel}
-                sumBranchesFootnote={sumBranchesFootnote}
-                branchTodayTitleBadge={branchTodayTitleBadge}
-                branchTodayTableBlurb={branchTodayTableBlurb}
-                dash={dash}
-              />
+              <div className="transition-opacity duration-200 ease-in-out">
+                <DashboardFinanceTab
+                  t={t}
+                  locale={locale}
+                  state={state}
+                  refetch={refetch}
+                  overview={overview}
+                  bulkParams={bulkParams}
+                  isPlainTodayView={isPlainTodayView}
+                  snapshotDateLabel={snapshotDateLabel}
+                  sumBranchesFootnote={sumBranchesFootnote}
+                  branchTodayTitleBadge={branchTodayTitleBadge}
+                  branchTodayTableBlurb={branchTodayTableBlurb}
+                  dash={dash}
+                />
+              </div>
             ) : null}
 
             {mainTab === "personnel" ? (
-              <DashboardPersonnelTab t={t} locale={locale} overview={overview} />
+              <div className="transition-opacity duration-200 ease-in-out">
+                <DashboardPersonnelTab t={t} locale={locale} overview={overview} />
+              </div>
             ) : null}
 
             {mainTab === "operations" ? (
-              <DashboardOperationsTab t={t} locale={locale} overview={overview} />
+              <div className="transition-opacity duration-200 ease-in-out">
+                <DashboardOperationsTab t={t} locale={locale} overview={overview} />
+              </div>
             ) : null}
 
             {mainTab === "operations_registry" ? (
-              <DashboardOperationsRegistryTab t={t} overview={overview} />
+              <div className="transition-opacity duration-200 ease-in-out">
+                <DashboardOperationsRegistryTab t={t} overview={overview} />
+              </div>
             ) : null}
 
             {mainTab === "reports" ? (
-              <DashboardReportsTab t={t} userRole={user?.role} />
+              <div className="transition-opacity duration-200 ease-in-out">
+                <DashboardReportsTab t={t} userRole={user?.role} />
+              </div>
             ) : null}
           </div>
         }

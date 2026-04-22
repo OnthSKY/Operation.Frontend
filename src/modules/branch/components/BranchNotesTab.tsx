@@ -10,6 +10,8 @@ import {
 } from "@/modules/branch/hooks/useBranchQueries";
 import type { BranchNote } from "@/types/branch-note";
 import { formatLocaleDateTime } from "@/shared/lib/locale-date";
+import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
@@ -78,6 +80,14 @@ export function BranchNotesTab({ branchId, active, readOnly = false }: Props) {
       setFormError(toErrorMessage(e));
     }
   };
+  const isFormDirty =
+    body.trim() !== (editing?.body?.trim() ?? "");
+  const requestFormClose = useDirtyGuard({
+    isDirty: isFormDirty,
+    isBlocked: createMut.isPending || updateMut.isPending,
+    confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
+    onClose: closeForm,
+  });
 
   const confirmDelete = async () => {
     if (deleteId == null) return;
@@ -149,37 +159,46 @@ export function BranchNotesTab({ branchId, active, readOnly = false }: Props) {
 
       <Modal
         open={formOpen}
-        onClose={closeForm}
+        onClose={requestFormClose}
         titleId={FORM_TITLE_ID}
         title={editing ? t("branch.notesEditTitle") : t("branch.notesAddTitle")}
         closeButtonLabel={t("common.close")}
         nested
         className="max-w-lg"
       >
-        <div className="flex flex-col gap-3">
-          <label className="text-sm font-medium text-zinc-700">{t("branch.notesBodyLabel")}</label>
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={6}
-            className="min-h-[8rem] w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
-            maxLength={4000}
-            aria-invalid={Boolean(formError)}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submitForm();
+          }}
+        >
+          <ModalFormLayout
+            body={
+              <FormSection>
+                <label className="text-sm font-medium text-zinc-700">{t("branch.notesBodyLabel")}</label>
+                <textarea
+                  value={body}
+                  onChange={(e) => setBody(e.target.value)}
+                  rows={6}
+                  className="min-h-[8rem] w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
+                  maxLength={4000}
+                  aria-invalid={Boolean(formError)}
+                />
+                {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
+              </FormSection>
+            }
+            footer={
+              <>
+                <Button type="button" variant="secondary" onClick={requestFormClose}>
+                  {t("common.cancel")}
+                </Button>
+                <Button type="submit" disabled={createMut.isPending || updateMut.isPending}>
+                  {editing ? t("common.save") : t("branch.notesAdd")}
+                </Button>
+              </>
+            }
           />
-          {formError ? <p className="text-sm text-red-600">{formError}</p> : null}
-          <div className="flex flex-wrap justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={closeForm}>
-              {t("common.cancel")}
-            </Button>
-            <Button
-              type="button"
-              disabled={createMut.isPending || updateMut.isPending}
-              onClick={() => void submitForm()}
-            >
-              {editing ? t("common.save") : t("branch.notesAdd")}
-            </Button>
-          </div>
-        </div>
+        </form>
       </Modal>
 
       <Modal

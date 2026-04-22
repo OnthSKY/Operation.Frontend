@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth/AuthContext";
-import { AppShell } from "@/shared/components/AppShell";
+import { AppShell } from "@/components/navigation/AppShell";
 import { useI18n } from "@/i18n/context";
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";

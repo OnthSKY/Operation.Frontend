@@ -6,6 +6,8 @@ import {
   parseSettlementSeasonYearChoice,
   settlementSeasonYearSelectOptions,
 } from "@/modules/personnel/lib/settlement-print-season";
+import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
+import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
@@ -45,6 +47,12 @@ export function PersonnelSettlementSeasonPickerModal({
     () => settlementSeasonYearSelectOptions(t),
     [t]
   );
+  const requestClose = useDirtyGuard({
+    isDirty: choice.trim() !== "",
+    isBlocked: busy,
+    confirmMessage: t("common.unsavedChangesConfirm"),
+    onClose,
+  });
 
   const run = useCallback(async () => {
     if (!personnel) return;
@@ -63,45 +71,52 @@ export function PersonnelSettlementSeasonPickerModal({
   return (
     <Modal
       open={open && personnel != null}
-      onClose={onClose}
+      onClose={requestClose}
       titleId={TITLE_ID}
       title={t("personnel.settlementPrintSeasonPickerTitle")}
       description={personnel ? personnelDisplayName(personnel) : ""}
       closeButtonLabel={t("common.close")}
       narrow
     >
-      <div className="space-y-3 px-4 pb-4 pt-1">
-        <Select
-          name="settlementPdfSeason"
-          label={t("personnel.settlementPrintSeasonLabel")}
-          options={options}
-          value={choice}
-          onChange={(e) => setChoice(e.target.value)}
-          onBlur={() => {}}
-        />
-        <p className="text-xs leading-relaxed text-zinc-500">
-          {t("personnel.settlementPrintSeasonHint")}
-        </p>
-        <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
-          <Button
-            type="button"
-            variant="secondary"
-            className="w-full sm:w-auto"
-            disabled={busy}
-            onClick={onClose}
-          >
-            {t("common.cancel")}
-          </Button>
-          <Button
-            type="button"
-            className="w-full sm:w-auto"
-            disabled={busy}
-            onClick={() => void run()}
-          >
-            {t("personnel.settlementPrintSeasonPickerConfirm")}
-          </Button>
-        </div>
-      </div>
+      <ModalFormLayout
+        className="mt-0"
+        body={
+          <FormSection>
+            <Select
+              name="settlementPdfSeason"
+              label={t("personnel.settlementPrintSeasonLabel")}
+              options={options}
+              value={choice}
+              onChange={(e) => setChoice(e.target.value)}
+              onBlur={() => {}}
+            />
+            <p className="text-xs leading-relaxed text-zinc-500">
+              {t("personnel.settlementPrintSeasonHint")}
+            </p>
+          </FormSection>
+        }
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full sm:w-auto"
+              disabled={busy}
+              onClick={requestClose}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              disabled={busy}
+              onClick={() => void run()}
+            >
+              {t("personnel.settlementPrintSeasonPickerConfirm")}
+            </Button>
+          </>
+        }
+      />
     </Modal>
   );
 }

@@ -11,6 +11,14 @@ export const nav = {
   reportsPatronSection: "Patron cebi ve kasa",
   reportsStockSection: "Stok",
   reportsOtherSection: "Şubeler ve kasa günü",
+  groupOverview: "Genel bakış",
+  groupFinanceReporting: "Finans & Raporlama",
+  groupOperations: "Operasyon",
+  groupWarehouseProducts: "Depo & Ürün",
+  groupPeopleOrganization: "İnsan & Organizasyon",
+  groupDocumentsRecords: "Doküman & Kayıt",
+  groupProcurement: "Tedarik & Satın Alma",
+  groupSystemManagement: "Sistem Yönetimi",
   personnel: "Personel yönetimi",
   personnelSection: "Personel yönetimi",
   personnelList: "Personeller",
@@ -53,6 +61,8 @@ export const nav = {
   menuClose: "Menüyü kapat",
   dockMore: "Tüm menü",
   dockNav: "Hızlı gezinme",
+  mobileGroupHintTitle: "Hızlı ipucu",
+  mobileGroupHintBody: "Grup başlığına dokunarak alt menüleri açıp kapatabilirsiniz.",
   tooltip: {
     guide:
       "Tüm modüllerin ne işe yaradığı, günlük kullanım ipuçları ve “misyon” sekmesiyle para–stok takibinin haritası burada.",

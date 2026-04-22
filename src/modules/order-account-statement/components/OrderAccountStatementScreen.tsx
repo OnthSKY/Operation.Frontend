@@ -1869,14 +1869,14 @@ export function OrderAccountStatementScreen() {
 
   if (!canSee) {
     return (
-      <div className="mx-auto max-w-lg px-4 py-16 text-center text-sm text-zinc-600">
+      <div className="w-full min-w-0 px-4 py-16 text-center text-sm text-zinc-600 sm:px-6">
         {t("reports.orderAccountStatementNoAccess")}
       </div>
     );
   }
 
   return (
-    <div className="mx-auto w-full min-w-0 max-w-[min(100%,1800px)] px-3 pb-24 pt-4 sm:px-4 sm:pb-28 md:py-6 md:pb-32 xl:px-6">
+    <div className="w-full min-w-0 px-4 pb-24 pt-4 sm:px-6 sm:pb-28 md:py-6 md:pb-32 lg:px-8">
       <header className="mb-6 overflow-hidden rounded-xl border border-zinc-200 bg-white px-4 py-4 shadow-sm ring-1 ring-zinc-950/[0.035] sm:px-6 sm:py-5">
         <div className="flex items-start gap-3 sm:items-center sm:gap-4">
           <OasStepVisualBadge tone="indigo" icon="header" />
@@ -2928,7 +2928,7 @@ export function OrderAccountStatementScreen() {
           OVERLAY_Z_TW.branchDetailSheet
         )}
       >
-        <div className="mx-auto flex w-full max-w-[min(100%,1800px)] justify-center">
+        <div className="flex w-full justify-center">
           <Button
             type="button"
             variant="primary"
@@ -3011,7 +3011,7 @@ export function OrderAccountStatementScreen() {
                   />
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-zinc-100/90 p-3 sm:p-5">
-                  <div className="mx-auto w-full min-w-0 max-w-6xl pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                  <div className="w-full min-w-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                     <StatementPaper
                       ref={previewRef}
                       layoutVariant={layoutVariant}
