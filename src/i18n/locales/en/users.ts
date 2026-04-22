@@ -43,4 +43,12 @@ export const users = {
   selfFinancialsUpdated: "Visibility updated",
   roleUpdated: "Role updated",
   roleChangeSelfDisabled: "You cannot change your own role here.",
+  activateUser: "Activate",
+  deactivateUser: "Deactivate",
+  activateUserHint: "User can sign in again.",
+  deactivateUserHint:
+    "Blocks sign-in and revokes “remember me” sessions. Logged to audit.",
+  accountActivatedToast: "User activated",
+  accountDeactivatedToast: "User deactivated",
+  statusChangeSelfDisabled: "You cannot deactivate your own account here.",
 } as const;

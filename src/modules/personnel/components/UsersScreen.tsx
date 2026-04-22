@@ -5,6 +5,7 @@ import { useI18n } from "@/i18n/context";
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
 import {
   useCreateUser,
+  usePatchUserAccountStatus,
   usePatchUserRole,
   usePatchUserSelfFinancials,
   useUsersList,
@@ -29,6 +30,7 @@ import { Select, type SelectOption } from "@/shared/ui/Select";
 import type { AppUserRole, UserListItem } from "@/types/user";
 import { cn } from "@/lib/cn";
 import { ToolbarGlyphUserPlus } from "@/shared/ui/ToolbarGlyph";
+import { UserCheck, UserX } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -59,6 +61,7 @@ export function UsersScreen() {
   const createUser = useCreateUser();
   const patchSelfFin = usePatchUserSelfFinancials();
   const patchRole = usePatchUserRole();
+  const patchAccountStatus = usePatchUserAccountStatus();
 
   const personnelNameById = useMemo(() => {
     const m = new Map<number, string>();
@@ -191,6 +194,55 @@ export function UsersScreen() {
     }
   }
 
+  async function onSetAccountActive(r: UserListItem, active: boolean) {
+    if (user && r.id === user.id) {
+      notify.error(t("users.statusChangeSelfDisabled"));
+      return;
+    }
+    const cur = r.status.toUpperCase() === "ACTIVE";
+    if (cur === active) return;
+    try {
+      await patchAccountStatus.mutateAsync({ userId: r.id, active });
+      notify.success(
+        active ? t("users.accountActivatedToast") : t("users.accountDeactivatedToast")
+      );
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    }
+  }
+
+  function accountStatusAction(r: UserListItem) {
+    const isActive = r.status.toUpperCase() === "ACTIVE";
+    const selfBlock = Boolean(user && r.id === user.id);
+    const pending =
+      patchAccountStatus.isPending && patchAccountStatus.variables?.userId === r.id;
+    const label = isActive ? t("users.deactivateUser") : t("users.activateUser");
+    const hint = selfBlock
+      ? t("users.statusChangeSelfDisabled")
+      : isActive
+        ? t("users.deactivateUserHint")
+        : t("users.activateUserHint");
+    return (
+      <Tooltip content={hint} delayMs={200}>
+        <Button
+          type="button"
+          variant={isActive ? "secondary" : "primary"}
+          className="inline-flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1.5 text-xs font-medium"
+          disabled={selfBlock || pending}
+          onClick={() => void onSetAccountActive(r, !isActive)}
+          aria-label={label}
+        >
+          {isActive ? (
+            <UserX className="h-4 w-4 shrink-0" aria-hidden />
+          ) : (
+            <UserCheck className="h-4 w-4 shrink-0" aria-hidden />
+          )}
+          <span>{label}</span>
+        </Button>
+      </Tooltip>
+    );
+  }
+
   const onSubmit = handleSubmit(async (values) => {
     const pw = values.password;
     if (pw.length < 8) {
@@ -276,6 +328,7 @@ export function UsersScreen() {
               items={[
                 { text: t("pageHelp.users.step1") },
                 { text: t("pageHelp.users.step2") },
+                { text: t("pageHelp.users.step4") },
                 {
                   text: t("pageHelp.users.step3"),
                   link: {
@@ -342,12 +395,13 @@ export function UsersScreen() {
                         {r.fullName?.trim() || t("personnel.dash")}
                       </p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 flex-col items-end gap-2">
                       <StatusBadge tone={appUserAccountStatusTone(r.status)}>
                         {r.status.toUpperCase() === "ACTIVE"
                           ? t("users.statusActive")
                           : t("users.statusInactive")}
                       </StatusBadge>
+                      {accountStatusAction(r)}
                     </div>
                   </div>
                   <dl className="mt-3 grid gap-2 border-t border-zinc-200/80 pt-3 text-sm">
@@ -473,11 +527,14 @@ export function UsersScreen() {
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <StatusBadge tone={appUserAccountStatusTone(r.status)}>
-                          {r.status.toUpperCase() === "ACTIVE"
-                            ? t("users.statusActive")
-                            : t("users.statusInactive")}
-                        </StatusBadge>
+                        <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
+                          <StatusBadge tone={appUserAccountStatusTone(r.status)}>
+                            {r.status.toUpperCase() === "ACTIVE"
+                              ? t("users.statusActive")
+                              : t("users.statusInactive")}
+                          </StatusBadge>
+                          {accountStatusAction(r)}
+                        </div>
                       </td>
                       <td className="max-w-[10rem] truncate px-4 py-3 text-zinc-600 lg:max-w-xs">
                         {personnelCell(r)}

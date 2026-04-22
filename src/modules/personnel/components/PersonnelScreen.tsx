@@ -5,6 +5,7 @@ import { isPersonnelPortalRole } from "@/lib/auth/roles";
 import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
 import { cn } from "@/lib/cn";
+import { MOBILE_TOKENS } from "@/config/mobile.config";
 import { fetchPersonnel } from "@/modules/personnel/api/personnel-api";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
@@ -20,6 +21,7 @@ import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { notify } from "@/shared/lib/notify";
 import { openPersonnelSettlementPrintWindow } from "@/modules/personnel/lib/personnel-settlement-print";
 import { Card } from "@/shared/components/Card";
+import { MobileListCard } from "@/shared/components/MobileListCard";
 import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
 import { TableToolbarMoreMenu } from "@/shared/components/TableToolbarMoreMenu";
@@ -997,21 +999,20 @@ export function PersonnelScreen() {
           {!isPending && !isError && items.length > 0 && (
             <>
               {/* Kartlar: tablet & mobil (< md) */}
-              <div className="flex flex-col gap-3 md:hidden">
+              <div className="flex flex-col gap-4 md:hidden">
                 {items.map((p) => {
                   const mobileDetailsOpen =
                     mobileCardDetailsOpenById[p.id] === true;
                   return (
-                    <article
+                    <MobileListCard
                       key={p.id}
+                      as="article"
                       className={cn(
-                        "rounded-2xl border p-4 shadow-sm",
-                        p.isDeleted
-                          ? "border-zinc-200/90 bg-zinc-100/50"
-                          : "border-zinc-200 bg-white"
+                        p.isDeleted && "border-zinc-200/90 bg-zinc-100/50"
                       )}
                     >
-                      <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
+                      <div className="flex min-w-0 flex-col gap-3">
+                      <div className="flex min-w-0 flex-wrap items-start gap-3">
                         <PersonnelProfilePhotoAvatar
                           shape="square"
                           personnelId={p.id}
@@ -1029,13 +1030,16 @@ export function PersonnelScreen() {
                               ? () => setProfilePhotoPreviewPerson(p)
                               : undefined
                           }
-                          className="h-28 w-28 min-[400px]:h-32 min-[400px]:w-32 shrink-0 text-3xl min-[400px]:text-4xl"
+                          className={cn(
+                            MOBILE_TOKENS.AVATAR.MAX,
+                            "shrink-0 text-lg"
+                          )}
                         />
-                        <div className="min-w-0 flex-1 space-y-1.5">
-                          <div className="flex flex-wrap items-center gap-2">
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex min-w-0 flex-wrap items-center gap-2 gap-y-1">
                             <h3
                               className={cn(
-                                "min-w-0 text-base font-semibold leading-snug text-zinc-900",
+                                "min-w-0 max-w-full truncate text-base font-semibold leading-snug text-zinc-900",
                                 p.isDeleted && "text-zinc-600"
                               )}
                             >
@@ -1048,7 +1052,7 @@ export function PersonnelScreen() {
                           </div>
                           <p
                             className={cn(
-                              "text-sm font-medium text-zinc-700",
+                              "truncate text-sm font-medium text-zinc-700",
                               p.isDeleted && "text-zinc-500"
                             )}
                           >
@@ -1056,7 +1060,7 @@ export function PersonnelScreen() {
                           </p>
                           <p
                             className={cn(
-                              "text-sm text-zinc-600",
+                              "truncate text-sm text-zinc-600",
                               p.isDeleted && "text-zinc-500"
                             )}
                           >
@@ -1077,7 +1081,7 @@ export function PersonnelScreen() {
                           </p>
                           <PersonnelInsuranceBadge personnel={p} t={t} />
                         </div>
-                        <div className="ml-auto flex shrink-0 self-start pt-0.5 max-[360px]:w-full max-[360px]:justify-end">
+                        <div className="ml-auto flex w-full min-w-0 shrink-0 flex-wrap justify-end gap-1 self-start pt-0.5 sm:w-auto sm:max-w-[min(100%,14rem)]">
                           <PersonnelRowActionsToolbar
                             p={p}
                             isAdmin={isAdmin}
@@ -1126,7 +1130,10 @@ export function PersonnelScreen() {
                       </div>
                       <button
                         type="button"
-                        className="mt-3 w-full rounded-xl border border-zinc-200 bg-zinc-50/90 py-2.5 text-sm font-semibold text-zinc-800 transition-colors hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900"
+                        className={cn(
+                          "mt-0 w-full rounded-xl border border-zinc-200 bg-zinc-50/90 py-2.5 text-sm font-semibold text-zinc-800 transition-colors hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900",
+                          MOBILE_TOKENS.TOUCH.MIN
+                        )}
                         aria-expanded={mobileDetailsOpen}
                         onClick={() =>
                           setMobileCardDetailsOpenById((prev) => {
@@ -1141,7 +1148,7 @@ export function PersonnelScreen() {
                       </button>
                       {mobileDetailsOpen ? (
                         <>
-                          <dl className="mt-4 space-y-2.5 border-t border-zinc-200/80 pt-4 text-sm">
+                          <dl className="mt-4 space-y-1 border-t border-zinc-200/80 pt-4 text-sm">
                             <div className="flex justify-between gap-3">
                               <dt className="shrink-0 text-zinc-500">
                                 {t("personnel.tableCompanyHireDate")}
@@ -1227,7 +1234,8 @@ export function PersonnelScreen() {
                           </div>
                         </>
                       ) : null}
-                    </article>
+                      </div>
+                    </MobileListCard>
                   );
                 })}
               </div>

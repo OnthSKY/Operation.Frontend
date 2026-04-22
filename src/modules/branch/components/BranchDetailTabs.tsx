@@ -747,6 +747,7 @@ export function BranchDetailTabs({
             dashboardStockScope={dashboardStockScope}
             setDashboardStockScope={setDashboardStockScope}
             refetchDash={refetchDash}
+            onOpenStockDetailTab={() => setTab("stock")}
           />
         )}
 

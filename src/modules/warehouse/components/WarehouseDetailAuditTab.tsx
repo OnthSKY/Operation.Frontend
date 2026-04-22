@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/shared/ui/Table";
 import { cn } from "@/lib/cn";
+import { MobileListCard } from "@/shared/components/MobileListCard";
 import type { WarehouseAuditItem, WarehouseAuditPageParams } from "@/types/warehouse";
 import { formatLocaleDateTime } from "@/shared/lib/locale-date";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -153,14 +154,15 @@ export function WarehouseDetailAuditTab({ warehouseId, enabled }: Props) {
         <p className="text-sm text-zinc-600">{t("warehouse.auditEmpty")}</p>
       ) : (
         <div className="space-y-4">
-          <div className="flex flex-col gap-3 md:hidden">
+          <div className="flex flex-col gap-4 md:hidden">
             {items.map((row) => {
               const whUpdate = row.tableName === "warehouses" && row.action === "UPDATE";
               return (
-                <div
+                <MobileListCard
                   key={row.id}
+                  as="div"
                   className={cn(
-                    "touch-manipulation rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm shadow-zinc-900/5",
+                    "touch-manipulation shadow-zinc-900/5",
                     whUpdate &&
                       "border-amber-300 bg-amber-50/40 shadow-[inset_0_0_0_1px_rgba(245,158,11,0.2)]"
                   )}
@@ -176,7 +178,7 @@ export function WarehouseDetailAuditTab({ warehouseId, enabled }: Props) {
                       </span>
                     ) : null}
                   </div>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <div className="mt-3 grid gap-4 sm:grid-cols-2">
                     {auditKv(t("warehouse.auditColAction"), row.action)}
                     {auditKv(t("warehouse.auditColRecord"), row.recordId ?? "—")}
                   </div>
@@ -186,7 +188,7 @@ export function WarehouseDetailAuditTab({ warehouseId, enabled }: Props) {
                     </p>
                     <AuditPayloadBlock row={row} t={t} />
                   </div>
-                </div>
+                </MobileListCard>
               );
             })}
           </div>

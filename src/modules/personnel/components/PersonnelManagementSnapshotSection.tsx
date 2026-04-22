@@ -909,54 +909,7 @@ export function PersonnelManagementSnapshotSection({
                       </p>
                     ) : (
                       <>
-                        <div className="mt-3 md:hidden space-y-2">
-                          {hovItems.map((row) => {
-                            const cat = txCategoryLine(row.mainCategory, row.category, t);
-                            return (
-                              <article
-                                key={row.transactionId}
-                                className="rounded-lg border border-sky-200/70 bg-white/90 p-3 text-sm shadow-sm"
-                              >
-                                <div className="flex flex-col gap-0.5 min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-between">
-                                  <span className="text-zinc-700">
-                                    {formatLocaleDate(row.transactionDate, locale, dash)}
-                                  </span>
-                                  <span className="font-mono font-semibold text-zinc-900">
-                                    {formatMoneyDash(row.cashAmount, dash, locale, row.currencyCode)}
-                                  </span>
-                                </div>
-                                <div className="mt-1 flex justify-between gap-2 text-xs text-zinc-600">
-                                  <span>{t("personnel.detailMgmtHandoverColSettled")}</span>
-                                  <span className="font-mono text-zinc-800">
-                                    {formatMoneyDash(
-                                      row.settledFromHandoverAmount,
-                                      dash,
-                                      locale,
-                                      row.currencyCode
-                                    )}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between gap-2 text-xs text-zinc-600">
-                                  <span>{t("personnel.detailMgmtHandoverColRemaining")}</span>
-                                  <span className="font-mono text-zinc-800">
-                                    {formatMoneyDash(
-                                      row.remainingHandoverAmount,
-                                      dash,
-                                      locale,
-                                      row.currencyCode
-                                    )}
-                                  </span>
-                                </div>
-                                <p className="mt-1 text-xs text-zinc-600">{row.branchName?.trim() || dash}</p>
-                                {cat ? <p className="mt-0.5 text-xs text-zinc-500">{cat}</p> : null}
-                                {row.description?.trim() ? (
-                                  <p className="mt-1 text-xs text-zinc-600">{row.description.trim()}</p>
-                                ) : null}
-                              </article>
-                            );
-                          })}
-                        </div>
-                        <div className="mt-3 hidden md:block overflow-x-auto">
+                        <div className="mt-3 overflow-x-auto">
                           <Table className="min-w-[56rem]">
                             <TableHead>
                               <TableRow>
@@ -980,14 +933,25 @@ export function PersonnelManagementSnapshotSection({
                                 const cat = txCategoryLine(row.mainCategory, row.category, t);
                                 return (
                                   <TableRow key={row.transactionId}>
-                                    <TableCell className="whitespace-nowrap">
+                                    <TableCell
+                                      dataLabel={t("personnel.detailMgmtHandoverColDate")}
+                                      className="whitespace-nowrap"
+                                    >
                                       {formatLocaleDate(row.transactionDate, locale, dash)}
                                     </TableCell>
-                                    <TableCell>{row.branchName?.trim() || dash}</TableCell>
-                                    <TableCell className="text-right tabular-nums font-mono">
+                                    <TableCell dataLabel={t("personnel.detailMgmtHandoverColBranch")}>
+                                      {row.branchName?.trim() || dash}
+                                    </TableCell>
+                                    <TableCell
+                                      dataLabel={t("personnel.detailMgmtHandoverColAmount")}
+                                      className="text-right tabular-nums font-mono"
+                                    >
                                       {formatMoneyDash(row.cashAmount, dash, locale, row.currencyCode)}
                                     </TableCell>
-                                    <TableCell className="text-right tabular-nums font-mono text-zinc-700">
+                                    <TableCell
+                                      dataLabel={t("personnel.detailMgmtHandoverColSettled")}
+                                      className="text-right tabular-nums font-mono text-zinc-700"
+                                    >
                                       {formatMoneyDash(
                                         row.settledFromHandoverAmount,
                                         dash,
@@ -995,7 +959,10 @@ export function PersonnelManagementSnapshotSection({
                                         row.currencyCode
                                       )}
                                     </TableCell>
-                                    <TableCell className="text-right tabular-nums font-mono text-zinc-900">
+                                    <TableCell
+                                      dataLabel={t("personnel.detailMgmtHandoverColRemaining")}
+                                      className="text-right tabular-nums font-mono text-zinc-900"
+                                    >
                                       {formatMoneyDash(
                                         row.remainingHandoverAmount,
                                         dash,
@@ -1003,8 +970,16 @@ export function PersonnelManagementSnapshotSection({
                                         row.currencyCode
                                       )}
                                     </TableCell>
-                                    <TableCell className="max-w-[12rem] text-zinc-600">{cat || dash}</TableCell>
-                                    <TableCell className="max-w-[14rem] text-zinc-600">
+                                    <TableCell
+                                      dataLabel={t("personnel.detailMgmtHandoverColCategory")}
+                                      className="max-w-[12rem] text-zinc-600"
+                                    >
+                                      {cat || dash}
+                                    </TableCell>
+                                    <TableCell
+                                      dataLabel={t("personnel.detailMgmtHandoverColNote")}
+                                      className="max-w-[14rem] text-zinc-600"
+                                    >
                                       {row.description?.trim() || dash}
                                     </TableCell>
                                   </TableRow>
@@ -1096,57 +1071,7 @@ export function PersonnelManagementSnapshotSection({
                       </p>
                     ) : (
                       <>
-                        <div className="mt-3 md:hidden space-y-2">
-                          {outItems.map((row) => {
-                            const cat = txCategoryLine(row.mainCategory, row.category, t);
-                            return (
-                              <article
-                                key={row.transactionId}
-                                className="rounded-lg border border-amber-200/80 bg-white/90 p-3 text-sm shadow-sm"
-                              >
-                                <div className="flex flex-col gap-0.5 min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-between">
-                                  <span className="text-zinc-700">
-                                    {formatLocaleDate(row.transactionDate, locale, dash)}
-                                  </span>
-                                  <span className="font-mono font-semibold text-zinc-900">
-                                    {formatMoneyDash(row.amount, dash, locale, row.currencyCode)}
-                                  </span>
-                                </div>
-                                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs tabular-nums text-zinc-600">
-                                  <span>
-                                    {t("personnel.detailMgmtOutflowsColBalanceBefore")}:{" "}
-                                    {row.balanceBefore != null
-                                      ? formatMoneyDash(row.balanceBefore, dash, locale, row.currencyCode)
-                                      : dash}
-                                  </span>
-                                  <span>
-                                    {t("personnel.detailMgmtOutflowsColBalanceAfter")}:{" "}
-                                    {row.balanceAfter != null
-                                      ? formatMoneyDash(row.balanceAfter, dash, locale, row.currencyCode)
-                                      : dash}
-                                  </span>
-                                </div>
-                                <p className="mt-1 text-xs font-medium text-amber-900/90">
-                                  {outflowKindLabel(row.outflowKind, t)}
-                                </p>
-                                {row.settlesCashHandoverTransactionId != null ? (
-                                  <p className="mt-0.5 text-xs text-zinc-600">
-                                    {t("personnel.detailMgmtOutflowsColInId").replace(
-                                      "{id}",
-                                      String(row.settlesCashHandoverTransactionId)
-                                    )}
-                                  </p>
-                                ) : null}
-                                <p className="mt-1 text-xs text-zinc-600">{row.branchName?.trim() || dash}</p>
-                                {cat ? <p className="mt-0.5 text-xs text-zinc-500">{cat}</p> : null}
-                                {row.description?.trim() ? (
-                                  <p className="mt-1 text-xs text-zinc-600">{row.description.trim()}</p>
-                                ) : null}
-                              </article>
-                            );
-                          })}
-                        </div>
-                        <div className="mt-3 hidden md:block overflow-x-auto">
+                        <div className="mt-3 overflow-x-auto">
                           <Table className="min-w-[68rem]">
                             <TableHead>
                               <TableRow>
@@ -1176,29 +1101,53 @@ export function PersonnelManagementSnapshotSection({
                                     : dash;
                                 return (
                                   <TableRow key={row.transactionId}>
-                                    <TableCell className="whitespace-nowrap">
+                                    <TableCell
+                                      dataLabel={t("personnel.detailMgmtHandoverColDate")}
+                                      className="whitespace-nowrap"
+                                    >
                                       {formatLocaleDate(row.transactionDate, locale, dash)}
                                     </TableCell>
-                                    <TableCell>{row.branchName?.trim() || dash}</TableCell>
-                                    <TableCell className="text-right tabular-nums font-mono">
+                                    <TableCell dataLabel={t("personnel.detailMgmtHandoverColBranch")}>
+                                      {row.branchName?.trim() || dash}
+                                    </TableCell>
+                                    <TableCell
+                                      dataLabel={t("personnel.detailMgmtOutflowsColAmount")}
+                                      className="text-right tabular-nums font-mono"
+                                    >
                                       {formatMoneyDash(row.amount, dash, locale, row.currencyCode)}
                                     </TableCell>
-                                    <TableCell className="text-right tabular-nums font-mono text-zinc-700">
+                                    <TableCell
+                                      dataLabel={t("personnel.detailMgmtOutflowsColBalanceBefore")}
+                                      className="text-right tabular-nums font-mono text-zinc-700"
+                                    >
                                       {row.balanceBefore != null
                                         ? formatMoneyDash(row.balanceBefore, dash, locale, row.currencyCode)
                                         : dash}
                                     </TableCell>
-                                    <TableCell className="text-right tabular-nums font-mono text-zinc-700">
+                                    <TableCell
+                                      dataLabel={t("personnel.detailMgmtOutflowsColBalanceAfter")}
+                                      className="text-right tabular-nums font-mono text-zinc-700"
+                                    >
                                       {row.balanceAfter != null
                                         ? formatMoneyDash(row.balanceAfter, dash, locale, row.currencyCode)
                                         : dash}
                                     </TableCell>
-                                    <TableCell className="text-zinc-700">
+                                    <TableCell dataLabel={t("personnel.detailMgmtOutflowsColKind")} className="text-zinc-700">
                                       {outflowKindLabel(row.outflowKind, t)}
                                     </TableCell>
-                                    <TableCell className="font-mono text-zinc-600">{inRef}</TableCell>
-                                    <TableCell className="max-w-[12rem] text-zinc-600">{cat || dash}</TableCell>
-                                    <TableCell className="max-w-[14rem] text-zinc-600">
+                                    <TableCell dataLabel={t("personnel.detailMgmtOutflowsColInRef")} className="font-mono text-zinc-600">
+                                      {inRef}
+                                    </TableCell>
+                                    <TableCell
+                                      dataLabel={t("personnel.detailMgmtHandoverColCategory")}
+                                      className="max-w-[12rem] text-zinc-600"
+                                    >
+                                      {cat || dash}
+                                    </TableCell>
+                                    <TableCell
+                                      dataLabel={t("personnel.detailMgmtHandoverColNote")}
+                                      className="max-w-[14rem] text-zinc-600"
+                                    >
                                       {row.description?.trim() || dash}
                                     </TableCell>
                                   </TableRow>

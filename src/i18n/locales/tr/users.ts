@@ -45,4 +45,12 @@ export const users = {
   selfFinancialsUpdated: "Görünürlük güncellendi",
   roleUpdated: "Rol güncellendi",
   roleChangeSelfDisabled: "Kendi rolünüzü buradan değiştiremezsiniz.",
+  activateUser: "Aktif yap",
+  deactivateUser: "Pasif yap",
+  activateUserHint: "Kullanıcı tekrar giriş yapabilir.",
+  deactivateUserHint:
+    "Girişi kapatır; «Beni hatırla» oturumları sonlanır. Denetim kaydına yazılır.",
+  accountActivatedToast: "Kullanıcı aktifleştirildi",
+  accountDeactivatedToast: "Kullanıcı pasifleştirildi",
+  statusChangeSelfDisabled: "Kendi hesabınızı buradan pasifleştiremezsiniz.",
 } as const;

@@ -2,6 +2,7 @@
 
 import { warehouseMovementInvoicePhotoUrl } from "@/modules/warehouse/api/warehouse-movements-api";
 import { cn } from "@/lib/cn";
+import { MobileListCard } from "@/shared/components/MobileListCard";
 import { formatWarehouseShipmentDisplay } from "@/shared/lib/in-batch-group-label";
 import type { WarehouseMovementItem } from "@/types/warehouse";
 import { useEffect, useState, type ReactNode } from "react";
@@ -34,7 +35,7 @@ export function WarehouseMovementRowCard({ m, fmtDate, t, hideShipmentGroup }: P
   const photoUrl = warehouseMovementInvoicePhotoUrl(m.id);
 
   return (
-    <div className="touch-manipulation rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm shadow-zinc-900/5">
+    <MobileListCard as="div" className="touch-manipulation shadow-zinc-900/5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium text-zinc-800">{fmtDate(m.movementDate)}</p>
         <span
@@ -52,7 +53,7 @@ export function WarehouseMovementRowCard({ m, fmtDate, t, hideShipmentGroup }: P
             {m.parentProductName}
           </p>
         ) : null}
-        <p className="text-base font-semibold leading-snug text-zinc-900">
+        <p className="min-w-0 break-words text-base font-semibold leading-snug text-zinc-900">
           {m.productName}
           {m.unit ? (
             <span className="ml-1.5 text-sm font-normal text-zinc-500">({m.unit})</span>
@@ -65,7 +66,7 @@ export function WarehouseMovementRowCard({ m, fmtDate, t, hideShipmentGroup }: P
           {t("products.colQty")}
         </span>
       </div>
-      <div className="mt-4 space-y-3 border-t border-zinc-100 pt-3">
+      <div className="mt-4 flex flex-col gap-4 border-t border-zinc-100 pt-3">
         {!hideShipmentGroup
           ? movementKv(
               t("warehouse.movementBatchGroup"),
@@ -111,6 +112,6 @@ export function WarehouseMovementRowCard({ m, fmtDate, t, hideShipmentGroup }: P
           </div>
         ) : null}
       </div>
-    </div>
+    </MobileListCard>
   );
 }

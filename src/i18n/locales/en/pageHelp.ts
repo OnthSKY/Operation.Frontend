@@ -72,6 +72,8 @@ export const pageHelp = {
     intro: "Administrator screen for application users, roles, and branch access rules.",
     step1: "Create users and assign roles matching what each operator should see.",
     step2: "Tie users to personnel records when the account represents a staff member.",
+    step4:
+      "Use Deactivate / Activate to block or allow sign-in; changes are recorded in the audit log.",
     step3: "Prefer the Authorization matrix for fine-grained permission review.",
     step3Link: "Authorization matrix",
   },

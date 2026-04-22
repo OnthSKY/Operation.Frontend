@@ -15,6 +15,7 @@ import { useI18n } from "@/i18n/context";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
 import { Card } from "@/shared/components/Card";
+import { MobileListCard } from "@/shared/components/MobileListCard";
 import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
@@ -355,7 +356,7 @@ export function WarehouseScreen() {
             </Table>
           </div>
 
-          <ul className="grid grid-cols-1 gap-2 md:hidden">
+          <ul className="grid grid-cols-1 gap-4 md:hidden">
             {displayWarehouses.map((w) => {
               const loc = warehouseLocationLine(w);
               const resp = warehouseResponsiblesLine(w);
@@ -367,8 +368,9 @@ export function WarehouseScreen() {
               const createdRaw = formatLocaleDate(w.createdAt, locale);
               const created = createdRaw !== "—" ? createdRaw : null;
               return (
-                <li key={w.id}>
-                  <div
+                <li key={w.id} className="min-w-0">
+                  <MobileListCard
+                    as="div"
                     role="button"
                     tabIndex={0}
                     aria-expanded={active}
@@ -380,17 +382,23 @@ export function WarehouseScreen() {
                       }
                     }}
                     className={cn(
-                      "flex w-full items-start gap-3 rounded-2xl border border-zinc-200 bg-white p-3 text-left shadow-sm ring-1 ring-zinc-100 transition-colors active:bg-zinc-50",
+                      "flex w-full cursor-pointer flex-wrap items-start gap-3 text-left transition-colors active:bg-zinc-50",
                       active && "border-zinc-300 bg-zinc-50"
                     )}
                   >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-base font-semibold leading-snug text-zinc-900">{w.name}</p>
+                    <div className="min-w-0 flex-1 overflow-hidden">
+                      <p className="truncate text-base font-semibold leading-snug text-zinc-900">
+                        {w.name}
+                      </p>
                       {loc ? (
-                        <p className="mt-1 line-clamp-3 text-sm text-zinc-600">{loc}</p>
+                        <p className="mt-1 line-clamp-3 break-words text-sm text-zinc-600">
+                          {loc}
+                        </p>
                       ) : null}
                       {resp ? (
-                        <p className="mt-1 line-clamp-2 text-xs text-zinc-500">{resp}</p>
+                        <p className="mt-1 line-clamp-2 break-words text-xs text-zinc-500">
+                          {resp}
+                        </p>
                       ) : null}
                       <p className="mt-1 text-sm tabular-nums text-zinc-700">
                         {t("warehouse.listColTotalOnHand")}: {qtyLabel}
@@ -402,7 +410,7 @@ export function WarehouseScreen() {
                       ) : null}
                     </div>
                     <div
-                      className="flex shrink-0 flex-row flex-nowrap items-start gap-1 pt-0.5"
+                      className="flex shrink-0 flex-row flex-wrap items-start justify-end gap-1 pt-0.5"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Tooltip className="shrink-0" content={t("warehouse.listActionDepoProductIn")} delayMs={200}>
@@ -467,7 +475,7 @@ export function WarehouseScreen() {
                         </button>
                       </Tooltip>
                     </div>
-                  </div>
+                  </MobileListCard>
                 </li>
               );
             })}

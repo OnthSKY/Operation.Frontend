@@ -16,6 +16,7 @@ import {
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
+import { MobileListCard } from "@/shared/components/MobileListCard";
 import { Button } from "@/shared/ui/Button";
 import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileFilters";
 import { DateField } from "@/shared/ui/DateField";
@@ -61,7 +62,7 @@ function BranchReceiptLineCard({
     row.warehouseMovementId ?? row.id
   );
   return (
-    <div className="touch-manipulation rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm shadow-zinc-900/5">
+    <MobileListCard as="div" className="touch-manipulation shadow-zinc-900/5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium text-zinc-800">{fmtDate(row.movementDate)}</p>
         <span className="shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-900">
@@ -74,7 +75,7 @@ function BranchReceiptLineCard({
             {row.parentProductName}
           </p>
         ) : null}
-        <p className="text-base font-semibold leading-snug text-zinc-900">
+        <p className="min-w-0 break-words text-base font-semibold leading-snug text-zinc-900">
           {row.productName}
           {row.unit ? (
             <span className="ml-1.5 text-sm font-normal text-zinc-500">({row.unit})</span>
@@ -87,7 +88,7 @@ function BranchReceiptLineCard({
           {t("products.colQty")}
         </span>
       </div>
-      <div className="mt-4 space-y-3 border-t border-zinc-100 pt-3">
+      <div className="mt-4 flex flex-col gap-4 border-t border-zinc-100 pt-3">
         {!hideShipmentGroup
           ? kv(
               t("warehouse.movementBatchGroup"),
@@ -105,7 +106,7 @@ function BranchReceiptLineCard({
           )
         )}
       </div>
-    </div>
+    </MobileListCard>
   );
 }
 
@@ -397,7 +398,7 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                         </span>
                       </button>
                       {open ? (
-                        <div className="space-y-2 border-t border-zinc-100 bg-zinc-50/60 px-2 py-2">
+                        <div className="flex flex-col gap-4 border-t border-zinc-100 bg-zinc-50/60 px-2 py-2">
                           {movements.map((row) => (
                             <BranchReceiptLineCard
                               key={row.id}

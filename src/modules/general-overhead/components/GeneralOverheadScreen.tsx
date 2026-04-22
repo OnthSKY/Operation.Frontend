@@ -19,6 +19,7 @@ import type {
 import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
 import { Card } from "@/shared/components/Card";
+import { MobileListCard } from "@/shared/components/MobileListCard";
 import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
@@ -1481,9 +1482,10 @@ export function GeneralOverheadScreen() {
                 const lines = allocLinesByCur[bucket.currencyCode] ?? [];
                 const draftCompare = compareAllocDraftSum(lines, bucket.amount, loc);
                 return (
-                  <div
+                  <MobileListCard
                     key={bucket.currencyCode}
-                    className="rounded-2xl border border-zinc-200/90 bg-zinc-50/40 p-4 sm:p-5"
+                    as="div"
+                    className="flex flex-col gap-0 bg-zinc-50/40"
                   >
                     <p className="mb-3 text-sm font-semibold text-zinc-900">
                       {t("generalOverhead.allocateSectionCurrency").replace("{cc}", bucket.currencyCode)}
@@ -1598,7 +1600,7 @@ export function GeneralOverheadScreen() {
                         variant="allocate"
                       />
                     </div>
-                  </div>
+                  </MobileListCard>
                 );
               })}
             </div>

@@ -13,6 +13,7 @@ import {
 } from "@/modules/reports/lib/report-expense-payment";
 import { ReportInteractiveRows } from "@/modules/reports/components/ReportInteractiveRows";
 import { Card } from "@/shared/components/Card";
+import { MobileListCard } from "@/shared/components/MobileListCard";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import type {
   FinancialExpensePaymentSourceRow,
@@ -31,9 +32,7 @@ const th =
 const td =
   "border-b border-zinc-100 px-2 py-2 text-xs text-zinc-800 sm:px-3 sm:text-sm";
 
-const mobileCard =
-  "rounded-xl border border-zinc-200 bg-white p-3 shadow-sm lg:hidden";
-const mobileCardStack = "flex flex-col gap-3 lg:hidden";
+const mobileCardStack = "flex flex-col gap-4 lg:hidden";
 
 function MobileKv({
   label,
@@ -45,20 +44,16 @@ function MobileKv({
   valueClassName?: string;
 }) {
   return (
-    <div className="flex flex-col gap-0.5 border-b border-zinc-100 pb-2 last:border-0 last:pb-0">
+    <div className="flex min-w-0 flex-col gap-1 border-b border-zinc-100 pb-2 last:border-0 last:pb-0">
       <dt className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
         {label}
       </dt>
-      <dd className={`text-sm text-zinc-900 ${valueClassName}`}>{children}</dd>
+      <dd
+        className={`break-words text-sm text-zinc-900 ${valueClassName}`}
+      >
+        {children}
+      </dd>
     </div>
-  );
-}
-
-function MobileCard({ children }: { children: ReactNode }) {
-  return (
-    <article className={mobileCard}>
-      <dl className="space-y-2">{children}</dl>
-    </article>
   );
 }
 
@@ -168,7 +163,8 @@ export function FinancialReportDetailTables({
                 <>
                   <div className={mobileCardStack}>
                     {displayRows.map((r) => (
-                      <MobileCard key={r.currencyCode}>
+                      <MobileListCard key={r.currencyCode}>
+                        <dl className="flex min-w-0 flex-col gap-1">
                         <MobileKv label={t("reports.colCurrency")}>
                           {r.currencyCode}
                         </MobileKv>
@@ -222,7 +218,8 @@ export function FinancialReportDetailTables({
                         >
                           {r.expenseTransactionCount}
                         </MobileKv>
-                      </MobileCard>
+                        </dl>
+                      </MobileListCard>
                     ))}
                   </div>
                   <div className={`${tableWrap} hidden lg:block`}>
@@ -362,7 +359,8 @@ export function FinancialReportDetailTables({
                             ? "text-emerald-800"
                             : "";
                       return (
-                        <MobileCard key={`${r.branchId}-${r.currencyCode}`}>
+                        <MobileListCard key={`${r.branchId}-${r.currencyCode}`}>
+                          <dl className="flex min-w-0 flex-col gap-1">
                           <MobileKv label={t("reports.colBranch")}>
                             {reportBranchLabel(r.branchId, r.branchName, t)}
                           </MobileKv>
@@ -433,7 +431,8 @@ export function FinancialReportDetailTables({
                               {t("reports.linkBranchTx")}
                             </Link>
                           </MobileKv>
-                        </MobileCard>
+                          </dl>
+                        </MobileListCard>
                       );
                     })}
                   </div>
@@ -607,9 +606,10 @@ export function FinancialReportDetailTables({
                               ? t("branch.expensePayPersonnelPocketShort")
                               : t("branch.expensePaymentUnset");
                       return (
-                        <MobileCard
+                        <MobileListCard
                           key={`${r.currencyCode}-${r.expensePaymentSource}`}
                         >
+                          <dl className="flex min-w-0 flex-col gap-1">
                           <MobileKv label={t("reports.colExpensePayTag")}>
                             <div className="flex flex-wrap items-center gap-2">
                               <ExpensePaymentSourceTag
@@ -643,7 +643,8 @@ export function FinancialReportDetailTables({
                           >
                             {r.lineCount}
                           </MobileKv>
-                        </MobileCard>
+                          </dl>
+                        </MobileListCard>
                       );
                     })}
                   </div>
@@ -772,9 +773,10 @@ export function FinancialReportDetailTables({
                 <>
                   <div className={mobileCardStack}>
                     {displayRows.map((r, idx) => (
-                      <MobileCard
+                      <MobileListCard
                         key={`${r.type}-${r.category}-${r.currencyCode}-${idx}`}
                       >
+                        <dl className="flex min-w-0 flex-col gap-1">
                         <MobileKv label={t("reports.colType")}>
                           {financialBreakdownTypeLabel(
                             r.type,
@@ -807,7 +809,8 @@ export function FinancialReportDetailTables({
                         >
                           {r.lineCount}
                         </MobileKv>
-                      </MobileCard>
+                        </dl>
+                      </MobileListCard>
                     ))}
                   </div>
                   <div className={`${tableWrap} hidden lg:block`}>
@@ -910,7 +913,8 @@ export function FinancialReportDetailTables({
                 <>
                   <div className={mobileCardStack}>
                     {displayRows.map((r) => (
-                      <MobileCard key={`${r.poolId}-${r.currencyCode}`}>
+                      <MobileListCard key={`${r.poolId}-${r.currencyCode}`}>
+                        <dl className="flex min-w-0 flex-col gap-1">
                         <MobileKv label={t("reports.colOverheadPoolTitle")}>
                           {r.title}
                         </MobileKv>
@@ -936,7 +940,8 @@ export function FinancialReportDetailTables({
                         >
                           {r.lineCount}
                         </MobileKv>
-                      </MobileCard>
+                        </dl>
+                      </MobileListCard>
                     ))}
                   </div>
                   <div className={`${tableWrap} hidden lg:block`}>
@@ -1022,9 +1027,10 @@ export function FinancialReportDetailTables({
                 <>
                   <div className={mobileCardStack}>
                     {displayRows.map((r) => (
-                      <MobileCard
+                      <MobileListCard
                         key={`${r.currencyCode}-${r.sourceType}`}
                       >
+                        <dl className="flex min-w-0 flex-col gap-1">
                         <MobileKv label={t("reports.colCurrency")}>
                           {r.currencyCode}
                         </MobileKv>
@@ -1047,7 +1053,8 @@ export function FinancialReportDetailTables({
                         >
                           {r.recordCount}
                         </MobileKv>
-                      </MobileCard>
+                        </dl>
+                      </MobileListCard>
                     ))}
                   </div>
                   <div className={`${tableWrap} hidden lg:block`}>
@@ -1139,7 +1146,8 @@ export function FinancialReportDetailTables({
                     <>
                       <div className={mobileCardStack}>
                         {displayRows.map((r) => (
-                          <MobileCard key={r.currencyCode}>
+                          <MobileListCard key={r.currencyCode}>
+                            <dl className="flex min-w-0 flex-col gap-1">
                             <MobileKv label={t("reports.colCurrency")}>
                               {r.currencyCode}
                             </MobileKv>
@@ -1159,7 +1167,8 @@ export function FinancialReportDetailTables({
                             >
                               {r.recordCount}
                             </MobileKv>
-                          </MobileCard>
+                            </dl>
+                          </MobileListCard>
                         ))}
                       </div>
                       <div className={`${tableWrap} hidden lg:block`}>
@@ -1238,7 +1247,8 @@ export function FinancialReportDetailTables({
                 <>
                   <div className={mobileCardStack}>
                     {displayRows.map((r) => (
-                      <MobileCard key={r.currencyCode}>
+                      <MobileListCard key={r.currencyCode}>
+                        <dl className="flex min-w-0 flex-col gap-1">
                         <MobileKv label={t("reports.colCurrency")}>
                           {r.currencyCode}
                         </MobileKv>
@@ -1258,7 +1268,8 @@ export function FinancialReportDetailTables({
                         >
                           {r.recordCount}
                         </MobileKv>
-                      </MobileCard>
+                        </dl>
+                      </MobileListCard>
                     ))}
                   </div>
                   <div className={`${tableWrap} hidden lg:block`}>
@@ -1367,7 +1378,8 @@ export function StockReportDetailTables({
                 <>
                   <div className={mobileCardStack}>
                     {displayRows.map((r) => (
-                      <MobileCard key={r.warehouseId}>
+                      <MobileListCard key={r.warehouseId}>
+                        <dl className="flex min-w-0 flex-col gap-1">
                         <MobileKv label={t("reports.colWarehouse")}>
                           {r.warehouseName}
                         </MobileKv>
@@ -1395,7 +1407,8 @@ export function StockReportDetailTables({
                         >
                           {r.movementCount}
                         </MobileKv>
-                      </MobileCard>
+                        </dl>
+                      </MobileListCard>
                     ))}
                   </div>
                   <div className={`${tableWrap} hidden lg:block`}>
@@ -1483,7 +1496,8 @@ export function StockReportDetailTables({
                 <>
                   <div className={mobileCardStack}>
                     {displayRows.map((r, idx) => (
-                      <MobileCard key={`${r.warehouseId}-${r.branchId}-${idx}`}>
+                      <MobileListCard key={`${r.warehouseId}-${r.branchId}-${idx}`}>
+                        <dl className="flex min-w-0 flex-col gap-1">
                         <MobileKv label={t("reports.colWarehouse")}>
                           {r.warehouseName}
                         </MobileKv>
@@ -1505,7 +1519,8 @@ export function StockReportDetailTables({
                         >
                           {r.movementLineCount}
                         </MobileKv>
-                      </MobileCard>
+                        </dl>
+                      </MobileListCard>
                     ))}
                   </div>
                   <div className={`${tableWrap} hidden lg:block`}>
@@ -1583,9 +1598,10 @@ export function StockReportDetailTables({
                 <>
                   <div className={mobileCardStack}>
                     {displayRows.map((r, idx) => (
-                      <MobileCard
+                      <MobileListCard
                         key={`${r.warehouseId}-${r.productId ?? "x"}-${idx}`}
                       >
+                        <dl className="flex min-w-0 flex-col gap-1">
                         <MobileKv label={t("reports.colWarehouse")}>
                           {r.warehouseName}
                         </MobileKv>
@@ -1598,7 +1614,8 @@ export function StockReportDetailTables({
                         >
                           {fmtQty(r.quantityOut, r.unit)}
                         </MobileKv>
-                      </MobileCard>
+                        </dl>
+                      </MobileListCard>
                     ))}
                   </div>
                   <div className={`${tableWrap} hidden lg:block`}>
@@ -1681,9 +1698,10 @@ export function StockReportDetailTables({
                 <>
                   <div className={mobileCardStack}>
                     {displayRows.map((r, idx) => (
-                      <MobileCard
+                      <MobileListCard
                         key={`${r.warehouseId}-${r.productId ?? "x"}-${idx}`}
                       >
+                        <dl className="flex min-w-0 flex-col gap-1">
                         <MobileKv label={t("reports.colWarehouse")}>
                           {r.warehouseName}
                         </MobileKv>
@@ -1714,7 +1732,8 @@ export function StockReportDetailTables({
                         >
                           {fmtQty(r.turnover, r.unit)}
                         </MobileKv>
-                      </MobileCard>
+                        </dl>
+                      </MobileListCard>
                     ))}
                   </div>
                   <div className={`${tableWrap} hidden lg:block`}>
@@ -1801,7 +1820,8 @@ export function StockReportDetailTables({
                 <>
                   <div className={mobileCardStack}>
                     {displayRows.map((r) => (
-                      <MobileCard key={r.branchId}>
+                      <MobileListCard key={r.branchId}>
+                        <dl className="flex min-w-0 flex-col gap-1">
                         <MobileKv label={t("reports.colBranch")}>
                           {r.branchName}
                         </MobileKv>
@@ -1820,7 +1840,8 @@ export function StockReportDetailTables({
                         >
                           {r.receiptLineCount}
                         </MobileKv>
-                      </MobileCard>
+                        </dl>
+                      </MobileListCard>
                     ))}
                   </div>
                   <div className={`${tableWrap} hidden lg:block`}>

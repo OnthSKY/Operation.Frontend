@@ -179,7 +179,7 @@ export const branch = {
   dashDailyProfitHint:
     "Income minus accounting expense (cash out from register plus off-register advances booked that day). Same figure as “Operating net (day)” below.",
   dashTopExpenseTypeTitle: "Largest expense type today",
-  dashTopExpenseTypeHint: "By main category on economic OUT lines; pocket/owner debt repayments excluded.",
+  dashTopExpenseTypeHint: "By main category on economic expense lines; pocket/owner debt repayments excluded.",
   dashTopExpenseNone: "No expenses in this scope today.",
   registerTotalsSection: "Totals (through selected day)",
   registerTotalCashInDrawer: "Cash in drawer",
@@ -201,6 +201,11 @@ export const branch = {
   dashStockInboundTotal: "Inbound quantity (scope)",
   dashStockInboundTotalHint: "Matches warehouse product scope filters (category includes subcategories).",
   dashStockInboundPickScope: "Select at least one filter (category, main product, or SKU) to see the total.",
+  dashStockOpenDetailTab: "Line list (Stock tab)",
+  registerDayBookIncomeOnlyTitle: "Income lines (day)",
+  registerDayBookIncomeOnlyHint:
+    "Only register income rows are listed below. Expenses and other movements are on desktop layout or under Expenses.",
+  dashMobileNoIncomeForDay: "No income rows for this date.",
   dashSectionMonth: "By report month",
   dashSectionMonthHint: "Income and expense totals for the chosen calendar month only.",
   tabDashboard: "Overview",
@@ -224,7 +229,7 @@ export const branch = {
   tabDocuments: "Documents",
   tourismSeasonClosedOpenTab: "Go to tourism season tab",
   expensesSeasonMissingForToday:
-    "There is no open tourism season covering today for this branch. Without an operating season, posting branch-register expenses is blocked on the server; add a season row or pick a transaction date inside an open season. Only register income (IN) may still be allowed when the central “Closed season allowances” policy permits it.",
+    "There is no open tourism season covering today for this branch. Without an operating season, posting branch-register expenses is blocked on the server; add a season row or pick a transaction date inside an open season. Only register income lines may still be allowed when the central “Closed season allowances” policy permits it.",
   zReportTabFilterYear: "Year",
   zReportTabFilterYearPh: "Empty = current year",
   zReportTabResetYear: "Reset year",
@@ -317,10 +322,10 @@ export const branch = {
   zReportColSentBy: "By",
   incomeSummarySectionTitle: "Branch income — summary",
   incomeSummaryCardsLead:
-    "Top: all-time and (when defined for today) open tourism season IN income through today. The cards below follow the list dates in Filters; they do not change the top cumulatives. Cash cards include who holds the cash.",
+    "Top: all-time and (when defined for today) open tourism season income through today. The cards below follow the list dates in Filters; they do not change the top cumulatives. Cash cards include who holds the cash.",
   incomePatronKasaSplitTitle: "Patron vs register (same calendar day)",
   incomePatronKasaSplitLead:
-    "Uses the register-summary date: off-register advances (no drawer OUT yet), OUT_NON_PNL by payment source, other OUT by source, and net owed to the owner for that day.",
+    "Uses the register-summary date: off-register advances (no register expense yet), OUT_NON_PNL by payment source, other expenses by source, and net owed to the owner for that day.",
   incomeSplitOffRegisterAdvTitle: "Off-register advances (recorded that day)",
   incomeSplitOffRegisterAdvPatron: "Patron-funded (PATRON)",
   incomeSplitOffRegisterAdvBank: "Bank-funded (BANK)",
@@ -330,7 +335,7 @@ export const branch = {
   incomeSplitOutNonPnlPatron: "Patron-paid",
   incomeSplitOutNonPnlPocket: "Staff pocket",
   incomeSplitOutNonPnlTotal: "Total OUT_NON_PNL",
-  incomeSplitOtherOutTitle: "Other economic OUT (excl. OUT_NON_PNL)",
+  incomeSplitOtherOutTitle: "Other economic expenses (excl. OUT_NON_PNL)",
   incomeSplitOtherOutRegister: "Register cash",
   incomeSplitOtherOutPatron: "Patron-paid",
   incomeSplitOtherOutPocket: "Staff pocket",
@@ -376,7 +381,7 @@ export const branch = {
   incomeFilterDrawerHint:
     "These dates filter the income list only. Top cumulatives are always through today; day / range cards live in the section below.",
   incomeFilterApplyAndClose: "Apply & close",
-  incomeListSection: "Income lines (IN)",
+  incomeListSection: "Income lines",
   noIncome: "No income matches these filters.",
   dashMonthPicker: "Report month",
   dashPersonnel: "Staff at branch",
@@ -426,7 +431,7 @@ export const branch = {
     "Total allocated to this branch from central general-overhead pools. If paid by owner/register, the same amount also appears on those cards.",
   expensesSummaryCardsOrthogonalNote:
     "Cards are not mutually exclusive: one expense line can appear on several cards at once (payment source, main category, and general-overhead share). Do not add card totals to invent a single “total expense”.",
-  expensesOverlapTitle: "General-overhead share — the same OUT line also shows up as:",
+  expensesOverlapTitle: "General-overhead share — the same expense line also shows up as:",
   expensesOverlapBulPatron: "Amount also counted on the owner-paid card:",
   expensesOverlapBulRegister: "Amount also counted on the register-paid card (cash component rules):",
   expensesOverlapBulPocket: "Amount also counted on the staff-pocket card:",
@@ -434,7 +439,7 @@ export const branch = {
   expensesOverlapFooter:
     "These slices refer to the same underlying rows; they answer different questions. Use the table below or the expense list for the net line view.",
   expensesCardDetailOverheadOverlapIntro:
-    "Each row is one OUT transaction. The same amount may also appear on owner/register/operating cards above—do not sum cards across dimensions.",
+    "Each row is one expense transaction. The same amount may also appear on owner/register/operating cards above—do not sum cards across dimensions.",
   expensesCardDetailRegisterGoOverlapLabel: "Including general-overhead share (register):",
   expensesCardDetailRegisterGoOverlapExplain:
     "Central allocation paid/treated from the register; can be the same movement as the general-overhead card.",
@@ -447,7 +452,7 @@ export const branch = {
   expensesCardDetailBranchGoOverlapLabel: "Including general-overhead share (operating mains):",
   expensesCardDetailBranchGoOverlapExplain:
     "If the allocated line’s main category is goods/ops/tax/other, it also contributes here alongside general-overhead and payment-source views.",
-  expensesCardAxisIncome: "Income (IN); not a payment-source slice.",
+  expensesCardAxisIncome: "Income; not a payment-source slice.",
   expensesCardAxisRegister: "Slice: paid from the branch register.",
   expensesCardAxisPatron: "Slice: paid by the owner (outside the register).",
   expensesCardAxisPocket: "Slice: paid from staff pocket.",
@@ -466,27 +471,27 @@ export const branch = {
   expensesTabTopExpenseCategoryEmpty: "—",
   expensesTabEconomicOutCount: "Economic expense line count",
   expensesTabEconomicOutCountHint:
-    "Number of expense (OUT) lines in the period, excluding advances and debt-repayment lines from the economic bucket.",
+    "Number of expense lines in the period, excluding advances and debt-repayment lines from the economic bucket.",
   expensesCardDetailClose: "Close",
   expensesCardDetailIncome:
-    "Sum of all income (IN) lines in this period. Use the Income tab to review individual lines.",
+    "Sum of all income lines in this period. Use the Income tab to review individual lines.",
   expensesCardDetailRegister:
     "Expenses paid from the branch register: register payment source (or legacy blank) with the same cash-split rules as summaries.",
   expensesCardDetailPatron:
-    "Expenses paid directly by the owner (OUT, owner-paid). Reflects what the branch register owes the owner for those lines.",
+    "Expenses paid directly by the owner (owner-paid). Reflects what the branch register owes the owner for those lines.",
   expensesCardDetailPocket:
     "Expenses paid from staff pocket. No cash left the drawer; amounts increase the register’s debt to the staff member.",
   expensesCardDetailPersonnel:
-    "Total OUT lines whose main category is staff-related (depends on how each line was categorized).",
+    "Total expense lines whose main category is staff-related (depends on how each line was categorized).",
   expensesCardDetailBranch:
-    "Sum of OUT lines tagged for day‑to‑day branch operations: goods/stock (OUT_GOODS), operations (OUT_OPS), tax (OUT_TAX), and other expense (OUT_OTHER). Staff (OUT_PERSONNEL), off‑register/advance (OUT_NON_PNL), and debt‑repayment mains are excluded. If a central general‑overhead allocation line uses one of those four mains, it is included here too and may also appear on the general‑overhead share card.",
+    "Sum of expense lines tagged for day‑to‑day branch operations: goods/stock (OUT_GOODS), operations (OUT_OPS), tax (OUT_TAX), and other expense (OUT_OTHER). Staff (OUT_PERSONNEL), off‑register/advance (OUT_NON_PNL), and debt‑repayment mains are excluded. If a central general‑overhead allocation line uses one of those four mains, it is included here too and may also appear on the general‑overhead share card.",
   expensesCardDetailMatchingCardTotalLabel: "Amount on the card (this period)",
   expensesCardDetailGoTableVsCardHint:
     "The table below lists only central general‑overhead allocation lines. The card total also includes non‑pool branch lines in the same mains, so the table does not have to add up to the card.",
   expensesCardDetailBranchNonGoPortionLabel:
     "Branch operating expenses without a general‑overhead pool (card total minus the general‑overhead share above):",
   expensesCardDetailBranchNonGoPortionHint:
-    "These are branch OUT lines in OUT_GOODS / OUT_OPS / OUT_TAX / OUT_OTHER that are not central pool allocations. Filter the expense list by those mains for line detail.",
+    "These are branch expense lines in OUT_GOODS / OUT_OPS / OUT_TAX / OUT_OTHER that are not central pool allocations. Filter the expense list by those mains for line detail.",
   expensesBranchOperatingListTitle: "Lines in this period",
   expensesBranchOperatingListLead:
     "Badges: purple = central general‑overhead share; green = direct branch (same mains, no pool). The card total matches the sum of these rows (within the row cap).",
@@ -514,14 +519,14 @@ export const branch = {
     "Rows use the same filter as the register share figure (e.g. unpaid ops invoices excluded from the register component). Cash/card splits can make line totals differ from the headline amount.",
   expensesCardDetailTopCategoryEmpty: "No economic expenses in this period or no category split.",
   expensesCardDetailTopCategoryLead:
-    "The main OUT category with the largest summed amount in the period (same economic filters as the day-close style summaries).",
+    "The main expense category with the largest summed amount in the period (same economic filters as the day-close style summaries).",
   expensesCardDetailOutCountLead:
-    "Count of distinct economic OUT transactions in the same date range.",
+    "Count of distinct economic expense transactions in the same date range.",
   expensesListDatesSummaryTitle: "Summary for list dates",
   expensesListDatesSummaryLead:
-    "Set start and end under «Filters». Same day: that day’s register bridge; a range: filtered OUT total, owner-paid OUT total, and row count. Empty dates default to today.",
-  expensesListFilteredTotal: "Filtered expense (OUT) total",
-  expensesListPeriodPatronTotal: "Owner-paid expenses (OUT+PATRON)",
+    "Set start and end under «Filters». Same day: that day’s register bridge; a range: filtered expense total, owner-paid expense total, and row count. Empty dates default to today.",
+  expensesListFilteredTotal: "Filtered expense total",
+  expensesListPeriodPatronTotal: "Owner-paid expense total",
   expensesListPeriodRowCount: "Matching rows",
   expensesListDayForPrefix: "Selected day:",
   expensesActionsTitle: "Expense actions",
@@ -529,7 +534,7 @@ export const branch = {
   expenseFilterDrawerHint:
     "Date and category filters match the list below. Apply refreshes the list and closes the drawer.",
   expenseFilterApplyAndClose: "Apply and close",
-  expensesListSection: "Expense lines (OUT)",
+  expensesListSection: "Expense lines",
   filterToday: "Today",
   filterAllDates: "All dates",
   stockSingleDayBanner:
@@ -601,7 +606,7 @@ export const branch = {
   txPersonnelExpensePaymentHintWithBranch:
     "Mark whether it was paid from the register or by the owner.",
   txRegisterPaymentNeedBranch: "Register payment requires a valid branch.",
-  txSettlesCashHandoverLabel: "Apply against register physical cash handover IN # (optional)",
+  txSettlesCashHandoverLabel: "Apply against register physical cash handover income # (optional)",
   txSettlesCashHandoverHint:
     "When this expense reduces cash from a specific «cash to manager» income line, enter that line’s transaction id (from the personnel physical cash handover list). Leave blank if not applicable.",
   txSettlesCashHandoverInvalid: "Physical cash handover line id must be a positive number.",
@@ -686,7 +691,7 @@ export const branch = {
   dayNetCashHint: "Register net (day)",
   cashBalanceThrough: "Cash in register (through date)",
   cashBalanceThroughHint:
-    "Physical cash: cash IN minus OUT rows through the selected date. BANK/PATRON advances count as expense only.",
+    "Physical cash: cash income minus expense rows through the selected date. BANK/PATRON advances count as expense only.",
   branchAdvancesTitle: "Advances at this branch",
   branchAdvancesHint:
     "Newest first (limit 500). CASH = leaves register; BANK/PATRON = branch expense without register.",
@@ -756,8 +761,8 @@ export const branch = {
   txColCategory: "Category",
   txColExpensePayment: "Payment source",
   txColNote: "Note",
-  txTypeIn: "Income (register in)",
-  txTypeOut: "Expense (register out)",
+  txTypeIn: "Income",
+  txTypeOut: "Expense",
   staffTitle: "Personnel at this branch",
   staffNone: "No personnel assigned to this branch.",
   staffName: "Name",
@@ -915,7 +920,7 @@ export const branch = {
   txAdvanceModeNew: "New advance from register",
   txAdvanceModePersonnelPocket: "Paid from personnel pocket (register owes them)",
   txAdvanceNewHint:
-    "Creates the advance (season year) and one linked register OUT line so it appears in reports for the transaction date you set below. Reports filter by that date, not by season year alone.",
+    "Creates the advance (season year) and one linked register expense line so it appears in reports for the transaction date you set below. Reports filter by that date, not by season year alone.",
   txAdvanceCreatedRegisterFailed:
     "Advance was saved, but the register expense line failed:",
   txAdvancePocketHint:

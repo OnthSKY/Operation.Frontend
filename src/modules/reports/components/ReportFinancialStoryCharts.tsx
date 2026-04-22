@@ -1464,7 +1464,7 @@ export function ReportFinancialStoryCharts({
           ) : null}
 
           {!lgUp && storyMoreOpen ? (
-            <div className="flex flex-col gap-3 lg:hidden">
+            <div className="flex flex-col gap-4 lg:hidden">
               {storyDeck.compare && payMixInner ? payMixInner : null}
               {branchTrendInner}
               {spotlightInner}

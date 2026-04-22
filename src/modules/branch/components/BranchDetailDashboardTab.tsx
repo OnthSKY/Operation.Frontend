@@ -31,7 +31,8 @@ import {
 import {
   WarehouseProductScopeFilters,
 } from "@/modules/warehouse/components/WarehouseProductScopeFilters";
-import type { Dispatch, SetStateAction } from "react";
+import { cn } from "@/lib/cn";
+import { useMemo, type Dispatch, type SetStateAction } from "react";
 import {
   DashCard,
   branchTxIsPocketRepayMain,
@@ -75,6 +76,8 @@ export type BranchDetailDashboardTabProps = {
   dashboardStockScope: BranchDashboardStockScope;
   setDashboardStockScope: Dispatch<SetStateAction<BranchDashboardStockScope>>;
   refetchDash: () => unknown;
+  /** Mobil ve dar ekranda satır satır stok listesi için şube «Stok» sekmesine geçer. */
+  onOpenStockDetailTab?: () => void;
 };
 
 export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
@@ -104,7 +107,14 @@ export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
     dashboardStockScope,
     setDashboardStockScope,
     refetchDash,
+    onOpenStockDetailTab,
   } = props;
+
+  const incomeDayRows = useMemo(
+    () => transactions.filter((row) => row.type.toUpperCase() === "IN"),
+    [transactions]
+  );
+
   return (
           <div className="flex flex-col gap-6">
             <section className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm sm:p-4">
@@ -174,7 +184,7 @@ export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
                     <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                       {t("branch.dashDailySnapshotSection")}
                     </h4>
-                    <div className="mt-2 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
+                    <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2">
                       <DashCard
                         badge={t("branch.registerSummaryBadgePriority")}
                         label={t("branch.dashDailyProfitTitle")}
@@ -195,36 +205,38 @@ export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
                         compact
                         highlight
                       />
-                      <DashCard
-                        badge={t("branch.registerSummaryBadgeDayDebt")}
-                        label={t("branch.dashTopExpenseTypeTitle")}
-                        value={
-                          (regSum.dayTopExpenseAmount ?? 0) > 0.009
-                            ? formatMoneyDash(
-                                regSum.dayTopExpenseAmount ?? 0,
-                                t("personnel.dash"),
-                                locale,
-                                "TRY"
-                              )
-                            : "—"
-                        }
-                        hint={
-                          (regSum.dayTopExpenseAmount ?? 0) > 0.009 ? (
-                            <>
-                              <span className="font-medium text-zinc-700">
-                                {txCodeLabel(regSum.dayTopExpenseMainCategory, t) ||
-                                  t("branch.txCategoryUnknown")}
-                              </span>
-                              <span className="mt-0.5 block text-zinc-500">
-                                {t("branch.dashTopExpenseTypeHint")}
-                              </span>
-                            </>
-                          ) : (
-                            t("branch.dashTopExpenseNone")
-                          )
-                        }
-                        compact
-                      />
+                      <div className="hidden md:block">
+                        <DashCard
+                          badge={t("branch.registerSummaryBadgeDayDebt")}
+                          label={t("branch.dashTopExpenseTypeTitle")}
+                          value={
+                            (regSum.dayTopExpenseAmount ?? 0) > 0.009
+                              ? formatMoneyDash(
+                                  regSum.dayTopExpenseAmount ?? 0,
+                                  t("personnel.dash"),
+                                  locale,
+                                  "TRY"
+                                )
+                              : "—"
+                          }
+                          hint={
+                            (regSum.dayTopExpenseAmount ?? 0) > 0.009 ? (
+                              <>
+                                <span className="font-medium text-zinc-700">
+                                  {txCodeLabel(regSum.dayTopExpenseMainCategory, t) ||
+                                    t("branch.txCategoryUnknown")}
+                                </span>
+                                <span className="mt-0.5 block text-zinc-500">
+                                  {t("branch.dashTopExpenseTypeHint")}
+                                </span>
+                              </>
+                            ) : (
+                              t("branch.dashTopExpenseNone")
+                            )
+                          }
+                          compact
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -301,20 +313,22 @@ export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
                     <p className="mt-1 text-sm font-medium text-zinc-800">
                       {t("branch.registerTodaySectionLead")}
                     </p>
-                    <div className="mt-2 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 xl:grid-cols-3">
+                    <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
                       <DashCard
                         label={t("branch.registerTodayIncome")}
                         value={formatMoneyDash(regSum.dayTotalIncome, t("personnel.dash"), locale, "TRY")}
                         valueClass="text-emerald-800"
                         compact
                       />
-                      <DashCard
-                        label={t("branch.registerTodayExpenseAccounting")}
-                        value={formatMoneyDash(regSum.dayAccountingExpense, t("personnel.dash"), locale, "TRY")}
-                        valueClass="text-red-800"
-                        compact
-                        hint={t("branch.registerTodayExpenseAccountingHint")}
-                      />
+                      <div className="hidden md:block">
+                        <DashCard
+                          label={t("branch.registerTodayExpenseAccounting")}
+                          value={formatMoneyDash(regSum.dayAccountingExpense, t("personnel.dash"), locale, "TRY")}
+                          valueClass="text-red-800"
+                          compact
+                          hint={t("branch.registerTodayExpenseAccountingHint")}
+                        />
+                      </div>
                       <DashCard
                         badge={t("branch.registerSummaryBadgePriority")}
                         label={t("branch.registerTodayNet")}
@@ -323,53 +337,57 @@ export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
                         compact
                         highlight
                       />
-                      <DashCard
-                        badge={t("branch.registerSummaryBadgeDayDebt")}
-                        label={t("branch.registerTodayNetPersonnelPocket")}
-                        value={formatMoneyDash(
-                          regSum.dayNetRegisterOwesPersonnelPocket ?? 0,
-                          t("personnel.dash"),
-                          locale,
-                          "TRY"
-                        )}
-                        valueClass={
-                          (regSum.dayNetRegisterOwesPersonnelPocket ?? 0) > 0
-                            ? "text-amber-900"
-                            : (regSum.dayNetRegisterOwesPersonnelPocket ?? 0) < 0
-                              ? "text-emerald-800"
-                              : undefined
-                        }
-                        hint={t("branch.registerTodayNetPersonnelPocketHint")}
-                        compact
-                      />
-                      <DashCard
-                        badge={t("branch.registerSummaryBadgeDayDebt")}
-                        label={t("branch.registerTodayNetPatron")}
-                        value={formatMoneyDash(
-                          regSum.dayNetRegisterOwesPatron ?? 0,
-                          t("personnel.dash"),
-                          locale,
-                          "TRY"
-                        )}
-                        valueClass={
-                          (regSum.dayNetRegisterOwesPatron ?? 0) > 0
-                            ? "text-amber-900"
-                            : (regSum.dayNetRegisterOwesPatron ?? 0) < 0
-                              ? "text-emerald-800"
-                              : undefined
-                        }
-                        hint={
-                          <>
-                            {t("branch.registerTodayNetPatronHint")}
-                            {(regSum.dayNetRegisterOwesPatron ?? 0) < 0 ? (
-                              <span className="mt-1 block font-medium text-emerald-800">
-                                {t("branch.registerPatronNetNegativeMeansBranchReceivable")}
-                              </span>
-                            ) : null}
-                          </>
-                        }
-                        compact
-                      />
+                      <div className="hidden md:block">
+                        <DashCard
+                          badge={t("branch.registerSummaryBadgeDayDebt")}
+                          label={t("branch.registerTodayNetPersonnelPocket")}
+                          value={formatMoneyDash(
+                            regSum.dayNetRegisterOwesPersonnelPocket ?? 0,
+                            t("personnel.dash"),
+                            locale,
+                            "TRY"
+                          )}
+                          valueClass={
+                            (regSum.dayNetRegisterOwesPersonnelPocket ?? 0) > 0
+                              ? "text-amber-900"
+                              : (regSum.dayNetRegisterOwesPersonnelPocket ?? 0) < 0
+                                ? "text-emerald-800"
+                                : undefined
+                          }
+                          hint={t("branch.registerTodayNetPersonnelPocketHint")}
+                          compact
+                        />
+                      </div>
+                      <div className="hidden md:block">
+                        <DashCard
+                          badge={t("branch.registerSummaryBadgeDayDebt")}
+                          label={t("branch.registerTodayNetPatron")}
+                          value={formatMoneyDash(
+                            regSum.dayNetRegisterOwesPatron ?? 0,
+                            t("personnel.dash"),
+                            locale,
+                            "TRY"
+                          )}
+                          valueClass={
+                            (regSum.dayNetRegisterOwesPatron ?? 0) > 0
+                              ? "text-amber-900"
+                              : (regSum.dayNetRegisterOwesPatron ?? 0) < 0
+                                ? "text-emerald-800"
+                                : undefined
+                          }
+                          hint={
+                            <>
+                              {t("branch.registerTodayNetPatronHint")}
+                              {(regSum.dayNetRegisterOwesPatron ?? 0) < 0 ? (
+                                <span className="mt-1 block font-medium text-emerald-800">
+                                  {t("branch.registerPatronNetNegativeMeansBranchReceivable")}
+                                </span>
+                              ) : null}
+                            </>
+                          }
+                          compact
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -384,191 +402,132 @@ export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
                 <p className="mt-3 text-sm text-zinc-600">{t("branch.noTx")}</p>
               ) : (
                 <div className="mt-3">
-                  <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                    {t("branch.registerDayBookTitle")}
+                  <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-500 md:mb-2">
+                    <span className="md:hidden">{t("branch.registerDayBookIncomeOnlyTitle")}</span>
+                    <span className="hidden md:inline">{t("branch.registerDayBookTitle")}</span>
                   </h4>
-                  <div className="space-y-2 md:hidden">
-                    {transactions.map((row) => {
-                      const expenseLinkLine = branchTxLinkedExpenseLine(row, t);
-                      const supplierLine = branchTxLinkedSupplierInvoiceLine(row, t);
-                      const pocketLine = expensePocketSubline(row, t);
-                      const repayLine = expensePocketRepaySubline(row, t);
-                      const pocketRepayMain = branchTxIsPocketRepayMain(row);
-                      return (
-                      <div
-                        key={row.id}
-                        className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-3 shadow-sm"
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="text-sm font-medium text-zinc-900">
-                            {row.type.toUpperCase() === "IN"
-                              ? t("branch.txTypeIn")
-                              : t("branch.txTypeOut")}
-                          </span>
-                          <span className="shrink-0 font-mono text-sm font-semibold tabular-nums text-zinc-900">
-                            {formatMoneyDash(
-                              row.amount,
-                              t("personnel.dash"),
-                              locale,
-                              row.currencyCode
-                            )}
-                          </span>
-                        </div>
-                        {row.cashAmount != null && row.cardAmount != null ? (
-                          <p className="mt-1.5 text-xs text-zinc-600">
-                            {t("branch.txColCashCard")}:{" "}
-                            {formatMoneyDash(row.cashAmount, t("personnel.dash"), locale, row.currencyCode)}{" "}
-                            /{" "}
-                            {formatMoneyDash(row.cardAmount, t("personnel.dash"), locale, row.currencyCode)}
-                          </p>
-                        ) : null}
-                        {registerCashSettlementLabel(row, t) ? (
-                          <p className="mt-1 text-xs text-zinc-600">
-                            {t("branch.txColCashSettlement")}:{" "}
-                            {registerCashSettlementLabel(row, t)}
-                          </p>
-                        ) : null}
-                        <p className="mt-1.5 text-xs text-zinc-600">
-                          {txCategoryLine(row.mainCategory, row.category, t) || "—"}
-                        </p>
-                        {branchTxNonPnl(row) ? (
-                          <p className="mt-1 text-[11px] font-medium text-sky-800">
-                            {t("branch.txNonPnlBadge")}
-                          </p>
-                        ) : null}
-                        {expenseLinkLine ? (
-                          <p className="mt-1 text-xs text-zinc-500">{expenseLinkLine}</p>
-                        ) : null}
-                        {supplierLine ? (
-                          <p className="mt-0.5 text-xs text-zinc-500">{supplierLine}</p>
-                        ) : null}
-                        {row.type.toUpperCase() === "OUT" &&
-                        !pocketRepayMain &&
-                        !branchTxNonPnl(row) &&
-                        expensePaymentSourceLabel(row.expensePaymentSource, t) ? (
-                          <p className="mt-1 text-xs text-zinc-600">
-                            {t("branch.txColExpensePayment")}:{" "}
-                            {expensePaymentSourceLabel(row.expensePaymentSource, t)}
-                          </p>
-                        ) : null}
-                        {pocketLine ? (
-                          <p className="mt-0.5 text-xs text-zinc-500">{pocketLine}</p>
-                        ) : null}
-                        {repayLine ? (
-                          <p className="mt-0.5 text-xs text-zinc-500">{repayLine}</p>
-                        ) : null}
-                        {row.type.toUpperCase() === "OUT" && row.hasReceiptPhoto ? (
-                          <p className="mt-2">
-                            <a
-                              href={branchTransactionReceiptPhotoUrl(row.id)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-xs font-medium text-blue-700 underline"
-                            >
-                              {t("branch.openReceiptPhoto")}
-                            </a>
-                          </p>
-                        ) : null}
-                      </div>
-                    );})}
-                  </div>
-                  <div className="hidden max-h-[min(50vh,16rem)] overflow-auto rounded-lg border border-zinc-200 md:block md:max-h-[min(55vh,22rem)] lg:max-h-[min(60vh,26rem)]">
-                  <Table>
-                    <TableHead className="sticky top-0 z-[1] bg-zinc-50 shadow-[0_1px_0_0_theme(colors.zinc.200)]">
-                      <TableRow>
-                        <TableHeader>{t("branch.txColType")}</TableHeader>
-                        <TableHeader>{t("branch.txColAmount")}</TableHeader>
-                        <TableHeader className="hidden lg:table-cell">{t("branch.txColCashCard")}</TableHeader>
-                        <TableHeader className="hidden lg:table-cell">{t("branch.txColCashSettlement")}</TableHeader>
-                        <TableHeader className="hidden sm:table-cell">{t("branch.txColMainCategory")}</TableHeader>
-                        <TableHeader className="hidden md:table-cell">{t("branch.txColCategory")}</TableHeader>
-                        <TableHeader className="w-[1%] whitespace-nowrap">{t("branch.txColReceipt")}</TableHeader>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {transactions.map((row) => {
-                        const expenseLinkLine = branchTxLinkedExpenseLine(row, t);
-                        const supplierLine = branchTxLinkedSupplierInvoiceLine(row, t);
-                        const pocketLine = expensePocketSubline(row, t);
-                        const repayLine = expensePocketRepaySubline(row, t);
-                        const pocketRepayMain = branchTxIsPocketRepayMain(row);
-                        return (
-                        <TableRow key={row.id}>
-                          <TableCell className="text-sm">
-                            {row.type.toUpperCase() === "IN"
-                              ? t("branch.txTypeIn")
-                              : t("branch.txTypeOut")}
-                          </TableCell>
-                          <TableCell className="font-mono text-sm">
-                            {formatMoneyDash(
-                              row.amount,
-                              t("personnel.dash"),
-                              locale,
-                              row.currencyCode
-                            )}
-                          </TableCell>
-                          <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 font-mono text-xs text-zinc-600 md:hidden lg:table-cell">
-                            {row.cashAmount != null && row.cardAmount != null
-                              ? `${formatMoneyDash(row.cashAmount, t("personnel.dash"), locale, row.currencyCode)} / ${formatMoneyDash(row.cardAmount, t("personnel.dash"), locale, row.currencyCode)}`
-                              : "—"}
-                          </TableCell>
-                          <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 text-xs text-zinc-600 md:hidden lg:table-cell">
-                            {registerCashSettlementLabel(row, t) || "—"}
-                          </TableCell>
-                          <TableCell className="max-sm:hidden sm:max-md:flex sm:max-md:w-full sm:max-md:min-w-0 sm:max-md:items-start sm:max-md:justify-between sm:max-md:gap-3 text-sm text-zinc-600 md:table-cell">
-                            <div>
-                              {txCategoryLine(row.mainCategory, row.category, t) || t("personnel.dash")}
-                            </div>
-                            {branchTxNonPnl(row) ? (
-                              <p className="mt-0.5 text-[11px] font-medium text-sky-800">
-                                {t("branch.txNonPnlBadge")}
-                              </p>
-                            ) : null}
-                            {expenseLinkLine ? (
-                              <p className="mt-0.5 text-xs text-zinc-500">{expenseLinkLine}</p>
-                            ) : null}
-                            {supplierLine ? (
-                              <p className="mt-0.5 text-xs text-zinc-500">{supplierLine}</p>
-                            ) : null}
-                            {row.type.toUpperCase() === "OUT" &&
-                            !pocketRepayMain &&
-                            !branchTxNonPnl(row) &&
-                            expensePaymentSourceLabel(row.expensePaymentSource, t) ? (
-                              <p className="mt-0.5 text-xs text-zinc-600">
-                                {t("branch.txColExpensePayment")}:{" "}
-                                {expensePaymentSourceLabel(row.expensePaymentSource, t)}
-                              </p>
-                            ) : null}
-                            {pocketLine ? (
-                              <p className="mt-0.5 text-xs text-zinc-500">{pocketLine}</p>
-                            ) : null}
-                            {repayLine ? (
-                              <p className="mt-0.5 text-xs text-zinc-500">{repayLine}</p>
-                            ) : null}
-                          </TableCell>
-                          <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 text-sm text-zinc-600 md:table-cell">
-                            {row.category
-                              ? txCodeLabel(row.category, t) || t("personnel.dash")
-                              : "—"}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap text-xs">
-                            {row.type.toUpperCase() === "OUT" && row.hasReceiptPhoto ? (
-                              <a
-                                href={branchTransactionReceiptPhotoUrl(row.id)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="font-medium text-blue-700 underline"
-                              >
-                                {t("branch.openReceiptPhoto")}
-                              </a>
-                            ) : (
-                              "—"
-                            )}
-                          </TableCell>
+                  <p className="mb-2 text-[11px] leading-snug text-zinc-500 md:hidden">
+                    {t("branch.registerDayBookIncomeOnlyHint")}
+                  </p>
+                  {incomeDayRows.length === 0 && transactions.length > 0 ? (
+                    <p className="mb-2 text-sm text-zinc-600 md:hidden">
+                      {t("branch.dashMobileNoIncomeForDay")}
+                    </p>
+                  ) : null}
+                  <div className="max-h-[min(50vh,16rem)] overflow-auto rounded-lg border border-zinc-200 md:max-h-[min(55vh,22rem)] lg:max-h-[min(60vh,26rem)]">
+                    <Table>
+                      <TableHead className="sticky top-0 z-[1] bg-zinc-50 shadow-[0_1px_0_0_theme(colors.zinc.200)]">
+                        <TableRow>
+                          <TableHeader>{t("branch.txColType")}</TableHeader>
+                          <TableHeader>{t("branch.txColAmount")}</TableHeader>
+                          <TableHeader className="hidden lg:table-cell">{t("branch.txColCashCard")}</TableHeader>
+                          <TableHeader className="hidden lg:table-cell">{t("branch.txColCashSettlement")}</TableHeader>
+                          <TableHeader className="hidden sm:table-cell">{t("branch.txColMainCategory")}</TableHeader>
+                          <TableHeader className="hidden md:table-cell">{t("branch.txColCategory")}</TableHeader>
+                          <TableHeader className="w-[1%] whitespace-nowrap">{t("branch.txColReceipt")}</TableHeader>
                         </TableRow>
-                      );})}
-                    </TableBody>
-                  </Table>
+                      </TableHead>
+                      <TableBody>
+                        {transactions.map((row) => {
+                          const expenseLinkLine = branchTxLinkedExpenseLine(row, t);
+                          const supplierLine = branchTxLinkedSupplierInvoiceLine(row, t);
+                          const pocketLine = expensePocketSubline(row, t);
+                          const repayLine = expensePocketRepaySubline(row, t);
+                          const pocketRepayMain = branchTxIsPocketRepayMain(row);
+                          const isOut = row.type.toUpperCase() === "OUT";
+                          return (
+                            <TableRow
+                              key={row.id}
+                              className={cn(isOut && "max-md:hidden")}
+                            >
+                              <TableCell dataLabel={t("branch.txColType")} className="text-sm">
+                                {row.type.toUpperCase() === "IN"
+                                  ? t("branch.txTypeIn")
+                                  : t("branch.txTypeOut")}
+                              </TableCell>
+                              <TableCell dataLabel={t("branch.txColAmount")} className="font-mono text-sm">
+                                {formatMoneyDash(
+                                  row.amount,
+                                  t("personnel.dash"),
+                                  locale,
+                                  row.currencyCode
+                                )}
+                              </TableCell>
+                              <TableCell
+                                dataLabel={t("branch.txColCashCard")}
+                                className="font-mono text-xs text-zinc-600 md:hidden lg:table-cell"
+                              >
+                                {row.cashAmount != null && row.cardAmount != null
+                                  ? `${formatMoneyDash(row.cashAmount, t("personnel.dash"), locale, row.currencyCode)} / ${formatMoneyDash(row.cardAmount, t("personnel.dash"), locale, row.currencyCode)}`
+                                  : "—"}
+                              </TableCell>
+                              <TableCell
+                                dataLabel={t("branch.txColCashSettlement")}
+                                className="text-xs text-zinc-600 md:hidden lg:table-cell"
+                              >
+                                {registerCashSettlementLabel(row, t) || "—"}
+                              </TableCell>
+                              <TableCell
+                                dataLabel={t("branch.txColMainCategory")}
+                                className="text-sm text-zinc-600"
+                              >
+                                <div>
+                                  {txCategoryLine(row.mainCategory, row.category, t) || t("personnel.dash")}
+                                </div>
+                                {branchTxNonPnl(row) ? (
+                                  <p className="mt-0.5 text-[11px] font-medium text-sky-800">
+                                    {t("branch.txNonPnlBadge")}
+                                  </p>
+                                ) : null}
+                                {expenseLinkLine ? (
+                                  <p className="mt-0.5 text-xs text-zinc-500">{expenseLinkLine}</p>
+                                ) : null}
+                                {supplierLine ? (
+                                  <p className="mt-0.5 text-xs text-zinc-500">{supplierLine}</p>
+                                ) : null}
+                                {isOut &&
+                                !pocketRepayMain &&
+                                !branchTxNonPnl(row) &&
+                                expensePaymentSourceLabel(row.expensePaymentSource, t) ? (
+                                  <p className="mt-0.5 text-xs text-zinc-600">
+                                    {t("branch.txColExpensePayment")}:{" "}
+                                    {expensePaymentSourceLabel(row.expensePaymentSource, t)}
+                                  </p>
+                                ) : null}
+                                {pocketLine ? (
+                                  <p className="mt-0.5 text-xs text-zinc-500">{pocketLine}</p>
+                                ) : null}
+                                {repayLine ? (
+                                  <p className="mt-0.5 text-xs text-zinc-500">{repayLine}</p>
+                                ) : null}
+                              </TableCell>
+                              <TableCell
+                                dataLabel={t("branch.txColCategory")}
+                                className="text-sm text-zinc-600 md:table-cell"
+                              >
+                                {row.category
+                                  ? txCodeLabel(row.category, t) || t("personnel.dash")
+                                  : "—"}
+                              </TableCell>
+                              <TableCell dataLabel={t("branch.txColReceipt")} className="whitespace-nowrap text-xs">
+                                {isOut && row.hasReceiptPhoto ? (
+                                  <a
+                                    href={branchTransactionReceiptPhotoUrl(row.id)}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="font-medium text-blue-700 underline"
+                                  >
+                                    {t("branch.openReceiptPhoto")}
+                                  </a>
+                                ) : (
+                                  "—"
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
                   </div>
                 </div>
               )}
@@ -583,43 +542,71 @@ export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
               {dashLoading ? (
                 <p className="mt-2 text-sm text-zinc-500">{t("common.loading")}</p>
               ) : dash ? (
-                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  <DashCard label={t("branch.dashPersonnel")} value={String(dash.personnelCount)} />
-                  <DashCard
-                    label={t("branch.dashAllIncome")}
-                    value={formatMoneyDash(dash.allTimeIncomeTotal, t("personnel.dash"), locale, "TRY")}
-                    valueClass="text-emerald-800"
-                  />
-                  <DashCard
-                    label={t("branch.dashAllExpense")}
-                    value={formatMoneyDash(dash.allTimeExpenseTotal, t("personnel.dash"), locale, "TRY")}
-                    valueClass="text-red-800"
-                  />
-                  <DashCard
-                    label={t("branch.dashCashRegister")}
-                    value={formatMoneyDash(dash.cashRegisterBalance, t("personnel.dash"), locale, "TRY")}
-                  />
-                  <DashCard
-                    label={t("branch.dashTodayIncome")}
-                    value={formatMoneyDash(dash.todayIncomeTotal, t("personnel.dash"), locale, "TRY")}
-                    valueClass="text-emerald-800"
-                  />
-                  <DashCard
-                    label={t("branch.dashTodayExpense")}
-                    value={formatMoneyDash(dash.todayExpenseTotal, t("personnel.dash"), locale, "TRY")}
-                    valueClass="text-red-800"
-                  />
-                </div>
+                <>
+                  <div className="mt-3 flex flex-col gap-3 md:hidden">
+                    <DashCard
+                      label={t("branch.dashTodayIncome")}
+                      value={formatMoneyDash(dash.todayIncomeTotal, t("personnel.dash"), locale, "TRY")}
+                      valueClass="text-emerald-800"
+                    />
+                    <DashCard
+                      label={t("branch.dashAllIncome")}
+                      value={formatMoneyDash(dash.allTimeIncomeTotal, t("personnel.dash"), locale, "TRY")}
+                      valueClass="text-emerald-800"
+                    />
+                  </div>
+                  <div className="mt-3 hidden md:grid md:grid-cols-2 md:gap-3 lg:grid-cols-3">
+                    <DashCard label={t("branch.dashPersonnel")} value={String(dash.personnelCount)} />
+                    <DashCard
+                      label={t("branch.dashAllIncome")}
+                      value={formatMoneyDash(dash.allTimeIncomeTotal, t("personnel.dash"), locale, "TRY")}
+                      valueClass="text-emerald-800"
+                    />
+                    <DashCard
+                      label={t("branch.dashAllExpense")}
+                      value={formatMoneyDash(dash.allTimeExpenseTotal, t("personnel.dash"), locale, "TRY")}
+                      valueClass="text-red-800"
+                    />
+                    <DashCard
+                      label={t("branch.dashCashRegister")}
+                      value={formatMoneyDash(dash.cashRegisterBalance, t("personnel.dash"), locale, "TRY")}
+                    />
+                    <DashCard
+                      label={t("branch.dashTodayIncome")}
+                      value={formatMoneyDash(dash.todayIncomeTotal, t("personnel.dash"), locale, "TRY")}
+                      valueClass="text-emerald-800"
+                    />
+                    <DashCard
+                      label={t("branch.dashTodayExpense")}
+                      value={formatMoneyDash(dash.todayExpenseTotal, t("personnel.dash"), locale, "TRY")}
+                      valueClass="text-red-800"
+                    />
+                  </div>
+                </>
               ) : null}
             </section>
 
             <section className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm sm:p-4">
-              <h3 className="text-sm font-semibold text-zinc-900">
-                {t("branch.dashStockInboundSection")}
-              </h3>
-              <p className="mt-0.5 text-xs text-zinc-500">
-                {t("branch.dashStockInboundSectionHint")}
-              </p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                <div className="min-w-0">
+                  <h3 className="text-sm font-semibold text-zinc-900">
+                    {t("branch.dashStockInboundSection")}
+                  </h3>
+                  <p className="mt-0.5 text-xs text-zinc-500">
+                    {t("branch.dashStockInboundSectionHint")}
+                  </p>
+                </div>
+                {onOpenStockDetailTab ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="min-h-11 w-full shrink-0 sm:min-h-10 sm:w-auto md:hidden"
+                    onClick={onOpenStockDetailTab}
+                  >
+                    {t("branch.dashStockOpenDetailTab")}
+                  </Button>
+                ) : null}
+              </div>
               <div className="mt-3">
                 <WarehouseProductScopeFilters
                   value={dashboardStockScope}
@@ -675,17 +662,19 @@ export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
               {dashLoading ? (
                 <p className="mt-2 text-sm text-zinc-500">{t("common.loading")}</p>
               ) : dash && !dashErr ? (
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
                   <DashCard
                     label={t("branch.dashMonthIncome")}
                     value={formatMoneyDash(dash.monthIncomeTotal, t("personnel.dash"), locale, "TRY")}
                     valueClass="text-emerald-800"
                   />
-                  <DashCard
-                    label={t("branch.dashMonthExpense")}
-                    value={formatMoneyDash(dash.monthExpenseTotal, t("personnel.dash"), locale, "TRY")}
-                    valueClass="text-red-800"
-                  />
+                  <div className="hidden md:block">
+                    <DashCard
+                      label={t("branch.dashMonthExpense")}
+                      value={formatMoneyDash(dash.monthExpenseTotal, t("personnel.dash"), locale, "TRY")}
+                      valueClass="text-red-800"
+                    />
+                  </div>
                 </div>
               ) : null}
             </section>

@@ -18,6 +18,7 @@ import { Input } from "@/shared/ui/Input";
 import { detailOpenIconButtonClass, EyeIcon, PlusIcon } from "@/shared/ui/EyeIcon";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { Card } from "@/shared/components/Card";
+import { MobileListCard } from "@/shared/components/MobileListCard";
 import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
 import { TableToolbarMoreMenu } from "@/shared/components/TableToolbarMoreMenu";
@@ -252,15 +253,16 @@ export function ProductsScreen() {
             <p className="text-sm text-zinc-600">{t("products.catalogSearchNoResults")}</p>
           ) : (
             <>
-          <div className="flex flex-col gap-3 md:hidden">
+          <div className="flex flex-col gap-4 md:hidden">
             {displayRows.map((r) => (
-              <div
+              <MobileListCard
                 key={r.id}
-                className="touch-manipulation rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm shadow-zinc-900/5"
+                as="div"
+                className="touch-manipulation flex flex-col gap-4 shadow-zinc-900/5"
               >
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
                   <p
-                    className={`text-base font-semibold leading-snug text-zinc-900 ${r.parentProductId != null ? "pl-3 border-l-2 border-violet-200" : ""}`}
+                    className={`min-w-0 max-w-full truncate text-base font-semibold leading-snug text-zinc-900 ${r.parentProductId != null ? "border-l-2 border-violet-200 pl-3" : ""}`}
                   >
                     {r.name}
                   </p>
@@ -275,7 +277,7 @@ export function ProductsScreen() {
                     </span>
                   ) : null}
                 </div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="grid min-w-0 gap-3 sm:grid-cols-2">
                   {productKv(
                     t("products.colCategory"),
                     r.categoryName?.trim() ? r.categoryName : "—"
@@ -290,7 +292,7 @@ export function ProductsScreen() {
                     </p>
                   </div>
                 </div>
-                <div className="mt-3 min-w-0">
+                <div className="min-w-0">
                   <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
                     {t("products.colInWarehouses")}
                   </p>
@@ -298,7 +300,7 @@ export function ProductsScreen() {
                     <ProductWarehouseChips r={r} t={t} />
                   </div>
                 </div>
-                <div className="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-zinc-100 pt-3">
+                <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 border-t border-zinc-100 pt-3">
                   <Button
                     type="button"
                     variant="secondary"
@@ -354,7 +356,7 @@ export function ProductsScreen() {
                     </button>
                   </Tooltip>
                 </div>
-              </div>
+              </MobileListCard>
             ))}
           </div>
 

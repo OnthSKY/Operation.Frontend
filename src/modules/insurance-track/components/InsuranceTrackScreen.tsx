@@ -9,7 +9,7 @@ import { StatusBadge, type StatusBadgeTone } from "@/shared/components/StatusBad
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
-import { notifyDefaults } from "@/shared/lib/notify";
+import { notify } from "@/shared/lib/notify";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { DateField } from "@/shared/ui/DateField";
 import { Select, type SelectOption } from "@/shared/ui/Select";
@@ -28,7 +28,6 @@ import type {
 } from "@/types/insurance-track";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "react-toastify";
 import type { Locale } from "@/i18n/messages";
 
 const noopBlur = () => {};
@@ -156,11 +155,10 @@ export function InsuranceTrackScreen() {
 
   useEffect(() => {
     if (!q.isError || !q.error) {
-      toast.dismiss("insurance-track-load");
+      notify.dismiss("insurance-track-load");
       return;
     }
-    toast.error(toErrorMessage(q.error), {
-      ...notifyDefaults,
+    notify.error(toErrorMessage(q.error), {
       toastId: "insurance-track-load",
     });
   }, [q.isError, q.error]);
@@ -302,7 +300,7 @@ export function InsuranceTrackScreen() {
         <p className="text-xs leading-relaxed text-zinc-500">{t("insuranceTrack.alertsHint")}</p>
 
         <div
-          className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 pt-0.5 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-3 sm:overflow-visible sm:pb-0"
+          className="-mx-1 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 pt-0.5 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:pb-0"
           role="list"
         >
           {alertDefs.map((a) => {
@@ -316,7 +314,7 @@ export function InsuranceTrackScreen() {
                 role="listitem"
                 aria-pressed={active}
                 onClick={() => onAlertActivate(a.filter)}
-                className={`min-w-[min(100%,17.5rem)] shrink-0 snap-center rounded-2xl border-2 p-4 text-left shadow-sm transition touch-manipulation sm:min-w-0 ${a.accent} ${
+                className={`min-w-[min(100%,17.5rem)] shrink-0 snap-center rounded-xl border-2 p-3 text-left shadow-sm transition touch-manipulation sm:min-w-0 sm:p-4 ${a.accent} ${
                   active
                     ? "ring-2 ring-violet-500 ring-offset-2 ring-offset-zinc-50"
                     : "hover:border-zinc-400/80 active:scale-[0.99]"
@@ -326,11 +324,11 @@ export function InsuranceTrackScreen() {
                   <span className={`rounded-xl bg-white/80 p-2 shadow-sm ${a.iconTone}`}>
                     <AlertGlyph variant={a.filter} />
                   </span>
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 overflow-hidden">
                     <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-500">
                       {t("insuranceTrack.alertTapToFilter")}
                     </p>
-                    <p className="mt-0.5 text-sm font-bold leading-snug text-zinc-900">
+                    <p className="mt-0.5 truncate text-sm font-bold leading-snug text-zinc-900">
                       {t(a.titleKey)}
                     </p>
                     <p className="mt-1 text-xs leading-relaxed text-zinc-600">{t(a.descKey)}</p>

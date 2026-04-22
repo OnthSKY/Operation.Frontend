@@ -58,4 +58,7 @@ export const common = {
   modalConfirmOutsideCloseMessage:
     "You clicked outside the dialog. Close it anyway? Unsaved changes may be lost.",
   modalBackdropCloseStay: "Stay in dialog",
+  /** Expandable mobile card (shared `MobileCard` primitive). */
+  mobileCardDetailsShow: "Show details",
+  mobileCardDetailsHide: "Hide details",
 } as const;

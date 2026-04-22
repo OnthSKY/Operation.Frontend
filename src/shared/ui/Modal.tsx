@@ -91,10 +91,10 @@ export function Modal({
 
   const wideHeight = wideExpanded
     ? wideFixedHeight
-      ? "h-[min(92dvh,64rem)] sm:h-[min(92dvh,68rem)] lg:h-auto lg:max-h-[min(93dvh,76rem)] xl:max-h-[min(94dvh,84rem)] 2xl:max-h-[min(94dvh,92rem)]"
+      ? "h-[min(92dvh,64rem)] sm:h-[min(92dvh,68rem)] lg:h-[min(93dvh,76rem)] xl:h-[min(94dvh,84rem)] 2xl:h-[min(94dvh,92rem)]"
       : "max-h-[min(92dvh,64rem)] sm:max-h-[min(92dvh,68rem)] lg:max-h-[min(93dvh,76rem)] xl:max-h-[min(94dvh,84rem)] 2xl:max-h-[min(94dvh,92rem)]"
     : wideFixedHeight
-      ? "h-[min(92dvh,60rem)] sm:h-[min(92dvh,64rem)] lg:h-auto lg:max-h-[min(93dvh,72rem)] xl:max-h-[min(94dvh,80rem)] 2xl:max-h-[min(94dvh,84rem)]"
+      ? "h-[min(92dvh,60rem)] sm:h-[min(92dvh,64rem)] lg:h-[min(93dvh,72rem)] xl:h-[min(94dvh,80rem)] 2xl:h-[min(94dvh,84rem)]"
       : "max-h-[min(92dvh,60rem)] sm:max-h-[min(92dvh,64rem)] lg:max-h-[min(93dvh,72rem)] xl:max-h-[min(94dvh,80rem)] 2xl:max-h-[min(94dvh,84rem)]";
   const panelClass = wide
     ? cn(

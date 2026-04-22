@@ -5,6 +5,7 @@ import { useWarehouseMovementsPage } from "@/modules/warehouse/hooks/useWarehous
 import { useI18n } from "@/i18n/context";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { MobileListCard } from "@/shared/components/MobileListCard";
 import { Button } from "@/shared/ui/Button";
 import type { WarehouseMovementsPageParams } from "@/types/warehouse";
 import { useMemo } from "react";
@@ -41,7 +42,10 @@ export function WarehouseOperationsRecentMovements({
   const fmtDate = (iso: string) => formatLocaleDate(iso, locale);
 
   return (
-    <div className="rounded-2xl border border-zinc-200/85 bg-zinc-50/40 p-4 shadow-sm ring-1 ring-zinc-950/[0.04] sm:p-5">
+    <MobileListCard
+      as="div"
+      className="border-zinc-200/85 bg-zinc-50/40 ring-zinc-950/[0.04]"
+    >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
         <div className="min-w-0">
           <h3 className="text-sm font-semibold text-zinc-900">{t("warehouse.operationsRecentMovementsTitle")}</h3>
@@ -63,7 +67,7 @@ export function WarehouseOperationsRecentMovements({
       ) : items.length === 0 ? (
         <p className="mt-3 text-sm text-zinc-600">{t("warehouse.movementsEmpty")}</p>
       ) : (
-        <ul className="mt-4 grid list-none grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+        <ul className="mt-4 grid list-none grid-cols-1 gap-4 sm:grid-cols-2">
           {items.map((m) => (
             <li key={m.id} className="min-w-0">
               <WarehouseMovementRowCard m={m} fmtDate={fmtDate} t={t} hideShipmentGroup />
@@ -71,6 +75,6 @@ export function WarehouseOperationsRecentMovements({
           ))}
         </ul>
       )}
-    </div>
+    </MobileListCard>
   );
 }

@@ -2,8 +2,8 @@
 
 import { useI18n } from "@/i18n/context";
 import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
+import { notify } from "@/shared/lib/notify";
 import { useCallback, useRef } from "react";
-import { toast } from "react-toastify";
 
 type UseDirtyGuardArgs = {
   isDirty: boolean;
@@ -24,7 +24,7 @@ export function useDirtyGuard({
   return useCallback(() => {
     if (isBlocked) return;
     if (isDirty) {
-      if (toast.isActive(toastIdRef.current)) return;
+      if (notify.isActive(toastIdRef.current)) return;
       notifyConfirmToast({
         toastId: toastIdRef.current,
         message: confirmMessage,

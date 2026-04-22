@@ -26,6 +26,7 @@ import { cn } from "@/lib/cn";
 import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
 import { Card } from "@/shared/components/Card";
+import { MobileListCard } from "@/shared/components/MobileListCard";
 import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
 import { TableToolbarMoreMenu } from "@/shared/components/TableToolbarMoreMenu";
@@ -1281,14 +1282,16 @@ export function SupplierInvoicesScreen() {
           <p className="text-sm text-zinc-600">{t("suppliers.noInvoices")}</p>
         ) : (
           <>
-          <div className="space-y-3 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] lg:hidden">
+          <div className="flex flex-col gap-4 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] lg:hidden">
             {invoices.map((row) => (
-              <div key={row.id} className="rounded-xl border border-zinc-200 bg-zinc-50/40 p-3 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-zinc-900">{row.supplierName}</p>
+              <MobileListCard key={row.id} as="div" className="flex flex-col gap-4 bg-zinc-50/40">
+                <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1 overflow-hidden">
+                    <p className="truncate text-sm font-semibold text-zinc-900">{row.supplierName}</p>
                     <p className="mt-1 text-xs text-zinc-600">{row.documentDate}</p>
-                    <p className="mt-1 truncate text-xs text-zinc-500">{row.documentNumber ?? "—"}</p>
+                    <p className="mt-1 break-words text-xs text-zinc-500">
+                      {row.documentNumber ?? "—"}
+                    </p>
                   </div>
                   {supplierInvoiceLooksPaid(row) ? (
                     <span className="inline-flex shrink-0 items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-900 ring-1 ring-emerald-200/90">
@@ -1296,21 +1299,21 @@ export function SupplierInvoicesScreen() {
                     </span>
                   ) : null}
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 border-t border-zinc-200/80 pt-3">
-                  <div>
+                <div className="grid min-w-0 grid-cols-2 gap-3 border-t border-zinc-200/80 pt-3">
+                  <div className="min-w-0 space-y-1">
                     <p className="text-xs text-zinc-500">{t("suppliers.linesTotal")}</p>
-                    <p className="text-sm font-semibold tabular-nums text-zinc-900">
+                    <p className="break-words text-sm font-semibold tabular-nums text-zinc-900">
                       {formatLocaleAmount(row.linesTotal, locale, row.currencyCode)}
                     </p>
                   </div>
-                  <div>
+                  <div className="min-w-0 space-y-1">
                     <p className="text-xs text-zinc-500">{t("suppliers.openAmount")}</p>
-                    <p className="text-sm font-semibold tabular-nums text-zinc-900">
+                    <p className="break-words text-sm font-semibold tabular-nums text-zinc-900">
                       {formatLocaleAmount(row.openAmount, locale, row.currencyCode)}
                     </p>
                   </div>
                 </div>
-                <div className="mt-3 flex flex-col gap-2">
+                <div className="flex min-w-0 flex-col gap-2">
                   <Button type="button" variant="secondary" className="min-h-11 w-full touch-manipulation" onClick={() => setViewId(row.id)}>
                     {t("suppliers.view")}
                   </Button>
@@ -1320,7 +1323,7 @@ export function SupplierInvoicesScreen() {
                     </Button>
                   ) : null}
                 </div>
-              </div>
+              </MobileListCard>
             ))}
           </div>
           <div className="-mx-1 hidden overflow-x-auto px-1 lg:block">
@@ -1623,13 +1626,14 @@ export function SupplierInvoicesScreen() {
                   {t("suppliers.addLine")}
                 </Button>
               </div>
-              <div className="space-y-2 lg:hidden">
+              <div className="flex flex-col gap-4 lg:hidden">
                 {invLines.map((line, idx) => (
-                  <div
+                  <MobileListCard
                     key={line.key}
+                    as="div"
                     role="button"
                     tabIndex={0}
-                    className="min-w-0 rounded-xl border border-zinc-200 bg-white p-3 text-left shadow-sm outline-none ring-violet-500/30 transition hover:border-violet-200 hover:bg-violet-50/20 focus-visible:ring-2"
+                    className="min-w-0 cursor-pointer text-left outline-none ring-violet-500/30 transition hover:border-violet-200 hover:bg-violet-50/20 focus-visible:ring-2"
                     onClick={() => openInvLineEditor(line.key)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
@@ -1646,10 +1650,10 @@ export function SupplierInvoicesScreen() {
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-2">
                         <p className="text-sm font-semibold tabular-nums text-zinc-900">{invDraftAmountCell(line)}</p>
-                        <div className="flex gap-1">
+                        <div className="flex flex-wrap justify-end gap-1">
                           <button
                             type="button"
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-violet-700 transition hover:bg-violet-50"
+                            className="inline-flex h-9 w-9 min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-zinc-200 text-violet-700 transition hover:bg-violet-50 sm:h-9 sm:w-9 sm:min-h-0 sm:min-w-0"
                             aria-label={t("common.edit")}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -1661,7 +1665,7 @@ export function SupplierInvoicesScreen() {
                           {invLines.length > 1 ? (
                             <button
                               type="button"
-                              className={cn(trashIconActionButtonClass, "h-9 w-9 rounded-lg")}
+                              className={cn(trashIconActionButtonClass, "h-9 w-9 min-h-[44px] min-w-[44px] rounded-lg sm:min-h-0 sm:min-w-0")}
                               aria-label={t("suppliers.removeLine")}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1674,7 +1678,7 @@ export function SupplierInvoicesScreen() {
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </MobileListCard>
                 ))}
               </div>
               <div className="hidden overflow-x-auto rounded-xl border border-zinc-200/90 sm:block">
@@ -1955,7 +1959,7 @@ export function SupplierInvoicesScreen() {
             </div>
             <SupplierInvoiceAuditHistoryPanel invoiceId={viewInvoice.id} locale={locale} t={t} />
 
-            <div className="mt-5 space-y-3 lg:hidden">
+            <div className="mt-5 flex flex-col gap-4 lg:hidden">
               {viewInvoice.lines.map((l) => {
                 const stockLinked =
                   (l.warehouseMovementId != null && l.warehouseMovementId > 0) ||
@@ -1963,16 +1967,18 @@ export function SupplierInvoicesScreen() {
                 const allocState = lineAllocByLineId.get(l.id);
                 const hasShares = !stockLinked && hasInvoiceLineBranchShares(allocState);
                 return (
-                  <div key={l.id} className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-3 shadow-sm">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
+                  <MobileListCard key={l.id} as="div" className="flex flex-col gap-3 bg-zinc-50/50">
+                    <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1 overflow-hidden">
                         <p className="text-xs font-bold text-zinc-400">#{l.lineNo}</p>
-                        <p className="mt-0.5 font-medium text-zinc-900">{l.description ?? l.productName ?? "—"}</p>
+                        <p className="mt-0.5 break-words font-medium text-zinc-900">
+                          {l.description ?? l.productName ?? "—"}
+                        </p>
                         {l.warehouseMovementId ? (
                           <p className="mt-1 text-xs text-zinc-500">WM #{l.warehouseMovementId}</p>
                         ) : null}
                         {l.receiveBranchName ? (
-                          <p className="mt-1 text-xs text-zinc-500">
+                          <p className="mt-1 break-words text-xs text-zinc-500">
                             {t("suppliers.receiveBranchLabel")}: {l.receiveBranchName}
                           </p>
                         ) : null}
@@ -1981,7 +1987,7 @@ export function SupplierInvoicesScreen() {
                         {formatLocaleAmount(l.lineAmount, locale, viewInvoice.currencyCode)}
                       </p>
                     </div>
-                    <div className="mt-3">
+                    <div className="min-w-0">
                       {stockLinked ? (
                         <p className="text-xs text-zinc-500">{t("suppliers.allocNarrowHint")}</p>
                       ) : hasShares ? (
@@ -1999,7 +2005,7 @@ export function SupplierInvoicesScreen() {
                         </Button>
                       )}
                     </div>
-                  </div>
+                  </MobileListCard>
                 );
               })}
             </div>

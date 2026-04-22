@@ -2,6 +2,7 @@
 
 import type { Locale } from "@/i18n/messages";
 import type { AdvanceListItem } from "@/types/advance";
+import { MobileListCard } from "@/shared/components/MobileListCard";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import type { DataTableColumn } from "@/shared/tables";
@@ -55,7 +56,7 @@ export function AdvanceCard({
   );
 
   return (
-    <article className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+    <MobileListCard>
       <div className="flex items-start justify-between gap-3 border-b border-zinc-100 pb-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-base font-semibold text-zinc-900">
@@ -90,7 +91,7 @@ export function AdvanceCard({
           )}
         </Field>
       </div>
-    </article>
+    </MobileListCard>
   );
 }
 

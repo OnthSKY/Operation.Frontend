@@ -74,6 +74,8 @@ export const pageHelp = {
     intro: "Uygulama kullanıcıları, rolleri ve şube erişimi (yönetici).",
     step1: "Kullanıcı oluşturun; her operatörün göreceği menü rolle sınırlanır.",
     step2: "Hesap bir çalışanı temsil ediyorsa personel kaydıyla ilişkilendirin.",
+    step4:
+      "«Pasif yap» / «Aktif yap» ile girişi kapatıp açın; değişiklikler denetim kaydına yazılır.",
     step3: "İzin anahtarlarının özet görünümü için Yetkilendirme matrisine bakın.",
     step3Link: "Yetkilendirme matrisi",
   },

@@ -19,14 +19,9 @@ type FormSectionProps = {
 
 export function ModalFormLayout({ header, body, footer, className }: ModalFormLayoutProps) {
   return (
-    <div
-      className={cn(
-        "mt-4 flex max-h-[min(86dvh,calc(100svh-8rem))] min-h-0 flex-col space-y-4 lg:max-h-[min(88dvh,calc(100svh-10rem))]",
-        className
-      )}
-    >
+    <div className={cn("mt-4 flex min-h-0 flex-col space-y-4", className)}>
       {header != null ? <div className="shrink-0">{header}</div> : null}
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1 lg:pr-0">{body}</div>
+      <div className="min-h-0 flex-1 space-y-4">{body}</div>
       <div className="shrink-0 border-t border-zinc-100 pt-4">
         <div className="flex items-center justify-end gap-2">{footer}</div>
       </div>

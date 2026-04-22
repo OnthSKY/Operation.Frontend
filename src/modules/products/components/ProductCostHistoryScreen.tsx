@@ -9,6 +9,7 @@ import {
   useProductCostHistory,
 } from "@/modules/products/hooks/useProductCostQueries";
 import { Card } from "@/shared/components/Card";
+import { MobileListCard } from "@/shared/components/MobileListCard";
 import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import { TABLE_TOOLBAR_ICON_LINK } from "@/shared/components/TableToolbar";
 import { toErrorMessage } from "@/shared/lib/error-message";
@@ -222,17 +223,18 @@ export function ProductCostHistoryScreen() {
                 <p className="text-sm text-zinc-600">{t("products.costHistory.empty")}</p>
               ) : (
                 <>
-                  <div className="flex flex-col gap-3 md:hidden">
+                  <div className="flex flex-col gap-4 md:hidden">
                     {rows.map((r) => (
-                      <div
+                      <MobileListCard
                         key={r.id}
-                        className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm shadow-zinc-900/5"
+                        as="div"
+                        className="flex flex-col gap-1 shadow-zinc-900/5"
                       >
                         <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                           {r.effectiveDate}
                         </p>
-                        <p className="mt-1 text-sm font-semibold text-zinc-900">{r.productName}</p>
-                        <p className="mt-2 text-sm text-zinc-700">
+                        <p className="truncate text-sm font-semibold text-zinc-900">{r.productName}</p>
+                        <p className="mt-1 text-sm text-zinc-700">
                           {t("products.costHistory.unitCostExVatLabel")}:{" "}
                           {formatLocaleAmount(r.unitCostExcludingVat, locale, r.currencyCode)}
                         </p>
@@ -244,8 +246,8 @@ export function ProductCostHistoryScreen() {
                         <p className="text-sm text-zinc-700">
                           {t("products.costHistory.vatRateShort")}: %{r.vatRate}
                         </p>
-                        <p className="mt-1 text-xs text-zinc-500">{r.note?.trim() || "—"}</p>
-                      </div>
+                        <p className="mt-1 break-words text-xs text-zinc-500">{r.note?.trim() || "—"}</p>
+                      </MobileListCard>
                     ))}
                   </div>
 

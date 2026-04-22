@@ -34,3 +34,13 @@ export async function patchUserRole(userId: number, role: string): Promise<UserL
     body: JSON.stringify({ role }),
   });
 }
+
+export async function patchUserAccountStatus(
+  userId: number,
+  active: boolean
+): Promise<UserListItem> {
+  return apiRequest<UserListItem>(`/users/${userId}/account-status`, {
+    method: "PATCH",
+    body: JSON.stringify({ active }),
+  });
+}

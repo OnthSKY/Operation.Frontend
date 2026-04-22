@@ -11,6 +11,7 @@ import {
 import type { Branch, BranchSeasonStatus } from "@/types/branch";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Card } from "@/shared/components/Card";
+import { MobileListCard } from "@/shared/components/MobileListCard";
 import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
@@ -475,15 +476,16 @@ export function BranchScreen() {
         )}
         {!isPending && !isError && list.length > 0 && (
           <>
-            <div className="flex flex-col gap-3 md:hidden">
+            <div className="flex flex-col gap-4 md:hidden">
               {sortedList.map((b) => {
                 const active = selectedId === b.id;
                 const mOpen = Boolean(metricsOpen[b.id]);
                 return (
-                  <div
+                  <MobileListCard
                     key={b.id}
+                    as="div"
                     className={cn(
-                      "touch-manipulation overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm transition-[border-color,box-shadow]",
+                      "touch-manipulation !p-0 transition-[border-color,box-shadow]",
                       active && "border-violet-200 ring-1 ring-violet-200/60"
                     )}
                   >
@@ -491,7 +493,7 @@ export function BranchScreen() {
                       type="button"
                       onClick={() => openBranchDetail(b.id)}
                       className={cn(
-                        "w-full px-4 pb-1 pt-4 text-left outline-none transition-colors active:bg-zinc-50",
+                        "w-full px-3 pb-1 pt-3 text-left outline-none transition-colors active:bg-zinc-50 sm:px-4",
                         "focus-visible:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400",
                         active && "bg-violet-50/50"
                       )}
@@ -515,18 +517,18 @@ export function BranchScreen() {
                         </span>
                       </div>
                       <p
-                        className="mt-3 text-sm leading-snug text-zinc-700"
+                        className="mt-3 break-words text-sm leading-snug text-zinc-700"
                         title={t("branch.tableStaffHint")}
                       >
                         {staffTableLine(b, t)}
                       </p>
                     </button>
-                    <div className="flex items-center gap-2 border-t border-zinc-100 px-3 py-2">
+                    <div className="flex flex-wrap items-center gap-2 border-t border-zinc-100 px-3 py-2 sm:px-4">
                       <BranchMetricsToggle open={mOpen} onToggle={toggleMetrics(b.id)} t={t} />
                       <span className="text-xs text-zinc-500">{t("branch.listMetricsToggle")}</span>
                     </div>
                     {mOpen ? (
-                      <div className="px-3 pb-3">
+                      <div className="px-3 pb-3 sm:px-4">
                         <BranchListMetricsPanel
                           branchId={b.id}
                           open={mOpen}
@@ -536,7 +538,7 @@ export function BranchScreen() {
                         />
                       </div>
                     ) : null}
-                    <div className="flex flex-wrap items-center justify-end gap-1 border-t border-zinc-100 px-3 py-3">
+                    <div className="flex flex-wrap items-center justify-end gap-1 border-t border-zinc-100 px-3 py-3 sm:px-4">
                       <BranchQuickActionsMenu
                         menuId={`branch-quick-${b.id}`}
                         triggerLabel={t("branch.quickActions")}
@@ -584,7 +586,7 @@ export function BranchScreen() {
                         </Button>
                       </Tooltip>
                     </div>
-                  </div>
+                  </MobileListCard>
                 );
               })}
             </div>

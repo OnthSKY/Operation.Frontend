@@ -37,6 +37,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { isDriverPortalRole, isPersonnelPortalRole } from "@/lib/auth/roles";
 import { useI18n } from "@/i18n/context";
 import { Card } from "@/shared/components/Card";
+import { MobileListCard } from "@/shared/components/MobileListCard";
 import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import {
@@ -68,7 +69,7 @@ import {
   parseLocaleAmount,
 } from "@/shared/lib/locale-amount";
 import { OVERLAY_Z_INDEX } from "@/shared/overlays/z-layers";
-import { notify, notifyDefaults } from "@/shared/lib/notify";
+import { notify } from "@/shared/lib/notify";
 import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
@@ -98,7 +99,6 @@ import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/cn";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type FocusEventHandler, type ReactNode } from "react";
-import { toast } from "react-toastify";
 
 type DetailTab = "overview" | "service" | "documents" | "assignments" | "insurances" | "costs" | "audit";
 type CostsSubTab = "ledger" | "report";
@@ -253,10 +253,10 @@ export function VehiclesScreen() {
 
   useEffect(() => {
     if (!isError || error == null) {
-      toast.dismiss("vehicles-list-load");
+      notify.dismiss("vehicles-list-load");
       return;
     }
-    toast.error(toErrorMessage(error), { ...notifyDefaults, toastId: "vehicles-list-load" });
+    notify.error(toErrorMessage(error), { toastId: "vehicles-list-load" });
   }, [isError, error]);
 
   const createV = useCreateVehicle();
@@ -498,24 +498,24 @@ export function VehiclesScreen() {
     if (assignDlgMode === "personnel") {
       const raw = assignDlgPersonnelId.trim();
       if (!raw) {
-        toast.error(t("vehicles.assignmentIncomplete"), { ...notifyDefaults });
+        notify.error(t("vehicles.assignmentIncomplete"));
         return;
       }
       const id = parseInt(raw, 10);
       if (!Number.isFinite(id)) {
-        toast.error(t("common.invalid"), { ...notifyDefaults });
+        notify.error(t("common.invalid"));
         return;
       }
       assignedPersonnelId = id;
     } else if (assignDlgMode === "branch") {
       const raw = assignDlgBranchId.trim();
       if (!raw) {
-        toast.error(t("vehicles.assignmentIncomplete"), { ...notifyDefaults });
+        notify.error(t("vehicles.assignmentIncomplete"));
         return;
       }
       const id = parseInt(raw, 10);
       if (!Number.isFinite(id)) {
-        toast.error(t("common.invalid"), { ...notifyDefaults });
+        notify.error(t("common.invalid"));
         return;
       }
       assignedBranchId = id;
@@ -526,11 +526,11 @@ export function VehiclesScreen() {
         assignedPersonnelId,
         assignedBranchId,
       });
-      toast.success(t("common.saved"), { ...notifyDefaults });
+      notify.success(t("common.saved"));
       setAssignDlgOpen(false);
       setAssignDlgVehicleId(null);
     } catch (e) {
-      toast.error(toErrorMessage(e), { ...notifyDefaults });
+      notify.error(toErrorMessage(e));
     }
   };
 
@@ -576,7 +576,7 @@ export function VehiclesScreen() {
           serviceIntervalKm,
           serviceIntervalMonths,
         });
-        toast.success(t("common.saved"), { ...notifyDefaults });
+        notify.success(t("common.saved"));
       } else if (editRow) {
         await updateV.mutateAsync({
           id: editRow.id,
@@ -595,11 +595,11 @@ export function VehiclesScreen() {
           serviceIntervalKm,
           serviceIntervalMonths,
         });
-        toast.success(t("common.saved"), { ...notifyDefaults });
+        notify.success(t("common.saved"));
       }
       setVehicleModal(null);
     } catch (e) {
-      toast.error(toErrorMessage(e), { ...notifyDefaults });
+      notify.error(toErrorMessage(e));
     }
   };
 
@@ -614,9 +614,9 @@ export function VehiclesScreen() {
           await deleteV.mutateAsync(vehicleId);
           if (detailId === vehicleId) setDetailId(null);
           if (vehicleModal === "edit" && editRow?.id === vehicleId) setVehicleModal(null);
-          toast.success(t("common.saved"), { ...notifyDefaults });
+          notify.success(t("common.saved"));
         } catch (err) {
-          toast.error(toErrorMessage(err), { ...notifyDefaults });
+          notify.error(toErrorMessage(err));
         }
       },
     });
@@ -965,7 +965,7 @@ export function VehiclesScreen() {
     const odometerKm =
       parsed != null && Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
     if (raw !== "" && odometerKm == null) {
-      toast.error(t("common.invalid"), { ...notifyDefaults });
+      notify.error(t("common.invalid"));
       return;
     }
     try {
@@ -973,10 +973,10 @@ export function VehiclesScreen() {
         vehicleId: kmModalVehicleId,
         odometerKm: raw === "" ? null : odometerKm,
       });
-      toast.success(t("common.saved"), { ...notifyDefaults });
+      notify.success(t("common.saved"));
       setKmModalVehicleId(null);
     } catch (e) {
-      toast.error(toErrorMessage(e), { ...notifyDefaults });
+      notify.error(toErrorMessage(e));
     }
   };
 
@@ -1014,12 +1014,12 @@ export function VehiclesScreen() {
     if (maintVehicleId == null) return;
     const sd = maintServiceDate.trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(sd) || !maintType.trim()) {
-      toast.error(t("vehicles.maintenanceFillRequired"), { ...notifyDefaults });
+      notify.error(t("vehicles.maintenanceFillRequired"));
       return;
     }
     const curNorm = (maintCur.trim() || "TRY").toUpperCase();
     if (curNorm.length !== 3) {
-      toast.error(t("vehicles.maintenanceFillRequired"), { ...notifyDefaults });
+      notify.error(t("vehicles.maintenanceFillRequired"));
       return;
     }
     const odomRaw = maintOdometerStr.trim();
@@ -1027,7 +1027,7 @@ export function VehiclesScreen() {
     const odometerKm =
       Number.isFinite(odomParsed) && odomParsed >= 0 ? odomParsed : null;
     if (odometerKm == null) {
-      toast.error(t("vehicles.maintenanceCostOdometerRequired"), { ...notifyDefaults });
+      notify.error(t("vehicles.maintenanceCostOdometerRequired"));
       return;
     }
     const nextKmRaw = maintNextKmStr.trim();
@@ -1040,7 +1040,7 @@ export function VehiclesScreen() {
     const costParsed = costRaw ? parseFloat(costRaw.replace(",", ".")) : NaN;
     const cost = Number.isFinite(costParsed) && costParsed >= 0 ? costParsed : null;
     if (cost == null) {
-      toast.error(t("vehicles.maintenanceCostOdometerRequired"), { ...notifyDefaults });
+      notify.error(t("vehicles.maintenanceCostOdometerRequired"));
       return;
     }
     const nextDateIso = maintNextDate.trim() || null;
@@ -1073,11 +1073,11 @@ export function VehiclesScreen() {
           nextDueKm: nextKmRaw === "" ? null : nextDueKm,
         });
       }
-      toast.success(t("common.saved"), { ...notifyDefaults });
+      notify.success(t("common.saved"));
       setMaintModal(null);
       setMaintVehicleId(null);
     } catch (e) {
-      toast.error(toErrorMessage(e), { ...notifyDefaults });
+      notify.error(toErrorMessage(e));
     }
   };
 
@@ -1157,7 +1157,7 @@ export function VehiclesScreen() {
       !/^\d{4}-\d{2}-\d{2}$/.test(sd) ||
       !/^\d{4}-\d{2}-\d{2}$/.test(ed)
     ) {
-      toast.error(t("vehicles.insuranceFillRequired"), { ...notifyDefaults });
+      notify.error(t("vehicles.insuranceFillRequired"));
       return;
     }
     const amtParsed = parseLocaleAmount(insAmount.trim(), locale);
@@ -1186,11 +1186,11 @@ export function VehiclesScreen() {
           amount: amt,
         });
       }
-      toast.success(t("common.saved"), { ...notifyDefaults });
+      notify.success(t("common.saved"));
       setInsModal(null);
       setInsModalVehicleId(null);
     } catch (e) {
-      toast.error(toErrorMessage(e), { ...notifyDefaults });
+      notify.error(toErrorMessage(e));
     }
   };
 
@@ -1242,7 +1242,7 @@ export function VehiclesScreen() {
     if (!vid) return;
     const amt = parseFloat(expAmount.replace(",", "."));
     if (!Number.isFinite(amt)) {
-      toast.error(t("common.invalid"), { ...notifyDefaults });
+      notify.error(t("common.invalid"));
       return;
     }
     const brRaw = expBranchId.trim();
@@ -1281,11 +1281,11 @@ export function VehiclesScreen() {
           patronPaymentMethod,
         });
       }
-      toast.success(t("common.saved"), { ...notifyDefaults });
+      notify.success(t("common.saved"));
       setExpModal(null);
       setExpModalVehicleId(null);
     } catch (e) {
-      toast.error(toErrorMessage(e), { ...notifyDefaults });
+      notify.error(toErrorMessage(e));
     }
   };
 
@@ -1379,7 +1379,7 @@ export function VehiclesScreen() {
           <p className="mt-3 text-sm text-zinc-500">{t("common.loading")}</p>
         ) : (
           <>
-            <ul className="mt-4 flex flex-col gap-3 lg:hidden">
+            <ul className="mt-4 flex flex-col gap-4 lg:hidden">
               {filtered.map((r) => {
                 const extrasSections = buildVehicleRowMenuSections({
                   canEdit,
@@ -1398,13 +1398,14 @@ export function VehiclesScreen() {
                   menuMode: "extras",
                 });
                 return (
-                  <li
+                  <MobileListCard
+                    as="li"
                     key={r.id}
-                    className="rounded-xl border border-zinc-200/90 bg-zinc-50/40 p-3 shadow-sm ring-1 ring-zinc-100/80"
+                    className="flex flex-col gap-3 bg-zinc-50/40"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1">
-                        <p className="font-mono text-lg font-bold tracking-wide text-zinc-900">
+                    <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1 overflow-hidden">
+                        <p className="truncate font-mono text-lg font-bold tracking-wide text-zinc-900">
                           {r.plateNumber}
                         </p>
                         <p className="mt-0.5 text-pretty text-sm text-zinc-700">
@@ -1474,7 +1475,7 @@ export function VehiclesScreen() {
                         ) : null}
                       </div>
                     ) : null}
-                  </li>
+                  </MobileListCard>
                 );
               })}
             </ul>
@@ -1892,9 +1893,9 @@ export function VehiclesScreen() {
                                     file: f,
                                   });
                                   setPhotoCacheBust(Date.now());
-                                  toast.success(t("common.saved"), { ...notifyDefaults });
+                                  notify.success(t("common.saved"));
                                 } catch (err) {
-                                  toast.error(toErrorMessage(err), { ...notifyDefaults });
+                                  notify.error(toErrorMessage(err));
                                 } finally {
                                   input.value = "";
                                 }
@@ -1928,9 +1929,9 @@ export function VehiclesScreen() {
                                     try {
                                       await deleteVehiclePhotoMut.mutateAsync(detail.id);
                                       setPhotoCacheBust(Date.now());
-                                      toast.success(t("common.saved"), { ...notifyDefaults });
+                                      notify.success(t("common.saved"));
                                     } catch (err) {
-                                      toast.error(toErrorMessage(err), { ...notifyDefaults });
+                                      notify.error(toErrorMessage(err));
                                     }
                                   },
                                 })
@@ -2276,7 +2277,7 @@ export function VehiclesScreen() {
                       <p className="text-sm text-zinc-500">{t("vehicles.maintenanceFilterNoResults")}</p>
                     ) : (
                       <>
-                    <ul className="flex flex-col gap-3 md:hidden">
+                    <ul className="flex flex-col gap-4 md:hidden">
                       {filteredVehicleMaintenances.map((x) => {
                         const nextDueLabel = x.nextDueDate
                           ? x.nextDueDate.slice(0, 10)
@@ -2284,13 +2285,14 @@ export function VehiclesScreen() {
                             ? `${new Intl.NumberFormat(locale === "tr" ? "tr-TR" : "en-US").format(x.nextDueKm)} km`
                             : null;
                         return (
-                          <li
+                          <MobileListCard
+                            as="li"
                             key={x.id}
-                            className="rounded-xl border border-zinc-200/90 bg-white p-3 shadow-sm ring-1 ring-zinc-100/80"
+                            className="flex flex-col gap-2 bg-white"
                           >
-                            <div className="flex flex-wrap items-start justify-between gap-2">
-                              <div className="min-w-0 flex-1">
-                                <p className="font-semibold text-zinc-900">
+                            <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1 overflow-hidden">
+                                <p className="truncate font-semibold text-zinc-900">
                                   {labelVehicleMaintenanceType(x.maintenanceType, t)}
                                 </p>
                                 <p className="mt-0.5 text-xs text-zinc-500">
@@ -2359,9 +2361,9 @@ export function VehiclesScreen() {
                                             vehicleId: detail.id,
                                             maintenanceId: x.id,
                                           });
-                                          toast.success(t("common.saved"), { ...notifyDefaults });
+                                          notify.success(t("common.saved"));
                                         } catch (e) {
-                                          toast.error(toErrorMessage(e), { ...notifyDefaults });
+                                          notify.error(toErrorMessage(e));
                                         }
                                       },
                                     })
@@ -2371,7 +2373,7 @@ export function VehiclesScreen() {
                                 </Button>
                               </div>
                             ) : null}
-                          </li>
+                          </MobileListCard>
                         );
                       })}
                     </ul>
@@ -2452,9 +2454,9 @@ export function VehiclesScreen() {
                                                   vehicleId: detail.id,
                                                   maintenanceId: x.id,
                                                 });
-                                                toast.success(t("common.saved"), { ...notifyDefaults });
+                                                notify.success(t("common.saved"));
                                               } catch (e) {
-                                                toast.error(toErrorMessage(e), { ...notifyDefaults });
+                                                notify.error(toErrorMessage(e));
                                               }
                                             },
                                           })
@@ -2499,13 +2501,14 @@ export function VehiclesScreen() {
                   <p className="text-sm text-zinc-500">{t("vehicles.emptyAssignments")}</p>
                 ) : (
                   <>
-                    <ul className="flex flex-col gap-2 md:hidden">
+                    <ul className="flex flex-col gap-4 md:hidden">
                       {detail.assignments.map((a) => (
-                        <li
+                        <MobileListCard
+                          as="li"
                           key={a.id}
-                          className="rounded-xl border border-zinc-200/90 bg-zinc-50/40 p-3 text-sm ring-1 ring-zinc-100/80"
+                          className="flex flex-col gap-1 bg-zinc-50/40 text-sm"
                         >
-                          <p className="font-medium text-zinc-900">
+                          <p className="truncate font-medium text-zinc-900">
                             {a.personnelName ?? a.branchName ?? t("vehicles.idle")}
                           </p>
                           <p className="mt-1 text-xs text-zinc-600">
@@ -2520,7 +2523,7 @@ export function VehiclesScreen() {
                                 )
                               : t("vehicles.active")}
                           </p>
-                        </li>
+                        </MobileListCard>
                       ))}
                     </ul>
                     <div className="-mx-1 hidden min-w-0 overflow-x-auto rounded-lg sm:mx-0 md:block">
@@ -2588,11 +2591,12 @@ export function VehiclesScreen() {
                 ) : vehicleDocuments.length === 0 ? (
                   <p className="text-sm text-zinc-500">{t("vehicles.documentsEmpty")}</p>
                 ) : (
-                  <ul className="space-y-2">
+                  <ul className="flex flex-col gap-4">
                     {vehicleDocuments.map((doc) => (
-                      <li
+                      <MobileListCard
+                        as="li"
                         key={doc.id}
-                        className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-zinc-200 bg-white p-3"
+                        className="flex flex-wrap items-start justify-between gap-3"
                       >
                         <div className="min-w-0 flex-1">
                           <div className="font-medium text-zinc-900">{vehicleDocKindLabel(doc.kind)}</div>
@@ -2624,7 +2628,7 @@ export function VehiclesScreen() {
                             </Button>
                           ) : null}
                         </div>
-                      </li>
+                      </MobileListCard>
                     ))}
                   </ul>
                 )}
@@ -2646,25 +2650,28 @@ export function VehiclesScreen() {
                   <p className="text-sm text-zinc-500">{t("vehicles.emptyInsurances")}</p>
                 ) : (
                   <>
-                    <ul className="flex flex-col gap-3 md:hidden">
+                    <ul className="flex flex-col gap-4 md:hidden">
                       {detail.insurances.map((x) => (
-                        <li
+                        <MobileListCard
+                          as="li"
                           key={x.id}
-                          className="rounded-xl border border-zinc-200/90 bg-white p-3 shadow-sm ring-1 ring-zinc-100/80"
+                          className="flex flex-col gap-2 bg-white"
                         >
-                          <div className="flex flex-wrap items-start justify-between gap-2">
-                            <p className="font-semibold text-zinc-900">{x.insuranceType}</p>
+                          <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+                            <p className="min-w-0 flex-1 truncate font-semibold text-zinc-900">
+                              {x.insuranceType}
+                            </p>
                             <p className="text-xs font-medium text-zinc-600">
                               {t("vehicles.endDate")}: {x.endDate.slice(0, 10)}
                             </p>
                           </div>
                           {x.provider ? (
-                            <p className="mt-1 text-xs text-zinc-500">
+                            <p className="mt-1 break-words text-xs text-zinc-500">
                               {t("vehicles.provider")}: {x.provider}
                             </p>
                           ) : null}
                           {canEdit ? (
-                            <div className="mt-3 flex flex-col gap-2">
+                            <div className="mt-2 flex min-w-0 flex-col flex-wrap gap-2">
                               <Button
                                 type="button"
                                 variant="secondary"
@@ -2690,9 +2697,9 @@ export function VehiclesScreen() {
                                           vehicleId: detail.id,
                                           insuranceId: x.id,
                                         });
-                                        toast.success(t("common.saved"), { ...notifyDefaults });
+                                        notify.success(t("common.saved"));
                                       } catch (e) {
-                                        toast.error(toErrorMessage(e), { ...notifyDefaults });
+                                        notify.error(toErrorMessage(e));
                                       }
                                     },
                                   })
@@ -2702,7 +2709,7 @@ export function VehiclesScreen() {
                               </Button>
                             </div>
                           ) : null}
-                        </li>
+                        </MobileListCard>
                       ))}
                     </ul>
                     <div className="-mx-1 hidden min-w-0 overflow-x-auto rounded-lg sm:mx-0 md:block">
@@ -2751,9 +2758,9 @@ export function VehiclesScreen() {
                                                 vehicleId: detail.id,
                                                 insuranceId: x.id,
                                               });
-                                              toast.success(t("common.saved"), { ...notifyDefaults });
+                                              notify.success(t("common.saved"));
                                             } catch (e) {
-                                              toast.error(toErrorMessage(e), { ...notifyDefaults });
+                                              notify.error(toErrorMessage(e));
                                             }
                                           },
                                         })
@@ -2828,17 +2835,18 @@ export function VehiclesScreen() {
                   <p className="text-sm text-zinc-500">{t("vehicles.emptyExpenses")}</p>
                 ) : (
                   <>
-                    <ul className="flex flex-col gap-3 md:hidden">
+                    <ul className="flex flex-col gap-4 md:hidden">
                       {detail.expenses.map((x) => {
                         const postingDetail = vehicleExpenseBranchPostingDetail(x, t);
                         return (
-                        <li
+                        <MobileListCard
+                          as="li"
                           key={x.id}
-                          className="rounded-xl border border-zinc-200/90 bg-white p-3 shadow-sm ring-1 ring-zinc-100/80"
+                          className="flex flex-col gap-2 bg-white"
                         >
-                          <div className="flex flex-wrap items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="font-semibold text-zinc-900">{x.expenseType}</p>
+                          <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1 overflow-hidden">
+                              <p className="truncate font-semibold text-zinc-900">{x.expenseType}</p>
                               <p className="text-xs text-zinc-500">{x.expenseDate.slice(0, 10)}</p>
                               {x.postedBranchName?.trim() ? (
                                 <p className="mt-0.5 text-[11px] text-sky-800">
@@ -2854,10 +2862,10 @@ export function VehiclesScreen() {
                             </p>
                           </div>
                           {x.description?.trim() ? (
-                            <p className="mt-2 text-xs text-zinc-600">{x.description}</p>
+                            <p className="mt-2 break-words text-xs text-zinc-600">{x.description}</p>
                           ) : null}
                           {canEdit ? (
-                            <div className="mt-3 flex flex-col gap-2">
+                            <div className="mt-2 flex min-w-0 flex-col flex-wrap gap-2">
                               <Button
                                 type="button"
                                 variant="secondary"
@@ -2883,9 +2891,9 @@ export function VehiclesScreen() {
                                           vehicleId: detail.id,
                                           expenseId: x.id,
                                         });
-                                        toast.success(t("common.saved"), { ...notifyDefaults });
+                                        notify.success(t("common.saved"));
                                       } catch (e) {
-                                        toast.error(toErrorMessage(e), { ...notifyDefaults });
+                                        notify.error(toErrorMessage(e));
                                       }
                                     },
                                   })
@@ -2895,7 +2903,7 @@ export function VehiclesScreen() {
                               </Button>
                             </div>
                           ) : null}
-                        </li>
+                        </MobileListCard>
                         );
                       })}
                     </ul>
@@ -2957,9 +2965,9 @@ export function VehiclesScreen() {
                                                 vehicleId: detail.id,
                                                 expenseId: x.id,
                                               });
-                                              toast.success(t("common.saved"), { ...notifyDefaults });
+                                              notify.success(t("common.saved"));
                                             } catch (e) {
-                                              toast.error(toErrorMessage(e), { ...notifyDefaults });
+                                              notify.error(toErrorMessage(e));
                                             }
                                           },
                                         })
@@ -3041,22 +3049,23 @@ export function VehiclesScreen() {
                   <p className="text-sm text-zinc-500">{t("vehicles.emptySummary")}</p>
                 ) : (
                   <>
-                    <ul className="flex flex-col gap-2 md:hidden">
+                    <ul className="flex flex-col gap-4 md:hidden">
                       {summaryRows.map((s, i) => (
-                        <li
+                        <MobileListCard
+                          as="li"
                           key={`${s.vehicleId}-${s.year}-${s.month}-${s.expenseType}-${s.currencyCode}-${i}`}
-                          className="rounded-xl border border-zinc-200/90 bg-zinc-50/40 p-3 text-sm ring-1 ring-zinc-100/80"
+                          className="flex flex-col gap-1 bg-zinc-50/40 text-sm"
                         >
-                          <div className="flex flex-wrap items-start justify-between gap-2">
-                            <p className="font-mono font-semibold text-zinc-900">{s.plateNumber}</p>
+                          <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+                            <p className="truncate font-mono font-semibold text-zinc-900">{s.plateNumber}</p>
                             <p className="tabular-nums font-medium text-zinc-800">
                               {formatLocaleAmount(s.totalAmount, locale, s.currencyCode)}
                             </p>
                           </div>
-                          <p className="mt-1 text-xs text-zinc-600">
+                          <p className="mt-1 break-words text-xs text-zinc-600">
                             {s.expenseType} · {s.year}/{String(s.month).padStart(2, "0")}
                           </p>
-                        </li>
+                        </MobileListCard>
                       ))}
                     </ul>
                     <div className="-mx-1 hidden min-w-0 overflow-x-auto rounded-lg sm:mx-0 md:block">

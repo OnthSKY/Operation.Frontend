@@ -11,6 +11,7 @@ import {
   resolveNonAdvanceRow,
 } from "@/modules/personnel/components/personnel-non-advance-expense-blocks";
 import type { PersonnelCostRow } from "@/modules/personnel/lib/personnel-cost-unified";
+import { MobileListCard } from "@/shared/components/MobileListCard";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import type { DataTableColumn } from "@/shared/tables";
@@ -73,7 +74,7 @@ export function PersonnelCostMobileCard({
   if (row.kind === "advance") {
     const a = row.advance;
     return (
-      <article className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+      <MobileListCard>
         <div className="flex flex-wrap items-start justify-between gap-2 border-b border-zinc-100 pb-3">
           <PersonnelCostTypeBadge kind="advance" t={t} />
           <div className="text-right">
@@ -110,7 +111,7 @@ export function PersonnelCostMobileCard({
             )}
           </Field>
         </div>
-      </article>
+      </MobileListCard>
     );
   }
 
@@ -124,7 +125,7 @@ export function PersonnelCostMobileCard({
   const pay = expensePaymentSourceLabel(e.expensePaymentSource, t);
 
   return (
-    <article className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+    <MobileListCard>
       <div className="flex flex-wrap items-start justify-between gap-2 border-b border-zinc-100 pb-3">
         <PersonnelCostTypeBadge kind="expense" t={t} />
         <div className="text-right">
@@ -160,7 +161,7 @@ export function PersonnelCostMobileCard({
           )}
         </Field>
       </div>
-    </article>
+    </MobileListCard>
   );
 }
 

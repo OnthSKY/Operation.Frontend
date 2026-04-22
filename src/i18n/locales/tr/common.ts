@@ -59,4 +59,7 @@ export const common = {
   modalConfirmOutsideCloseMessage:
     "Diyalogun dışına tıkladınız. Yine de kapatılsın mı? Kaydedilmemiş bilgiler kaybolabilir.",
   modalBackdropCloseStay: "Diyalogda kal",
+  /** Genişletilebilir mobil kart (`MobileCard` bileşeni). */
+  mobileCardDetailsShow: "Detayları göster",
+  mobileCardDetailsHide: "Detayları gizle",
 } as const;

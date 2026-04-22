@@ -41,6 +41,15 @@
   --toastify-color-progress-info: #ffffff;
 }
 
+/* Süre göstergesi: alt çizgi biraz daha görünür */
+.Toastify__progress-bar--wrp {
+  height: 6px;
+}
+
+.Toastify__progress-bar {
+  opacity: 0.95;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
