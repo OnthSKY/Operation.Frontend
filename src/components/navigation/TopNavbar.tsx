@@ -5,6 +5,7 @@ import { Z_INDEX } from "@/config/z-index";
 import { UserAccountMenu } from "@/modules/account/UserAccountMenu";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { usePathname } from "next/navigation";
+import { useMemo } from "react";
 import { getVisibleNavItems, resolveRouteTitle } from "./navigation-utils";
 
 type TopNavbarProps = {
@@ -14,7 +15,7 @@ type TopNavbarProps = {
 export function TopNavbar({ onOpenMenu }: TopNavbarProps) {
   const pathname = usePathname() ?? "/";
   const { user } = useAuth();
-  const visibleItems = getVisibleNavItems(user);
+  const visibleItems = useMemo(() => getVisibleNavItems(user), [user]);
 
   return (
     <header

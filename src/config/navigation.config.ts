@@ -8,7 +8,8 @@ export type NavigationItem = {
   order: number;
   permission?: string;
   roles?: string[];
-  badgeCount?: number;
+  badgeKey?: "notifications";
+  featureFlag?: string;
 };
 
 export const NAVIGATION_ITEMS: NavigationItem[] = [
@@ -41,6 +42,7 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     mobileVisible: true,
     order: 3,
     permission: "ui.reports",
+    badgeKey: "notifications",
   },
   {
     id: "personnel",

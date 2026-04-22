@@ -1,26 +1,33 @@
 "use client";
 
-import { NAVIGATION_ITEMS } from "@/config/navigation.config";
 import { Z_INDEX } from "@/config/z-index";
 import { NavIcon } from "./nav-icons";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
-import { isActiveRoute, trackNavClick } from "./navigation-utils";
+import { useAuth } from "@/lib/auth/AuthContext";
+import {
+  getVisibleNavItems,
+  isActiveRoute,
+  resolveBadge,
+  trackNavClick,
+  type NavBadgeState,
+} from "./navigation-utils";
 
 type MobileBottomNavProps = {
   onOpenMore: () => void;
+  badgeState: NavBadgeState;
 };
 
-export function MobileBottomNav({ onOpenMore }: MobileBottomNavProps) {
+export function MobileBottomNav({ onOpenMore, badgeState }: MobileBottomNavProps) {
   const pathname = usePathname() ?? "/";
+  const { user } = useAuth();
   const mobileItems = useMemo(
     () =>
-      [...NAVIGATION_ITEMS]
+      getVisibleNavItems(user)
         .filter((x) => x.mobileVisible)
-        .sort((a, b) => a.order - b.order)
         .slice(0, 4),
-    []
+    [user]
   );
 
   return (
@@ -32,6 +39,7 @@ export function MobileBottomNav({ onOpenMore }: MobileBottomNavProps) {
       <div className="mx-auto grid w-full max-w-screen-md grid-cols-5">
         {mobileItems.map((item) => {
           const active = isActiveRoute(pathname, item.route);
+          const badge = resolveBadge(item, badgeState);
           return (
             <Link
               key={item.id}
@@ -45,9 +53,9 @@ export function MobileBottomNav({ onOpenMore }: MobileBottomNavProps) {
             >
               <NavIcon icon={item.icon} />
               <span className="max-w-full truncate text-xs">{item.label}</span>
-              {item.badgeCount && item.badgeCount > 0 ? (
+              {badge ? (
                 <span className="rounded-full bg-zinc-900 px-1.5 text-[10px] leading-4 text-white">
-                  {item.badgeCount > 99 ? "99+" : item.badgeCount}
+                  {badge > 99 ? "99+" : badge}
                 </span>
               ) : null}
             </Link>

@@ -6,14 +6,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { getVisibleNavItems, isActiveRoute, trackNavClick } from "./navigation-utils";
+import {
+  getVisibleNavItems,
+  isActiveRoute,
+  resolveBadge,
+  trackNavClick,
+  type NavBadgeState,
+} from "./navigation-utils";
 
 type MobileSidebarProps = {
   open: boolean;
   onClose: () => void;
+  badgeState: NavBadgeState;
 };
 
-export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
+export function MobileSidebar({ open, onClose, badgeState }: MobileSidebarProps) {
   const pathname = usePathname() ?? "/";
   const { user } = useAuth();
   const panelRef = useRef<HTMLElement | null>(null);
@@ -71,13 +78,20 @@ export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
     }
   }, [open]);
 
-  if (!open) return null;
-
   return (
-    <div style={{ zIndex: Z_INDEX.sidebar }} className="fixed inset-0 md:hidden" role="presentation">
+    <div
+      style={{ zIndex: Z_INDEX.sidebar }}
+      className={`fixed inset-0 transition-opacity duration-200 ease-[cubic-bezier(0.4,0,0.2,1)] md:hidden ${
+        open ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
+      }`}
+      role="presentation"
+      aria-hidden={!open}
+    >
       <button
         type="button"
-        className="absolute inset-0 bg-zinc-900/45"
+        className={`absolute inset-0 bg-zinc-900/45 transition-opacity duration-200 ${
+          open ? "opacity-100" : "opacity-0"
+        }`}
         aria-label="Close sidebar"
         onClick={onClose}
       />
@@ -86,7 +100,9 @@ export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
         role="dialog"
         aria-modal="true"
         aria-label="Mobile navigation"
-        className="absolute inset-y-0 left-0 flex w-[85%] max-w-[18rem] flex-col border-r border-zinc-200 bg-white shadow-xl"
+        className={`absolute inset-y-0 left-0 flex w-[85%] max-w-[18rem] flex-col border-r border-zinc-200 bg-white shadow-xl transition-transform duration-[220ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${
+          open ? "translate-x-0" : "-translate-x-full"
+        }`}
       >
         <div className="flex min-h-14 items-center justify-between border-b border-zinc-100 px-4">
           <p className="text-sm font-semibold text-zinc-900">Menu</p>
@@ -106,6 +122,7 @@ export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
         >
           {sortedItems.map((item) => {
             const active = isActiveRoute(pathname, item.route);
+            const badge = resolveBadge(item, badgeState);
             return (
               <Link
                 key={item.id}
@@ -121,7 +138,12 @@ export function MobileSidebar({ open, onClose }: MobileSidebarProps) {
                 }`}
               >
                 <NavIcon icon={item.icon} />
-                <span>{item.label}</span>
+                <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                {badge ? (
+                  <span className="rounded-full bg-zinc-900 px-1.5 text-[10px] leading-4 text-white">
+                    {badge > 99 ? "99+" : badge}
+                  </span>
+                ) : null}
               </Link>
             );
           })}
