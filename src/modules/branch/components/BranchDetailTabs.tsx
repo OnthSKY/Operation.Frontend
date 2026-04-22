@@ -687,11 +687,12 @@ export function BranchDetailTabs({
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
-      <div className="min-w-0 shrink-0 border-b border-zinc-200 bg-white px-2 pt-1 sm:px-4">
+      <div className="min-w-0 shrink-0 border-b border-zinc-200 bg-white/95 px-2 pt-1 backdrop-blur supports-[backdrop-filter]:bg-white/80 sm:px-4">
         <div
           role="tablist"
+          aria-orientation="horizontal"
           aria-label={t("branch.detailTabsAria")}
-          className="flex w-full min-w-0 gap-1 overflow-x-auto overscroll-x-contain pb-2 touch-pan-x [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"
+          className="-mx-1 flex w-auto min-w-0 snap-x snap-mandatory gap-1 overflow-x-auto overscroll-x-contain px-1 pb-2 touch-pan-x [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]"
         >
           {tabs.map((x) => (
             <button
@@ -699,10 +700,11 @@ export function BranchDetailTabs({
               type="button"
               role="tab"
               aria-selected={tab === x.id}
+              title={x.label}
               className={cn(
-                "shrink-0 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors sm:px-4",
+                "min-h-10 shrink-0 snap-start whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold leading-tight transition-all sm:px-4 sm:text-sm",
                 tab === x.id
-                  ? "bg-zinc-900 text-white"
+                  ? "bg-zinc-900 text-white shadow-sm shadow-zinc-900/25 ring-1 ring-zinc-800"
                   : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
               )}
               onClick={() => setTab(x.id)}
@@ -715,7 +717,7 @@ export function BranchDetailTabs({
 
       <div
         role="tabpanel"
-        className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-3 py-4 [-webkit-overflow-scrolling:touch] sm:px-5 sm:py-5"
+        className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-2 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 [-webkit-overflow-scrolling:touch] sm:px-5 sm:py-5"
       >
 
         {tab === "dashboard" && (

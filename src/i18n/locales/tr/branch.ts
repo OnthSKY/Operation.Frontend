@@ -70,6 +70,12 @@ export const branch = {
   /** Hepsi ileri tarihli işe giriş. */
   staffLinePendingOnly: "{total} kayıtlı · henüz başlamadı ({pending})",
   tableActions: "İşlem",
+  listSortLabel: "Sıralama",
+  listSortNameAsc: "Ada göre (A-Z)",
+  listSortNameDesc: "Ada göre (Z-A)",
+  listSortIdAsc: "No'ya göre (artan)",
+  listSortIdDesc: "No'ya göre (azalan)",
+  listSortStaffDesc: "Çalışana göre (çoktan aza)",
   listMetricsToggle: "Gelir ve kapsamlı stok girişi",
   listMetricsLoading: "Özet yükleniyor…",
   listTodayIncome: "Bugünkü gelir (UTC)",

@@ -253,18 +253,19 @@ export function BranchDetailPersonnelTab(props: BranchDetailPersonnelTabProps) {
 
             <div
               role="tablist"
+              aria-orientation="horizontal"
               aria-label={t("branch.personnelSubTabsAria")}
-              className="-mx-1 flex min-w-0 shrink-0 gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain border-b border-zinc-200 px-1 pb-2 touch-pan-x [-webkit-overflow-scrolling:touch]"
+              className="grid min-w-0 shrink-0 grid-cols-2 gap-1 rounded-xl border border-zinc-200 bg-zinc-100/80 p-1"
             >
               <button
                 type="button"
                 role="tab"
                 aria-selected={personnelSubTab === "people"}
                 className={cn(
-                  "shrink-0 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors min-h-11 touch-manipulation sm:min-h-0 sm:px-3 sm:py-2",
+                  "min-h-11 rounded-lg px-3 py-2 text-sm font-semibold transition-colors touch-manipulation",
                   personnelSubTab === "people"
-                    ? "bg-zinc-200 text-zinc-900"
-                    : "text-zinc-600 hover:bg-zinc-100"
+                    ? "bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-300/80"
+                    : "text-zinc-600 hover:bg-white/70"
                 )}
                 onClick={() => setPersonnelSubTab("people")}
               >
@@ -275,10 +276,10 @@ export function BranchDetailPersonnelTab(props: BranchDetailPersonnelTabProps) {
                 role="tab"
                 aria-selected={personnelSubTab === "advances"}
                 className={cn(
-                  "shrink-0 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors min-h-11 touch-manipulation sm:min-h-0 sm:px-3 sm:py-2",
+                  "min-h-11 rounded-lg px-3 py-2 text-sm font-semibold transition-colors touch-manipulation",
                   personnelSubTab === "advances"
-                    ? "bg-zinc-200 text-zinc-900"
-                    : "text-zinc-600 hover:bg-zinc-100"
+                    ? "bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-300/80"
+                    : "text-zinc-600 hover:bg-white/70"
                 )}
                 onClick={() => setPersonnelSubTab("advances")}
               >
@@ -303,7 +304,7 @@ export function BranchDetailPersonnelTab(props: BranchDetailPersonnelTabProps) {
                           >
                             <p className="text-sm font-semibold text-zinc-900">{p.fullName}</p>
                             <dl className="mt-2 space-y-2 border-t border-zinc-100 pt-2 text-xs">
-                              <div className="flex justify-between gap-3">
+                              <div className="flex flex-col gap-0.5 min-[380px]:flex-row min-[380px]:justify-between min-[380px]:gap-3">
                                 <dt className="max-w-[45%] shrink-0 text-zinc-500">
                                   {t("branch.personnelMoneyColAdvances")}
                                 </dt>
@@ -316,7 +317,7 @@ export function BranchDetailPersonnelTab(props: BranchDetailPersonnelTabProps) {
                                   )}
                                 </dd>
                               </div>
-                              <div className="flex justify-between gap-3">
+                              <div className="flex flex-col gap-0.5 min-[380px]:flex-row min-[380px]:justify-between min-[380px]:gap-3">
                                 <dt className="max-w-[45%] shrink-0 text-zinc-500">
                                   {t("branch.personnelMoneyColRegisterOwes")}
                                 </dt>
@@ -578,7 +579,7 @@ export function BranchDetailPersonnelTab(props: BranchDetailPersonnelTabProps) {
                                   )}
                                 </dd>
                               </div>
-                              <div className="flex justify-between gap-3">
+                              <div className="flex flex-col gap-0.5 min-[380px]:flex-row min-[380px]:justify-between min-[380px]:gap-3">
                                 <dt className="text-zinc-500">{t("branch.staffAdvTotal")}</dt>
                                 <dd className="font-mono text-sm font-medium text-zinc-800">
                                   {r.pending
@@ -593,7 +594,7 @@ export function BranchDetailPersonnelTab(props: BranchDetailPersonnelTabProps) {
                                         )}
                                 </dd>
                               </div>
-                              <div className="flex justify-between gap-3">
+                              <div className="flex flex-col gap-0.5 min-[380px]:flex-row min-[380px]:justify-between min-[380px]:gap-3">
                                 <dt className="text-zinc-500">{t("branch.staffAdvCount")}</dt>
                                 <dd className="font-medium text-zinc-800">
                                   {r.pending ? t("common.loading") : r.failed ? "—" : r.count}

@@ -15,6 +15,7 @@ import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { Button } from "@/shared/ui/Button";
+import { Select, type SelectOption } from "@/shared/ui/Select";
 import {
   Table,
   TableBody,
@@ -149,6 +150,15 @@ function BranchEditIcon({ className }: { className?: string }) {
   );
 }
 
+type BranchSortValue =
+  | "nameAsc"
+  | "nameDesc"
+  | "idAsc"
+  | "idDesc"
+  | "staffDesc";
+
+const NOOP_BLUR = () => {};
+
 export function BranchScreen() {
   const { t, locale } = useI18n();
   const { user } = useAuth();
@@ -177,6 +187,18 @@ export function BranchScreen() {
   const [assignBranchId, setAssignBranchId] = useState<number | null>(null);
   const [pdfBranch, setPdfBranch] = useState<Branch | null>(null);
   const [posProfileBranch, setPosProfileBranch] = useState<Branch | null>(null);
+  const [sortBy, setSortBy] = useState<BranchSortValue>("nameAsc");
+
+  const sortOptions = useMemo<SelectOption[]>(
+    () => [
+      { value: "nameAsc", label: t("branch.listSortNameAsc") },
+      { value: "nameDesc", label: t("branch.listSortNameDesc") },
+      { value: "idAsc", label: t("branch.listSortIdAsc") },
+      { value: "idDesc", label: t("branch.listSortIdDesc") },
+      { value: "staffDesc", label: t("branch.listSortStaffDesc") },
+    ],
+    [t]
+  );
 
   const branchNameById = useMemo(() => {
     const m = new Map<number, string>();
@@ -336,6 +358,33 @@ export function BranchScreen() {
     [searchParams]
   );
 
+  const sortedList = useMemo(() => {
+    const collator = new Intl.Collator(locale === "tr" ? "tr-TR" : "en-US", {
+      sensitivity: "base",
+    });
+    const copied = [...list];
+    copied.sort((a, b) => {
+      switch (sortBy) {
+        case "nameAsc":
+          return collator.compare(a.name, b.name);
+        case "nameDesc":
+          return collator.compare(b.name, a.name);
+        case "idAsc":
+          return a.id - b.id;
+        case "idDesc":
+          return b.id - a.id;
+        case "staffDesc":
+          return (
+            b.personnelAssignedCount - a.personnelAssignedCount ||
+            collator.compare(a.name, b.name)
+          );
+        default:
+          return 0;
+      }
+    });
+    return copied;
+  }, [list, sortBy, locale]);
+
   return (
     <>
       <PageScreenScaffold
@@ -397,6 +446,18 @@ export function BranchScreen() {
               ) : undefined
             }
           >
+        {!isPending && !isError && list.length > 0 ? (
+          <div className="mb-3 max-w-sm">
+            <Select
+              name="branchListSort"
+              label={t("branch.listSortLabel")}
+              value={sortBy}
+              options={sortOptions}
+              onChange={(event) => setSortBy(event.target.value as BranchSortValue)}
+              onBlur={NOOP_BLUR}
+            />
+          </div>
+        ) : null}
         {isPending && (
           <p className="text-sm text-zinc-500">{t("common.loading")}</p>
         )}
@@ -415,7 +476,7 @@ export function BranchScreen() {
         {!isPending && !isError && list.length > 0 && (
           <>
             <div className="flex flex-col gap-3 md:hidden">
-              {list.map((b) => {
+              {sortedList.map((b) => {
                 const active = selectedId === b.id;
                 const mOpen = Boolean(metricsOpen[b.id]);
                 return (
@@ -558,7 +619,7 @@ export function BranchScreen() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {list.map((b) => {
+                  {sortedList.map((b) => {
                     const active = selectedId === b.id;
                     const mOpen = Boolean(metricsOpen[b.id]);
                     return (

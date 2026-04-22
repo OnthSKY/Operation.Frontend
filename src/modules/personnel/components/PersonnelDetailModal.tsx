@@ -1050,8 +1050,9 @@ export function PersonnelDetailModal({
       type="button"
       role="tab"
       aria-selected={tab === id}
+      title={label}
       className={cn(
-        "min-h-11 flex-1 rounded-t-lg px-3 py-2 text-sm font-medium transition-colors sm:flex-none sm:min-w-[8rem]",
+        "min-h-11 shrink-0 whitespace-nowrap rounded-t-lg px-3 py-2 text-xs font-medium leading-tight transition-colors sm:min-w-[8rem] sm:text-sm",
         tab === id
           ? "border-b-2 border-zinc-900 bg-zinc-50 text-zinc-900"
           : "border-b-2 border-transparent text-zinc-600 hover:bg-zinc-50/80",
@@ -1089,7 +1090,8 @@ export function PersonnelDetailModal({
             <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2 [-webkit-overflow-scrolling:touch] sm:px-6">
               <div
                 role="tablist"
-                className="sticky top-0 z-[1] -mx-4 mb-3 flex flex-wrap gap-1 border-b border-zinc-200 bg-white/95 px-4 py-1 backdrop-blur-sm supports-[backdrop-filter]:bg-white/80 sm:-mx-6 sm:px-6"
+                aria-orientation="horizontal"
+                className="sticky top-0 z-[1] -mx-4 mb-3 flex flex-nowrap gap-1 overflow-x-auto overscroll-x-contain border-b border-zinc-200 bg-white/95 px-4 py-1 [scrollbar-width:none] [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden backdrop-blur-sm supports-[backdrop-filter]:bg-white/80 sm:-mx-6 sm:px-6"
               >
                 {tabBtn("profile", t("personnel.detailTabProfile"))}
                 {tabBtn("managerSummary", t("personnel.detailTabManagerSummary"))}

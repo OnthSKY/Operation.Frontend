@@ -201,7 +201,7 @@ export function PersonnelSeasonArrivalsTab({
 
         {!isPending && !isError ? (
           <div className="mt-4 min-w-0">
-            <Table mobileCards={false}>
+            <Table>
               <TableHead>
                 <TableRow>
                   <TableHeader>{t("personnel.seasonArrivalsColArrival")}</TableHeader>
@@ -218,11 +218,14 @@ export function PersonnelSeasonArrivalsTab({
                   const isOpen = row.isOpen;
                   return (
                     <TableRow key={row.id}>
-                      <TableCell className="align-middle">
+                      <TableCell
+                        dataLabel={t("personnel.seasonArrivalsColArrival")}
+                        className="align-middle"
+                      >
                         {isOpen && !readOnly ? (
                           <Input
                             type="date"
-                            className="max-w-[11rem]"
+                            className="w-full max-w-[11rem] max-md:max-w-none"
                             value={arrivalDraft}
                             onChange={(e) => setArrivalDraft(e.target.value)}
                             disabled={updateMut.isPending}
@@ -233,15 +236,21 @@ export function PersonnelSeasonArrivalsTab({
                           </span>
                         )}
                       </TableCell>
-                      <TableCell className="tabular-nums text-zinc-800">
+                      <TableCell
+                        dataLabel={t("personnel.seasonArrivalsColValidFrom")}
+                        className="tabular-nums text-zinc-800"
+                      >
                         {formatIso(row.validFrom, locale, dash)}
                       </TableCell>
-                      <TableCell className="tabular-nums text-zinc-700">
+                      <TableCell
+                        dataLabel={t("personnel.seasonArrivalsColValidTo")}
+                        className="tabular-nums text-zinc-700"
+                      >
                         {row.validTo
                           ? formatIso(row.validTo, locale, dash)
                           : t("personnel.seasonArrivalsOpenEnded")}
                       </TableCell>
-                      <TableCell>
+                      <TableCell dataLabel={t("personnel.seasonArrivalsColStatus")}>
                         <span
                           className={
                             isOpen
@@ -254,13 +263,16 @@ export function PersonnelSeasonArrivalsTab({
                             : t("personnel.seasonArrivalsStatusClosed")}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right align-middle">
+                      <TableCell
+                        dataLabel={t("personnel.seasonArrivalsColActions")}
+                        className="text-right align-middle max-md:text-left"
+                      >
                         {isOpen && !readOnly ? (
-                          <div className="flex flex-wrap justify-end gap-1.5">
+                          <div className="flex flex-wrap justify-end gap-1.5 max-md:w-full max-md:flex-col max-md:items-stretch">
                             <Button
                               type="button"
                               variant="secondary"
-                              className="min-h-9"
+                              className="min-h-9 max-md:w-full"
                               disabled={!arrivalDirty || updateMut.isPending}
                               onClick={() => void onSaveOpenArrival()}
                             >
@@ -268,7 +280,7 @@ export function PersonnelSeasonArrivalsTab({
                             </Button>
                             <button
                               type="button"
-                              className={trashIconActionButtonClass}
+                              className={`${trashIconActionButtonClass} max-md:w-full max-md:justify-center`}
                               disabled={
                                 !hasPredecessor ||
                                 deleteOpenMut.isPending
@@ -306,7 +318,7 @@ export function PersonnelSeasonArrivalsTab({
               formatIso(openTerm.validFrom, locale, dash)
             )}
           </p>
-          <div className="mt-4 flex flex-wrap items-end gap-3">
+          <div className="mt-4 flex flex-wrap items-end gap-3 max-md:gap-2">
             <div className="min-w-[10rem] flex-1">
               <label className="mb-1 block text-xs font-medium text-zinc-600">
                 {t("personnel.seasonArrivalsNewValidFrom")}
@@ -331,7 +343,7 @@ export function PersonnelSeasonArrivalsTab({
             </div>
             <Button
               type="button"
-              className="min-h-10"
+              className="min-h-10 max-md:w-full"
               disabled={createMut.isPending || newValidFrom.trim() === ""}
               onClick={() => void onAddTerm()}
             >

@@ -725,11 +725,12 @@ export function PersonnelManagementSnapshotSection({
               ) : null}
 
               <div className="overflow-hidden rounded-xl border border-zinc-200/90 bg-white shadow-sm shadow-zinc-900/5">
-                <div className="border-b border-zinc-200/80 bg-zinc-50/90 px-2 py-2 sm:px-3 sm:py-2.5">
+                <div className="border-b border-zinc-200/80 bg-gradient-to-b from-zinc-50 to-white px-2 py-2 sm:px-3 sm:py-2.5">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch sm:justify-between sm:gap-3">
                     <div
-                      className="-mx-0.5 flex min-h-[2.75rem] max-w-full touch-pan-x gap-1 overflow-x-auto overscroll-x-contain px-0.5 [-ms-overflow-style:none] [scrollbar-width:none] sm:min-h-0 sm:flex-wrap sm:overflow-visible [&::-webkit-scrollbar]:hidden"
+                      className="grid min-h-[2.75rem] w-full grid-cols-2 gap-1 rounded-xl border border-zinc-200/90 bg-zinc-100/80 p-1 shadow-inner shadow-zinc-200/70 sm:w-auto sm:min-w-[19rem]"
                       role="tablist"
+                      aria-orientation="horizontal"
                       aria-label={t("personnel.detailMgmtCashHandoverTabsAria")}
                     >
                       <button
@@ -737,10 +738,10 @@ export function PersonnelManagementSnapshotSection({
                         role="tab"
                         aria-selected={cashHandoverSubTab === "in"}
                         className={cn(
-                          "min-h-11 shrink-0 rounded-lg px-3 py-2 text-left text-sm font-semibold leading-snug transition sm:min-h-10 sm:py-2",
+                          "min-h-10 rounded-[0.65rem] px-2.5 py-2 text-center text-xs font-semibold leading-snug transition sm:px-3 sm:text-sm",
                           cashHandoverSubTab === "in"
-                            ? "bg-sky-100 text-sky-950 ring-1 ring-sky-400/50"
-                            : "bg-zinc-100/90 text-zinc-600 hover:bg-zinc-100"
+                            ? "bg-white text-sky-950 shadow-sm ring-1 ring-sky-300/70"
+                            : "text-zinc-600 hover:bg-white/70 hover:text-zinc-800"
                         )}
                         onClick={() => setCashHandoverSubTab("in")}
                       >
@@ -751,10 +752,10 @@ export function PersonnelManagementSnapshotSection({
                         role="tab"
                         aria-selected={cashHandoverSubTab === "out"}
                         className={cn(
-                          "min-h-11 shrink-0 rounded-lg px-3 py-2 text-left text-sm font-semibold leading-snug transition sm:min-h-10 sm:py-2",
+                          "min-h-10 rounded-[0.65rem] px-2.5 py-2 text-center text-xs font-semibold leading-snug transition sm:px-3 sm:text-sm",
                           cashHandoverSubTab === "out"
-                            ? "bg-amber-100 text-amber-950 ring-1 ring-amber-400/50"
-                            : "bg-zinc-100/90 text-zinc-600 hover:bg-zinc-100"
+                            ? "bg-white text-amber-950 shadow-sm ring-1 ring-amber-300/70"
+                            : "text-zinc-600 hover:bg-white/70 hover:text-zinc-800"
                         )}
                         onClick={() => setCashHandoverSubTab("out")}
                       >
@@ -763,7 +764,7 @@ export function PersonnelManagementSnapshotSection({
                     </div>
                     <button
                       type="button"
-                      className="relative flex h-10 w-10 shrink-0 items-center justify-center self-end rounded-lg border border-zinc-300/90 bg-white text-zinc-800 shadow-sm transition hover:bg-zinc-50 sm:self-center"
+                      className="relative flex min-h-10 shrink-0 items-center justify-center gap-1.5 self-stretch rounded-xl border border-zinc-300/90 bg-white px-3 text-zinc-800 shadow-sm transition hover:bg-zinc-50 sm:h-10 sm:min-h-0 sm:w-10 sm:px-0 sm:self-center"
                       aria-label={t("personnel.detailMgmtHandoverFilterAria")}
                       onClick={() => {
                         setHovDraft(hovApplied);
@@ -782,6 +783,9 @@ export function PersonnelManagementSnapshotSection({
                       >
                         <path d="M4 6h16M7 12h10M10 18h4" />
                       </svg>
+                      <span className="text-xs font-medium sm:hidden">
+                        {t("personnel.detailMgmtHandoverFilterAria")}
+                      </span>
                       {handoverFiltersBadgeCount > 0 ? (
                         <span className="absolute -right-1 -top-1 flex min-h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-zinc-700 px-1 text-[0.65rem] font-bold leading-none text-white">
                           {handoverFiltersBadgeCount > 9 ? "9+" : handoverFiltersBadgeCount}
@@ -852,11 +856,11 @@ export function PersonnelManagementSnapshotSection({
                                 )}
                               </div>
                             </div>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-2 max-md:w-full">
                               <Button
                                 type="button"
                                 variant="secondary"
-                                className="min-h-9 px-3 text-xs font-semibold"
+                                className="min-h-9 px-3 text-xs font-semibold max-md:w-full"
                                 onClick={() => onHandoverOpenExpenseRegister?.(ctx)}
                               >
                                 {t("personnel.detailMgmtHandoverActionExpenseShort")}
@@ -864,7 +868,7 @@ export function PersonnelManagementSnapshotSection({
                               <Button
                                 type="button"
                                 variant="secondary"
-                                className="min-h-9 px-3 text-xs font-semibold"
+                                className="min-h-9 px-3 text-xs font-semibold max-md:w-full"
                                 onClick={() => onHandoverOpenPatronRegisterRepay?.(ctx)}
                               >
                                 {t("personnel.detailMgmtHandoverActionPatronShort")}
@@ -913,7 +917,7 @@ export function PersonnelManagementSnapshotSection({
                                 key={row.transactionId}
                                 className="rounded-lg border border-sky-200/70 bg-white/90 p-3 text-sm shadow-sm"
                               >
-                                <div className="flex justify-between gap-2">
+                                <div className="flex flex-col gap-0.5 min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-between">
                                   <span className="text-zinc-700">
                                     {formatLocaleDate(row.transactionDate, locale, dash)}
                                   </span>
@@ -1100,7 +1104,7 @@ export function PersonnelManagementSnapshotSection({
                                 key={row.transactionId}
                                 className="rounded-lg border border-amber-200/80 bg-white/90 p-3 text-sm shadow-sm"
                               >
-                                <div className="flex justify-between gap-2">
+                                <div className="flex flex-col gap-0.5 min-[360px]:flex-row min-[360px]:items-center min-[360px]:justify-between">
                                   <span className="text-zinc-700">
                                     {formatLocaleDate(row.transactionDate, locale, dash)}
                                   </span>

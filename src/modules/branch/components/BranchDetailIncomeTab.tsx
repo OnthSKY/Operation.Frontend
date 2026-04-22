@@ -247,6 +247,20 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
   } = props;
 
   const tourismSeasonHref = branchTourismSeasonDeepLink(branchIdForTourismLink, employeeSelfService);
+  const todayIso = localIsoDate();
+  const incMainLabel =
+    incMainFilterOpts.find((x) => x.value === incFilterMain)?.label ?? incFilterMain;
+  const incCashLabel =
+    incCashFilterOpts.find((x) => x.value === incFilterCash)?.label ?? incFilterCash;
+  const showIncDateFrom = incFrom.length === 10 && incFrom !== todayIso;
+  const showIncDateTo = incTo.length === 10 && incTo !== todayIso;
+  const hasIncDateFilters = showIncDateFrom || showIncDateTo;
+  const hasIncMainFilter = incFilterMain.trim().length > 0;
+  const hasIncCashFilter = incFilterCash.trim().length > 0;
+  const incActiveFilterCount =
+    (hasIncDateFilters ? 1 : 0) +
+    (hasIncMainFilter ? 1 : 0) +
+    (hasIncCashFilter ? 1 : 0);
 
   return (
           <div className="flex flex-col gap-4">
@@ -536,10 +550,10 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                 <h3 className="mb-2 text-sm font-semibold text-zinc-900">
                   {t("branch.incomeActionsTitle")}
                 </h3>
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
                   <Button
                     type="button"
-                    className="min-h-11"
+                    className="min-h-11 w-full sm:w-auto"
                     onClick={() => {
                       const d =
                         incFrom.length === 10 && incFrom === incTo ? incFrom : localIsoDate();
@@ -553,7 +567,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                     <Button
                       type="button"
                       variant="secondary"
-                      className="min-h-11"
+                      className="min-h-11 w-full sm:w-auto"
                       onClick={() => {
                         const d =
                           incFrom.length === 10 && incFrom === incTo ? incFrom : localIsoDate();
@@ -572,27 +586,73 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
               </section>
 
               <div className="flex flex-col gap-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-sm font-semibold text-zinc-900">{t("branch.incomeListSection")}</h3>
-                  <div className="flex flex-wrap items-center gap-2">
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3">
+                  <div className="flex flex-col gap-1">
+                    <h3 className="text-sm font-semibold text-zinc-900">{t("branch.incomeListSection")}</h3>
+                    <p className="text-xs leading-relaxed text-zinc-600">
+                      {t("branch.incomeListSection")} · {t("branch.incomeFilterDrawerHint")}
+                    </p>
+                  </div>
+                  <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-zinc-700">
+                        {t("branch.incomeFilterDrawerTitle")}
+                      </p>
+                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
+                        {incActiveFilterCount > 0
+                          ? `${incActiveFilterCount} · ${t("branch.incomeFilterOpenButton")}`
+                          : t("branch.txFilterAny")}
+                      </span>
+                    </div>
+                    {incActiveFilterCount > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {hasIncDateFilters ? (
+                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] text-zinc-700">
+                            {t("branch.filterDateFrom")}:{" "}
+                            {showIncDateFrom ? formatLocaleDate(incFrom, locale) : t("personnel.dash")} ·{" "}
+                            {t("branch.filterDateTo")}:{" "}
+                            {showIncDateTo ? formatLocaleDate(incTo, locale) : t("personnel.dash")}
+                          </span>
+                        ) : null}
+                        {hasIncMainFilter ? (
+                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] text-zinc-700">
+                            {t("branch.txFilterMainCategory")}: {incMainLabel}
+                          </span>
+                        ) : null}
+                        {hasIncCashFilter ? (
+                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] text-zinc-700">
+                            {t("branch.txFilterCashSettlement")}: {incCashLabel}
+                          </span>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    <div className="mt-2 grid grid-cols-1 gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="relative min-h-11 w-full"
+                        onClick={() => setIncomeFiltersOpen(true)}
+                      >
+                        {t("branch.incomeFilterOpenButton")}
+                        {incFiltersActive ? (
+                          <span
+                            className="absolute right-2 top-2 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white"
+                            aria-hidden
+                          />
+                        ) : null}
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="mt-2 rounded-lg border border-zinc-200 bg-white p-2.5">
+                    <p className="text-xs font-semibold text-zinc-700">{t("branch.filterApplyRefresh")}</p>
+                    <p className="mt-0.5 text-[11px] text-zinc-500">
+                      {t("branch.filterToday")} / {t("branch.filterAllDates")}
+                    </p>
+                    <div className="mt-2 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
                     <Button
                       type="button"
                       variant="secondary"
-                      className="relative min-h-11"
-                      onClick={() => setIncomeFiltersOpen(true)}
-                    >
-                      {t("branch.incomeFilterOpenButton")}
-                      {incFiltersActive ? (
-                        <span
-                          className="absolute right-2 top-2 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white"
-                          aria-hidden
-                        />
-                      ) : null}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-11"
+                      className="min-h-11 w-full"
                       onClick={() => {
                         const d = localIsoDate();
                         setIncFrom(d);
@@ -605,7 +665,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                     <Button
                       type="button"
                       variant="secondary"
-                      className="min-h-11"
+                      className="min-h-11 w-full"
                       onClick={() => {
                         setIncFrom("");
                         setIncTo("");
@@ -619,7 +679,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                     <Button
                       type="button"
                       variant="secondary"
-                      className="min-h-11"
+                      className="min-h-11 w-full"
                       onClick={() => {
                         void refetchInc();
                         refetchIncomeSummaryBlocks();
@@ -628,6 +688,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                       {t("branch.filterApplyRefresh")}
                     </Button>
                   </div>
+                </div>
                 </div>
                 <RightDrawer
                   open={incomeFiltersOpen}
@@ -695,9 +756,9 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
               <p className="text-sm text-zinc-600">{t("branch.noIncome")}</p>
             ) : (
               <>
-                <ul className="divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white sm:hidden">
+                <ul className="space-y-2 sm:hidden">
                   {incData.items.map((row) => (
-                    <li key={row.id} className="px-3 py-3">
+                    <li key={row.id} className="rounded-xl border border-zinc-200 bg-white px-3 py-3 shadow-sm">
                       <div className="flex items-start justify-between gap-2">
                         <span className="text-xs text-zinc-500">
                           {formatLocaleDate(row.transactionDate, locale)}
@@ -805,23 +866,23 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                     {(incPage - 1) * INC_PAGE + 1}–{Math.min(incPage * INC_PAGE, incTotal)} · {t("branch.pagingTotal")}{" "}
                     {incTotal}
                   </p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                     <Button
                       type="button"
                       variant="secondary"
-                      className="min-h-11"
+                      className="min-h-11 w-full"
                       disabled={incPage <= 1}
                       onClick={() => setIncPage((p) => Math.max(1, p - 1))}
                     >
                       {t("branch.pagingPrev")}
                     </Button>
-                    <span className="flex items-center text-sm tabular-nums text-zinc-700">
+                    <span className="col-span-2 flex min-h-11 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 text-sm tabular-nums text-zinc-700 sm:col-span-1 sm:min-h-0 sm:rounded-none sm:border-0 sm:bg-transparent">
                       {incPage} / {incPages}
                     </span>
                     <Button
                       type="button"
                       variant="secondary"
-                      className="min-h-11"
+                      className="min-h-11 w-full"
                       disabled={incPage >= incPages}
                       onClick={() => setIncPage((p) => Math.min(incPages, p + 1))}
                     >
