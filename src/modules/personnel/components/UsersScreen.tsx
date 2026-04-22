@@ -305,40 +305,40 @@ export function UsersScreen() {
     <>
       <PageScreenScaffold
         className="mx-auto w-full min-w-0 flex-1 app-page-max p-4 md:p-6"
+        top={
+          <div className="min-w-0">
+            <Link
+              href="/admin/settings"
+              className="text-sm font-medium text-violet-700 hover:text-violet-800"
+            >
+              ← {t("settings.backToSettings")}
+            </Link>
+            <h1 className="mt-2 text-xl font-bold tracking-tight text-zinc-900 md:text-2xl">
+              {t("users.title")}
+            </h1>
+            <p className="mt-1 max-w-2xl text-sm text-zinc-500">{t("users.description")}</p>
+          </div>
+        }
         intro={
-          <>
-            <div className="min-w-0">
-              <Link
-                href="/admin/settings"
-                className="text-sm font-medium text-violet-700 hover:text-violet-800"
-              >
-                ← {t("settings.backToSettings")}
-              </Link>
-              <h1 className="mt-2 text-xl font-bold tracking-tight text-zinc-900 md:text-2xl">
-                {t("users.title")}
-              </h1>
-              <p className="mt-1 max-w-2xl text-sm text-zinc-500">{t("users.description")}</p>
-            </div>
-            <PageWhenToUseGuide
-              guideTab="admin"
-              className="mt-1"
-              title={t("common.pageWhenToUseTitle")}
-              description={t("pageHelp.users.intro")}
-              listVariant="ordered"
-              items={[
-                { text: t("pageHelp.users.step1") },
-                { text: t("pageHelp.users.step2") },
-                { text: t("pageHelp.users.step4") },
-                {
-                  text: t("pageHelp.users.step3"),
-                  link: {
-                    href: "/admin/settings/authorization",
-                    label: t("pageHelp.users.step3Link"),
-                  },
+          <PageWhenToUseGuide
+            guideTab="admin"
+            className="mt-1"
+            title={t("common.pageWhenToUseTitle")}
+            description={t("pageHelp.users.intro")}
+            listVariant="ordered"
+            items={[
+              { text: t("pageHelp.users.step1") },
+              { text: t("pageHelp.users.step2") },
+              { text: t("pageHelp.users.step4") },
+              {
+                text: t("pageHelp.users.step3"),
+                link: {
+                  href: "/admin/settings/authorization",
+                  label: t("pageHelp.users.step3Link"),
                 },
-              ]}
-            />
-          </>
+              },
+            ]}
+          />
         }
         main={
           <Card

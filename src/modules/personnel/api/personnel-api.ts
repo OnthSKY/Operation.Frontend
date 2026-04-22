@@ -186,6 +186,14 @@ export type PersonnelListQueryParams = {
   hireDateTo?: string;
   /** Açık sigorta dönemi; yalnız true/false gönderilir (tümü: parametre yok). */
   insuranceStarted?: boolean;
+  /** Sayfalama: `pageSize` ile birlikte verilmezse tüm eşleşen kayıtlar döner. */
+  page?: number;
+  pageSize?: number;
+};
+
+export type PersonnelJobTitleCountRow = {
+  jobTitle: string;
+  count: number;
 };
 
 export type PersonnelListResult = {
@@ -193,6 +201,7 @@ export type PersonnelListResult = {
   totalCount: number;
   activeCount: number;
   passiveCount: number;
+  jobTitleCounts: PersonnelJobTitleCountRow[];
 };
 
 type PersonnelListApiEnvelope = {
@@ -200,6 +209,7 @@ type PersonnelListApiEnvelope = {
   totalCount: number;
   activeCount: number;
   passiveCount: number;
+  jobTitleCounts?: PersonnelJobTitleCountRow[];
 };
 
 export async function fetchPersonnelList(
@@ -226,6 +236,12 @@ export async function fetchPersonnelList(
   if (ht) sp.set("hireDateTo", ht);
   if (params?.insuranceStarted === true) sp.set("insuranceStarted", "true");
   if (params?.insuranceStarted === false) sp.set("insuranceStarted", "false");
+  if (params?.page != null && params.page >= 1) {
+    sp.set("page", String(params.page));
+  }
+  if (params?.pageSize != null && params.pageSize >= 1) {
+    sp.set("pageSize", String(params.pageSize));
+  }
   const q = sp.toString();
   const path = q ? `/personnel?${q}` : "/personnel";
   const row = await apiRequest<PersonnelListApiEnvelope>(path);
@@ -234,6 +250,7 @@ export async function fetchPersonnelList(
     totalCount: row.totalCount,
     activeCount: row.activeCount,
     passiveCount: row.passiveCount,
+    jobTitleCounts: row.jobTitleCounts ?? [],
   };
 }
 

@@ -262,33 +262,32 @@ export function InsuranceTrackScreen() {
   return (
     <PageScreenScaffold
       className="w-full min-w-0 pb-6 pt-2 sm:pb-8 sm:pt-4 md:pt-0"
+      top={
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
+            {t("insuranceTrack.title")}
+          </h1>
+          <p className="mt-0.5 break-words text-xs leading-relaxed text-zinc-500 sm:text-sm">
+            {t("insuranceTrack.subtitle")}
+          </p>
+        </div>
+      }
       intro={
-        <>
-          <div>
-            <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
-              {t("insuranceTrack.title")}
-            </h1>
-            <p className="mt-0.5 break-words text-xs leading-relaxed text-zinc-500 sm:text-sm">
-              {t("insuranceTrack.subtitle")}
-            </p>
-          </div>
-
-          <PageWhenToUseGuide
-            guideTab="flows"
-            className="mt-1"
-            title={t("common.pageWhenToUseTitle")}
-            description={t("pageHelp.insuranceTrack.intro")}
-            listVariant="ordered"
-            items={[
-              { text: t("pageHelp.insuranceTrack.step1") },
-              { text: t("pageHelp.insuranceTrack.step2") },
-              {
-                text: t("pageHelp.insuranceTrack.step3"),
-                link: { href: "/vehicles", label: t("pageHelp.insuranceTrack.step3Link") },
-              },
-            ]}
-          />
-        </>
+        <PageWhenToUseGuide
+          guideTab="flows"
+          className="mt-1"
+          title={t("common.pageWhenToUseTitle")}
+          description={t("pageHelp.insuranceTrack.intro")}
+          listVariant="ordered"
+          items={[
+            { text: t("pageHelp.insuranceTrack.step1") },
+            { text: t("pageHelp.insuranceTrack.step2") },
+            {
+              text: t("pageHelp.insuranceTrack.step3"),
+              link: { href: "/vehicles", label: t("pageHelp.insuranceTrack.step3Link") },
+            },
+          ]}
+        />
       }
       summary={
         <div className="flex flex-col gap-2">
@@ -300,7 +299,7 @@ export function InsuranceTrackScreen() {
         <p className="text-xs leading-relaxed text-zinc-500">{t("insuranceTrack.alertsHint")}</p>
 
         <div
-          className="-mx-1 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-1 pt-0.5 sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:pb-0"
+          className="flex flex-col gap-3 pt-0.5 sm:grid sm:grid-cols-3 sm:gap-4 sm:pt-0"
           role="list"
         >
           {alertDefs.map((a) => {
@@ -314,7 +313,7 @@ export function InsuranceTrackScreen() {
                 role="listitem"
                 aria-pressed={active}
                 onClick={() => onAlertActivate(a.filter)}
-                className={`min-w-[min(100%,17.5rem)] shrink-0 snap-center rounded-xl border-2 p-3 text-left shadow-sm transition touch-manipulation sm:min-w-0 sm:p-4 ${a.accent} ${
+                className={`w-full min-w-0 rounded-xl border-2 p-3.5 text-left shadow-sm transition touch-manipulation sm:p-4 ${a.accent} ${
                   active
                     ? "ring-2 ring-violet-500 ring-offset-2 ring-offset-zinc-50"
                     : "hover:border-zinc-400/80 active:scale-[0.99]"
@@ -324,11 +323,11 @@ export function InsuranceTrackScreen() {
                   <span className={`rounded-xl bg-white/80 p-2 shadow-sm ${a.iconTone}`}>
                     <AlertGlyph variant={a.filter} />
                   </span>
-                  <div className="min-w-0 flex-1 overflow-hidden">
+                  <div className="min-w-0 flex-1">
                     <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-500">
                       {t("insuranceTrack.alertTapToFilter")}
                     </p>
-                    <p className="mt-0.5 truncate text-sm font-bold leading-snug text-zinc-900">
+                    <p className="mt-0.5 text-sm font-bold leading-snug text-zinc-900 sm:truncate">
                       {t(a.titleKey)}
                     </p>
                     <p className="mt-1 text-xs leading-relaxed text-zinc-600">{t(a.descKey)}</p>

@@ -2,9 +2,14 @@ export const personnel = {
   heading: "Personnel",
   subtitle:
     "View and manage people, filter by branch or role, and open a profile for salary, insurance, advances, and notes.",
-  listSummary: "{{total}} on file · {{active}} active, {{passive}} inactive.",
+  listSummary:
+    "{{total}} on file · {{active}} active, {{passive}} inactive. Rows {{pageFrom}}–{{pageTo}}.",
   listSummaryFiltered:
-    "{{shown}} of {{total}} match the filters ({{active}} active, {{passive}} inactive in the full list).",
+    "{{total}} match the filters ({{active}} active, {{passive}} inactive). This page: {{pageFrom}}–{{pageTo}}.",
+  summaryCardsSectionAria: "Personnel summary",
+  summaryCardsTotalLabel: "People in this list",
+  summaryCardsTotalHintFiltered: "Based on current filters",
+  summaryCardsJobTitlesHeading: "By job title",
   add: "Add personnel",
   advance: "Give advance",
   allAdvancesLink: "All advances",

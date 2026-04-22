@@ -61,6 +61,10 @@ export const nav = {
   menuClose: "Menüyü kapat",
   dockMore: "Tüm menü",
   dockNav: "Hızlı gezinme",
+  /** Bottom tab bar: keep short; full group name stays in sidebar. */
+  dockFinanceShort: "Finans",
+  dockPeopleShort: "Ekip",
+  dockWarehouseShort: "Depo",
   mobileGroupHintTitle: "Hızlı ipucu",
   mobileGroupHintBody: "Grup başlığına dokunarak alt menüleri açıp kapatabilirsiniz.",
   tooltip: {

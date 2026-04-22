@@ -5,6 +5,8 @@ import type { LegacyMenuItem } from "./legacy-menu";
 export type NavigationItem = {
   id: string;
   label: string;
+  /** Compact label for mobile bottom dock when space is tight. */
+  dockLabel?: string;
   title: string;
   route: string;
   icon: "dashboard" | "branch" | "reports" | "personnel";
@@ -30,6 +32,7 @@ export function mapLegacyMenu(
     return {
       id: item.id,
       label,
+      dockLabel: item.dockLabelKey ? translate(item.dockLabelKey) : undefined,
       title: label,
       route: item.route,
       icon: normalizeIcon(item.icon),

@@ -2,9 +2,14 @@ export const personnel = {
   heading: "Personel",
   subtitle:
     "Personeli görüntüleyip yönetin; şube veya göreve göre süzün, profilden maaş, sigorta, avans ve notlara ulaşın.",
-  listSummary: "Toplam {{total}} kayıt · {{active}} aktif, {{passive}} pasif.",
+  listSummary:
+    "Toplam {{total}} kayıt · {{active}} aktif, {{passive}} pasif. Görünen satırlar: {{pageFrom}}–{{pageTo}}.",
   listSummaryFiltered:
-    "Filtreler tam listedeki {{total}} kayıttan {{shown}} tanesini gösteriyor ({{active}} aktif, {{passive}} pasif).",
+    "{{total}} kayıt filtrelere uyuyor ({{active}} aktif, {{passive}} pasif). Bu sayfada: {{pageFrom}}–{{pageTo}}.",
+  summaryCardsSectionAria: "Personel özeti",
+  summaryCardsTotalLabel: "Listelenen personel",
+  summaryCardsTotalHintFiltered: "Geçerli filtrelere göre",
+  summaryCardsJobTitlesHeading: "Ünvanlara göre",
   add: "Personel ekle",
   advance: "Avans ver",
   allAdvancesLink: "Tüm avanslar",

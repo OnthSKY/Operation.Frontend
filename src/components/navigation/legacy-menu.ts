@@ -7,6 +7,8 @@ import type { AuthUser } from "@/lib/auth/types";
 export type LegacyMenuItem = {
   id: string;
   labelKey: string;
+  /** Shorter label for the mobile bottom dock (full `labelKey` stays in sidebar / tooltips). */
+  dockLabelKey?: string;
   route: string;
   icon: string;
   children?: LegacyMenuItem[];
@@ -53,6 +55,7 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
     items.push({
       id: "finance-reporting",
       labelKey: "nav.groupFinanceReporting",
+      dockLabelKey: "nav.dockFinanceShort",
       route: "/reports/financial",
       icon: "reports",
       mobileVisible: true,
@@ -100,6 +103,7 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
     items.push({
       id: "people-organization",
       labelKey: "nav.groupPeopleOrganization",
+      dockLabelKey: "nav.dockPeopleShort",
       route: peopleChildren[0]!.route,
       icon: "personnel",
       mobileVisible: true,
@@ -140,6 +144,7 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
     items.push({
       id: "warehouse-products",
       labelKey: "nav.groupWarehouseProducts",
+      dockLabelKey: "nav.dockWarehouseShort",
       route: showWarehouseLink ? "/warehouses" : "/products",
       icon: "branch",
       mobileVisible: true,

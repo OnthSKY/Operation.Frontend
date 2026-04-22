@@ -72,6 +72,11 @@ export type PersonnelListFilters = {
   hireDateTo: string;
   /** "all" | "started" | "not_started" — API'ye yalnız started/not_started gider. */
   insuranceStatus: "all" | "started" | "not_started";
+  /**
+   * İkisi de verilirse API sayfalı döner; verilmezse tüm eşleşen kayıtlar (seçiciler / geriye dönük).
+   */
+  page?: number;
+  pageSize?: number;
 };
 
 export const defaultPersonnelListFilters: PersonnelListFilters = {
@@ -101,6 +106,8 @@ export const personnelKeys = {
       f.hireDateFrom,
       f.hireDateTo,
       f.insuranceStatus,
+      f.page ?? "all",
+      f.pageSize ?? "all",
     ] as const,
   /** Tüm filtre kombinasyonlarındaki liste sorgularını geçersiz kılar. */
   listRoot: () => [...personnelKeys.all, "list"] as const,
@@ -221,6 +228,8 @@ export function usePersonnelList(
             : filters.insuranceStatus === "not_started"
               ? false
               : undefined,
+        page: filters.page,
+        pageSize: filters.pageSize,
       }),
     enabled,
   });

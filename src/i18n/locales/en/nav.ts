@@ -63,6 +63,9 @@ export const nav = {
   menuClose: "Close menu",
   dockMore: "Full menu",
   dockNav: "Quick navigation",
+  dockFinanceShort: "Finance",
+  dockPeopleShort: "People",
+  dockWarehouseShort: "Depot",
   mobileGroupHintTitle: "Quick hint",
   mobileGroupHintBody: "Tap a group title to expand or collapse its links.",
   tooltip: {

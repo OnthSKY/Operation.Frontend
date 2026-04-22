@@ -11,7 +11,8 @@ type Props = {
 };
 
 /**
- * Mobil: giriş + özet varsayılan kapalı; kayıtlara hızlı inmek için.
+ * Mobil: varsayılan kapalı; kayıtlara hızlı inmek için.
+ * Özet (`summary`) varsa mobilde özet her zaman görünür; yalnızca giriş katlanır.
  * md+: her zaman tam yükseklikte (mevcut düzen).
  */
 export function MobileIntroSummaryCollapse({ intro, summary }: Props) {
@@ -25,13 +26,21 @@ export function MobileIntroSummaryCollapse({ intro, summary }: Props) {
     </>
   );
 
-  const aria = `${t("common.pageIntroSummaryToggle")}. ${open ? t("common.pageIntroSummaryCollapse") : t("common.pageIntroSummaryExpand")}`;
+  const summarySplitOnMobile = summary != null;
+  const mobileToggleLabel = summarySplitOnMobile
+    ? t("common.pageSectionIntro")
+    : t("common.pageIntroSummaryToggle");
+  const aria = `${mobileToggleLabel}. ${open ? t("common.pageIntroSummaryCollapse") : t("common.pageIntroSummaryExpand")}`;
+  const mobileAccordionContent = summarySplitOnMobile ? <>{intro}</> : stack;
 
   return (
     <>
       <div className="hidden min-w-0 flex-col gap-6 md:flex">{stack}</div>
 
       <div className="flex min-w-0 flex-col gap-3 md:hidden">
+        {summarySplitOnMobile ? (
+          <div className="min-w-0 flex flex-col gap-3">{summary}</div>
+        ) : null}
         <button
           type="button"
           className={cn(
@@ -44,7 +53,7 @@ export function MobileIntroSummaryCollapse({ intro, summary }: Props) {
           onClick={() => setOpen((v) => !v)}
         >
           <span className="min-w-0 text-sm font-semibold leading-snug text-zinc-900">
-            {t("common.pageIntroSummaryToggle")}
+            {mobileToggleLabel}
           </span>
           <span className="flex shrink-0 items-center gap-2">
             <span className="text-xs font-medium text-violet-700">
@@ -74,7 +83,7 @@ export function MobileIntroSummaryCollapse({ intro, summary }: Props) {
           )}
         >
           <div className="min-h-0 overflow-hidden">
-            <div className="flex min-w-0 flex-col gap-4 pb-1">{stack}</div>
+            <div className="flex min-w-0 flex-col gap-4 pb-1">{mobileAccordionContent}</div>
           </div>
         </div>
       </div>

@@ -153,6 +153,9 @@ function PersonnelListSalaryReveal({
 
 const PERSONNEL_FILTER_TEXT_DEBOUNCE_MS = 300;
 
+/** Ana personel listesi API sayfalama boyutu. */
+const PERSONNEL_LIST_PAGE_SIZE = 25;
+
 const JOB_TITLE_FILTER_VALUES: PersonnelJobTitle[] = [
   "GENERAL_MANAGER",
   "BRANCH_SUPERVISOR",
@@ -585,6 +588,7 @@ export function PersonnelScreen() {
   >("all");
   const [filterName, setFilterName] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [listPage, setListPage] = useState(1);
 
   const debouncedFilterName = useDebouncedValue(
     filterName,
@@ -620,6 +624,8 @@ export function PersonnelScreen() {
       hireDateFrom: debouncedCompanyHireFrom,
       hireDateTo: debouncedCompanyHireTo,
       insuranceStatus: filterInsuranceStatus,
+      page: listPage,
+      pageSize: PERSONNEL_LIST_PAGE_SIZE,
     }),
     [
       filterBranch,
@@ -631,8 +637,23 @@ export function PersonnelScreen() {
       filterStatus,
       debouncedFilterName,
       filterInsuranceStatus,
+      listPage,
     ]
   );
+
+  useEffect(() => {
+    setListPage(1);
+  }, [
+    filterBranch,
+    debouncedSeasonArrivalFrom,
+    debouncedSeasonArrivalTo,
+    debouncedCompanyHireFrom,
+    debouncedCompanyHireTo,
+    filterJobTitle,
+    filterStatus,
+    debouncedFilterName,
+    filterInsuranceStatus,
+  ]);
 
   const { data, isPending, isError, error, refetch, dataUpdatedAt } =
     usePersonnelList(listFilters, !personnelPortal);
@@ -641,6 +662,15 @@ export function PersonnelScreen() {
   const totalCount = data?.totalCount ?? 0;
   const activeCount = data?.activeCount ?? 0;
   const passiveCount = data?.passiveCount ?? 0;
+
+  const listPageTotal = useMemo(
+    () => Math.max(1, Math.ceil(totalCount / PERSONNEL_LIST_PAGE_SIZE)),
+    [totalCount]
+  );
+
+  useEffect(() => {
+    if (listPage > listPageTotal) setListPage(listPageTotal);
+  }, [listPage, listPageTotal]);
 
   const advancePersonnelFilters = useMemo<PersonnelListFilters>(
     () => ({ ...defaultPersonnelListFilters, status: "active" }),
@@ -715,11 +745,20 @@ export function PersonnelScreen() {
 
   const listSummaryText = useMemo(() => {
     if (isPending || isError) return null;
+    const pageFrom =
+      totalCount === 0
+        ? "0"
+        : String((listPage - 1) * PERSONNEL_LIST_PAGE_SIZE + 1);
+    const pageTo =
+      totalCount === 0
+        ? "0"
+        : String(Math.min(listPage * PERSONNEL_LIST_PAGE_SIZE, totalCount));
     const vars = {
       total: String(totalCount),
       active: String(activeCount),
       passive: String(passiveCount),
-      shown: String(items.length),
+      pageFrom,
+      pageTo,
     };
     if (filtersActive) {
       return fillPersonnelSummaryTemplate(
@@ -734,10 +773,25 @@ export function PersonnelScreen() {
     totalCount,
     activeCount,
     passiveCount,
-    items.length,
+    listPage,
     filtersActive,
     t,
   ]);
+
+  const jobTitleSummaryRows = useMemo(() => {
+    const allowed = new Set<string>(JOB_TITLE_FILTER_VALUES);
+    const rows = data?.jobTitleCounts ?? [];
+    return rows
+      .filter((r) => allowed.has(r.jobTitle))
+      .map((r) => ({
+        jobTitle: r.jobTitle as PersonnelJobTitle,
+        count: r.count,
+      }))
+      .sort(
+        (a, b) =>
+          b.count - a.count || a.jobTitle.localeCompare(b.jobTitle, "en")
+      );
+  }, [data?.jobTitleCounts]);
 
   const [formOpen, setFormOpen] = useState(false);
   const [formInitial, setFormInitial] = useState<Personnel | null>(null);
@@ -911,6 +965,49 @@ export function PersonnelScreen() {
             ) : null}
           </div>
         </div>
+
+        {!isPending && !isError && totalCount > 0 ? (
+          <section
+            aria-label={t("personnel.summaryCardsSectionAria")}
+            className="mt-4"
+          >
+            <div className="rounded-xl border border-violet-200/80 bg-gradient-to-br from-violet-50/90 to-white p-4 shadow-sm sm:p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-violet-800/80">
+                {t("personnel.summaryCardsTotalLabel")}
+              </p>
+              <p className="mt-1 text-3xl font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-4xl">
+                {totalCount}
+              </p>
+              {filtersActive ? (
+                <p className="mt-1 text-xs text-zinc-600">
+                  {t("personnel.summaryCardsTotalHintFiltered")}
+                </p>
+              ) : null}
+              {jobTitleSummaryRows.length > 0 ? (
+                <>
+                  <h2 className="mt-4 border-t border-violet-200/60 pt-4 text-sm font-semibold text-zinc-800">
+                    {t("personnel.summaryCardsJobTitlesHeading")}
+                  </h2>
+                  <dl className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-x-8 sm:gap-y-2">
+                    {jobTitleSummaryRows.map(({ jobTitle, count }) => (
+                      <div
+                        key={jobTitle}
+                        className="flex items-baseline justify-between gap-3 text-sm"
+                      >
+                        <dt className="min-w-0 text-zinc-600">
+                          {t(`personnel.jobTitles.${jobTitle}`)}
+                        </dt>
+                        <dd className="shrink-0 tabular-nums font-semibold text-zinc-900">
+                          {count}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
 
       <PageWhenToUseGuide
         guideTab="personnel"
@@ -1434,6 +1531,49 @@ export function PersonnelScreen() {
                   </TableBody>
                 </Table>
               </div>
+
+              {!isPending && !isError && totalCount > 0 ? (
+                <div className="flex flex-col gap-3 border-t border-zinc-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-zinc-600">
+                    {(listPage - 1) * PERSONNEL_LIST_PAGE_SIZE + 1}
+                    {"–"}
+                    {Math.min(
+                      listPage * PERSONNEL_LIST_PAGE_SIZE,
+                      totalCount
+                    )}{" "}
+                    · {t("products.pagingTotal")} {totalCount}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="min-h-11"
+                      disabled={listPage <= 1}
+                      onClick={() =>
+                        setListPage((p) => Math.max(1, p - 1))
+                      }
+                    >
+                      {t("products.pagingPrev")}
+                    </Button>
+                    <span className="text-sm tabular-nums text-zinc-700">
+                      {listPage} / {listPageTotal}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="min-h-11"
+                      disabled={listPage >= listPageTotal}
+                      onClick={() =>
+                        setListPage((p) =>
+                          Math.min(listPageTotal, p + 1)
+                        )
+                      }
+                    >
+                      {t("products.pagingNext")}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
             </>
           )}
         </Card>

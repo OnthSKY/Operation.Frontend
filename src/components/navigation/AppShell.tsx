@@ -63,7 +63,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
           <DesktopSidebar badgeState={badgeState} />
         </div>
 
-        <main className="min-w-0 flex-1 overflow-auto bg-gray-50 px-4 pb-24 pt-4 md:px-6 md:pb-8 md:pt-6">
+        <main className="min-w-0 flex-1 overflow-auto bg-gray-50 px-4 pb-28 pt-4 md:px-6 md:pb-8 md:pt-6">
           {children}
         </main>
       </div>
