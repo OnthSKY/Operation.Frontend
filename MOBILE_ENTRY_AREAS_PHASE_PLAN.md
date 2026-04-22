@@ -17,6 +17,18 @@ Bu dokuman, uygulamadaki giris/kayit alanlarini mobilde daha okunur, daha hizli 
 - Form terk oranini `%15+` azaltmak
 - Yanlis veri girisi kaynakli validasyon hatalarini `%25+` azaltmak
 
+### KPI olcum cercevesi
+
+- **Baseline tarihi:** Faz 0 baslangicinda alinacak (T0)
+- **Olcum periyodu:** Faz sonu + canliya alimdan sonraki ilk 2 hafta
+- **Veri kaynagi:**
+  - Session replay / product analytics (mobil viewport, terk orani, sure)
+  - API ve frontend hata loglari (validasyon hatalari)
+  - QA regression checklist sonucu (yatay tasma kontrolu)
+- **Owner:**
+  - KPI takibi: Frontend lead + QA lead
+  - KPI raporlama: Sprint review'da tek sayfa ozet
+
 ---
 
 ## Faz 0 - Envanter ve Tasarim Kurallari (1-2 gun)
@@ -37,6 +49,12 @@ Bu dokuman, uygulamadaki giris/kayit alanlarini mobilde daha okunur, daha hizli 
 
 - Hangi ekranin hangi problemi oldugu netlesmis bir backlog
 - Uygulanabilir tasarim kurallari (spacing, typografi, breakpoint, action alanlari)
+
+### Faz 0 - Definition of Done
+
+- Kritik mobil ekran envanteri tamamlandi (ekran + sorun tipi + etki seviyesi)
+- `mobile-ui-guidelines.md` ilk surumu yayinlandi
+- KPI baseline olcumleri T0 icin kayda alindi
 
 ---
 
@@ -60,6 +78,12 @@ Bu dokuman, uygulamadaki giris/kayit alanlarini mobilde daha okunur, daha hizli 
 - Mobilde once "tek kolon + tam genislik kartlar"
 - Tablet ve ustunde kademeli grid
 - Sticky bolgelerde ust uste binme (z-index) denetimi
+
+### Faz 1 - Definition of Done
+
+- Ust tab/navigation alanlarinda min touch target 44px dogrulandi
+- Sticky alanlarin cakismazlik testi yapildi (modal/drawer/toolbar)
+- En az 3 farkli cihaz genisliginde yatay tasma smoke testi gecti
 
 ---
 
@@ -89,6 +113,12 @@ Bu dokuman, uygulamadaki giris/kayit alanlarini mobilde daha okunur, daha hizli 
 - Klavye acildiginda aksiyon butonlari erisilebilir
 - Tek elle kullanim icin ana aksiyonlar alt bolgede
 
+### Faz 2 - Definition of Done
+
+- Oncelikli formlarda sticky action bar davranisi standarda alindi
+- Form hata mesaji ve helper text konumlari tutarli hale geldi
+- Mobil klavye acikken ana aksiyonlara erisim testi gecti
+
 ---
 
 ## Faz 3 - Liste, Rapor ve Kart Bilgi Hiyerarsisi (3-4 gun)
@@ -107,6 +137,11 @@ Bu dokuman, uygulamadaki giris/kayit alanlarini mobilde daha okunur, daha hizli 
 
 ### Nerede yapilacak?
 
+- Sube detay gelir/gider/personel akislarinda mobil filtre ve liste hiyerarsisi:
+  - `src/modules/branch/components/BranchDetailTabs.tsx`
+  - `src/modules/branch/components/BranchDetailIncomeTab.tsx`
+  - `src/modules/branch/components/BranchDetailExpensesTab.tsx`
+  - `src/modules/branch/components/BranchDetailPersonnelTab.tsx`
 - Stok raporu:
   - `src/modules/reports/components/ReportStockStory.tsx`
   - `src/modules/reports/components/ReportsDetailTables.tsx`
@@ -124,6 +159,32 @@ Bu dokuman, uygulamadaki giris/kayit alanlarini mobilde daha okunur, daha hizli 
 - Filtre paneli semantigi standartlastirilacak:
   - "Filtreler" (detay) ve "Hizli filtreler" (quick actions) ayni grupta karistirilmamali
   - Aktif filtre sayisi + aktif filtre etiketleri mobilde her zaman gorunur olmali
+
+### Filtreler ve Hizli Filtreler - Onerilen UX standardi
+
+- **Detay filtreler (drawer)**
+  - Alanlar: Tarih araligi, ana kategori, odeme/settlement tipi, serbest arama (ekran ihtiyacina gore)
+  - Aksiyonlar: "Uygula", "Sifirla", "Kapat"
+  - Durum gostergesi: Filtre butonunda aktif filtre noktasi/rozeti
+  - Geri bildirim: Drawer kapaninca liste ustunde aktif filtre chip'leri gorunur
+- **Hizli filtreler (tek dokunus)**
+  - Minimum set: `Bugun`, `Tum tarihler`, `Yenile`
+  - Davranis: Hemen uygulanir, ek onay istemez
+  - Konum: Detay filtre panelinden ayri bir "Hizli islemler" grubu
+- **Aktif filtre gorunurlugu**
+  - Liste basliginin altinda aktif filtre ozeti zorunlu
+  - Tarih filtresi tek chip'te "Baslangic - Bitis" olarak gosterilir
+  - Kategori/odeme tipi ayri chip'lerde gosterilir
+  - Chip silme (x) aksiyonu varsa, tek filtreyi kaldirip listeyi aninda gunceller
+- **Kapsam acikligi**
+  - Filtre panelinde "Bu filtreler yalnizca asagidaki listeyi etkiler" metni bulunur
+  - Ustteki ozet kartlar ile alttaki liste filtre kapsam farki net ifade edilir
+
+### Faz 3 - Definition of Done
+
+- Gelir/Gider filtre alanlarinda "detay filtreler" ve "hizli filtreler" ayrimi net
+- Aktif filtre ozeti chip/etiket olarak drawer disinda gorunur
+- Mobil liste ekranlarinda birincil metrikler ilk bakista okunur
 
 ---
 
@@ -150,6 +211,12 @@ Bu dokuman, uygulamadaki giris/kayit alanlarini mobilde daha okunur, daha hizli 
 - CLS/LCP gozle gorulur sekilde iyilesmis
 - Form submit basarisizlik orani dusmus
 
+### Faz 4 - Definition of Done
+
+- Kritik mobil akislar icin regression checklist %100 tamamlandi
+- A11y temel kontrolleri (focus/label/kontrast/touch target) gecti
+- Performans takip metrikleri (LCP/CLS + liste render sureleri) hedefe yaklasti
+
 ---
 
 ## Is Dagilimi (Rol Bazli)
@@ -165,6 +232,17 @@ Bu dokuman, uygulamadaki giris/kayit alanlarini mobilde daha okunur, daha hizli 
 2. En cok kullanilan kayit formlari (personel + acil kayit)
 3. Stok/rapor kartlarinin mobil ozet yapisi
 4. Erisilebilirlik + performans sertlestirme
+
+## Yayin Stratejisi ve Risk Yonetimi
+
+- Buyuk degisiklikler tek seferde degil, modul bazli ve kademeli yayinlanacak.
+- Gerekli alanlarda feature flag veya kontrollu acilis (kullanici grubu/scope) tercih edilecek.
+- Her faz sonunda:
+  - 1 demo
+  - 1 UX geri bildirim turu
+  - 1 teknik risk go/no-go kontrolu
+- Rollback plani:
+  - UI regressions durumunda onceki stabil varyanta donulebilecek sekilde degisiklikler kucuk PR'lara bolunecek.
 
 ## Notlar
 

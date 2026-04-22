@@ -170,29 +170,62 @@ export function DocumentsHubScreen() {
     }
   };
 
-  const previewPane = !selectedRow ? (
+  const openSelectedInNewTab = () => {
+    if (!selectedRow) return;
+    setOpenError(null);
+    const opened = window.open(selectedRow.previewUrl, "_blank", "noopener,noreferrer");
+    if (!opened) {
+      setOpenError(t("documents.openPopupBlocked"));
+    }
+  };
+
+  const mobilePreviewBody = !selectedRow ? (
     <p className="text-sm text-zinc-500">{t("documents.empty")}</p>
+  ) : selectedRow.previewMode === "image" ? (
+    <img
+      src={selectedRow.previewUrl}
+      alt={selectedRow.subtitle}
+      className="h-full w-full rounded-lg border border-zinc-200 object-contain"
+    />
+  ) : selectedRow.previewMode === "pdf" ? (
+    <iframe
+      src={selectedRow.previewUrl}
+      title={selectedRow.subtitle}
+      className="h-full w-full rounded-lg border border-zinc-200"
+    />
+  ) : (
+    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600">
+      {t("documents.previewNotSupported")}
+    </div>
+  );
+
+  const previewBody = !selectedRow ? (
+    <p className="text-sm text-zinc-500">{t("documents.empty")}</p>
+  ) : selectedRow.previewMode === "image" ? (
+    <img
+      src={selectedRow.previewUrl}
+      alt={selectedRow.subtitle}
+      className="h-[48vh] w-full rounded-lg border border-zinc-200 object-contain"
+    />
+  ) : selectedRow.previewMode === "pdf" ? (
+    <iframe
+      src={selectedRow.previewUrl}
+      title={selectedRow.subtitle}
+      className="h-[52vh] w-full rounded-lg border border-zinc-200"
+    />
+  ) : (
+    <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600">
+      {t("documents.previewNotSupported")}
+    </div>
+  );
+
+  const previewPane = !selectedRow ? (
+    previewBody
   ) : (
     <div className="space-y-2">
       <p className="font-medium text-zinc-900">{selectedRow.title}</p>
       <p className="text-sm text-zinc-600">{selectedRow.subtitle}</p>
-      {selectedRow.previewMode === "image" ? (
-        <img
-          src={selectedRow.previewUrl}
-          alt={selectedRow.subtitle}
-          className="h-[48vh] w-full rounded-lg border border-zinc-200 object-contain"
-        />
-      ) : selectedRow.previewMode === "pdf" ? (
-        <iframe
-          src={selectedRow.previewUrl}
-          title={selectedRow.subtitle}
-          className="h-[52vh] w-full rounded-lg border border-zinc-200"
-        />
-      ) : (
-        <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600">
-          {t("documents.previewNotSupported")}
-        </div>
-      )}
+      {previewBody}
     </div>
   );
 
@@ -443,11 +476,37 @@ export function DocumentsHubScreen() {
         open={mobilePreviewOpen}
         onClose={() => setMobilePreviewOpen(false)}
         titleId="documents-mobile-preview-title"
-        title={t("documents.open")}
-        narrow
-        className="lg:hidden"
+        title={selectedRow?.title ?? t("documents.pageTitle")}
+        description={selectedRow?.subtitle}
+        closeButtonLabel={t("common.close")}
+        className="h-[100dvh] max-h-[100dvh] w-screen max-w-screen rounded-none border-0 lg:hidden"
+        wide
       >
-        <div className="p-1 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">{previewPane}</div>
+        <div className="flex h-full min-h-0 flex-col gap-3 p-1 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
+          <div className="min-h-0 flex-1">{mobilePreviewBody}</div>
+          {selectedRow ? (
+            <div className="mt-auto flex items-center justify-end gap-2 border-t border-zinc-100 pt-3">
+              <Button type="button" variant="secondary" onClick={openSelectedInNewTab}>
+                {t("documents.open")}
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                disabled={openingId === selectedRow.id}
+                onClick={() => {
+                  setOpenError(null);
+                  setOpeningId(selectedRow.id);
+                  void selectedRow
+                    .download()
+                    .catch((e) => setOpenError(toErrorMessage(e)))
+                    .finally(() => setOpeningId(null));
+                }}
+              >
+                {openingId === selectedRow.id ? t("common.loading") : t("documents.download")}
+              </Button>
+            </div>
+          ) : null}
+        </div>
       </Modal>
     </div>
   );

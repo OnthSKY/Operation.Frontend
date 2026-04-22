@@ -43,6 +43,7 @@ export const documents = {
   branchKindAgricultureCert: "Agriculture certificate",
   branchKindOther: "Other",
   open: "Open",
+  openPopupBlocked: "Your browser blocked the new tab. Please allow popups and try again.",
   download: "Download",
   previewNotSupported: "Preview is not supported for this file type. Use Open to view it.",
   vehicleInsurancePolicy: "Insurance policy",

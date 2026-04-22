@@ -43,6 +43,7 @@ export const documents = {
   branchKindAgricultureCert: "Tarım belgesi",
   branchKindOther: "Diğer",
   open: "Aç",
+  openPopupBlocked: "Tarayıcı yeni sekmeyi engelledi. Lütfen popup engelini kaldırıp tekrar deneyin.",
   download: "İndir",
   previewNotSupported: "Bu belge türü için önizleme desteklenmiyor. Aç ile görüntüleyebilirsiniz.",
   vehicleInsurancePolicy: "Sigorta poliçesi",
