@@ -97,12 +97,8 @@ export function DashboardCumulativeStorySection({
           </div>
         ) : null}
 
-        <p className="text-xs text-zinc-500 md:hidden">
-          {t("dashboard.storyMobileSwipeHint")}
-        </p>
-
       <div
-        className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch] md:grid md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:overflow-visible md:pb-0 md:snap-none"
+        className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
         aria-busy={overview.isPending ? true : undefined}
       >
         <DashboardStorySlide>
@@ -318,8 +314,8 @@ export function DashboardCumulativeStorySection({
             );
             return (
               <>
-                <div className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch] md:grid md:grid-cols-2 md:overflow-visible md:pb-0 md:snap-none">
-                  <div className="w-full max-md:w-[min(88vw,19rem)] max-md:shrink-0 max-md:snap-start rounded-lg border border-teal-100/90 bg-white/95 p-3 shadow-sm">
+                <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div className="w-full rounded-lg border border-teal-100/90 bg-white/95 p-3 shadow-sm">
                     <p className="text-[0.65rem] font-bold uppercase tracking-wide text-teal-900/75">
                       {t("dashboard.warehouseStockKindsLabel")}
                     </p>
@@ -327,7 +323,7 @@ export function DashboardCumulativeStorySection({
                       {ws.distinctProductCount}
                     </p>
                   </div>
-                  <div className="w-full max-md:w-[min(88vw,19rem)] max-md:shrink-0 max-md:snap-start rounded-lg border border-teal-100/90 bg-white/95 p-3 shadow-sm">
+                  <div className="w-full rounded-lg border border-teal-100/90 bg-white/95 p-3 shadow-sm">
                     <p className="text-[0.65rem] font-bold uppercase tracking-wide text-teal-900/75">
                       {t("dashboard.warehouseStockTotalUnitsLabel")}
                     </p>

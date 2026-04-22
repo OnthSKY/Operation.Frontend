@@ -152,6 +152,7 @@ export type WarehouseProductFlowRow = {
   warehouseName: string;
   productId: number | null;
   productName: string | null;
+  unit?: string | null;
   quantityIn: number;
   quantityOut: number;
   netQuantity: number;
@@ -161,6 +162,9 @@ export type WarehouseProductFlowRow = {
 export type BranchReceiptSummaryRow = {
   branchId: number;
   branchName: string;
+  productId?: number | null;
+  productName?: string | null;
+  unit?: string | null;
   totalQuantityReceived: number;
   receiptLineCount: number;
 };
@@ -170,6 +174,9 @@ export type WarehouseToBranchFlowRow = {
   warehouseName: string;
   branchId: number;
   branchName: string;
+  productId?: number | null;
+  productName?: string | null;
+  unit?: string | null;
   totalQuantity: number;
   movementLineCount: number;
 };
@@ -179,6 +186,7 @@ export type WarehouseOutboundProductRow = {
   warehouseName: string;
   productId: number | null;
   productName: string | null;
+  unit?: string | null;
   quantityOut: number;
 };
 

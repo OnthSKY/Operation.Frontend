@@ -163,8 +163,7 @@ export function ReportCashPatronHighlights({
 
   if (!branches.length || !maxDrawerBranch) return null;
 
-  const gridClass =
-    "mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch] lg:grid lg:grid-cols-2 lg:overflow-visible lg:pb-0 lg:snap-none xl:grid-cols-4";
+  const gridClass = "mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-4";
 
   return (
     <div className="rounded-2xl border border-zinc-200/80 bg-gradient-to-br from-violet-50/90 via-white to-fuchsia-50/40 p-4 shadow-sm ring-1 ring-violet-200/25 sm:p-5">
@@ -301,7 +300,6 @@ export function ReportCashPatronHighlights({
       <p className="mt-3 text-xs leading-snug text-zinc-600">
         {tpl(t("reports.cashPatronMaxDrawer"), { name: maxDrawerBranch.branchName })}
       </p>
-      <p className="mt-2 text-xs text-zinc-500 lg:hidden">{t("dashboard.storyMobileSwipeHint")}</p>
     </div>
   );
 }

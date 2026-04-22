@@ -55,7 +55,7 @@ export function DashboardRegisterDayFilterBar({
 
   const modeBtn = (active: boolean) =>
     cn(
-      "min-h-10 w-full min-w-0 touch-manipulation rounded-lg px-2 py-2 text-center text-xs font-semibold transition sm:text-sm",
+      "min-h-10 w-full min-w-[8rem] shrink-0 touch-manipulation rounded-lg px-3 py-2 text-center text-xs font-semibold whitespace-nowrap transition sm:min-w-0 sm:text-sm",
       active
         ? "bg-white text-zinc-900 shadow-sm"
         : "text-zinc-600 active:bg-zinc-200/80 hover:text-zinc-900"
@@ -69,39 +69,60 @@ export function DashboardRegisterDayFilterBar({
       <p className="mt-1 text-sm leading-relaxed text-zinc-600">
         {t("dashboard.scopeFilterBarHint")}
       </p>
-      <div
-        className="mt-3 grid w-full min-w-0 grid-cols-2 gap-1 rounded-xl border border-zinc-200/90 bg-zinc-100/85 p-1 sm:grid-cols-4"
-        role="group"
-        aria-label={t("dashboard.cashFilterModeAria")}
-      >
-        <button
-          type="button"
-          className={modeBtn(filterMode === "day")}
-          onClick={() => setFilterMode("day")}
+      <div className="relative mt-3">
+        <div
+          className="flex w-full min-w-0 gap-1 overflow-x-auto rounded-xl border border-zinc-200/90 bg-zinc-100/85 p-1 pr-14 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-4 sm:overflow-visible sm:pr-1"
+          role="group"
+          aria-label={t("dashboard.cashFilterModeAria")}
         >
-          {t("dashboard.cashFilterModeDay")}
-        </button>
-        <button
-          type="button"
-          className={modeBtn(filterMode === "season_single")}
-          onClick={() => setFilterMode("season_single")}
-        >
-          {t("dashboard.cashFilterModeSeasonSingle")}
-        </button>
-        <button
-          type="button"
-          className={modeBtn(filterMode === "season_range")}
-          onClick={() => setFilterMode("season_range")}
-        >
-          {t("dashboard.cashFilterModeSeasonRange")}
-        </button>
-        <button
-          type="button"
-          className={modeBtn(filterMode === "all_data")}
-          onClick={() => setFilterMode("all_data")}
-        >
-          {t("dashboard.cashFilterModeAllData")}
-        </button>
+          <button
+            type="button"
+            className={modeBtn(filterMode === "day")}
+            onClick={() => setFilterMode("day")}
+          >
+            {t("dashboard.cashFilterModeDay")}
+          </button>
+          <button
+            type="button"
+            className={modeBtn(filterMode === "season_single")}
+            onClick={() => setFilterMode("season_single")}
+          >
+            {t("dashboard.cashFilterModeSeasonSingle")}
+          </button>
+          <button
+            type="button"
+            className={modeBtn(filterMode === "season_range")}
+            onClick={() => setFilterMode("season_range")}
+          >
+            {t("dashboard.cashFilterModeSeasonRange")}
+          </button>
+          <button
+            type="button"
+            className={modeBtn(filterMode === "all_data")}
+            onClick={() => setFilterMode("all_data")}
+          >
+            {t("dashboard.cashFilterModeAllData")}
+          </button>
+        </div>
+        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center rounded-r-xl bg-gradient-to-l from-zinc-100/95 via-zinc-100/90 to-transparent pl-7 pr-2 sm:hidden">
+          <span
+            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-zinc-200/80 bg-white/85 text-zinc-500 shadow-sm animate-pulse"
+            aria-hidden
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </span>
+        </div>
       </div>
 
       {filterMode === "all_data" ? (

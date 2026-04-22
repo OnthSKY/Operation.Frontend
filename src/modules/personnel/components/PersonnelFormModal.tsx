@@ -13,6 +13,10 @@ import {
   formatLocaleAmount,
   parseLocaleAmount,
 } from "@/shared/lib/locale-amount";
+import {
+  personnelNationalIdPhotoUrl,
+  personnelProfilePhotoUrl,
+} from "@/modules/personnel/api/personnel-api";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { LocalImageFileThumb } from "@/shared/components/LocalImageFileThumb";
@@ -81,6 +85,26 @@ type Props = {
   initial: Personnel | null;
 };
 
+function ExistingPhotoThumb({
+  src,
+  alt,
+}: {
+  src: string;
+  alt: string;
+}) {
+  const [broken, setBroken] = useState(false);
+  if (broken) return null;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="h-24 w-full rounded-md border border-zinc-200 object-cover"
+      loading="lazy"
+      onError={() => setBroken(true)}
+    />
+  );
+}
+
 function hireDateForInput(iso: string): string {
   if (!iso) return "";
   const d = iso.slice(0, 10);
@@ -142,6 +166,7 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
     (isEdit ? updatePersonnel.isPending : createPersonnel.isPending) ||
     uploadNat.isPending ||
     uploadProf.isPending;
+  const photoNonce = initial?.id ?? 0;
 
   const {
     register,
@@ -892,6 +917,12 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
                     }}
                   />
                   <LocalImageFileThumb file={idPhotoFront} />
+                  {isEdit && initial?.hasNationalIdPhotoFront ? (
+                    <ExistingPhotoThumb
+                      src={`${personnelNationalIdPhotoUrl(initial.id, "front")}?v=${photoNonce}`}
+                      alt={t("personnel.nationalIdPhotosFront")}
+                    />
+                  ) : null}
                 </label>
                 <label className="flex min-h-10 cursor-pointer flex-col gap-1 rounded-lg border border-dashed border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-600 sm:flex-1">
                   <span className="font-medium text-zinc-800">
@@ -923,6 +954,12 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
                     }}
                   />
                   <LocalImageFileThumb file={idPhotoBack} />
+                  {isEdit && initial?.hasNationalIdPhotoBack ? (
+                    <ExistingPhotoThumb
+                      src={`${personnelNationalIdPhotoUrl(initial.id, "back")}?v=${photoNonce}`}
+                      alt={t("personnel.nationalIdPhotosBack")}
+                    />
+                  ) : null}
                 </label>
               </div>
             </div>
@@ -963,6 +1000,15 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
                     }}
                   />
                   <LocalImageFileThumb file={profilePhoto1} />
+                  {isEdit && initial?.hasProfilePhoto1 ? (
+                    <ExistingPhotoThumb
+                      src={`${personnelProfilePhotoUrl(initial.id, 1, {
+                        profilePhoto1Url: initial.profilePhoto1Url,
+                        profilePhoto2Url: initial.profilePhoto2Url,
+                      })}?v=${photoNonce}`}
+                      alt={t("personnel.profilePhotoSlot1")}
+                    />
+                  ) : null}
                 </label>
                 <label className="flex min-h-10 cursor-pointer flex-col gap-1 rounded-lg border border-dashed border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-600 sm:flex-1">
                   <span className="font-medium text-zinc-800">
@@ -994,6 +1040,15 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
                     }}
                   />
                   <LocalImageFileThumb file={profilePhoto2} />
+                  {isEdit && initial?.hasProfilePhoto2 ? (
+                    <ExistingPhotoThumb
+                      src={`${personnelProfilePhotoUrl(initial.id, 2, {
+                        profilePhoto1Url: initial.profilePhoto1Url,
+                        profilePhoto2Url: initial.profilePhoto2Url,
+                      })}?v=${photoNonce}`}
+                      alt={t("personnel.profilePhotoSlot2")}
+                    />
+                  ) : null}
                 </label>
               </div>
             </div>

@@ -265,6 +265,8 @@
   stockNotePartialWarehouseLink:
     "Some warehouse OUT volume is not tied to branch rows that include a warehouse link.",
   stockStoryUnknownProduct: "(unnamed product)",
+  stockQtyUnitFallback: "pcs",
+  stockQtyUnitGeneric: "units",
   stockStoryLinesAbbr: "lines",
   sectionWarehouseToBranch: "Warehouse â†’ branch (tracked)",
   sectionTopOutboundProducts: "Top outbound products (warehouse OUT)",

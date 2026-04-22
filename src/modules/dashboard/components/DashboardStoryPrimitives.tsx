@@ -33,9 +33,5 @@ export function StoryBlock({
 
 /** Narrow screens: horizontal snap “story” slides; md+ full width in grid parents. */
 export function DashboardStorySlide({ children }: { children: ReactNode }) {
-  return (
-    <div className="w-full max-md:w-[min(88vw,20rem)] max-md:shrink-0 max-md:snap-start md:min-w-0">
-      {children}
-    </div>
-  );
+  return <div className="w-full min-w-0">{children}</div>;
 }

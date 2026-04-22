@@ -811,6 +811,13 @@ export function PersonnelScreen() {
   const openEdit = (p: Personnel) => {
     setFormInitial(p);
     setFormOpen(true);
+    void fetchPersonnel(p.id)
+      .then((full) => {
+        setFormInitial((prev) => (prev && prev.id === p.id ? full : prev));
+      })
+      .catch(() => {
+        // Keep list row fallback if detail fetch fails.
+      });
   };
 
   const closeForm = () => {

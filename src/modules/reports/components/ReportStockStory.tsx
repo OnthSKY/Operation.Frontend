@@ -12,14 +12,25 @@ type Props = { data: StockReport };
 
 function StockStorySectionCard({
   title,
+  icon,
+  toneClassName = "text-violet-700",
   children,
 }: {
   title: string;
+  icon: string;
+  toneClassName?: string;
   children: ReactNode;
 }) {
   return (
     <div className="flex h-full min-h-[6.5rem] flex-col rounded-xl border border-zinc-200/85 bg-white p-4 shadow-sm ring-1 ring-zinc-100/90">
-      <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-violet-700">{title}</p>
+      <div className="flex items-center gap-2">
+        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-zinc-50 text-sm">
+          {icon}
+        </span>
+        <p className={cn("text-[0.65rem] font-bold uppercase tracking-[0.14em]", toneClassName)}>
+          {title}
+        </p>
+      </div>
       <div className="mt-2.5 min-w-0 flex-1 text-sm leading-relaxed text-zinc-800">{children}</div>
     </div>
   );
@@ -43,6 +54,15 @@ export function ReportStockStory({ data }: Props) {
         maximumFractionDigits: 2,
       }),
     [locale]
+  );
+  const formatQtyWithUnit = useCallback(
+    (qty: number, unit?: string | null, fallbackUnit?: string) => {
+      const unitNorm = String(unit ?? "").trim();
+      if (unitNorm.length > 0) return `${fmtQty(qty)} ${unitNorm}`;
+      if (fallbackUnit) return `${fmtQty(qty)} ${fallbackUnit}`;
+      return fmtQty(qty);
+    },
+    [fmtQty]
   );
 
   const periodLabel = useMemo(() => {
@@ -81,6 +101,57 @@ export function ReportStockStory({ data }: Props) {
     const topRoute = flows[0];
     const topProd = outbound[0];
     const topBr = branches[0];
+    const topProductsAtBusiest = busiest
+      ? (data.topProductFlows ?? [])
+          .filter(
+            (p) =>
+              p.warehouseId === busiest.warehouseId &&
+              p.turnover > 0 &&
+              (p.productName?.trim() ?? "") !== ""
+          )
+          .sort((a, b) => b.turnover - a.turnover)
+          .slice(0, 3)
+      : [];
+    const topOutboundAtMostOutWh = mostOutWh
+      ? outbound
+          .filter(
+            (p) =>
+              p.warehouseId === mostOutWh.warehouseId &&
+              p.quantityOut > 0 &&
+              (p.productName?.trim() ?? "") !== ""
+          )
+          .sort((a, b) => b.quantityOut - a.quantityOut)
+          .slice(0, 3)
+      : [];
+    const topRouteProductMix = topRoute
+      ? flows
+          .filter(
+            (f) =>
+              f.warehouseId === topRoute.warehouseId &&
+              f.branchId === topRoute.branchId &&
+              f.totalQuantity > 0
+          )
+          .sort((a, b) => b.totalQuantity - a.totalQuantity)
+          .slice(0, 4)
+      : [];
+    const topFlowRoutes = flows
+      .filter((f) => f.totalQuantity > 0)
+      .sort((a, b) => b.totalQuantity - a.totalQuantity)
+      .slice(0, 4);
+    const topOutboundProducts = outbound
+      .filter((p) => p.quantityOut > 0)
+      .sort((a, b) => b.quantityOut - a.quantityOut)
+      .slice(0, 4);
+    const topBranchProductMix = topBr
+      ? branches
+          .filter((b) => b.branchId === topBr.branchId && b.totalQuantityReceived > 0)
+          .sort((a, b) => b.totalQuantityReceived - a.totalQuantityReceived)
+          .slice(0, 4)
+      : [];
+    const topInboundBranches = branches
+      .filter((b) => b.totalQuantityReceived > 0)
+      .sort((a, b) => b.totalQuantityReceived - a.totalQuantityReceived)
+      .slice(0, 4);
 
     const hasWhActivity = wh.length > 0 && (sumIn > 0 || sumOut > 0 || sumMove > 0);
     const hasBranchInbound = branches.some((b) => b.totalQuantityReceived > 0);
@@ -110,6 +181,13 @@ export function ReportStockStory({ data }: Props) {
       topProd,
       topBr,
       flows,
+      topProductsAtBusiest,
+      topOutboundAtMostOutWh,
+      topRouteProductMix,
+      topFlowRoutes,
+      topOutboundProducts,
+      topBranchProductMix,
+      topInboundBranches,
       hasWhActivity,
       hasBranchInbound,
       hasFlows,
@@ -129,6 +207,13 @@ export function ReportStockStory({ data }: Props) {
     topProd,
     topBr,
     flows,
+    topProductsAtBusiest,
+    topOutboundAtMostOutWh,
+    topRouteProductMix,
+    topFlowRoutes,
+    topOutboundProducts,
+    topBranchProductMix,
+    topInboundBranches,
     hasWhActivity,
     hasBranchInbound,
     hasFlows,
@@ -154,6 +239,7 @@ export function ReportStockStory({ data }: Props) {
 
   const kpiClass =
     "rounded-xl border border-zinc-200/90 bg-zinc-50/80 px-3 py-2.5 text-center sm:px-4 sm:py-3";
+  const keyValueClass = "text-xl font-semibold tabular-nums text-zinc-900";
 
   return (
     <Card
@@ -214,40 +300,123 @@ export function ReportStockStory({ data }: Props) {
 
       <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2">
         {hasWhActivity && busiest && busiest.quantityIn + busiest.quantityOut > 0 ? (
-          <StockStorySectionCard title={t("reports.stockSecWarehouses")}>
+          <StockStorySectionCard
+            title={t("reports.stockSecWarehouses")}
+            icon="🏬"
+            toneClassName="text-violet-700"
+          >
             <div className="space-y-2">
-              <p>
-                {tpl(t("reports.stockSentenceBusiest"), {
-                  name: busiest.warehouseName,
-                  qty: fmtQty(busiest.quantityIn + busiest.quantityOut),
-                })}
+              <p className={keyValueClass}>
+                {formatQtyWithUnit(
+                  busiest.quantityIn + busiest.quantityOut,
+                  null,
+                  t("reports.stockQtyUnitGeneric")
+                )}
               </p>
+              <p className="text-sm text-zinc-700">
+                <span className="font-medium text-zinc-900">{busiest.warehouseName}</span>{" "}
+                en yoğun işlem hacmi.
+              </p>
+              {topProductsAtBusiest.length > 0 ? (
+                <ul className="space-y-1 rounded-lg border border-zinc-200/80 bg-zinc-50/70 px-2.5 py-2 text-xs text-zinc-700">
+                  {topProductsAtBusiest.map((p) => (
+                    <li
+                      key={`${p.warehouseId}-${p.productId ?? p.productName ?? "x"}`}
+                      className="flex items-center justify-between gap-2"
+                    >
+                      <span className="truncate">
+                        {p.productName?.trim() || t("reports.stockStoryUnknownProduct")}
+                      </span>
+                      <span className="shrink-0 tabular-nums font-medium text-zinc-900">
+                        {formatQtyWithUnit(
+                          p.turnover,
+                          p.unit,
+                          t("reports.stockQtyUnitGeneric")
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               {mostOutWh && mostOutWh.quantityOut > 0 ? (
-                <p>
-                  {tpl(t("reports.stockSentenceMostOut"), {
-                    name: mostOutWh.warehouseName,
-                    qty: fmtQty(mostOutWh.quantityOut),
-                  })}
+                <p className="text-sm text-zinc-600">
+                  En yüksek çıkış:{" "}
+                  <span className="font-medium text-zinc-900">{mostOutWh.warehouseName}</span>{" "}
+                  (
+                  {formatQtyWithUnit(
+                    mostOutWh.quantityOut,
+                    null,
+                    t("reports.stockQtyUnitGeneric")
+                  )}
+                  ).
                 </p>
+              ) : null}
+              {topOutboundAtMostOutWh.length > 0 ? (
+                <ul className="space-y-1 text-xs text-zinc-600">
+                  {topOutboundAtMostOutWh.map((p) => (
+                    <li key={`${p.warehouseId}-${p.productId ?? p.productName ?? "x"}-out`}>
+                      {p.productName?.trim() || t("reports.stockStoryUnknownProduct")} ·{" "}
+                      {formatQtyWithUnit(
+                        p.quantityOut,
+                        p.unit,
+                        t("reports.stockQtyUnitGeneric")
+                      )}
+                    </li>
+                  ))}
+                </ul>
               ) : null}
             </div>
           </StockStorySectionCard>
         ) : null}
 
         {hasFlows && topRoute && topRoute.totalQuantity > 0 ? (
-          <StockStorySectionCard title={t("reports.stockSecLanes")}>
+          <StockStorySectionCard
+            title={t("reports.stockSecLanes")}
+            icon="🔁"
+            toneClassName="text-indigo-700"
+          >
             <div>
-              <p>
-                {tpl(t("reports.stockSentenceTopLane"), {
-                  wh: topRoute.warehouseName,
-                  br: topRoute.branchName,
-                  qty: fmtQty(topRoute.totalQuantity),
-                  lines: topRoute.movementLineCount,
-                })}
+              <p className={keyValueClass}>
+                {formatQtyWithUnit(topRoute.totalQuantity, null, t("reports.stockQtyUnitGeneric"))}
               </p>
-              {flows.length > 1 ? (
-                <ol className="mt-3 space-y-2 border-l-2 border-violet-200/90 pl-3 text-sm text-zinc-700">
-                  {flows.slice(0, 5).map((r, idx) => (
+              <p className="mt-1 text-sm text-zinc-700">
+                <span className="font-medium text-zinc-900">{topRoute.warehouseName}</span>
+                <span className="text-zinc-400"> → </span>
+                <span className="font-medium text-zinc-900">{topRoute.branchName}</span>
+              </p>
+              <p className="text-sm text-zinc-600">
+                {topRoute.productName?.trim() || t("reports.stockStoryUnknownProduct")}
+              </p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Bu hatta ürün dağılımı
+              </p>
+              {topRouteProductMix.length > 0 ? (
+                <ul className="space-y-1 rounded-lg border border-zinc-200/80 bg-zinc-50/70 px-2.5 py-2 text-xs text-zinc-700">
+                  {topRouteProductMix.map((r, idx) => (
+                    <li
+                      key={`${r.warehouseId}-${r.branchId}-${r.productId ?? idx}-mix`}
+                      className="flex items-center justify-between gap-2"
+                    >
+                      <span className="truncate">
+                        {r.productName?.trim() || t("reports.stockStoryUnknownProduct")}
+                      </span>
+                      <span className="shrink-0 tabular-nums font-medium text-zinc-900">
+                        {formatQtyWithUnit(
+                          r.totalQuantity,
+                          r.unit,
+                          t("reports.stockQtyUnitGeneric")
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                Güçlü hatlar
+              </p>
+              {topFlowRoutes.length > 0 ? (
+                <ol className="space-y-2 border-l-2 border-violet-200/90 pl-3 text-sm text-zinc-700">
+                  {topFlowRoutes.map((r, idx) => (
                     <li
                       key={`${r.warehouseId}-${r.branchId}-${idx}`}
                       className="tabular-nums"
@@ -259,7 +428,13 @@ export function ReportStockStory({ data }: Props) {
                       <span>{r.branchName}</span>
                       <span className="text-zinc-500">
                         {" "}
-                        · {fmtQty(r.totalQuantity)} ({r.movementLineCount}{" "}
+                        · {r.productName?.trim() || t("reports.stockStoryUnknownProduct")}
+                      </span>
+                      <span className="text-zinc-500">
+                        {" "}
+                        ·{" "}
+                        {formatQtyWithUnit(r.totalQuantity, r.unit, t("reports.stockQtyUnitGeneric"))} (
+                        {r.movementLineCount}{" "}
                         {t("reports.stockStoryLinesAbbr")})
                       </span>
                     </li>
@@ -271,27 +446,116 @@ export function ReportStockStory({ data }: Props) {
         ) : null}
 
         {hasOutbound && topProd && topProd.quantityOut > 0 ? (
-          <StockStorySectionCard title={t("reports.stockSecProducts")}>
-            <p>
-              {tpl(t("reports.stockSentenceTopProduct"), {
-                prod:
-                  topProd.productName?.trim() ||
-                  t("reports.stockStoryUnknownProduct"),
-                wh: topProd.warehouseName,
-                qty: fmtQty(topProd.quantityOut),
-              })}
+          <StockStorySectionCard
+            title={t("reports.stockSecProducts")}
+            icon="📦"
+            toneClassName="text-purple-700"
+          >
+            <p className={keyValueClass}>
+              {formatQtyWithUnit(
+                topProd.quantityOut,
+                topProd.unit,
+                t("reports.stockQtyUnitGeneric")
+              )}
             </p>
+            <p className="mt-1 text-sm text-zinc-700">
+              <span className="font-medium text-zinc-900">
+                {topProd.productName?.trim() || t("reports.stockStoryUnknownProduct")}
+              </span>
+            </p>
+            <p className="text-sm text-zinc-600">{topProd.warehouseName} çıkışta lider.</p>
+            <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Çıkışta ilk ürünler
+            </p>
+            {topOutboundProducts.length > 0 ? (
+              <ul className="space-y-1 rounded-lg border border-zinc-200/80 bg-zinc-50/70 px-2.5 py-2 text-xs text-zinc-700">
+                {topOutboundProducts.map((p) => (
+                  <li
+                    key={`${p.warehouseId}-${p.productId ?? p.productName ?? "x"}-topout`}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <span className="min-w-0 truncate">
+                      {p.productName?.trim() || t("reports.stockStoryUnknownProduct")}
+                      <span className="text-zinc-500"> · {p.warehouseName}</span>
+                    </span>
+                    <span className="shrink-0 tabular-nums font-medium text-zinc-900">
+                      {formatQtyWithUnit(
+                        p.quantityOut,
+                        p.unit,
+                        t("reports.stockQtyUnitGeneric")
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </StockStorySectionCard>
         ) : null}
 
         {hasBranchInbound && topBr && topBr.totalQuantityReceived > 0 ? (
-          <StockStorySectionCard title={t("reports.stockSecBranches")}>
-            <p>
-              {tpl(t("reports.stockSentenceTopBranch"), {
-                name: topBr.branchName,
-                qty: fmtQty(topBr.totalQuantityReceived),
-              })}
+          <StockStorySectionCard
+            title={t("reports.stockSecBranches")}
+            icon="🏪"
+            toneClassName="text-fuchsia-700"
+          >
+            <p className={keyValueClass}>
+              {formatQtyWithUnit(
+                topBr.totalQuantityReceived,
+                topBr.unit,
+                t("reports.stockQtyUnitGeneric")
+              )}
             </p>
+            <p className="mt-1 text-sm text-zinc-700">
+              <span className="font-medium text-zinc-900">{topBr.branchName}</span> en çok mal
+              girişi alan şube.
+            </p>
+            <p className="text-sm text-zinc-600">
+              {topBr.productName?.trim() || t("reports.stockStoryUnknownProduct")}
+            </p>
+            <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              Bu şubede öne çıkan ürünler
+            </p>
+            {topBranchProductMix.length > 0 ? (
+              <ul className="space-y-1 rounded-lg border border-zinc-200/80 bg-zinc-50/70 px-2.5 py-2 text-xs text-zinc-700">
+                {topBranchProductMix.map((p, idx) => (
+                  <li
+                    key={`${p.branchId}-${p.productId ?? p.productName ?? idx}-branchmix`}
+                    className="flex items-center justify-between gap-2"
+                  >
+                    <span className="truncate">
+                      {p.productName?.trim() || t("reports.stockStoryUnknownProduct")}
+                    </span>
+                    <span className="shrink-0 tabular-nums font-medium text-zinc-900">
+                      {formatQtyWithUnit(
+                        p.totalQuantityReceived,
+                        p.unit,
+                        t("reports.stockQtyUnitGeneric")
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              En çok alan şubeler
+            </p>
+            {topInboundBranches.length > 0 ? (
+              <ul className="space-y-1 text-xs text-zinc-600">
+                {topInboundBranches.map((b, idx) => (
+                  <li key={`${b.branchId}-${idx}`}>
+                    <span className="font-medium text-zinc-800">{b.branchName}</span> ·{" "}
+                    {formatQtyWithUnit(
+                      b.totalQuantityReceived,
+                      b.unit,
+                      t("reports.stockQtyUnitGeneric")
+                    )}
+                    {b.productName?.trim() ? (
+                      <span className="text-zinc-500"> ({b.productName})</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </StockStorySectionCard>
         ) : null}
       </div>

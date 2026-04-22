@@ -105,7 +105,7 @@ export function DashboardOperationsTab({
                   const ws = normalizeWarehouseStock(overview.data?.operations?.warehouseStock);
                   return (
                     <>
-                      <div className="mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch] md:grid md:grid-cols-2 md:overflow-visible md:pb-0 md:snap-none">
+                      <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
                         <DashboardStorySlide>
                           <div className="rounded-lg border border-teal-100/90 bg-white/95 p-3 shadow-sm">
                             <p className="text-[0.65rem] font-bold uppercase tracking-wide text-teal-900/75">

@@ -163,7 +163,7 @@ export function DashboardScreen() {
   }, [bulkParams, isCalendarToday, snapshotDateLabel, t]);
 
   const tabBtn = (active: boolean) =>
-    `min-h-11 w-full min-w-0 touch-manipulation rounded-lg px-1.5 py-2 text-center text-xs font-semibold transition sm:min-h-10 sm:px-2 sm:text-sm lg:flex-1 ${
+    `min-h-11 w-full min-w-[8.5rem] shrink-0 touch-manipulation rounded-lg px-3 py-2 text-center text-xs font-semibold whitespace-nowrap transition sm:min-h-10 sm:min-w-0 sm:px-2 sm:text-sm lg:flex-1 ${
       active
         ? "bg-white text-zinc-900 shadow-sm"
         : "text-zinc-600 active:bg-zinc-200/80 sm:hover:text-zinc-900"
@@ -202,68 +202,89 @@ export function DashboardScreen() {
         }
         main={
           <div className="min-w-0 w-full space-y-4 sm:space-y-5">
-            <div
-              className="sticky top-2 z-10 grid w-full min-w-0 grid-cols-2 gap-1.5 rounded-xl border border-zinc-200/80 bg-zinc-50/95 p-1.5 shadow-sm backdrop-blur-sm sm:grid-cols-3 sm:gap-2 lg:flex lg:flex-nowrap lg:p-2"
-              role="tablist"
-              aria-label={t("dashboard.tabsAria")}
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mainTab === "summary"}
-                onClick={() => setMainTab("summary")}
-                className={tabBtn(mainTab === "summary")}
+            <div className="sticky top-2 z-10">
+              <div
+                className="flex w-full min-w-0 gap-1.5 overflow-x-auto rounded-xl border border-zinc-200/80 bg-zinc-50/95 p-1.5 pr-16 shadow-sm backdrop-blur-sm [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-3 sm:overflow-visible sm:pr-1.5 lg:flex lg:flex-nowrap lg:p-2"
+                role="tablist"
+                aria-label={t("dashboard.tabsAria")}
               >
-                {t("dashboard.storyFlowNavStory")}
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mainTab === "finance"}
-                onClick={() => {
-                  setMainTab("finance");
-                  if (cashFilterMode === "all_data") setCashFilterMode("day");
-                }}
-                className={tabBtn(mainTab === "finance")}
-              >
-                {t("dashboard.storyFlowNavFinance")}
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mainTab === "personnel"}
-                onClick={() => setMainTab("personnel")}
-                className={tabBtn(mainTab === "personnel")}
-              >
-                {t("dashboard.storyFlowNavPersonnel")}
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mainTab === "operations"}
-                onClick={() => setMainTab("operations")}
-                className={tabBtn(mainTab === "operations")}
-              >
-                {t("dashboard.storyFlowNavOps")}
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mainTab === "operations_registry"}
-                onClick={() => setMainTab("operations_registry")}
-                className={tabBtn(mainTab === "operations_registry")}
-              >
-                {t("dashboard.storyFlowNavRegistry")}
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={mainTab === "reports"}
-                onClick={() => setMainTab("reports")}
-                className={tabBtn(mainTab === "reports")}
-              >
-                {t("dashboard.storyFlowNavReports")}
-              </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mainTab === "summary"}
+                  onClick={() => setMainTab("summary")}
+                  className={tabBtn(mainTab === "summary")}
+                >
+                  {t("dashboard.storyFlowNavStory")}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mainTab === "finance"}
+                  onClick={() => {
+                    setMainTab("finance");
+                    if (cashFilterMode === "all_data") setCashFilterMode("day");
+                  }}
+                  className={tabBtn(mainTab === "finance")}
+                >
+                  {t("dashboard.storyFlowNavFinance")}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mainTab === "personnel"}
+                  onClick={() => setMainTab("personnel")}
+                  className={tabBtn(mainTab === "personnel")}
+                >
+                  {t("dashboard.storyFlowNavPersonnel")}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mainTab === "operations"}
+                  onClick={() => setMainTab("operations")}
+                  className={tabBtn(mainTab === "operations")}
+                >
+                  {t("dashboard.storyFlowNavOps")}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mainTab === "operations_registry"}
+                  onClick={() => setMainTab("operations_registry")}
+                  className={tabBtn(mainTab === "operations_registry")}
+                >
+                  {t("dashboard.storyFlowNavRegistry")}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mainTab === "reports"}
+                  onClick={() => setMainTab("reports")}
+                  className={tabBtn(mainTab === "reports")}
+                >
+                  {t("dashboard.storyFlowNavReports")}
+                </button>
+              </div>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center rounded-r-xl bg-gradient-to-l from-zinc-50/95 via-zinc-50/85 to-transparent pl-8 pr-2 sm:hidden">
+                <span
+                  className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-zinc-200/80 bg-white/85 text-zinc-500 shadow-sm animate-pulse"
+                  aria-hidden
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="m9 18 6-6-6-6" />
+                  </svg>
+                </span>
+              </div>
             </div>
 
             {mainTab === "summary" || mainTab === "finance" ? (

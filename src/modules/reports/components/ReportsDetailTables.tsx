@@ -1314,6 +1314,10 @@ export function StockReportDetailTables({
   const nLocale = locale === "tr" ? "tr-TR" : "en-US";
   const fmt = (n: number) =>
     n.toLocaleString(nLocale, { maximumFractionDigits: 2 });
+  const fmtQty = (qty: number, unit?: string | null) => {
+    const u = String(unit ?? "").trim();
+    return u ? `${fmt(qty)} ${u}` : `${fmt(qty)} ${t("reports.stockQtyUnitGeneric")}`;
+  };
   const warehouseToBranchFlows = data.warehouseToBranchFlows ?? [];
   const topOutboundProducts = data.topOutboundProducts ?? [];
 
@@ -1440,15 +1444,20 @@ export function StockReportDetailTables({
           defaultSortKey="qty"
           sortOptions={[
             { id: "warehouse", label: t("reports.colWarehouse") },
+            { id: "product", label: t("reports.colProduct") },
             { id: "branch", label: t("reports.colBranch") },
             { id: "qty", label: t("reports.colReceiptQty") },
             { id: "lines", label: t("reports.colRouteLines") },
           ]}
-          getSearchHaystack={(r) => `${r.warehouseName} ${r.branchName}`}
+          getSearchHaystack={(r) =>
+            `${r.warehouseName} ${r.branchName} ${r.productName ?? ""}`
+          }
           getSortValue={(r, key) => {
             switch (key) {
               case "warehouse":
                 return r.warehouseName;
+              case "product":
+                return r.productName ?? "";
               case "branch":
                 return r.branchName;
               case "qty":
@@ -1481,11 +1490,14 @@ export function StockReportDetailTables({
                         <MobileKv label={t("reports.colBranch")}>
                           {r.branchName}
                         </MobileKv>
+                        <MobileKv label={t("reports.colProduct")}>
+                          {r.productName ?? "—"}
+                        </MobileKv>
                         <MobileKv
                           label={t("reports.colReceiptQty")}
                           valueClassName="tabular-nums"
                         >
-                          {fmt(r.totalQuantity)}
+                          {fmtQty(r.totalQuantity, r.unit)}
                         </MobileKv>
                         <MobileKv
                           label={t("reports.colRouteLines")}
@@ -1502,6 +1514,7 @@ export function StockReportDetailTables({
                         <tr>
                           <th className={th}>{t("reports.colWarehouse")}</th>
                           <th className={th}>{t("reports.colBranch")}</th>
+                          <th className={th}>{t("reports.colProduct")}</th>
                           <th className={th}>{t("reports.colReceiptQty")}</th>
                           <th className={th}>{t("reports.colRouteLines")}</th>
                         </tr>
@@ -1511,8 +1524,9 @@ export function StockReportDetailTables({
                           <tr key={`${r.warehouseId}-${r.branchId}-${idx}`}>
                             <td className={td}>{r.warehouseName}</td>
                             <td className={td}>{r.branchName}</td>
+                            <td className={td}>{r.productName ?? "—"}</td>
                             <td className={`${td} tabular-nums`}>
-                              {fmt(r.totalQuantity)}
+                              {fmtQty(r.totalQuantity, r.unit)}
                             </td>
                             <td className={`${td} tabular-nums`}>
                               {r.movementLineCount}
@@ -1582,7 +1596,7 @@ export function StockReportDetailTables({
                           label={t("reports.colQtyOut")}
                           valueClassName="tabular-nums"
                         >
-                          {fmt(r.quantityOut)}
+                          {fmtQty(r.quantityOut, r.unit)}
                         </MobileKv>
                       </MobileCard>
                     ))}
@@ -1604,7 +1618,7 @@ export function StockReportDetailTables({
                             <td className={td}>{r.warehouseName}</td>
                             <td className={td}>{r.productName ?? "—"}</td>
                             <td className={`${td} tabular-nums`}>
-                              {fmt(r.quantityOut)}
+                              {fmtQty(r.quantityOut, r.unit)}
                             </td>
                           </tr>
                         ))}
@@ -1680,25 +1694,25 @@ export function StockReportDetailTables({
                           label={t("reports.colQtyIn")}
                           valueClassName="tabular-nums"
                         >
-                          {fmt(r.quantityIn)}
+                          {fmtQty(r.quantityIn, r.unit)}
                         </MobileKv>
                         <MobileKv
                           label={t("reports.colQtyOut")}
                           valueClassName="tabular-nums"
                         >
-                          {fmt(r.quantityOut)}
+                          {fmtQty(r.quantityOut, r.unit)}
                         </MobileKv>
                         <MobileKv
                           label={t("reports.colNetQty")}
                           valueClassName="tabular-nums"
                         >
-                          {fmt(r.netQuantity)}
+                          {fmtQty(r.netQuantity, r.unit)}
                         </MobileKv>
                         <MobileKv
                           label={t("reports.colTurnover")}
                           valueClassName="tabular-nums"
                         >
-                          {fmt(r.turnover)}
+                          {fmtQty(r.turnover, r.unit)}
                         </MobileKv>
                       </MobileCard>
                     ))}
@@ -1723,16 +1737,16 @@ export function StockReportDetailTables({
                             <td className={td}>{r.warehouseName}</td>
                             <td className={td}>{r.productName ?? "—"}</td>
                             <td className={`${td} tabular-nums`}>
-                              {fmt(r.quantityIn)}
+                              {fmtQty(r.quantityIn, r.unit)}
                             </td>
                             <td className={`${td} tabular-nums`}>
-                              {fmt(r.quantityOut)}
+                              {fmtQty(r.quantityOut, r.unit)}
                             </td>
                             <td className={`${td} tabular-nums`}>
-                              {fmt(r.netQuantity)}
+                              {fmtQty(r.netQuantity, r.unit)}
                             </td>
                             <td className={`${td} tabular-nums`}>
-                              {fmt(r.turnover)}
+                              {fmtQty(r.turnover, r.unit)}
                             </td>
                           </tr>
                         ))}
@@ -1753,14 +1767,17 @@ export function StockReportDetailTables({
           defaultSortKey="qty"
           sortOptions={[
             { id: "branch", label: t("reports.colBranch") },
+            { id: "product", label: t("reports.colProduct") },
             { id: "qty", label: t("reports.colReceiptQty") },
             { id: "lines", label: t("reports.colReceiptLines") },
           ]}
-          getSearchHaystack={(r) => r.branchName}
+          getSearchHaystack={(r) => `${r.branchName} ${r.productName ?? ""}`}
           getSortValue={(r, key) => {
             switch (key) {
               case "branch":
                 return r.branchName;
+              case "product":
+                return r.productName ?? "";
               case "qty":
                 return r.totalQuantityReceived;
               case "lines":
@@ -1788,11 +1805,14 @@ export function StockReportDetailTables({
                         <MobileKv label={t("reports.colBranch")}>
                           {r.branchName}
                         </MobileKv>
+                        <MobileKv label={t("reports.colProduct")}>
+                          {r.productName ?? "—"}
+                        </MobileKv>
                         <MobileKv
                           label={t("reports.colReceiptQty")}
                           valueClassName="tabular-nums"
                         >
-                          {fmt(r.totalQuantityReceived)}
+                          {fmtQty(r.totalQuantityReceived, r.unit)}
                         </MobileKv>
                         <MobileKv
                           label={t("reports.colReceiptLines")}
@@ -1808,6 +1828,7 @@ export function StockReportDetailTables({
                       <thead>
                         <tr>
                           <th className={th}>{t("reports.colBranch")}</th>
+                          <th className={th}>{t("reports.colProduct")}</th>
                           <th className={th}>{t("reports.colReceiptQty")}</th>
                           <th className={th}>{t("reports.colReceiptLines")}</th>
                         </tr>
@@ -1816,8 +1837,9 @@ export function StockReportDetailTables({
                         {displayRows.map((r) => (
                           <tr key={r.branchId}>
                             <td className={td}>{r.branchName}</td>
+                            <td className={td}>{r.productName ?? "—"}</td>
                             <td className={`${td} tabular-nums`}>
-                              {fmt(r.totalQuantityReceived)}
+                              {fmtQty(r.totalQuantityReceived, r.unit)}
                             </td>
                             <td className={`${td} tabular-nums`}>
                               {r.receiptLineCount}

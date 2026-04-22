@@ -266,6 +266,8 @@
   stockNotePartialWarehouseLink:
     "Depo çıkışının bir kısmı, şube girişlerinde depo bağlantısı olmayan satırlarla eşleşmiyor.",
   stockStoryUnknownProduct: "(adı olmayan ürün)",
+  stockQtyUnitFallback: "adet",
+  stockQtyUnitGeneric: "birim",
   stockStoryLinesAbbr: "satır",
   sectionWarehouseToBranch: "Depo → şube (izlenen transferler)",
   sectionTopOutboundProducts: "En çok çıkan ürünler (depo OUT)",
