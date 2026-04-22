@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 type MobileListProps<T> = {
   items: T[];
   renderItem: (item: T, index: number) => ReactNode;
+  getKey: (item: T, index: number) => string | number;
   loading?: boolean;
   empty?: ReactNode;
   className?: string;
@@ -13,6 +14,7 @@ type MobileListProps<T> = {
 export function MobileList<T>({
   items,
   renderItem,
+  getKey,
   loading = false,
   empty = null,
   className,
@@ -31,7 +33,11 @@ export function MobileList<T>({
 
   return (
     <div className={className}>
-      <div className="space-y-2">{items.map((item, index) => renderItem(item, index))}</div>
+      <div className="space-y-2">
+        {items.map((item, index) => (
+          <div key={getKey(item, index)}>{renderItem(item, index)}</div>
+        ))}
+      </div>
     </div>
   );
 }

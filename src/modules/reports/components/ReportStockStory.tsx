@@ -34,7 +34,11 @@ function StockStorySectionCard({
           </span>
         </span>
       }
-      primary={<div className="min-w-0 flex-1 text-sm leading-relaxed text-zinc-800">{children}</div>}
+      primaryFields={[
+        <div key="content" className="min-w-0 flex-1 text-sm leading-relaxed text-zinc-800">
+          {children}
+        </div>,
+      ]}
       className="h-full min-h-[6.5rem] ring-1 ring-zinc-100/90"
     />
   );

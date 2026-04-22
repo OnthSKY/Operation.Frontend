@@ -30,7 +30,7 @@ import {
 import { BranchRegisterTourismSeasonStrip } from "@/modules/branch/components/BranchRegisterTourismSeasonStrip";
 import { branchTourismSeasonDeepLink } from "@/modules/branch/lib/branch-tourism-season-nav";
 import { CollapsibleInsightSection } from "@/modules/branch/components/CollapsibleInsightSection";
-import type { Dispatch, SetStateAction } from "react";
+import { useMemo, type Dispatch, type SetStateAction } from "react";
 import type { UseMutationResult } from "@tanstack/react-query";
 import {
   BranchTxIncomeDeleteRow,
@@ -263,6 +263,23 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
     (hasIncDateFilters ? 1 : 0) +
     (hasIncMainFilter ? 1 : 0) +
     (hasIncCashFilter ? 1 : 0);
+  const unifiedFilters = useMemo(
+    () => ({
+      from: incFrom,
+      to: incTo,
+      main: incFilterMain,
+      cash: incFilterCash,
+    }),
+    [incFrom, incTo, incFilterMain, incFilterCash]
+  );
+  const applyUnifiedFilters = (next: Partial<typeof unifiedFilters>) => {
+    const merged = { ...unifiedFilters, ...next };
+    setIncFrom(merged.from);
+    setIncTo(merged.to);
+    setIncFilterMain(merged.main);
+    setIncFilterCash(merged.cash);
+    setIncPage(1);
+  };
 
   return (
           <div className="flex flex-col gap-4">
@@ -633,9 +650,10 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                         type="button"
                         variant="secondary"
                         className="relative min-h-11 w-full"
+                        aria-label={`${t("branch.incomeFilterOpenButton")} (${incActiveFilterCount})`}
                         onClick={() => setIncomeFiltersOpen(true)}
                       >
-                        {t("branch.incomeFilterOpenButton")}
+                        {`${t("branch.incomeFilterOpenButton")} (${incActiveFilterCount})`}
                         {incFiltersActive ? (
                           <span
                             className="absolute right-2 top-2 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white"
@@ -657,9 +675,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                       className="min-h-11 w-full"
                       onClick={() => {
                         const d = localIsoDate();
-                        setIncFrom(d);
-                        setIncTo(d);
-                        setIncPage(1);
+                        applyUnifiedFilters({ from: d, to: d });
                       }}
                     >
                       {t("branch.filterToday")}
@@ -669,11 +685,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                       variant="secondary"
                       className="min-h-11 w-full"
                       onClick={() => {
-                        setIncFrom("");
-                        setIncTo("");
-                        setIncFilterMain("");
-                        setIncFilterCash("");
-                        setIncPage(1);
+                        applyUnifiedFilters({ from: "", to: "", main: "", cash: "" });
                       }}
                     >
                       {t("branch.filterAllDates")}
@@ -697,11 +709,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                   title={t("branch.incomeFilterDrawerTitle")}
                   onClose={() => setIncomeFiltersOpen(false)}
                   onReset={() => {
-                    setIncFrom("");
-                    setIncTo("");
-                    setIncFilterMain("");
-                    setIncFilterCash("");
-                    setIncPage(1);
+                    applyUnifiedFilters({ from: "", to: "", main: "", cash: "" });
                   }}
                   onApply={() => {
                     void refetchInc();
@@ -719,9 +727,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                               showIncDateTo ? formatLocaleDate(incTo, locale) : t("personnel.dash")
                             }`,
                             onRemove: () => {
-                              setIncFrom("");
-                              setIncTo("");
-                              setIncPage(1);
+                              applyUnifiedFilters({ from: "", to: "" });
                             },
                           },
                         ]
@@ -732,8 +738,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                             id: "main",
                             label: `${t("branch.txFilterMainCategory")}: ${incMainLabel}`,
                             onRemove: () => {
-                              setIncFilterMain("");
-                              setIncPage(1);
+                              applyUnifiedFilters({ main: "" });
                             },
                           },
                         ]
@@ -744,8 +749,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                             id: "cash",
                             label: `${t("branch.txFilterCashSettlement")}: ${incCashLabel}`,
                             onRemove: () => {
-                              setIncFilterCash("");
-                              setIncPage(1);
+                              applyUnifiedFilters({ cash: "" });
                             },
                           },
                         ]
@@ -757,14 +761,14 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                     <div className="grid gap-3 sm:grid-cols-2">
                       <DateField
                         label={t("branch.filterDateFrom")}
-                        value={incFrom}
-                        onChange={(e) => setIncFrom(e.target.value)}
+                        value={unifiedFilters.from}
+                        onChange={(e) => applyUnifiedFilters({ from: e.target.value })}
                         className="min-w-0"
                       />
                       <DateField
                         label={t("branch.filterDateTo")}
-                        value={incTo}
-                        onChange={(e) => setIncTo(e.target.value)}
+                        value={unifiedFilters.to}
+                        onChange={(e) => applyUnifiedFilters({ to: e.target.value })}
                         className="min-w-0"
                       />
                     </div>
@@ -773,18 +777,18 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                         name="incFilterMain"
                         label={t("branch.txFilterMainCategory")}
                         options={incMainFilterOpts}
-                        value={incFilterMain}
+                        value={unifiedFilters.main}
                         menuZIndex={280}
-                        onChange={(e) => setIncFilterMain(e.target.value)}
+                        onChange={(e) => applyUnifiedFilters({ main: e.target.value })}
                         onBlur={() => {}}
                       />
                       <Select
                         name="incFilterCash"
                         label={t("branch.txFilterCashSettlement")}
                         options={incCashFilterOpts}
-                        value={incFilterCash}
+                        value={unifiedFilters.cash}
                         menuZIndex={280}
-                        onChange={(e) => setIncFilterCash(e.target.value)}
+                        onChange={(e) => applyUnifiedFilters({ cash: e.target.value })}
                         onBlur={() => {}}
                       />
                     </div>
@@ -802,39 +806,50 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                 <MobileList
                   className="sm:hidden"
                   items={incData.items}
+                  getKey={(row) => row.id}
                   renderItem={(row) => (
                     <MobileCard
-                      key={row.id}
                       title={txCategoryLine(row.mainCategory, row.category, t) || t("personnel.dash")}
-                      primary={
-                        <>
-                          <div className="flex items-start justify-between gap-2">
-                            <span className="text-sm text-zinc-500">
-                              {formatLocaleDate(row.transactionDate, locale)}
-                            </span>
-                            <span className="shrink-0 font-mono text-base font-semibold text-emerald-800">
-                              {formatMoneyDash(row.amount, t("personnel.dash"), locale, row.currencyCode)}
-                            </span>
-                          </div>
-                          {row.cashAmount != null && row.cardAmount != null ? (
-                            <p className="text-sm text-zinc-600">
-                              {t("branch.txColCashCard")}:{" "}
-                              {formatMoneyDash(row.cashAmount, t("personnel.dash"), locale, row.currencyCode)} /{" "}
-                              {formatMoneyDash(row.cardAmount, t("personnel.dash"), locale, row.currencyCode)}
-                            </p>
-                          ) : null}
-                        </>
-                      }
-                      secondary={
-                        <>
-                          {registerCashSettlementLabel(row, t) ? (
-                            <p>
-                              {t("branch.txColCashSettlement")}: {registerCashSettlementLabel(row, t)}
-                            </p>
-                          ) : null}
-                          {row.description ? <p>{row.description}</p> : null}
-                        </>
-                      }
+                      primaryFields={[
+                        <div key="head" className="flex items-start justify-between gap-2">
+                          <span className="text-sm text-zinc-500">
+                            {formatLocaleDate(row.transactionDate, locale)}
+                          </span>
+                          <span className="shrink-0 font-mono text-base font-semibold text-emerald-800">
+                            {formatMoneyDash(row.amount, t("personnel.dash"), locale, row.currencyCode)}
+                          </span>
+                        </div>,
+                        ...(row.cashAmount != null && row.cardAmount != null
+                          ? [
+                              <p key="cashcard" className="text-sm text-zinc-600">
+                                {t("branch.txColCashCard")}:{" "}
+                                {formatMoneyDash(
+                                  row.cashAmount,
+                                  t("personnel.dash"),
+                                  locale,
+                                  row.currencyCode
+                                )}{" "}
+                                /{" "}
+                                {formatMoneyDash(
+                                  row.cardAmount,
+                                  t("personnel.dash"),
+                                  locale,
+                                  row.currencyCode
+                                )}
+                              </p>,
+                            ]
+                          : []),
+                      ]}
+                      secondaryFields={[
+                        ...(registerCashSettlementLabel(row, t)
+                          ? [
+                              <p key="settlement">
+                                {t("branch.txColCashSettlement")}: {registerCashSettlementLabel(row, t)}
+                              </p>,
+                            ]
+                          : []),
+                        ...(row.description ? [<p key="desc">{row.description}</p>] : []),
+                      ]}
                       actions={
                         canDeleteBranchTx ? (
                           <BranchTxIncomeDeleteRow
