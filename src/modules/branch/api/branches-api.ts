@@ -7,6 +7,8 @@ import type {
   Branch,
   BranchDashboard,
   BranchIncomePeriodSummary,
+  BranchListResponse,
+  BranchListSort,
   BranchRegisterSummary,
   BranchResponsiblePerson,
   ExpenseGeneralOverheadLine,
@@ -257,28 +259,28 @@ function normalizeExpenseTabPeriodBreakdownOptional(raw: unknown): ExpenseTabPer
   return normalizeExpenseTabPeriodBreakdown(raw);
 }
 
-function normalizeBranchListRow(
-  r: Omit<
-    Branch,
-    | "personnelAssignedCount"
-    | "personnelStartedCount"
-    | "personnelNotStartedCount"
-    | "seasonStatus"
-    | "address"
-    | "responsibles"
-  > &
-    Partial<
-      Pick<
-        Branch,
-        | "personnelAssignedCount"
-        | "personnelStartedCount"
-        | "personnelNotStartedCount"
-        | "seasonStatus"
-        | "address"
-        | "responsibles"
-      >
+type BranchListRowApi = Omit<
+  Branch,
+  | "personnelAssignedCount"
+  | "personnelStartedCount"
+  | "personnelNotStartedCount"
+  | "seasonStatus"
+  | "address"
+  | "responsibles"
+> &
+  Partial<
+    Pick<
+      Branch,
+      | "personnelAssignedCount"
+      | "personnelStartedCount"
+      | "personnelNotStartedCount"
+      | "seasonStatus"
+      | "address"
+      | "responsibles"
     >
-): Branch {
+  >;
+
+function normalizeBranchListRow(r: BranchListRowApi): Branch {
   const addr =
     r.address != null && String(r.address).trim() ? String(r.address).trim() : null;
   return {
@@ -290,6 +292,41 @@ function normalizeBranchListRow(
     personnelNotStartedCount: Number(r.personnelNotStartedCount ?? 0) || 0,
     seasonStatus: normalizeSeasonStatus(r.seasonStatus),
   };
+}
+
+function normalizeBranchListApiResponse(raw: unknown): BranchListResponse {
+  const o = raw as Record<string, unknown>;
+  const itemsRaw = o.items ?? o.Items;
+  const totalRaw = o.totalCount ?? o.TotalCount;
+  const items = Array.isArray(itemsRaw)
+    ? (itemsRaw as BranchListRowApi[]).map(normalizeBranchListRow)
+    : [];
+  const n = typeof totalRaw === "number" ? totalRaw : Number(totalRaw ?? 0);
+  const totalCount = Number.isFinite(n) ? Math.trunc(n) : 0;
+  return { items, totalCount };
+}
+
+export type BranchListQuery = {
+  page?: number;
+  pageSize?: number;
+  sort?: BranchListSort;
+  seasonAndPersonnelEffectiveDate?: string;
+};
+
+export async function fetchBranchList(
+  params?: BranchListQuery
+): Promise<BranchListResponse> {
+  const q = new URLSearchParams();
+  if (params?.page != null && params.page >= 1) q.set("page", String(params.page));
+  if (params?.pageSize != null && params.pageSize >= 1)
+    q.set("pageSize", String(params.pageSize));
+  if (params?.sort != null && String(params.sort).trim())
+    q.set("sort", String(params.sort).trim());
+  const d = params?.seasonAndPersonnelEffectiveDate?.trim();
+  if (d) q.set("seasonAndPersonnelEffectiveDate", d);
+  const qs = q.toString();
+  const raw = await apiRequest<unknown>(qs ? `/branches?${qs}` : "/branches");
+  return normalizeBranchListApiResponse(raw);
 }
 
 export type ExpenseLinkAdvanceOption = {
@@ -383,31 +420,8 @@ export async function fetchPersonnelOrgExpenseLinkSalaryPayments(
 }
 
 export async function fetchBranches(): Promise<Branch[]> {
-  const raw = await apiRequest<
-    Array<
-      Omit<
-        Branch,
-        | "personnelAssignedCount"
-        | "personnelStartedCount"
-        | "personnelNotStartedCount"
-        | "seasonStatus"
-        | "address"
-        | "responsibles"
-      > &
-        Partial<
-          Pick<
-            Branch,
-            | "personnelAssignedCount"
-            | "personnelStartedCount"
-            | "personnelNotStartedCount"
-            | "seasonStatus"
-            | "address"
-            | "responsibles"
-          >
-        >
-    >
-  >("/branches");
-  return raw.map(normalizeBranchListRow);
+  const { items } = await fetchBranchList();
+  return items;
 }
 
 export async function createBranch(input: CreateBranchInput): Promise<Branch> {

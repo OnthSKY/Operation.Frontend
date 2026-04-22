@@ -23,6 +23,7 @@ import {
   branchDashboardScopeKey,
   createBranch,
   fetchBranches,
+  fetchBranchList,
   updateBranch,
   fetchBranchDashboard,
   fetchBranchPersonnelMoneySummaries,
@@ -44,7 +45,7 @@ import {
 } from "@/modules/branch/api/branch-transactions-api";
 import { dashboardSummaryKeys } from "@/modules/dashboard/query-keys";
 import { reportsKeys } from "@/modules/reports/query-keys";
-import type { CreateBranchInput, UpdateBranchInput } from "@/types/branch";
+import type { BranchListSort, CreateBranchInput, UpdateBranchInput } from "@/types/branch";
 import type { UploadBranchDocumentInput } from "@/types/branch-document";
 import type { SaveBranchNoteInput } from "@/types/branch-note";
 import type { SaveBranchTourismSeasonPeriodInput } from "@/types/branch-tourism-season";
@@ -71,6 +72,8 @@ function invalidatePersonnelCashHandoverUiQueries(qc: QueryClient) {
 export const branchKeys = {
   all: ["branches"] as const,
   list: () => [...branchKeys.all, "list"] as const,
+  listPaged: (page: number, pageSize: number, sort: BranchListSort) =>
+    [...branchKeys.all, "list", "paged", page, pageSize, sort] as const,
   transactions: (branchId: number, date: string) =>
     [...branchKeys.all, "tx", branchId, date] as const,
   registerSummary: (branchId: number, date: string) =>
@@ -163,12 +166,25 @@ export function useBranchesList() {
   });
 }
 
+export function useBranchesListPaged(
+  page: number,
+  pageSize: number,
+  sort: BranchListSort,
+  enabled: boolean = true
+) {
+  return useQuery({
+    queryKey: branchKeys.listPaged(page, pageSize, sort),
+    queryFn: () => fetchBranchList({ page, pageSize, sort }),
+    enabled,
+  });
+}
+
 export function useCreateBranch() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateBranchInput) => createBranch(input),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: branchKeys.list() });
+      void qc.invalidateQueries({ queryKey: branchKeys.all });
       void qc.invalidateQueries({ queryKey: reportsKeys.patronFlowPosProfiles });
     },
   });
@@ -180,7 +196,7 @@ export function useUpdateBranch() {
     mutationFn: ({ id, input }: { id: number; input: UpdateBranchInput }) =>
       updateBranch(id, input),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: branchKeys.list() });
+      void qc.invalidateQueries({ queryKey: branchKeys.all });
     },
   });
 }

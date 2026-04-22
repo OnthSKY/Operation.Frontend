@@ -1,5 +1,13 @@
 import type { BranchTransaction } from "@/types/branch-transaction";
 
+/** GET /branches — sunucu sıralaması (sayfalı isteklerde `sort` ile). */
+export type BranchListSort =
+  | "nameAsc"
+  | "nameDesc"
+  | "idAsc"
+  | "idDesc"
+  | "staffDesc";
+
 /** GET /branches — turizm sezonu sunucu CURRENT_DATE ile. */
 export type BranchSeasonStatus = "OPEN" | "PLANNED" | "CLOSED" | "NONE";
 
@@ -17,6 +25,12 @@ export type Branch = {
   personnelStartedCount: number;
   personnelNotStartedCount: number;
   seasonStatus: BranchSeasonStatus;
+};
+
+/** GET /branches — `items` + `totalCount` (sayfalama opsiyonel). */
+export type BranchListResponse = {
+  items: Branch[];
+  totalCount: number;
 };
 
 /** POST /branches — POS / kart tahsilatı lehtarı (zorunlu). */

@@ -3,12 +3,13 @@
 import { useI18n } from "@/i18n/context";
 import { isPersonnelPortalRole } from "@/lib/auth/roles";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
+import { fetchBranches } from "@/modules/branch/api/branches-api";
+import { useBranchesListPaged } from "@/modules/branch/hooks/useBranchQueries";
 import {
   defaultPersonnelListFilters,
   usePersonnelList,
 } from "@/modules/personnel/hooks/usePersonnelQueries";
-import type { Branch, BranchSeasonStatus } from "@/types/branch";
+import type { Branch, BranchListSort, BranchSeasonStatus } from "@/types/branch";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Card } from "@/shared/components/Card";
 import { MobileListCard } from "@/shared/components/MobileListCard";
@@ -151,12 +152,7 @@ function BranchEditIcon({ className }: { className?: string }) {
   );
 }
 
-type BranchSortValue =
-  | "nameAsc"
-  | "nameDesc"
-  | "idAsc"
-  | "idDesc"
-  | "staffDesc";
+const BRANCH_LIST_PAGE_SIZE = 25;
 
 const NOOP_BLUR = () => {};
 
@@ -165,12 +161,34 @@ export function BranchScreen() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const personnelPortal = isPersonnelPortalRole(user?.role);
-  const { data, isPending, isError, error, refetch } = useBranchesList();
+  const [listPage, setListPage] = useState(1);
+  const [sortBy, setSortBy] = useState<BranchListSort>("nameAsc");
+  const [deepLinkedBranch, setDeepLinkedBranch] = useState<Branch | null>(null);
+  const { data, isPending, isError, error, refetch } = useBranchesListPaged(
+    listPage,
+    BRANCH_LIST_PAGE_SIZE,
+    sortBy,
+    true
+  );
+  const list = data?.items ?? [];
+  const totalCount = data?.totalCount ?? 0;
   const { data: personnelListResult } = usePersonnelList(
     defaultPersonnelListFilters,
     !personnelPortal
   );
-  const list = useMemo(() => data ?? [], [data]);
+
+  useEffect(() => {
+    setListPage(1);
+  }, [sortBy]);
+
+  const listPageTotal = useMemo(
+    () => Math.max(1, Math.ceil(totalCount / BRANCH_LIST_PAGE_SIZE)),
+    [totalCount]
+  );
+
+  useEffect(() => {
+    if (listPage > listPageTotal) setListPage(listPageTotal);
+  }, [listPage, listPageTotal]);
   const personnel = useMemo(
     () => personnelListResult?.items ?? [],
     [personnelListResult]
@@ -188,7 +206,6 @@ export function BranchScreen() {
   const [assignBranchId, setAssignBranchId] = useState<number | null>(null);
   const [pdfBranch, setPdfBranch] = useState<Branch | null>(null);
   const [posProfileBranch, setPosProfileBranch] = useState<Branch | null>(null);
-  const [sortBy, setSortBy] = useState<BranchSortValue>("nameAsc");
 
   const sortOptions = useMemo<SelectOption[]>(
     () => [
@@ -204,8 +221,10 @@ export function BranchScreen() {
   const branchNameById = useMemo(() => {
     const m = new Map<number, string>();
     for (const b of list) m.set(b.id, b.name);
+    if (pdfBranch) m.set(pdfBranch.id, pdfBranch.name);
+    if (posProfileBranch) m.set(posProfileBranch.id, posProfileBranch.name);
     return m;
-  }, [list]);
+  }, [list, pdfBranch, posProfileBranch]);
 
   const activePersonnel = useMemo(
     () => personnel.filter((p) => !p.isDeleted),
@@ -311,19 +330,40 @@ export function BranchScreen() {
     ]
   );
 
-  const selected = useMemo(
-    () => list.find((b) => b.id === selectedId) ?? null,
-    [list, selectedId]
-  );
+  const selected = useMemo(() => {
+    if (selectedId == null) return null;
+    return list.find((b) => b.id === selectedId) ?? deepLinkedBranch;
+  }, [list, selectedId, deepLinkedBranch]);
 
   useEffect(() => {
     const raw = searchParams.get("openBranch");
-    if (!raw) return;
+    if (!raw?.trim()) {
+      setDeepLinkedBranch(null);
+      return;
+    }
     const id = Number.parseInt(raw, 10);
     if (!Number.isFinite(id) || id <= 0) return;
-    if (!list.some((b) => b.id === id)) return;
-    setSelectedId(id);
-    setQuickTx(null);
+
+    if (list.some((b) => b.id === id)) {
+      setDeepLinkedBranch(null);
+      setSelectedId(id);
+      setQuickTx(null);
+      return;
+    }
+
+    let cancelled = false;
+    void fetchBranches().then((all) => {
+      if (cancelled) return;
+      const b = all.find((x) => x.id === id);
+      if (b) {
+        setDeepLinkedBranch(b);
+        setSelectedId(id);
+        setQuickTx(null);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [searchParams, list]);
 
   const staff = useMemo(
@@ -346,8 +386,9 @@ export function BranchScreen() {
     if (!raw?.trim()) return false;
     const id = Number.parseInt(raw, 10);
     if (!Number.isFinite(id) || id <= 0) return false;
-    return list.some((b) => b.id === id);
-  }, [searchParams, list]);
+    if (list.some((b) => b.id === id)) return true;
+    return deepLinkedBranch?.id === id;
+  }, [searchParams, list, deepLinkedBranch]);
 
   const initialDetailTab = useMemo(
     () => parseBranchDetailTabParam(searchParams.get("branchTab")),
@@ -358,33 +399,6 @@ export function BranchScreen() {
     () => parseRegisterDaySearchParam(searchParams.get("registerDay")),
     [searchParams]
   );
-
-  const sortedList = useMemo(() => {
-    const collator = new Intl.Collator(locale === "tr" ? "tr-TR" : "en-US", {
-      sensitivity: "base",
-    });
-    const copied = [...list];
-    copied.sort((a, b) => {
-      switch (sortBy) {
-        case "nameAsc":
-          return collator.compare(a.name, b.name);
-        case "nameDesc":
-          return collator.compare(b.name, a.name);
-        case "idAsc":
-          return a.id - b.id;
-        case "idDesc":
-          return b.id - a.id;
-        case "staffDesc":
-          return (
-            b.personnelAssignedCount - a.personnelAssignedCount ||
-            collator.compare(a.name, b.name)
-          );
-        default:
-          return 0;
-      }
-    });
-    return copied;
-  }, [list, sortBy, locale]);
 
   return (
     <>
@@ -447,14 +461,14 @@ export function BranchScreen() {
               ) : undefined
             }
           >
-        {!isPending && !isError && list.length > 0 ? (
+        {!isPending && !isError && totalCount > 0 ? (
           <div className="mb-3 max-w-sm">
             <Select
               name="branchListSort"
               label={t("branch.listSortLabel")}
               value={sortBy}
               options={sortOptions}
-              onChange={(event) => setSortBy(event.target.value as BranchSortValue)}
+              onChange={(event) => setSortBy(event.target.value as BranchListSort)}
               onBlur={NOOP_BLUR}
             />
           </div>
@@ -471,13 +485,13 @@ export function BranchScreen() {
             </Button>
           </div>
         )}
-        {!isPending && !isError && list.length === 0 && (
+        {!isPending && !isError && totalCount === 0 && (
           <p className="text-sm text-zinc-500">{t("branch.noData")}</p>
         )}
-        {!isPending && !isError && list.length > 0 && (
+        {!isPending && !isError && totalCount > 0 && (
           <>
             <div className="flex flex-col gap-4 md:hidden">
-              {sortedList.map((b) => {
+              {list.map((b) => {
                 const active = selectedId === b.id;
                 const mOpen = Boolean(metricsOpen[b.id]);
                 return (
@@ -621,7 +635,7 @@ export function BranchScreen() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {sortedList.map((b) => {
+                  {list.map((b) => {
                     const active = selectedId === b.id;
                     const mOpen = Boolean(metricsOpen[b.id]);
                     return (
@@ -735,9 +749,45 @@ export function BranchScreen() {
                 </TableBody>
               </Table>
             </div>
+
+              {!isPending && !isError && totalCount > 0 ? (
+                <div className="mt-3 flex flex-col gap-3 border-t border-zinc-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-sm text-zinc-600">
+                    {(listPage - 1) * BRANCH_LIST_PAGE_SIZE + 1}
+                    {"–"}
+                    {Math.min(listPage * BRANCH_LIST_PAGE_SIZE, totalCount)}{" "}
+                    · {t("products.pagingTotal")} {totalCount}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="min-h-11"
+                      disabled={listPage <= 1}
+                      onClick={() => setListPage((p) => Math.max(1, p - 1))}
+                    >
+                      {t("products.pagingPrev")}
+                    </Button>
+                    <span className="text-sm tabular-nums text-zinc-700">
+                      {listPage} / {listPageTotal}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="min-h-11"
+                      disabled={listPage >= listPageTotal}
+                      onClick={() =>
+                        setListPage((p) => Math.min(listPageTotal, p + 1))
+                      }
+                    >
+                      {t("products.pagingNext")}
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
           </>
         )}
-        {!isPending && !isError && list.length > 0 && !selectedId && (
+        {!isPending && !isError && totalCount > 0 && !selectedId && (
           <p className="mt-3 text-sm text-zinc-500">{t("branch.selectHint")}</p>
         )}
           </Card>
@@ -761,6 +811,7 @@ export function BranchScreen() {
           }}
           onClose={() => {
             setSelectedId(null);
+            setDeepLinkedBranch(null);
             setEditOpen(false);
             setEditBranchId(null);
           }}
