@@ -7,7 +7,7 @@ export const personnel = {
   listSummaryFiltered:
     "{{total}} match the filters ({{active}} active, {{passive}} inactive). This page: {{pageFrom}}–{{pageTo}}.",
   summaryCardsSectionAria: "Personnel summary",
-  summaryCardsTotalLabel: "People in this list",
+  summaryCardsTotalLabel: "Total records",
   summaryCardsTotalHintFiltered: "Based on current filters",
   summaryCardsJobTitlesHeading: "By job title",
   add: "Add personnel",

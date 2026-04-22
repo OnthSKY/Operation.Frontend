@@ -7,7 +7,7 @@ export const personnel = {
   listSummaryFiltered:
     "{{total}} kayıt filtrelere uyuyor ({{active}} aktif, {{passive}} pasif). Bu sayfada: {{pageFrom}}–{{pageTo}}.",
   summaryCardsSectionAria: "Personel özeti",
-  summaryCardsTotalLabel: "Listelenen personel",
+  summaryCardsTotalLabel: "Toplam kayıt",
   summaryCardsTotalHintFiltered: "Geçerli filtrelere göre",
   summaryCardsJobTitlesHeading: "Ünvanlara göre",
   add: "Personel ekle",
