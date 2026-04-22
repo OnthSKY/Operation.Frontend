@@ -35,8 +35,12 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-[100dvh] flex-col bg-zinc-50 text-zinc-900">
-        <Providers>{children}</Providers>
+      <body className="overflow-x-hidden bg-zinc-50 text-zinc-900">
+        <Providers>
+          <div className="relative z-0 mx-auto flex min-h-[100dvh] w-full max-w-screen-md flex-col px-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))]">
+            {children}
+          </div>
+        </Providers>
       </body>
     </html>
   );

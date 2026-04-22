@@ -6,6 +6,7 @@ import type { Locale } from "@/i18n/messages";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
 import { Select, type SelectOption } from "@/shared/ui/Select";
+import { StickyActionBar } from "@/components/mobile/StickyActionBar";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -149,10 +150,13 @@ export default function EmergencyAdminRegisterPage() {
         </div>
 
         <form
+          id="emergency-admin-form"
           className="flex flex-col gap-4 rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-lg shadow-zinc-900/[0.04] sm:gap-5 sm:p-6"
           onSubmit={onSubmit}
         >
           <fieldset className="m-0 flex min-w-0 flex-col gap-4 border-0 p-0 sm:gap-5" disabled={pending}>
+            <section className="space-y-4">
+              <h2 className="text-base font-semibold text-zinc-900">{t("auth.emergencyPageTitle")}</h2>
             <div className="flex flex-col gap-1.5">
               <label htmlFor="reg-admin-key" className="text-sm font-medium text-zinc-800">
                 {t("auth.emergencyAdminKey")}
@@ -189,20 +193,44 @@ export default function EmergencyAdminRegisterPage() {
                 required
               />
             </div>
+            </section>
 
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="reg-fullname" className="text-sm font-medium text-zinc-800">
-                {t("auth.emergencyFullNameOptional")}
-              </label>
-              <input
-                id="reg-fullname"
-                name="fullName"
-                autoComplete="name"
-                className={inputClass}
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-              />
-            </div>
+            <details className="rounded-xl border border-zinc-200 bg-zinc-50/50 p-3">
+              <summary className="cursor-pointer text-sm font-semibold text-zinc-800">
+                Opsiyonel alanlar
+              </summary>
+              <div className="mt-3 space-y-4">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="reg-fullname" className="text-sm font-medium text-zinc-800">
+                    {t("auth.emergencyFullNameOptional")}
+                  </label>
+                  <input
+                    id="reg-fullname"
+                    name="fullName"
+                    autoComplete="name"
+                    className={inputClass}
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="reg-personnel" className="text-sm font-medium text-zinc-800">
+                    {t("auth.emergencyPersonnelIdOptional")}
+                  </label>
+                  <input
+                    id="reg-personnel"
+                    name="personnelId"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    className={inputClass}
+                    value={personnelId}
+                    onChange={(e) => setPersonnelId(e.target.value.replace(/\D/g, ""))}
+                    placeholder="123"
+                  />
+                </div>
+              </div>
+            </details>
 
             <div className="flex flex-col gap-1.5">
               <Select
@@ -239,6 +267,7 @@ export default function EmergencyAdminRegisterPage() {
               />
             </div>
 
+            <section className="space-y-4">
             <div className="flex flex-col gap-1.5">
               <label htmlFor="reg-pass" className="text-sm font-medium text-zinc-800">
                 {t("auth.emergencyPassword")}
@@ -304,10 +333,7 @@ export default function EmergencyAdminRegisterPage() {
                 required
               />
             </div>
-
-            <Button type="submit" className="min-h-12 w-full !rounded-xl text-base sm:!min-h-[3.25rem] sm:!rounded-2xl">
-              {pending ? t("auth.emergencySubmitting") : t("auth.emergencySubmit")}
-            </Button>
+            </section>
           </fieldset>
         </form>
 
@@ -322,6 +348,23 @@ export default function EmergencyAdminRegisterPage() {
           </Link>
         </div>
       </div>
+      <StickyActionBar>
+        <div className="grid grid-cols-2 gap-2">
+          <Link
+            href="/login"
+            className="flex min-h-11 items-center justify-center rounded-xl border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700"
+          >
+            {t("common.cancel")}
+          </Link>
+          <Button
+            type="submit"
+            form="emergency-admin-form"
+            className="min-h-11 w-full rounded-xl text-sm font-semibold"
+          >
+            {pending ? t("auth.emergencySubmitting") : t("auth.emergencySubmit")}
+          </Button>
+        </div>
+      </StickyActionBar>
     </div>
   );
 }

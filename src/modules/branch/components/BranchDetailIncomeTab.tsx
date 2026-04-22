@@ -1,6 +1,8 @@
 "use client";
 
-import { RightDrawer } from "@/shared/components/RightDrawer";
+import { FilterDrawer } from "@/components/mobile/FilterDrawer";
+import { MobileCard } from "@/components/mobile/MobileCard";
+import { MobileList } from "@/components/mobile/MobileList";
 import type { Locale } from "@/i18n/messages";
 import {
   txCategoryLine,
@@ -690,13 +692,65 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                   </div>
                 </div>
                 </div>
-                <RightDrawer
+                <FilterDrawer
                   open={incomeFiltersOpen}
-                  onClose={() => setIncomeFiltersOpen(false)}
                   title={t("branch.incomeFilterDrawerTitle")}
-                  closeLabel={t("common.close")}
-                  backdropCloseRequiresConfirm={false}
-                  className="max-w-lg"
+                  onClose={() => setIncomeFiltersOpen(false)}
+                  onReset={() => {
+                    setIncFrom("");
+                    setIncTo("");
+                    setIncFilterMain("");
+                    setIncFilterCash("");
+                    setIncPage(1);
+                  }}
+                  onApply={() => {
+                    void refetchInc();
+                    refetchIncomeSummaryBlocks();
+                    setIncomeFiltersOpen(false);
+                  }}
+                  chips={[
+                    ...(hasIncDateFilters
+                      ? [
+                          {
+                            id: "date",
+                            label: `${t("branch.filterDateFrom")}: ${
+                              showIncDateFrom ? formatLocaleDate(incFrom, locale) : t("personnel.dash")
+                            } · ${t("branch.filterDateTo")}: ${
+                              showIncDateTo ? formatLocaleDate(incTo, locale) : t("personnel.dash")
+                            }`,
+                            onRemove: () => {
+                              setIncFrom("");
+                              setIncTo("");
+                              setIncPage(1);
+                            },
+                          },
+                        ]
+                      : []),
+                    ...(hasIncMainFilter
+                      ? [
+                          {
+                            id: "main",
+                            label: `${t("branch.txFilterMainCategory")}: ${incMainLabel}`,
+                            onRemove: () => {
+                              setIncFilterMain("");
+                              setIncPage(1);
+                            },
+                          },
+                        ]
+                      : []),
+                    ...(hasIncCashFilter
+                      ? [
+                          {
+                            id: "cash",
+                            label: `${t("branch.txFilterCashSettlement")}: ${incCashLabel}`,
+                            onRemove: () => {
+                              setIncFilterCash("");
+                              setIncPage(1);
+                            },
+                          },
+                        ]
+                      : []),
+                  ]}
                 >
                   <div className="space-y-4">
                     <p className="text-xs leading-relaxed text-zinc-600">{t("branch.incomeFilterDrawerHint")}</p>
@@ -734,19 +788,8 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                         onBlur={() => {}}
                       />
                     </div>
-                    <Button
-                      type="button"
-                      className="min-h-11 w-full"
-                      onClick={() => {
-                        void refetchInc();
-                        refetchIncomeSummaryBlocks();
-                        setIncomeFiltersOpen(false);
-                      }}
-                    >
-                      {t("branch.incomeFilterApplyAndClose")}
-                    </Button>
                   </div>
-                </RightDrawer>
+                </FilterDrawer>
               </div>
             </div>
             {incErr && <p className="text-sm text-red-600">{toErrorMessage(incError)}</p>}
@@ -756,38 +799,44 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
               <p className="text-sm text-zinc-600">{t("branch.noIncome")}</p>
             ) : (
               <>
-                <ul className="space-y-2 sm:hidden">
-                  {incData.items.map((row) => (
-                    <li key={row.id} className="rounded-xl border border-zinc-200 bg-white px-3 py-3 shadow-sm">
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="text-xs text-zinc-500">
-                          {formatLocaleDate(row.transactionDate, locale)}
-                        </span>
-                        <span className="shrink-0 font-mono text-sm font-semibold text-emerald-800">
-                          {formatMoneyDash(row.amount, t("personnel.dash"), locale, row.currencyCode)}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-sm text-zinc-800">
-                        {txCategoryLine(row.mainCategory, row.category, t) || t("personnel.dash")}
-                      </p>
-                      {row.cashAmount != null && row.cardAmount != null ? (
-                        <p className="mt-1 text-xs text-zinc-500">
-                          {t("branch.txColCashCard")}:{" "}
-                          {formatMoneyDash(row.cashAmount, t("personnel.dash"), locale, row.currencyCode)} /{" "}
-                          {formatMoneyDash(row.cardAmount, t("personnel.dash"), locale, row.currencyCode)}
-                        </p>
-                      ) : null}
-                      {registerCashSettlementLabel(row, t) ? (
-                        <p className="mt-0.5 text-xs text-zinc-500">
-                          {t("branch.txColCashSettlement")}:{" "}
-                          {registerCashSettlementLabel(row, t)}
-                        </p>
-                      ) : null}
-                      {row.description ? (
-                        <p className="mt-1 text-xs text-zinc-500">{row.description}</p>
-                      ) : null}
-                      {canDeleteBranchTx ? (
-                        <div className="mt-2 border-t border-zinc-100 pt-2">
+                <MobileList
+                  className="sm:hidden"
+                  items={incData.items}
+                  renderItem={(row) => (
+                    <MobileCard
+                      key={row.id}
+                      title={txCategoryLine(row.mainCategory, row.category, t) || t("personnel.dash")}
+                      primary={
+                        <>
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="text-sm text-zinc-500">
+                              {formatLocaleDate(row.transactionDate, locale)}
+                            </span>
+                            <span className="shrink-0 font-mono text-base font-semibold text-emerald-800">
+                              {formatMoneyDash(row.amount, t("personnel.dash"), locale, row.currencyCode)}
+                            </span>
+                          </div>
+                          {row.cashAmount != null && row.cardAmount != null ? (
+                            <p className="text-sm text-zinc-600">
+                              {t("branch.txColCashCard")}:{" "}
+                              {formatMoneyDash(row.cashAmount, t("personnel.dash"), locale, row.currencyCode)} /{" "}
+                              {formatMoneyDash(row.cardAmount, t("personnel.dash"), locale, row.currencyCode)}
+                            </p>
+                          ) : null}
+                        </>
+                      }
+                      secondary={
+                        <>
+                          {registerCashSettlementLabel(row, t) ? (
+                            <p>
+                              {t("branch.txColCashSettlement")}: {registerCashSettlementLabel(row, t)}
+                            </p>
+                          ) : null}
+                          {row.description ? <p>{row.description}</p> : null}
+                        </>
+                      }
+                      actions={
+                        canDeleteBranchTx ? (
                           <BranchTxIncomeDeleteRow
                             transactionId={row.id}
                             busy={deleteTxMut.isPending}
@@ -795,11 +844,11 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                             t={t}
                             onConfirm={confirmDeleteBranchTx}
                           />
-                        </div>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
+                        ) : null
+                      }
+                    />
+                  )}
+                />
                 <div className="hidden overflow-x-auto rounded-lg border border-zinc-200 sm:block">
                   <Table>
                     <TableHead>

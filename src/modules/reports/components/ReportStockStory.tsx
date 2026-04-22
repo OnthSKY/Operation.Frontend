@@ -1,6 +1,7 @@
 "use client";
 
 import type { StockReport } from "@/types/reports";
+import { MobileCard } from "@/components/mobile/MobileCard";
 import { Card } from "@/shared/components/Card";
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
@@ -22,17 +23,20 @@ function StockStorySectionCard({
   children: ReactNode;
 }) {
   return (
-    <div className="flex h-full min-h-[6.5rem] flex-col rounded-xl border border-zinc-200/85 bg-white p-4 shadow-sm ring-1 ring-zinc-100/90">
-      <div className="flex items-center gap-2">
-        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-zinc-50 text-sm">
-          {icon}
+    <MobileCard
+      title={
+        <span className="flex items-center gap-2">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-zinc-50 text-sm">
+            {icon}
+          </span>
+          <span className={cn("text-[0.65rem] font-bold uppercase tracking-[0.14em]", toneClassName)}>
+            {title}
+          </span>
         </span>
-        <p className={cn("text-[0.65rem] font-bold uppercase tracking-[0.14em]", toneClassName)}>
-          {title}
-        </p>
-      </div>
-      <div className="mt-2.5 min-w-0 flex-1 text-sm leading-relaxed text-zinc-800">{children}</div>
-    </div>
+      }
+      primary={<div className="min-w-0 flex-1 text-sm leading-relaxed text-zinc-800">{children}</div>}
+      className="h-full min-h-[6.5rem] ring-1 ring-zinc-100/90"
+    />
   );
 }
 

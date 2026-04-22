@@ -244,6 +244,74 @@ Bu dokuman, uygulamadaki giris/kayit alanlarini mobilde daha okunur, daha hizli 
 - Rollback plani:
   - UI regressions durumunda onceki stabil varyanta donulebilecek sekilde degisiklikler kucuk PR'lara bolunecek.
 
+## Mobil Uyum Kabul Kriterleri (Risk Minimizasyonu)
+
+Bu bolum, "mobil uyumlu ama sade ve detayli ekran" hedefinin yoruma acik kalmadan uygulanmasi icin zorunlu kontrol listesidir.
+
+### 1) Tipografi ve Font Scale kriteri
+
+- Tasarimlar varsayilan fontta oldugu kadar buyutulmus fontta da calismalidir.
+- En az su olceklerde test zorunludur:
+  - `1.0` (varsayilan)
+  - `1.15` (orta buyutme)
+  - `1.30+` (buyuk yazi senaryosu)
+- Kabul kosulu:
+  - Kritik aksiyonlar (Kaydet, Uygula, Yenile vb.) viewport icinde erisilebilir kalir
+  - Sekme/buton etiketleri taskin yapiyor ise satir kirma veya yatay kaydirma kontrollu ve okunur olur
+  - Metin tasmasi nedeniyle veri kartlari veya tablolar anlamsiz hale gelmez
+
+### 2) Cihaz ve genislik matrisi
+
+- En az asagidaki genisliklerde dogrulama zorunludur:
+  - `320px` (kucuk telefon)
+  - `360px` (yaygin Android)
+  - `390px` (yaygin iOS)
+  - `430px` (buyuk telefon)
+  - `768px` (tablet dikey)
+- Kabul kosulu:
+  - Kritik ekranlarda yatay tasma yok (bilincli yatay kaydirilan tablo haric)
+  - Dokunma hedefleri minimum `44x44` esdegerinde
+  - Sticky alanlar (tab, action bar, drawer header) icerigi kapatmaz
+
+### 3) Bilgi hiyerarsisi (Basit ama detayli)
+
+- Her kart/listede zorunlu "birincil bilgi" en ustte ve tek bakista anlasilir olmali:
+  - Tarih, tutar, durum gibi en kritik 2-3 alan
+- "Ikincil bilgi" acilir/ikincil satirda gosterilmeli:
+  - Aciklama, bagli referanslar, teknik detay alanlari
+- Ayni bilgi farkli formatta tekrar edilmemeli.
+- Kabul kosulu:
+  - Kullanici ilk bakista "ne oldugu"nu anlar, ikinci adimda "neden/ayrinti"ya iner
+
+### 4) Filtre semantigi ve davranis kriteri
+
+- "Detay filtreler" ve "Hizli filtreler" ayri gruplarda konumlanir.
+- Aktif filtreler drawer disinda chip/etiket ile gorunur.
+- Filtre kapsam metni zorunlu:
+  - "Bu filtreler yalnizca asagidaki listeyi etkiler."
+- Kabul kosulu:
+  - Kullanici drawer acmadan hangi filtrenin aktif oldugunu gorebilir
+  - Hizli filtreler tek dokunusla aninda sonuc uretir
+
+### 5) Erisilebilirlik ve okunabilirlik kriteri
+
+- Kontrast minimum WCAG AA seviyesinde kalmali (metin/zemin ve buton durumlari dahil).
+- Focus sirasi mantikli ve klavye ile gezilebilir olmali (web erisilebilirlik denetimi).
+- Aria etiketleri tab, drawer, filtre ve aksiyon alanlarinda anlamli olmalı.
+- Kabul kosulu:
+  - Ekran okuyucu ile temel akislar tamamlanabiliyor
+  - Durum etiketleri sadece renkle degil metinle de ayirt ediliyor
+
+### 6) Release gate (canliya alma onkriteri)
+
+- Her modul PR'inda su 4 kanit zorunlu:
+  - Kucuk telefon + buyuk telefon ekran goruntusu
+  - Buyuk font senaryosu ekran goruntusu
+  - Kisa test notu (hangi akislar kontrol edildi)
+  - Bilinen kisitlar / sonraki adim notu (varsa)
+- Go/No-Go karari:
+  - Yukaridaki kabul kriterlerinden biri kritik seviyede saglanmiyorsa canliya alinmaz.
+
 ## Notlar
 
 - Bu plan, mevcut gelistirmelerle uyumludur; sirf gorunus degil, veri okunabilirligi ve hata azaltma odaklidir.
