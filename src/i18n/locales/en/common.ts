@@ -57,6 +57,11 @@ export const common = {
   modalConfirmOutsideCloseTitle: "Close this window?",
   modalConfirmOutsideCloseMessage:
     "You clicked outside the dialog. Close it anyway? Unsaved changes may be lost.",
+  unsavedChangesConfirm:
+    "You have unsaved changes. If you leave this page, your changes may be lost.",
+  // Backward-compatible typo alias used in some older keys/usages.
+  unsavedChangesConfitm:
+    "You have unsaved changes. If you leave this page, your changes may be lost.",
   modalBackdropCloseStay: "Stay in dialog",
   /** Expandable mobile card (shared `MobileCard` primitive). */
   mobileCardDetailsShow: "Show details",

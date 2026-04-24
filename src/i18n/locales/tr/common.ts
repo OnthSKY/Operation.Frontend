@@ -58,6 +58,11 @@ export const common = {
   modalConfirmOutsideCloseTitle: "Pencereyi kapatmak istiyor musunuz?",
   modalConfirmOutsideCloseMessage:
     "Diyalogun dışına tıkladınız. Yine de kapatılsın mı? Kaydedilmemiş bilgiler kaybolabilir.",
+  unsavedChangesConfirm:
+    "Kaydedilmemiş değişiklikleriniz var. Bu sayfadan ayrılırsanız değişiklikler kaybolabilir.",
+  // Backward-compatible typo alias used in some older keys/usages.
+  unsavedChangesConfitm:
+    "Kaydedilmemiş değişiklikleriniz var. Bu sayfadan ayrılırsanız değişiklikler kaybolabilir.",
   modalBackdropCloseStay: "Diyalogda kal",
   /** Genişletilebilir mobil kart (`MobileCard` bileşeni). */
   mobileCardDetailsShow: "Detayları göster",

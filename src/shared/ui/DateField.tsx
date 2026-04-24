@@ -575,17 +575,23 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
 
     useLayoutEffect(() => {
       if (!open || !mounted) return;
-      const calH = mode === "datetime-local" ? 520 : 480;
       const place = () => {
         const r = triggerRef.current?.getBoundingClientRect();
         if (!r) return;
         const vw = window.innerWidth;
         const vh = window.innerHeight;
         const pad = 8;
+        /** Upper cap for popover height — scales with viewport, stays compact on large monitors. */
+        const maxPopoverH = Math.min(
+          mode === "datetime-local" ? 380 : 350,
+          Math.max(260, Math.floor(vh * 0.72))
+        );
+        /** Rough content height for “flip to sheet / above” heuristics (not the CSS max-height). */
+        const estContentH = mode === "datetime-local" ? 320 : 280;
         const below = vh - r.bottom - pad;
         const above = r.top - pad;
         const narrowViewport = vw < 640;
-        const crampedY = below < calH && above < calH;
+        const crampedY = below < estContentH && above < estContentH;
         const useSheet = narrowViewport || crampedY;
         setSheetMode(useSheet);
 
@@ -596,7 +602,8 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
             right: 0,
             bottom: 0,
             zIndex: OVERLAY_Z_INDEX.dateFieldPopover,
-            maxHeight: `min(${calH}px, 92dvh)`,
+            maxHeight: `min(${maxPopoverH}px, 88dvh)`,
+            height: "auto",
             width: "100%",
             maxWidth: "100vw",
             top: "auto",
@@ -604,23 +611,22 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
           return;
         }
 
-        const minPopoverW = 280;
-        const maxPopoverW = Math.min(560, vw - 2 * pad);
-        let w = Math.max(r.width, minPopoverW);
-        w = Math.min(w, maxPopoverW);
+        const minPopoverW = 252;
+        const maxPopoverW = Math.min(336, vw - 2 * pad);
+        const w = Math.min(Math.max(r.width, minPopoverW), maxPopoverW);
 
         let left = r.left + r.width / 2 - w / 2;
         left = Math.min(Math.max(pad, left), vw - w - pad);
 
         let top = r.bottom + 6;
-        if (top + calH > vh - pad) {
-          top = r.top - calH - 6;
+        if (top + maxPopoverH > vh - pad) {
+          top = r.top - maxPopoverH - 6;
         }
         if (top < pad) {
           top = pad;
         }
-        if (top + calH > vh - pad) {
-          top = Math.max(pad, vh - calH - pad);
+        if (top + maxPopoverH > vh - pad) {
+          top = Math.max(pad, vh - maxPopoverH - pad);
         }
 
         setPopoverStyle({
@@ -629,7 +635,8 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
           left,
           width: w,
           maxWidth: `calc(100vw - ${2 * pad}px)`,
-          maxHeight: `min(${calH}px, calc(100dvh - ${2 * pad}px))`,
+          maxHeight: `min(${maxPopoverH}px, calc(100dvh - ${2 * pad}px))`,
+          height: "auto",
           zIndex: OVERLAY_Z_INDEX.dateFieldPopover,
         });
       };
@@ -668,10 +675,10 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
         <div
           ref={popoverRef}
           className={cn(
-            "flex flex-col overflow-hidden border border-zinc-200 bg-white shadow-2xl shadow-zinc-900/15",
+            "flex flex-col overflow-hidden border border-zinc-200/90 bg-white shadow-xl shadow-zinc-900/10 ring-1 ring-black/[0.03]",
             sheetMode
               ? "rounded-t-2xl border-b-0 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
-              : "rounded-xl"
+              : "rounded-2xl"
           )}
           style={popoverStyle}
           role="dialog"
@@ -687,7 +694,7 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
               {dialogTitle}
             </p>
           </div>
-          <div className="shrink-0 border-b border-zinc-100 px-2 py-2 sm:px-3">
+          <div className="shrink-0 border-b border-zinc-100/90 px-2 py-1.5 sm:px-2.5 sm:py-2">
             <button
               type="button"
               disabled={!todaySelectable}
@@ -699,7 +706,7 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
               aria-label={t("common.datePickerToday")}
               onClick={selectTodayAndClose}
               className={cn(
-                "flex w-full min-h-11 flex-wrap items-center justify-center gap-x-2 gap-y-0.5 rounded-xl px-3 py-2.5 text-center text-sm font-semibold transition sm:min-h-10 sm:py-2",
+                "flex w-full min-h-10 flex-wrap items-center justify-center gap-x-2 gap-y-0.5 rounded-lg px-2.5 py-2 text-center text-xs font-semibold transition sm:min-h-9 sm:rounded-xl sm:px-3 sm:text-sm",
                 todaySelectable
                   ? "bg-violet-600 text-white shadow-sm hover:bg-violet-700 focus-visible:outline focus-visible:ring-2 focus-visible:ring-zinc-900 focus-visible:ring-offset-2"
                   : "cursor-not-allowed bg-zinc-100 text-zinc-400"
@@ -717,7 +724,13 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
               </span>
             </button>
           </div>
-          <div className="date-field-rdp min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain p-1.5 sm:p-3 [&_.rdp-months]:max-w-none">
+          <div
+            className={cn(
+              "date-field-rdp min-h-0 min-w-0 shrink-0 overflow-x-hidden overflow-y-auto overscroll-contain px-2 py-1.5 sm:px-2.5 sm:py-2",
+              "[&_.rdp-months]:max-w-none",
+              "max-h-[min(46dvh,17.5rem)] sm:max-h-[min(50dvh,19rem)]"
+            )}
+          >
             <DayPicker
               mode="single"
               required={false}
@@ -744,10 +757,10 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
             />
           </div>
           {mode === "datetime-local" ? (
-            <div className="flex items-center gap-2 border-t border-zinc-100 px-3 py-2 sm:px-3">
+            <div className="flex items-center gap-2 border-t border-zinc-100/90 px-2.5 py-1.5 sm:px-3 sm:py-2">
               <label
                 htmlFor={`${inputId}-time`}
-                className="shrink-0 text-xs font-semibold text-zinc-600"
+                className="shrink-0 text-[11px] font-semibold text-zinc-500 sm:text-xs"
               >
                 {t("common.datePickerTime")}
               </label>
@@ -756,14 +769,14 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
                 type="time"
                 value={timeInputValue}
                 onChange={handleTimeChange}
-                className="min-h-11 min-w-0 flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-base text-zinc-900 tabular-nums outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900 sm:min-h-10 sm:text-sm [color-scheme:light]"
+                className="min-h-10 min-w-0 flex-1 rounded-lg border border-zinc-200 bg-zinc-50/80 px-2.5 py-1.5 text-sm text-zinc-900 tabular-nums outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-500/25 sm:min-h-9 sm:px-3 sm:text-sm [color-scheme:light]"
               />
             </div>
           ) : null}
-          <div className="border-t border-zinc-100 p-2 sm:px-3 sm:pb-3">
+          <div className="border-t border-zinc-100/90 p-1.5 sm:px-2.5 sm:pb-2">
             <button
               type="button"
-              className="flex w-full min-h-11 items-center justify-center rounded-lg border border-zinc-200 py-2.5 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 sm:min-h-10 sm:py-2"
+              className="flex w-full min-h-10 items-center justify-center rounded-lg border border-zinc-200/90 py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 sm:min-h-9 sm:text-sm"
               onClick={() => setOpen(false)}
             >
               {t("common.close")}

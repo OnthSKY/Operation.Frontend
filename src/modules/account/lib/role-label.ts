@@ -3,7 +3,8 @@ export function accountRoleLabel(
   role: string,
   t: (key: string) => string
 ): string {
-  switch (role) {
+  const code = String(role ?? "").trim().toUpperCase();
+  switch (code) {
     case "ADMIN":
       return t("profile.roleAdmin");
     case "STAFF":
@@ -19,6 +20,6 @@ export function accountRoleLabel(
     case "PROCUREMENT":
       return t("profile.roleProcurement");
     default:
-      return role;
+      return t("profile.roleUnknown");
   }
 }

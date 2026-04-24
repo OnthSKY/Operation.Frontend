@@ -59,7 +59,7 @@ export function AccountPanelShell({
 
   return (
     <div
-      className={`fixed inset-0 ${OVERLAY_Z_TW.accountPanel} flex md:items-start md:justify-end md:p-3 md:pt-[max(0.75rem,calc(3.5rem+env(safe-area-inset-top,0px)+0.5rem))]`}
+      className={`fixed inset-0 ${OVERLAY_Z_TW.accountPanel} flex items-start justify-center p-2 pt-[max(0.6rem,env(safe-area-inset-top,0px))] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] md:justify-end md:p-3 md:pt-[max(0.75rem,calc(3.5rem+env(safe-area-inset-top,0px)+0.5rem))]`}
       role="presentation"
     >
       <button
@@ -72,10 +72,10 @@ export function AccountPanelShell({
         role="dialog"
         aria-modal="true"
         aria-labelledby="account-panel-title"
-        className="relative z-10 flex h-[100dvh] w-full max-w-full flex-col bg-white shadow-2xl md:h-[min(100dvh-1.5rem,calc(100dvh-4rem))] md:max-h-[calc(100dvh-1.5rem)] md:w-full md:max-w-md md:rounded-2xl md:ring-1 md:ring-zinc-200"
+        className="relative z-10 flex h-[min(92dvh,44rem)] w-full max-w-[min(100vw-1rem,32rem)] flex-col overflow-hidden rounded-2xl border border-zinc-200/90 bg-white shadow-2xl shadow-zinc-900/15 ring-1 ring-zinc-900/[0.04] md:h-[min(100dvh-1.5rem,calc(100dvh-4rem))] md:max-h-[calc(100dvh-1.5rem)] md:w-full md:max-w-md"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="flex shrink-0 flex-col gap-2 border-b border-zinc-200 bg-white px-3 pb-3 pt-[max(0.75rem,env(safe-area-inset-top,0px))] md:rounded-t-2xl md:pt-4">
+        <header className="flex shrink-0 flex-col gap-2 border-b border-zinc-200 bg-white/95 px-3 pb-3 pt-3 backdrop-blur md:pt-4">
           <div className="flex items-start justify-between gap-2">
             <h2
               id="account-panel-title"
@@ -104,7 +104,7 @@ export function AccountPanelShell({
           </div>
           <AccountPanelTabs active={section} onChange={onSectionChange} />
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))]">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 pb-5">
           {children}
         </div>
       </div>

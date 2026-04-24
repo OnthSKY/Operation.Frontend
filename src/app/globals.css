@@ -69,6 +69,21 @@ body {
   -webkit-tap-highlight-color: color-mix(in srgb, var(--foreground) 6%, transparent);
 }
 
+/* Masaüstünde tıklanabilir alanlarda net pointer geri bildirimi. */
+@media (hover: hover) and (pointer: fine) {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="menuitem"]:not([aria-disabled="true"]),
+  [role="option"]:not([aria-disabled="true"]),
+  a[href],
+  input[type="button"]:not(:disabled),
+  input[type="submit"]:not(:disabled),
+  input[type="reset"]:not(:disabled),
+  summary {
+    cursor: pointer;
+  }
+}
+
 /* Üst bar + ana gövde + footer aynı yatay ritim (safe area ile). */
 @layer utilities {
   /** `PageScreenScaffold` mobilToolbar: küçük ekranda kaydırırken üstte sabit özet/filtre satırı */

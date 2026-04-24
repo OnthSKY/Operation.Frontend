@@ -17,6 +17,7 @@ import {
   type GlobalSearchItemDef,
 } from "@/shared/lib/global-search-items";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { accountRoleLabel } from "@/modules/account/lib/role-label";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
@@ -446,8 +447,19 @@ export function AppGlobalSearch() {
 
   useEffect(() => {
     if (!open) return;
+    const prevOverflow = document.body.style.overflow;
+    const prevPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+    document.body.style.overflow = "hidden";
     const id = requestAnimationFrame(() => inputRef.current?.focus());
-    return () => cancelAnimationFrame(id);
+    return () => {
+      cancelAnimationFrame(id);
+      document.body.style.overflow = prevOverflow;
+      document.body.style.paddingRight = prevPaddingRight;
+    };
   }, [open]);
 
   const modLabel =
@@ -719,7 +731,7 @@ export function AppGlobalSearch() {
                                 ? `${cat}${hit.product.categoryName ? ` · ${hit.product.categoryName}` : ""}${hit.product.unit ? ` · ${hit.product.unit}` : ""}`
                                 : hit.kind === "vehicle"
                                   ? `${cat} · ${hit.vehicle.brand} ${hit.vehicle.model}${hit.vehicle.year != null ? ` · ${hit.vehicle.year}` : ""} · ${hit.vehicle.status}${hit.vehicle.assignedPersonnelName || hit.vehicle.assignedBranchName ? ` · ${hit.vehicle.assignedPersonnelName ?? hit.vehicle.assignedBranchName}` : ""}`
-                                  : `${cat} · ${hit.user.fullName?.trim() || "—"} · ${hit.user.role}`;
+                                  : `${cat} · ${hit.user.fullName?.trim() || "—"} · ${accountRoleLabel(hit.user.role, t)}`;
                     bits.push(
                       <button
                         key={entId}

@@ -101,7 +101,9 @@ export function Button({
       {...rest}
       type={type}
       className={cn(
-        "relative inline-flex min-h-12 w-full touch-manipulation select-none items-center justify-center overflow-hidden rounded-lg px-4 text-base font-medium sm:w-auto",
+        "relative inline-flex w-full touch-manipulation select-none items-center justify-center overflow-hidden rounded-lg font-medium",
+        "min-h-11 px-3.5 py-2 text-sm sm:min-h-12 sm:px-4 sm:py-2.5 sm:text-base md:px-5",
+        "sm:w-auto",
         "transition-[transform,box-shadow,opacity,filter] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
         "motion-reduce:transition-opacity motion-reduce:duration-150 motion-reduce:ease-linear",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
