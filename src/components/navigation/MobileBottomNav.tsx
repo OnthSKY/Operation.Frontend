@@ -89,7 +89,7 @@ export function MobileBottomNav({ onOpenMore, badgeState }: MobileBottomNavProps
       className="pointer-events-none fixed inset-x-0 bottom-0 md:hidden"
       style={{ zIndex: Z_INDEX.navbar + 1 }}
     >
-      <div className="pointer-events-auto pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pl-[max(0.75rem,env(safe-area-inset-left,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] sm:pl-[max(1rem,env(safe-area-inset-left,0px))] sm:pr-[max(1rem,env(safe-area-inset-right,0px))]">
+      <div className="pointer-events-auto pt-2 pb-[env(safe-area-inset-bottom,0px)] pl-[max(0.75rem,env(safe-area-inset-left,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] sm:pl-[max(1rem,env(safe-area-inset-left,0px))] sm:pr-[max(1rem,env(safe-area-inset-right,0px))]">
         <nav
           className="relative mx-auto max-w-screen-md antialiased"
           aria-label={t("nav.dockNav")}

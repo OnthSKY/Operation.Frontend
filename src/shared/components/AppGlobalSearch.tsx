@@ -523,7 +523,7 @@ export function AppGlobalSearch() {
 
       {open ? (
         <div
-          className={`fixed inset-0 ${OVERLAY_Z_TW.globalSearch} flex items-stretch justify-center bg-zinc-900/50 p-2 pt-[max(0.5rem,env(safe-area-inset-top,0px))] pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:items-start sm:p-3 sm:pt-16 sm:pb-3`}
+          className={`fixed inset-0 ${OVERLAY_Z_TW.globalSearch} flex items-stretch justify-center bg-transparent p-2 pt-[max(0.5rem,env(safe-area-inset-top,0px))] pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:items-start sm:p-3 sm:pt-16 sm:pb-3`}
           role="presentation"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) {

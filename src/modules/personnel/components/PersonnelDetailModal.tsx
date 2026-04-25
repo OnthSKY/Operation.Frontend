@@ -3,7 +3,6 @@
 import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
 import { cn } from "@/lib/cn";
-import { apiFetch } from "@/shared/api/client";
 import {
   personnelYearClosureArchiveUrl,
   personnelYearClosurePdfDownloadUrl,
@@ -97,7 +96,7 @@ import {
 import { Tooltip } from "@/shared/ui/Tooltip";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMatchMedia } from "@/shared/lib/use-match-media";
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 
 const TITLE_ID = "personnel-detail-modal-title";
@@ -357,70 +356,36 @@ function NationalIdPreviewImg({
   downloadLabel: string;
   closeLabel: string;
 }) {
-  const [src, setSrc] = useState<string | null>(null);
-  const blobRef = useRef<Blob | null>(null);
+  const [imageReady, setImageReady] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const lightboxTitleId = useId();
 
   useEffect(() => {
     if (!href) {
-      blobRef.current = null;
-      setSrc((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
-      });
       return;
     }
-    const ac = new AbortController();
-    void apiFetch(href, { signal: ac.signal })
-      .then((r) => (r.ok ? r.blob() : null))
-      .then((blob) => {
-        if (ac.signal.aborted || !blob) return;
-        blobRef.current = blob;
-        setSrc((prev) => {
-          if (prev) URL.revokeObjectURL(prev);
-          return URL.createObjectURL(blob);
-        });
-      })
-      .catch((e: unknown) => {
-        const isAbort =
-          ac.signal.aborted ||
-          (typeof e === "object" &&
-            e !== null &&
-            "name" in e &&
-            (e as { name: string }).name === "AbortError");
-        if (isAbort) return;
-        console.error(e);
-      });
-    return () => {
-      ac.abort();
-      blobRef.current = null;
-      setSrc((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
-      });
-    };
+    setImageReady(false);
+    setImageFailed(false);
   }, [href]);
 
   const runDownload = useCallback(() => {
-    const blob = blobRef.current;
-    const url = src;
-    if (!blob || !url) return;
-    const ext = nationalIdFileExt(blob.type || "");
+    if (!href) return;
+    const ext = nationalIdFileExt("");
     const a = document.createElement("a");
-    a.href = url;
+    a.href = href;
     a.download = `${fileBaseName}.${ext}`;
     a.rel = "noopener";
     document.body.appendChild(a);
     a.click();
     a.remove();
-  }, [fileBaseName, src]);
+  }, [fileBaseName, href]);
 
   if (!href) {
     return <span className="text-xs text-zinc-500">{emptyLabel}</span>;
   }
-  if (!src) {
-    return <span className="text-xs text-zinc-400">{loadingLabel}</span>;
+  if (imageFailed) {
+    return <span className="text-xs text-zinc-500">{emptyLabel}</span>;
   }
 
   return (
@@ -450,10 +415,22 @@ function NationalIdPreviewImg({
           aria-label={enlargeLabel}
           onClick={() => setLightboxOpen(true)}
         >
+          {!imageReady ? (
+            <span className="block px-3 py-6 text-center text-xs text-zinc-400">
+              {loadingLabel}
+            </span>
+          ) : null}
           <img
-            src={src}
+            src={href}
             alt=""
-            className="max-h-52 w-full rounded-lg object-contain"
+            loading="lazy"
+            decoding="async"
+            onLoad={() => setImageReady(true)}
+            onError={() => setImageFailed(true)}
+            className={cn(
+              "max-h-52 w-full rounded-lg object-contain",
+              !imageReady && "hidden",
+            )}
           />
         </button>
       </div>
@@ -469,8 +446,9 @@ function NationalIdPreviewImg({
       >
         <div className="flex justify-center px-4 pb-6 pt-2 sm:px-6 sm:pb-8">
           <img
-            src={src}
+            src={href}
             alt=""
+            decoding="async"
             className="max-h-[min(85dvh,48rem)] w-auto max-w-full object-contain"
           />
         </div>
@@ -554,7 +532,7 @@ export function PersonnelDetailModal({
   const [insuranceAddOpen, setInsuranceAddOpen] = useState(false);
   const [insuranceEditPeriod, setInsuranceEditPeriod] =
     useState<PersonnelInsurancePeriod | null>(null);
-  const [photoViewNonce, setPhotoViewNonce] = useState(0);
+  const photoViewNonce = 0;
   const insurancePid = personnel?.id ?? 0;
   const { data: insurancePeriods = [], isPending: insurancePeriodsPending } =
     usePersonnelInsurancePeriods(
@@ -562,11 +540,6 @@ export function PersonnelDetailModal({
       open && insurancePid > 0 && tab === "insurance",
     );
   const updateWhMut = useUpdateWarehouse();
-
-  useEffect(() => {
-    if (!open || !personnel) return;
-    setPhotoViewNonce(Date.now());
-  }, [open, personnel]);
 
   const pid = personnel?.id ?? 0;
   const {
@@ -1297,10 +1270,10 @@ export function PersonnelDetailModal({
                             <NationalIdPreviewImg
                               href={
                                 personnel.hasProfilePhoto1
-                                  ? `${personnelProfilePhotoUrl(personnel.id, 1, {
+                                  ? personnelProfilePhotoUrl(personnel.id, 1, {
                                       profilePhoto1Url: personnel.profilePhoto1Url,
                                       profilePhoto2Url: personnel.profilePhoto2Url,
-                                    })}?_=${photoViewNonce}`
+                                    })
                                   : null
                               }
                               emptyLabel={t("personnel.profilePhotosNoFile")}
@@ -1325,10 +1298,10 @@ export function PersonnelDetailModal({
                             <NationalIdPreviewImg
                               href={
                                 personnel.hasProfilePhoto2
-                                  ? `${personnelProfilePhotoUrl(personnel.id, 2, {
+                                  ? personnelProfilePhotoUrl(personnel.id, 2, {
                                       profilePhoto1Url: personnel.profilePhoto1Url,
                                       profilePhoto2Url: personnel.profilePhoto2Url,
-                                    })}?_=${photoViewNonce}`
+                                    })
                                   : null
                               }
                               emptyLabel={t("personnel.profilePhotosNoFile")}
@@ -1371,7 +1344,7 @@ export function PersonnelDetailModal({
                             <NationalIdPreviewImg
                               href={
                                 personnel.hasNationalIdPhotoFront
-                                  ? `${personnelNationalIdPhotoUrl(personnel.id, "front")}?_=${photoViewNonce}`
+                                  ? personnelNationalIdPhotoUrl(personnel.id, "front")
                                   : null
                               }
                               emptyLabel={t("personnel.nationalIdPhotosNoFile")}
@@ -1396,7 +1369,7 @@ export function PersonnelDetailModal({
                             <NationalIdPreviewImg
                               href={
                                 personnel.hasNationalIdPhotoBack
-                                  ? `${personnelNationalIdPhotoUrl(personnel.id, "back")}?_=${photoViewNonce}`
+                                  ? personnelNationalIdPhotoUrl(personnel.id, "back")
                                   : null
                               }
                               emptyLabel={t("personnel.nationalIdPhotosNoFile")}

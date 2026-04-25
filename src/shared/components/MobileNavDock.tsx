@@ -193,7 +193,7 @@ export function MobileNavDock({ onOpenMenu }: { onOpenMenu: () => void }) {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-[35] border-t border-zinc-200/90 bg-white/95 pb-[max(0.35rem,env(safe-area-inset-bottom,0px))] pt-1 shadow-[0_-4px_24px_-8px_rgba(0,0,0,0.08)] backdrop-blur-md md:hidden"
+      className="fixed bottom-0 left-0 right-0 z-[35] border-t border-zinc-200/90 bg-white/95 pb-[env(safe-area-inset-bottom,0px)] pt-1 shadow-[0_-4px_24px_-8px_rgba(0,0,0,0.08)] backdrop-blur-md md:hidden"
       aria-label={t("nav.dockNav")}
     >
       <ul

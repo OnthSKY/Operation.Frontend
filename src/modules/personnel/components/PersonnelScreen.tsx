@@ -273,6 +273,44 @@ function PencilIcon({ className }: { className?: string }) {
   );
 }
 
+function ChevronLeftIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="m15 18-6-6 6-6" />
+    </svg>
+  );
+}
+
+function ChevronRightIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="m9 18 6-6-6-6" />
+    </svg>
+  );
+}
+
 function buildPersonnelRowMenuSections(params: {
   p: Personnel;
   isAdmin: boolean;
@@ -1543,25 +1581,32 @@ export function PersonnelScreen() {
                     )}{" "}
                     · {t("products.pagingTotal")} {totalCount}
                   </p>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex items-center gap-2">
                     <Button
                       type="button"
                       variant="secondary"
-                      className="min-h-11"
+                      className="min-h-11 min-w-11 w-11 px-0 sm:min-w-[6.75rem] sm:w-auto sm:px-3"
+                      aria-label={t("products.pagingPrev")}
                       disabled={listPage <= 1}
                       onClick={() =>
                         setListPage((p) => Math.max(1, p - 1))
                       }
                     >
-                      {t("products.pagingPrev")}
+                      <span className="inline-flex items-center gap-1.5">
+                        <ChevronLeftIcon className="h-4 w-4" />
+                        <span className="hidden sm:inline">
+                          {t("products.pagingPrev")}
+                        </span>
+                      </span>
                     </Button>
-                    <span className="text-sm tabular-nums text-zinc-700">
+                    <span className="min-w-[4.5rem] text-center text-sm tabular-nums text-zinc-700">
                       {listPage} / {listPageTotal}
                     </span>
                     <Button
                       type="button"
                       variant="secondary"
-                      className="min-h-11"
+                      className="min-h-11 min-w-11 w-11 px-0 sm:min-w-[6.75rem] sm:w-auto sm:px-3"
+                      aria-label={t("products.pagingNext")}
                       disabled={listPage >= listPageTotal}
                       onClick={() =>
                         setListPage((p) =>
@@ -1569,7 +1614,12 @@ export function PersonnelScreen() {
                         )
                       }
                     >
-                      {t("products.pagingNext")}
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="hidden sm:inline">
+                          {t("products.pagingNext")}
+                        </span>
+                        <ChevronRightIcon className="h-4 w-4" />
+                      </span>
                     </Button>
                   </div>
                 </div>

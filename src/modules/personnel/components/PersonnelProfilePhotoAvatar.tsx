@@ -5,7 +5,6 @@ import {
   personnelProfilePhotoUrl,
   type PersonnelProfilePhotoPaths,
 } from "@/modules/personnel/api/personnel-api";
-import { apiFetch } from "@/shared/api/client";
 import { useEffect, useMemo, useState } from "react";
 
 type Props = {
@@ -45,34 +44,10 @@ export function PersonnelProfilePhotoAvatar({
         : null,
     [hasPhoto, personnelId, profilePhotoPaths, nonce]
   );
-  const [src, setSrc] = useState<string | null>(null);
+  const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => {
-    if (!href) {
-      setSrc((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
-      });
-      return;
-    }
-    const ac = new AbortController();
-    void apiFetch(href, { signal: ac.signal })
-      .then((r) => (r.ok ? r.blob() : null))
-      .then((blob) => {
-        if (ac.signal.aborted || !blob) return;
-        setSrc((prev) => {
-          if (prev) URL.revokeObjectURL(prev);
-          return URL.createObjectURL(blob);
-        });
-      })
-      .catch(() => {});
-    return () => {
-      ac.abort();
-      setSrc((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return null;
-      });
-    };
+    setImageFailed(false);
   }, [href]);
 
   const initial = displayName.trim().charAt(0).toUpperCase() || "?";
@@ -87,8 +62,15 @@ export function PersonnelProfilePhotoAvatar({
   );
 
   const inner =
-    src != null ? (
-      <img src={src} alt="" className="h-full w-full object-cover" />
+    href && !imageFailed ? (
+      <img
+        src={href}
+        alt=""
+        loading="lazy"
+        decoding="async"
+        className="h-full w-full object-cover"
+        onError={() => setImageFailed(true)}
+      />
     ) : (
       <span aria-hidden>{initial}</span>
     );
