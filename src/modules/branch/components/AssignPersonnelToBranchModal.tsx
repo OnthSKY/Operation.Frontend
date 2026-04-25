@@ -9,6 +9,7 @@ import { cn } from "@/lib/cn";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
+import { Checkbox } from "@/shared/ui/Checkbox";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import {
@@ -39,6 +40,10 @@ function hireDateForApi(p: Personnel): string {
   return s;
 }
 
+function needsTransferFromOtherBranch(p: Personnel, targetBranchId: number): boolean {
+  return p.branchId != null && p.branchId > 0 && p.branchId !== targetBranchId;
+}
+
 export function AssignPersonnelToBranchModal({
   open,
   onClose,
@@ -50,8 +55,8 @@ export function AssignPersonnelToBranchModal({
   const updatePersonnel = useUpdatePersonnel();
 
   const [step, setStep] = useState<Step>("pick");
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [pending, setPending] = useState<Personnel | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
+  const [pendingBatch, setPendingBatch] = useState<Personnel[] | null>(null);
   const [filter, setFilter] = useState("");
 
   const branchNameById = useMemo(() => {
@@ -74,11 +79,20 @@ export function AssignPersonnelToBranchModal({
     return candidates.filter((p) => p.fullName.toLowerCase().includes(q));
   }, [candidates, filter]);
 
+  /** Tüm seçim (süzgeç satırları dışında kalan seçili kayıtlar dahil) eklemede kullanılır. */
+  const orderedSelected = useMemo(
+    () => candidates.filter((p) => selectedIds.has(p.id)),
+    [candidates, selectedIds]
+  );
+
+  const allFilteredSelected =
+    filtered.length > 0 && filtered.every((p) => selectedIds.has(p.id));
+
   useEffect(() => {
     if (!open) return;
     setStep("pick");
-    setSelectedId(null);
-    setPending(null);
+    setSelectedIds(new Set());
+    setPendingBatch(null);
     setFilter("");
   }, [open, targetBranch.id]);
 
@@ -88,22 +102,41 @@ export function AssignPersonnelToBranchModal({
     return branchNameById.get(p.branchId) ?? `#${p.branchId}`;
   };
 
-  const selected = useMemo(
-    () => (selectedId != null ? candidates.find((p) => p.id === selectedId) ?? null : null),
-    [candidates, selectedId]
-  );
+  const toggleId = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
-  const runAssign = async (p: Personnel) => {
+  const selectAllFiltered = () => {
+    setSelectedIds(new Set(filtered.map((p) => p.id)));
+  };
+
+  const clearSelection = () => {
+    setSelectedIds(new Set());
+  };
+
+  const runAssignBatch = async (people: Personnel[]) => {
+    if (people.length === 0) return;
     try {
-      await updatePersonnel.mutateAsync({
-        id: p.id,
-        fullName: p.fullName,
-        hireDate: hireDateForApi(p),
-        jobTitle: p.jobTitle,
-        salary: p.salary,
-        branchId: targetBranch.id,
-      });
-      notify.success(t("toast.personnelMovedToBranch"));
+      for (const p of people) {
+        await updatePersonnel.mutateAsync({
+          id: p.id,
+          fullName: p.fullName,
+          hireDate: hireDateForApi(p),
+          jobTitle: p.jobTitle,
+          salary: p.salary,
+          branchId: targetBranch.id,
+        });
+      }
+      notify.success(
+        people.length === 1
+          ? t("toast.personnelMovedToBranch")
+          : t("toast.personnelMovedToBranchMany").replace("{count}", String(people.length))
+      );
       onClose();
     } catch (e) {
       notify.error(toErrorMessage(e));
@@ -111,38 +144,97 @@ export function AssignPersonnelToBranchModal({
   };
 
   const onPrimaryPick = () => {
-    if (!selected) return;
-    const other =
-      selected.branchId != null &&
-      selected.branchId > 0 &&
-      selected.branchId !== targetBranch.id;
-    if (other) {
-      setPending(selected);
+    if (orderedSelected.length === 0) return;
+    const needConfirm = orderedSelected.some((p) =>
+      needsTransferFromOtherBranch(p, targetBranch.id)
+    );
+    if (needConfirm) {
+      setPendingBatch(orderedSelected);
       setStep("confirm");
       return;
     }
-    void runAssign(selected);
+    void runAssignBatch(orderedSelected);
   };
 
   const onConfirmTransfer = () => {
-    if (!pending) return;
-    void runAssign(pending);
+    if (!pendingBatch?.length) return;
+    void runAssignBatch(pendingBatch);
   };
 
   const onBackFromConfirm = () => {
-    setPending(null);
+    setPendingBatch(null);
     setStep("pick");
   };
+
   const isDirty =
-    step === "confirm" ||
-    selectedId != null ||
-    filter.trim() !== "";
+    step === "confirm" || selectedIds.size > 0 || filter.trim() !== "";
   const requestClose = useDirtyGuard({
     isDirty,
     isBlocked: updatePersonnel.isPending,
     confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
     onClose,
   });
+
+  const confirmBody =
+    pendingBatch && pendingBatch.length > 0 ? (
+      (() => {
+        const transfers = pendingBatch.filter((p) =>
+          needsTransferFromOtherBranch(p, targetBranch.id)
+        );
+        const alsoUnassigned = pendingBatch.length - transfers.length;
+        const singleTransferOnly =
+          pendingBatch.length === 1 && transfers.length === 1;
+        const only = singleTransferOnly ? pendingBatch[0] : null;
+
+        if (singleTransferOnly && only) {
+          return (
+            <p className="text-base leading-relaxed text-zinc-800 sm:text-sm sm:text-zinc-700">
+              {t("branch.assignPersonnelConfirmBody")
+                .replace("{name}", only.fullName)
+                .replace("{fromBranch}", currentBranchLabel(only))
+                .replace("{toBranch}", targetBranch.name)}
+            </p>
+          );
+        }
+
+        return (
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
+            {transfers.length > 0 ? (
+              <div>
+                <p className="text-sm font-medium text-zinc-800">
+                  {t("branch.assignPersonnelConfirmBatchTransfersTitle")}
+                </p>
+                <ul className="mt-2 list-inside list-disc space-y-1.5 text-sm text-zinc-700">
+                  {transfers.map((p) => (
+                    <li key={p.id}>
+                      <span className="font-medium text-zinc-900">{p.fullName}</span>
+                      <span className="text-zinc-600">
+                        {" "}
+                        — {currentBranchLabel(p)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {alsoUnassigned > 0 ? (
+              <p className="text-sm leading-relaxed text-zinc-700">
+                {t("branch.assignPersonnelConfirmBatchAlsoUnassigned").replace(
+                  "{n}",
+                  String(alsoUnassigned)
+                )}
+              </p>
+            ) : null}
+            <p className="text-sm leading-relaxed text-zinc-700">
+              {t("branch.assignPersonnelConfirmBatchFooter").replace(
+                "{toBranch}",
+                targetBranch.name
+              )}
+            </p>
+          </div>
+        );
+      })()
+    ) : null;
 
   return (
     <Modal
@@ -156,14 +248,9 @@ export function AssignPersonnelToBranchModal({
       wideFixedHeight
       className="max-sm:max-h-[min(100dvh,100svh)] max-sm:rounded-b-none max-sm:rounded-t-2xl max-sm:border-x-0 max-sm:border-b-0"
     >
-      {step === "confirm" && pending ? (
+      {step === "confirm" && pendingBatch && pendingBatch.length > 0 ? (
         <div className="flex min-h-0 flex-1 flex-col px-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] pt-2 sm:px-6 sm:pb-6">
-          <p className="text-base leading-relaxed text-zinc-800 sm:text-sm sm:text-zinc-700">
-            {t("branch.assignPersonnelConfirmBody")
-              .replace("{name}", pending.fullName)
-              .replace("{fromBranch}", currentBranchLabel(pending))
-              .replace("{toBranch}", targetBranch.name)}
-          </p>
+          {confirmBody}
           <div className="mt-auto flex flex-col gap-2 pt-6 sm:mt-4 sm:flex-row sm:justify-end sm:pt-4">
             <Button
               type="button"
@@ -195,6 +282,40 @@ export function AssignPersonnelToBranchModal({
               onChange={(e) => setFilter(e.target.value)}
               autoComplete="off"
             />
+            {filtered.length > 0 ? (
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm">
+                <button
+                  type="button"
+                  className={cn(
+                    "font-medium text-violet-700 underline-offset-2 hover:underline",
+                    allFilteredSelected && "text-zinc-400 hover:no-underline"
+                  )}
+                  disabled={allFilteredSelected}
+                  onClick={selectAllFiltered}
+                >
+                  {t("branch.assignPersonnelSelectAll")}
+                </button>
+                <button
+                  type="button"
+                  className={cn(
+                    "font-medium text-violet-700 underline-offset-2 hover:underline",
+                    selectedIds.size === 0 && "pointer-events-none text-zinc-400 hover:no-underline"
+                  )}
+                  disabled={selectedIds.size === 0}
+                  onClick={clearSelection}
+                >
+                  {t("branch.assignPersonnelClearSelection")}
+                </button>
+                {selectedIds.size > 0 ? (
+                  <span className="text-zinc-500">
+                    {t("branch.assignPersonnelSelectedCount").replace(
+                      "{n}",
+                      String(selectedIds.size)
+                    )}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
           </div>
           {filtered.length === 0 ? (
             <p className="mt-3 shrink-0 text-sm text-zinc-500">{t("branch.assignPersonnelEmpty")}</p>
@@ -202,50 +323,54 @@ export function AssignPersonnelToBranchModal({
             <>
               <div className="mt-3 min-h-[min(42dvh,15rem)] flex-1 overflow-y-auto overscroll-contain rounded-xl border border-zinc-200 md:hidden">
                 <ul className="divide-y divide-zinc-100">
-                  {filtered.map((p) => (
-                    <li key={p.id}>
-                      <button
-                        type="button"
-                        className={cn(
-                          "flex w-full touch-manipulation items-start gap-3 px-4 py-3.5 text-left transition-colors active:bg-zinc-100",
-                          selectedId === p.id ? "bg-violet-50" : "hover:bg-zinc-50"
-                        )}
-                        onClick={() => setSelectedId(p.id)}
-                      >
-                        <span
+                  {filtered.map((p) => {
+                    const checked = selectedIds.has(p.id);
+                    return (
+                      <li key={p.id}>
+                        <div
+                          role="button"
+                          tabIndex={0}
                           className={cn(
-                            "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2",
-                            selectedId === p.id
-                              ? "border-violet-600 bg-violet-600"
-                              : "border-zinc-300 bg-white"
+                            "flex w-full touch-manipulation items-start gap-3 px-4 py-3.5 text-left transition-colors outline-none focus-visible:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400",
+                            checked ? "bg-violet-50/90" : "hover:bg-zinc-50 active:bg-zinc-100"
                           )}
-                          aria-hidden
+                          onClick={() => toggleId(p.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              toggleId(p.id);
+                            }
+                          }}
                         >
-                          {selectedId === p.id ? (
-                            <span className="h-2 w-2 rounded-full bg-white" />
-                          ) : null}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-base font-medium leading-snug text-zinc-900">
-                            {p.fullName}
+                          <span className="mt-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={() => toggleId(p.id)}
+                              aria-label={p.fullName}
+                            />
                           </span>
-                          <span className="mt-1 block text-sm leading-snug text-zinc-500">
-                            <span className="font-medium text-zinc-600">
-                              {t("branch.assignPersonnelCurrentBranch")}:
-                            </span>{" "}
-                            {currentBranchLabel(p)}
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-base font-medium leading-snug text-zinc-900">
+                              {p.fullName}
+                            </span>
+                            <span className="mt-1 block text-sm leading-snug text-zinc-500">
+                              <span className="font-medium text-zinc-600">
+                                {t("branch.assignPersonnelCurrentBranch")}:
+                              </span>{" "}
+                              {currentBranchLabel(p)}
+                            </span>
                           </span>
-                        </span>
-                      </button>
-                    </li>
-                  ))}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
               <div className="mt-3 hidden min-h-0 min-h-[16rem] flex-1 overflow-auto overscroll-contain rounded-xl border border-zinc-200 md:block">
                 <Table>
                   <TableHead>
                     <TableRow>
-                      <TableHeader className="w-[1%]">
+                      <TableHeader className="w-[1%] whitespace-nowrap pr-2">
                         <span className="sr-only">{t("branch.assignPersonnelPick")}</span>
                       </TableHeader>
                       <TableHeader>{t("branch.staffName")}</TableHeader>
@@ -255,32 +380,36 @@ export function AssignPersonnelToBranchModal({
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {filtered.map((p) => (
-                      <TableRow
-                        key={p.id}
-                        className={cn(
-                          "cursor-pointer min-h-[48px]",
-                          selectedId === p.id && "bg-violet-50/80"
-                        )}
-                        onClick={() => setSelectedId(p.id)}
-                      >
-                        <TableCell className="w-[1%] align-middle">
-                          <input
-                            type="radio"
-                            className="h-4 w-4 shrink-0"
-                            checked={selectedId === p.id}
-                            onChange={() => setSelectedId(p.id)}
-                            aria-label={p.fullName}
-                          />
-                        </TableCell>
-                        <TableCell className="min-w-0 max-w-[12rem] truncate font-medium text-zinc-900 lg:max-w-none">
-                          {p.fullName}
-                        </TableCell>
-                        <TableCell className="min-w-0 text-sm text-zinc-600">
-                          {currentBranchLabel(p)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {filtered.map((p) => {
+                      const checked = selectedIds.has(p.id);
+                      return (
+                        <TableRow
+                          key={p.id}
+                          className={cn(
+                            "cursor-pointer min-h-[48px]",
+                            checked && "bg-violet-50/80"
+                          )}
+                          onClick={() => toggleId(p.id)}
+                        >
+                          <TableCell
+                            className="w-[1%] whitespace-nowrap pr-2 align-middle"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={() => toggleId(p.id)}
+                              aria-label={p.fullName}
+                            />
+                          </TableCell>
+                          <TableCell className="min-w-0 max-w-[12rem] truncate font-medium text-zinc-900 lg:max-w-none">
+                            {p.fullName}
+                          </TableCell>
+                          <TableCell className="min-w-0 text-sm text-zinc-600">
+                            {currentBranchLabel(p)}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
@@ -298,7 +427,7 @@ export function AssignPersonnelToBranchModal({
             <Button
               type="button"
               className="min-h-12 w-full touch-manipulation sm:min-h-11 sm:w-auto sm:min-w-[120px]"
-              disabled={selected == null || updatePersonnel.isPending}
+              disabled={orderedSelected.length === 0 || updatePersonnel.isPending}
               onClick={onPrimaryPick}
             >
               {updatePersonnel.isPending ? t("common.saving") : t("branch.assignPersonnelAdd")}

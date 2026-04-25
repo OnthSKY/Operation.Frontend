@@ -93,6 +93,12 @@ export const branch = {
   quickActions: "Kasa hızlı işlemler",
   quickMenuStoryRegister: "Şube kasası",
   quickMenuStoryPersonnelReports: "Personel ve rapor",
+  quickMenuStoryDangerZone: "Tehlikeli işlem",
+  deleteBranch: "Şubeyi sil",
+  deleteBranchConfirmTitle: "Şubeyi sil?",
+  deleteBranchConfirmBody:
+    "«{name}» yumuşak silinecek (kayıt kalır; destek gerekirse kurtarılabilir). Yalnızca bu şubede atanmış aktif personel yokken izin verilir.",
+  deleteBranchConfirm: "Evet, sil",
   quickAddDayClose: "Gün sonu ekle",
   listRowPdfSettlement:
     "PDF çıktısı (avans, gider, notlar — şube bazlı)",
@@ -790,7 +796,7 @@ export const branch = {
   assignPersonnelOpen: "Şubeye personel ata",
   assignPersonnelTitle: "Bu şubeye personel ata",
   assignPersonnelHint:
-    "Bu şubede olmayan personel listelenir. Mevcut şubesi gösterilir. Şubesi olmayan personelde ek onay sorulmaz.",
+    "Bu şubede olmayan personel listelenir. Mevcut şubesi gösterilir. Birden fazla kişi seçmek için kutuları işaretleyin. Şubesi olmayan personelde ek onay sorulmaz.",
   assignPersonnelFilter: "Ada göre süz",
   assignPersonnelCurrentBranch: "Mevcut şube",
   assignPersonnelNoBranch: "Şubesiz",
@@ -802,6 +808,14 @@ export const branch = {
     "«{name}» şu an «{fromBranch}» kayıtlı. «{toBranch}» şubesine aktarılacak. Onaylıyor musunuz?",
   assignPersonnelConfirmBack: "Geri",
   assignPersonnelConfirmSubmit: "Evet, aktar",
+  assignPersonnelSelectAll: "Tümünü seç",
+  assignPersonnelClearSelection: "Seçimi kaldır",
+  assignPersonnelSelectedCount: "{n} seçili",
+  assignPersonnelConfirmBatchTransfersTitle: "Başka şubeden aktarılacaklar:",
+  assignPersonnelConfirmBatchFooter:
+    "Seçimin tamamı «{toBranch}» şubesine kaydedilecek. Onaylıyor musunuz?",
+  assignPersonnelConfirmBatchAlsoUnassigned:
+    "Ayrıca {n} şubesiz personel bu şubeye eklenecek.",
   giveAdvance: "Avans ver",
   totalAdvancesBranch: "Şube toplam avans",
   totalAdvancesBranchPeriod:

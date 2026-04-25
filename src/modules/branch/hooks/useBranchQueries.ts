@@ -22,6 +22,7 @@ import {
 import {
   branchDashboardScopeKey,
   createBranch,
+  deleteBranch,
   fetchBranches,
   fetchBranchList,
   updateBranch,
@@ -197,6 +198,19 @@ export function useUpdateBranch() {
       updateBranch(id, input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: branchKeys.all });
+    },
+  });
+}
+
+export function useDeleteBranch() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => deleteBranch(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: branchKeys.all });
+      void qc.invalidateQueries({ queryKey: reportsKeys.patronFlowPosProfiles });
+      void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
+      invalidatePersonnelCashHandoverUiQueries(qc);
     },
   });
 }

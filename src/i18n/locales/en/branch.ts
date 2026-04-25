@@ -87,6 +87,12 @@ export const branch = {
   quickActions: "Quick register actions",
   quickMenuStoryRegister: "Branch register",
   quickMenuStoryPersonnelReports: "Staff & reports",
+  quickMenuStoryDangerZone: "Danger zone",
+  deleteBranch: "Delete branch",
+  deleteBranchConfirmTitle: "Delete this branch?",
+  deleteBranchConfirmBody:
+    "“{name}” will be soft-deleted (hidden from lists; support can restore if needed). This is only allowed when the branch has no assigned active personnel.",
+  deleteBranchConfirm: "Yes, delete",
   quickAddDayClose: "Add day close",
   listRowPdfSettlement:
     "PDF report (advances, expenses, notes — by branch)",
@@ -785,7 +791,7 @@ export const branch = {
   assignPersonnelOpen: "Assign to this branch",
   assignPersonnelTitle: "Assign personnel to this branch",
   assignPersonnelHint:
-    "Choose someone not already on this branch. Their current branch is shown. Unassigned staff are added without an extra confirmation.",
+    "People not already on this branch are listed with their current branch. Use the checkboxes to select one or more. Unassigned staff are added without an extra confirmation.",
   assignPersonnelFilter: "Filter by name",
   assignPersonnelCurrentBranch: "Current branch",
   assignPersonnelNoBranch: "Unassigned",
@@ -796,6 +802,14 @@ export const branch = {
     "«{name}» is currently under «{fromBranch}». They will be moved to «{toBranch}». Do you want to continue?",
   assignPersonnelConfirmBack: "Back",
   assignPersonnelConfirmSubmit: "Yes, move",
+  assignPersonnelSelectAll: "Select all",
+  assignPersonnelClearSelection: "Clear selection",
+  assignPersonnelSelectedCount: "{n} selected",
+  assignPersonnelConfirmBatchTransfersTitle: "Moving from another branch:",
+  assignPersonnelConfirmBatchFooter:
+    "Everyone you selected will be saved under «{toBranch}». Do you want to continue?",
+  assignPersonnelConfirmBatchAlsoUnassigned:
+    "Also, {n} unassigned staff will be added to this branch.",
   giveAdvance: "Give advance",
   totalAdvancesBranch: "Total advances (this branch)",
   totalAdvancesBranchPeriod:

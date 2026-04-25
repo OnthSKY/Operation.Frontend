@@ -469,6 +469,13 @@ export async function createBranch(input: CreateBranchInput): Promise<Branch> {
   return normalizeBranchListRow(r);
 }
 
+/** DELETE /branches/{id} — soft delete; API yalnızca şubede atanmış aktif personel yoksa izin verir. */
+export async function deleteBranch(id: number): Promise<void> {
+  const n = Number(id);
+  if (!Number.isFinite(n) || n <= 0) throw new Error("Invalid branch id");
+  await apiRequest<unknown>(`/branches/${n}`, { method: "DELETE" });
+}
+
 export async function updateBranch(
   id: number,
   input: UpdateBranchInput
