@@ -400,14 +400,13 @@ export function BranchComparisonReportScreen() {
                         <Fragment key={rk}>
                           <TableRow className="align-middle">
                             <TableCell
-                              dataLabel={t("reports.colBranch")}
                               className="max-w-[12rem] font-medium text-zinc-900 sm:max-w-none max-md:items-center"
                             >
-                              <div className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
+                              <div className="flex min-w-0 flex-1 items-center gap-1 text-left sm:gap-1.5">
                                 <button
                                   type="button"
                                   className={cn(
-                                    "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900",
+                                    "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 sm:h-8 sm:w-8",
                                     expanded && "bg-zinc-100 text-zinc-900"
                                   )}
                                   aria-expanded={expanded}
@@ -423,7 +422,7 @@ export function BranchComparisonReportScreen() {
                                   <svg
                                     viewBox="0 0 24 24"
                                     className={cn(
-                                      "h-4 w-4 transition-transform",
+                                      "h-3.5 w-3.5 transition-transform sm:h-4 sm:w-4",
                                       expanded ? "rotate-90" : ""
                                     )}
                                     fill="none"
@@ -436,7 +435,7 @@ export function BranchComparisonReportScreen() {
                                     <path d="m9 18 6-6-6-6" />
                                   </svg>
                                 </button>
-                                <span className="min-w-0 truncate">
+                                <span className="min-w-0 max-md:text-left max-md:text-[0.6875rem] max-md:font-semibold max-md:leading-snug max-md:line-clamp-2 max-md:break-words md:truncate">
                                   {reportBranchLabel(row.branchId, row.branchName, t)}
                                 </span>
                               </div>
