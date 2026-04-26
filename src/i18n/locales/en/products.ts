@@ -67,6 +67,8 @@ export const products = {
   mainProductLabel: "Main product",
   badgeGroup: "Group",
   badgeVariant: "Variant",
+  /** A11y: expand chevron on main product row; {count} = number of variants */
+  toggleSubProductsAria: "{count} variants — expand or collapse list",
   detailParentLine: "Main product",
   detailGroupNote:
     "Movements are recorded per variant; warehouse quantities below match the Products list (this row plus all variants).",

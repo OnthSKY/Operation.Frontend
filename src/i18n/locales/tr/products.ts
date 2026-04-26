@@ -68,6 +68,8 @@ export const products = {
   mainProductLabel: "Ana ürün",
   badgeGroup: "Grup",
   badgeVariant: "Alt ürün",
+  /** A11y: ana ürün satırındaki ok düğmesi; {count} = alt ürün adedi */
+  toggleSubProductsAria: "{count} alt ürün — listeyi aç veya kapat",
   detailParentLine: "Ana ürün",
   detailGroupNote:
     "Hareketler alt ürün satırlarına yazılır; aşağıdaki depo miktarları Ürünler listesindeki gibi ana ürün + tüm alt ürünlerin toplamıdır.",

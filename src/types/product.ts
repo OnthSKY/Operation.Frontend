@@ -16,6 +16,14 @@ export type ProductListItem = {
   byWarehouse: ProductWarehouseQty[];
 };
 
+/** GET /products/paged — ana ürün köklerine göre sayfalı; her sayfada ilgili alt ürünler dahil. */
+export type ProductCatalogPaged = {
+  items: ProductListItem[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+};
+
 export type ProductInventory = {
   productId: number;
   productName: string;

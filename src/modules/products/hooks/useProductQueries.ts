@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { productsRootKey, warehouseRootKey } from "@/modules/stock/query-keys";
 import {
   createProduct,
+  fetchProductCatalogPaged,
   fetchProductInventory,
   fetchProductMovementsPage,
   fetchProductsCatalog,
@@ -23,6 +24,8 @@ export const productKeys = {
   all: productsRootKey,
   categories: () => [...productKeys.all, "categories"] as const,
   catalog: () => [...productKeys.all, "catalog"] as const,
+  catalogPaged: (page: number, pageSize: number, search: string) =>
+    [...productKeys.all, "catalog-paged", page, pageSize, search] as const,
   inventory: (id: number) => [...productKeys.all, "inventory", id] as const,
   movementsPage: (id: number, params: ProductMovementsPageParams) =>
     [
@@ -46,6 +49,26 @@ export function useProductsCatalog(enabled = true) {
   });
 }
 
+export function useProductsCatalogPaged(
+  page: number,
+  pageSize: number,
+  search: string,
+  enabled = true
+) {
+  const q = search.trim();
+  return useQuery({
+    queryKey: productKeys.catalogPaged(page, pageSize, q),
+    queryFn: () => fetchProductCatalogPaged({ page, pageSize, search: q }),
+    enabled,
+    placeholderData: (previousData) => previousData,
+  });
+}
+
+function invalidateProductCatalogQueries(qc: ReturnType<typeof useQueryClient>) {
+  void qc.invalidateQueries({ queryKey: productKeys.catalog() });
+  void qc.invalidateQueries({ queryKey: [...productKeys.all, "catalog-paged"], exact: false });
+}
+
 export function useProductCategories(enabled = true) {
   return useQuery({
     queryKey: productKeys.categories(),
@@ -60,7 +83,7 @@ export function useCreateProductCategory() {
     mutationFn: (input: { name: string; parentCategoryId?: number | null }) => createProductCategory(input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: productKeys.categories() });
-      void qc.invalidateQueries({ queryKey: productKeys.catalog() });
+      invalidateProductCatalogQueries(qc);
     },
   });
 }
@@ -71,7 +94,7 @@ export function useUpdateProductCategory() {
     mutationFn: ({ id, name }: { id: number; name: string }) => updateProductCategory(id, name),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: productKeys.categories() });
-      void qc.invalidateQueries({ queryKey: productKeys.catalog() });
+      invalidateProductCatalogQueries(qc);
     },
   });
 }
@@ -82,7 +105,7 @@ export function useDeleteProductCategory() {
     mutationFn: (id: number) => deleteProductCategory(id),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: productKeys.categories() });
-      void qc.invalidateQueries({ queryKey: productKeys.catalog() });
+      invalidateProductCatalogQueries(qc);
     },
   });
 }
@@ -93,7 +116,7 @@ export function useSetProductCategory() {
     mutationFn: ({ productId, categoryId }: { productId: number; categoryId: number | null }) =>
       setProductCategory(productId, categoryId),
     onSuccess: (_data, vars) => {
-      void qc.invalidateQueries({ queryKey: productKeys.catalog() });
+      invalidateProductCatalogQueries(qc);
       void qc.invalidateQueries({ queryKey: productKeys.inventory(vars.productId) });
       void qc.invalidateQueries({ queryKey: warehouseRootKey });
     },
@@ -125,7 +148,7 @@ export function useCreateProduct() {
   return useMutation({
     mutationFn: createProduct,
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: productKeys.catalog() });
+      invalidateProductCatalogQueries(qc);
       void qc.invalidateQueries({ queryKey: warehouseRootKey });
     },
   });
@@ -136,7 +159,7 @@ export function useSoftDeleteProduct() {
   return useMutation({
     mutationFn: (id: number) => softDeleteProduct(id),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: productKeys.catalog() });
+      invalidateProductCatalogQueries(qc);
       void qc.invalidateQueries({ queryKey: warehouseRootKey });
     },
   });
@@ -159,7 +182,7 @@ export function useUpdateProduct() {
       parentProductId?: number | null;
     }) => updateProduct(id, { name, unit, categoryId, parentProductId }),
     onSuccess: (_data, vars) => {
-      void qc.invalidateQueries({ queryKey: productKeys.catalog() });
+      invalidateProductCatalogQueries(qc);
       void qc.invalidateQueries({ queryKey: productKeys.inventory(vars.id) });
       void qc.invalidateQueries({ queryKey: warehouseRootKey });
     },
