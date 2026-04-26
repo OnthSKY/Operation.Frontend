@@ -56,6 +56,44 @@ function branchComparisonRowKey(row: FinancialBranchBreakdownRow): string {
   return `${row.branchId}-${row.currencyCode || ""}`;
 }
 
+function ChevronLeftIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="m15 18-6-6 6-6" />
+    </svg>
+  );
+}
+
+function ChevronRightIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="m9 18 6-6-6-6" />
+    </svg>
+  );
+}
+
 export function BranchComparisonReportScreen() {
   const { t, locale } = useI18n();
   const [dateFrom, setDateFrom] = useState(startOfMonthIso);
@@ -263,7 +301,12 @@ export function BranchComparisonReportScreen() {
               </p>
             ) : null}
 
-            <p className="text-xs text-zinc-500">{t("reports.branchComparisonSortHint")}</p>
+            <p className="hidden text-xs text-zinc-500 md:block">
+              {t("reports.branchComparisonSortHint")}
+            </p>
+            <p className="text-xs text-zinc-600 md:hidden">
+              {t("reports.branchComparisonSortHintMobile")}
+            </p>
 
             {q.isError ? (
               <p className="text-sm text-red-600">
@@ -356,8 +399,11 @@ export function BranchComparisonReportScreen() {
                       return (
                         <Fragment key={rk}>
                           <TableRow className="align-middle">
-                            <TableCell className="max-w-[12rem] font-medium text-zinc-900 sm:max-w-none">
-                              <div className="flex min-w-0 items-center gap-1.5">
+                            <TableCell
+                              dataLabel={t("reports.colBranch")}
+                              className="max-w-[12rem] font-medium text-zinc-900 sm:max-w-none max-md:items-center"
+                            >
+                              <div className="flex min-w-0 flex-1 items-center gap-1.5 text-left">
                                 <button
                                   type="button"
                                   className={cn(
@@ -395,23 +441,38 @@ export function BranchComparisonReportScreen() {
                                 </span>
                               </div>
                             </TableCell>
-                            <TableCell className="whitespace-nowrap tabular-nums text-zinc-700">
+                            <TableCell
+                              dataLabel={t("reports.colCurrency")}
+                              className="whitespace-nowrap tabular-nums text-zinc-700 max-md:items-center"
+                            >
                               {currencyTableLabel(row.currencyCode)}
                             </TableCell>
-                            <TableCell className="whitespace-nowrap text-right tabular-nums">
+                            <TableCell
+                              dataLabel={t("reports.colIncome")}
+                              className="whitespace-nowrap text-right tabular-nums max-md:items-center"
+                            >
                               {formatLocaleAmount(row.totalIncome, locale, ccy)}
                             </TableCell>
-                            <TableCell className="whitespace-nowrap text-right tabular-nums text-red-800/90">
+                            <TableCell
+                              dataLabel={t("reports.colExpense")}
+                              className="whitespace-nowrap text-right tabular-nums text-red-800/90 max-md:items-center"
+                            >
                               {formatLocaleAmount(row.totalExpense, locale, ccy)}
                             </TableCell>
-                            <TableCell className="whitespace-nowrap text-right tabular-nums text-zinc-700">
+                            <TableCell
+                              dataLabel={t("reports.colSupplierRegisterPaid")}
+                              className="whitespace-nowrap text-right tabular-nums text-zinc-700 max-md:items-center"
+                            >
                               {formatLocaleAmount(
                                 row.totalSupplierRegisterCashPaid ?? 0,
                                 locale,
                                 ccy
                               )}
                             </TableCell>
-                            <TableCell className="whitespace-nowrap text-right tabular-nums font-semibold text-zinc-900">
+                            <TableCell
+                              dataLabel={t("reports.colNet")}
+                              className="whitespace-nowrap text-right tabular-nums font-semibold text-zinc-900 max-md:items-center"
+                            >
                               {formatLocaleAmount(row.netCash, locale, ccy)}
                             </TableCell>
                           </TableRow>
@@ -495,32 +556,36 @@ export function BranchComparisonReportScreen() {
                       </Table>
                     </div>
 
-                    <div className="flex flex-col gap-2 border-t border-zinc-100 pt-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-                      <p className="text-zinc-600">
+                    <div className="flex flex-col gap-2 border-t border-zinc-100 pt-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                      <p className="text-center text-zinc-600 sm:min-w-0 sm:flex-1 sm:text-left">
                         {fillTemplate(t("reports.branchComparisonPaging"), {
                           page: String(pageClamped),
                           totalPages: String(totalPages),
                           total: String(q.data.totalCount),
                         })}
                       </p>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="mx-auto flex w-auto max-w-full shrink-0 items-center justify-center gap-1.5 sm:mx-0 sm:ml-auto sm:justify-end">
                         <Button
                           type="button"
                           variant="secondary"
-                          className="min-h-10"
+                          className="!h-11 !w-11 !min-h-11 !min-w-11 shrink-0 !px-0 !py-0 sm:!h-11 sm:!w-11 sm:!min-h-11 sm:!px-0 sm:!py-0 sm:!text-sm md:!px-0"
+                          aria-label={t("reports.branchComparisonPrev")}
+                          title={t("reports.branchComparisonPrev")}
                           disabled={pageClamped <= 1 || q.isFetching}
                           onClick={() => setPage((p) => Math.max(1, p - 1))}
                         >
-                          {t("reports.branchComparisonPrev")}
+                          <ChevronLeftIcon className="h-4 w-4 shrink-0" />
                         </Button>
                         <Button
                           type="button"
                           variant="secondary"
-                          className="min-h-10"
+                          className="!h-11 !w-11 !min-h-11 !min-w-11 shrink-0 !px-0 !py-0 sm:!h-11 sm:!w-11 sm:!min-h-11 sm:!px-0 sm:!py-0 sm:!text-sm md:!px-0"
+                          aria-label={t("reports.branchComparisonNext")}
+                          title={t("reports.branchComparisonNext")}
                           disabled={pageClamped >= totalPages || q.isFetching}
                           onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                         >
-                          {t("reports.branchComparisonNext")}
+                          <ChevronRightIcon className="h-4 w-4 shrink-0" />
                         </Button>
                       </div>
                     </div>

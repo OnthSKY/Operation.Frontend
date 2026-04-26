@@ -71,6 +71,10 @@ export const branch = {
   listSortIdDesc: "Id (descending)",
   listSortStaffDesc: "Staff count (high to low)",
   listMetricsToggle: "Income and scoped stock inbound",
+  /** Short heading on mobile branch cards; full phrase stays on the second line. */
+  listMetricsMobileTitle: "Income & stock summary",
+  /** Shown above money rows in the expandable branch list summary. */
+  listMetricsCurrencyCaption: "Amounts are in TRY.",
   listMetricsLoading: "Loading summary…",
   listTodayIncome: "Today’s income (UTC)",
   listTotalIncome: "All-time income",
@@ -150,7 +154,7 @@ export const branch = {
   listRowAddPersonnel: "Add personnel to branch",
   noData: "No branches yet.",
   selectHint:
-    "Tap a branch row or the view (eye) icon — the detail dialog opens full screen.",
+    "Tap the card or the Details button — the branch summary opens full screen.",
   openDetail: "Open",
   closeDetail: "Close",
   detailDesc:

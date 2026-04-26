@@ -52,6 +52,16 @@ export type WarehouseMovementItem = {
   inBatchGroupId?: string | null;
   /** OUT + depo→şube eşleşmesi varsa hedef şube adı */
   outDestinationBranchName?: string | null;
+  /** OUT + depodan şubeye sevkiyat (tek şube stok satırı); tam düzenleme API’si. */
+  isDepotToBranchShipment?: boolean;
+};
+
+/** Depo→şube sevkiyat OUT satırlarının şube bazlı özeti (API ile uyumlu). */
+export type WarehouseMovementOutboundByBranchSummary = {
+  branchId: number;
+  branchName: string;
+  totalQuantity: number;
+  movementLineCount: number;
 };
 
 export type WarehouseMovementsPaged = {
@@ -63,6 +73,10 @@ export type WarehouseMovementsPaged = {
   totalInQuantity?: number;
   /** Filtrelerle uyumlu toplam çıkış miktarı. */
   totalOutQuantity?: number;
+  /** Aynı parti (movementBatchId) veya tek satır; liste sekmesinden bağımsız, tüm sayfalar. */
+  inboundShipmentGroupCount?: number;
+  outboundShipmentGroupCount?: number;
+  outboundByBranch?: WarehouseMovementOutboundByBranchSummary[];
 };
 
 export type WarehouseStockFilters = {

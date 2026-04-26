@@ -6,7 +6,14 @@ export type WarehouseStockViewBlock =
       parentId: number;
       parentName: string;
       unit: string | null;
+      /** Pozitif stoklu alt ürün satırlarının toplamı. */
+      variantsSumQty: number;
+      /** Ana ürün ürün koduna doğrudan yazılmış net stok. */
+      parentDirectQty: number;
+      /** variantsSumQty + parentDirectQty */
       totalQty: number;
+      /** Katalogda bu ana ürüne bağlı alt ürün tanımı var mı (stokta olmasa da). */
+      hasVariantsInCatalog: boolean;
       children: WarehouseProductStockRow[];
     }
   | { kind: "single"; row: WarehouseProductStockRow };
@@ -15,7 +22,7 @@ function catalogHasChild(catalog: ProductListItem[], parentId: number) {
   return catalog.some((p) => p.parentProductId === parentId);
 }
 
-/** Depo stok listesi: ana ürün satırında alt varyantların toplamı; detay satırları varyant. */
+/** Depo stok listesi: grup başlığında alt varyant toplamı + ana ürüne direkt stok ayrı ayrı; detay satırları varyant. */
 export function buildWarehouseStockViewBlocks(
   rows: WarehouseProductStockRow[],
   catalog: ProductListItem[]
@@ -43,15 +50,18 @@ export function buildWarehouseStockViewBlocks(
       .sort((a, b) =>
         a.productName.localeCompare(b.productName, undefined, { sensitivity: "base" })
       );
-    const own = parentRow.quantity;
-    const childSum = children.reduce((s, c) => s + c.quantity, 0);
-    if (own <= 0 && children.length === 0) continue;
+    const parentDirectQty = parentRow.quantity;
+    const variantsSumQty = children.reduce((s, c) => s + c.quantity, 0);
+    if (parentDirectQty <= 0 && children.length === 0) continue;
     groups.push({
       kind: "group",
       parentId: pid,
       parentName: parentRow.productName,
       unit: parentRow.unit,
-      totalQty: own + childSum,
+      variantsSumQty,
+      parentDirectQty,
+      totalQty: parentDirectQty + variantsSumQty,
+      hasVariantsInCatalog: catalogHasChild(catalog, pid),
       children,
     });
   }

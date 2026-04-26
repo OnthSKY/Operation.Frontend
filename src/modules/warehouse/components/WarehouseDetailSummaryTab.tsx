@@ -9,9 +9,15 @@ type Props = {
   warehouseId: number;
   enabled: boolean;
   onOpenMovementsTab?: () => void;
+  onOpenInboundMovementsTab?: () => void;
 };
 
-export function WarehouseDetailSummaryTab({ warehouseId, enabled, onOpenMovementsTab }: Props) {
+export function WarehouseDetailSummaryTab({
+  warehouseId,
+  enabled,
+  onOpenMovementsTab,
+  onOpenInboundMovementsTab,
+}: Props) {
   const { t } = useI18n();
   const { data: productCatalog = [] } = useProductsCatalog();
   const { data: productCategories = [] } = useProductCategories(enabled);
@@ -23,6 +29,7 @@ export function WarehouseDetailSummaryTab({ warehouseId, enabled, onOpenMovement
           warehouseId={warehouseId}
           enabled={enabled}
           onOpenMovementsTab={onOpenMovementsTab}
+          onOpenInboundMovementsTab={onOpenInboundMovementsTab}
         />
       </div>
       <div className="rounded-2xl border border-zinc-200/85 bg-white p-4 shadow-sm ring-1 ring-zinc-950/[0.04] sm:p-5">

@@ -1,6 +1,5 @@
 "use client";
 
-import { AddProductModal } from "@/modules/products/components/AddProductModal";
 import { AddWarehouseModal } from "@/modules/warehouse/components/AddWarehouseModal";
 import {
   WarehouseListDepoInModal,
@@ -59,7 +58,6 @@ export function WarehouseScreen() {
   const { t, locale } = useI18n();
   const searchParams = useSearchParams();
   const [whModal, setWhModal] = useState(false);
-  const [prodModal, setProdModal] = useState(false);
   const [detailWarehouseId, setDetailWarehouseId] = useState<number | null>(null);
   const [quickDepoTarget, setQuickDepoTarget] = useState<{ id: number; name: string } | null>(null);
   const [quickTransferTarget, setQuickTransferTarget] = useState<{ id: number; name: string } | null>(
@@ -500,14 +498,8 @@ export function WarehouseScreen() {
           open
           warehouseId={detailWarehouseId}
           onClose={() => setDetailWarehouseId(null)}
-          onOpenAddProduct={() => setProdModal(true)}
         />
       ) : null}
-      <AddProductModal
-        open={prodModal}
-        onClose={() => setProdModal(false)}
-        descriptionKey="warehouse.addProductHint"
-      />
     </>
   );
 }

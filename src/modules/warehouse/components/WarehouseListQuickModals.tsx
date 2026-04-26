@@ -14,11 +14,13 @@ import {
   useWarehouseStock,
 } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import { useI18n } from "@/i18n/context";
+import { cn } from "@/lib/cn";
 import { LocalImageFileThumb } from "@/shared/components/LocalImageFileThumb";
 import { IMAGE_FILE_INPUT_ACCEPT } from "@/shared/lib/image-upload-limits";
 import { validateImageFileForUpload } from "@/shared/lib/validate-image-upload";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { apiUserFacingMessage } from "@/shared/lib/api-user-facing-message";
+import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { notify } from "@/shared/lib/notify";
 import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { Button } from "@/shared/ui/Button";
@@ -26,7 +28,7 @@ import { DateField } from "@/shared/ui/DateField";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
-import type { ProductListItem, WarehouseProductStockRow } from "@/types/product";
+import type { WarehouseProductStockRow } from "@/types/product";
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 
 function newDraftLineKey() {
@@ -35,7 +37,17 @@ function newDraftLineKey() {
 
 type LineDraft = { key: string; productId: string; qty: string };
 
+type ResolvedReceiptLine = {
+  key: string;
+  groupId: number;
+  groupLabel: string;
+  skuName: string;
+  quantity: number;
+  unit: string | null;
+};
+
 const DEPO_TITLE_ID = "wh-list-depo-in-title";
+const DEPO_RECEIPT_SUMMARY_ID = "wh-list-depo-receipt-summary";
 const TRANSFER_TITLE_ID = "wh-list-transfer-title";
 
 function productLabel(r: WarehouseProductStockRow) {
@@ -52,6 +64,35 @@ function productLabel(r: WarehouseProductStockRow) {
 
 type WhRef = { id: number; name: string } | null;
 
+function resolveDepoInReceiptLines(
+  lines: LineDraft[],
+  stockRows: WarehouseProductStockRow[]
+): ResolvedReceiptLine[] {
+  const out: ResolvedReceiptLine[] = [];
+  for (const line of lines) {
+    const pid = Number(line.productId);
+    if (!Number.isFinite(pid) || pid <= 0) continue;
+    const n = Number(line.qty.replace(",", "."));
+    if (!Number.isFinite(n) || n <= 0) continue;
+    const row = stockRows.find((r) => r.productId === pid);
+    if (!row) continue;
+    const hasParent = row.parentProductId != null && row.parentProductId > 0;
+    const groupId = hasParent ? row.parentProductId! : row.productId;
+    const parentNm = row.parentProductName?.trim() ?? "";
+    const groupLabel =
+      hasParent && parentNm.length > 0 ? parentNm : row.productName.trim();
+    out.push({
+      key: line.key,
+      groupId,
+      groupLabel,
+      skuName: row.productName.trim(),
+      quantity: n,
+      unit: row.unit?.trim() ? row.unit.trim() : null,
+    });
+  }
+  return out;
+}
+
 export function WarehouseListDepoInModal({
   target,
   onClose,
@@ -59,7 +100,7 @@ export function WarehouseListDepoInModal({
   target: WhRef;
   onClose: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const open = target != null;
   const warehouseId = target?.id ?? null;
   const whName = target?.name?.trim() ?? "";
@@ -74,6 +115,7 @@ export function WarehouseListDepoInModal({
   const [lines, setLines] = useState<LineDraft[]>(() => [{ key: newDraftLineKey(), productId: "", qty: "1" }]);
   const [inCheckedBy, setInCheckedBy] = useState("");
   const [inApprovedBy, setInApprovedBy] = useState("");
+  const [inMovementNote, setInMovementNote] = useState("");
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -111,12 +153,35 @@ export function WarehouseListDepoInModal({
     [stockRows, t]
   );
 
+  const resolvedReceiptLines = useMemo(
+    () => resolveDepoInReceiptLines(lines, stockRows),
+    [lines, stockRows]
+  );
+
+  const receiptParentGroups = useMemo(() => {
+    const map = new Map<number, { groupLabel: string; rows: ResolvedReceiptLine[] }>();
+    for (const row of resolvedReceiptLines) {
+      const cur = map.get(row.groupId) ?? { groupLabel: row.groupLabel, rows: [] };
+      cur.rows.push(row);
+      cur.groupLabel = row.groupLabel;
+      map.set(row.groupId, cur);
+    }
+    return [...map.entries()].map(([groupId, { groupLabel, rows }]) => {
+      const totalQty = rows.reduce((s, r) => s + r.quantity, 0);
+      const units = new Set(rows.map((r) => (r.unit ?? "").trim()).filter((u) => u.length > 0));
+      const mixedUnits = units.size > 1;
+      const singleUnit = units.size === 1 ? [...units][0] : null;
+      return { groupId, groupLabel, rows, totalQty, singleUnit, mixedUnits };
+    });
+  }, [resolvedReceiptLines]);
+
   useEffect(() => {
     if (!open) return;
     setMovementDate(localIsoDate());
     setLines([{ key: newDraftLineKey(), productId: "", qty: "1" }]);
     setInCheckedBy("");
     setInApprovedBy("");
+    setInMovementNote("");
     setInvoiceFile(null);
   }, [open, warehouseId]);
 
@@ -126,6 +191,7 @@ export function WarehouseListDepoInModal({
     lines.some((l) => l.productId.trim() !== "" || l.qty.trim() !== "1") ||
     inCheckedBy.trim() !== "" ||
     inApprovedBy.trim() !== "" ||
+    inMovementNote.trim() !== "" ||
     invoiceFile != null;
   const requestDepoInClose = useDirtyGuard({
     isDirty: depoInDirty,
@@ -178,6 +244,7 @@ export function WarehouseListDepoInModal({
         direction: "in",
         checkedByPersonnelId: ck,
         approvedByPersonnelId: ap,
+        description: inMovementNote.trim() ? inMovementNote.trim() : null,
         invoicePhoto: invoiceFile,
       });
       notify.success(t("toast.warehouseInOk"));
@@ -197,12 +264,13 @@ export function WarehouseListDepoInModal({
       title={t("warehouse.actionDepoProductIn")}
       description={desc}
       closeButtonLabel={t("common.close")}
+      className={cn("w-full", lines.length >= 3 ? "max-w-2xl" : "max-w-lg")}
     >
       {stockLoading ? (
         <p className="mt-4 text-sm text-zinc-500">{t("common.loading")}</p>
       ) : (
         <form
-          className="mt-4 flex max-h-[min(78dvh,28rem)] flex-col gap-3 overflow-y-auto [-webkit-overflow-scrolling:touch] sm:max-h-none sm:overflow-visible"
+          className="mt-3 flex max-h-[min(82dvh,34rem)] flex-col gap-3 overflow-y-auto [-webkit-overflow-scrolling:touch] sm:mt-4 sm:max-h-[min(78dvh,40rem)] sm:overflow-visible"
           onSubmit={(e) => void onSubmit(e)}
         >
           <DateField
@@ -213,19 +281,57 @@ export function WarehouseListDepoInModal({
             onChange={(e) => setMovementDate(e.target.value)}
             disabled={disabled}
           />
-          <div className="space-y-3">
-            <p className="text-sm font-medium text-zinc-800">{t("warehouse.depoInLinesSection")}</p>
+          <Input
+            label={t("warehouse.movementNote")}
+            type="text"
+            autoComplete="off"
+            value={inMovementNote}
+            onChange={(e) => setInMovementNote(e.target.value)}
+            disabled={disabled}
+          />
+          <p className="-mt-1 text-xs leading-snug text-zinc-500">{t("warehouse.depoInSharedNoteHint")}</p>
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              {t("warehouse.depoInLinesSection")}
+            </p>
             {lines.map((line, idx) => {
               const selectedRow = stockRows.find((r) => String(r.productId) === line.productId);
+              const compact = lines.length >= 2;
               return (
                 <div
                   key={line.key}
-                  className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-3 shadow-sm"
+                  className={cn(
+                    "rounded-xl border border-zinc-200/90 bg-white shadow-sm ring-1 ring-zinc-950/[0.03]",
+                    compact ? "px-1.5 py-1 sm:px-2" : "p-2 sm:p-2.5"
+                  )}
                 >
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
-                    <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 flex-nowrap items-end gap-1.5 sm:gap-2">
+                    <span
+                      className={cn(
+                        "flex shrink-0 select-none items-center justify-center rounded-md bg-zinc-100 font-bold tabular-nums text-zinc-500",
+                        compact
+                          ? "h-9 w-6 text-[0.6rem] sm:h-10 sm:w-7 sm:text-[0.65rem]"
+                          : "h-9 w-7 text-[0.65rem] sm:h-10 sm:w-8 sm:text-xs"
+                      )}
+                      aria-hidden
+                    >
+                      {idx + 1}
+                    </span>
+                    <div
+                      className="min-w-0 flex-1 basis-0"
+                      title={
+                        selectedRow?.unit
+                          ? `${t("warehouse.productUnit")}: ${selectedRow.unit}`
+                          : undefined
+                      }
+                    >
                       <Select
-                        label={t("warehouse.movementProduct")}
+                        label={idx === 0 ? t("warehouse.movementProduct") : undefined}
+                        ariaLabel={
+                          idx > 0
+                            ? `${t("warehouse.movementProduct")} (${idx + 1})`
+                            : undefined
+                        }
                         labelRequired={idx === 0}
                         name={`wh-list-depo-product-${line.key}`}
                         options={productOptions}
@@ -233,43 +339,50 @@ export function WarehouseListDepoInModal({
                         onChange={(e) => updateDepoLine(line.key, { productId: e.target.value })}
                         onBlur={() => {}}
                         disabled={disabled}
+                        className={cn("min-w-0", compact && "min-h-11 py-2 text-sm")}
                       />
                     </div>
-                    <div className="w-full sm:w-28">
+                    <div className={cn("shrink-0", compact ? "w-[4.25rem] sm:w-24" : "w-24 sm:w-28")}>
                       <Input
                         type="text"
                         inputMode="decimal"
                         autoComplete="off"
-                        label={t("warehouse.qtyLabelDepoIn")}
+                        label={idx === 0 ? t("warehouse.qtyLabelDepoIn") : undefined}
                         labelRequired={idx === 0}
+                        aria-label={idx > 0 ? t("warehouse.qtyLabelDepoIn") : undefined}
                         value={line.qty}
                         onChange={(e) => updateDepoLine(line.key, { qty: e.target.value })}
                         disabled={disabled}
+                        className={cn(
+                          "min-w-0 text-center tabular-nums",
+                          compact && "min-h-11 py-2 text-sm"
+                        )}
                       />
                     </div>
                     <Button
                       type="button"
                       variant="secondary"
-                      className="min-h-11 w-full shrink-0 sm:mb-0.5 sm:w-auto"
+                      className={cn(
+                        "shrink-0 self-end rounded-lg border-zinc-200 p-0 font-light leading-none text-zinc-500 hover:border-red-200 hover:bg-red-50 hover:text-red-700",
+                        compact
+                          ? "mb-0.5 h-9 w-9 text-base sm:h-10 sm:w-10 sm:text-lg"
+                          : "mb-0.5 h-10 w-10 text-lg"
+                      )}
                       disabled={disabled || lines.length <= 1}
                       onClick={() => removeDepoLine(line.key)}
                       aria-label={t("warehouse.depoInRemoveLine")}
+                      title={t("warehouse.depoInRemoveLine")}
                     >
-                      {t("warehouse.depoInRemoveLine")}
+                      <span aria-hidden>×</span>
                     </Button>
                   </div>
-                  {selectedRow?.unit ? (
-                    <p className="mt-2 text-sm text-zinc-600">
-                      {t("warehouse.productUnit")}: {selectedRow.unit}
-                    </p>
-                  ) : null}
                 </div>
               );
             })}
             <Button
               type="button"
               variant="secondary"
-              className="w-full min-h-11 sm:w-auto"
+              className="min-h-10 w-full touch-manipulation text-sm sm:min-h-11 sm:w-auto"
               disabled={disabled}
               onClick={addDepoLine}
             >
@@ -330,17 +443,82 @@ export function WarehouseListDepoInModal({
             />
             <LocalImageFileThumb file={invoiceFile} />
           </div>
-          <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:flex-wrap sm:justify-end">
+
+          {receiptParentGroups.length > 0 ? (
+            <section
+              className="rounded-xl border border-emerald-200/80 bg-gradient-to-b from-emerald-50/95 to-white p-3 shadow-sm ring-1 ring-emerald-900/[0.06] sm:p-4"
+              aria-labelledby={DEPO_RECEIPT_SUMMARY_ID}
+            >
+              <h3
+                id={DEPO_RECEIPT_SUMMARY_ID}
+                className="text-[0.65rem] font-bold uppercase tracking-wide text-emerald-900"
+              >
+                {t("warehouse.depoInReceiptSummaryTitle")}
+              </h3>
+              <ul className="mt-2.5 space-y-3">
+                {receiptParentGroups.map((g) => (
+                  <li
+                    key={g.groupId}
+                    className="rounded-lg border border-emerald-100/90 bg-white/90 px-2.5 py-2 sm:px-3"
+                  >
+                    <p className="text-xs font-semibold leading-snug text-zinc-900 sm:text-sm">
+                      {g.groupLabel}
+                    </p>
+                    <ul className="mt-1.5 space-y-1 border-t border-zinc-100/80 pt-1.5">
+                      {g.rows.map((r) => (
+                        <li
+                          key={r.key}
+                          className="flex min-w-0 items-baseline justify-between gap-2 text-[0.7rem] leading-snug text-zinc-600 sm:text-xs"
+                        >
+                          <span className="min-w-0 truncate">{r.skuName}</span>
+                          <span className="shrink-0 tabular-nums font-medium text-zinc-800">
+                            {formatLocaleAmount(r.quantity, locale)}
+                            {r.unit ? (
+                              <span className="ml-0.5 font-normal text-zinc-500"> {r.unit}</span>
+                            ) : null}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 border-t border-emerald-100 pt-1.5">
+                      <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-emerald-900">
+                        {t("warehouse.depoInReceiptSummaryGroupTotal")}
+                      </span>
+                      <span className="text-sm font-bold tabular-nums text-emerald-950 sm:text-base">
+                        {formatLocaleAmount(g.totalQty, locale)}
+                        {!g.mixedUnits && g.singleUnit ? (
+                          <span className="ml-1 text-xs font-semibold text-emerald-800/90">
+                            {g.singleUnit}
+                          </span>
+                        ) : null}
+                      </span>
+                    </div>
+                    {g.mixedUnits ? (
+                      <p className="mt-1 text-[0.6rem] leading-snug text-amber-800/90">
+                        {t("warehouse.depoInReceiptSummaryMixedUnitsHint")}
+                      </p>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          <div className="sticky bottom-0 -mx-1 flex flex-col gap-2 border-t border-zinc-200/80 bg-white/95 px-1 pt-2 pb-0.5 backdrop-blur-sm sm:static sm:mx-0 sm:flex-row sm:flex-wrap sm:justify-end sm:border-0 sm:bg-transparent sm:px-0 sm:pt-1 sm:backdrop-blur-none">
             <Button
               type="button"
               variant="secondary"
-              className="min-h-11 w-full sm:w-auto sm:min-w-[7rem]"
+              className="min-h-11 w-full touch-manipulation sm:w-auto sm:min-w-[7rem]"
               disabled={disabled}
               onClick={requestDepoInClose}
             >
               {t("common.cancel")}
             </Button>
-            <Button type="submit" className="min-h-11 w-full sm:min-w-[10rem] sm:flex-1" disabled={disabled}>
+            <Button
+              type="submit"
+              className="min-h-11 w-full touch-manipulation sm:min-w-[10rem] sm:flex-1"
+              disabled={disabled}
+            >
               {t("warehouse.depoInSubmit")}
             </Button>
           </div>

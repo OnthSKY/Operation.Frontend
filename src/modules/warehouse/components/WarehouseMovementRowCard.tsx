@@ -3,7 +3,11 @@
 import { warehouseMovementInvoicePhotoUrl } from "@/modules/warehouse/api/warehouse-movements-api";
 import { cn } from "@/lib/cn";
 import { MobileListCard } from "@/shared/components/MobileListCard";
+import { PencilIcon } from "@/shared/ui/EyeIcon";
+import { movementToolbarIconButtonClass } from "@/modules/warehouse/lib/movement-toolbar-icon";
 import { formatWarehouseShipmentDisplay } from "@/shared/lib/in-batch-group-label";
+import { TrashIcon } from "@/shared/ui/TrashIcon";
+import { Tooltip } from "@/shared/ui/Tooltip";
 import type { WarehouseMovementItem } from "@/types/warehouse";
 import { useEffect, useState, type ReactNode } from "react";
 
@@ -21,9 +25,26 @@ type Props = {
   fmtDate: (iso: string) => string;
   t: (key: string) => string;
   hideShipmentGroup?: boolean;
+  /** Depo hareketleri sekmesinde GİRİŞ satırı tam düzenleme / silme. */
+  warehouseId?: number;
+  onEditInboundFull?: (m: WarehouseMovementItem) => void;
+  onDeleteInbound?: (m: WarehouseMovementItem) => void;
+  /** Depo→şube sevkiyat OUT satırı (isDepotToBranchShipment). */
+  onEditOutboundShipment?: (m: WarehouseMovementItem) => void;
+  onDeleteOutboundShipment?: (m: WarehouseMovementItem) => void;
 };
 
-export function WarehouseMovementRowCard({ m, fmtDate, t, hideShipmentGroup }: Props) {
+export function WarehouseMovementRowCard({
+  m,
+  fmtDate,
+  t,
+  hideShipmentGroup,
+  warehouseId,
+  onEditInboundFull,
+  onDeleteInbound,
+  onEditOutboundShipment,
+  onDeleteOutboundShipment,
+}: Props) {
   const [thumbFailed, setThumbFailed] = useState(false);
   useEffect(() => {
     setThumbFailed(false);
@@ -33,6 +54,16 @@ export function WarehouseMovementRowCard({ m, fmtDate, t, hideShipmentGroup }: P
   const typeLabel = typeIn ? t("products.typeIn") : t("products.typeOut");
   const batchCell = formatWarehouseShipmentDisplay(m.inBatchGroupId, m.id);
   const photoUrl = warehouseMovementInvoicePhotoUrl(m.id);
+
+  const showInboundActions =
+    typeIn && warehouseId != null && warehouseId > 0 && (onEditInboundFull != null || onDeleteInbound != null);
+
+  const showOutboundShipmentActions =
+    !typeIn &&
+    m.isDepotToBranchShipment === true &&
+    warehouseId != null &&
+    warehouseId > 0 &&
+    (onEditOutboundShipment != null || onDeleteOutboundShipment != null);
 
   return (
     <MobileListCard as="div" className="touch-manipulation shadow-zinc-900/5">
@@ -47,6 +78,70 @@ export function WarehouseMovementRowCard({ m, fmtDate, t, hideShipmentGroup }: P
           {typeLabel}
         </span>
       </div>
+      {showInboundActions ? (
+        <div className="mt-3 flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
+          {onEditInboundFull ? (
+            <Tooltip content={t("warehouse.editInboundFullOpenRow")} delayMs={220}>
+              <button
+                type="button"
+                aria-label={t("warehouse.editInboundFullOpenRow")}
+                className={movementToolbarIconButtonClass(
+                  "rounded-lg border border-zinc-200 bg-white text-zinc-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-900"
+                )}
+                onClick={() => onEditInboundFull(m)}
+              >
+                <PencilIcon className="h-5 w-5 shrink-0" aria-hidden />
+              </button>
+            </Tooltip>
+          ) : null}
+          {onDeleteInbound ? (
+            <Tooltip content={t("warehouse.editInboundFullDeleteAction")} delayMs={220}>
+              <button
+                type="button"
+                aria-label={t("warehouse.editInboundFullDeleteAction")}
+                className={movementToolbarIconButtonClass(
+                  "rounded-lg border border-red-200/90 bg-red-50/80 text-red-900 shadow-sm transition hover:bg-red-100 active:bg-red-100 disabled:pointer-events-none disabled:opacity-40"
+                )}
+                onClick={() => onDeleteInbound(m)}
+              >
+                <TrashIcon className="h-5 w-5 shrink-0" aria-hidden />
+              </button>
+            </Tooltip>
+          ) : null}
+        </div>
+      ) : null}
+      {showOutboundShipmentActions ? (
+        <div className="mt-3 flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
+          {onEditOutboundShipment ? (
+            <Tooltip content={t("warehouse.editOutboundShipmentOpenRow")} delayMs={220}>
+              <button
+                type="button"
+                aria-label={t("warehouse.editOutboundShipmentOpenRow")}
+                className={movementToolbarIconButtonClass(
+                  "rounded-lg border border-zinc-200 bg-white text-zinc-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-900"
+                )}
+                onClick={() => onEditOutboundShipment(m)}
+              >
+                <PencilIcon className="h-5 w-5 shrink-0" aria-hidden />
+              </button>
+            </Tooltip>
+          ) : null}
+          {onDeleteOutboundShipment ? (
+            <Tooltip content={t("warehouse.editOutboundShipmentDeleteAction")} delayMs={220}>
+              <button
+                type="button"
+                aria-label={t("warehouse.editOutboundShipmentDeleteAction")}
+                className={movementToolbarIconButtonClass(
+                  "rounded-lg border border-red-200/90 bg-red-50/80 text-red-900 shadow-sm transition hover:bg-red-100 active:bg-red-100 disabled:pointer-events-none disabled:opacity-40"
+                )}
+                onClick={() => onDeleteOutboundShipment(m)}
+              >
+                <TrashIcon className="h-5 w-5 shrink-0" aria-hidden />
+              </button>
+            </Tooltip>
+          ) : null}
+        </div>
+      ) : null}
       <div className="mt-3">
         {m.parentProductName?.trim() ? (
           <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-violet-800">

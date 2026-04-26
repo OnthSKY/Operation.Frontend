@@ -33,6 +33,8 @@ type Props = {
   sections: QuickActionsMenuSection[];
   /** Larger tap target on narrow layouts */
   compact?: boolean;
+  /** Stretch trigger to container width and show label (mobile toolbars). */
+  fillTrigger?: boolean;
   onTriggerClick?: (e: ReactMouseEvent<HTMLButtonElement>) => void;
 };
 
@@ -56,6 +58,7 @@ export function BranchQuickActionsMenu({
   triggerLabel,
   sections,
   compact,
+  fillTrigger,
   onTriggerClick,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -261,14 +264,18 @@ export function BranchQuickActionsMenu({
 
   return (
     <>
-      <div ref={anchorRef} className="inline-flex">
+      <div
+        ref={anchorRef}
+        className={cn(fillTrigger ? "flex min-w-0 flex-1" : "inline-flex")}
+      >
         <Button
           type="button"
           variant="secondary"
           className={cn(
             detailOpenIconButtonClass,
             "border-zinc-200 bg-zinc-50/90 text-zinc-800 hover:border-violet-200 hover:bg-violet-50",
-            compact && "min-h-11 min-w-11"
+            compact && !fillTrigger && "min-h-11 min-w-11",
+            fillTrigger && "min-h-11 w-full min-w-0 justify-center gap-2 px-3"
           )}
           aria-label={triggerLabel}
           aria-expanded={open}
@@ -281,7 +288,10 @@ export function BranchQuickActionsMenu({
             setOpen((o) => !o);
           }}
         >
-          <ToolbarGlyphLightning className="h-5 w-5" />
+          <ToolbarGlyphLightning className="h-5 w-5 shrink-0" />
+          {fillTrigger ? (
+            <span className="truncate text-sm font-medium">{triggerLabel}</span>
+          ) : null}
         </Button>
       </div>
       {portal}

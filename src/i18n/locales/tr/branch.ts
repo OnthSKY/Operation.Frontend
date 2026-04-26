@@ -77,6 +77,10 @@ export const branch = {
   listSortIdDesc: "No'ya göre (azalan)",
   listSortStaffDesc: "Çalışana göre (çoktan aza)",
   listMetricsToggle: "Gelir ve kapsamlı stok girişi",
+  /** Mobil liste kartında kısa başlık; ayrıntı satırında `listMetricsToggle` kullanılır. */
+  listMetricsMobileTitle: "Gelir ve stok özeti",
+  /** Şube listesi kartında açılan özet blokta para satırlarının para birimi. */
+  listMetricsCurrencyCaption: "Tutarlar TRY cinsindendir.",
   listMetricsLoading: "Özet yükleniyor…",
   listTodayIncome: "Bugünkü gelir (UTC)",
   listTotalIncome: "Toplam gelir",
@@ -156,7 +160,7 @@ export const branch = {
   listRowAddPersonnel: "Şubeye personel ekle",
   noData: "Henüz şube yok.",
   selectHint:
-    "Şube satırına dokunun veya detay (göz) simgesine basın; detay tam ekran pencerede açılır.",
+    "Karta dokunun veya karttaki «Detaylar»a basın; şube özeti tam ekran pencerede açılır.",
   openDetail: "Aç",
   closeDetail: "Kapat",
   detailDesc:

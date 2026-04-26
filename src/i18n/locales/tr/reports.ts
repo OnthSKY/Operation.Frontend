@@ -600,13 +600,36 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
     "Kasa defterine işlenmiş patron hareketleri: cebinizden kasaya, gelirde size yazılan nakit payı, kasadan size dönüş, giderde «ödeyen: patron» satırları — tam liste; şube ve tarih filtreleyin.",
   patronFlowScopeNote:
     "«Cebinden verilen» = giderde ödeme kaynağı Patron olan OUT satırları (tedarikçi / muhasebe / diğer ayrımı akış tipinde). Kasaya nakit koyma ve gelirde patron payı ayrı satırlardadır. Satırda Patron seçilmemişse (ör. maaş kaydı varsayılan kasa) burada görünmez — finans özetinden farklıdır.",
-  patronPocketStoryTitle: "Cüzdan özeti",
+  patronPocketStoryTitle: "Patron cebi — özet",
+  patronPocketStoryBucketIntro:
+    "Çıkan tutarlar dört grupta: avans, personel/maaş, şube (tedarikçi, stok, işletme), genel (muhasebe ve diğer). Detay aşağıda.",
   patronPocketStoryHeadlineOut:
     "Bu dönem cebinizden toplam {{amount}} {{currency}} çıktı.",
   patronPocketStoryInOnly:
     "Bu dilimde kasadan size doğru net {{amount}} {{currency}} (nakit yatırım + gelirde patron payı); cebinizden çıkan gider satırı yok.",
   patronPocketStoryCashInAlso: "Kasadan size doğru girişler (nakit yatırım + gelir payı): {{amount}} {{currency}}.",
-  patronPocketStoryWhere: "Paranın gittiği yerler",
+  patronPocketStoryWhere: "Ne için harcandı (yüzde, cebinden çıkana göre)",
+  patronFlowOutDetailTitle: "Patron cebinden çıkanlar — detay",
+  patronFlowOutDetailLead:
+    "Yalnızca cebinizden ödenen satırlar. Tür, arama ve sıralama; sayfa başına 25 satır.",
+  patronFlowOutBucketAll: "Tüm çıkışlar",
+  patronFlowOutBucketAdvance: "Avans (kasa dışı)",
+  patronFlowOutBucketPersonnel: "Personel / maaş",
+  patronFlowOutBucketBranch: "Şube: tedarikçi, stok, işletme",
+  patronFlowOutBucketGeneral: "Genel: muhasebe, yasal, diğer",
+  patronFlowOutBucketFilter: "Gider grubu",
+  patronFlowColExpenseGroup: "Grup",
+  patronFlowOutPaging:
+    "Sayfa {{page}} / {{totalPages}} · bu sayfada {{shown}} satır (filtre sonrası {{total}})",
+  patronFlowOutPrevPage: "Önceki sayfa",
+  patronFlowOutNextPage: "Sonraki sayfa",
+  patronFlowAllLinesSectionTitle: "Tüm akış satırları (kasadan girişler dahil)",
+  patronFlowUnifiedLinesTitle: "Hareket listesi",
+  patronFlowViewBarAria: "Hangi listeyi göstereceğiniz",
+  patronFlowViewBarOpen: "Cebinden çıkanlar",
+  patronFlowViewBarIntegrated: "Tüm hareketler",
+  patronFlowViewBarIntegratedCaption:
+    "Kasadaki gelirler, kasadan size dönüşler ve tüm akış türleri — arama ve sıralama aşağıda.",
   patronPocketStoryNoMovement: "Bu para birimi için hareket yok.",
   patronFlowLead:
     "Şube kasası satırları: patron nakit girişi, gelirde nakit lehtarı patron, kasadan patrona ödeme (borç kapatma / patrona kayıt devri), patron ödemeli OUT (tedarikçi, OUT_TAX, diğer). POS etiketi şube profilinden.",
@@ -666,6 +689,8 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   branchComparisonPeriodHelp:
     "Tarih aralığındaki şube kasası hareketlerine dayanır. Sütun başlığına tıklayarak sıralayın.",
   branchComparisonSortHint: "Sıralamak için sütun başlığına tıklayın; tekrar ters çevirir.",
+  branchComparisonSortHintMobile:
+    "Kart görünümünde soldaki yazı sütun adıdır. Sıralamak için geniş ekran veya yatay modda tablo başlıklarını kullanın.",
   branchComparisonExpandShow: "Gelir/gider ayrıntısını göster",
   branchComparisonExpandHide: "Ayrıntıyı gizle",
   branchComparisonDetailIncomeTitle: "Faaliyet geliri — nakit ve kart",

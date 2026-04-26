@@ -597,13 +597,36 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
     "Owner-related lines written to the register: cash you inject, income cash tagged to you, register payouts to you, and expenses with payer = owner â€” full list with branch/date filters.",
   patronFlowScopeNote:
     "â€œPaid from your pocketâ€ here means OUT rows with expense payment source Owner (split into supplier / accounting / other flow types). Cash you put in and income share lines are separate. If a line is not tagged Owner (e.g. salary defaults to register), it will not appear as owner-pocket outflow â€” different from the financial summary.",
-  patronPocketStoryTitle: "Pocket summary",
+  patronPocketStoryTitle: "Owner pocket — summary",
+  patronPocketStoryBucketIntro:
+    "Outflows are grouped as: advances, payroll/personnel, branch (supplier, stock, operations), and general (accounting and other). See the detailed list below.",
   patronPocketStoryHeadlineOut:
     "In this period, {{amount}} {{currency}} left your pocket in total.",
   patronPocketStoryInOnly:
     "{{amount}} {{currency}} net toward you from the register (deposits + income tagged to you); no owner-pocket payments out in this slice.",
   patronPocketStoryCashInAlso: "Register inflows on your side (deposits + income share): {{amount}} {{currency}}.",
-  patronPocketStoryWhere: "Where the money went",
+  patronPocketStoryWhere: "What it paid for (share of pocket outflows)",
+  patronFlowOutDetailTitle: "Paid from your pocket — detail",
+  patronFlowOutDetailLead:
+    "Only lines paid from your pocket. Filter by group, search, sort — 25 rows per page.",
+  patronFlowOutBucketAll: "All outflows",
+  patronFlowOutBucketAdvance: "Advance (off register)",
+  patronFlowOutBucketPersonnel: "Payroll / personnel",
+  patronFlowOutBucketBranch: "Branch: supplier, stock, operations",
+  patronFlowOutBucketGeneral: "General: accounting, legal, other",
+  patronFlowOutBucketFilter: "Expense group",
+  patronFlowColExpenseGroup: "Group",
+  patronFlowOutPaging:
+    "Page {{page}} / {{totalPages}} · {{shown}} rows on this page ({{total}} after filters)",
+  patronFlowOutPrevPage: "Previous page",
+  patronFlowOutNextPage: "Next page",
+  patronFlowAllLinesSectionTitle: "All flow lines (register inflows included)",
+  patronFlowUnifiedLinesTitle: "Movements",
+  patronFlowViewBarAria: "Choose which list to show",
+  patronFlowViewBarOpen: "Pocket outflows",
+  patronFlowViewBarIntegrated: "All movements",
+  patronFlowViewBarIntegratedCaption:
+    "Register inflows, register payouts to you, and every flow type — search and sort below.",
   patronPocketStoryNoMovement: "No movements for this currency.",
   patronFlowLead:
     "Rows come from branch register lines: owner cash in, income with cash settlement to owner, register payouts to owner (debt repay / on-books reassignment to owner), owner-paid OUT (supplier-linked, OUT_TAX, other). POS tags from each branch profile.",
@@ -663,6 +686,8 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   branchComparisonPeriodHelp:
     "Uses branch register transactions in the date range. Sort columns by clicking headers.",
   branchComparisonSortHint: "Click a column title to sort; click again to reverse.",
+  branchComparisonSortHintMobile:
+    "In card view the text on the left is the column name. Sort using the table headers on a wider screen or in landscape.",
   branchComparisonExpandShow: "Show income & expense breakdown",
   branchComparisonExpandHide: "Hide breakdown",
   branchComparisonDetailIncomeTitle: "Operating income â€” cash vs card",

@@ -20,6 +20,8 @@ export type SelectOption = { value: string; label: string };
 
 export type SelectProps = {
   label?: string;
+  /** When `label` is omitted, sets `aria-label` on the combobox input for accessibility. */
+  ariaLabel?: string;
   labelRequired?: boolean;
   error?: string;
   options: SelectOption[];
@@ -82,6 +84,7 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
       className,
       id,
       label,
+      ariaLabel,
       labelRequired,
       error,
       options,
@@ -313,6 +316,7 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
               id={inputId}
               type="text"
               role="combobox"
+              aria-label={label ? undefined : ariaLabel}
               aria-expanded={open}
               aria-controls={listboxId}
               aria-autocomplete="list"

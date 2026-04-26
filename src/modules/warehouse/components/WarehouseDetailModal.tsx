@@ -1,7 +1,8 @@
 "use client";
 
 import { WarehouseDetailAuditTab } from "@/modules/warehouse/components/WarehouseDetailAuditTab";
-import { WarehouseDetailMovementsTab } from "@/modules/warehouse/components/WarehouseDetailMovementsTab";
+import { WarehouseDetailMovementHistoryTab } from "@/modules/warehouse/components/WarehouseDetailMovementHistoryTab";
+import { WarehouseDetailStockOperationsTab } from "@/modules/warehouse/components/WarehouseDetailStockOperationsTab";
 import { WarehouseDetailSummaryTab } from "@/modules/warehouse/components/WarehouseDetailSummaryTab";
 import { EditWarehouseModal } from "@/modules/warehouse/components/EditWarehouseModal";
 import { useWarehouseDetail } from "@/modules/warehouse/hooks/useWarehouseQueries";
@@ -11,9 +12,14 @@ import { cn } from "@/lib/cn";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { formatLocaleDateTime } from "@/shared/lib/locale-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { notify } from "@/shared/lib/notify";
+import { notifyWarehouseDeleteConfirm } from "@/shared/lib/notify-warehouse-delete";
 import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
-import { useEffect, useState } from "react";
+import { Tooltip } from "@/shared/ui/Tooltip";
+import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
+import { useSoftDeleteWarehouse } from "@/modules/warehouse/hooks/useWarehouseQueries";
+import { useCallback, useEffect, useState } from "react";
 import type { WarehouseDetail } from "@/types/warehouse";
 
 const TITLE_ID = "warehouse-detail-title";
@@ -60,23 +66,28 @@ function WarehouseDetailMetaCard({
   );
 }
 
-type Tab = "general" | "summary" | "movements" | "audit";
+type Tab = "general" | "summary" | "stock" | "history" | "audit";
 
 type Props = {
   open: boolean;
   warehouseId: number;
   onClose: () => void;
-  onOpenAddProduct: () => void;
 };
 
-export function WarehouseDetailModal({ open, warehouseId, onClose, onOpenAddProduct }: Props) {
+export function WarehouseDetailModal({ open, warehouseId, onClose }: Props) {
   const { t, locale } = useI18n();
   const [tab, setTab] = useState<Tab>("general");
   const [editOpen, setEditOpen] = useState(false);
+  const [movementHistoryIntent, setMovementHistoryIntent] = useState<"" | "ALL" | "IN" | "OUT">("");
+  const delWh = useSoftDeleteWarehouse();
   const { data: detail, isPending: detailLoading, isError, error } = useWarehouseDetail(
     open ? warehouseId : null,
     open
   );
+
+  const clearMovementHistoryIntent = useCallback(() => {
+    setMovementHistoryIntent("");
+  }, []);
 
   useEffect(() => {
     if (open) setTab("general");
@@ -85,6 +96,31 @@ export function WarehouseDetailModal({ open, warehouseId, onClose, onOpenAddProd
   useEffect(() => {
     if (!open) setEditOpen(false);
   }, [open]);
+
+  useEffect(() => {
+    if (!open) setMovementHistoryIntent("");
+  }, [open, warehouseId]);
+
+  const onDeleteWarehouseFromGeneral = () => {
+    if (!detail) return;
+    notifyWarehouseDeleteConfirm({
+      warehouseId,
+      name: detail.name,
+      title: t("warehouse.deleteWarehouse"),
+      body: t("warehouse.confirmDeleteWarehouse"),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("common.delete"),
+      onConfirm: async () => {
+        try {
+          await delWh.mutateAsync(warehouseId);
+          notify.success(t("toast.warehouseDeleted"));
+          onClose();
+        } catch (e) {
+          notify.error(toErrorMessage(e));
+        }
+      },
+    });
+  };
 
   const tabBtn = (id: Tab, label: string) => (
     <button
@@ -131,37 +167,65 @@ export function WarehouseDetailModal({ open, warehouseId, onClose, onOpenAddProd
               >
                 {tabBtn("general", t("warehouse.tabGeneral"))}
                 {tabBtn("summary", t("warehouse.tabSummary"))}
-                {tabBtn("movements", t("warehouse.tabMovements"))}
+                {tabBtn("stock", t("warehouse.movementsSubTabStock"))}
+                {tabBtn("history", t("warehouse.movementsSubTabHistory"))}
                 {tabBtn("audit", t("warehouse.tabAudit"))}
               </div>
               <div className="mt-3 min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-2 [-webkit-overflow-scrolling:touch] sm:mt-4 sm:pb-4">
                 {tab === "general" ? (
                   <div className="flex flex-col gap-3">
                     <WarehouseDetailMetaCard detail={detail} t={t} locale={locale} />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-11 w-full sm:ml-auto sm:w-auto sm:self-end"
-                      onClick={() => setEditOpen(true)}
-                    >
-                      {t("warehouse.editWarehouse")}
-                    </Button>
+                    <div className="flex flex-row flex-wrap items-stretch gap-2 sm:justify-end">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="min-h-11 min-w-0 flex-1 sm:max-w-xs sm:flex-none"
+                        onClick={() => setEditOpen(true)}
+                      >
+                        {t("warehouse.editWarehouse")}
+                      </Button>
+                      <Tooltip content={t("warehouse.deleteWarehouse")} delayMs={240}>
+                        <button
+                          type="button"
+                          className={trashIconActionButtonClass}
+                          aria-label={t("warehouse.deleteWarehouseIconAria")}
+                          disabled={delWh.isPending}
+                          onClick={onDeleteWarehouseFromGeneral}
+                        >
+                          <TrashIcon className="h-5 w-5" />
+                        </button>
+                      </Tooltip>
+                    </div>
                   </div>
                 ) : null}
                 {tab === "summary" ? (
                   <WarehouseDetailSummaryTab
                     warehouseId={warehouseId}
                     enabled={open && tab === "summary"}
-                    onOpenMovementsTab={() => setTab("movements")}
+                    onOpenMovementsTab={() => {
+                      setMovementHistoryIntent("ALL");
+                      setTab("history");
+                    }}
+                    onOpenInboundMovementsTab={() => {
+                      setMovementHistoryIntent("IN");
+                      setTab("history");
+                    }}
                   />
                 ) : null}
-                {tab === "movements" ? (
-                  <WarehouseDetailMovementsTab
+                {tab === "stock" ? (
+                  <WarehouseDetailStockOperationsTab
                     warehouseId={warehouseId}
                     warehouseName={detail.name}
-                    enabled={open && tab === "movements"}
-                    onOpenAddProduct={onOpenAddProduct}
+                    enabled={open && tab === "stock"}
                     onDeleted={onClose}
+                  />
+                ) : null}
+                {tab === "history" ? (
+                  <WarehouseDetailMovementHistoryTab
+                    warehouseId={warehouseId}
+                    enabled={open && tab === "history"}
+                    historyTypeIntent={movementHistoryIntent}
+                    onHistoryTypeIntentConsumed={clearMovementHistoryIntent}
                   />
                 ) : null}
                 {tab === "audit" ? (

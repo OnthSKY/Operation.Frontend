@@ -83,6 +83,47 @@ export function PencilIcon({ className }: { className?: string }) {
   );
 }
 
+/** Ek / fatura dosyası. */
+export function PaperclipIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.38-8.38A4 4 0 1 1 18 12" />
+      <path d="m15 7 4 4" />
+    </svg>
+  );
+}
+
+/** Aşağı — satırları aç / genişlet. */
+export function ChevronDownIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
 /** Şubelere paylaştırma; EyeIcon ile aynı çizgi kalınlığı. */
 export function ShareAllocateIcon({ className }: { className?: string }) {
   return (

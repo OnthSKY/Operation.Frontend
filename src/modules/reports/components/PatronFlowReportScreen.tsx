@@ -32,8 +32,16 @@ import {
   TableRow,
 } from "@/shared/ui/Table";
 import type { PatronFlowLine } from "@/types/patron-flow";
+import { cn } from "@/lib/cn";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  compareValues,
+  rowMatchesQuery,
+  type SortDir,
+} from "@/modules/reports/lib/report-table-utils";
+
+type SortKey = "date" | "branch" | "kind" | "amount";
 
 function flowKindLabel(t: (k: string) => string, kind: string): string {
   const u = kind.toUpperCase();
@@ -57,6 +65,25 @@ function flowKindLabel(t: (k: string) => string, kind: string): string {
   return kind;
 }
 
+function patronOutflowSortValue(
+  r: PatronFlowLine,
+  key: SortKey,
+  t: (k: string) => string,
+): string | number {
+  switch (key) {
+    case "date":
+      return r.transactionDate;
+    case "branch":
+      return r.branchName ?? "";
+    case "kind":
+      return flowKindLabel(t, r.flowKind);
+    case "amount":
+      return r.amount;
+    default:
+      return "";
+  }
+}
+
 const PATRON_OUT_KINDS = [
   "SUPPLIER_PAID_BY_PATRON",
   "ACCOUNTING_PAID_BY_PATRON",
@@ -65,6 +92,44 @@ const PATRON_OUT_KINDS = [
   "SALARY_FROM_PATRON",
 ] as const;
 
+type PatronOutExpenseBucket = "advance" | "personnel" | "branch" | "general";
+type PatronOutBucketFilter = "all" | PatronOutExpenseBucket;
+
+const PATRON_OUT_BUCKET_ORDER: PatronOutExpenseBucket[] = [
+  "advance",
+  "personnel",
+  "branch",
+  "general",
+];
+
+const OUTFLOW_DETAIL_PAGE_SIZE = 25;
+
+function isPatronOutflowKind(kind: string): boolean {
+  const u = kind.toUpperCase();
+  return (PATRON_OUT_KINDS as readonly string[]).includes(u);
+}
+
+/** Avans / personel / şube (tedarikçi·stok·işletme) / genel (muhasebe·diğer) — kullanıcı dostu özet. */
+function patronOutflowExpenseBucket(line: PatronFlowLine): PatronOutExpenseBucket {
+  const fk = line.flowKind.toUpperCase();
+  if (fk === "ADVANCE_FROM_PATRON") return "advance";
+  if (fk === "SALARY_FROM_PATRON") return "personnel";
+  if (fk === "SUPPLIER_PAID_BY_PATRON") return "branch";
+  if (fk === "ACCOUNTING_PAID_BY_PATRON") return "general";
+  const mc = (line.mainCategory ?? "").toUpperCase();
+  if (mc === "OUT_PERSONNEL" || mc.startsWith("OUT_PER_")) return "personnel";
+  if (mc === "OUT_GOODS" || mc.startsWith("OUT_GOODS_")) return "branch";
+  if (mc === "OUT_OPS" || mc.startsWith("OUT_OPS_")) return "branch";
+  return "general";
+}
+
+function expenseBucketLabel(t: (k: string) => string, b: PatronOutExpenseBucket): string {
+  if (b === "advance") return t("reports.patronFlowOutBucketAdvance");
+  if (b === "personnel") return t("reports.patronFlowOutBucketPersonnel");
+  if (b === "branch") return t("reports.patronFlowOutBucketBranch");
+  return t("reports.patronFlowOutBucketGeneral");
+}
+
 type PocketRollup = {
   currencyCode: string;
   patronCashIn: number;
@@ -72,7 +137,11 @@ type PocketRollup = {
   totalPatronInflow: number;
   registerReturnsToPatron: number;
   totalOut: number;
-  outLines: { flowKind: string; amount: number; pct: number }[];
+  expenseBucketLines: {
+    bucket: PatronOutExpenseBucket;
+    amount: number;
+    pct: number;
+  }[];
 };
 
 function fillTemplate(template: string, vars: Record<string, string>): string {
@@ -85,6 +154,7 @@ function fillTemplate(template: string, vars: Record<string, string>): string {
 
 function buildPocketRollups(
   totals: { flowKind: string; totalAmount: number; currencyCode: string }[],
+  lines: PatronFlowLine[],
 ): PocketRollup[] {
   const byCur = new Map<string, Map<string, number>>();
   for (const row of totals) {
@@ -106,13 +176,25 @@ function buildPocketRollups(
     for (const k of PATRON_OUT_KINDS) {
       totalOut += m.get(k) ?? 0;
     }
-    const outLines = PATRON_OUT_KINDS.map((flowKind) => {
-      const amount = m.get(flowKind) ?? 0;
+    const outForCur = lines.filter(
+      (ln) =>
+        isPatronOutflowKind(ln.flowKind) &&
+        (ln.currencyCode || "TRY").toUpperCase() === currencyCode,
+    );
+    const bucketSums: Record<PatronOutExpenseBucket, number> = {
+      advance: 0,
+      personnel: 0,
+      branch: 0,
+      general: 0,
+    };
+    for (const ln of outForCur) {
+      bucketSums[patronOutflowExpenseBucket(ln)] += ln.amount;
+    }
+    const expenseBucketLines = PATRON_OUT_BUCKET_ORDER.map((bucket) => {
+      const amount = bucketSums[bucket];
       const pct = totalOut > 0.005 ? Math.round((amount / totalOut) * 100) : 0;
-      return { flowKind, amount, pct };
-    })
-      .filter((x) => x.amount > 0.005)
-      .sort((a, b) => b.amount - a.amount);
+      return { bucket, amount, pct };
+    }).filter((x) => x.amount > 0.005);
     rollups.push({
       currencyCode,
       patronCashIn,
@@ -120,7 +202,7 @@ function buildPocketRollups(
       totalPatronInflow,
       registerReturnsToPatron,
       totalOut,
-      outLines,
+      expenseBucketLines,
     });
   }
   rollups.sort((a, b) => a.currencyCode.localeCompare(b.currencyCode));
@@ -130,8 +212,6 @@ function buildPocketRollups(
 const mobileCard =
   "rounded-xl border border-zinc-200 bg-white p-3 shadow-sm sm:hidden";
 const mobileCardStack = "flex flex-col gap-3 sm:hidden";
-
-type SortKey = "date" | "branch" | "kind" | "amount";
 
 export function PatronFlowReportScreen() {
   const { t, locale } = useI18n();
@@ -206,7 +286,106 @@ export function PatronFlowReportScreen() {
   const items: PatronFlowLine[] = overview.data?.items ?? [];
   const totals = overview.data?.totalsByKind ?? [];
 
-  const pocketRollups = useMemo(() => buildPocketRollups(totals), [totals]);
+  const pocketRollups = useMemo(
+    () => buildPocketRollups(totals, items),
+    [totals, items],
+  );
+
+  const outflowLinesAll = useMemo(
+    () => items.filter((r) => isPatronOutflowKind(r.flowKind)),
+    [items],
+  );
+
+  const [outDetailBucket, setOutDetailBucket] =
+    useState<PatronOutBucketFilter>("all");
+  const [outDetailQuery, setOutDetailQuery] = useState("");
+  const [outDetailSortKey, setOutDetailSortKey] = useState<SortKey>("date");
+  const [outDetailSortDir, setOutDetailSortDir] = useState<SortDir>("desc");
+  const [outDetailPage, setOutDetailPage] = useState(1);
+
+  useEffect(() => {
+    setOutDetailPage(1);
+  }, [outDetailBucket, dateFrom, dateTo, filterBranchId]);
+
+  const outflowHaystack = useCallback(
+    (r: PatronFlowLine) =>
+      [
+        r.branchName,
+        r.description,
+        txCategoryLine(r.mainCategory, r.category, t),
+        r.mainCategory,
+        r.category,
+        r.transactionType,
+        flowKindLabel(t, r.flowKind),
+        expenseBucketLabel(t, patronOutflowExpenseBucket(r)),
+        r.posBeneficiaryPersonnelName,
+        r.posSettlementNotes,
+      ]
+        .filter(Boolean)
+        .join(" "),
+    [t],
+  );
+
+  const outflowDetailProcessed = useMemo(() => {
+    let rows = outflowLinesAll;
+    if (outDetailBucket !== "all") {
+      rows = rows.filter(
+        (r) => patronOutflowExpenseBucket(r) === outDetailBucket,
+      );
+    }
+    const q = outDetailQuery.trim();
+    if (q) {
+      rows = rows.filter((r) => rowMatchesQuery(outflowHaystack(r), q));
+    }
+    return [...rows].sort((a, b) =>
+      compareValues(
+        patronOutflowSortValue(a, outDetailSortKey, t),
+        patronOutflowSortValue(b, outDetailSortKey, t),
+        outDetailSortDir,
+      ),
+    );
+  }, [
+    outflowLinesAll,
+    outDetailBucket,
+    outDetailQuery,
+    outDetailSortKey,
+    outDetailSortDir,
+    outflowHaystack,
+    t,
+  ]);
+
+  const outflowDetailTotalPages = Math.max(
+    1,
+    Math.ceil(outflowDetailProcessed.length / OUTFLOW_DETAIL_PAGE_SIZE),
+  );
+
+  useEffect(() => {
+    setOutDetailPage((p) => Math.min(p, outflowDetailTotalPages));
+  }, [outflowDetailTotalPages]);
+
+  const outflowDetailPageSafe = Math.min(outDetailPage, outflowDetailTotalPages);
+  const outflowDetailSlice = useMemo(() => {
+    const start = (outflowDetailPageSafe - 1) * OUTFLOW_DETAIL_PAGE_SIZE;
+    return outflowDetailProcessed.slice(start, start + OUTFLOW_DETAIL_PAGE_SIZE);
+  }, [outflowDetailProcessed, outflowDetailPageSafe]);
+
+  /** pocketOut: sadece patron cebinden çıkanlar (filtre + sayfa). all: kasa girişleri dahil tüm akış. */
+  const [linesView, setLinesView] = useState<"pocketOut" | "all">("pocketOut");
+
+  useEffect(() => {
+    if (outflowLinesAll.length === 0) setLinesView("all");
+  }, [outflowLinesAll.length]);
+
+  const outDetailBucketOptions = useMemo(
+    () => [
+      { value: "all" as const, label: t("reports.patronFlowOutBucketAll") },
+      ...PATRON_OUT_BUCKET_ORDER.map((b) => ({
+        value: b,
+        label: expenseBucketLabel(t, b),
+      })),
+    ],
+    [t],
+  );
 
   return (
     <ReportTablesPageShell
@@ -281,6 +460,9 @@ export function PatronFlowReportScreen() {
                       <p className="text-[0.65rem] font-bold uppercase tracking-[0.18em] text-violet-900/85">
                         {t("reports.patronPocketStoryTitle")}
                       </p>
+                      <p className="mt-1 text-xs leading-relaxed text-zinc-600">
+                        {t("reports.patronPocketStoryBucketIntro")}
+                      </p>
                       {hasOut ? (
                         <p className="mt-3 text-lg font-semibold leading-snug text-zinc-900 sm:text-xl">
                           {fillTemplate(
@@ -338,17 +520,17 @@ export function PatronFlowReportScreen() {
                           )}
                         </p>
                       ) : null}
-                      {hasOut && roll.outLines.length > 0 ? (
+                      {hasOut && roll.expenseBucketLines.length > 0 ? (
                         <>
                           <p className="mt-4 text-[0.65rem] font-bold uppercase tracking-[0.18em] text-zinc-500">
                             {t("reports.patronPocketStoryWhere")}
                           </p>
                           <ul className="mt-2 space-y-3">
-                            {roll.outLines.map((line) => (
-                              <li key={line.flowKind}>
+                            {roll.expenseBucketLines.map((line) => (
+                              <li key={line.bucket}>
                                 <div className="flex items-baseline justify-between gap-2 text-sm">
                                   <span className="min-w-0 font-medium text-zinc-800">
-                                    {flowKindLabel(t, line.flowKind)}
+                                    {expenseBucketLabel(t, line.bucket)}
                                   </span>
                                   <span className="shrink-0 tabular-nums text-zinc-900">
                                     {amt(line.amount)} {roll.currencyCode}
@@ -379,25 +561,345 @@ export function PatronFlowReportScreen() {
               </div>
             ) : null}
 
-            {overview.data && items.length === 0 ? (
-              <div className="space-y-2 rounded-xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
-                <p>{t("reports.patronFlowEmpty")}</p>
-                <p className="text-xs leading-relaxed text-amber-900/90">
-                  {t("reports.patronFlowEmptyWhy")}
-                </p>
-                <p>
-                  <Link
-                    href="/reports/financial/trend"
-                    className="font-semibold text-violet-800 underline decoration-violet-300 underline-offset-2 hover:text-violet-950"
-                  >
-                    {t("reports.patronFlowEmptyTrendCta")}
-                  </Link>
-                </p>
-              </div>
-            ) : null}
-
             {items.length > 0 ? (
-              <ReportInteractiveRows<PatronFlowLine, SortKey>
+              <section className="rounded-2xl border border-zinc-200 bg-white px-3 py-4 sm:px-5 sm:py-6">
+                <h2 className="text-[0.65rem] font-bold uppercase tracking-[0.2em] text-zinc-400">
+                  {t("reports.patronFlowUnifiedLinesTitle")}
+                </h2>
+                {outflowLinesAll.length > 0 ? (
+                  <div
+                    role="tablist"
+                    aria-label={t("reports.patronFlowViewBarAria")}
+                    className="mt-3 flex rounded-xl border border-zinc-200/80 bg-zinc-100/90 p-1 shadow-inner"
+                  >
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={linesView === "pocketOut"}
+                      className={cn(
+                        "min-h-11 flex-1 touch-manipulation rounded-lg px-2 py-2 text-sm font-semibold transition-colors",
+                        linesView === "pocketOut"
+                          ? "bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80"
+                          : "text-zinc-600 hover:bg-zinc-200/50 hover:text-zinc-900",
+                      )}
+                      onClick={() => setLinesView("pocketOut")}
+                    >
+                      {t("reports.patronFlowViewBarOpen")}
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={linesView === "all"}
+                      className={cn(
+                        "min-h-11 flex-1 touch-manipulation rounded-lg px-2 py-2 text-sm font-semibold transition-colors",
+                        linesView === "all"
+                          ? "bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80"
+                          : "text-zinc-600 hover:bg-zinc-200/50 hover:text-zinc-900",
+                      )}
+                      onClick={() => setLinesView("all")}
+                    >
+                      {t("reports.patronFlowViewBarIntegrated")}
+                    </button>
+                  </div>
+                ) : null}
+                <p className="mt-2 text-sm leading-relaxed text-zinc-600">
+                  {outflowLinesAll.length > 0
+                    ? linesView === "pocketOut"
+                      ? t("reports.patronFlowOutDetailLead")
+                      : t("reports.patronFlowViewBarIntegratedCaption")
+                    : t("reports.patronFlowViewBarIntegratedCaption")}
+                </p>
+                <div
+                  className={cn(
+                    outflowLinesAll.length === 0 || linesView !== "pocketOut"
+                      ? "hidden"
+                      : "mt-4",
+                  )}
+                >
+                  <div
+                    className="flex flex-col gap-3 border-b border-zinc-100 pb-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-3"
+                    role="search"
+                  >
+                  <label className="flex min-w-0 flex-1 flex-col gap-1">
+                    <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                      {t("reports.sectionFilter")}
+                    </span>
+                    <input
+                      type="search"
+                      enterKeyHint="search"
+                      value={outDetailQuery}
+                      onChange={(e) => setOutDetailQuery(e.target.value)}
+                      placeholder={t("reports.sectionSearchPlaceholder")}
+                      className="min-h-11 w-full rounded-lg border border-zinc-200 bg-zinc-50/80 px-3 py-2 text-base text-zinc-900 placeholder:text-zinc-400 sm:min-h-10 sm:text-sm"
+                    />
+                  </label>
+                  <div className="min-w-0 sm:w-[min(100%,18rem)]">
+                    <Select
+                      name="patronFlowOutBucketFilter"
+                      label={t("reports.patronFlowOutBucketFilter")}
+                      options={outDetailBucketOptions.map((o) => ({
+                        value: o.value,
+                        label: o.label,
+                      }))}
+                      value={outDetailBucket}
+                      onChange={(e) =>
+                        setOutDetailBucket(e.target.value as PatronOutBucketFilter)
+                      }
+                      onBlur={() => {}}
+                      className="min-h-11 sm:min-h-10 sm:text-sm"
+                    />
+                  </div>
+                  <div className="min-w-0 sm:w-[min(100%,16rem)]">
+                    <Select
+                      name="patronFlowOutSort"
+                      label={t("reports.sectionSortBy")}
+                      options={[
+                        { value: "date", label: t("reports.patronFlowColDate") },
+                        { value: "branch", label: t("reports.colBranch") },
+                        { value: "kind", label: t("reports.patronFlowColKind") },
+                        { value: "amount", label: t("reports.patronFlowColAmount") },
+                      ]}
+                      value={outDetailSortKey}
+                      onChange={(e) =>
+                        setOutDetailSortKey(e.target.value as SortKey)
+                      }
+                      onBlur={() => {}}
+                      className="min-h-11 sm:min-h-10 sm:text-sm"
+                    />
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setOutDetailSortDir((d) => (d === "asc" ? "desc" : "asc"))
+                      }
+                      className="min-h-11 min-w-11 touch-manipulation rounded-lg border border-zinc-200 bg-white px-2 text-base font-semibold leading-none text-zinc-800 shadow-sm sm:min-h-10 sm:min-w-10 sm:text-sm"
+                      aria-label={
+                        outDetailSortDir === "asc"
+                          ? t("reports.sortDescAria")
+                          : t("reports.sortAscAria")
+                      }
+                      title={
+                        outDetailSortDir === "asc"
+                          ? t("reports.sortStateDesc")
+                          : t("reports.sortStateAsc")
+                      }
+                    >
+                      <span aria-hidden>
+                        {outDetailSortDir === "asc" ? "↑" : "↓"}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+                {outflowDetailProcessed.length === 0 ? (
+                  <p className="mt-3 text-sm text-zinc-500">
+                    {t("reports.sectionNoSearchMatches")}
+                  </p>
+                ) : (
+                  <>
+                    <div className={mobileCardStack}>
+                      {outflowDetailSlice.map((row) => (
+                        <article key={row.id} className={mobileCard}>
+                          <dl className="space-y-2">
+                            <div className="flex flex-col gap-0.5 border-b border-zinc-100 pb-2">
+                              <dt className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                                {t("reports.patronFlowColExpenseGroup")}
+                              </dt>
+                              <dd className="text-sm font-medium text-violet-900">
+                                {expenseBucketLabel(
+                                  t,
+                                  patronOutflowExpenseBucket(row),
+                                )}
+                              </dd>
+                            </div>
+                            <div className="flex flex-col gap-0.5 border-b border-zinc-100 pb-2">
+                              <dt className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                                {t("reports.patronFlowColDate")}
+                              </dt>
+                              <dd className="text-sm font-medium text-zinc-900">
+                                {formatLocaleDate(row.transactionDate, locale)}
+                              </dd>
+                            </div>
+                            <div className="flex flex-col gap-0.5 border-b border-zinc-100 pb-2">
+                              <dt className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                                {t("reports.colBranch")}
+                              </dt>
+                              <dd className="text-sm text-zinc-800">
+                                {row.branchId != null && row.branchId > 0 ? (
+                                  <Link
+                                    href={`/branches?openBranch=${row.branchId}`}
+                                    className="text-violet-800 underline decoration-violet-200 underline-offset-2 hover:text-violet-950"
+                                  >
+                                    {row.branchName ?? "—"}
+                                  </Link>
+                                ) : (
+                                  (row.branchName ?? "—")
+                                )}
+                              </dd>
+                            </div>
+                            <div className="flex flex-col gap-0.5 border-b border-zinc-100 pb-2">
+                              <dt className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                                {t("reports.patronFlowColKind")}
+                              </dt>
+                              <dd className="text-sm text-zinc-800">
+                                {flowKindLabel(t, row.flowKind)}
+                              </dd>
+                            </div>
+                            <div className="flex flex-col gap-0.5 border-b border-zinc-100 pb-2">
+                              <dt className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                                {t("reports.patronFlowColAmount")}
+                              </dt>
+                              <dd className="text-sm tabular-nums text-zinc-900">
+                                {formatLocaleAmount(row.amount, locale)}{" "}
+                                {row.currencyCode}
+                              </dd>
+                            </div>
+                            <div className="flex flex-col gap-0.5 border-b border-zinc-100 pb-2">
+                              <dt className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                                {t("reports.patronFlowColCategory")}
+                              </dt>
+                              <dd className="text-sm text-zinc-700">
+                                {txCategoryLine(
+                                  row.mainCategory,
+                                  row.category,
+                                  t,
+                                ) || "—"}
+                              </dd>
+                            </div>
+                            {row.description ? (
+                              <div className="flex flex-col gap-0.5">
+                                <dt className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                                  {t("reports.patronFlowColDescription")}
+                                </dt>
+                                <dd className="text-sm text-zinc-700">
+                                  {row.description}
+                                </dd>
+                              </div>
+                            ) : null}
+                          </dl>
+                        </article>
+                      ))}
+                    </div>
+                    <div className="hidden sm:block">
+                      <Table>
+                        <TableHead>
+                          <TableRow>
+                            <TableHeader>
+                              {t("reports.patronFlowColDate")}
+                            </TableHeader>
+                            <TableHeader>
+                              {t("reports.colBranch")}
+                            </TableHeader>
+                            <TableHeader>
+                              {t("reports.patronFlowColExpenseGroup")}
+                            </TableHeader>
+                            <TableHeader>
+                              {t("reports.patronFlowColKind")}
+                            </TableHeader>
+                            <TableHeader className="text-right tabular-nums">
+                              {t("reports.patronFlowColAmount")}
+                            </TableHeader>
+                            <TableHeader>
+                              {t("reports.patronFlowColCategory")}
+                            </TableHeader>
+                            <TableHeader>
+                              {t("reports.patronFlowColDescription")}
+                            </TableHeader>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {outflowDetailSlice.map((row) => (
+                            <TableRow key={row.id}>
+                              <TableCell className="whitespace-nowrap text-sm">
+                                {formatLocaleDate(row.transactionDate, locale)}
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                {row.branchId != null && row.branchId > 0 ? (
+                                  <Link
+                                    href={`/branches?openBranch=${row.branchId}`}
+                                    className="text-violet-800 underline decoration-violet-200 underline-offset-2 hover:text-violet-950"
+                                  >
+                                    {row.branchName ?? "—"}
+                                  </Link>
+                                ) : (
+                                  (row.branchName ?? "—")
+                                )}
+                              </TableCell>
+                              <TableCell className="text-sm font-medium text-violet-900">
+                                {expenseBucketLabel(
+                                  t,
+                                  patronOutflowExpenseBucket(row),
+                                )}
+                              </TableCell>
+                              <TableCell className="text-sm">
+                                {flowKindLabel(t, row.flowKind)}
+                              </TableCell>
+                              <TableCell className="text-right text-sm tabular-nums">
+                                {formatLocaleAmount(row.amount, locale)}{" "}
+                                {row.currencyCode}
+                              </TableCell>
+                              <TableCell className="max-w-[10rem] truncate text-sm text-zinc-600">
+                                {txCategoryLine(
+                                  row.mainCategory,
+                                  row.category,
+                                  t,
+                                ) || "—"}
+                              </TableCell>
+                              <TableCell className="max-w-[18rem] text-sm text-zinc-700">
+                                {row.description ?? "—"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                    <div className="mt-4 flex flex-col gap-2 border-t border-zinc-100 pt-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                      <p className="text-xs tabular-nums text-zinc-500">
+                        {t("reports.patronFlowOutPaging")
+                          .replace("{{page}}", String(outflowDetailPageSafe))
+                          .replace(
+                            "{{totalPages}}",
+                            String(outflowDetailTotalPages),
+                          )
+                          .replace("{{shown}}", String(outflowDetailSlice.length))
+                          .replace(
+                            "{{total}}",
+                            String(outflowDetailProcessed.length),
+                          )}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          disabled={outflowDetailPageSafe <= 1}
+                          onClick={() => setOutDetailPage((p) => Math.max(1, p - 1))}
+                          className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-800 shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          {t("reports.patronFlowOutPrevPage")}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={
+                            outflowDetailPageSafe >= outflowDetailTotalPages
+                          }
+                          onClick={() =>
+                            setOutDetailPage((p) =>
+                              Math.min(outflowDetailTotalPages, p + 1),
+                            )
+                          }
+                          className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-800 shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          {t("reports.patronFlowOutNextPage")}
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+                </div>
+
+                <div
+                  className={cn(linesView !== "all" ? "hidden" : "mt-4")}
+                >
+                  <ReportInteractiveRows<PatronFlowLine, SortKey>
                 interactive
                 rows={items}
                 defaultSortKey="date"
@@ -439,10 +941,7 @@ export function PatronFlowReportScreen() {
                 t={t}
               >
                 {({ displayRows, toolbar, emptyFiltered }) => (
-                  <div className="rounded-2xl border border-zinc-200 bg-white px-3 py-4 sm:px-5 sm:py-6">
-                    <p className="mb-3 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-zinc-400">
-                      {t("reports.patronFlowLinesSectionTitle")}
-                    </p>
+                  <>
                     {toolbar}
                     {emptyFiltered ? (
                       <p className="text-sm text-zinc-500">
@@ -588,9 +1087,28 @@ export function PatronFlowReportScreen() {
                         </div>
                       </>
                     )}
-                  </div>
+                  </>
                 )}
               </ReportInteractiveRows>
+                </div>
+              </section>
+            ) : null}
+
+            {overview.data && items.length === 0 ? (
+              <div className="space-y-2 rounded-xl border border-amber-200/80 bg-amber-50/90 px-4 py-3 text-sm text-amber-950">
+                <p>{t("reports.patronFlowEmpty")}</p>
+                <p className="text-xs leading-relaxed text-amber-900/90">
+                  {t("reports.patronFlowEmptyWhy")}
+                </p>
+                <p>
+                  <Link
+                    href="/reports/financial/trend"
+                    className="font-semibold text-violet-800 underline decoration-violet-300 underline-offset-2 hover:text-violet-950"
+                  >
+                    {t("reports.patronFlowEmptyTrendCta")}
+                  </Link>
+                </p>
+              </div>
             ) : null}
           </>
         }

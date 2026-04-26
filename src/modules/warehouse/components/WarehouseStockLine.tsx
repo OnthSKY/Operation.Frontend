@@ -36,6 +36,7 @@ type MoveInput =
       }[];
       checkedByPersonnelId: number;
       approvedByPersonnelId: number;
+      description?: string | null;
       invoicePhoto?: File | null;
     }
   | {
@@ -108,6 +109,7 @@ export function WarehouseStockLine({
   const [freightPocket, setFreightPocket] = useState("");
   const [freightNote, setFreightNote] = useState("");
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
+  const [inMovementNote, setInMovementNote] = useState("");
   const [inUnitCost, setInUnitCost] = useState("");
   const [inCurrency, setInCurrency] = useState("TRY");
   const [pending, setPending] = useState<null | "in" | "transfer">(null);
@@ -123,6 +125,7 @@ export function WarehouseStockLine({
     setInCheckedBy("");
     setInApprovedBy("");
     setInvoiceFile(null);
+    setInMovementNote("");
     setInUnitCost("");
     setInCurrency("TRY");
   }, [depoInOpen]);
@@ -218,12 +221,14 @@ export function WarehouseStockLine({
         ],
         checkedByPersonnelId: ck,
         approvedByPersonnelId: ap,
+        description: inMovementNote.trim() ? inMovementNote.trim() : null,
         invoicePhoto: invoiceFile,
       });
       notify.success(t("toast.warehouseInOk"));
       setDepoInOpen(false);
       setQty("1");
       setInvoiceFile(null);
+      setInMovementNote("");
     } catch (e) {
       notify.error(apiUserFacingMessage(e, t));
     } finally {
@@ -464,6 +469,17 @@ export function WarehouseStockLine({
           onBlur={() => {}}
           disabled={off}
         />
+        <Input
+          id={`wh-in-note-${warehouseId}-${row.productId}`}
+          name={`wh-in-note-${warehouseId}-${row.productId}`}
+          type="text"
+          autoComplete="off"
+          label={t("warehouse.movementNote")}
+          value={inMovementNote}
+          onChange={(e) => setInMovementNote(e.target.value)}
+          disabled={off}
+        />
+        <p className="-mt-1 text-xs leading-snug text-zinc-500">{t("warehouse.depoInSharedNoteHint")}</p>
         <div>
           <label
             htmlFor={`wh-in-invoice-${warehouseId}-${row.productId}`}

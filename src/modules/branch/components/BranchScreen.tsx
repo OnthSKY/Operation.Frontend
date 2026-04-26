@@ -79,15 +79,75 @@ function seasonBadgeClass(status: BranchSeasonStatus): string {
   }
 }
 
+function BranchMetricsChevronIcon({
+  open,
+  className,
+}: {
+  open: boolean;
+  className?: string;
+}) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className={cn("h-4 w-4 transition-transform", open && "rotate-180", className)}
+      aria-hidden
+    >
+      <path
+        fillRule="evenodd"
+        d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
 function BranchMetricsToggle({
   open,
   onToggle,
   t,
+  layout = "icon",
 }: {
   open: boolean;
   onToggle: (e: MouseEvent) => void;
   t: (key: string) => string;
+  layout?: "icon" | "mobileRow";
 }) {
+  if (layout === "mobileRow") {
+    return (
+      <button
+        type="button"
+        className={cn(
+          "flex w-full touch-manipulation items-start gap-3 border-t border-zinc-100 px-3 py-3 text-left outline-none transition-colors sm:px-4",
+          "min-h-[52px] hover:bg-zinc-50/90 active:bg-zinc-100",
+          "focus-visible:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400",
+          open && "bg-violet-50/35"
+        )}
+        aria-label={t("branch.listMetricsToggle")}
+        aria-expanded={open}
+        onClick={onToggle}
+      >
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold leading-snug text-zinc-900">
+            {t("branch.listMetricsMobileTitle")}
+          </p>
+          <p className="mt-1 text-xs leading-snug text-zinc-600">
+            {t("branch.listMetricsToggle")}
+          </p>
+        </div>
+        <span
+          className={cn(
+            "mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border text-zinc-600 transition-colors",
+            open ? "border-violet-200 bg-violet-50 text-violet-800" : "border-zinc-200 bg-white"
+          )}
+        >
+          <BranchMetricsChevronIcon open={open} />
+        </span>
+      </button>
+    );
+  }
+
   return (
     <button
       type="button"
@@ -100,19 +160,7 @@ function BranchMetricsToggle({
       aria-expanded={open}
       onClick={onToggle}
     >
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 20 20"
-        fill="currentColor"
-        className={cn("h-4 w-4 transition-transform", open && "rotate-180")}
-        aria-hidden
-      >
-        <path
-          fillRule="evenodd"
-          d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-          clipRule="evenodd"
-        />
-      </svg>
+      <BranchMetricsChevronIcon open={open} />
     </button>
   );
 }
@@ -553,7 +601,7 @@ export function BranchScreen() {
             }
           >
         {!isPending && !isError && totalCount > 0 ? (
-          <div className="mb-3 max-w-sm">
+          <div className="mb-3 w-full max-w-full md:max-w-sm">
             <Select
               name="branchListSort"
               label={t("branch.listSortLabel")}
@@ -598,42 +646,57 @@ export function BranchScreen() {
                       type="button"
                       onClick={() => openBranchDetail(b.id)}
                       className={cn(
-                        "w-full px-3 pb-1 pt-3 text-left outline-none transition-colors active:bg-zinc-50 sm:px-4",
+                        "w-full px-3 pb-3 pt-3 text-left outline-none transition-colors active:bg-zinc-50 sm:px-4",
                         "focus-visible:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400",
                         active && "bg-violet-50/50"
                       )}
                     >
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3">
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-base font-semibold text-zinc-900">
+                          <p className="line-clamp-2 text-lg font-semibold leading-snug text-zinc-900">
                             {b.name}
                           </p>
-                          <p className="mt-0.5 font-mono text-xs text-zinc-500">
-                            {t("branch.tableId")} · {b.id}
-                          </p>
+                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <span className="inline-flex items-center rounded-lg bg-zinc-100 px-2 py-0.5 font-mono text-xs font-medium text-zinc-700">
+                              {t("branch.tableId")} {b.id}
+                            </span>
+                            <span
+                              className={cn(
+                                "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
+                                seasonBadgeClass(b.seasonStatus)
+                              )}
+                            >
+                              {t("branch.tableSeason")}: {seasonLabel(b.seasonStatus, t)}
+                            </span>
+                          </div>
+                          <div
+                            className="mt-3 rounded-xl border border-zinc-100 bg-zinc-50/80 px-3 py-2.5"
+                            title={t("branch.tableStaffHint")}
+                          >
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                              {t("branch.tableStaff")}
+                            </p>
+                            <p className="mt-1 break-words text-sm leading-relaxed text-zinc-800">
+                              {staffTableLine(b, t)}
+                            </p>
+                          </div>
                         </div>
                         <span
-                          className={cn(
-                            "shrink-0 rounded-full px-2.5 py-1 text-xs font-medium",
-                            seasonBadgeClass(b.seasonStatus)
-                          )}
+                          className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400"
+                          aria-hidden
                         >
-                          {seasonLabel(b.seasonStatus, t)}
+                          <ChevronRightIcon className="h-5 w-5" />
                         </span>
                       </div>
-                      <p
-                        className="mt-3 break-words text-sm leading-snug text-zinc-700"
-                        title={t("branch.tableStaffHint")}
-                      >
-                        {staffTableLine(b, t)}
-                      </p>
                     </button>
-                    <div className="flex flex-wrap items-center gap-2 border-t border-zinc-100 px-3 py-2 sm:px-4">
-                      <BranchMetricsToggle open={mOpen} onToggle={toggleMetrics(b.id)} t={t} />
-                      <span className="text-xs text-zinc-500">{t("branch.listMetricsToggle")}</span>
-                    </div>
+                    <BranchMetricsToggle
+                      open={mOpen}
+                      onToggle={toggleMetrics(b.id)}
+                      t={t}
+                      layout="mobileRow"
+                    />
                     {mOpen ? (
-                      <div className="px-3 pb-3 sm:px-4">
+                      <div className="border-t border-zinc-100 px-3 pb-3 pt-1 sm:px-4">
                         <BranchListMetricsPanel
                           branchId={b.id}
                           open={mOpen}
@@ -643,53 +706,57 @@ export function BranchScreen() {
                         />
                       </div>
                     ) : null}
-                    <div className="flex flex-wrap items-center justify-end gap-1 border-t border-zinc-100 px-3 py-3 sm:px-4">
-                      <BranchQuickActionsMenu
-                        menuId={`branch-quick-${b.id}`}
-                        triggerLabel={t("branch.quickActions")}
-                        compact
-                        sections={branchQuickSectionsFor(b)}
-                      />
-                      {!personnelPortal ? (
-                        <Tooltip content={t("branch.edit")} delayMs={200}>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className={cn(
-                              detailOpenIconButtonClass,
-                              "min-h-11 min-w-11"
-                            )}
-                            aria-label={t("branch.edit")}
-                            title={t("branch.edit")}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openBranchEdit(b.id);
-                            }}
-                          >
-                            <BranchEditIcon />
-                          </Button>
-                        </Tooltip>
-                      ) : null}
+                    <div className="flex flex-col gap-2 border-t border-zinc-100 px-3 py-3 sm:px-4">
                       <Tooltip content={t("common.openDetailsDialog")} delayMs={200}>
                         <Button
                           type="button"
                           variant="secondary"
                           className={cn(
-                            detailOpenIconButtonClass,
-                            "min-h-11 min-w-11"
+                            "flex min-h-11 w-full touch-manipulation items-center justify-center gap-2 border-violet-200/80 bg-violet-50/90 px-4 py-2.5 text-violet-950 hover:bg-violet-100/90"
                           )}
                           aria-haspopup="dialog"
                           aria-expanded={active}
-                          aria-label={t("common.openDetailsDialog")}
-                          title={t("common.openDetailsDialog")}
+                          aria-label={t("common.openDetails")}
                           onClick={(e) => {
                             e.stopPropagation();
                             openBranchDetail(b.id);
                           }}
                         >
-                          <EyeIcon />
+                          <EyeIcon className="h-5 w-5 shrink-0" />
+                          <span className="text-sm font-semibold">
+                            {t("common.openDetails")}
+                          </span>
                         </Button>
                       </Tooltip>
+                      <div className="flex min-h-11 flex-row gap-2">
+                        <BranchQuickActionsMenu
+                          menuId={`branch-quick-${b.id}`}
+                          triggerLabel={t("branch.quickActions")}
+                          compact
+                          fillTrigger
+                          sections={branchQuickSectionsFor(b)}
+                        />
+                        {!personnelPortal ? (
+                          <Tooltip content={t("branch.edit")} delayMs={200}>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className={cn(
+                                detailOpenIconButtonClass,
+                                "min-h-11 min-w-11 shrink-0"
+                              )}
+                              aria-label={t("branch.edit")}
+                              title={t("branch.edit")}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openBranchEdit(b.id);
+                              }}
+                            >
+                              <BranchEditIcon />
+                            </Button>
+                          </Tooltip>
+                        ) : null}
+                      </div>
                     </div>
                   </MobileListCard>
                 );
@@ -842,48 +909,38 @@ export function BranchScreen() {
             </div>
 
               {!isPending && !isError && totalCount > 0 ? (
-                <div className="mt-3 flex flex-col gap-3 border-t border-zinc-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-zinc-600">
+                <div className="mt-3 flex flex-col gap-2 border-t border-zinc-100 pt-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                  <p className="text-center text-sm text-zinc-600 sm:min-w-0 sm:flex-1 sm:text-left">
                     {(listPage - 1) * BRANCH_LIST_PAGE_SIZE + 1}
                     {"–"}
                     {Math.min(listPage * BRANCH_LIST_PAGE_SIZE, totalCount)}{" "}
                     · {t("products.pagingTotal")} {totalCount}
                   </p>
-                  <div className="flex items-center gap-2">
+                  <div className="mx-auto flex w-auto max-w-full shrink-0 items-center justify-center gap-1.5 sm:mx-0 sm:ml-auto sm:justify-end">
                     <Button
                       type="button"
                       variant="secondary"
-                      className="min-h-11 min-w-11 w-11 px-0 sm:min-w-[6.75rem] sm:w-auto sm:px-3"
+                      className="!h-11 !w-11 !min-h-11 !min-w-11 shrink-0 !px-0 !py-0 sm:!h-11 sm:!w-11 sm:!min-h-11 sm:!px-0 sm:!py-0 sm:!text-sm md:!px-0"
                       aria-label={t("products.pagingPrev")}
                       disabled={listPage <= 1}
                       onClick={() => setListPage((p) => Math.max(1, p - 1))}
                     >
-                      <span className="inline-flex items-center gap-1.5">
-                        <ChevronLeftIcon className="h-4 w-4" />
-                        <span className="hidden sm:inline">
-                          {t("products.pagingPrev")}
-                        </span>
-                      </span>
+                      <ChevronLeftIcon className="h-4 w-4 shrink-0" />
                     </Button>
-                    <span className="min-w-[4.5rem] text-center text-sm tabular-nums text-zinc-700">
+                    <span className="min-w-[4.75rem] text-center text-sm tabular-nums text-zinc-800">
                       {listPage} / {listPageTotal}
                     </span>
                     <Button
                       type="button"
                       variant="secondary"
-                      className="min-h-11 min-w-11 w-11 px-0 sm:min-w-[6.75rem] sm:w-auto sm:px-3"
+                      className="!h-11 !w-11 !min-h-11 !min-w-11 shrink-0 !px-0 !py-0 sm:!h-11 sm:!w-11 sm:!min-h-11 sm:!px-0 sm:!py-0 sm:!text-sm md:!px-0"
                       aria-label={t("products.pagingNext")}
                       disabled={listPage >= listPageTotal}
                       onClick={() =>
                         setListPage((p) => Math.min(listPageTotal, p + 1))
                       }
                     >
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className="hidden sm:inline">
-                          {t("products.pagingNext")}
-                        </span>
-                        <ChevronRightIcon className="h-4 w-4" />
-                      </span>
+                      <ChevronRightIcon className="h-4 w-4 shrink-0" />
                     </Button>
                   </div>
                 </div>

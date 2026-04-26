@@ -10,11 +10,22 @@ import {
 } from "@/modules/warehouse/api/warehouse-stock-api";
 import {
   createWarehouse,
+  fetchWarehouseInboundMovementForEdit,
+  fetchWarehouseOutboundShipmentMovementForEdit,
   fetchWarehousePeopleOptions,
   fetchWarehouseUserOptions,
   fetchWarehouses,
+  patchWarehouseInboundMovementDates,
   softDeleteWarehouse,
+  softDeleteWarehouseInboundMovement,
+  softDeleteWarehouseOutboundShipmentMovement,
   updateWarehouse,
+  updateWarehouseInboundMovement,
+  updateWarehouseOutboundShipmentMovement,
+  uploadWarehouseInboundMovementInvoicePhoto,
+  type PatchWarehouseInboundMovementDatesInput,
+  type UpdateWarehouseInboundMovementBody,
+  type UpdateWarehouseOutboundShipmentMovementBody,
 } from "@/modules/warehouse/api/warehouses-api";
 import { registerWarehouseMovement } from "@/modules/warehouse/api/warehouse-movements-api";
 import { transferWarehouseToBranch } from "@/modules/warehouse/api/warehouse-transfer-api";
@@ -144,6 +155,173 @@ export function useSoftDeleteWarehouse() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: warehouseKeys.list() });
       invalidateWarehouseQueries(qc);
+    },
+  });
+}
+
+export function useWarehouseInboundMovementForEdit(
+  warehouseId: number | null,
+  movementId: number | null,
+  enabled: boolean
+) {
+  return useQuery({
+    queryKey: [...warehouseKeys.all, "inboundEdit", warehouseId, movementId] as const,
+    queryFn: () => fetchWarehouseInboundMovementForEdit(warehouseId!, movementId!),
+    enabled: enabled && warehouseId != null && warehouseId > 0 && movementId != null && movementId > 0,
+  });
+}
+
+export function useUpdateWarehouseInboundMovement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: {
+      warehouseId: number;
+      movementId: number;
+      body: UpdateWarehouseInboundMovementBody;
+    }) => updateWarehouseInboundMovement(vars.warehouseId, vars.movementId, vars.body),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "movementsPage", vars.warehouseId],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "auditPage", vars.warehouseId],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "inboundEdit", vars.warehouseId, vars.movementId],
+      });
+      invalidateWarehouseQueries(qc);
+      void qc.invalidateQueries({ queryKey: productsRootKey });
+    },
+  });
+}
+
+export function useUploadWarehouseInboundMovementInvoicePhoto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { warehouseId: number; movementId: number; file: File }) =>
+      uploadWarehouseInboundMovementInvoicePhoto(vars.warehouseId, vars.movementId, vars.file),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "movementsPage", vars.warehouseId],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "auditPage", vars.warehouseId],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "inboundEdit", vars.warehouseId, vars.movementId],
+      });
+      invalidateWarehouseQueries(qc);
+      void qc.invalidateQueries({ queryKey: productsRootKey });
+    },
+  });
+}
+
+export function useSoftDeleteWarehouseInboundMovement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { warehouseId: number; movementId: number }) =>
+      softDeleteWarehouseInboundMovement(vars.warehouseId, vars.movementId),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "movementsPage", vars.warehouseId],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "auditPage", vars.warehouseId],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "inboundEdit", vars.warehouseId, vars.movementId],
+      });
+      invalidateWarehouseQueries(qc);
+      void qc.invalidateQueries({ queryKey: productsRootKey });
+    },
+  });
+}
+
+export function useWarehouseOutboundShipmentMovementForEdit(
+  warehouseId: number | null,
+  movementId: number | null,
+  enabled: boolean
+) {
+  return useQuery({
+    queryKey: [...warehouseKeys.all, "outboundShipmentEdit", warehouseId, movementId] as const,
+    queryFn: () => fetchWarehouseOutboundShipmentMovementForEdit(warehouseId!, movementId!),
+    enabled: enabled && warehouseId != null && warehouseId > 0 && movementId != null && movementId > 0,
+  });
+}
+
+export function useUpdateWarehouseOutboundShipmentMovement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: {
+      warehouseId: number;
+      movementId: number;
+      body: UpdateWarehouseOutboundShipmentMovementBody;
+    }) => updateWarehouseOutboundShipmentMovement(vars.warehouseId, vars.movementId, vars.body),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "movementsPage", vars.warehouseId],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "auditPage", vars.warehouseId],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "outboundShipmentEdit", vars.warehouseId, vars.movementId],
+      });
+      invalidateWarehouseQueries(qc);
+      void qc.invalidateQueries({ queryKey: productsRootKey });
+      void qc.invalidateQueries({ queryKey: branchKeys.list() });
+    },
+  });
+}
+
+export function useSoftDeleteWarehouseOutboundShipmentMovement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { warehouseId: number; movementId: number }) =>
+      softDeleteWarehouseOutboundShipmentMovement(vars.warehouseId, vars.movementId),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "movementsPage", vars.warehouseId],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "auditPage", vars.warehouseId],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "outboundShipmentEdit", vars.warehouseId, vars.movementId],
+      });
+      invalidateWarehouseQueries(qc);
+      void qc.invalidateQueries({ queryKey: productsRootKey });
+      void qc.invalidateQueries({ queryKey: branchKeys.list() });
+    },
+  });
+}
+
+export function usePatchWarehouseInboundMovementDates() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { warehouseId: number; body: PatchWarehouseInboundMovementDatesInput }) =>
+      patchWarehouseInboundMovementDates(vars.warehouseId, vars.body),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "movementsPage", vars.warehouseId],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "auditPage", vars.warehouseId],
+        exact: false,
+      });
+      invalidateWarehouseQueries(qc);
+      void qc.invalidateQueries({ queryKey: productsRootKey });
     },
   });
 }

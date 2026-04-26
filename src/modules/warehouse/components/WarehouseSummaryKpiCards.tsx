@@ -30,9 +30,15 @@ type Props = {
   warehouseId: number;
   enabled: boolean;
   onOpenMovementsTab?: () => void;
+  onOpenInboundMovementsTab?: () => void;
 };
 
-export function WarehouseSummaryKpiCards({ warehouseId, enabled, onOpenMovementsTab }: Props) {
+export function WarehouseSummaryKpiCards({
+  warehouseId,
+  enabled,
+  onOpenMovementsTab,
+  onOpenInboundMovementsTab,
+}: Props) {
   const { t, locale } = useI18n();
 
   const stockQ = useWarehouseStock(enabled ? warehouseId : null, {});
@@ -105,15 +111,29 @@ export function WarehouseSummaryKpiCards({ warehouseId, enabled, onOpenMovements
           <h2 className="text-base font-semibold text-zinc-900 sm:text-lg">{t("warehouse.summaryKpiHeading")}</h2>
           <p className="text-xs leading-relaxed text-zinc-600 sm:text-sm">{t("warehouse.summaryKpiIntro")}</p>
         </div>
-        {onOpenMovementsTab ? (
-          <Button
-            type="button"
-            variant="secondary"
-            className="min-h-11 w-full shrink-0 sm:min-h-10 sm:w-auto"
-            onClick={onOpenMovementsTab}
-          >
-            {t("warehouse.summaryKpiOpenMovements")}
-          </Button>
+        {onOpenMovementsTab || onOpenInboundMovementsTab ? (
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-end">
+            {onOpenMovementsTab ? (
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-11 w-full shrink-0 sm:min-h-10 sm:w-auto"
+                onClick={onOpenMovementsTab}
+              >
+                {t("warehouse.summaryKpiOpenMovements")}
+              </Button>
+            ) : null}
+            {onOpenInboundMovementsTab ? (
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-11 w-full shrink-0 border-emerald-200/90 text-emerald-950 ring-emerald-100/80 hover:bg-emerald-50/90 sm:min-h-10 sm:w-auto"
+                onClick={onOpenInboundMovementsTab}
+              >
+                {t("warehouse.summaryKpiOpenInboundMovements")}
+              </Button>
+            ) : null}
+          </div>
         ) : null}
       </div>
 
