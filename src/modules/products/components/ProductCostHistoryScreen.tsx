@@ -368,10 +368,20 @@ export function ProductCostHistoryScreen() {
                             <TableCell>{r.note?.trim() || "—"}</TableCell>
                             <TableCell className="text-right">
                               <div className="inline-flex items-center gap-2">
-                                <Button type="button" size="sm" variant="secondary" onClick={() => onEditOpen(r.id)}>
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  className="min-h-8 px-2.5 py-1 text-xs"
+                                  onClick={() => onEditOpen(r.id)}
+                                >
                                   {t("common.edit")}
                                 </Button>
-                                <Button type="button" size="sm" variant="ghost" onClick={() => void onDelete(r.id)}>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  className="min-h-8 px-2.5 py-1 text-xs"
+                                  onClick={() => void onDelete(r.id)}
+                                >
                                   {t("common.delete")}
                                 </Button>
                               </div>
