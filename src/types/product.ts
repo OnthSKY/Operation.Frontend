@@ -9,6 +9,7 @@ export type ProductListItem = {
   name: string;
   unit: string | null;
   parentProductId?: number | null;
+  parentProductName?: string | null;
   categoryId?: number | null;
   categoryName?: string | null;
   hasChildren?: boolean;

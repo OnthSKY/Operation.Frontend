@@ -299,7 +299,7 @@ export function PersonnelSeasonArrivalsTab({
                               className="min-h-9 max-md:w-full"
                               disabled={
                                 updateMut.isPending ||
-                                arrivalDraft.slice(0, 10) === openTerm.validFrom.slice(0, 10)
+                                arrivalDraft.slice(0, 10) === row.validFrom.slice(0, 10)
                               }
                               onClick={() => void onClearOpenArrival()}
                             >

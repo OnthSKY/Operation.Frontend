@@ -7,6 +7,12 @@ export type OrderAccountLine = {
   unitText?: string;
   /** PDF / önizleme: isteğe bağlı birim fiyat metni. */
   unitPriceText?: string;
+  /** Satırın kaynağı: sevkiyattan türetilen veya elle girilen. */
+  lineSource?: "shipment" | "manual";
+  /** Elle girilen satırlar için gerekçe kodu. */
+  manualReasonCode?: string | null;
+  /** Sevkiyat satırıyla bağ varsa kaynak hareket satırı. */
+  sourceShipmentLineId?: number | null;
   amount: number;
   isGift: boolean;
 };

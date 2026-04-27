@@ -2557,7 +2557,9 @@ export function OrderAccountStatementScreen() {
       const parsedBranchId = parseInt(linkedBranchId, 10);
       const parsedCustomerId = parseInt(customerAccountIdText, 10);
       const useBranchCounterparty = Number.isFinite(parsedBranchId) && parsedBranchId > 0;
-      const counterpartyType = useBranchCounterparty ? "branch" : "customer";
+      const counterpartyType: "branch" | "customer" = useBranchCounterparty
+        ? "branch"
+        : "customer";
       const counterpartyId = useBranchCounterparty ? parsedBranchId : parsedCustomerId;
       let createdInvoice: OutboundInvoiceResponse | null = null;
 
@@ -2635,22 +2637,26 @@ export function OrderAccountStatementScreen() {
                   : [],
             })
           : await createOutboundInvoice(invoicePayload);
-        setLastCreatedInvoiceNo(createdInvoice.documentNumber);
-        setLastCreatedInvoiceId(createdInvoice.id);
-        const createdCounterpartyType = createdInvoice.counterpartyType;
-        const createdCounterpartyId = createdInvoice.counterpartyId;
+        if (!createdInvoice) {
+          throw new Error("Invoice creation returned no result.");
+        }
+        const created = createdInvoice;
+        setLastCreatedInvoiceNo(created.documentNumber);
+        setLastCreatedInvoiceId(created.id);
+        const createdCounterpartyType = created.counterpartyType;
+        const createdCounterpartyId = created.counterpartyId;
         setSuggestions((prev) =>
           [
             {
-              counterpartyType: createdInvoice.counterpartyType,
-              counterpartyId: createdInvoice.counterpartyId,
-              counterpartyName: createdInvoice.counterpartyName,
-              currencyCode: createdInvoice.currencyCode,
-              invoicedTotal: createdInvoice.linesTotal,
-              paidTotal: createdInvoice.paidTotal,
-              openAmount: createdInvoice.openAmount,
-              lastInvoiceDate: createdInvoice.issueDate,
-              lastDocumentNumber: createdInvoice.documentNumber,
+              counterpartyType: created.counterpartyType,
+              counterpartyId: created.counterpartyId,
+              counterpartyName: created.counterpartyName,
+              currencyCode: created.currencyCode,
+              invoicedTotal: created.linesTotal,
+              paidTotal: created.paidTotal,
+              openAmount: created.openAmount,
+              lastInvoiceDate: created.issueDate,
+              lastDocumentNumber: created.documentNumber,
             },
             ...prev.filter(
               (x) =>
@@ -4427,6 +4433,7 @@ export function OrderAccountStatementScreen() {
           if (multiActionRunning) return;
           setConfirmMultiActionOpen(false);
         }}
+        titleId="order-account-multi-action-confirm-title"
         title={t("reports.orderAccountStatementMultiActionConfirmTitle")}
         closeButtonLabel={t("common.close")}
         className="w-full max-w-md"
