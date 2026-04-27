@@ -708,69 +708,125 @@ export function WarehouseDetailMovementHistoryTab({
 
                       <div className="flex min-w-0 flex-col gap-2">
                         {singleType === "IN" ? (
-                          <div className="grid min-w-0 grid-cols-[auto,minmax(0,1fr)] items-start gap-x-2 gap-y-1">
-                            <div className="flex shrink-0 flex-nowrap gap-1.5 self-start sm:gap-2">
-                              {hasInvoiceAttachment ? (
-                                <Tooltip content={t("warehouse.movementHistoryRowOpenInvoiceView")} delayMs={220}>
-                                  <button
-                                    type="button"
-                                    aria-label={t("warehouse.movementHistoryRowOpenInvoiceView")}
-                                    className={movementToolbarIconButtonClass(
-                                      "border border-sky-200/90 bg-gradient-to-b from-sky-50 to-sky-100/90 text-sky-950 shadow-sm shadow-sky-900/10 ring-1 ring-sky-200/70 transition hover:from-sky-100 hover:to-sky-50"
-                                    )}
-                                    onClick={() => onCollapsedInboundInvoiceViewClick(key, movements)}
-                                  >
-                                    <EyeIcon className="h-5 w-5" />
-                                  </button>
-                                </Tooltip>
-                              ) : (
-                                <Tooltip content={t("warehouse.movementHistoryRowOpenInvoiceAdd")} delayMs={220}>
-                                  <button
-                                    type="button"
-                                    aria-label={t("warehouse.movementHistoryRowOpenInvoiceAdd")}
-                                    className={movementToolbarIconButtonClass(
-                                      "border border-dashed border-emerald-300/90 bg-emerald-50/70 text-emerald-900 shadow-sm transition hover:border-emerald-400 hover:bg-emerald-100/80"
-                                    )}
-                                    onClick={() => onCollapsedInboundInvoiceAddClick(movements)}
-                                  >
-                                    <PlusIcon className="h-5 w-5" />
-                                  </button>
-                                </Tooltip>
-                              )}
-                              <Tooltip content={t("warehouse.movementHistoryRowOpenProductEdit")} delayMs={220}>
-                                <button
-                                  type="button"
-                                  aria-label={t("warehouse.movementHistoryRowOpenProductEdit")}
-                                  className={movementToolbarIconButtonClass(
-                                    "border border-violet-200 bg-violet-50/90 text-violet-950 transition hover:bg-violet-100"
-                                  )}
-                                  onClick={() => onCollapsedInboundProductClick(key, movements)}
-                                >
-                                  <PencilIcon className="h-5 w-5" aria-hidden />
-                                </button>
-                              </Tooltip>
-                            </div>
-                            <p className="min-w-0 break-words text-sm leading-snug text-zinc-700 [overflow-wrap:anywhere]">
-                              {preview}
+                          <div className="min-w-0 rounded-lg border border-emerald-200/70 bg-emerald-50/40 p-2.5 sm:border-0 sm:bg-transparent sm:p-0">
+                            <p className="mb-2 text-[0.65rem] font-semibold uppercase tracking-wide text-emerald-900 sm:hidden">
+                              {t("warehouse.movementsTypeSegmentInbound")}
                             </p>
+                            <div className="grid min-w-0 grid-cols-[auto,minmax(0,1fr)] items-start gap-x-2 gap-y-1">
+                              <div className="hidden shrink-0 flex-nowrap gap-1.5 self-start sm:flex sm:gap-2">
+                                {hasInvoiceAttachment ? (
+                                  <Tooltip content={t("warehouse.movementHistoryRowOpenInvoiceView")} delayMs={220}>
+                                    <button
+                                      type="button"
+                                      aria-label={t("warehouse.movementHistoryRowOpenInvoiceView")}
+                                      className={movementToolbarIconButtonClass(
+                                        "border border-sky-200/90 bg-gradient-to-b from-sky-50 to-sky-100/90 text-sky-950 shadow-sm shadow-sky-900/10 ring-1 ring-sky-200/70 transition hover:from-sky-100 hover:to-sky-50"
+                                      )}
+                                      onClick={() => onCollapsedInboundInvoiceViewClick(key, movements)}
+                                    >
+                                      <EyeIcon className="h-5 w-5" />
+                                    </button>
+                                  </Tooltip>
+                                ) : (
+                                  <Tooltip content={t("warehouse.movementHistoryRowOpenInvoiceAdd")} delayMs={220}>
+                                    <button
+                                      type="button"
+                                      aria-label={t("warehouse.movementHistoryRowOpenInvoiceAdd")}
+                                      className={movementToolbarIconButtonClass(
+                                        "border border-dashed border-emerald-300/90 bg-emerald-50/70 text-emerald-900 shadow-sm transition hover:border-emerald-400 hover:bg-emerald-100/80"
+                                      )}
+                                      onClick={() => onCollapsedInboundInvoiceAddClick(movements)}
+                                    >
+                                      <PlusIcon className="h-5 w-5" />
+                                    </button>
+                                  </Tooltip>
+                                )}
+                                <Tooltip content={t("warehouse.movementHistoryRowOpenProductEdit")} delayMs={220}>
+                                  <button
+                                    type="button"
+                                    aria-label={t("warehouse.movementHistoryRowOpenProductEdit")}
+                                    className={movementToolbarIconButtonClass(
+                                      "border border-violet-200 bg-violet-50/90 text-violet-950 transition hover:bg-violet-100"
+                                    )}
+                                    onClick={() => onCollapsedInboundProductClick(key, movements)}
+                                  >
+                                    <PencilIcon className="h-5 w-5" aria-hidden />
+                                  </button>
+                                </Tooltip>
+                              </div>
+                              <p className="min-w-0 break-words text-sm leading-snug text-zinc-700 [overflow-wrap:anywhere]">
+                                {preview}
+                              </p>
+                            </div>
+
+                            <div className="mt-2 grid grid-cols-1 gap-2 sm:hidden">
+                              {hasInvoiceAttachment ? (
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  className="min-h-11 w-full justify-start border-sky-200/90 bg-sky-50 text-sky-950 hover:bg-sky-100"
+                                  onClick={() => onCollapsedInboundInvoiceViewClick(key, movements)}
+                                >
+                                  <EyeIcon className="h-5 w-5" />
+                                  <span className="ml-2">{t("warehouse.movementHistoryRowOpenInvoiceView")}</span>
+                                </Button>
+                              ) : (
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  className="min-h-11 w-full justify-start border-emerald-200/90 bg-emerald-50 text-emerald-900 hover:bg-emerald-100"
+                                  onClick={() => onCollapsedInboundInvoiceAddClick(movements)}
+                                >
+                                  <PlusIcon className="h-5 w-5" />
+                                  <span className="ml-2">{t("warehouse.movementHistoryRowOpenInvoiceAdd")}</span>
+                                </Button>
+                              )}
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                className="min-h-11 w-full justify-start border-violet-200/90 bg-violet-50 text-violet-950 hover:bg-violet-100"
+                                onClick={() => onCollapsedInboundProductClick(key, movements)}
+                              >
+                                <PencilIcon className="h-5 w-5" aria-hidden />
+                                <span className="ml-2">{t("warehouse.movementHistoryRowOpenProductEdit")}</span>
+                              </Button>
+                            </div>
                           </div>
                         ) : singleType === "OUT" && allDepotOutbound ? (
-                          <div className="grid min-w-0 grid-cols-[auto,minmax(0,1fr)] items-start gap-x-2 gap-y-1">
-                            <Tooltip content={t("warehouse.movementHistoryOutboundEditCollapsed")} delayMs={220}>
-                              <button
+                          <div className="min-w-0 rounded-lg border border-red-200/70 bg-red-50/35 p-2.5 sm:border-0 sm:bg-transparent sm:p-0">
+                            <p className="mb-2 text-[0.65rem] font-semibold uppercase tracking-wide text-red-900 sm:hidden">
+                              {t("warehouse.movementsTypeSegmentOutbound")}
+                            </p>
+                            <div className="grid min-w-0 grid-cols-[auto,minmax(0,1fr)] items-start gap-x-2 gap-y-1">
+                              <div className="hidden sm:block">
+                                <Tooltip content={t("warehouse.movementHistoryOutboundEditCollapsed")} delayMs={220}>
+                                  <button
+                                    type="button"
+                                    aria-label={t("warehouse.movementHistoryOutboundEditCollapsed")}
+                                    className={movementToolbarIconButtonClass(
+                                      "border border-red-200 bg-red-50/90 text-red-950 transition hover:bg-red-100"
+                                    )}
+                                    onClick={() => onCollapsedOutboundPreviewClick(key, movements)}
+                                  >
+                                    <PencilIcon className="h-5 w-5" aria-hidden />
+                                  </button>
+                                </Tooltip>
+                              </div>
+                              <p className="min-w-0 break-words text-sm leading-snug text-zinc-700 [overflow-wrap:anywhere]">
+                                {preview}
+                              </p>
+                            </div>
+                            <div className="mt-2 sm:hidden">
+                              <Button
                                 type="button"
-                                aria-label={t("warehouse.movementHistoryOutboundEditCollapsed")}
-                                className={movementToolbarIconButtonClass(
-                                  "border border-red-200 bg-red-50/90 text-red-950 transition hover:bg-red-100"
-                                )}
+                                variant="secondary"
+                                className="min-h-11 w-full justify-start border-red-200/90 bg-red-50 text-red-950 hover:bg-red-100"
                                 onClick={() => onCollapsedOutboundPreviewClick(key, movements)}
                               >
                                 <PencilIcon className="h-5 w-5" aria-hidden />
-                              </button>
-                            </Tooltip>
-                            <p className="min-w-0 break-words text-sm leading-snug text-zinc-700 [overflow-wrap:anywhere]">
-                              {preview}
-                            </p>
+                                <span className="ml-2">{t("warehouse.movementHistoryOutboundEditCollapsed")}</span>
+                              </Button>
+                            </div>
                           </div>
                         ) : (
                           <p className="min-w-0 rounded-lg border border-zinc-100 bg-zinc-50/50 px-3 py-2 text-sm leading-snug text-zinc-700">
@@ -781,7 +837,14 @@ export function WarehouseDetailMovementHistoryTab({
                     </div>
 
                     {hasSideActions ? (
-                      <div className="flex w-full min-w-0 shrink-0 flex-row flex-wrap content-start items-center justify-start gap-2 overflow-x-auto border-t border-zinc-200 pt-3 [-webkit-overflow-scrolling:touch] lg:w-auto lg:flex-col lg:items-stretch lg:justify-start lg:overflow-visible lg:border-t-0 lg:border-l lg:border-zinc-200 lg:pl-4 lg:pt-0">
+                      <div
+                        className={cn(
+                          "w-full min-w-0 shrink-0 flex-row flex-wrap content-start items-center justify-start gap-2 overflow-x-auto border-t border-zinc-200 pt-3 [-webkit-overflow-scrolling:touch] lg:w-auto lg:flex-col lg:items-stretch lg:justify-start lg:overflow-visible lg:border-t-0 lg:border-l lg:border-zinc-200 lg:pl-4 lg:pt-0",
+                          singleType === "IN" || (singleType === "OUT" && allDepotOutbound)
+                            ? "hidden sm:flex"
+                            : "flex"
+                        )}
+                      >
                         {singleType === "IN" ? (
                           <>
                             {singleInbound ? (
