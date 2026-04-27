@@ -17,7 +17,6 @@ import { warehouseScopeEffectiveCategoryId } from "@/modules/warehouse/lib/wareh
 import {
   useSoftDeleteWarehouseInboundMovement,
   useSoftDeleteWarehouseOutboundShipmentMovement,
-  useWarehouseMovementsPage,
 } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
@@ -26,6 +25,7 @@ import { notify } from "@/shared/lib/notify";
 import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
+import { Modal } from "@/shared/ui/Modal";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import type { WarehouseMovementItem, WarehouseMovementsPageParams } from "@/types/warehouse";
@@ -35,9 +35,11 @@ import {
   formatWarehouseShipmentDisplay,
   warehouseMovementShipmentGroupKey,
 } from "@/shared/lib/in-batch-group-label";
-import { ChevronDownIcon, EyeIcon, PlusIcon, PencilIcon } from "@/shared/ui/EyeIcon";
-import { movementToolbarIconButtonClass } from "@/modules/warehouse/lib/movement-toolbar-icon";
-import { TrashIcon } from "@/shared/ui/TrashIcon";
+import { EyeIcon } from "@/shared/ui/EyeIcon";
+import { fetchWarehouseMovementsPage } from "@/modules/warehouse/api/warehouse-stock-api";
+import { warehouseKeys } from "@/modules/warehouse/hooks/useWarehouseQueries";
+import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 function shipmentListPreview(movements: WarehouseMovementItem[]): string {
@@ -50,6 +52,29 @@ function shipmentListPreview(movements: WarehouseMovementItem[]): string {
   const head = movements.slice(0, 2).map((m) => m.productName);
   const more = movements.length - head.length;
   return more > 0 ? `${head.join(", ")} +${more}` : head.join(", ");
+}
+
+function shipmentMainProductTotals(
+  movements: WarehouseMovementItem[]
+): Array<{ key: string; name: string; quantity: number; unit: string | null }> {
+  const map = new Map<string, { key: string; name: string; quantity: number; unit: string | null }>();
+  for (const m of movements) {
+    const key = movementMainProductKey(m);
+    const signed = movementSignedQuantity(m);
+    const prev = map.get(key);
+    if (prev) {
+      prev.quantity += signed;
+      if (!prev.unit && m.unit?.trim()) prev.unit = m.unit.trim();
+      continue;
+    }
+    map.set(key, {
+      key,
+      name: movementMainProductName(m),
+      quantity: signed,
+      unit: m.unit?.trim() || null,
+    });
+  }
+  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
 
 function shipmentBranchSummary(movements: WarehouseMovementItem[]): string | null {
@@ -66,7 +91,59 @@ function shipmentBranchSummary(movements: WarehouseMovementItem[]): string | nul
   return `${first ?? ""} +${names.length - 1}`;
 }
 
-const PAGE_SIZE = 20;
+type GroupBalanceSummary = {
+  id: string;
+  name: string;
+  unit: string | null;
+  previous: number;
+  delta: number;
+  next: number;
+  scope: "PRODUCT" | "MAIN";
+};
+
+function movementSignedQuantity(m: WarehouseMovementItem): number {
+  return m.type === "IN" ? Number(m.quantity) : -Number(m.quantity);
+}
+
+function movementMainProductKey(m: WarehouseMovementItem): string {
+  if (m.parentProductId != null && m.parentProductId > 0) return `parent:${m.parentProductId}`;
+  return `product:${m.productId}`;
+}
+
+function movementMainProductName(m: WarehouseMovementItem): string {
+  return m.parentProductName?.trim() || m.productName;
+}
+
+function movementProductKey(m: WarehouseMovementItem): string {
+  return `product:${m.productId}`;
+}
+
+function buildShipmentGroups(items: WarehouseMovementItem[]) {
+  const map = new Map<string, WarehouseMovementItem[]>();
+  for (const m of items) {
+    const k = warehouseMovementShipmentGroupKey(m.inBatchGroupId, m.id);
+    const g = map.get(k) ?? [];
+    g.push(m);
+    map.set(k, g);
+  }
+  for (const g of map.values()) {
+    g.sort((a, b) => {
+      const c = b.movementDate.localeCompare(a.movementDate);
+      if (c !== 0) return c;
+      return b.id - a.id;
+    });
+  }
+  return Array.from(map.entries())
+    .map(([key, movements]) => ({ key, movements }))
+    .sort((a, b) => {
+      const d = b.movements[0].movementDate.localeCompare(a.movements[0].movementDate);
+      if (d !== 0) return d;
+      return b.movements[0].id - a.movements[0].id;
+    });
+}
+
+const GROUP_PAGE_SIZE = 10;
+const MOVEMENTS_FETCH_PAGE_SIZE = 200;
 const DRAWER_SELECT_Z = 280;
 
 type Props = {
@@ -85,6 +162,7 @@ export function WarehouseDetailMovementHistoryTab({
   onHistoryTypeIntentConsumed,
 }: Props) {
   const { t, locale } = useI18n();
+  const router = useRouter();
   const { data: branches = [] } = useBranchesList();
   const [scope, setScope] = useState<WarehouseScopeFiltersValue>({
     mainCategoryId: null,
@@ -97,9 +175,6 @@ export function WarehouseDetailMovementHistoryTab({
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
-  const [expandedShipmentKeys, setExpandedShipmentKeys] = useState<ReadonlySet<string>>(
-    () => new Set()
-  );
   const [filtersDrawerOpen, setFiltersDrawerOpen] = useState(false);
   const [editInboundOpen, setEditInboundOpen] = useState(false);
   const [editInboundTarget, setEditInboundTarget] = useState<{
@@ -109,6 +184,7 @@ export function WarehouseDetailMovementHistoryTab({
   } | null>(null);
   const [inboundFullMovementId, setInboundFullMovementId] = useState<number | null>(null);
   const [outboundShipmentMovementId, setOutboundShipmentMovementId] = useState<number | null>(null);
+  const [detailsGroupKey, setDetailsGroupKey] = useState<string | null>(null);
   const [invoicePreviewTarget, setInvoicePreviewTarget] = useState<{
     movementId: number;
     title: string;
@@ -171,81 +247,17 @@ export function WarehouseDetailMovementHistoryTab({
     [softDeleteOutboundShipmentM, t, warehouseId]
   );
 
-  const expandShipmentGroup = useCallback((groupKey: string) => {
-    setExpandedShipmentKeys((prev) => {
-      const next = new Set(prev);
-      next.add(groupKey);
-      return next;
-    });
-  }, []);
-
-  const onCollapsedInboundProductClick = useCallback(
-    (groupKey: string, movements: WarehouseMovementItem[]) => {
-      const ins = movements.filter((m) => m.type === "IN");
-      if (ins.length === 1) {
-        setInboundFullMovementId(ins[0].id);
-        return;
-      }
-      expandShipmentGroup(groupKey);
-      notify.info(t("warehouse.movementHistoryExpandForEditLines"));
+  const openInvoiceDraftFromShipment = useCallback(
+    (movementId: number) => {
+      if (!Number.isFinite(movementId) || movementId <= 0 || warehouseId <= 0) return;
+      const params = new URLSearchParams({
+        shipmentWarehouseId: String(warehouseId),
+        shipmentMovementId: String(movementId),
+        invoiceDraft: "1",
+      });
+      router.push(`/products/order-account-statement?${params.toString()}`);
     },
-    [expandShipmentGroup, t]
-  );
-
-  const onCollapsedInboundInvoiceViewClick = useCallback(
-    (groupKey: string, movements: WarehouseMovementItem[]) => {
-      const withPhoto = movements.filter((m) => m.type === "IN" && m.hasInvoicePhoto);
-      if (withPhoto.length === 1) {
-        setInvoicePreviewTarget({
-          movementId: withPhoto[0].id,
-          title: t("warehouse.movementInvoicePreviewTitle"),
-          subtitle: withPhoto[0].productName,
-        });
-        return;
-      }
-      if (withPhoto.length > 1) {
-        const sorted = [...withPhoto].sort((a, b) => a.id - b.id);
-        setInvoicePreviewTarget({
-          movementId: sorted[0].id,
-          title: t("warehouse.movementInvoicePreviewTitle"),
-          subtitle: sorted[0].productName,
-        });
-        return;
-      }
-      expandShipmentGroup(groupKey);
-      notify.info(t("warehouse.movementHistoryExpandForEditLines"));
-    },
-    [expandShipmentGroup, t]
-  );
-
-  /** Fatura yokken: tek veya çok satırda görsel ilk giriş hareketine eklenir (API ile uyumlu). */
-  const onCollapsedInboundInvoiceAddClick = useCallback(
-    (movements: WarehouseMovementItem[]) => {
-      const ins = movements.filter((m) => m.type === "IN");
-      if (ins.length === 0) return;
-      const target = [...ins].sort((a, b) => a.id - b.id)[0];
-      setInboundFullMovementId(target.id);
-    },
-    []
-  );
-
-  const onCollapsedOutboundPreviewClick = useCallback(
-    (groupKey: string, movements: WarehouseMovementItem[]) => {
-      const outs = movements.filter((m) => m.type === "OUT");
-      if (outs.length === 0) return;
-      if (!outs.every((m) => m.isDepotToBranchShipment === true)) {
-        expandShipmentGroup(groupKey);
-        notify.info(t("warehouse.movementHistoryExpandForEditLines"));
-        return;
-      }
-      if (outs.length === 1) {
-        setOutboundShipmentMovementId(outs[0].id);
-        return;
-      }
-      expandShipmentGroup(groupKey);
-      notify.info(t("warehouse.movementHistoryOutboundExpandLines"));
-    },
-    [expandShipmentGroup, t]
+    [router, warehouseId]
   );
 
   useEffect(() => {
@@ -263,6 +275,7 @@ export function WarehouseDetailMovementHistoryTab({
     setPage(1);
     setInboundFullMovementId(null);
     setOutboundShipmentMovementId(null);
+    setDetailsGroupKey(null);
   }, [warehouseId]);
 
   useEffect(() => {
@@ -276,6 +289,7 @@ export function WarehouseDetailMovementHistoryTab({
 
   useEffect(() => {
     setPage(1);
+    setDetailsGroupKey(null);
   }, [
     scope.mainCategoryId,
     scope.subCategoryId,
@@ -324,8 +338,8 @@ export function WarehouseDetailMovementHistoryTab({
           : undefined;
     const categoryId = warehouseScopeEffectiveCategoryId(scope) ?? undefined;
     return {
-      page,
-      pageSize: PAGE_SIZE,
+      page: 1,
+      pageSize: MOVEMENTS_FETCH_PAGE_SIZE,
       categoryId,
       productId: resolvedProductId,
       type: tNorm,
@@ -334,7 +348,6 @@ export function WarehouseDetailMovementHistoryTab({
       dateTo: dateTo.length === 10 ? dateTo : undefined,
     };
   }, [
-    page,
     scope.mainCategoryId,
     scope.subCategoryId,
     scope.parentProductId,
@@ -346,11 +359,76 @@ export function WarehouseDetailMovementHistoryTab({
   ]);
 
   const historyQueryEnabled = enabled;
-  const { data, isPending, isError, error, refetch, isFetching } = useWarehouseMovementsPage(
-    warehouseId,
-    params,
-    historyQueryEnabled
+  const loadAllPages = useCallback(
+    async (baseParams: WarehouseMovementsPageParams) => {
+      let pageNo = 1;
+      let totalCount = 0;
+      const allItems: WarehouseMovementItem[] = [];
+      let firstPageData: Awaited<ReturnType<typeof fetchWarehouseMovementsPage>> | null = null;
+      do {
+        const pageData = await fetchWarehouseMovementsPage(warehouseId, {
+          ...baseParams,
+          page: pageNo,
+          pageSize: MOVEMENTS_FETCH_PAGE_SIZE,
+        });
+        if (!firstPageData) firstPageData = pageData;
+        totalCount = pageData.totalCount ?? 0;
+        allItems.push(...pageData.items);
+        if (pageData.items.length === 0) break;
+        pageNo += 1;
+      } while (allItems.length < totalCount && pageNo <= 100);
+      return {
+        ...(firstPageData ?? {
+          totalCount: 0,
+          page: 1,
+          pageSize: MOVEMENTS_FETCH_PAGE_SIZE,
+          totalInQuantity: 0,
+          totalOutQuantity: 0,
+          inboundShipmentGroupCount: 0,
+          outboundShipmentGroupCount: 0,
+          outboundByBranch: [],
+        }),
+        page: 1,
+        pageSize: MOVEMENTS_FETCH_PAGE_SIZE,
+        totalCount,
+        items: allItems,
+      };
+    },
+    [warehouseId]
   );
+
+  const { data, isPending, isError, error, refetch, isFetching } = useQuery({
+    queryKey: [...warehouseKeys.all, "movementsHistoryAll", warehouseId, params] as const,
+    queryFn: () => loadAllPages(params),
+    enabled: historyQueryEnabled && warehouseId > 0,
+    placeholderData: (prev) => prev,
+  });
+
+  const balanceParams = useMemo(
+    (): WarehouseMovementsPageParams => ({
+      page: 1,
+      pageSize: MOVEMENTS_FETCH_PAGE_SIZE,
+      categoryId: warehouseScopeEffectiveCategoryId(scope) ?? undefined,
+      productId:
+        scope.productId != null && scope.productId > 0
+          ? scope.productId
+          : scope.parentProductId != null && scope.parentProductId > 0
+            ? scope.parentProductId
+            : undefined,
+      type: "",
+      branchId: undefined,
+      dateFrom: undefined,
+      dateTo: undefined,
+    }),
+    [scope]
+  );
+
+  const { data: balanceData } = useQuery({
+    queryKey: [...warehouseKeys.all, "movementsBalanceAll", warehouseId, balanceParams] as const,
+    queryFn: () => loadAllPages(balanceParams),
+    enabled: historyQueryEnabled && warehouseId > 0,
+    placeholderData: (prev) => prev,
+  });
 
   const branchOptions: SelectOption[] = useMemo(
     () => [
@@ -361,32 +439,13 @@ export function WarehouseDetailMovementHistoryTab({
   );
 
   const totalCount = data?.totalCount ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const items = data?.items ?? [];
 
-  const shipmentGroups = useMemo(() => {
-    const map = new Map<string, WarehouseMovementItem[]>();
-    for (const m of items) {
-      const k = warehouseMovementShipmentGroupKey(m.inBatchGroupId, m.id);
-      const g = map.get(k) ?? [];
-      g.push(m);
-      map.set(k, g);
-    }
-    for (const g of map.values()) {
-      g.sort((a, b) => {
-        const c = b.movementDate.localeCompare(a.movementDate);
-        if (c !== 0) return c;
-        return b.id - a.id;
-      });
-    }
-    return Array.from(map.entries())
-      .map(([key, movements]) => ({ key, movements }))
-      .sort((a, b) => {
-        const d = b.movements[0].movementDate.localeCompare(a.movements[0].movementDate);
-        if (d !== 0) return d;
-        return b.movements[0].id - a.movements[0].id;
-      });
-  }, [items]);
+  const shipmentGroups = useMemo(() => buildShipmentGroups(items), [items]);
+  const balanceShipmentGroups = useMemo(
+    () => buildShipmentGroups(balanceData?.items ?? []),
+    [balanceData?.items]
+  );
 
   const fmtDate = (iso: string) => formatLocaleDate(iso, locale);
   const totalInQty = Number(data?.totalInQuantity ?? 0);
@@ -394,6 +453,112 @@ export function WarehouseDetailMovementHistoryTab({
   const filterInboundGroups = data?.inboundShipmentGroupCount ?? 0;
   const filterOutboundGroups = data?.outboundShipmentGroupCount ?? 0;
   const outboundByBranch = data?.outboundByBranch ?? [];
+  const groupTotalCount = shipmentGroups.length;
+  const totalPages = Math.max(1, Math.ceil(groupTotalCount / GROUP_PAGE_SIZE));
+  const pageStart = (page - 1) * GROUP_PAGE_SIZE;
+  const pagedShipmentGroups = shipmentGroups.slice(pageStart, pageStart + GROUP_PAGE_SIZE);
+  const selectedDetailGroup = detailsGroupKey
+    ? shipmentGroups.find((g) => g.key === detailsGroupKey) ?? null
+    : null;
+  const groupBalanceSummaryByKey = useMemo(() => {
+    const byGroup = new Map<string, GroupBalanceSummary[]>();
+    const targetKeys = new Set(shipmentGroups.map((g) => g.key));
+    const runningProduct = new Map<string, number>();
+    const runningMain = new Map<string, number>();
+    const chronological = [...balanceShipmentGroups].reverse();
+    for (const group of chronological) {
+      const productRollup = new Map<
+        string,
+        { id: string; name: string; unit: string | null; delta: number }
+      >();
+      const mainRollup = new Map<
+        string,
+        { id: string; name: string; unit: string | null; delta: number }
+      >();
+      for (const m of group.movements) {
+        const signed = movementSignedQuantity(m);
+        const productId = movementProductKey(m);
+        const p = productRollup.get(productId);
+        if (p) {
+          p.delta += signed;
+        } else {
+          productRollup.set(productId, {
+            id: productId,
+            name: m.productName,
+            unit: m.unit?.trim() || null,
+            delta: signed,
+          });
+        }
+
+        const mainId = movementMainProductKey(m);
+        const main = mainRollup.get(mainId);
+        if (main) {
+          main.delta += signed;
+        } else {
+          mainRollup.set(mainId, {
+            id: mainId,
+            name: movementMainProductName(m),
+            unit: m.unit?.trim() || null,
+            delta: signed,
+          });
+        }
+      }
+      const productRows: GroupBalanceSummary[] = Array.from(productRollup.values()).map((row) => {
+        const prevQty = runningProduct.get(row.id) ?? 0;
+        const nextQty = prevQty + row.delta;
+        runningProduct.set(row.id, nextQty);
+        return {
+          id: `p-${row.id}`,
+          name: row.name,
+          unit: row.unit,
+          previous: prevQty,
+          delta: row.delta,
+          next: nextQty,
+          scope: "PRODUCT",
+        };
+      });
+
+      const mainRows: GroupBalanceSummary[] = Array.from(mainRollup.values()).map((row) => {
+        const prevQty = runningMain.get(row.id) ?? 0;
+        const nextQty = prevQty + row.delta;
+        runningMain.set(row.id, nextQty);
+        return {
+          id: `m-${row.id}`,
+          name: row.name,
+          unit: row.unit,
+          previous: prevQty,
+          delta: row.delta,
+          next: nextQty,
+          scope: "MAIN",
+        };
+      });
+
+      const rows: GroupBalanceSummary[] = [...productRows, ...mainRows]
+        .map((row) => {
+          const prevQty = row.previous;
+          const nextQty = prevQty + row.delta;
+          return {
+            ...row,
+            name: row.name,
+            unit: row.unit,
+            previous: prevQty,
+            delta: row.delta,
+            next: nextQty,
+            scope: row.scope,
+          };
+        })
+        .sort((a, b) => {
+          if (a.scope !== b.scope) return a.scope === "PRODUCT" ? -1 : 1;
+          return a.name.localeCompare(b.name, locale);
+        });
+      if (targetKeys.has(group.key)) byGroup.set(group.key, rows);
+    }
+    return byGroup;
+  }, [shipmentGroups, balanceShipmentGroups, locale]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
@@ -621,15 +786,13 @@ export function WarehouseDetailMovementHistoryTab({
             <>
           <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700 sm:text-sm">
             {t("warehouse.movementsPageShipmentSummary")
-              .replace("{{shipments}}", String(shipmentGroups.length))
-              .replace("{{lines}}", String(items.length))}
+              .replace("{{shipments}}", String(pagedShipmentGroups.length))
+              .replace("{{lines}}", String(pagedShipmentGroups.reduce((acc, g) => acc + g.movements.length, 0)))}
           </p>
           <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-            {shipmentGroups.map(({ key, movements }) => {
-              const open = expandedShipmentKeys.has(key);
+            {pagedShipmentGroups.map(({ key, movements }) => {
               const sample = movements[0];
               const batchCell = formatWarehouseShipmentDisplay(sample.inBatchGroupId, sample.id);
-              const safeKey = key.replace(/[^a-zA-Z0-9_-]/g, "_");
               const typeSet = new Set(movements.map((x) => x.type));
               const singleType = typeSet.size === 1 ? sample.type : null;
               const typeLabel =
@@ -639,54 +802,30 @@ export function WarehouseDetailMovementHistoryTab({
                     ? t("products.typeOut")
                     : `${t("products.typeIn")}/${t("products.typeOut")}`;
               const preview = shipmentListPreview(movements);
+              const mainTotals = shipmentMainProductTotals(movements);
+              const entryTotal = mainTotals.reduce((acc, row) => acc + row.quantity, 0);
               const branchSummary = shipmentBranchSummary(movements);
-              const hasInvoiceAttachment = movements.some((m) => m.type === "IN" && m.hasInvoicePhoto);
-              const inboundLines = movements.filter((m) => m.type === "IN");
-              const singleInbound = inboundLines.length === 1 ? inboundLines[0]! : null;
-              const outLines = movements.filter((m) => m.type === "OUT");
-              const allDepotOutbound =
-                outLines.length > 0 && outLines.every((m) => m.isDepotToBranchShipment === true);
-              const hasSideActions =
-                singleType === "IN" || (singleType === "OUT" && allDepotOutbound);
+              const mainAuditRows = (groupBalanceSummaryByKey.get(key) ?? []).filter(
+                (row) => row.scope === "MAIN"
+              );
+              const totalPrevious = mainAuditRows.reduce((acc, row) => acc + row.previous, 0);
+              const totalNext = mainAuditRows.reduce((acc, row) => acc + row.next, 0);
+              const unitSet = new Set(mainTotals.map((m) => m.unit).filter((u): u is string => Boolean(u)));
+              const displayUnit = unitSet.size === 1 ? Array.from(unitSet)[0] : null;
               return (
                 <div
                   key={key}
-                  className="rounded-xl border border-zinc-200/90 bg-white p-3 shadow-sm ring-1 ring-zinc-950/[0.04] sm:p-4"
+                  className="rounded-2xl border border-zinc-200/90 bg-white p-3 shadow-sm ring-1 ring-zinc-950/[0.04] sm:p-4"
                 >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch lg:gap-4">
+                  <div className="flex flex-col gap-3 sm:gap-4 lg:flex-row lg:items-stretch lg:gap-4">
                     <div className="flex min-w-0 flex-1 flex-col gap-3">
                       <button
                         type="button"
-                        className="flex w-full min-h-12 items-center justify-between gap-3 rounded-xl border border-zinc-200/80 bg-zinc-50/90 px-3 py-2.5 text-left text-sm touch-manipulation text-zinc-800 transition-colors hover:bg-zinc-100/90 lg:min-h-0 lg:justify-start lg:border-0 lg:bg-transparent lg:px-1 lg:py-1"
-                        aria-expanded={open}
-                        aria-label={t("warehouse.shipmentGroupToggleAria")}
-                        aria-controls={`wh-shipment-${safeKey}`}
-                        id={`wh-shipment-h-${safeKey}`}
-                        onClick={() =>
-                          setExpandedShipmentKeys((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(key)) next.delete(key);
-                            else next.add(key);
-                            return next;
-                          })
-                        }
+                        className="group flex w-full min-h-12 items-center justify-between gap-3 rounded-xl border border-zinc-200/80 bg-zinc-50 px-3 py-2.5 text-left text-sm touch-manipulation text-zinc-800 transition-colors hover:border-zinc-300 hover:bg-zinc-100/80"
+                        aria-label={t("common.openDetailsDialog")}
+                        onClick={() => setDetailsGroupKey(key)}
                       >
                         <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1.5">
-                          <span
-                            className={cn(
-                              "inline-flex shrink-0 text-zinc-400 transition-transform duration-200",
-                              open && "rotate-180"
-                            )}
-                            aria-hidden
-                          >
-                            <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                              <path
-                                fillRule="evenodd"
-                                d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          </span>
                           <span
                             className="shrink-0 font-mono text-[0.7rem] text-zinc-600 sm:text-xs"
                             title={batchCell.title ?? batchCell.text}
@@ -718,129 +857,73 @@ export function WarehouseDetailMovementHistoryTab({
                             {movements.length}×
                           </span>
                         </span>
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-zinc-200 bg-white px-2 py-1 text-xs font-medium text-zinc-600 group-hover:border-zinc-300 group-hover:text-zinc-800">
+                          <span className="hidden sm:inline">
+                            {t("warehouse.details")}
+                          </span>
+                          <EyeIcon className="h-4 w-4" />
+                        </span>
                       </button>
 
                       <div className="flex min-w-0 flex-col gap-2">
+                        <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/80 px-2.5 py-2.5 sm:px-3 sm:py-3">
+                          <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-600 sm:text-xs">
+                            {t("warehouse.movementMainTotalsInline")
+                              .replace("{{count}}", String(mainTotals.length))}
+                          </p>
+                          <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-lg border border-zinc-200/80 bg-white p-1.5">
+                            <div className="rounded bg-zinc-50 px-1.5 py-1">
+                              <p className="text-[10px] uppercase tracking-wide text-zinc-500">
+                                {t("warehouse.movementMainBalancesPrev")}
+                              </p>
+                              <p className="text-right text-xs font-medium tabular-nums text-zinc-700 sm:text-sm">
+                                {formatLocaleAmount(totalPrevious, locale)}
+                              </p>
+                            </div>
+                            <div className="rounded bg-zinc-50 px-1.5 py-1">
+                              <p className="text-[10px] uppercase tracking-wide text-zinc-500">
+                                {t("warehouse.movementMainBalancesThisEntry")}
+                              </p>
+                              <p
+                                className={cn(
+                                  "text-right text-xs font-semibold tabular-nums sm:text-sm",
+                                  entryTotal >= 0 ? "text-emerald-700" : "text-red-700"
+                                )}
+                              >
+                                {entryTotal >= 0 ? "+" : ""}
+                                {formatLocaleAmount(entryTotal, locale)}
+                              </p>
+                            </div>
+                            <div className="rounded border border-zinc-200 bg-zinc-100 px-1.5 py-1">
+                              <p className="text-[10px] uppercase tracking-wide text-zinc-600">
+                                {t("warehouse.movementMainBalancesNext")}
+                              </p>
+                              <p className="text-right text-sm font-bold tabular-nums text-zinc-900">
+                                {formatLocaleAmount(totalNext, locale)}
+                              </p>
+                            </div>
+                          </div>
+                          {displayUnit ? (
+                            <p className="mt-1 text-right text-[11px] font-medium text-zinc-500">{displayUnit}</p>
+                          ) : null}
+                        </div>
                         {singleType === "IN" ? (
                           <div className="min-w-0 rounded-lg border border-emerald-200/70 bg-emerald-50/40 p-2.5 sm:border-0 sm:bg-transparent sm:p-0">
                             <p className="mb-2 text-[0.65rem] font-semibold uppercase tracking-wide text-emerald-900 sm:hidden">
                               {t("warehouse.movementsTypeSegmentInbound")}
                             </p>
-                            <div className="grid min-w-0 grid-cols-[auto,minmax(0,1fr)] items-start gap-x-2 gap-y-1">
-                              <div className="hidden shrink-0 flex-nowrap gap-1.5 self-start sm:flex sm:gap-2">
-                                {hasInvoiceAttachment ? (
-                                  <Tooltip content={t("warehouse.movementHistoryRowOpenInvoiceView")} delayMs={220}>
-                                    <button
-                                      type="button"
-                                      aria-label={t("warehouse.movementHistoryRowOpenInvoiceView")}
-                                      className={movementToolbarIconButtonClass(
-                                        "border border-sky-200/90 bg-gradient-to-b from-sky-50 to-sky-100/90 text-sky-950 shadow-sm shadow-sky-900/10 ring-1 ring-sky-200/70 transition hover:from-sky-100 hover:to-sky-50"
-                                      )}
-                                      onClick={() => onCollapsedInboundInvoiceViewClick(key, movements)}
-                                    >
-                                      <EyeIcon className="h-5 w-5" />
-                                    </button>
-                                  </Tooltip>
-                                ) : (
-                                  <Tooltip content={t("warehouse.movementHistoryRowOpenInvoiceAdd")} delayMs={220}>
-                                    <button
-                                      type="button"
-                                      aria-label={t("warehouse.movementHistoryRowOpenInvoiceAdd")}
-                                      className={movementToolbarIconButtonClass(
-                                        "border border-dashed border-emerald-300/90 bg-emerald-50/70 text-emerald-900 shadow-sm transition hover:border-emerald-400 hover:bg-emerald-100/80"
-                                      )}
-                                      onClick={() => onCollapsedInboundInvoiceAddClick(movements)}
-                                    >
-                                      <PlusIcon className="h-5 w-5" />
-                                    </button>
-                                  </Tooltip>
-                                )}
-                                <Tooltip content={t("warehouse.movementHistoryRowOpenProductEdit")} delayMs={220}>
-                                  <button
-                                    type="button"
-                                    aria-label={t("warehouse.movementHistoryRowOpenProductEdit")}
-                                    className={movementToolbarIconButtonClass(
-                                      "border border-violet-200 bg-violet-50/90 text-violet-950 transition hover:bg-violet-100"
-                                    )}
-                                    onClick={() => onCollapsedInboundProductClick(key, movements)}
-                                  >
-                                    <PencilIcon className="h-5 w-5" aria-hidden />
-                                  </button>
-                                </Tooltip>
-                              </div>
-                              <p className="min-w-0 break-words text-sm leading-snug text-zinc-700 [overflow-wrap:anywhere]">
-                                {preview}
-                              </p>
-                            </div>
-
-                            <div className="mt-2 grid grid-cols-1 gap-2 sm:hidden">
-                              {hasInvoiceAttachment ? (
-                                <Button
-                                  type="button"
-                                  variant="secondary"
-                                  className="min-h-11 w-full justify-start border-sky-200/90 bg-sky-50 text-sky-950 hover:bg-sky-100"
-                                  onClick={() => onCollapsedInboundInvoiceViewClick(key, movements)}
-                                >
-                                  <EyeIcon className="h-5 w-5" />
-                                  <span className="ml-2">{t("warehouse.movementHistoryRowOpenInvoiceView")}</span>
-                                </Button>
-                              ) : (
-                                <Button
-                                  type="button"
-                                  variant="secondary"
-                                  className="min-h-11 w-full justify-start border-emerald-200/90 bg-emerald-50 text-emerald-900 hover:bg-emerald-100"
-                                  onClick={() => onCollapsedInboundInvoiceAddClick(movements)}
-                                >
-                                  <PlusIcon className="h-5 w-5" />
-                                  <span className="ml-2">{t("warehouse.movementHistoryRowOpenInvoiceAdd")}</span>
-                                </Button>
-                              )}
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                className="min-h-11 w-full justify-start border-violet-200/90 bg-violet-50 text-violet-950 hover:bg-violet-100"
-                                onClick={() => onCollapsedInboundProductClick(key, movements)}
-                              >
-                                <PencilIcon className="h-5 w-5" aria-hidden />
-                                <span className="ml-2">{t("warehouse.movementHistoryRowOpenProductEdit")}</span>
-                              </Button>
-                            </div>
+                            <p className="min-w-0 break-words text-sm leading-snug text-zinc-700 [overflow-wrap:anywhere]">
+                              {preview}
+                            </p>
                           </div>
-                        ) : singleType === "OUT" && allDepotOutbound ? (
+                        ) : singleType === "OUT" ? (
                           <div className="min-w-0 rounded-lg border border-red-200/70 bg-red-50/35 p-2.5 sm:border-0 sm:bg-transparent sm:p-0">
                             <p className="mb-2 text-[0.65rem] font-semibold uppercase tracking-wide text-red-900 sm:hidden">
                               {t("warehouse.movementsTypeSegmentOutbound")}
                             </p>
-                            <div className="grid min-w-0 grid-cols-[auto,minmax(0,1fr)] items-start gap-x-2 gap-y-1">
-                              <div className="hidden sm:block">
-                                <Tooltip content={t("warehouse.movementHistoryOutboundEditCollapsed")} delayMs={220}>
-                                  <button
-                                    type="button"
-                                    aria-label={t("warehouse.movementHistoryOutboundEditCollapsed")}
-                                    className={movementToolbarIconButtonClass(
-                                      "border border-red-200 bg-red-50/90 text-red-950 transition hover:bg-red-100"
-                                    )}
-                                    onClick={() => onCollapsedOutboundPreviewClick(key, movements)}
-                                  >
-                                    <PencilIcon className="h-5 w-5" aria-hidden />
-                                  </button>
-                                </Tooltip>
-                              </div>
-                              <p className="min-w-0 break-words text-sm leading-snug text-zinc-700 [overflow-wrap:anywhere]">
-                                {preview}
-                              </p>
-                            </div>
-                            <div className="mt-2 sm:hidden">
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                className="min-h-11 w-full justify-start border-red-200/90 bg-red-50 text-red-950 hover:bg-red-100"
-                                onClick={() => onCollapsedOutboundPreviewClick(key, movements)}
-                              >
-                                <PencilIcon className="h-5 w-5" aria-hidden />
-                                <span className="ml-2">{t("warehouse.movementHistoryOutboundEditCollapsed")}</span>
-                              </Button>
-                            </div>
+                            <p className="min-w-0 break-words text-sm leading-snug text-zinc-700 [overflow-wrap:anywhere]">
+                              {preview}
+                            </p>
                           </div>
                         ) : (
                           <p className="min-w-0 rounded-lg border border-zinc-100 bg-zinc-50/50 px-3 py-2 text-sm leading-snug text-zinc-700">
@@ -849,139 +932,7 @@ export function WarehouseDetailMovementHistoryTab({
                         )}
                       </div>
                     </div>
-
-                    {hasSideActions ? (
-                      <div
-                        className={cn(
-                          "w-full min-w-0 shrink-0 flex-row flex-wrap content-start items-center justify-start gap-2 overflow-x-auto border-t border-zinc-200 pt-3 [-webkit-overflow-scrolling:touch] lg:w-auto lg:flex-col lg:items-stretch lg:justify-start lg:overflow-visible lg:border-t-0 lg:border-l lg:border-zinc-200 lg:pl-4 lg:pt-0",
-                          singleType === "IN" || (singleType === "OUT" && allDepotOutbound)
-                            ? "hidden sm:flex"
-                            : "flex"
-                        )}
-                      >
-                        {singleType === "IN" ? (
-                          <>
-                            {singleInbound ? (
-                              <Tooltip content={t("warehouse.movementHistoryActionRowDelete")} delayMs={220}>
-                                <Button
-                                  type="button"
-                                  variant="secondary"
-                                  aria-label={t("warehouse.movementHistoryActionRowDelete")}
-                                  className={movementToolbarIconButtonClass(
-                                    "border-red-200/90 text-red-800 hover:bg-red-50"
-                                  )}
-                                  onClick={() => confirmDeleteInboundFromRow(singleInbound)}
-                                >
-                                  <TrashIcon className="h-5 w-5 shrink-0" aria-hidden />
-                                </Button>
-                              </Tooltip>
-                            ) : inboundLines.length > 1 ? (
-                              <Tooltip content={t("warehouse.movementHistoryOpenInboundToDelete")} delayMs={220}>
-                                <Button
-                                  type="button"
-                                  variant="secondary"
-                                  aria-label={t("warehouse.movementHistoryOpenInboundToDelete")}
-                                  className={movementToolbarIconButtonClass(
-                                    "border-red-200/90 text-red-800 hover:bg-red-50"
-                                  )}
-                                  onClick={() => expandShipmentGroup(key)}
-                                >
-                                  <TrashIcon className="h-5 w-5 shrink-0" aria-hidden />
-                                </Button>
-                              </Tooltip>
-                            ) : null}
-                            <Tooltip content={t("warehouse.editInboundBatchHint")} delayMs={280}>
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                aria-label={t("warehouse.movementHistoryActionEditDates")}
-                                className={movementToolbarIconButtonClass()}
-                                onClick={() => {
-                                  const trimmedBatch = sample.inBatchGroupId?.trim() ?? "";
-                                  setEditInboundTarget({
-                                    movementBatchId: trimmedBatch || null,
-                                    soloMovementId: trimmedBatch ? null : sample.id,
-                                    defaultBusinessDate:
-                                      sample.movementDate.length >= 10
-                                        ? sample.movementDate.slice(0, 10)
-                                        : sample.movementDate,
-                                  });
-                                  setEditInboundOpen(true);
-                                }}
-                              >
-                                <PencilIcon className="h-5 w-5 shrink-0" aria-hidden />
-                              </Button>
-                            </Tooltip>
-                          </>
-                        ) : singleType === "OUT" && allDepotOutbound ? (
-                          outLines.length === 1 ? (
-                            <Tooltip content={t("warehouse.movementHistoryActionShipmentDelete")} delayMs={220}>
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                aria-label={t("warehouse.movementHistoryActionShipmentDelete")}
-                                className={movementToolbarIconButtonClass(
-                                  "border-red-200/90 text-red-800 hover:bg-red-50"
-                                )}
-                                onClick={() => confirmDeleteOutboundShipmentFromRow(outLines[0])}
-                              >
-                                <TrashIcon className="h-5 w-5 shrink-0" aria-hidden />
-                              </Button>
-                            </Tooltip>
-                          ) : (
-                            <Tooltip content={t("warehouse.movementHistoryOpenLinesToEdit")} delayMs={220}>
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                aria-label={t("warehouse.movementHistoryOpenLinesToEdit")}
-                                className={movementToolbarIconButtonClass()}
-                                onClick={() => expandShipmentGroup(key)}
-                              >
-                                <ChevronDownIcon className="h-5 w-5 shrink-0" aria-hidden />
-                              </Button>
-                            </Tooltip>
-                          )
-                        ) : null}
-                      </div>
-                    ) : null}
                   </div>
-                  {open ? (
-                    <div
-                      className="mt-3 space-y-2 border-t border-zinc-100 bg-zinc-50/70 px-1 py-3 sm:px-2"
-                      id={`wh-shipment-${safeKey}`}
-                      role="region"
-                      aria-labelledby={`wh-shipment-h-${safeKey}`}
-                    >
-                      {movements.map((m) => (
-                        <WarehouseMovementRowCard
-                          key={m.id}
-                          m={m}
-                          fmtDate={fmtDate}
-                          t={t}
-                          hideShipmentGroup
-                          warehouseId={warehouseId}
-                          onEditInboundFull={(row) => {
-                            if (row.type === "IN") setInboundFullMovementId(row.id);
-                          }}
-                          onDeleteInbound={confirmDeleteInboundFromRow}
-                          onEditOutboundShipment={(row) => {
-                            if (row.type === "OUT" && row.isDepotToBranchShipment) {
-                              setOutboundShipmentMovementId(row.id);
-                            }
-                          }}
-                          onDeleteOutboundShipment={confirmDeleteOutboundShipmentFromRow}
-                          onPreviewInvoice={(row) => {
-                            if (row.type !== "IN" || !row.hasInvoicePhoto) return;
-                            setInvoicePreviewTarget({
-                              movementId: row.id,
-                              title: t("warehouse.movementInvoicePreviewTitle"),
-                              subtitle: row.productName,
-                            });
-                          }}
-                        />
-                      ))}
-                    </div>
-                  ) : null}
                 </div>
               );
             })}
@@ -994,9 +945,9 @@ export function WarehouseDetailMovementHistoryTab({
       {!isPending && totalCount > 0 && (
         <div className="flex min-w-0 flex-col gap-3 border-t border-zinc-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="min-w-0 text-sm text-zinc-600">
-            {(page - 1) * PAGE_SIZE + 1}
+            {(page - 1) * GROUP_PAGE_SIZE + 1}
             {"–"}
-            {Math.min(page * PAGE_SIZE, totalCount)} · {t("products.pagingTotal")} {totalCount}
+            {Math.min(page * GROUP_PAGE_SIZE, groupTotalCount)} · {t("products.pagingTotal")} {groupTotalCount}
           </p>
           <div className="flex min-w-0 flex-wrap items-stretch gap-2 sm:items-center sm:justify-end">
             <Button
@@ -1058,6 +1009,131 @@ export function WarehouseDetailMovementHistoryTab({
         t={t}
         onClose={() => setInvoicePreviewTarget(null)}
       />
+      <Modal
+        open={selectedDetailGroup != null}
+        onClose={() => setDetailsGroupKey(null)}
+        titleId="warehouse-movement-detail-dialog-title"
+        title={t("common.openDetailsDialog")}
+        closeButtonLabel={t("common.close")}
+        wide
+        className="!max-w-4xl"
+      >
+        <div className="mt-4 max-h-[70vh] overflow-y-auto pr-1">
+          {selectedDetailGroup ? (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-2.5">
+                <p className="text-xs font-semibold text-zinc-800">
+                  {t("warehouse.movementMainTotalsDialogTitle")}
+                </p>
+                <div className="mt-2 space-y-1.5">
+                  {shipmentMainProductTotals(selectedDetailGroup.movements).map((row) => (
+                    <div
+                      key={`dlg-main-${row.key}`}
+                      className="flex items-center justify-between gap-2 rounded-md bg-white px-2 py-1.5"
+                    >
+                      <span className="truncate text-xs font-medium text-zinc-800">{row.name}</span>
+                      <span
+                        className={cn(
+                          "shrink-0 text-xs font-semibold tabular-nums",
+                          row.quantity >= 0 ? "text-emerald-700" : "text-red-700"
+                        )}
+                      >
+                        {row.quantity >= 0 ? "+" : ""}
+                        {formatLocaleAmount(row.quantity, locale)}
+                        {row.unit ? ` ${row.unit}` : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <details className="rounded-lg border border-zinc-200 bg-zinc-50 p-2.5">
+                <summary className="cursor-pointer list-none text-xs font-semibold text-zinc-800">
+                  <span className="inline-flex w-full items-center justify-between">
+                    <span>{t("warehouse.movementAuditDialogTitle")}</span>
+                    <span className="text-[11px] font-medium text-zinc-500">
+                      {(groupBalanceSummaryByKey.get(selectedDetailGroup.key) ?? []).length}
+                    </span>
+                  </span>
+                </summary>
+                <div className="mt-2 space-y-2">
+                  {(groupBalanceSummaryByKey.get(selectedDetailGroup.key) ?? []).map((row) => (
+                    <div key={`dlg-audit-${row.id}`} className="rounded-md border border-zinc-200 bg-white p-2">
+                      <p className="truncate text-xs font-semibold text-zinc-800">
+                        {row.name}
+                        <span className="ml-1 text-zinc-500">
+                          {row.scope === "MAIN"
+                            ? t("warehouse.movementMainBalancesScopeMain")
+                            : t("warehouse.movementMainBalancesScopeProduct")}
+                        </span>
+                      </p>
+                      <div className="mt-1 grid grid-cols-3 gap-1">
+                        <div className="rounded bg-zinc-50 px-1.5 py-1 text-right">
+                          <p className="text-[10px] uppercase text-zinc-500">{t("warehouse.movementMainBalancesPrev")}</p>
+                          <p className="text-xs tabular-nums text-zinc-700">{formatLocaleAmount(row.previous, locale)}</p>
+                        </div>
+                        <div className="rounded bg-zinc-50 px-1.5 py-1 text-right">
+                          <p className="text-[10px] uppercase text-zinc-500">{t("warehouse.movementMainBalancesThisEntry")}</p>
+                          <p className={cn("text-xs font-semibold tabular-nums", row.delta >= 0 ? "text-emerald-700" : "text-red-700")}>
+                            {row.delta >= 0 ? "+" : ""}
+                            {formatLocaleAmount(row.delta, locale)}
+                          </p>
+                        </div>
+                        <div className="rounded border border-zinc-200 bg-zinc-100 px-1.5 py-1 text-right">
+                          <p className="text-[10px] uppercase text-zinc-500">{t("warehouse.movementMainBalancesNext")}</p>
+                          <p className="text-xs font-semibold tabular-nums text-zinc-900">{formatLocaleAmount(row.next, locale)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </details>
+              <details className="rounded-lg border border-zinc-200 bg-zinc-50 p-2.5" open>
+                <summary className="cursor-pointer list-none text-xs font-semibold text-zinc-800">
+                  <span className="inline-flex w-full items-center justify-between">
+                    <span>{t("warehouse.movementLinesDialogTitle")}</span>
+                    <span className="text-[11px] font-medium text-zinc-500">{selectedDetailGroup.movements.length}</span>
+                  </span>
+                </summary>
+                <div className="mt-2 space-y-2">
+                  {selectedDetailGroup.movements.map((m) => (
+                    <WarehouseMovementRowCard
+                      key={`detail-${m.id}`}
+                      m={m}
+                      fmtDate={fmtDate}
+                      t={t}
+                      hideShipmentGroup
+                      warehouseId={warehouseId}
+                      onEditInboundFull={(row) => {
+                        if (row.type === "IN") setInboundFullMovementId(row.id);
+                      }}
+                      onDeleteInbound={confirmDeleteInboundFromRow}
+                      onEditOutboundShipment={(row) => {
+                        if (row.type === "OUT" && row.isDepotToBranchShipment) {
+                          setOutboundShipmentMovementId(row.id);
+                        }
+                      }}
+                      onDeleteOutboundShipment={confirmDeleteOutboundShipmentFromRow}
+                      onCreateInvoiceFromShipment={(row) => {
+                        if (row.type === "OUT" && row.isDepotToBranchShipment) {
+                          openInvoiceDraftFromShipment(row.id);
+                        }
+                      }}
+                      onPreviewInvoice={(row) => {
+                        if (row.type !== "IN" || !row.hasInvoicePhoto) return;
+                        setInvoicePreviewTarget({
+                          movementId: row.id,
+                          title: t("warehouse.movementInvoicePreviewTitle"),
+                          subtitle: row.productName,
+                        });
+                      }}
+                    />
+                  ))}
+                </div>
+              </details>
+            </div>
+          ) : null}
+        </div>
+      </Modal>
     </div>
   );
 }

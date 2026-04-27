@@ -20,6 +20,7 @@ import { Select, type SelectOption } from "@/shared/ui/Select";
 import { useEffect, useMemo, useState } from "react";
 
 const TITLE_ID = "warehouse-edit-outbound-shipment-title";
+const MANUAL_RECEIVER_PREFIX = "Manual receiver:";
 
 type Props = {
   open: boolean;
@@ -32,6 +33,37 @@ function toIsoDateOnly(s: string): string {
   const t = s.trim();
   if (t.length >= 10) return t.slice(0, 10);
   return t;
+}
+
+function stripManualReceiverFromDescription(input: string | null | undefined): { clean: string; manualReceiver: string } {
+  const text = (input ?? "").trim();
+  if (!text) return { clean: "", manualReceiver: "" };
+  const rows = text
+    .split("\n")
+    .map((x) => x.trim())
+    .filter((x) => x.length > 0);
+  let manual = "";
+  const kept: string[] = [];
+  for (const row of rows) {
+    if (row.toLowerCase().startsWith(MANUAL_RECEIVER_PREFIX.toLowerCase())) {
+      manual = row.slice(MANUAL_RECEIVER_PREFIX.length).trim();
+      continue;
+    }
+    kept.push(row);
+  }
+  return { clean: kept.join("\n"), manualReceiver: manual };
+}
+
+function mergeDescriptionWithManualReceiver(base: string, manualReceiver: string): string | null {
+  const cleanBase = base
+    .split("\n")
+    .map((x) => x.trim())
+    .filter((x) => x.length > 0)
+    .join("\n");
+  const manual = manualReceiver.trim();
+  if (!cleanBase && !manual) return null;
+  if (!manual) return cleanBase || null;
+  return cleanBase ? `${cleanBase}\n${MANUAL_RECEIVER_PREFIX} ${manual}` : `${MANUAL_RECEIVER_PREFIX} ${manual}`;
 }
 
 export function EditWarehouseOutboundShipmentMovementModal({
@@ -57,6 +89,8 @@ export function EditWarehouseOutboundShipmentMovementModal({
   const [description, setDescription] = useState("");
   const [sentBy, setSentBy] = useState("");
   const [receivedBy, setReceivedBy] = useState("");
+  const [receivedByManualMode, setReceivedByManualMode] = useState(false);
+  const [receivedByManualName, setReceivedByManualName] = useState("");
   const [clearInvoice, setClearInvoice] = useState(false);
 
   useEffect(() => {
@@ -69,6 +103,8 @@ export function EditWarehouseOutboundShipmentMovementModal({
       setDescription("");
       setSentBy("");
       setReceivedBy("");
+      setReceivedByManualMode(false);
+      setReceivedByManualName("");
       setClearInvoice(false);
       return;
     }
@@ -79,11 +115,14 @@ export function EditWarehouseOutboundShipmentMovementModal({
     setQty(String(d.quantity));
     setBusinessDate(toIsoDateOnly(d.businessDate));
     setLegacyDate(d.legacyDate ? toIsoDateOnly(d.legacyDate) : toIsoDateOnly(d.businessDate));
-    setDescription(d.description?.trim() ?? "");
+    const parsedDescription = stripManualReceiverFromDescription(d.description);
+    setDescription(parsedDescription.clean);
     setSentBy(d.checkedByPersonnelId != null && d.checkedByPersonnelId > 0 ? String(d.checkedByPersonnelId) : "");
     setReceivedBy(
       d.approvedByPersonnelId != null && d.approvedByPersonnelId > 0 ? String(d.approvedByPersonnelId) : ""
     );
+    setReceivedByManualMode(parsedDescription.manualReceiver.length > 0);
+    setReceivedByManualName(parsedDescription.manualReceiver);
     setClearInvoice(false);
   }, [open, q.data]);
 
@@ -146,7 +185,16 @@ export function EditWarehouseOutboundShipmentMovementModal({
     }
     const s = Number(sentBy);
     const r = Number(receivedBy);
-    if (!Number.isFinite(s) || s <= 0 || !Number.isFinite(r) || r <= 0) {
+    if (!Number.isFinite(s) || s <= 0) {
+      notify.error(t("warehouse.transferPersonnelRolesRequired"));
+      return;
+    }
+    if (receivedByManualMode) {
+      if (!receivedByManualName.trim()) {
+        notify.error(t("warehouse.transferManualReceiverRequired"));
+        return;
+      }
+    } else if (!Number.isFinite(r) || r <= 0) {
       notify.error(t("warehouse.transferPersonnelRolesRequired"));
       return;
     }
@@ -160,9 +208,12 @@ export function EditWarehouseOutboundShipmentMovementModal({
           quantity: n,
           businessDate,
           date: legacyDate.length === 10 ? legacyDate : null,
-          description: description.trim() ? description.trim() : null,
+          description: mergeDescriptionWithManualReceiver(
+            description,
+            receivedByManualMode ? receivedByManualName : ""
+          ),
           checkedByPersonnelId: s,
-          approvedByPersonnelId: r,
+          approvedByPersonnelId: receivedByManualMode ? s : r,
           clearInvoicePhoto: clearInvoice,
         },
       });
@@ -286,8 +337,30 @@ export function EditWarehouseOutboundShipmentMovementModal({
             value={receivedBy}
             onChange={(e) => setReceivedBy(e.target.value)}
             onBlur={() => {}}
-            disabled={updateM.isPending || deleteM.isPending}
+            disabled={updateM.isPending || deleteM.isPending || receivedByManualMode}
           />
+          <label className="flex cursor-pointer items-start gap-2 text-sm text-zinc-800">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 shrink-0 rounded border-zinc-300 text-zinc-900"
+              checked={receivedByManualMode}
+              disabled={updateM.isPending || deleteM.isPending}
+              onChange={(e) => setReceivedByManualMode(e.target.checked)}
+            />
+            <span>{t("warehouse.transferManualReceiverToggle")}</span>
+          </label>
+          {receivedByManualMode ? (
+            <Input
+              label={t("warehouse.transferManualReceiverName")}
+              labelRequired
+              required
+              type="text"
+              autoComplete="off"
+              value={receivedByManualName}
+              onChange={(e) => setReceivedByManualName(e.target.value)}
+              disabled={updateM.isPending || deleteM.isPending}
+            />
+          ) : null}
           {q.data.hasInvoicePhoto ? (
             <label className="flex cursor-pointer items-start gap-2 text-sm text-zinc-800">
               <input

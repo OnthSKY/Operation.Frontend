@@ -49,6 +49,15 @@ type ResolvedReceiptLine = {
 const DEPO_TITLE_ID = "wh-list-depo-in-title";
 const DEPO_RECEIPT_SUMMARY_ID = "wh-list-depo-receipt-summary";
 const TRANSFER_TITLE_ID = "wh-list-transfer-title";
+const MANUAL_RECEIVER_PREFIX = "Manual receiver:";
+
+function mergeDescriptionWithManualReceiver(base: string, manualReceiver: string): string | null {
+  const cleanBase = base.trim();
+  const receiver = manualReceiver.trim();
+  if (!cleanBase && !receiver) return null;
+  if (!receiver) return cleanBase;
+  return cleanBase ? `${cleanBase}\n${MANUAL_RECEIVER_PREFIX} ${receiver}` : `${MANUAL_RECEIVER_PREFIX} ${receiver}`;
+}
 
 function productLabel(r: WarehouseProductStockRow) {
   const u = r.unit?.trim();
@@ -558,6 +567,8 @@ export function WarehouseListTransferModal({
   const [trTransportedBy, setTrTransportedBy] = useState("");
   const [trSentBy, setTrSentBy] = useState("");
   const [trReceivedBy, setTrReceivedBy] = useState("");
+  const [trManualReceiverEnabled, setTrManualReceiverEnabled] = useState(false);
+  const [trManualReceiverName, setTrManualReceiverName] = useState("");
   const [freightAmount, setFreightAmount] = useState("");
   const [freightPay, setFreightPay] = useState<WarehouseFreightPaymentSource>("REGISTER");
   const [freightPocket, setFreightPocket] = useState("");
@@ -624,6 +635,8 @@ export function WarehouseListTransferModal({
     setTrTransportedBy("");
     setTrSentBy("");
     setTrReceivedBy("");
+    setTrManualReceiverEnabled(false);
+    setTrManualReceiverName("");
     setFreightAmount("");
     setFreightPay("REGISTER");
     setFreightPocket("");
@@ -645,6 +658,8 @@ export function WarehouseListTransferModal({
     trTransportedBy.trim() !== "" ||
     trSentBy.trim() !== "" ||
     trReceivedBy.trim() !== "" ||
+    trManualReceiverEnabled ||
+    trManualReceiverName.trim() !== "" ||
     freightAmount.trim() !== "" ||
     freightPocket.trim() !== "" ||
     freightNote.trim() !== "";
@@ -691,10 +706,13 @@ export function WarehouseListTransferModal({
       transportedBy <= 0 ||
       !Number.isFinite(sentBy) ||
       sentBy <= 0 ||
-      !Number.isFinite(receivedBy) ||
-      receivedBy <= 0
+      (!trManualReceiverEnabled && (!Number.isFinite(receivedBy) || receivedBy <= 0))
     ) {
       notify.error(t("warehouse.transferPersonnelRolesRequired"));
+      return;
+    }
+    if (trManualReceiverEnabled && !trManualReceiverName.trim()) {
+      notify.error(t("warehouse.transferManualReceiverRequired"));
       return;
     }
     const frN = Number(freightAmount.replace(",", "."));
@@ -715,10 +733,13 @@ export function WarehouseListTransferModal({
         branchId: b,
         lines: parsed,
         movementDate,
-        description: tDesc.trim() ? tDesc.trim() : null,
+        description: mergeDescriptionWithManualReceiver(
+          tDesc,
+          trManualReceiverEnabled ? trManualReceiverName : ""
+        ),
         transportedByPersonnelId: transportedBy,
         sentByPersonnelId: sentBy,
-        receivedByPersonnelId: receivedBy,
+        receivedByPersonnelId: trManualReceiverEnabled ? sentBy : receivedBy,
         ...(hasFreight
           ? {
               freightAmount: frN,
@@ -885,8 +906,29 @@ export function WarehouseListTransferModal({
             value={trReceivedBy}
             onChange={(e) => setTrReceivedBy(e.target.value)}
             onBlur={() => {}}
-            disabled={disabled}
+            disabled={disabled || trManualReceiverEnabled}
           />
+          <label className="flex cursor-pointer items-start gap-2 text-sm text-zinc-800">
+            <input
+              type="checkbox"
+              className="mt-1 h-4 w-4 shrink-0 rounded border-zinc-300 text-zinc-900"
+              checked={trManualReceiverEnabled}
+              disabled={disabled}
+              onChange={(e) => setTrManualReceiverEnabled(e.target.checked)}
+            />
+            <span>{t("warehouse.transferManualReceiverToggle")}</span>
+          </label>
+          {trManualReceiverEnabled ? (
+            <Input
+              type="text"
+              autoComplete="off"
+              label={t("warehouse.transferManualReceiverName")}
+              labelRequired
+              value={trManualReceiverName}
+              onChange={(e) => setTrManualReceiverName(e.target.value)}
+              disabled={disabled}
+            />
+          ) : null}
           <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:flex-wrap sm:justify-end">
             <Button
               type="button"

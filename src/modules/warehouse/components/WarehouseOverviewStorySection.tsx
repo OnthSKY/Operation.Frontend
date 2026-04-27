@@ -107,7 +107,7 @@ export function WarehouseOverviewStorySection({
       ) : stockQ.isError ? (
         <p className="text-sm text-red-600">{toErrorMessage(stockQ.error)}</p>
       ) : (
-        <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-1 [-webkit-overflow-scrolling:touch] md:grid md:grid-cols-2 md:overflow-visible md:pb-0 md:snap-none xl:grid-cols-3">
+        <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
           <DashboardStorySlide>
             <div className={cn(slideCardClass, "min-h-[16rem]")}>
               <p className="text-[0.65rem] font-bold uppercase tracking-wide text-teal-900/75">

@@ -158,6 +158,7 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
               { id: "product-categories", labelKey: "nav.productCategories", route: "/products/categories", icon: "branch" },
               { id: "product-cost-history", labelKey: "nav.productCostHistory", route: "/products/cost-history", icon: "reports" },
               { id: "order-account-statement", labelKey: "reports.sidebarOrderAccountStatement", route: "/products/order-account-statement", icon: "reports" },
+              { id: "counterparty-summary", labelKey: "reports.sidebarCounterpartySummary", route: "/products/order-account-statement/summary", icon: "reports" },
             ]
           : []),
       ],

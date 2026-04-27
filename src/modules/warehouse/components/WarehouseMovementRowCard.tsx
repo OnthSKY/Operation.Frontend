@@ -3,10 +3,9 @@
 import { warehouseMovementInvoicePhotoUrl } from "@/modules/warehouse/api/warehouse-movements-api";
 import { cn } from "@/lib/cn";
 import { MobileListCard } from "@/shared/components/MobileListCard";
-import { PencilIcon } from "@/shared/ui/EyeIcon";
-import { movementToolbarIconButtonClass } from "@/modules/warehouse/lib/movement-toolbar-icon";
+import { PencilIcon, PlusIcon, detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
 import { formatWarehouseShipmentDisplay } from "@/shared/lib/in-batch-group-label";
-import { TrashIcon } from "@/shared/ui/TrashIcon";
+import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import type { WarehouseMovementItem } from "@/types/warehouse";
 import { useEffect, useState, type ReactNode } from "react";
@@ -32,6 +31,7 @@ type Props = {
   /** Depo→şube sevkiyat OUT satırı (isDepotToBranchShipment). */
   onEditOutboundShipment?: (m: WarehouseMovementItem) => void;
   onDeleteOutboundShipment?: (m: WarehouseMovementItem) => void;
+  onCreateInvoiceFromShipment?: (m: WarehouseMovementItem) => void;
   onPreviewInvoice?: (m: WarehouseMovementItem) => void;
 };
 
@@ -45,6 +45,7 @@ export function WarehouseMovementRowCard({
   onDeleteInbound,
   onEditOutboundShipment,
   onDeleteOutboundShipment,
+  onCreateInvoiceFromShipment,
   onPreviewInvoice,
 }: Props) {
   const [thumbFailed, setThumbFailed] = useState(false);
@@ -66,6 +67,8 @@ export function WarehouseMovementRowCard({
     warehouseId != null &&
     warehouseId > 0 &&
     (onEditOutboundShipment != null || onDeleteOutboundShipment != null);
+  const showCreateInvoiceAction =
+    !typeIn && m.isDepotToBranchShipment === true && onCreateInvoiceFromShipment != null;
 
   return (
     <MobileListCard as="div" className="touch-manipulation shadow-zinc-900/5">
@@ -87,12 +90,13 @@ export function WarehouseMovementRowCard({
               <button
                 type="button"
                 aria-label={t("warehouse.editInboundFullOpenRow")}
-                className={movementToolbarIconButtonClass(
-                  "rounded-lg border border-zinc-200 bg-white text-zinc-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-900"
+                className={cn(
+                  detailOpenIconButtonClass,
+                  "inline-flex items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-900"
                 )}
                 onClick={() => onEditInboundFull(m)}
               >
-                <PencilIcon className="h-5 w-5 shrink-0" aria-hidden />
+                <PlusIcon className="h-5 w-5 shrink-0" aria-hidden />
               </button>
             </Tooltip>
           ) : null}
@@ -101,8 +105,9 @@ export function WarehouseMovementRowCard({
               <button
                 type="button"
                 aria-label={t("warehouse.editInboundFullDeleteAction")}
-                className={movementToolbarIconButtonClass(
-                  "rounded-lg border border-red-200/90 bg-red-50/80 text-red-900 shadow-sm transition hover:bg-red-100 active:bg-red-100 disabled:pointer-events-none disabled:opacity-40"
+                className={cn(
+                  trashIconActionButtonClass,
+                  "rounded-lg border border-red-200/90 bg-red-50/80 text-red-900 shadow-sm"
                 )}
                 onClick={() => onDeleteInbound(m)}
               >
@@ -114,13 +119,29 @@ export function WarehouseMovementRowCard({
       ) : null}
       {showOutboundShipmentActions ? (
         <div className="mt-3 flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
+          {showCreateInvoiceAction ? (
+            <Tooltip content={t("warehouse.movementHistoryCreateInvoiceFromShipment")} delayMs={220}>
+              <button
+                type="button"
+                aria-label={t("warehouse.movementHistoryCreateInvoiceFromShipment")}
+                className={cn(
+                  detailOpenIconButtonClass,
+                  "inline-flex items-center justify-center rounded-lg border border-indigo-200/90 bg-indigo-50/80 text-indigo-900 shadow-sm transition hover:bg-indigo-100"
+                )}
+                onClick={() => onCreateInvoiceFromShipment?.(m)}
+              >
+                <PencilIcon className="h-5 w-5 shrink-0" aria-hidden />
+              </button>
+            </Tooltip>
+          ) : null}
           {onEditOutboundShipment ? (
             <Tooltip content={t("warehouse.editOutboundShipmentOpenRow")} delayMs={220}>
               <button
                 type="button"
                 aria-label={t("warehouse.editOutboundShipmentOpenRow")}
-                className={movementToolbarIconButtonClass(
-                  "rounded-lg border border-zinc-200 bg-white text-zinc-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-900"
+                className={cn(
+                  detailOpenIconButtonClass,
+                  "inline-flex items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-50 hover:text-violet-900"
                 )}
                 onClick={() => onEditOutboundShipment(m)}
               >
@@ -133,8 +154,9 @@ export function WarehouseMovementRowCard({
               <button
                 type="button"
                 aria-label={t("warehouse.editOutboundShipmentDeleteAction")}
-                className={movementToolbarIconButtonClass(
-                  "rounded-lg border border-red-200/90 bg-red-50/80 text-red-900 shadow-sm transition hover:bg-red-100 active:bg-red-100 disabled:pointer-events-none disabled:opacity-40"
+                className={cn(
+                  trashIconActionButtonClass,
+                  "rounded-lg border border-red-200/90 bg-red-50/80 text-red-900 shadow-sm"
                 )}
                 onClick={() => onDeleteOutboundShipment(m)}
               >

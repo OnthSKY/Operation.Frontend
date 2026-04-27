@@ -1100,6 +1100,23 @@ export function AppShell({ children }: { children: ReactNode }) {
                         <NavMenuHint hintKey="nav.tooltip.productsOrderAccountStatement" />
                       </div>
                     </div>
+                    <div className={navItemRow}>
+                      <Link
+                        href="/products/order-account-statement/summary"
+                        onClick={() => setMobileNavOpen(false)}
+                        className={`${navLinkBase} min-w-0 py-2 pl-4 pr-2 ${
+                          pathname.startsWith("/products/order-account-statement/summary")
+                            ? navLinkActive
+                            : navLinkIdle
+                        }`}
+                      >
+                        <NavGlyph name="reportTable" />
+                        <span className="min-w-0">{t("reports.sidebarCounterpartySummary")}</span>
+                      </Link>
+                      <div className={navHintCol}>
+                        <NavMenuHint hintKey="nav.tooltip.productsOrderAccountStatement" />
+                      </div>
+                    </div>
                   </>
                 ) : null}
               </div>

@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { canSeeUiModule, PERM } from "@/lib/auth/permissions";
 import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
-import { companyBrandingLogoUrl } from "@/modules/admin/api/system-branding-api";
+import { companyBrandingLogoUrl, fetchSystemBranding } from "@/modules/admin/api/system-branding-api";
 import { useProductsCatalog } from "@/modules/products/hooks/useProductQueries";
 import {
   computeOrderAccountTotals,
@@ -19,9 +19,15 @@ import {
 import { uploadBranchDocument } from "@/modules/branch/api/branch-documents-api";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { computeSuggestedLineTotal } from "@/modules/order-account-statement/lib/suggested-line-total";
+import {
+  createOutboundInvoice,
+  fetchCounterpartySuggestions,
+  type CounterpartySuggestionRow,
+} from "@/modules/order-account-statement/api/outbound-invoices-api";
 import { cn } from "@/lib/cn";
 import { OVERLAY_Z_INDEX, OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
 import { apiFetch } from "@/shared/api/client";
+import { fetchWarehouseOutboundShipmentMovementForEdit } from "@/modules/warehouse/api/warehouses-api";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatLocaleAmount, formatLocaleAmountInput, parseLocaleAmount } from "@/shared/lib/locale-amount";
 import { notify } from "@/shared/lib/notify";
@@ -31,6 +37,8 @@ import { ModernSelect } from "@/shared/ui/ModernSelect";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import { Button } from "@/shared/ui/Button";
 import { createPortal } from "react-dom";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import {
   forwardRef,
   useCallback,
@@ -447,6 +455,13 @@ function isoDateStamp(d: Date): string {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}${m}${day}`;
+}
+
+function isoDateOnly(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 function parseLines(lines: LineDraft[], locale: Locale): OrderAccountLine[] {
@@ -1524,7 +1539,10 @@ function OasTemplatePickers({
 export function OrderAccountStatementScreen() {
   const { t, locale } = useI18n();
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   const previewRef = useRef<HTMLDivElement>(null);
+  const shipmentPrefillKeyRef = useRef<string>("");
+  const brandingDefaultsLoadedRef = useRef(false);
   const [busy, setBusy] = useState(false);
   const [brandingLogoBusy, setBrandingLogoBusy] = useState(false);
 
@@ -1538,6 +1556,17 @@ export function OrderAccountStatementScreen() {
   const [branchName, setBranchName] = useState("");
   const [linkedBranchId, setLinkedBranchId] = useState("");
   const [saveToSystem, setSaveToSystem] = useState(true);
+  const [saveAsInvoice, setSaveAsInvoice] = useState(false);
+  const [invoiceAutoPost, setInvoiceAutoPost] = useState(true);
+  const [customerAccountIdText, setCustomerAccountIdText] = useState("");
+  const [paymentIban, setPaymentIban] = useState("");
+  const [paymentAccountHolder, setPaymentAccountHolder] = useState("");
+  const [paymentBankName, setPaymentBankName] = useState("");
+  const [paymentNote, setPaymentNote] = useState("");
+  const [showPaymentOnPdf, setShowPaymentOnPdf] = useState(true);
+  const [lastCreatedInvoiceNo, setLastCreatedInvoiceNo] = useState("");
+  const [suggestions, setSuggestions] = useState<CounterpartySuggestionRow[]>([]);
+  const [suggestionsBusy, setSuggestionsBusy] = useState(false);
   const [emblemDataUrl, setEmblemDataUrl] = useState("");
   const [documentTitle, setDocumentTitle] = useState("");
   const [showDocumentTagline, setShowDocumentTagline] = useState(true);
@@ -1554,6 +1583,14 @@ export function OrderAccountStatementScreen() {
   const [portalMounted, setPortalMounted] = useState(false);
 
   useEffect(() => {
+    const branchIdText = linkedBranchId.trim();
+    const branchIdNum = Number.parseInt(branchIdText, 10);
+    if (!Number.isFinite(branchIdNum) || branchIdNum <= 0) return;
+    // Şube seçildiğinde cari id'yi şube id ile başlayan bir taslak değere getir.
+    setCustomerAccountIdText(`${branchIdNum}001`);
+  }, [linkedBranchId]);
+
+  useEffect(() => {
     setPortalMounted(true);
   }, []);
 
@@ -1565,6 +1602,138 @@ export function OrderAccountStatementScreen() {
       document.body.style.overflow = prev;
     };
   }, [previewModalOpen]);
+
+  const shipmentPrefillParams = useMemo(() => {
+    const warehouseIdRaw = searchParams.get("shipmentWarehouseId") ?? "";
+    const movementIdRaw = searchParams.get("shipmentMovementId") ?? "";
+    const warehouseId = Number.parseInt(warehouseIdRaw, 10);
+    const movementId = Number.parseInt(movementIdRaw, 10);
+    if (!Number.isFinite(warehouseId) || warehouseId <= 0) return null;
+    if (!Number.isFinite(movementId) || movementId <= 0) return null;
+    return { warehouseId, movementId, key: `${warehouseId}:${movementId}` };
+  }, [searchParams]);
+  const shipmentPrefillDraftMode = useMemo(() => {
+    const raw = (searchParams.get("invoiceDraft") ?? "").trim().toLowerCase();
+    return raw === "1" || raw === "true" || raw === "yes";
+  }, [searchParams]);
+
+  const loadBrandingLogoAsDataUrl = useCallback(async (updatedAtUtc?: string | null): Promise<string> => {
+    const res = await apiFetch(companyBrandingLogoUrl(updatedAtUtc));
+    if (!res.ok) throw new Error("branding-logo-missing");
+    const blob = await res.blob();
+    if (!blob.size) throw new Error("branding-logo-empty");
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = typeof reader.result === "string" ? reader.result : "";
+        if (!result) {
+          reject(new Error("branding-logo-read-failed"));
+          return;
+        }
+        resolve(result);
+      };
+      reader.onerror = () => reject(reader.error ?? new Error("branding-logo-read-failed"));
+      reader.readAsDataURL(blob);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (brandingDefaultsLoadedRef.current) return;
+    brandingDefaultsLoadedRef.current = true;
+    let alive = true;
+    void fetchSystemBranding()
+      .then(async (branding) => {
+        if (!alive) return;
+        if (!companyName.trim() && branding.companyName?.trim()) {
+          setCompanyName(branding.companyName.trim());
+        }
+        if (!emblemDataUrl && branding.hasLogo) {
+          try {
+            const dataUrl = await loadBrandingLogoAsDataUrl(branding.updatedAtUtc);
+            if (!alive) return;
+            setEmblemDataUrl(dataUrl);
+          } catch {
+            // Branding logo yoksa sessiz geç; kullanıcı manuel seçebilir.
+          }
+        }
+      })
+      .catch(() => {
+        // Branding varsayılanı alınamazsa sayfa normal kullanımına devam eder.
+      });
+    return () => {
+      alive = false;
+    };
+  }, [companyName, emblemDataUrl, loadBrandingLogoAsDataUrl]);
+
+  useEffect(() => {
+    if (!shipmentPrefillParams) return;
+    if (shipmentPrefillKeyRef.current === shipmentPrefillParams.key) return;
+    shipmentPrefillKeyRef.current = shipmentPrefillParams.key;
+    let alive = true;
+    void fetchWarehouseOutboundShipmentMovementForEdit(
+      shipmentPrefillParams.warehouseId,
+      shipmentPrefillParams.movementId
+    )
+      .then((shipment) => {
+        if (!alive) return;
+        setBranchName(shipment.branchName?.trim() || "");
+        setLinkedBranchId(String(shipment.branchId));
+        setShowQuantityColumn(true);
+        setSaveAsInvoice(true);
+        setInvoiceAutoPost(!shipmentPrefillDraftMode ? true : false);
+        setSaveToSystem(true);
+        setCustomerAccountIdText("");
+        setLines([
+          {
+            id: newId(),
+            description: shipment.productName?.trim() || "",
+            quantityText: formatLocaleAmountInput(Math.max(0, Number(shipment.quantity) || 0), locale),
+            unitText: shipment.unit?.trim() || "",
+            amount: 0,
+            amountText: "",
+            isGift: false,
+            priceCalcMode: "piece",
+            qtyText: formatLocaleAmountInput(Math.max(0, Number(shipment.quantity) || 0), locale),
+            unitPriceText: "",
+            kgText: "",
+            tryPerKgText: "",
+          },
+        ]);
+        if (!documentTitle.trim()) {
+          setDocumentTitle(t("reports.orderAccountStatementDocTitle"));
+        }
+        // Sevkiyattan gelen akışta kullanıcı hızlıca PDF alabilsin diye önizlemeyi direkt aç.
+        setPreviewModalOpen(true);
+      })
+      .catch((error) => {
+        if (!alive) return;
+        notify.error(toErrorMessage(error));
+      });
+    return () => {
+      alive = false;
+    };
+  }, [documentTitle, locale, shipmentPrefillDraftMode, shipmentPrefillParams, t]);
+
+  useEffect(() => {
+    let alive = true;
+    setSuggestionsBusy(true);
+    void fetchCounterpartySuggestions()
+      .then((rows) => {
+        if (!alive) return;
+        setSuggestions(rows);
+      })
+      .catch(() => {
+        if (!alive) return;
+        setSuggestions([]);
+      })
+      .finally(() => {
+        if (!alive) return;
+        setSuggestionsBusy(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!previewModalOpen) return;
@@ -1803,6 +1972,15 @@ export function OrderAccountStatementScreen() {
     setBranchName("");
     setLinkedBranchId("");
     setSaveToSystem(true);
+    setSaveAsInvoice(false);
+    setInvoiceAutoPost(true);
+    setCustomerAccountIdText("");
+    setPaymentIban("");
+    setPaymentAccountHolder("");
+    setPaymentBankName("");
+    setPaymentNote("");
+    setShowPaymentOnPdf(true);
+    setLastCreatedInvoiceNo("");
     setEmblemDataUrl("");
     setDocumentTitle("");
     setShowDocumentTagline(true);
@@ -1830,32 +2008,14 @@ export function OrderAccountStatementScreen() {
   const onUseBrandingEmblem = useCallback(async () => {
     setBrandingLogoBusy(true);
     try {
-      const res = await apiFetch(companyBrandingLogoUrl(new Date().toISOString()));
-      if (!res.ok) throw new Error("branding-logo-missing");
-      const blob = await res.blob();
-      if (!blob.size) throw new Error("branding-logo-empty");
-
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const result = typeof reader.result === "string" ? reader.result : "";
-          if (!result) {
-            reject(new Error("branding-logo-read-failed"));
-            return;
-          }
-          resolve(result);
-        };
-        reader.onerror = () => reject(reader.error ?? new Error("branding-logo-read-failed"));
-        reader.readAsDataURL(blob);
-      });
-
+      const dataUrl = await loadBrandingLogoAsDataUrl(new Date().toISOString());
       setEmblemDataUrl(dataUrl);
     } catch {
       window.alert(t("reports.orderAccountStatementEmblemFetchError"));
     } finally {
       setBrandingLogoBusy(false);
     }
-  }, [t]);
+  }, [loadBrandingLogoAsDataUrl, t]);
 
   const onDownloadPdf = useCallback(async () => {
     const el = previewRef.current;
@@ -1875,6 +2035,9 @@ export function OrderAccountStatementScreen() {
       a.rel = "noopener";
       a.click();
       URL.revokeObjectURL(dlUrl);
+      const safeCompany = companyName.trim() || "—";
+      const safeBranch = branchName.trim() || "—";
+      const safeTitle = documentTitle.trim() || t("reports.orderAccountStatementDocTitle");
 
       if (saveToSystem) {
         const branchId = parseInt(linkedBranchId, 10);
@@ -1882,9 +2045,6 @@ export function OrderAccountStatementScreen() {
           notify.error(t("reports.orderAccountStatementSystemBranchRequired"));
         } else {
           const systemFile = new File([docBlob], name, { type: "application/pdf" });
-          const safeCompany = companyName.trim() || "—";
-          const safeBranch = branchName.trim() || "—";
-          const safeTitle = documentTitle.trim() || t("reports.orderAccountStatementDocTitle");
           const note = `${t("reports.orderAccountStatementSystemNotePrefix")} · ${safeCompany} · ${safeBranch} · ${safeTitle} · ${isoDateStamp(new Date())}`;
           await uploadBranchDocument(branchId, {
             file: systemFile,
@@ -1894,12 +2054,93 @@ export function OrderAccountStatementScreen() {
           notify.success(t("reports.orderAccountStatementSystemSaved"));
         }
       }
+
+      if (saveAsInvoice) {
+        const parsedBranchId = parseInt(linkedBranchId, 10);
+        const parsedCustomerId = parseInt(customerAccountIdText, 10);
+        const useBranchCounterparty = Number.isFinite(parsedBranchId) && parsedBranchId > 0;
+        if (!useBranchCounterparty && (!Number.isFinite(parsedCustomerId) || parsedCustomerId <= 0)) {
+          notify.error(t("reports.orderAccountStatementInvoiceCounterpartyRequired"));
+        } else {
+          const payloadLines = parsedLines
+            .filter((l) => l.description.trim().length > 0 && Number.isFinite(l.amount) && l.amount > 0)
+            .map((l) => ({
+              description: l.description.trim(),
+              quantity: Math.max(1, parseLocaleAmount((l.quantityText ?? "").trim(), locale) || 1),
+              unit: (l.unitText ?? "").trim() || null,
+              unitPrice: Math.max(0, parseLocaleAmount((l.unitPriceText ?? "").trim(), locale) || l.amount),
+              lineAmount: Math.max(0, l.amount),
+              lineSource: "manual" as const,
+              manualReasonCode: "OPS_OTHER",
+            }));
+
+          if (payloadLines.length === 0) {
+            notify.error(t("reports.orderAccountStatementInvoiceLinesRequired"));
+          } else {
+            const created = await createOutboundInvoice({
+              counterpartyType: useBranchCounterparty ? "branch" : "customer",
+              counterpartyId: useBranchCounterparty ? parsedBranchId : parsedCustomerId,
+              issueDate: isoDateOnly(statementDate),
+              currencyCode: "TRY",
+              shipmentLinkMode: "partial",
+              autoPostLedger: invoiceAutoPost,
+              notes: `${safeCompany} · ${safeBranch} · ${safeTitle}`,
+              paymentInfo: {
+                iban: paymentIban.trim() || null,
+                accountHolder: paymentAccountHolder.trim() || null,
+                bankName: paymentBankName.trim() || null,
+                paymentNote: paymentNote.trim() || null,
+                showOnPdf: showPaymentOnPdf,
+              },
+              lines: payloadLines,
+            });
+            setLastCreatedInvoiceNo(created.documentNumber);
+            setSuggestions((prev) =>
+              [
+                {
+                  counterpartyType: created.counterpartyType,
+                  counterpartyId: created.counterpartyId,
+                  counterpartyName: created.counterpartyName,
+                  currencyCode: created.currencyCode,
+                  invoicedTotal: created.linesTotal,
+                  paidTotal: created.paidTotal,
+                  openAmount: created.openAmount,
+                  lastInvoiceDate: created.issueDate,
+                  lastDocumentNumber: created.documentNumber,
+                },
+                ...prev.filter(
+                  (x) => !(x.counterpartyType === created.counterpartyType && x.counterpartyId === created.counterpartyId)
+                ),
+              ].slice(0, 10)
+            );
+            notify.success(t("reports.orderAccountStatementInvoiceSaved"));
+          }
+        }
+      }
     } catch (error) {
       notify.error(toErrorMessage(error));
     } finally {
       setBusy(false);
     }
-  }, [branchName, companyName, documentTitle, linkedBranchId, saveToSystem, t]);
+  }, [
+    branchName,
+    companyName,
+    customerAccountIdText,
+    documentTitle,
+    invoiceAutoPost,
+    linkedBranchId,
+    locale,
+    parsedLines,
+    paymentAccountHolder,
+    paymentBankName,
+    paymentIban,
+    paymentNote,
+    saveAsInvoice,
+    saveToSystem,
+    showPaymentOnPdf,
+    statementDate,
+    t,
+  ]);
 
   if (!canSee) {
     return (
@@ -2034,6 +2275,117 @@ export function OrderAccountStatementScreen() {
                   </p>
                 ) : null}
               </div>
+            </div>
+            <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50/70 p-3">
+              <label className="flex cursor-pointer items-start gap-2.5 text-sm">
+                <Checkbox className="mt-0.5" checked={saveAsInvoice} onCheckedChange={setSaveAsInvoice} />
+                <span className="min-w-0">
+                  <span className="font-medium text-zinc-800">{t("reports.orderAccountStatementInvoiceSaveToggle")}</span>
+                  <span className="mt-0.5 block text-[11px] font-normal text-zinc-500">
+                    {t("reports.orderAccountStatementInvoiceSaveToggleHelp")}
+                  </span>
+                </span>
+              </label>
+              {saveAsInvoice ? (
+                <div className="mt-3 space-y-3">
+                  <label className="flex cursor-pointer items-start gap-2.5 text-sm">
+                    <Checkbox className="mt-0.5" checked={invoiceAutoPost} onCheckedChange={setInvoiceAutoPost} />
+                    <span className="min-w-0">
+                      <span className="font-medium text-zinc-800">{t("reports.orderAccountStatementInvoiceAutoPost")}</span>
+                      <span className="mt-0.5 block text-[11px] font-normal text-zinc-500">
+                        {t("reports.orderAccountStatementInvoiceAutoPostHelp")}
+                      </span>
+                    </span>
+                  </label>
+                  <label className="block text-sm">
+                    <span className="text-zinc-600">{t("reports.orderAccountStatementCustomerAccountId")}</span>
+                    <input
+                      inputMode="numeric"
+                      className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
+                      value={customerAccountIdText}
+                      onChange={(e) => setCustomerAccountIdText(e.target.value)}
+                      placeholder={t("reports.orderAccountStatementCustomerAccountIdPlaceholder")}
+                      disabled={Boolean(linkedBranchId)}
+                    />
+                    <span className="mt-0.5 block text-[11px] text-zinc-500">
+                      {t("reports.orderAccountStatementCustomerAccountIdHelp")}
+                    </span>
+                  </label>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block text-sm">
+                      <span className="text-zinc-600">{t("reports.orderAccountStatementPaymentIban")}</span>
+                      <input
+                        className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm uppercase outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
+                        value={paymentIban}
+                        onChange={(e) => setPaymentIban(e.target.value)}
+                        placeholder="TR00 0000 0000 0000 0000 0000 00"
+                      />
+                    </label>
+                    <label className="block text-sm">
+                      <span className="text-zinc-600">{t("reports.orderAccountStatementPaymentAccountHolder")}</span>
+                      <input
+                        className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
+                        value={paymentAccountHolder}
+                        onChange={(e) => setPaymentAccountHolder(e.target.value)}
+                      />
+                    </label>
+                    <label className="block text-sm">
+                      <span className="text-zinc-600">{t("reports.orderAccountStatementPaymentBankName")}</span>
+                      <input
+                        className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
+                        value={paymentBankName}
+                        onChange={(e) => setPaymentBankName(e.target.value)}
+                      />
+                    </label>
+                    <label className="block text-sm">
+                      <span className="text-zinc-600">{t("reports.orderAccountStatementPaymentNote")}</span>
+                      <input
+                        className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
+                        value={paymentNote}
+                        onChange={(e) => setPaymentNote(e.target.value)}
+                      />
+                    </label>
+                  </div>
+                  <label className="flex cursor-pointer items-start gap-2.5 text-sm">
+                    <Checkbox className="mt-0.5" checked={showPaymentOnPdf} onCheckedChange={setShowPaymentOnPdf} />
+                    <span className="font-medium text-zinc-800">{t("reports.orderAccountStatementPaymentShowOnPdf")}</span>
+                  </label>
+                  {lastCreatedInvoiceNo ? (
+                    <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
+                      {t("reports.orderAccountStatementLastInvoiceNo")}: {lastCreatedInvoiceNo}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+            <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50/70 p-3">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                  {t("reports.orderAccountStatementSuggestionsTitle")}
+                </p>
+                <Link
+                  href="/products/order-account-statement/summary"
+                  className="text-xs font-semibold text-violet-700 underline decoration-violet-300 underline-offset-2 hover:decoration-violet-600"
+                >
+                  {t("reports.orderAccountStatementSuggestionsOpenReport")}
+                </Link>
+              </div>
+              {suggestionsBusy ? (
+                <p className="mt-1 text-xs text-zinc-500">{t("reports.loading")}</p>
+              ) : suggestions.length === 0 ? (
+                <p className="mt-1 text-xs text-zinc-500">{t("reports.orderAccountStatementSuggestionsEmpty")}</p>
+              ) : (
+                <ul className="mt-2 space-y-1 text-xs text-zinc-700">
+                  {suggestions.slice(0, 5).map((s) => (
+                    <li key={`${s.counterpartyType}-${s.counterpartyId}`} className="flex items-center justify-between gap-2">
+                      <span className="truncate">{s.counterpartyName}</span>
+                      <span className="shrink-0 tabular-nums">
+                        {formatLocaleAmount(s.openAmount, locale, "TRY")}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
             <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-sm">
               <Checkbox
