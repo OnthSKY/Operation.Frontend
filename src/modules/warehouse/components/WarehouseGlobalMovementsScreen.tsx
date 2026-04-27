@@ -3,6 +3,7 @@
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import {
   fetchWarehouseGlobalMovements,
+  type WarehouseGlobalMovementsFilters,
   type WarehouseGlobalMovementRow,
 } from "@/modules/warehouse/api/warehouse-global-movements-api";
 import { warehouseMovementInvoicePhotoUrl } from "@/modules/warehouse/api/warehouse-movements-api";
@@ -66,12 +67,12 @@ export function WarehouseGlobalMovementsScreen() {
     dateTo,
   ]);
 
-  const filters = useMemo(
+  const filters = useMemo<WarehouseGlobalMovementsFilters>(
     () => ({
       scope,
       warehouseId:
         warehouseId !== "" && Number(warehouseId) > 0 ? Math.trunc(Number(warehouseId)) : undefined,
-      type: type === "IN" || type === "OUT" ? type : ("" as const),
+      type: type === "IN" || type === "OUT" ? type : "",
       branchId: branchId !== "" && Number(branchId) > 0 ? Math.trunc(Number(branchId)) : undefined,
       dateFrom: dateFrom.length === 10 ? dateFrom : undefined,
       dateTo: dateTo.length === 10 ? dateTo : undefined,
