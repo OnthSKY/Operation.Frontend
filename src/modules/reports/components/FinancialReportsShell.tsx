@@ -31,6 +31,7 @@ export function FinancialReportsShell({ children }: { children: ReactNode }) {
   const isCharts = path.includes("/financial/charts");
   const isCompare = path.includes("/financial/compare");
   const isTables = path.includes("/financial/tables");
+  const isCurrentAccounts = path.includes("/financial/current-accounts");
   const normPath = path.replace(/\/$/, "") || "/";
   const isFinKpiHome = normPath === "/reports/financial";
 
@@ -204,6 +205,7 @@ export function FinancialReportsShell({ children }: { children: ReactNode }) {
   const finHubLinkActive = (href: string) => {
     if (href === "/reports/financial/trend") return isTrend;
     if (href === "/reports/financial/tables") return isTables;
+    if (href === "/reports/financial/current-accounts") return isCurrentAccounts;
     if (href === "/reports/financial/charts") return isCharts;
     if (href === "/reports/financial/compare") return isCompare;
     if (href === "/reports/financial") {
@@ -212,6 +214,7 @@ export function FinancialReportsShell({ children }: { children: ReactNode }) {
         norm === "/reports/financial" &&
         !isTrend &&
         !isTables &&
+        !isCurrentAccounts &&
         !isCharts &&
         !isCompare
       );
@@ -227,6 +230,7 @@ export function FinancialReportsShell({ children }: { children: ReactNode }) {
           { href: "/reports/financial/compare", labelKey: "reports.finNavCompare" as const },
           { href: "/reports/financial/charts", labelKey: "reports.finNavCharts" as const },
           { href: "/reports/financial/trend", labelKey: "reports.finNavTrend" as const },
+          { href: "/reports/financial/current-accounts", labelKey: "reports.finNavCurrentAccounts" as const },
           { href: "/reports/financial/tables", labelKey: "reports.finNavTables" as const },
         ] as const
       ).map((item) => {
@@ -314,6 +318,18 @@ export function FinancialReportsShell({ children }: { children: ReactNode }) {
               </div>
               <ReportsPatronStoryInfoButton tab="financial" />
             </div>
+          ) : isCurrentAccounts ? (
+            <div className="flex items-start gap-2 rounded-xl border border-zinc-200/80 bg-zinc-50/70 px-3 py-3 sm:px-4 sm:py-3.5">
+              <div className="min-w-0 flex-1 space-y-1">
+                <p className="text-sm font-semibold text-zinc-900">
+                  {t("reports.finNavCurrentAccounts")}
+                </p>
+                <p className="text-sm leading-relaxed text-zinc-600">
+                  {t("reports.finCurrentAccountsIntro")}
+                </p>
+              </div>
+              <ReportsPatronStoryInfoButton tab="financial" />
+            </div>
           ) : null}
         </div>
       }
@@ -331,7 +347,7 @@ export function FinancialReportsShell({ children }: { children: ReactNode }) {
           isRefetching={financial.isFetching}
           main={
             <>
-              {isCharts || isTrend ? null : (
+              {isCharts || isTrend || isCurrentAccounts ? null : (
                 <div className="flex items-start gap-2">
                   {isFinKpiHome ? (
                     <>

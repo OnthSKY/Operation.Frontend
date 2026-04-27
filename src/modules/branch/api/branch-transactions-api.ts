@@ -231,6 +231,11 @@ function isSupplierInvoiceOut(input: CreateBranchTransactionInput): boolean {
   }
 }
 
+function isSupplierInvoicePaid(input: CreateBranchTransactionInput): boolean {
+  const status = String(input.invoicePaymentStatus ?? "").trim().toUpperCase();
+  return status === "PAID";
+}
+
 function buildCreateBranchTransactionBody(
   input: CreateBranchTransactionInput
 ): Record<string, unknown> {
@@ -268,7 +273,7 @@ export async function createBranchTransaction(
     input.receiptPhoto != null &&
     input.receiptPhoto.size > 0;
 
-  if (isSupplierInvoiceOut(input) && !useReceipt) {
+  if (isSupplierInvoiceOut(input) && isSupplierInvoicePaid(input) && !useReceipt) {
     throw new Error("Invoice expenses require a receipt photo.");
   }
 

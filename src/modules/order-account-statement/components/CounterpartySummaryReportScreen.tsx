@@ -2,9 +2,18 @@
 
 import { useI18n } from "@/i18n/context";
 import {
+  deleteBranchDocument,
+  fetchBranchDocumentBlob,
+  fetchBranchDocuments,
+} from "@/modules/branch/api/branch-documents-api";
+import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
+import {
+  deleteOutboundInvoice,
+  fetchOutboundInvoices,
   fetchCounterpartySummaryReport,
   type CounterpartySummaryFilters,
   type CounterpartySummaryReport,
+  type CounterpartySuggestionRow,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { currencySelectOptions } from "@/shared/lib/currency-select-options";
@@ -12,6 +21,8 @@ import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { FilterFunnelIcon } from "@/shared/components/FilterFunnelIcon";
 import { RightDrawer } from "@/shared/components/RightDrawer";
 import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
+import { EyeIcon, detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
+import { RichCombobox, type RichComboboxOption } from "@/shared/ui/RichCombobox";
 import { Button } from "@/shared/ui/Button";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { DateField } from "@/shared/ui/DateField";
@@ -31,12 +42,33 @@ const defaultReport: CounterpartySummaryReport = {
   },
 };
 
+function parseInvoiceIdFromNote(note: string | null | undefined): number | null {
+  const raw = String(note ?? "");
+  if (!raw) return null;
+  const m = raw.match(/(?:^|[;,\s])invoiceId=(\d+)(?:$|[;,\s])/i);
+  if (!m) return null;
+  const id = Number(m[1]);
+  return Number.isFinite(id) && id > 0 ? id : null;
+}
+
+function parseInvoiceNoFromNote(note: string | null | undefined): string | null {
+  const raw = String(note ?? "");
+  if (!raw) return null;
+  const m = raw.match(/(?:^|[;,\s])invoiceNo=([^;,\s]+)(?:$|[;,\s])/i);
+  if (!m) return null;
+  const value = String(m[1] ?? "").trim();
+  return value || null;
+}
+
 export function CounterpartySummaryReportScreen() {
   const { t, locale } = useI18n();
+  const { data: branches = [] } = useBranchesList();
   const [report, setReport] = useState<CounterpartySummaryReport>(defaultReport);
   const [busy, setBusy] = useState(false);
+  const [pdfBusyKey, setPdfBusyKey] = useState("");
   const [errorText, setErrorText] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [selectedBranchId, setSelectedBranchId] = useState("");
   const [filters, setFilters] = useState<CounterpartySummaryFilters>({
     counterpartyType: "",
     currencyCode: "TRY",
@@ -85,6 +117,164 @@ export function CounterpartySummaryReportScreen() {
       filters.onlyWithOpenBalance
   );
 
+  const branchOptions = useMemo<RichComboboxOption[]>(
+    () => [
+      {
+        value: "",
+        title: t("reports.counterpartySummaryBranchAll"),
+        description: t("reports.counterpartySummaryBranchAllHint"),
+      },
+      ...branches.map((b) => ({
+        value: String(b.id),
+        title: b.name,
+        description: `${t("reports.counterpartySummaryTypeBranch")} #${b.id}`,
+      })),
+    ],
+    [branches, t]
+  );
+
+  const reportItems = useMemo(() => {
+    const branchId = Number.parseInt(selectedBranchId, 10);
+    if (!Number.isFinite(branchId) || branchId <= 0) return report.items;
+    return report.items.filter(
+      (row) => row.counterpartyType === "branch" && row.counterpartyId === branchId
+    );
+  }, [report.items, selectedBranchId]);
+
+  const reportTotals = useMemo(
+    () =>
+      reportItems.reduce(
+        (acc, row) => {
+          acc.invoicedTotal += row.invoicedTotal;
+          acc.paidTotal += row.paidTotal;
+          acc.openAmountTotal += row.openAmount;
+          acc.counterpartyCount += 1;
+          acc.invoiceCount += Number(
+            row.lastDocumentNumber && String(row.lastDocumentNumber).trim() !== "" ? 1 : 0
+          );
+          return acc;
+        },
+        {
+          invoicedTotal: 0,
+          paidTotal: 0,
+          openAmountTotal: 0,
+          counterpartyCount: 0,
+          invoiceCount: 0,
+        }
+      ),
+    [reportItems]
+  );
+
+  const resolveBranchInvoiceArtifacts = useCallback(async (row: CounterpartySuggestionRow) => {
+    const invoices = await fetchOutboundInvoices();
+    const invoice = invoices.find(
+      (x) =>
+        x.documentNumber === row.lastDocumentNumber &&
+        x.counterpartyType === "branch" &&
+        x.counterpartyId === row.counterpartyId
+    );
+    const docs = await fetchBranchDocuments(row.counterpartyId);
+    const preferredInvoiceId = invoice?.id ?? null;
+    const normalizedInvoiceNo = String(row.lastDocumentNumber ?? "").trim();
+    const document =
+      docs.find((d) => {
+        if (d.contentType !== "application/pdf") return false;
+        const parsedInvoiceId = parseInvoiceIdFromNote(d.notes);
+        const parsedInvoiceNo = parseInvoiceNoFromNote(d.notes);
+        if (preferredInvoiceId != null && parsedInvoiceId === preferredInvoiceId) return true;
+        if (normalizedInvoiceNo && parsedInvoiceNo === normalizedInvoiceNo) return true;
+        return false;
+      }) ?? null;
+    return { invoice: invoice ?? null, document };
+  }, []);
+
+  const openLastInvoicePdf = useCallback(
+    async (row: CounterpartySuggestionRow) => {
+      if (row.counterpartyType !== "branch" || !row.lastDocumentNumber) return;
+      const key = `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`;
+      setPdfBusyKey(key);
+      try {
+        const normalizedInvoiceNo = String(row.lastDocumentNumber).trim();
+        const { document: target } = await resolveBranchInvoiceArtifacts(row);
+
+        if (!target) {
+          setErrorText(t("reports.counterpartySummaryPdfNotFound"));
+          return;
+        }
+
+        const { blob } = await fetchBranchDocumentBlob(row.counterpartyId, target.id);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${normalizedInvoiceNo || "invoice"}.pdf`;
+        a.rel = "noopener";
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        setErrorText(toErrorMessage(error));
+      } finally {
+        setPdfBusyKey("");
+      }
+    },
+    [resolveBranchInvoiceArtifacts, t]
+  );
+
+  const previewLastInvoicePdf = useCallback(
+    async (row: CounterpartySuggestionRow) => {
+      if (row.counterpartyType !== "branch" || !row.lastDocumentNumber) return;
+      const key = `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`;
+      setPdfBusyKey(key);
+      try {
+        const normalizedInvoiceNo = String(row.lastDocumentNumber).trim();
+        const { document: target } = await resolveBranchInvoiceArtifacts(row);
+        if (!target) {
+          setErrorText(t("reports.counterpartySummaryPdfNotFound"));
+          return;
+        }
+        const { blob } = await fetchBranchDocumentBlob(row.counterpartyId, target.id);
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank", "noopener,noreferrer");
+        setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      } catch (error) {
+        setErrorText(toErrorMessage(error));
+      } finally {
+        setPdfBusyKey("");
+      }
+    },
+    [resolveBranchInvoiceArtifacts, t]
+  );
+
+  const deleteLastInvoiceWithPdf = useCallback(
+    async (row: CounterpartySuggestionRow) => {
+      if (row.counterpartyType !== "branch" || !row.lastDocumentNumber) return;
+      const key = `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`;
+      const confirmed = window.confirm(
+        t("reports.counterpartySummaryDeleteConfirm") ||
+          "Bu fatura, bağlı cari kaydı ve PDF kaydı soft-delete edilecek. Devam edilsin mi?"
+      );
+      if (!confirmed) return;
+      setPdfBusyKey(key);
+      setErrorText("");
+      try {
+        const { invoice, document } = await resolveBranchInvoiceArtifacts(row);
+        if (!invoice) {
+          setErrorText(t("reports.counterpartySummaryDeleteInvoiceNotFound"));
+          return;
+        }
+        if (document) {
+          await deleteBranchDocument(row.counterpartyId, document.id);
+        }
+        await deleteOutboundInvoice(invoice.id);
+        await load(filters);
+      } catch (error) {
+        setErrorText(toErrorMessage(error));
+      } finally {
+        setPdfBusyKey("");
+      }
+    },
+    [filters, load, resolveBranchInvoiceArtifacts, t]
+  );
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
@@ -98,7 +288,21 @@ export function CounterpartySummaryReportScreen() {
       </div>
 
       <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3">
-        <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-2">
+        <div className="flex min-w-0 shrink-0 flex-wrap items-end justify-between gap-3">
+          <div className="min-w-[15rem] max-w-full flex-1 sm:max-w-sm">
+            <label className="mb-1 block text-xs font-medium text-zinc-600">
+              {t("reports.counterpartySummaryBranchFilterLabel")}
+            </label>
+            <RichCombobox
+              value={selectedBranchId}
+              onChange={setSelectedBranchId}
+              options={branchOptions}
+              placeholder={t("reports.counterpartySummaryBranchFilterPlaceholder")}
+              searchPlaceholder={t("reports.counterpartySummaryBranchFilterSearch")}
+              emptyText={t("reports.counterpartySummaryBranchFilterEmpty")}
+            />
+          </div>
+          <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-2">
           <Tooltip content={t("common.filters")} delayMs={200}>
             <button
               type="button"
@@ -141,14 +345,15 @@ export function CounterpartySummaryReportScreen() {
             </Button>
           </Tooltip>
         </div>
+        </div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-5">
-        <SummaryCard title={t("reports.counterpartySummaryInvoicedTotal")} value={formatLocaleAmount(report.totals.invoicedTotal, locale, filters.currencyCode || "TRY")} />
-        <SummaryCard title={t("reports.counterpartySummaryPaidTotal")} value={formatLocaleAmount(report.totals.paidTotal, locale, filters.currencyCode || "TRY")} />
-        <SummaryCard title={t("reports.counterpartySummaryOpenTotal")} value={formatLocaleAmount(report.totals.openAmountTotal, locale, filters.currencyCode || "TRY")} />
-        <SummaryCard title={t("reports.counterpartySummaryCounterpartyCount")} value={String(report.totals.counterpartyCount)} />
-        <SummaryCard title={t("reports.counterpartySummaryInvoiceCount")} value={String(report.totals.invoiceCount)} />
+        <SummaryCard title={t("reports.counterpartySummaryInvoicedTotal")} value={formatLocaleAmount(reportTotals.invoicedTotal, locale, filters.currencyCode || "TRY")} />
+        <SummaryCard title={t("reports.counterpartySummaryPaidTotal")} value={formatLocaleAmount(reportTotals.paidTotal, locale, filters.currencyCode || "TRY")} />
+        <SummaryCard title={t("reports.counterpartySummaryOpenTotal")} value={formatLocaleAmount(reportTotals.openAmountTotal, locale, filters.currencyCode || "TRY")} />
+        <SummaryCard title={t("reports.counterpartySummaryCounterpartyCount")} value={String(reportTotals.counterpartyCount)} />
+        <SummaryCard title={t("reports.counterpartySummaryInvoiceCount")} value={String(reportTotals.invoiceCount)} />
       </div>
 
       {errorText ? <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{errorText}</p> : null}
@@ -164,11 +369,16 @@ export function CounterpartySummaryReportScreen() {
               <th className="px-3 py-2 text-right">{t("reports.counterpartySummaryColPaid")}</th>
               <th className="px-3 py-2 text-right">{t("reports.counterpartySummaryColOpen")}</th>
               <th className="px-3 py-2 text-left">{t("reports.counterpartySummaryColLastInvoice")}</th>
+              <th className="px-3 py-2 text-center">{t("reports.counterpartySummaryColPdf")}</th>
+              <th className="px-3 py-2 text-center">{t("reports.counterpartySummaryDeleteInvoice")}</th>
             </tr>
           </thead>
           <tbody>
-            {report.items.map((row) => (
-              <tr key={`${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`} className="border-t border-zinc-100">
+            {reportItems.map((row) => (
+              <tr
+                key={`${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`}
+                className="border-t border-zinc-100"
+              >
                 <td className="px-3 py-2 font-medium text-zinc-900">{row.counterpartyName}</td>
                 <td className="px-3 py-2 text-zinc-600">
                   {row.counterpartyType === "branch"
@@ -187,11 +397,85 @@ export function CounterpartySummaryReportScreen() {
                 <td className="px-3 py-2 text-zinc-600">
                   {row.lastDocumentNumber ? `${row.lastDocumentNumber} · ${row.lastInvoiceDate ?? "—"}` : "—"}
                 </td>
+                <td className="px-3 py-2 text-center">
+                  <div className="flex items-center justify-center gap-1">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className={detailOpenIconButtonClass}
+                      aria-label={t("reports.counterpartySummaryPdfPreview")}
+                      disabled={
+                        row.counterpartyType !== "branch" ||
+                        !row.lastDocumentNumber ||
+                        pdfBusyKey === `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`
+                      }
+                      onClick={() => void previewLastInvoicePdf(row)}
+                    >
+                      <EyeIcon className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className={detailOpenIconButtonClass}
+                      aria-label={t("reports.counterpartySummaryPdfDownload")}
+                      disabled={
+                        row.counterpartyType !== "branch" ||
+                        !row.lastDocumentNumber ||
+                        pdfBusyKey === `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`
+                      }
+                      onClick={() => void openLastInvoicePdf(row)}
+                    >
+                      <svg
+                        aria-hidden
+                        className="h-4 w-4"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.75"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M12 3v12" />
+                        <path d="m7 10 5 5 5-5" />
+                        <path d="M5 21h14" />
+                      </svg>
+                    </Button>
+                  </div>
+                </td>
+                <td className="px-3 py-2 text-center">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className={detailOpenIconButtonClass}
+                    aria-label={t("reports.counterpartySummaryDeleteInvoice")}
+                    disabled={
+                      row.counterpartyType !== "branch" ||
+                      !row.lastDocumentNumber ||
+                      pdfBusyKey === `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`
+                    }
+                    onClick={() => void deleteLastInvoiceWithPdf(row)}
+                  >
+                    <svg
+                      aria-hidden
+                      className="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.75"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M3 6h18" />
+                      <path d="M8 6V4h8v2" />
+                      <path d="M19 6l-1 14H6L5 6" />
+                    </svg>
+                  </Button>
+                </td>
               </tr>
             ))}
-            {report.items.length === 0 && !busy ? (
+            {reportItems.length === 0 && !busy ? (
               <tr>
-                <td className="px-3 py-4 text-center text-zinc-500" colSpan={6}>
+                <td className="px-3 py-4 text-center text-zinc-500" colSpan={8}>
                   {t("reports.counterpartySummaryEmpty")}
                 </td>
               </tr>

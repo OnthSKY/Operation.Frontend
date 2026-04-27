@@ -261,15 +261,24 @@ export const branch = {
   currentAccountPdfStatusSaved: "PDF hazır",
   currentAccountPdfStatusMissing: "PDF yok",
   currentAccountPdfMissing: "Yok",
+  currentAccountPdfView: "Görüntüle",
   currentAccountPdfDownload: "İndir",
   currentAccountAddReceipt: "Tahsilat gir",
   currentAccountReceiptModalTitle: "Fatura tahsilatı",
   currentAccountReceiptDate: "Tahsilat tarihi",
   currentAccountReceiptAmount: "Tahsilat tutarı",
+  currentAccountReceiptFillOpenAmount: "Kalanın tamamını gir",
   currentAccountReceiptNote: "Not",
   currentAccountSaveReceipt: "Tahsilatı kaydet",
   currentAccountInvalidReceiptAmount: "Geçerli bir tahsilat tutarı girin.",
   currentAccountReceiptSaved: "Tahsilat kaydedildi.",
+  currentAccountCollectedBadge: "Tahsil edildi",
+  currentAccountNoOpenInvoicesForAllocation:
+    "Bu para biriminde tahsilat dağıtılacak açık fatura yok.",
+  currentAccountReceiptDistributedSaved:
+    "Tahsilat dağıtıldı: {n} faturaya toplam {amount}.",
+  currentAccountReceiptUnappliedRemainder:
+    "Açık borç toplamı aşıldı; {amount} tutar uygulanamadı.",
   tourismSeasonClosedOpenTab: "Turizm sezonu sekmesine git",
   expensesSeasonMissingForToday:
     "Bugün için bu şubede açık turizm sezonu tanımlı değil. Şube fiilen sezonda değilken şube kasasından gider yazmak tutarlı değildir; önce turizm sezonu kaydı ekleyin veya işlem tarihini sezon içine alın. Gider ve gelir dışı akışlar bu durumda sunucu tarafından engellenir; yalnızca gelir satırları merkez «Sezon kapalıyken izinler» politikasının açık olması halinde mümkün olabilir.",

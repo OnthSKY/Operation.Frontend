@@ -15,7 +15,8 @@ import { notify } from "@/shared/lib/notify";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { CircleOff, Download, Eye } from "lucide-react";
 import { useMemo, useState } from "react";
 
 type Props = {
@@ -41,6 +42,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
   const [receiptAmount, setReceiptAmount] = useState("");
   const [receiptNote, setReceiptNote] = useState("");
   const [pdfOpeningId, setPdfOpeningId] = useState<number | null>(null);
+  const [receiptSaving, setReceiptSaving] = useState(false);
 
   const invoicesQuery = useQuery({
     queryKey: ["branchCurrentAccountInvoices", branchId],
@@ -82,44 +84,23 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     [rows]
   );
 
-  const receiptMut = useMutation({
-    mutationFn: async (input: {
-      invoiceId: number;
-      receiptDate: string;
-      amount: number;
-      currencyCode: string;
-      notes?: string | null;
-    }) =>
-      addOutboundInvoiceReceipt(input.invoiceId, {
-        receiptDate: input.receiptDate,
-        amount: input.amount,
-        currencyCode: input.currencyCode,
-        notes: input.notes ?? null,
-      }),
-    onSuccess: async () => {
-      await qc.invalidateQueries({ queryKey: ["branchCurrentAccountInvoices", branchId] });
-      notify.success(t("branch.currentAccountReceiptSaved"));
-      setReceiptInvoice(null);
-      setReceiptDate(localIsoDate());
-      setReceiptAmount("");
-      setReceiptNote("");
-    },
-    onError: (e) => notify.error(toErrorMessage(e)),
-  });
-
-  const openPdf = async (invoiceId: number) => {
+  const openPdf = async (invoiceId: number, mode: "view" | "download") => {
     const documentId = pdfDocByInvoiceId.get(invoiceId);
     if (!documentId) return;
     setPdfOpeningId(invoiceId);
     try {
       const { blob } = await fetchBranchDocumentBlob(branchId, documentId);
       const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `invoice-${invoiceId}.pdf`;
-      a.rel = "noopener";
-      a.click();
-      URL.revokeObjectURL(url);
+      if (mode === "view") {
+        window.open(url, "_blank", "noopener,noreferrer");
+      } else {
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `invoice-${invoiceId}.pdf`;
+        a.rel = "noopener";
+        a.click();
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 1_500);
     } catch (e) {
       notify.error(toErrorMessage(e));
     } finally {
@@ -134,13 +115,69 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
       notify.error(t("branch.currentAccountInvalidReceiptAmount"));
       return;
     }
-    await receiptMut.mutateAsync({
-      invoiceId: receiptInvoice.id,
-      receiptDate,
-      amount,
-      currencyCode: receiptInvoice.currencyCode,
-      notes: receiptNote.trim() || null,
-    });
+    const currencyCode = receiptInvoice.currencyCode;
+    const openRows = rows
+      .filter(
+        (r) =>
+          r.currencyCode === currencyCode &&
+          Number.isFinite(Number(r.openAmount)) &&
+          Number(r.openAmount) > 0.009
+      )
+      .sort((a, b) => {
+        const d = a.issueDate.localeCompare(b.issueDate);
+        return d !== 0 ? d : a.id - b.id;
+      });
+    if (openRows.length === 0) {
+      notify.error(t("branch.currentAccountNoOpenInvoicesForAllocation"));
+      return;
+    }
+    const prioritized = [
+      ...openRows.filter((r) => r.id === receiptInvoice.id),
+      ...openRows.filter((r) => r.id !== receiptInvoice.id),
+    ];
+    let remaining = amount;
+    let appliedTotal = 0;
+    let appliedCount = 0;
+    setReceiptSaving(true);
+    try {
+      for (const r of prioritized) {
+        if (remaining <= 0.009) break;
+        const open = Number(r.openAmount) || 0;
+        if (open <= 0.009) continue;
+        const apply = Math.min(remaining, open);
+        await addOutboundInvoiceReceipt(r.id, {
+          receiptDate,
+          amount: apply,
+          currencyCode,
+          notes: receiptNote.trim() || null,
+        });
+        appliedTotal += apply;
+        appliedCount += 1;
+        remaining -= apply;
+      }
+      await qc.invalidateQueries({ queryKey: ["branchCurrentAccountInvoices", branchId] });
+      notify.success(
+        t("branch.currentAccountReceiptDistributedSaved")
+          .replace("{n}", String(appliedCount))
+          .replace("{amount}", formatLocaleAmount(appliedTotal, locale, currencyCode))
+      );
+      if (remaining > 0.009) {
+        notify.info(
+          t("branch.currentAccountReceiptUnappliedRemainder").replace(
+            "{amount}",
+            formatLocaleAmount(remaining, locale, currencyCode)
+          )
+        );
+      }
+      setReceiptInvoice(null);
+      setReceiptDate(localIsoDate());
+      setReceiptAmount("");
+      setReceiptNote("");
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    } finally {
+      setReceiptSaving(false);
+    }
   };
 
   const isLoading = invoicesQuery.isPending || docsQuery.isPending;
@@ -150,6 +187,42 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     : docsQuery.isError
       ? toErrorMessage(docsQuery.error)
       : null;
+
+  const renderPdfIconButton = (opts: {
+    hasPdf: boolean;
+    action: "view" | "download";
+    invoiceId: number;
+    compact?: boolean;
+  }) => {
+    const { hasPdf, action, invoiceId, compact } = opts;
+    const loading = pdfOpeningId === invoiceId;
+    const baseClass = compact
+      ? "min-h-9 h-9 w-9 min-w-0 p-0"
+      : "min-h-10 h-10 w-10 min-w-0 p-0";
+    const labelKey =
+      action === "view" ? "branch.currentAccountPdfView" : "branch.currentAccountPdfDownload";
+    const Icon = !hasPdf ? CircleOff : action === "view" ? Eye : Download;
+    return (
+      <Button
+        type="button"
+        variant="secondary"
+        className={baseClass}
+        title={!hasPdf ? t("branch.currentAccountPdfMissing") : t(labelKey)}
+        aria-label={!hasPdf ? t("branch.currentAccountPdfMissing") : t(labelKey)}
+        disabled={!hasPdf || loading}
+        onClick={() => {
+          if (!hasPdf) return;
+          void openPdf(invoiceId, action);
+        }}
+      >
+        {loading ? (
+          <span className="text-[10px] font-medium">{t("common.loading")}</span>
+        ) : (
+          <Icon className="h-4 w-4" aria-hidden />
+        )}
+      </Button>
+    );
+  };
 
   return (
     <div className="w-full min-w-0 space-y-4">
@@ -200,10 +273,22 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
             <tbody>
               {rows.map((r) => {
                 const hasPdf = pdfDocByInvoiceId.has(r.id);
+                const isCollected =
+                  Number.isFinite(Number(r.paidTotal)) &&
+                  Number.isFinite(Number(r.openAmount)) &&
+                  Number(r.paidTotal) > 0.009 &&
+                  Number(r.openAmount) <= 0.009;
                 return (
                   <tr key={r.id} className="border-t border-zinc-100">
                     <td className="px-3 py-2">{formatLocaleDate(r.issueDate, locale)}</td>
-                    <td className="px-3 py-2 font-medium text-zinc-900">{r.documentNumber}</td>
+                    <td className="px-3 py-2">
+                      <div className="font-medium text-zinc-900">{r.documentNumber}</div>
+                      {isCollected ? (
+                        <span className="mt-1 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                          {t("branch.currentAccountCollectedBadge")}
+                        </span>
+                      ) : null}
+                    </td>
                     <td className="px-3 py-2 text-right">
                       {formatLocaleAmount(r.linesTotal, locale, r.currencyCode)}
                     </td>
@@ -219,19 +304,19 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                           ? t("branch.currentAccountPdfStatusSaved")
                           : t("branch.currentAccountPdfStatusMissing")}
                       </div>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="min-h-9 px-2 py-1 text-xs"
-                        disabled={!hasPdf || pdfOpeningId === r.id}
-                        onClick={() => void openPdf(r.id)}
-                      >
-                        {!hasPdf
-                          ? t("branch.currentAccountPdfMissing")
-                          : pdfOpeningId === r.id
-                            ? t("common.loading")
-                            : t("branch.currentAccountPdfDownload")}
-                      </Button>
+                      {hasPdf ? (
+                        <div className="flex items-center justify-center gap-1">
+                          {renderPdfIconButton({ hasPdf, action: "view", invoiceId: r.id, compact: true })}
+                          {renderPdfIconButton({
+                            hasPdf,
+                            action: "download",
+                            invoiceId: r.id,
+                            compact: true,
+                          })}
+                        </div>
+                      ) : (
+                        <span className="inline-block text-xs text-zinc-400">—</span>
+                      )}
                     </td>
                     <td className="px-3 py-2 text-center">
                       <Button
@@ -261,12 +346,22 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
         <div className="space-y-3 md:hidden">
           {rows.map((r) => {
             const hasPdf = pdfDocByInvoiceId.has(r.id);
+            const isCollected =
+              Number.isFinite(Number(r.paidTotal)) &&
+              Number.isFinite(Number(r.openAmount)) &&
+              Number(r.paidTotal) > 0.009 &&
+              Number(r.openAmount) <= 0.009;
             return (
               <div key={r.id} className="rounded-xl border border-zinc-200 bg-white p-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
                     <div className="text-xs text-zinc-500">{formatLocaleDate(r.issueDate, locale)}</div>
                     <div className="text-sm font-semibold text-zinc-900">{r.documentNumber}</div>
+                    {isCollected ? (
+                      <span className="mt-1 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">
+                        {t("branch.currentAccountCollectedBadge")}
+                      </span>
+                    ) : null}
                   </div>
                   <div
                     className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
@@ -301,19 +396,14 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                 </div>
 
                 <div className="mt-3 grid grid-cols-2 gap-2">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="min-h-10 px-2 py-2 text-xs"
-                    disabled={!hasPdf || pdfOpeningId === r.id}
-                    onClick={() => void openPdf(r.id)}
-                  >
-                    {!hasPdf
-                      ? t("branch.currentAccountPdfMissing")
-                      : pdfOpeningId === r.id
-                        ? t("common.loading")
-                        : t("branch.currentAccountPdfDownload")}
-                  </Button>
+                  {hasPdf ? (
+                    <div className="flex items-center gap-2">
+                      {renderPdfIconButton({ hasPdf, action: "view", invoiceId: r.id })}
+                      {renderPdfIconButton({ hasPdf, action: "download", invoiceId: r.id })}
+                    </div>
+                  ) : (
+                    <div className="flex items-center text-xs text-zinc-400">—</div>
+                  )}
                   <Button
                     type="button"
                     variant="primary"
@@ -361,9 +451,25 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-700">
-              {t("branch.currentAccountReceiptAmount")}
-            </label>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <label className="block text-sm font-medium text-zinc-700">
+                {t("branch.currentAccountReceiptAmount")}
+              </label>
+              {receiptInvoice ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="min-h-8 px-2 py-1 text-xs"
+                  onClick={() =>
+                    setReceiptAmount(
+                      formatAmountInputOnBlur(String(receiptInvoice.openAmount ?? ""), locale)
+                    )
+                  }
+                >
+                  {t("branch.currentAccountReceiptFillOpenAmount")}
+                </Button>
+              ) : null}
+            </div>
             <input
               className="h-10 w-full rounded-lg border border-zinc-300 px-3 text-sm"
               inputMode="decimal"
@@ -386,8 +492,8 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
             <Button type="button" variant="secondary" onClick={() => setReceiptInvoice(null)}>
               {t("common.cancel")}
             </Button>
-            <Button type="button" variant="primary" disabled={receiptMut.isPending} onClick={() => void submitReceipt()}>
-              {receiptMut.isPending ? t("common.loading") : t("branch.currentAccountSaveReceipt")}
+            <Button type="button" variant="primary" disabled={receiptSaving} onClick={() => void submitReceipt()}>
+              {receiptSaving ? t("common.loading") : t("branch.currentAccountSaveReceipt")}
             </Button>
           </div>
         </div>

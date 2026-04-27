@@ -21,10 +21,8 @@ import { uploadBranchDocument } from "@/modules/branch/api/branch-documents-api"
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { computeSuggestedLineTotal } from "@/modules/order-account-statement/lib/suggested-line-total";
 import {
-  addOutboundInvoiceReceipt,
   createShipmentInvoice,
   createOutboundInvoice,
-  fetchOutboundInvoices,
   fetchCounterpartySuggestions,
   fetchShipmentInvoiceability,
   type CounterpartySuggestionRow,
@@ -104,6 +102,14 @@ type ShipmentOption = {
     quantity: number;
     unit: string;
   }>;
+};
+
+type MultiActionStepId = "download" | "invoice" | "system";
+type MultiActionStepState = "pending" | "running" | "done" | "skipped";
+type MultiActionStep = {
+  id: MultiActionStepId;
+  label: string;
+  state: MultiActionStepState;
 };
 
 function newId(): string {
@@ -531,27 +537,21 @@ function buildOrderAccountDocumentMetadata(input: {
   return parts.join(" · ");
 }
 
-function allocateReceiptByOpenAmount(
-  invoices: OutboundInvoiceResponse[],
-  amount: number
-): Array<{ invoiceId: number; amount: number }> {
-  if (!Number.isFinite(amount) || amount <= 0) return [];
-  const remainingByOldest = [...invoices]
-    .filter((x) => Number.isFinite(x.openAmount) && x.openAmount > 0)
-    .sort((a, b) => String(a.issueDate).localeCompare(String(b.issueDate)));
-  const result: Array<{ invoiceId: number; amount: number }> = [];
-  let left = amount;
-  for (const inv of remainingByOldest) {
-    if (left <= 0) break;
-    const useAmount = Math.min(left, Number(inv.openAmount) || 0);
-    if (useAmount <= 0) continue;
-    result.push({ invoiceId: inv.id, amount: useAmount });
-    left -= useAmount;
-  }
-  return result;
-}
 
 function parseLines(lines: LineDraft[], locale: Locale): OrderAccountLine[] {
+  const resolveLineAmount = (line: LineDraft): number => {
+    const explicitAmount = parseLocaleAmount((line.amountText ?? "").trim(), locale);
+    if (Number.isFinite(explicitAmount) && explicitAmount > 0) return explicitAmount;
+
+    const qty = parseLocaleAmount((line.quantityText ?? "").trim(), locale);
+    const unitPrice = parseLocaleAmount((line.unitPriceText ?? "").trim(), locale);
+    if (Number.isFinite(qty) && qty > 0 && Number.isFinite(unitPrice) && unitPrice >= 0) {
+      return qty * unitPrice;
+    }
+
+    return Number.isFinite(line.amount) && line.amount > 0 ? line.amount : 0;
+  };
+
   return lines.map((l) => {
     const q = (l.quantityText ?? "").trim();
     const unit = (l.unitText ?? "").trim();
@@ -559,7 +559,7 @@ function parseLines(lines: LineDraft[], locale: Locale): OrderAccountLine[] {
     return {
       id: l.id,
       description: l.description.trim(),
-      amount: parseLocaleAmount(l.amountText, locale) || 0,
+      amount: resolveLineAmount(l),
       isGift: l.isGift,
       lineSource: l.lineSource ?? "manual",
       manualReasonCode: l.manualReasonCode ?? "OPS_OTHER",
@@ -1679,6 +1679,10 @@ export function OrderAccountStatementScreen() {
   const [contentPreset, setContentPreset] = useState<OrderAccountContentPreset>("custom");
   const [showQuantityColumn, setShowQuantityColumn] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [confirmMultiActionOpen, setConfirmMultiActionOpen] = useState(false);
+  const [multiActionSteps, setMultiActionSteps] = useState<MultiActionStep[]>([]);
+  const [multiActionRunning, setMultiActionRunning] = useState(false);
+  const [multiActionError, setMultiActionError] = useState("");
   const [portalMounted, setPortalMounted] = useState(false);
   const [creationMode, setCreationMode] = useState<"manual" | "shipmentBased">("manual");
   const [shipmentLinkMode, setShipmentLinkMode] = useState<"strict" | "partial">("strict");
@@ -1705,12 +1709,7 @@ export function OrderAccountStatementScreen() {
   const [lastCreatedInvoiceId, setLastCreatedInvoiceId] = useState<number | null>(null);
   const [lastSavedDocumentId, setLastSavedDocumentId] = useState<number | null>(null);
   const [orderDocumentKey, setOrderDocumentKey] = useState(() => `oas-${Date.now().toString(36)}`);
-  const [receiptAmountText, setReceiptAmountText] = useState("");
-  const [receiptNotesText, setReceiptNotesText] = useState("");
-  const [allocateReceiptToInvoices, setAllocateReceiptToInvoices] = useState(false);
-  const [invoiceAllocationText, setInvoiceAllocationText] = useState<Record<number, string>>({});
-  const [postingBusy, setPostingBusy] = useState(false);
-  const [editorPane, setEditorPane] = useState<"document" | "finance">("document");
+  const hasMultipleActions = saveAsInvoice || saveToSystem;
 
   useEffect(() => {
     const branchIdText = linkedBranchId.trim();
@@ -2477,10 +2476,6 @@ export function OrderAccountStatementScreen() {
     setSelectedShipmentSource(null);
     setSelectedShipmentProductKind("unknown");
     setShipmentInvoiceability([]);
-    setReceiptAmountText("");
-    setReceiptNotesText("");
-    setAllocateReceiptToInvoices(false);
-    setInvoiceAllocationText({});
   }, [defaultCompanyName, defaultEmblemDataUrl, shipmentPrefillParams]);
 
   const onEmblemFileChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
@@ -2511,7 +2506,36 @@ export function OrderAccountStatementScreen() {
     const el = previewRef.current;
     if (!el) return;
     setBusy(true);
+    const showMultiActionProgress = hasMultipleActions;
+    if (showMultiActionProgress) {
+      setMultiActionError("");
+      setMultiActionRunning(true);
+      setMultiActionSteps([
+        {
+          id: "download",
+          label: t("reports.orderAccountStatementActionDownloadPdf"),
+          state: "pending",
+        },
+        {
+          id: "invoice",
+          label: t("reports.orderAccountStatementActionCreateInvoice"),
+          state: saveAsInvoice ? "pending" : "skipped",
+        },
+        {
+          id: "system",
+          label: t("reports.orderAccountStatementActionSaveSystem"),
+          state: saveToSystem ? "pending" : "skipped",
+        },
+      ]);
+    }
+    const setStepState = (id: MultiActionStepId, state: MultiActionStepState) => {
+      if (!showMultiActionProgress) return;
+      setMultiActionSteps((prev) =>
+        prev.map((x) => (x.id === id ? { ...x, state } : x))
+      );
+    };
     try {
+      setStepState("download", "running");
       const name = buildOrderAccountPdfFileName(
         companyName.trim() || "HesapOzeti",
         branchName.trim() || "Şube",
@@ -2525,6 +2549,7 @@ export function OrderAccountStatementScreen() {
       a.rel = "noopener";
       a.click();
       URL.revokeObjectURL(dlUrl);
+      setStepState("download", "done");
 
       const safeCompany = companyName.trim() || "—";
       const safeBranch = branchName.trim() || "—";
@@ -2537,10 +2562,15 @@ export function OrderAccountStatementScreen() {
       let createdInvoice: OutboundInvoiceResponse | null = null;
 
       if (saveAsInvoice) {
+        setStepState("invoice", "running");
         if (!useBranchCounterparty && (!Number.isFinite(parsedCustomerId) || parsedCustomerId <= 0)) {
           notify.error(t("reports.orderAccountStatementInvoiceCounterpartyRequired"));
+          setStepState("invoice", "pending");
           return;
         }
+        const invalidLineCount = parsedLines.filter(
+          (l) => l.description.trim().length === 0 || !Number.isFinite(l.amount) || l.amount <= 0
+        ).length;
         const payloadLines = parsedLines
           .filter((l) => l.description.trim().length > 0 && Number.isFinite(l.amount) && l.amount > 0)
           .map((l) => ({
@@ -2554,15 +2584,24 @@ export function OrderAccountStatementScreen() {
             sourceShipmentLineId: l.sourceShipmentLineId ?? null,
           }));
         if (payloadLines.length === 0) {
-          notify.error(t("reports.orderAccountStatementInvoiceLinesRequired"));
+          notify.error(
+            t("reports.orderAccountStatementInvoiceLinesRequiredDetailed").replace(
+              "{invalidCount}",
+              String(invalidLineCount || parsedLines.length)
+            )
+          );
+          setStepState("invoice", "pending");
           return;
         }
+        const hasManualLine = payloadLines.some((x) => x.lineSource === "manual");
+        const effectiveShipmentLinkMode =
+          creationMode === "shipmentBased" && hasManualLine ? "partial" : shipmentLinkMode;
         const invoicePayload = {
           counterpartyType,
           counterpartyId,
           issueDate: isoDateOnly(statementDate),
           currencyCode: "TRY",
-          shipmentLinkMode: shipmentLinkMode,
+          shipmentLinkMode: effectiveShipmentLinkMode,
           autoPostLedger: invoiceAutoPost,
           notes: buildOrderAccountDocumentMetadata({
             orderDocumentKey,
@@ -2620,12 +2659,15 @@ export function OrderAccountStatementScreen() {
           ].slice(0, 10)
         );
         notify.success(t("reports.orderAccountStatementInvoiceSaved"));
+        setStepState("invoice", "done");
       }
 
       if (saveToSystem) {
+        setStepState("system", "running");
         const branchId = parsedBranchId;
         if (!Number.isFinite(branchId) || branchId <= 0) {
           notify.error(t("reports.orderAccountStatementSystemBranchRequired"));
+          setStepState("system", "pending");
         } else {
           const systemFile = new File([docBlob], name, { type: "application/pdf" });
           const note = buildOrderAccountDocumentMetadata({
@@ -2647,12 +2689,15 @@ export function OrderAccountStatementScreen() {
           });
           setLastSavedDocumentId(saved.id);
           notify.success(t("reports.orderAccountStatementSystemSaved"));
+          setStepState("system", "done");
         }
       }
 
     } catch (error) {
+      if (showMultiActionProgress) setMultiActionError(toErrorMessage(error));
       notify.error(toErrorMessage(error));
     } finally {
+      if (showMultiActionProgress) setMultiActionRunning(false);
       setBusy(false);
     }
   }, [
@@ -2674,85 +2719,35 @@ export function OrderAccountStatementScreen() {
     orderDocumentKey,
     saveAsInvoice,
     saveToSystem,
+    hasMultipleActions,
     showPaymentOnPdf,
     statementDate,
     t,
   ]);
 
-  const onApplyReceipt = useCallback(async () => {
-    const receiptAmount = parseLocaleAmount(receiptAmountText, locale);
-    if (!Number.isFinite(receiptAmount) || receiptAmount <= 0) {
-      notify.error(t("reports.orderAccountStatementReceiptAmountRequired"));
+  const operationPreviewItems = useMemo(() => {
+    const items: string[] = [t("reports.orderAccountStatementActionDownloadPdf")];
+    if (saveAsInvoice) items.push(t("reports.orderAccountStatementActionCreateInvoice"));
+    if (saveToSystem) items.push(t("reports.orderAccountStatementActionSaveSystem"));
+    return items;
+  }, [saveAsInvoice, saveToSystem, t]);
+
+  const onDownloadPdfClick = useCallback(() => {
+    if (!hasMultipleActions) {
+      void onDownloadPdf();
       return;
     }
-    const parsedBranchId = parseInt(linkedBranchId, 10);
-    const parsedCustomerId = parseInt(customerAccountIdText, 10);
-    const useBranchCounterparty = Number.isFinite(parsedBranchId) && parsedBranchId > 0;
-    const counterpartyType = useBranchCounterparty ? "branch" : "customer";
-    const counterpartyId = useBranchCounterparty ? parsedBranchId : parsedCustomerId;
-    if (!useBranchCounterparty && (!Number.isFinite(parsedCustomerId) || parsedCustomerId <= 0)) {
-      notify.error(t("reports.orderAccountStatementInvoiceCounterpartyRequired"));
-      return;
-    }
-    setPostingBusy(true);
-    try {
-      const invoices = await fetchOutboundInvoices();
-      const openInvoices = invoices.filter(
-        (x) =>
-          x.counterpartyType === counterpartyType &&
-          x.counterpartyId === counterpartyId &&
-          Number.isFinite(x.openAmount) &&
-          x.openAmount > 0
-      );
-      if (openInvoices.length === 0) {
-        notify.error(t("reports.orderAccountStatementReceiptNoOpenInvoice"));
-        return;
-      }
-      let allocation = allocateReceiptByOpenAmount(openInvoices, receiptAmount);
-      if (allocateReceiptToInvoices) {
-        const manualAlloc = openInvoices
-          .map((inv) => ({
-            invoiceId: inv.id,
-            amount: Math.max(0, parseLocaleAmount(invoiceAllocationText[inv.id] ?? "", locale) || 0),
-          }))
-          .filter((x) => x.amount > 0);
-        if (manualAlloc.length > 0) allocation = manualAlloc;
-      }
-      if (allocation.length === 0) {
-        notify.error(t("reports.orderAccountStatementReceiptAllocationRequired"));
-        return;
-      }
-      for (const item of allocation) {
-        await addOutboundInvoiceReceipt(item.invoiceId, {
-          receiptDate: isoDateOnly(statementDate),
-          amount: item.amount,
-          currencyCode: "TRY",
-          notes: `${receiptNotesText.trim() || "general"} · orderKey=${orderDocumentKey}`,
-        });
-      }
-      notify.success(t("reports.orderAccountStatementReceiptSaved"));
-      setReceiptAmountText("");
-      setReceiptNotesText("");
-      setInvoiceAllocationText({});
-      const rows = await fetchCounterpartySuggestions();
-      setSuggestions(rows);
-    } catch (error) {
-      notify.error(toErrorMessage(error));
-    } finally {
-      setPostingBusy(false);
-    }
-  }, [
-    customerAccountIdText,
-    invoiceAllocationText,
-    linkedBranchId,
-    locale,
-    allocateReceiptToInvoices,
-    orderDocumentKey,
-    receiptAmountText,
-    receiptNotesText,
-    statementDate,
-    t,
-  ]);
+    setConfirmMultiActionOpen(true);
+    setMultiActionError("");
+    void onDownloadPdf();
+  }, [hasMultipleActions, onDownloadPdf]);
+
+  const multiActionProgressPercent = useMemo(() => {
+    const completed = multiActionSteps.filter(
+      (x) => x.state === "done" || x.state === "skipped"
+    ).length;
+    return Math.round((completed / Math.max(1, multiActionSteps.length)) * 100);
+  }, [multiActionSteps]);
 
   const onLoadManualShipment = useCallback(async () => {
     const selectedGroup = shipmentOptions.find((x) => x.key === selectedShipmentOptionKey);
@@ -2953,37 +2948,9 @@ export function OrderAccountStatementScreen() {
                 </div>
               ) : null}
             </div>
-            <div className="mb-3 rounded-lg border border-zinc-200 bg-white p-1">
-              <div className="grid grid-cols-2 gap-1">
-                <button
-                  type="button"
-                  onClick={() => setEditorPane("document")}
-                  className={cn(
-                    "min-h-10 rounded-md px-3 py-2 text-sm font-semibold",
-                    editorPane === "document" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-700"
-                  )}
-                >
-                  {t("reports.orderAccountStatementPaneDocument")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditorPane("finance")}
-                  className={cn(
-                    "min-h-10 rounded-md px-3 py-2 text-sm font-semibold",
-                    editorPane === "finance" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-700"
-                  )}
-                >
-                  {t("reports.orderAccountStatementPaneFinance")}
-                </button>
-              </div>
-              <p className="px-2 pt-2 text-[11px] text-zinc-500">
-                {editorPane === "document"
-                  ? t("reports.orderAccountStatementPaneDocumentHelp")
-                  : t("reports.orderAccountStatementPaneFinanceHelp")}
-              </p>
+            <div className="mb-3 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[11px] text-zinc-500">
+              {t("reports.orderAccountStatementPaneDocumentHelp")}
             </div>
-            {editorPane === "document" ? (
-            <>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block text-sm">
                 <span className="text-zinc-600">{t("reports.orderAccountStatementHeaderCompany")}</span>
@@ -3059,10 +3026,9 @@ export function OrderAccountStatementScreen() {
                 onChange={(e) => setDocumentTitle(e.target.value)}
               />
             </label>
-            </>
-            ) : null}
-            {editorPane === "finance" ? (
-            <>
+            <div className="mt-3 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[11px] text-zinc-500">
+              {t("reports.orderAccountStatementPaneFinanceHelp")}
+            </div>
             <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50/70 p-3">
               <label className="flex cursor-pointer items-start gap-2.5 text-sm">
                 <Checkbox
@@ -3206,42 +3172,15 @@ export function OrderAccountStatementScreen() {
                 {t("reports.orderAccountStatementReceiptSectionTitle")}
               </p>
               <p className="mt-1 text-[11px] text-zinc-500">
-                {t("reports.orderAccountStatementReceiptSectionHelp")}
+                {t("reports.orderAccountStatementReceiptMovedOutHelp")}
               </p>
-              <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                <label className="block text-sm">
-                  <span className="text-zinc-600">{t("reports.orderAccountStatementReceiptAmount")}</span>
-                  <input
-                    inputMode="decimal"
-                    className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
-                    value={receiptAmountText}
-                    onChange={(e) => setReceiptAmountText(e.target.value)}
-                    placeholder="0,00"
-                  />
-                </label>
-                <label className="block text-sm">
-                  <span className="text-zinc-600">{t("reports.orderAccountStatementReceiptNotes")}</span>
-                  <input
-                    className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
-                    value={receiptNotesText}
-                    onChange={(e) => setReceiptNotesText(e.target.value)}
-                  />
-                </label>
-              </div>
-              <label className="mt-2 flex cursor-pointer items-start gap-2.5 text-sm">
-                <Checkbox
-                  className="mt-0.5"
-                  checked={allocateReceiptToInvoices}
-                  onCheckedChange={setAllocateReceiptToInvoices}
-                />
-                <span className="font-medium text-zinc-800">
-                  {t("reports.orderAccountStatementReceiptAllocateToggle")}
-                </span>
-              </label>
-              <div className="mt-3">
-                <Button type="button" variant="secondary" onClick={() => void onApplyReceipt()} disabled={postingBusy}>
-                  {postingBusy ? t("common.loading") : t("reports.orderAccountStatementReceiptApply")}
-                </Button>
+              <div className="mt-2">
+                <Link
+                  href="/products/order-account-statement/summary"
+                  className="inline-flex rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-violet-700"
+                >
+                  {t("reports.orderAccountStatementReceiptOpenSummaryCta")}
+                </Link>
               </div>
             </div>
             <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50/70 p-3">
@@ -3273,8 +3212,6 @@ export function OrderAccountStatementScreen() {
                 </ul>
               )}
             </div>
-            </>
-            ) : null}
             <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-sm">
               <Checkbox
                 className="mt-0.5"
@@ -4410,7 +4347,7 @@ export function OrderAccountStatementScreen() {
                           ? t("reports.orderAccountStatementGeneratingPdf")
                           : t("reports.orderAccountStatementDownloadPdf")
                       }
-                      onClick={onDownloadPdf}
+                      onClick={onDownloadPdfClick}
                       disabled={busy}
                       className="!h-14 !min-h-14 !w-14 sm:!h-14 sm:!min-h-14 sm:!w-14"
                     >
@@ -4483,6 +4420,76 @@ export function OrderAccountStatementScreen() {
             <p><span className="font-semibold">{t("reports.orderAccountStatementShipmentDetailDate")}:</span> {selectedShipmentDetail.businessDate}</p>
           </div>
         ) : null}
+      </Modal>
+      <Modal
+        open={confirmMultiActionOpen}
+        onClose={() => {
+          if (multiActionRunning) return;
+          setConfirmMultiActionOpen(false);
+        }}
+        title={t("reports.orderAccountStatementMultiActionConfirmTitle")}
+        closeButtonLabel={t("common.close")}
+        className="w-full max-w-md"
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-zinc-600">
+            {t("reports.orderAccountStatementMultiActionConfirmBody")}
+          </p>
+          <div className="space-y-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+            {multiActionSteps.map((item) => (
+              <div key={item.id} className="flex items-center gap-2 text-sm text-zinc-800">
+                {item.state === "running" ? (
+                  <IcLoader className="h-4 w-4 animate-spin text-violet-700" />
+                ) : item.state === "done" ? (
+                  <IcCheck className="h-4 w-4 text-emerald-700" />
+                ) : item.state === "skipped" ? (
+                  <IcX className="h-4 w-4 text-zinc-400" />
+                ) : (
+                  <span className="inline-block h-2 w-2 rounded-full bg-zinc-400" />
+                )}
+                <span className={item.state === "skipped" ? "text-zinc-400 line-through" : ""}>
+                  {item.label}
+                </span>
+              </div>
+            ))}
+          </div>
+          {multiActionError ? (
+            <p className="rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700">
+              {multiActionError}
+            </p>
+          ) : null}
+          <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-700">
+            <div
+              className="h-2 overflow-hidden rounded-full bg-zinc-100"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={multiActionProgressPercent}
+              aria-label={t("reports.orderAccountStatementProgressRunning")}
+            >
+              <div
+                className="h-full rounded-full bg-violet-600 transition-[width] duration-300"
+                style={{ width: `${multiActionProgressPercent}%` }}
+              />
+            </div>
+            <p className="mt-2">
+              {t("reports.orderAccountStatementProgressPercent").replace(
+                "{percent}",
+                String(multiActionProgressPercent)
+              )}
+            </p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={multiActionRunning}
+              onClick={() => setConfirmMultiActionOpen(false)}
+            >
+              {multiActionRunning ? t("reports.orderAccountStatementProgressRunning") : t("common.close")}
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

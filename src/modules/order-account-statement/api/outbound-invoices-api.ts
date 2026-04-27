@@ -145,6 +145,12 @@ export async function addOutboundInvoiceReceipt(
   });
 }
 
+export async function deleteOutboundInvoice(invoiceId: number): Promise<void> {
+  await apiRequest<null>(`/outbound-invoices/${invoiceId}`, {
+    method: "DELETE",
+  });
+}
+
 export async function fetchCounterpartySuggestions(): Promise<CounterpartySuggestionRow[]> {
   return apiRequest<CounterpartySuggestionRow[]>("/outbound-invoices/suggestions/counterparties");
 }

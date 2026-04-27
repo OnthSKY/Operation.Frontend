@@ -555,7 +555,10 @@
   finNavCompare: "vs prior period",
   finNavCharts: "Charts & mix",
   finNavTrend: "Monthly cumulative",
+  finNavCurrentAccounts: "Current account reports",
   finNavTables: "Financial tables",
+  finCurrentAccountsIntro:
+    "Track issued invoices, collected receipts, and open balances in one current-account summary by branch and customer.",
   finNavCashFlow: "Owner pocket & register",
   finSummaryPageLead:
     "Cards follow the period and extra filters in the drawer. Use the tabs above for signals and charts.",
@@ -847,6 +850,8 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
     "Select a branch or provide external customer account id for invoice save.",
   orderAccountStatementInvoiceLinesRequired:
     "At least one valid line is required to save invoice.",
+  orderAccountStatementInvoiceLinesRequiredDetailed:
+    "Enter at least 1 valid line for invoice save. {invalidCount} line(s) look invalid (empty description or zero/invalid amount).",
   orderAccountStatementInvoiceSaved: "Invoice record created.",
   orderAccountStatementLastInvoiceNo: "Last created document no",
   orderAccountStatementSuggestionsTitle: "Who received what (open balance hints)",
@@ -862,6 +867,12 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   counterpartySummaryCurrency: "Currency",
   counterpartySummarySearch: "Search counterparty / document",
   counterpartySummarySearchPlaceholder: "Counterparty name or document no",
+  counterpartySummaryBranchFilterLabel: "Branch filter",
+  counterpartySummaryBranchFilterPlaceholder: "Select branch...",
+  counterpartySummaryBranchFilterSearch: "Search branch...",
+  counterpartySummaryBranchFilterEmpty: "No branch found.",
+  counterpartySummaryBranchAll: "All branches",
+  counterpartySummaryBranchAllHint: "Does not narrow counterparty list by branch.",
   counterpartySummaryDateFrom: "Issue date from",
   counterpartySummaryDateTo: "Issue date to",
   counterpartySummaryOnlyOpen: "Only with open balance",
@@ -877,6 +888,16 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   counterpartySummaryColPaid: "Paid",
   counterpartySummaryColOpen: "Open balance",
   counterpartySummaryColLastInvoice: "Last invoice",
+  counterpartySummaryColPdf: "PDF",
+  counterpartySummaryPdfPreview: "Preview PDF",
+  counterpartySummaryPdfDownload: "Download PDF",
+  counterpartySummaryDeleteInvoice: "Delete invoice + ledger + PDF (soft)",
+  counterpartySummaryDeleteConfirm:
+    "This will soft-delete the latest invoice, linked ledger record, and PDF record. Continue?",
+  counterpartySummaryDeleteInvoiceNotFound: "No invoice record found to delete.",
+  counterpartySummaryPdfUnavailable: "N/A",
+  counterpartySummaryPdfNotFound:
+    "No stored PDF found for this invoice. The document may not have been saved into system documents.",
   counterpartySummaryEmpty: "No records for these filters.",
   orderAccountStatementSystemBranchLabel: "System branch mapping",
   orderAccountStatementSystemBranchHelp:
@@ -888,6 +909,15 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
     "PDF downloaded and saved under the selected branch documents.",
   orderAccountStatementSystemNotePrefix: "Order-account statement PDF",
   orderAccountStatementGeneratingPdf: "Generatingâ€¦",
+  orderAccountStatementActionDownloadPdf: "PDF file will be downloaded",
+  orderAccountStatementActionCreateInvoice: "An invoice record will be created for current account",
+  orderAccountStatementActionSaveSystem: "Document will be saved under selected branch in system",
+  orderAccountStatementMultiActionConfirmTitle: "Multiple actions will run",
+  orderAccountStatementMultiActionConfirmBody:
+    "This button will trigger multiple steps. Review the actions below before continuing.",
+  orderAccountStatementMultiActionConfirmCta: "Continue",
+  orderAccountStatementProgressRunning: "Actions are running…",
+  orderAccountStatementProgressPercent: "{percent}% completed",
   orderAccountStatementCreationMode: "Document creation mode",
   orderAccountStatementCreationModeManual: "Manual",
   orderAccountStatementCreationModeShipment: "From outbound shipment",
@@ -937,6 +967,9 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   orderAccountStatementReceiptSectionTitle: "Receipt (general balance / optional allocation)",
   orderAccountStatementReceiptSectionHelp:
     "Default behavior: amount is deducted from open balance oldest-first. Enable allocation to distribute manually.",
+  orderAccountStatementReceiptMovedOutHelp:
+    "Receipt posting is moved out of PDF preparation. Manage receipt and balance closing from summary screen.",
+  orderAccountStatementReceiptOpenSummaryCta: "Open summary for receipt posting",
   orderAccountStatementReceiptAmount: "Receipt amount",
   orderAccountStatementReceiptNotes: "Receipt note (optional)",
   orderAccountStatementReceiptAllocateToggle: "Allocate receipt across specific invoices",

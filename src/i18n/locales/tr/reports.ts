@@ -557,7 +557,10 @@
   finNavCompare: "Önceki döneme göre",
   finNavCharts: "Grafikler ve dağılım",
   finNavTrend: "Ay ay birikimli",
+  finNavCurrentAccounts: "Cari raporlar",
   finNavTables: "Finans tabloları",
+  finCurrentAccountsIntro:
+    "Şube ve müşteri bazında kesilen faturalar, tahsilatlar ve açık bakiye cari özetini tek ekranda izleyin.",
   finNavCashFlow: "Patron cebi ve kasa hareketleri",
   finSummaryPageLead:
     "Kartlar hunideki dönem ve ek filtrelere göredir. Sinyal ve grafik için üstteki sekmeleri kullanın.",
@@ -851,6 +854,8 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
     "Fatura kaydı için bir şube seçin veya dış müşteri cari hesap id girin.",
   orderAccountStatementInvoiceLinesRequired:
     "Fatura kaydı için en az bir geçerli satır gerekli.",
+  orderAccountStatementInvoiceLinesRequiredDetailed:
+    "Fatura kaydı için en az 1 geçerli satır girin. {invalidCount} satır geçersiz görünüyor (açıklama boş veya tutar 0/hatalı).",
   orderAccountStatementInvoiceSaved: "Fatura kaydı oluşturuldu.",
   orderAccountStatementLastInvoiceNo: "Son oluşturulan belge no",
   orderAccountStatementSuggestionsTitle: "Kime ne çıktık (açık bakiye öneri)",
@@ -866,6 +871,12 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   counterpartySummaryCurrency: "Para birimi",
   counterpartySummarySearch: "Cari / belge ara",
   counterpartySummarySearchPlaceholder: "Cari adı veya belge no",
+  counterpartySummaryBranchFilterLabel: "Şube filtresi",
+  counterpartySummaryBranchFilterPlaceholder: "Şube seçin…",
+  counterpartySummaryBranchFilterSearch: "Şube ara…",
+  counterpartySummaryBranchFilterEmpty: "Şube bulunamadı.",
+  counterpartySummaryBranchAll: "Tüm şubeler",
+  counterpartySummaryBranchAllHint: "Cari listesini şubeye göre daraltmaz.",
   counterpartySummaryDateFrom: "Başlangıç tarihi",
   counterpartySummaryDateTo: "Bitiş tarihi",
   counterpartySummaryOnlyOpen: "Sadece açık bakiyesi olanlar",
@@ -881,6 +892,16 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   counterpartySummaryColPaid: "Tahsilat",
   counterpartySummaryColOpen: "Açık bakiye",
   counterpartySummaryColLastInvoice: "Son fatura",
+  counterpartySummaryColPdf: "PDF",
+  counterpartySummaryPdfPreview: "PDF önizle",
+  counterpartySummaryPdfDownload: "PDF indir",
+  counterpartySummaryDeleteInvoice: "Fatura + cari + PDF sil (soft)",
+  counterpartySummaryDeleteConfirm:
+    "Bu işlem son faturayı, bağlı cari kaydını ve PDF kaydını soft-delete yapar. Devam edilsin mi?",
+  counterpartySummaryDeleteInvoiceNotFound: "Silinecek fatura kaydı bulunamadı.",
+  counterpartySummaryPdfUnavailable: "Yok",
+  counterpartySummaryPdfNotFound:
+    "Bu fatura için sistemde kayıtlı PDF bulunamadı. Belge sisteme kaydedilmemiş olabilir.",
   counterpartySummaryEmpty: "Bu filtrelerle kayıt bulunamadı.",
   orderAccountStatementSystemBranchLabel: "Sistem eşleşme şubesi",
   orderAccountStatementSystemBranchHelp:
@@ -892,6 +913,15 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
     "PDF indirildi ve seçili şubenin belgelerine kaydedildi.",
   orderAccountStatementSystemNotePrefix: "Sipariş-hesap dökümü PDF",
   orderAccountStatementGeneratingPdf: "Oluşturuluyor…",
+  orderAccountStatementActionDownloadPdf: "PDF dosyası indirilecek",
+  orderAccountStatementActionCreateInvoice: "Cari için fatura kaydı oluşturulacak",
+  orderAccountStatementActionSaveSystem: "Belge, seçili şubeye sistemde kaydedilecek",
+  orderAccountStatementMultiActionConfirmTitle: "Birden fazla işlem çalışacak",
+  orderAccountStatementMultiActionConfirmBody:
+    "Bu buton birden fazla adımı tetikleyecek. Devam etmeden önce aşağıdaki işlemleri kontrol edin.",
+  orderAccountStatementMultiActionConfirmCta: "Devam et",
+  orderAccountStatementProgressRunning: "İşlemler sürüyor…",
+  orderAccountStatementProgressPercent: "%{percent} tamamlandı",
   orderAccountStatementCreationMode: "Belge oluşturma modu",
   orderAccountStatementCreationModeManual: "Manuel",
   orderAccountStatementCreationModeShipment: "Depo çıkışına göre",
@@ -941,6 +971,9 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   orderAccountStatementReceiptSectionTitle: "Tahsilat (genel bakiye / opsiyonel dağıtım)",
   orderAccountStatementReceiptSectionHelp:
     "Varsayılan davranış: tutar cari açık bakiyeden eski faturalardan başlayarak düşer. İsterseniz faturalara dağıtımı açabilirsiniz.",
+  orderAccountStatementReceiptMovedOutHelp:
+    "Tahsilat işlemi PDF hazırlama ekranından ayrıldı. Tahsilat ve cari kapatma adımlarını özet rapor ekranından yönetin.",
+  orderAccountStatementReceiptOpenSummaryCta: "Tahsilat için özet ekrana git",
   orderAccountStatementReceiptAmount: "Tahsilat tutarı",
   orderAccountStatementReceiptNotes: "Tahsilat notu (opsiyonel)",
   orderAccountStatementReceiptAllocateToggle: "Tahsilatı belirli faturalara dağıtarak işle",

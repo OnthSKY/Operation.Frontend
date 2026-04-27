@@ -1806,7 +1806,7 @@ export function AddBranchTransactionModal({
       }
     }
 
-    if (isInvRow && (!receiptFile || receiptFile.size <= 0)) {
+    if (isInvRow && invStatusRaw === "PAID" && (!receiptFile || receiptFile.size <= 0)) {
       notify.error(t("branch.invoiceReceiptPhotoRequired"));
       return;
     }
@@ -3047,7 +3047,7 @@ export function AddBranchTransactionModal({
                   htmlFor="branch-tx-receipt-photo"
                   className="mb-1 block text-sm font-medium text-zinc-700"
                 >
-                  {isInvoiceOpsLine
+                  {isInvoiceOpsLine && String(invoicePaymentWatch ?? "").trim().toUpperCase() === "PAID"
                     ? t("branch.receiptPhotoRequiredWhenInvoice")
                     : t("branch.receiptPhotoOptional")}
                 </label>

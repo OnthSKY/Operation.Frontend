@@ -255,15 +255,24 @@ export const branch = {
   currentAccountPdfStatusSaved: "PDF ready",
   currentAccountPdfStatusMissing: "No PDF",
   currentAccountPdfMissing: "N/A",
+  currentAccountPdfView: "View",
   currentAccountPdfDownload: "Download",
   currentAccountAddReceipt: "Add receipt",
   currentAccountReceiptModalTitle: "Invoice receipt",
   currentAccountReceiptDate: "Receipt date",
   currentAccountReceiptAmount: "Receipt amount",
+  currentAccountReceiptFillOpenAmount: "Fill full open amount",
   currentAccountReceiptNote: "Note",
   currentAccountSaveReceipt: "Save receipt",
   currentAccountInvalidReceiptAmount: "Enter a valid receipt amount.",
   currentAccountReceiptSaved: "Receipt saved.",
+  currentAccountCollectedBadge: "Collected",
+  currentAccountNoOpenInvoicesForAllocation:
+    "No open invoices in this currency to allocate the receipt.",
+  currentAccountReceiptDistributedSaved:
+    "Receipt distributed across {n} invoice(s), total {amount}.",
+  currentAccountReceiptUnappliedRemainder:
+    "Open debt total is lower than payment; {amount} could not be applied.",
   tourismSeasonClosedOpenTab: "Go to tourism season tab",
   expensesSeasonMissingForToday:
     "There is no open tourism season covering today for this branch. Without an operating season, posting branch-register expenses is blocked on the server; add a season row or pick a transaction date inside an open season. Only register income lines may still be allowed when the central “Closed season allowances” policy permits it.",
