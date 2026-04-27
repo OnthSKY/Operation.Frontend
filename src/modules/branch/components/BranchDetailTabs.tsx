@@ -783,6 +783,8 @@ export function BranchDetailTabs({
             t={t}
             locale={locale as Locale}
             employeeSelfService={employeeSelfService}
+            branchId={branch.id}
+            staff={staff}
             branchIdForTourismLink={branch.id}
             incThroughToday={incThroughToday}
             incSummaryShowErr={incSummaryShowErr}
@@ -821,6 +823,7 @@ export function BranchDetailTabs({
             incLoading={incLoading}
             incData={incData}
             canDeleteBranchTx={canDeleteBranchTx}
+            canEditRegisterIncomeCashSettlement={canDeleteBranchTx}
             deleteTxMut={deleteTxMut}
             confirmDeleteBranchTx={confirmDeleteBranchTx}
             incPage={incPage}

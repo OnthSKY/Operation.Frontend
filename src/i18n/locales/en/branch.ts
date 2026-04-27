@@ -767,6 +767,28 @@ export const branch = {
   cashSettlementResponsibleEmptyGlobal:
     "No active personnel found. Add personnel records or ensure they are not deleted.",
   cashSettlementRemainsAtBranch: "Still at branch (in register)",
+  registerCashSettlementTitleSingle: "Edit cash handover",
+  registerCashSettlementTitleBulk: "Bulk cash handover (day close / register intake)",
+  registerCashSettlementLeadSingle:
+    "Update where physical cash is recorded for this income line. Transaction # and date:",
+  registerCashSettlementLeadBulk:
+    "Apply the same cash handover to all day-close and register-intake income lines in the selected date range. Range:",
+  registerCashSettlementHintPatronBulk:
+    "Bulk cannot set «Remitted to owner» (owner debt repayment lines are per day). Edit those rows one by one.",
+  registerCashSettlementNeedPerson: "Select the responsible person.",
+  registerCashSettlementBulkDatesInvalid: "Enter both start and end dates (YYYY-MM-DD) for bulk update.",
+  registerCashSettlementSaved: "Cash handover updated.",
+  registerCashSettlementBulkDone: "Bulk cash handover completed.",
+  registerCashSettlementBulkPartial: "Bulk update finished with some rows skipped or failed.",
+  registerCashSettlementOpenSingle: "Cash handover",
+  registerCashSettlementOpenBulk: "Bulk handover in range",
+  registerCashSettlementColShort: "Cash",
+  registerCashSettlementSelectAll: "Select all",
+  registerCashSettlementRowsTitle: "Rows to update",
+  registerCashSettlementCandidatesLoading: "Loading rows…",
+  registerCashSettlementCandidatesEmpty: "No eligible income lines in this date range.",
+  registerCashSettlementNeedSelection: "Select at least one row.",
+  registerCashSettlementSelectedCount: "{n} row(s) selected",
   txColMainCategory: "Main category",
   txColCategory: "Category",
   txColExpensePayment: "Payment source",

@@ -40,9 +40,13 @@ import {
 } from "@/modules/branch/api/branches-api";
 import { fetchAllAdvances } from "@/modules/personnel/api/advances-api";
 import {
+  bulkPatchBranchTransactionsCashSettlement,
+  type BulkCashSettlementBody,
   createBranchTransaction,
   deleteBranchTransaction,
   fetchBranchTransactions,
+  patchBranchTransactionCashSettlement,
+  type PatchBranchTransactionCashSettlementBody,
 } from "@/modules/branch/api/branch-transactions-api";
 import { dashboardSummaryKeys } from "@/modules/dashboard/query-keys";
 import { reportsKeys } from "@/modules/reports/query-keys";
@@ -567,6 +571,43 @@ export function useDeleteBranchTransaction() {
         exact: false,
       });
       void qc.invalidateQueries({ queryKey: reportsKeys.all });
+    },
+  });
+}
+
+function invalidateAfterBranchCashSettlementMutation(qc: QueryClient) {
+  void qc.invalidateQueries({ queryKey: branchKeys.all });
+  void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
+  void qc.refetchQueries({ queryKey: dashboardSummaryKeys.all });
+  void qc.invalidateQueries({
+    queryKey: ["personnel", "management-snapshot"],
+    exact: false,
+  });
+  invalidatePersonnelCashHandoverUiQueries(qc);
+  void qc.invalidateQueries({
+    queryKey: ["personnel", "attributed-expenses"],
+    exact: false,
+  });
+  void qc.invalidateQueries({ queryKey: reportsKeys.all });
+}
+
+export function usePatchBranchTransactionCashSettlement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { transactionId: number; body: PatchBranchTransactionCashSettlementBody }) =>
+      patchBranchTransactionCashSettlement(args.transactionId, args.body),
+    onSuccess: () => {
+      invalidateAfterBranchCashSettlementMutation(qc);
+    },
+  });
+}
+
+export function useBulkPatchBranchTransactionsCashSettlement() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: BulkCashSettlementBody) => bulkPatchBranchTransactionsCashSettlement(body),
+    onSuccess: () => {
+      invalidateAfterBranchCashSettlementMutation(qc);
     },
   });
 }

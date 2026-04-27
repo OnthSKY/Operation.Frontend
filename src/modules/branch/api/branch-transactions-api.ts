@@ -363,3 +363,90 @@ export async function settleBranchInvoiceExpense(
   });
   return normalizeBranchTxRow(r);
 }
+
+export type PatchBranchTransactionCashSettlementBody = {
+  cashSettlementParty: string | null;
+  cashSettlementPersonnelId?: number | null;
+};
+
+export async function patchBranchTransactionCashSettlement(
+  transactionId: number,
+  body: PatchBranchTransactionCashSettlementBody
+): Promise<BranchTransaction> {
+  const r = await apiRequest<BranchTxApiRow>(`/branch-transactions/${transactionId}/cash-settlement`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      cashSettlementParty:
+        body.cashSettlementParty != null && String(body.cashSettlementParty).trim()
+          ? String(body.cashSettlementParty).trim().toUpperCase()
+          : null,
+      cashSettlementPersonnelId:
+        body.cashSettlementPersonnelId != null && body.cashSettlementPersonnelId > 0
+          ? body.cashSettlementPersonnelId
+          : null,
+    }),
+  });
+  return normalizeBranchTxRow(r);
+}
+
+export type BulkCashSettlementBody = {
+  branchId: number;
+  dateFrom: string;
+  dateTo: string;
+  /** Doluysa yalnızca bu satırlar güncellenir; boşsa tarih aralığındaki tüm adaylar. */
+  transactionIds?: number[];
+  cashSettlementParty: string | null;
+  cashSettlementPersonnelId?: number | null;
+};
+
+export type BulkCashSettlementLineResult = {
+  transactionId: number;
+  ok: boolean;
+  errorMessage?: string | null;
+};
+
+export type BulkCashSettlementResponse = {
+  updatedCount: number;
+  results: BulkCashSettlementLineResult[];
+};
+
+export async function bulkPatchBranchTransactionsCashSettlement(
+  body: BulkCashSettlementBody
+): Promise<BulkCashSettlementResponse> {
+  const payload: Record<string, unknown> = {
+    branchId: body.branchId,
+    dateFrom: body.dateFrom,
+    dateTo: body.dateTo,
+    cashSettlementParty:
+      body.cashSettlementParty != null && String(body.cashSettlementParty).trim()
+        ? String(body.cashSettlementParty).trim().toUpperCase()
+        : null,
+    cashSettlementPersonnelId:
+      body.cashSettlementPersonnelId != null && body.cashSettlementPersonnelId > 0
+        ? body.cashSettlementPersonnelId
+        : null,
+  };
+  if (body.transactionIds != null && body.transactionIds.length > 0) {
+    payload.transactionIds = body.transactionIds.filter((id) => Number.isFinite(id) && id > 0);
+  }
+  return apiRequest<BulkCashSettlementResponse>("/branch-transactions/bulk-cash-settlement", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function fetchRegisterIncomeCashSettlementCandidates(
+  branchId: number,
+  dateFrom: string,
+  dateTo: string
+): Promise<BranchTransaction[]> {
+  const q = new URLSearchParams({
+    branchId: String(branchId),
+    dateFrom,
+    dateTo,
+  });
+  const rows = await apiRequest<BranchTxApiRow[]>(
+    `/branch-transactions/register-income-cash-settlement-candidates?${q}`
+  );
+  return rows.map(normalizeBranchTxRow);
+}

@@ -209,7 +209,7 @@ export function WarehouseScreen() {
             <p className="text-sm text-zinc-600">{t("warehouse.listSearchNoResults")}</p>
           ) : (
             <>
-          <div className="-mx-1 hidden overflow-x-auto px-1 md:mx-0 md:block md:overflow-visible md:px-0">
+          <div className="-mx-1 hidden overflow-x-auto px-1 lg:mx-0 lg:block lg:overflow-visible lg:px-0">
             <Table>
               <TableHead>
                 <TableRow>
@@ -354,7 +354,7 @@ export function WarehouseScreen() {
             </Table>
           </div>
 
-          <ul className="grid grid-cols-1 gap-4 md:hidden">
+          <ul className="grid grid-cols-1 gap-4 lg:hidden">
             {displayWarehouses.map((w) => {
               const loc = warehouseLocationLine(w);
               const resp = warehouseResponsiblesLine(w);
@@ -380,7 +380,7 @@ export function WarehouseScreen() {
                       }
                     }}
                     className={cn(
-                      "flex w-full cursor-pointer flex-wrap items-start gap-3 text-left transition-colors active:bg-zinc-50",
+                      "flex w-full cursor-pointer flex-col items-start gap-3 text-left transition-colors active:bg-zinc-50 sm:flex-row",
                       active && "border-zinc-300 bg-zinc-50"
                     )}
                   >
@@ -408,7 +408,7 @@ export function WarehouseScreen() {
                       ) : null}
                     </div>
                     <div
-                      className="flex shrink-0 flex-row flex-wrap items-start justify-end gap-1 pt-0.5"
+                      className="flex w-full shrink-0 flex-row flex-wrap items-start justify-start gap-1 pt-0.5 sm:w-auto sm:justify-end"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Tooltip className="shrink-0" content={t("warehouse.listActionDepoProductIn")} delayMs={200}>

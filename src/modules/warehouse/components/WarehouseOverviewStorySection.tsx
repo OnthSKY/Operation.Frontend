@@ -171,12 +171,12 @@ export function WarehouseOverviewStorySection({
                   byMain.map((b) => (
                     <li
                       key={b.sectionId}
-                      className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 border-b border-zinc-100/90 pb-1.5 last:border-0"
+                      className="flex flex-col gap-1 border-b border-zinc-100/90 pb-1.5 last:border-0 sm:flex-row sm:items-baseline sm:justify-between sm:gap-x-2 sm:gap-y-0.5"
                     >
-                      <span className="min-w-0 flex-1 truncate text-zinc-800">
+                      <span className="min-w-0 flex-1 break-words text-zinc-800">
                         {breakdownTitle(b.sectionId, b.title)}
                       </span>
-                      <span className="shrink-0 text-right tabular-nums text-zinc-600">
+                      <span className="shrink-0 text-left tabular-nums text-zinc-600 sm:text-right">
                         <span className="block text-xs text-zinc-500">
                           {fillDashboardTemplate(t("warehouse.overviewSkuCount"), {
                             count: String(b.productCount),
@@ -208,12 +208,12 @@ export function WarehouseOverviewStorySection({
                   bySub.map((b) => (
                     <li
                       key={b.sectionId}
-                      className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 border-b border-zinc-100/90 pb-1.5 last:border-0"
+                      className="flex flex-col gap-1 border-b border-zinc-100/90 pb-1.5 last:border-0 sm:flex-row sm:items-baseline sm:justify-between sm:gap-x-2 sm:gap-y-0.5"
                     >
-                      <span className="min-w-0 flex-1 truncate text-zinc-800">
+                      <span className="min-w-0 flex-1 break-words text-zinc-800">
                         {breakdownTitle(b.sectionId, b.title)}
                       </span>
-                      <span className="shrink-0 text-right tabular-nums text-zinc-600">
+                      <span className="shrink-0 text-left tabular-nums text-zinc-600 sm:text-right">
                         <span className="block text-xs text-zinc-500">
                           {fillDashboardTemplate(t("warehouse.overviewSkuCount"), {
                             count: String(b.productCount),
@@ -245,15 +245,15 @@ export function WarehouseOverviewStorySection({
                   topByQty.map((r, i) => (
                     <li
                       key={r.productId}
-                      className="flex items-start justify-between gap-2 rounded-md border border-zinc-100 bg-zinc-50/80 px-2 py-1.5"
+                      className="flex flex-col gap-1 rounded-md border border-zinc-100 bg-zinc-50/80 px-2 py-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-2"
                     >
                       <span className="min-w-0 flex-1">
                         <span className="mr-1.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-100 text-[0.65rem] font-bold text-teal-900">
                           {i + 1}
                         </span>
-                        <span className="font-medium leading-snug text-zinc-900">{r.productName}</span>
+                        <span className="break-words font-medium leading-snug text-zinc-900">{r.productName}</span>
                       </span>
-                      <span className="shrink-0 tabular-nums text-sm font-semibold text-zinc-800">
+                      <span className="shrink-0 text-left tabular-nums text-sm font-semibold text-zinc-800 sm:text-right">
                         {formatLocaleAmount(r.quantity, locale)}
                         {r.unit?.trim() ? (
                           <span className="ml-1 text-xs font-normal text-zinc-500">{r.unit.trim()}</span>

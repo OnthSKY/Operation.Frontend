@@ -12,6 +12,7 @@ import type {
   BranchRegisterSummary,
 } from "@/types/branch";
 import type { BranchTransaction } from "@/types/branch-transaction";
+import type { Personnel } from "@/types/personnel";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
@@ -30,8 +31,9 @@ import {
 import { BranchRegisterTourismSeasonStrip } from "@/modules/branch/components/BranchRegisterTourismSeasonStrip";
 import { branchTourismSeasonDeepLink } from "@/modules/branch/lib/branch-tourism-season-nav";
 import { CollapsibleInsightSection } from "@/modules/branch/components/CollapsibleInsightSection";
-import { useMemo, type Dispatch, type SetStateAction } from "react";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import type { UseMutationResult } from "@tanstack/react-query";
+import { RegisterIncomeCashSettlementDialog } from "@/modules/branch/components/RegisterIncomeCashSettlementDialog";
 import {
   BranchTxIncomeDeleteRow,
   incomeCashTotalAndParties,
@@ -44,6 +46,7 @@ import {
   partiesFromPeriodSummary,
   partiesFromRegisterSummary,
   partiesSeasonFromRegisterSummary,
+  isRegisterIncomeCashSettlementRow,
   registerCashSettlementLabel,
   type PatronIncomePin,
 } from "./BranchDetailTabs.shared";
@@ -52,6 +55,8 @@ export type BranchDetailIncomeTabProps = {
   t: (key: string) => string;
   locale: Locale;
   employeeSelfService: boolean;
+  branchId: number;
+  staff: Personnel[];
   /** Turizm sezonu sekmesine derin link (yalnızca tam yetkili görünümde). */
   branchIdForTourismLink?: number | null;
   incThroughToday: BranchRegisterSummary | null | undefined;
@@ -106,6 +111,7 @@ export type BranchDetailIncomeTabProps = {
     | null
     | undefined;
   canDeleteBranchTx: boolean;
+  canEditRegisterIncomeCashSettlement: boolean;
   deleteTxMut: Pick<UseMutationResult<unknown, unknown, number, unknown>, "isPending">;
   confirmDeleteBranchTx: (id: number) => void | Promise<void>;
   incPage: number;
@@ -202,6 +208,8 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
     t,
     locale,
     employeeSelfService,
+    branchId,
+    staff,
     branchIdForTourismLink,
     incThroughToday,
     incSummaryShowErr,
@@ -240,6 +248,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
     incLoading,
     incData,
     canDeleteBranchTx,
+    canEditRegisterIncomeCashSettlement,
     deleteTxMut,
     confirmDeleteBranchTx,
     incPage,
@@ -247,6 +256,10 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
     incTotal,
     INC_PAGE,
   } = props;
+
+  const [cashSettleDialog, setCashSettleDialog] = useState<
+    null | { mode: "single"; row: BranchTransaction } | { mode: "bulk" }
+  >(null);
 
   const tourismSeasonHref = branchTourismSeasonDeepLink(branchIdForTourismLink, employeeSelfService);
   const todayIso = localIsoDate();
@@ -601,6 +614,16 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                       {t("branch.quickAddDayClose")}
                     </Button>
                   ) : null}
+                  {canEditRegisterIncomeCashSettlement ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="min-h-11 w-full sm:w-auto"
+                      onClick={() => setCashSettleDialog({ mode: "bulk" })}
+                    >
+                      {t("branch.registerCashSettlementOpenBulk")}
+                    </Button>
+                  ) : null}
                 </div>
               </section>
 
@@ -851,15 +874,28 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                         ...(row.description ? [<p key="desc">{row.description}</p>] : []),
                       ]}
                       actions={
-                        canDeleteBranchTx ? (
-                          <BranchTxIncomeDeleteRow
-                            transactionId={row.id}
-                            busy={deleteTxMut.isPending}
-                            show
-                            t={t}
-                            onConfirm={confirmDeleteBranchTx}
-                          />
-                        ) : null
+                        <div className="flex flex-wrap items-center justify-end gap-2">
+                          {canEditRegisterIncomeCashSettlement &&
+                          isRegisterIncomeCashSettlementRow(row) ? (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="min-h-9 shrink-0 px-2 text-xs"
+                              onClick={() => setCashSettleDialog({ mode: "single", row })}
+                            >
+                              {t("branch.registerCashSettlementOpenSingle")}
+                            </Button>
+                          ) : null}
+                          {canDeleteBranchTx ? (
+                            <BranchTxIncomeDeleteRow
+                              transactionId={row.id}
+                              busy={deleteTxMut.isPending}
+                              show
+                              t={t}
+                              onConfirm={confirmDeleteBranchTx}
+                            />
+                          ) : null}
+                        </div>
                       }
                     />
                   )}
@@ -874,6 +910,11 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                         <TableHeader className="hidden lg:table-cell">{t("branch.txColCashSettlement")}</TableHeader>
                         <TableHeader className="hidden sm:table-cell">{t("branch.txColMainCategory")}</TableHeader>
                         <TableHeader className="hidden md:table-cell">{t("branch.txColNote")}</TableHeader>
+                        {canEditRegisterIncomeCashSettlement ? (
+                          <TableHeader className="w-[7.5rem] text-center text-xs font-medium text-zinc-500">
+                            {t("branch.registerCashSettlementColShort")}
+                          </TableHeader>
+                        ) : null}
                         {canDeleteBranchTx ? (
                           <TableHeader className="w-12 text-center text-xs font-medium text-zinc-500">
                             {t("branch.txColActions")}
@@ -909,6 +950,22 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                           <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 max-w-[14rem] truncate text-sm text-zinc-600 md:table-cell">
                             {row.description ?? "—"}
                           </TableCell>
+                          {canEditRegisterIncomeCashSettlement ? (
+                            <TableCell className="p-2 text-center">
+                              {isRegisterIncomeCashSettlementRow(row) ? (
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  className="min-h-9 px-2 text-xs"
+                                  onClick={() => setCashSettleDialog({ mode: "single", row })}
+                                >
+                                  {t("branch.registerCashSettlementOpenSingle")}
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-zinc-400">—</span>
+                              )}
+                            </TableCell>
+                          ) : null}
                           {canDeleteBranchTx ? (
                             <TableCell className="align-top p-2">
                               <BranchTxIncomeDeleteRow
@@ -956,6 +1013,22 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                 </div>
               </>
             )}
+          {cashSettleDialog ? (
+            <RegisterIncomeCashSettlementDialog
+              open
+              onClose={() => setCashSettleDialog(null)}
+              branchId={branchId}
+              branchStaff={staff}
+              mode={cashSettleDialog.mode}
+              singleRow={cashSettleDialog.mode === "single" ? cashSettleDialog.row : null}
+              bulkDateFrom={incFrom}
+              bulkDateTo={incTo}
+              onApplied={() => {
+                void refetchInc();
+                refetchIncomeSummaryBlocks();
+              }}
+            />
+          ) : null}
           </div>
   );
 }

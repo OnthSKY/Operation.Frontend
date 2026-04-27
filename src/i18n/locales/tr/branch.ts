@@ -772,6 +772,28 @@ export const branch = {
   cashSettlementResponsibleEmptyGlobal:
     "Aktif personel bulunamadı. Personel kartlarından kayıt ekleyin veya silinmemiş olduğundan emin olun.",
   cashSettlementRemainsAtBranch: "Şubede kaldı (kasada)",
+  registerCashSettlementTitleSingle: "Nakit devrini düzenle",
+  registerCashSettlementTitleBulk: "Toplu nakit devri (gün sonu / kasa tahsilatı)",
+  registerCashSettlementLeadSingle:
+    "Aşağıdaki gelir kaydında fiziksel nakdin nereye yazıldığını güncelleyin. Kayıt no. ve tarih:",
+  registerCashSettlementLeadBulk:
+    "Seçili tarih aralığındaki tüm gün sonu ve kasa tahsilatı gelirlerinde aynı nakit devri uygulanır. Aralık:",
+  registerCashSettlementHintPatronBulk:
+    "Toplu işlemde «Patrona devredilen nakit» seçilemez (otomatik patron borcu satırı gün bazındadır). Patron seçimi için satırları tek tek düzenleyin.",
+  registerCashSettlementNeedPerson: "Sorumlu personel seçin.",
+  registerCashSettlementBulkDatesInvalid: "Toplu işlem için başlangıç ve bitiş tarihlerini (YYYY-AA-GG) eksiksiz seçin.",
+  registerCashSettlementSaved: "Nakit devri güncellendi.",
+  registerCashSettlementBulkDone: "Toplu nakit devri tamamlandı.",
+  registerCashSettlementBulkPartial: "Toplu güncelleme kısmen tamamlandı; bazı satırlar atlandı veya hata verdi.",
+  registerCashSettlementOpenSingle: "Nakit devri",
+  registerCashSettlementOpenBulk: "Tarih aralığında toplu nakit devri",
+  registerCashSettlementColShort: "Nakit",
+  registerCashSettlementSelectAll: "Tümünü seç",
+  registerCashSettlementRowsTitle: "Güncellenecek kayıtlar",
+  registerCashSettlementCandidatesLoading: "Kayıtlar yükleniyor…",
+  registerCashSettlementCandidatesEmpty: "Bu tarih aralığında uygun gelir satırı yok.",
+  registerCashSettlementNeedSelection: "En az bir kayıt seçin.",
+  registerCashSettlementSelectedCount: "{n} kayıt seçili",
   txColMainCategory: "Ana kategori",
   txColCategory: "Kategori",
   txColExpensePayment: "Ödeme kaynağı",
