@@ -177,6 +177,10 @@ export const warehouse = {
   movementHistoryHideLines: "Satırları gizle",
   movementHistoryOpenInboundToDelete: "Sil için satırları aç",
   movementHistoryOutboundEditCollapsed: "Sevkiyatı düzenle",
+  movementInvoicePreviewTitle: "Fatura görseli",
+  movementInvoicePreviewHint: "Faturayı büyüterek inceleyebilir veya indirebilirsiniz.",
+  movementInvoicePreviewOpenNewTab: "Yeni sekmede aç",
+  movementInvoicePreviewDownload: "İndir",
   movementHistoryCollapsedDeleteRowAria: "Bu hareket satırını sil",
   operationsRecentMovementsTitle: "Son depo hareketleri",
   operationsRecentMovementsHint:

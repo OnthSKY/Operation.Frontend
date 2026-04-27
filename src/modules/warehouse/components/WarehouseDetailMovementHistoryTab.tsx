@@ -11,6 +11,7 @@ import {
 import { EditWarehouseInboundBatchModal } from "@/modules/warehouse/components/EditWarehouseInboundBatchModal";
 import { EditWarehouseInboundMovementFullModal } from "@/modules/warehouse/components/EditWarehouseInboundMovementFullModal";
 import { EditWarehouseOutboundShipmentMovementModal } from "@/modules/warehouse/components/EditWarehouseOutboundShipmentMovementModal";
+import { WarehouseMovementInvoicePreviewModal } from "@/modules/warehouse/components/WarehouseMovementInvoicePreviewModal";
 import { WarehouseMovementRowCard } from "@/modules/warehouse/components/WarehouseMovementRowCard";
 import { warehouseScopeEffectiveCategoryId } from "@/modules/warehouse/lib/warehouse-scope-filters";
 import {
@@ -108,6 +109,11 @@ export function WarehouseDetailMovementHistoryTab({
   } | null>(null);
   const [inboundFullMovementId, setInboundFullMovementId] = useState<number | null>(null);
   const [outboundShipmentMovementId, setOutboundShipmentMovementId] = useState<number | null>(null);
+  const [invoicePreviewTarget, setInvoicePreviewTarget] = useState<{
+    movementId: number;
+    title: string;
+    subtitle: string;
+  } | null>(null);
   const softDeleteInboundM = useSoftDeleteWarehouseInboundMovement();
   const softDeleteOutboundShipmentM = useSoftDeleteWarehouseOutboundShipmentMovement();
 
@@ -190,12 +196,20 @@ export function WarehouseDetailMovementHistoryTab({
     (groupKey: string, movements: WarehouseMovementItem[]) => {
       const withPhoto = movements.filter((m) => m.type === "IN" && m.hasInvoicePhoto);
       if (withPhoto.length === 1) {
-        setInboundFullMovementId(withPhoto[0].id);
+        setInvoicePreviewTarget({
+          movementId: withPhoto[0].id,
+          title: t("warehouse.movementInvoicePreviewTitle"),
+          subtitle: withPhoto[0].productName,
+        });
         return;
       }
       if (withPhoto.length > 1) {
         const sorted = [...withPhoto].sort((a, b) => a.id - b.id);
-        setInboundFullMovementId(sorted[0].id);
+        setInvoicePreviewTarget({
+          movementId: sorted[0].id,
+          title: t("warehouse.movementInvoicePreviewTitle"),
+          subtitle: sorted[0].productName,
+        });
         return;
       }
       expandShipmentGroup(groupKey);
@@ -956,6 +970,14 @@ export function WarehouseDetailMovementHistoryTab({
                             }
                           }}
                           onDeleteOutboundShipment={confirmDeleteOutboundShipmentFromRow}
+                          onPreviewInvoice={(row) => {
+                            if (row.type !== "IN" || !row.hasInvoicePhoto) return;
+                            setInvoicePreviewTarget({
+                              movementId: row.id,
+                              title: t("warehouse.movementInvoicePreviewTitle"),
+                              subtitle: row.productName,
+                            });
+                          }}
                         />
                       ))}
                     </div>
@@ -1027,6 +1049,14 @@ export function WarehouseDetailMovementHistoryTab({
         warehouseId={warehouseId}
         movementId={outboundShipmentMovementId}
         onClose={() => setOutboundShipmentMovementId(null)}
+      />
+      <WarehouseMovementInvoicePreviewModal
+        open={invoicePreviewTarget != null}
+        movementId={invoicePreviewTarget?.movementId ?? null}
+        title={invoicePreviewTarget?.title ?? t("warehouse.movementInvoicePreviewTitle")}
+        subtitle={invoicePreviewTarget?.subtitle}
+        t={t}
+        onClose={() => setInvoicePreviewTarget(null)}
       />
     </div>
   );

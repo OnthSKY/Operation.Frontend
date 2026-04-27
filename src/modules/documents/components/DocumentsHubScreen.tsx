@@ -83,9 +83,15 @@ export function DocumentsHubScreen() {
     { value: "PERSONNEL_NATIONAL_ID", label: t("documents.categoryPersonnelNationalId") },
     { value: "PERSONNEL_PROFILE", label: t("documents.categoryPersonnelProfile") },
     { value: "PERSONNEL_YEAR_CLOSURE", label: t("documents.categoryPersonnelYearClosure") },
-    { value: "WAREHOUSE_INVOICE", label: t("documents.categoryInvoice") },
+    { value: "WAREHOUSE_INBOUND_INVOICE", label: t("documents.categoryWarehouseInboundInvoice") },
+    { value: "WAREHOUSE_OUTBOUND_INVOICE", label: t("documents.categoryWarehouseOutboundInvoice") },
   ];
-  const uploadCategoryOptions = categoryOptions.filter((opt) => opt.value !== "ALL" && opt.value !== "WAREHOUSE_INVOICE");
+  const uploadCategoryOptions = categoryOptions.filter(
+    (opt) =>
+      opt.value !== "ALL" &&
+      opt.value !== "WAREHOUSE_INBOUND_INVOICE" &&
+      opt.value !== "WAREHOUSE_OUTBOUND_INVOICE"
+  );
   const branchKindOptions: { value: BranchDocumentKind; label: string }[] = [
     { value: "TAX_BASE", label: t("documents.branchKindTaxBase") },
     { value: "WORK_PERMIT", label: t("documents.branchKindWorkPermit") },
@@ -100,7 +106,12 @@ export function DocumentsHubScreen() {
   }));
 
   const openQuickAdd = () => {
-    const initialCategory = category !== "ALL" && category !== "WAREHOUSE_INVOICE" ? category : "BRANCH_DOCUMENT";
+    const initialCategory =
+      category !== "ALL" &&
+      category !== "WAREHOUSE_INBOUND_INVOICE" &&
+      category !== "WAREHOUSE_OUTBOUND_INVOICE"
+        ? category
+        : "BRANCH_DOCUMENT";
     setUploadCategory(initialCategory);
     setUploadBranchKind("OTHER");
     setUploadNationalIdSide("front");

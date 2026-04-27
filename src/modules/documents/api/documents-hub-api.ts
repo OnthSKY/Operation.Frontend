@@ -40,7 +40,6 @@ export async function fetchDocumentsHubRows(t: TranslateFn): Promise<DocumentsHu
       page: await fetchWarehouseMovementsPage(w.id, {
         page: 1,
         pageSize: 500,
-        type: "IN",
       }),
     }))
   );
@@ -190,16 +189,17 @@ export async function fetchDocumentsHubRows(t: TranslateFn): Promise<DocumentsHu
   }
 
   for (const group of warehouseInvoicesByWarehouse) {
-    const items = group.page.items.filter((x) => x.type === "IN" && x.hasInvoicePhoto === true);
+    const items = group.page.items.filter((x) => x.hasInvoicePhoto === true);
     for (const row of items) {
       const photoUrl = warehouseMovementInvoicePhotoUrl(row.id);
+      const isInbound = row.type === "IN";
       rows.push({
-        id: `warehouse-invoice-${row.id}`,
-        category: "WAREHOUSE_INVOICE",
+        id: isInbound ? `warehouse-inbound-invoice-${row.id}` : `warehouse-outbound-invoice-${row.id}`,
+        category: isInbound ? "WAREHOUSE_INBOUND_INVOICE" : "WAREHOUSE_OUTBOUND_INVOICE",
         title: group.warehouse.name,
-        subtitle: row.productName,
+        subtitle: `${isInbound ? t("documents.warehouseInboundInvoiceLabel") : t("documents.warehouseOutboundInvoiceLabel")} · ${row.productName}`,
         detail: row.movementDate,
-        searchText: `${group.warehouse.name} ${row.productName} ${row.description ?? ""} invoice movement ${row.id}`,
+        searchText: `${group.warehouse.name} ${row.productName} ${row.description ?? ""} invoice movement ${row.id} ${row.type === "IN" ? "giris inbound" : "cikis outbound"} depot warehouse`,
         previewUrl: photoUrl,
         previewMode: "image",
         download: async () => {

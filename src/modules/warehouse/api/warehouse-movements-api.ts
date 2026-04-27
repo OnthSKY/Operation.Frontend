@@ -1,5 +1,5 @@
 import { MAX_IMAGE_UPLOAD_BYTES } from "@/shared/lib/image-upload-limits";
-import { apiRequest, apiUrl } from "@/shared/api/client";
+import { apiFetch, apiRequest, apiUrl } from "@/shared/api/client";
 
 function warehouseInLinesForApi(
   lines: {
@@ -44,6 +44,25 @@ export type WarehouseInBatchMovementResponse = {
 
 export function warehouseMovementInvoicePhotoUrl(movementId: number): string {
   return apiUrl(`/warehouse/movements/${movementId}/invoice-photo`);
+}
+
+export async function downloadWarehouseMovementInvoicePhoto(
+  movementId: number,
+  preferredFileName?: string
+): Promise<void> {
+  const res = await apiFetch(`/warehouse/movements/${movementId}/invoice-photo`);
+  if (!res.ok) throw new Error("Invoice photo download failed");
+  const blob = await res.blob();
+  const mime = (res.headers.get("Content-Type") ?? "").toLowerCase();
+  const ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : "jpg";
+  const fileName = preferredFileName?.trim() || `warehouse-movement-${movementId}-invoice.${ext}`;
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = blobUrl;
+  a.download = fileName;
+  a.rel = "noopener";
+  a.click();
+  URL.revokeObjectURL(blobUrl);
 }
 
 export async function registerWarehouseMovement(input: {

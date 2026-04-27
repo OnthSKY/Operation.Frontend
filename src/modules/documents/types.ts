@@ -5,7 +5,8 @@ export type DocumentsHubCategory =
   | "PERSONNEL_NATIONAL_ID"
   | "PERSONNEL_PROFILE"
   | "PERSONNEL_YEAR_CLOSURE"
-  | "WAREHOUSE_INVOICE";
+  | "WAREHOUSE_INBOUND_INVOICE"
+  | "WAREHOUSE_OUTBOUND_INVOICE";
 
 export type DocumentsHubRow = {
   id: string;

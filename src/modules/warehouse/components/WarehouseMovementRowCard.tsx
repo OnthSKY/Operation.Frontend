@@ -32,6 +32,7 @@ type Props = {
   /** Depo→şube sevkiyat OUT satırı (isDepotToBranchShipment). */
   onEditOutboundShipment?: (m: WarehouseMovementItem) => void;
   onDeleteOutboundShipment?: (m: WarehouseMovementItem) => void;
+  onPreviewInvoice?: (m: WarehouseMovementItem) => void;
 };
 
 export function WarehouseMovementRowCard({
@@ -44,6 +45,7 @@ export function WarehouseMovementRowCard({
   onDeleteInbound,
   onEditOutboundShipment,
   onDeleteOutboundShipment,
+  onPreviewInvoice,
 }: Props) {
   const [thumbFailed, setThumbFailed] = useState(false);
   useEffect(() => {
@@ -179,7 +181,7 @@ export function WarehouseMovementRowCard({
         {movementKv(t("warehouse.movementNote"), m.description?.trim() ? m.description : "—")}
         {movementKv(t("warehouse.movementCheckedBy"), m.checkedByPersonnelName ?? "—")}
         {movementKv(t("warehouse.movementApprovedBy"), m.approvedByPersonnelName ?? "—")}
-        {m.type === "IN" && m.hasInvoicePhoto ? (
+        {m.hasInvoicePhoto ? (
           <div className="min-w-0">
             <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
               {t("warehouse.attachmentsHeading")}
@@ -195,14 +197,24 @@ export function WarehouseMovementRowCard({
                   onError={() => setThumbFailed(true)}
                 />
               ) : null}
-              <a
-                href={photoUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex shrink-0 text-sm font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-600"
-              >
-                {t("warehouse.openInvoicePhoto")}
-              </a>
+              {onPreviewInvoice ? (
+                <button
+                  type="button"
+                  className="inline-flex shrink-0 text-sm font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-600"
+                  onClick={() => onPreviewInvoice(m)}
+                >
+                  {t("warehouse.openInvoicePhoto")}
+                </button>
+              ) : (
+                <a
+                  href={photoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex shrink-0 text-sm font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-600"
+                >
+                  {t("warehouse.openInvoicePhoto")}
+                </a>
+              )}
             </div>
           </div>
         ) : null}

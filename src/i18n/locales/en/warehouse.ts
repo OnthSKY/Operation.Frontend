@@ -177,6 +177,10 @@ export const warehouse = {
   movementHistoryHideLines: "Hide lines",
   movementHistoryOpenInboundToDelete: "Open lines to delete",
   movementHistoryOutboundEditCollapsed: "Edit shipment",
+  movementInvoicePreviewTitle: "Invoice image",
+  movementInvoicePreviewHint: "Review the invoice image in detail or download it.",
+  movementInvoicePreviewOpenNewTab: "Open in new tab",
+  movementInvoicePreviewDownload: "Download",
   movementHistoryCollapsedDeleteRowAria: "Delete this movement line",
   operationsRecentMovementsTitle: "Recent movements",
   operationsRecentMovementsHint:
