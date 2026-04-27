@@ -12,6 +12,14 @@ export const warehouse = {
   listQuickTransferNoStock: "Bu depoda pozitif stokta ürün yok; önce depo girişi yapın.",
   subtitle:
     "Depolarda ürün girişi ve şubeye ürün çıkışı; hareketler ve stok aşağıda. Ürünler genel katalogdadır.",
+  globalMovementsTitle: "Tüm depo giriş/çıkış hareketleri",
+  globalMovementsSubtitle:
+    "Depodan bağımsız tek listede tüm hareketleri görün, filtreleyin ve sayfalı takip edin.",
+  globalMovementsEmpty: "Bu filtrelerle eşleşen hareket yok.",
+  globalFilterWarehouse: "Depo",
+  globalFilterWarehouseAll: "Tüm depolar",
+  globalInboundShipmentCount: "Toplam giriş sevkiyat sayısı",
+  globalOutboundShipmentCount: "Toplam çıkış sevkiyat sayısı",
   addWarehouse: "Depo ekle",
   addWarehouseTitle: "Yeni depo",
   addWarehouseHint:
@@ -122,6 +130,8 @@ export const warehouse = {
   editInboundDateSuccess: "{{wm}} depo hareket satırı güncellendi.",
   editInboundBatchOpen: "Giriş tarihlerini düzelt",
   editInboundFullTitle: "Depo girişi düzenle",
+  editInboundLineTitle: "Depo giriş satırını düzenle",
+  editInboundLineQtyLabel: "Satır miktarı",
   editInboundFullSupplierLock:
     "Bu satır tedarikçi faturasına bağlıdır; ürün, miktar ve tarih alanları değiştirilemez. Açıklama, personel ve fatura eki güncellenebilir.",
   editInboundFullClearInvoice: "Fatura fotoğrafını kaldır",
@@ -292,8 +302,19 @@ export const warehouse = {
   movementMainTotalsInline: "Bu girişte {{count}} ana ürün toplamı",
   movementMainEntryTotalLabel: "Bu giriş toplamı",
   movementMainTotalsDialogTitle: "Ana ürün toplamları",
+  movementSummaryDialogTitle: "Gelen bilgi özeti",
+  movementHeaderInfoTitle: "Hareket üst bilgileri",
+  movementHeaderInfoHint: "Önce tarih, depo ve sorumlu kişileri kontrol edin; sonra özet ve detaylara inin.",
+  movementHeaderEditTitle: "Hareket üst bilgilerini düzenle",
+  movementHeaderEditSaved: "Hareket üst bilgileri güncellendi ({{count}} satır).",
+  movementDetailTypeInbound: "Giriş sevkiyatı",
+  movementDetailTypeOutbound: "Çıkış sevkiyatı",
+  movementSystemEntryLabel: "Sisteme giriş no",
+  movementWarehouseLabel: "Geldiği depo",
+  movementSourceWarehouseLabel: "Çıkan depo",
   movementAuditDialogTitle: "Önceki / Sonraki stok denetimi",
   movementLinesDialogTitle: "Kalem kalem hareket satırları",
+  movementInvoicesDialogTitle: "Fatura / ekler",
   shipmentLineCountSuffix: "satır",
   shipmentGroupToggleAria: "Bu sevkiyattaki ürün satırlarını göster veya gizle",
   movementsPageShipmentSummary:

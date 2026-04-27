@@ -12,6 +12,14 @@ export const warehouse = {
   listQuickTransferNoStock: "No products with stock in this warehouse; add stock first.",
   subtitle:
     "Warehouse receipts and branch issues; movements and stock below. Products are in the global catalog.",
+  globalMovementsTitle: "All warehouse inbound/outbound movements",
+  globalMovementsSubtitle:
+    "View all warehouse movements in one independent list, with filtering and pagination.",
+  globalMovementsEmpty: "No movements match these filters.",
+  globalFilterWarehouse: "Warehouse",
+  globalFilterWarehouseAll: "All warehouses",
+  globalInboundShipmentCount: "Total inbound shipment count",
+  globalOutboundShipmentCount: "Total outbound shipment count",
   addWarehouse: "Add warehouse",
   addWarehouseTitle: "New warehouse",
   addWarehouseHint:
@@ -122,6 +130,8 @@ export const warehouse = {
   editInboundDateSuccess: "Updated {{wm}} warehouse movement row(s).",
   editInboundBatchOpen: "Correct receipt dates",
   editInboundFullTitle: "Edit warehouse receipt",
+  editInboundLineTitle: "Edit warehouse receipt line",
+  editInboundLineQtyLabel: "Line quantity",
   editInboundFullSupplierLock:
     "This line is linked to a supplier invoice; product, quantity, and dates cannot be changed. You can still update description, personnel, and the invoice attachment.",
   editInboundFullClearInvoice: "Remove invoice photo",
@@ -291,8 +301,19 @@ export const warehouse = {
   movementMainTotalsInline: "{{count}} main product totals in this entry",
   movementMainEntryTotalLabel: "Entry total",
   movementMainTotalsDialogTitle: "Main product totals",
+  movementSummaryDialogTitle: "Incoming summary",
+  movementHeaderInfoTitle: "Movement header details",
+  movementHeaderInfoHint: "Check date, warehouse, and responsible people first; then review summary and details.",
+  movementHeaderEditTitle: "Edit movement header details",
+  movementHeaderEditSaved: "Movement header details updated ({{count}} lines).",
+  movementDetailTypeInbound: "Inbound shipment",
+  movementDetailTypeOutbound: "Outbound shipment",
+  movementSystemEntryLabel: "System entry id",
+  movementWarehouseLabel: "Destination warehouse",
+  movementSourceWarehouseLabel: "Source warehouse",
   movementAuditDialogTitle: "Previous / next stock audit",
   movementLinesDialogTitle: "Line-by-line movement rows",
+  movementInvoicesDialogTitle: "Invoice / attachments",
   shipmentLineCountSuffix: "lines",
   shipmentGroupToggleAria: "Show or hide product lines for this shipment",
   movementsPageShipmentSummary:

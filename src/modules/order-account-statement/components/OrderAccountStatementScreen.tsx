@@ -6,6 +6,7 @@ import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
 import { companyBrandingLogoUrl, fetchSystemBranding } from "@/modules/admin/api/system-branding-api";
 import { useProductsCatalog } from "@/modules/products/hooks/useProductQueries";
+import { useProductCostHistory } from "@/modules/products/hooks/useProductCostQueries";
 import {
   computeOrderAccountTotals,
   type OrderAccountLine,
@@ -64,6 +65,7 @@ type LineDraft = OrderAccountLine & {
   unitPriceText: string;
   kgText: string;
   tryPerKgText: string;
+  selectedProductId?: number | null;
 };
 type PaidDraft = PaidOnBehalfLine & { amountText: string };
 type PromoDraft = PromoDeductionLine & { amountText: string };
@@ -86,6 +88,7 @@ function emptyLine(): LineDraft {
     unitPriceText: "",
     kgText: "",
     tryPerKgText: "",
+    selectedProductId: null,
   };
 }
 
@@ -1550,6 +1553,7 @@ export function OrderAccountStatementScreen() {
     canSeeUiModule(user, PERM.uiProducts) || canSeeUiModule(user, PERM.uiReports);
   const canPickProducts = canSeeUiModule(user, PERM.uiProducts);
   const { data: catalog = [] } = useProductsCatalog(canPickProducts);
+  const { data: costHistoryRows = [] } = useProductCostHistory({}, canPickProducts);
   const { data: branches = [] } = useBranchesList();
 
   const [companyName, setCompanyName] = useState("");
@@ -1747,6 +1751,57 @@ export function OrderAccountStatementScreen() {
   const catalogOptions = useMemo(() => {
     return [...catalog].sort((a, b) => a.name.localeCompare(b.name, locale === "tr" ? "tr" : "en"));
   }, [catalog, locale]);
+  const latestCostByProductId = useMemo(() => {
+    const map = new Map<number, (typeof costHistoryRows)[number]>();
+    for (const row of costHistoryRows) {
+      if (!map.has(row.productId)) map.set(row.productId, row);
+    }
+    return map;
+  }, [costHistoryRows]);
+  const catalogOptionsWithCost = useMemo(() => {
+    return catalogOptions.map((p) => {
+      const unit = p.unit?.trim() || "—";
+      const cost = latestCostByProductId.get(p.id);
+      const costPart = cost
+        ? `${formatLocaleAmount(Number(cost.unitCostExcludingVat || 0), locale, cost.currencyCode)}`
+        : t("reports.orderAccountStatementCostSuggestionMissing");
+      return {
+        ...p,
+        optionLabel: `${p.name} (#${p.id}) - ${t("reports.orderAccountStatementUnit")}: ${unit} - ${t("reports.orderAccountStatementSuggestedCostShort")}: ${costPart}`,
+      };
+    });
+  }, [catalogOptions, latestCostByProductId, locale, t]);
+  const applyCatalogProductToLine = useCallback(
+    (lineId: string, productIdRaw: string) => {
+      if (!productIdRaw) return;
+      const productId = Number.parseInt(productIdRaw, 10);
+      if (!Number.isFinite(productId) || productId <= 0) return;
+      const p = catalog.find((x) => x.id === productId);
+      if (!p) return;
+      const suggestion = latestCostByProductId.get(productId);
+      setLines((prev) =>
+        prev.map((x) => {
+          if (x.id !== lineId) return x;
+          const nextUnitText = p.unit?.trim() || x.unitText || "";
+          const suggestedUnitPrice = suggestion
+            ? formatLocaleAmountInput(Math.max(0, Number(suggestion.unitCostExcludingVat) || 0), locale)
+            : x.unitPriceText;
+          const suggestedTryPerKg = suggestion
+            ? formatLocaleAmountInput(Math.max(0, Number(suggestion.unitCostExcludingVat) || 0), locale)
+            : x.tryPerKgText;
+          return {
+            ...x,
+            selectedProductId: p.id,
+            description: p.name,
+            unitText: nextUnitText,
+            unitPriceText: suggestedUnitPrice,
+            tryPerKgText: x.priceCalcMode === "kg" ? suggestedTryPerKg : x.tryPerKgText,
+          };
+        })
+      );
+    },
+    [catalog, latestCostByProductId, locale]
+  );
   const lineCompact = lines.length > 1;
   /** 4+ satır: liste ve tabloda ek sıkılaştırma */
   const lineDense = lines.length > 3;
@@ -2507,7 +2562,9 @@ export function OrderAccountStatementScreen() {
                       value={line.description}
                       onChange={(e) => {
                         const v = e.target.value;
-                        setLines((prev) => prev.map((x) => (x.id === line.id ? { ...x, description: v } : x)));
+                        setLines((prev) =>
+                          prev.map((x) => (x.id === line.id ? { ...x, description: v, selectedProductId: null } : x))
+                        );
                       }}
                       placeholder={t("reports.orderAccountStatementLinePlaceholder")}
                     />
@@ -2607,19 +2664,37 @@ export function OrderAccountStatementScreen() {
                       onChange={(e) => {
                         const id = e.target.value;
                         e.target.value = "";
-                        if (!id) return;
-                        const p = catalog.find((x) => String(x.id) === id);
-                        if (!p) return;
-                        setLines((prev) => prev.map((x) => (x.id === line.id ? { ...x, description: p.name } : x)));
+                        applyCatalogProductToLine(line.id, id);
                       }}
                     >
                       <option value="">{t("reports.orderAccountStatementCatalogNone")}</option>
-                      {catalogOptions.map((p) => (
+                      {catalogOptionsWithCost.map((p) => (
                         <option key={p.id} value={String(p.id)}>
-                          {p.name}
+                          {p.optionLabel}
                         </option>
                       ))}
                     </ModernSelect>
+                  ) : null}
+                  {line.selectedProductId ? (
+                    (() => {
+                      const cost = latestCostByProductId.get(line.selectedProductId);
+                      if (!cost) {
+                        return (
+                          <p className="mt-1 text-[11px] text-zinc-500">
+                            {t("reports.orderAccountStatementCostSuggestionMissing")}
+                          </p>
+                        );
+                      }
+                      return (
+                        <p className="mt-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] text-emerald-800">
+                          {t("reports.orderAccountStatementSuggestedCostShort")}:{" "}
+                          {formatLocaleAmount(Number(cost.unitCostExcludingVat || 0), locale, cost.currencyCode)}
+                          {" · "}
+                          {t("reports.orderAccountStatementCostIncVatShort")}:{" "}
+                          {formatLocaleAmount(Number(cost.unitCostIncludingVat || 0), locale, cost.currencyCode)}
+                        </p>
+                      );
+                    })()
                   ) : null}
                   <LineCalcBlock
                     line={line}
@@ -2813,7 +2888,9 @@ export function OrderAccountStatementScreen() {
                           value={line.description}
                           onChange={(e) => {
                             const v = e.target.value;
-                            setLines((prev) => prev.map((x) => (x.id === line.id ? { ...x, description: v } : x)));
+                            setLines((prev) =>
+                              prev.map((x) => (x.id === line.id ? { ...x, description: v, selectedProductId: null } : x))
+                            );
                           }}
                           placeholder={t("reports.orderAccountStatementLinePlaceholder")}
                         />
@@ -2832,19 +2909,37 @@ export function OrderAccountStatementScreen() {
                             onChange={(e) => {
                               const id = e.target.value;
                               e.target.value = "";
-                              if (!id) return;
-                              const p = catalog.find((x) => String(x.id) === id);
-                              if (!p) return;
-                              setLines((prev) => prev.map((x) => (x.id === line.id ? { ...x, description: p.name } : x)));
+                              applyCatalogProductToLine(line.id, id);
                             }}
                           >
                             <option value="">{t("reports.orderAccountStatementCatalogNone")}</option>
-                            {catalogOptions.map((p) => (
+                            {catalogOptionsWithCost.map((p) => (
                               <option key={p.id} value={String(p.id)}>
-                                {p.name}
+                                {p.optionLabel}
                               </option>
                             ))}
                           </ModernSelect>
+                        ) : null}
+                        {line.selectedProductId ? (
+                          (() => {
+                            const cost = latestCostByProductId.get(line.selectedProductId);
+                            if (!cost) {
+                              return (
+                                <p className="mt-1 text-[11px] text-zinc-500">
+                                  {t("reports.orderAccountStatementCostSuggestionMissing")}
+                                </p>
+                              );
+                            }
+                            return (
+                              <p className="mt-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] text-emerald-800">
+                                {t("reports.orderAccountStatementSuggestedCostShort")}:{" "}
+                                {formatLocaleAmount(Number(cost.unitCostExcludingVat || 0), locale, cost.currencyCode)}
+                                {" · "}
+                                {t("reports.orderAccountStatementCostIncVatShort")}:{" "}
+                                {formatLocaleAmount(Number(cost.unitCostIncludingVat || 0), locale, cost.currencyCode)}
+                              </p>
+                            );
+                          })()
                         ) : null}
                         <LineCalcBlock
                           line={line}

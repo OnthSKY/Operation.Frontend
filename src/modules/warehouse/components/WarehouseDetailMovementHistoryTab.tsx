@@ -17,6 +17,8 @@ import { warehouseScopeEffectiveCategoryId } from "@/modules/warehouse/lib/wareh
 import {
   useSoftDeleteWarehouseInboundMovement,
   useSoftDeleteWarehouseOutboundShipmentMovement,
+  useUpdateWarehouseInboundMovement,
+  useWarehousePeopleOptions,
 } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
@@ -25,6 +27,7 @@ import { notify } from "@/shared/lib/notify";
 import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
+import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import { Tooltip } from "@/shared/ui/Tooltip";
@@ -91,6 +94,15 @@ function shipmentBranchSummary(movements: WarehouseMovementItem[]): string | nul
   return `${first ?? ""} +${names.length - 1}`;
 }
 
+function compactPeopleList(values: Array<string | null | undefined>): string {
+  const uniq = Array.from(
+    new Set(values.map((v) => v?.trim() ?? "").filter((v) => v.length > 0))
+  );
+  if (uniq.length === 0) return "—";
+  if (uniq.length <= 2) return uniq.join(", ");
+  return `${uniq.slice(0, 2).join(", ")} +${uniq.length - 2}`;
+}
+
 type GroupBalanceSummary = {
   id: string;
   name: string;
@@ -148,18 +160,24 @@ const DRAWER_SELECT_Z = 280;
 
 type Props = {
   warehouseId: number;
+  warehouseName?: string;
   enabled: boolean;
   /** Özetten geçiş: ALL boş tür; IN/OUT giriş/çıkış segmenti. */
   historyTypeIntent?: "" | "ALL" | "IN" | "OUT";
   onHistoryTypeIntentConsumed?: () => void;
+  openMovementIdIntent?: number | null;
+  onOpenMovementIdIntentConsumed?: () => void;
 };
 
 /** Depo detay modalı — üst seviye «Hareket geçmişi» sekmesi (filtre çekmecesi + sayfalı liste). */
 export function WarehouseDetailMovementHistoryTab({
   warehouseId,
+  warehouseName,
   enabled,
   historyTypeIntent = "",
   onHistoryTypeIntentConsumed,
+  openMovementIdIntent = null,
+  onOpenMovementIdIntentConsumed,
 }: Props) {
   const { t, locale } = useI18n();
   const router = useRouter();
@@ -185,6 +203,13 @@ export function WarehouseDetailMovementHistoryTab({
   const [inboundFullMovementId, setInboundFullMovementId] = useState<number | null>(null);
   const [outboundShipmentMovementId, setOutboundShipmentMovementId] = useState<number | null>(null);
   const [detailsGroupKey, setDetailsGroupKey] = useState<string | null>(null);
+  const [detailsContentTab, setDetailsContentTab] = useState<"LINES" | "AUDIT">("LINES");
+  const [headerEditOpen, setHeaderEditOpen] = useState(false);
+  const [headerEditBusinessDate, setHeaderEditBusinessDate] = useState("");
+  const [headerEditLegacyDate, setHeaderEditLegacyDate] = useState("");
+  const [headerEditDescription, setHeaderEditDescription] = useState("");
+  const [headerEditCheckedBy, setHeaderEditCheckedBy] = useState("");
+  const [headerEditApprovedBy, setHeaderEditApprovedBy] = useState("");
   const [invoicePreviewTarget, setInvoicePreviewTarget] = useState<{
     movementId: number;
     title: string;
@@ -192,6 +217,8 @@ export function WarehouseDetailMovementHistoryTab({
   } | null>(null);
   const softDeleteInboundM = useSoftDeleteWarehouseInboundMovement();
   const softDeleteOutboundShipmentM = useSoftDeleteWarehouseOutboundShipmentMovement();
+  const updateInboundM = useUpdateWarehouseInboundMovement();
+  const { data: peopleRaw = [] } = useWarehousePeopleOptions(enabled);
 
   const confirmDeleteInboundFromRow = useCallback(
     (m: WarehouseMovementItem) => {
@@ -276,6 +303,7 @@ export function WarehouseDetailMovementHistoryTab({
     setInboundFullMovementId(null);
     setOutboundShipmentMovementId(null);
     setDetailsGroupKey(null);
+    setDetailsContentTab("LINES");
   }, [warehouseId]);
 
   useEffect(() => {
@@ -290,6 +318,7 @@ export function WarehouseDetailMovementHistoryTab({
   useEffect(() => {
     setPage(1);
     setDetailsGroupKey(null);
+    setDetailsContentTab("LINES");
   }, [
     scope.mainCategoryId,
     scope.subCategoryId,
@@ -300,6 +329,11 @@ export function WarehouseDetailMovementHistoryTab({
     dateFrom,
     dateTo,
   ]);
+
+  useEffect(() => {
+    if (detailsGroupKey) setDetailsContentTab("LINES");
+    if (!detailsGroupKey) setHeaderEditOpen(false);
+  }, [detailsGroupKey]);
 
   const movementFiltersActive = useMemo(() => {
     if (
@@ -460,6 +494,78 @@ export function WarehouseDetailMovementHistoryTab({
   const selectedDetailGroup = detailsGroupKey
     ? shipmentGroups.find((g) => g.key === detailsGroupKey) ?? null
     : null;
+  const selectedDetailType = selectedDetailGroup?.movements[0]?.type ?? null;
+  const selectedDetailTypeLabel =
+    selectedDetailType === "IN"
+      ? t("warehouse.movementDetailTypeInbound")
+      : selectedDetailType === "OUT"
+        ? t("warehouse.movementDetailTypeOutbound")
+        : "—";
+  const selectedDetailDestinationBranch = selectedDetailGroup
+    ? shipmentBranchSummary(selectedDetailGroup.movements)
+    : null;
+  const canEditHeaderInfo = useMemo(
+    () => selectedDetailGroup != null && selectedDetailGroup.movements.every((m) => m.type === "IN"),
+    [selectedDetailGroup]
+  );
+  const personnelSelectOptions = useMemo<SelectOption[]>(
+    () => [
+      { value: "", label: t("warehouse.personnelPickPlaceholder") },
+      ...peopleRaw
+        .filter((o) => o.personnelId != null && o.personnelId > 0)
+        .map((o) => ({ value: String(o.personnelId), label: o.displayName })),
+    ],
+    [peopleRaw, t]
+  );
+  const submitHeaderEdit = useCallback(async () => {
+    if (!selectedDetailGroup || !canEditHeaderInfo) return;
+    if (headerEditBusinessDate.length !== 10) {
+      notify.error(t("warehouse.editInboundDateInvalid"));
+      return;
+    }
+    const checkedById = Number(headerEditCheckedBy);
+    const approvedById = Number(headerEditApprovedBy);
+    if (!Number.isFinite(checkedById) || checkedById <= 0 || !Number.isFinite(approvedById) || approvedById <= 0) {
+      notify.error(t("warehouse.personnelVerifierRequired"));
+      return;
+    }
+    try {
+      let updated = 0;
+      for (const m of selectedDetailGroup.movements) {
+        if (m.type !== "IN") continue;
+        await updateInboundM.mutateAsync({
+          warehouseId,
+          movementId: m.id,
+          body: {
+            productId: m.productId,
+            quantity: Number(m.quantity),
+            businessDate: headerEditBusinessDate,
+            date: headerEditLegacyDate.length === 10 ? headerEditLegacyDate : headerEditBusinessDate,
+            description: headerEditDescription.trim() ? headerEditDescription.trim() : null,
+            checkedByPersonnelId: checkedById,
+            approvedByPersonnelId: approvedById,
+            clearInvoicePhoto: false,
+          },
+        });
+        updated += 1;
+      }
+      notify.success(t("warehouse.movementHeaderEditSaved").replace("{{count}}", String(updated)));
+      setHeaderEditOpen(false);
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    }
+  }, [
+    selectedDetailGroup,
+    canEditHeaderInfo,
+    headerEditBusinessDate,
+    headerEditLegacyDate,
+    headerEditDescription,
+    headerEditCheckedBy,
+    headerEditApprovedBy,
+    updateInboundM,
+    warehouseId,
+    t,
+  ]);
   const groupBalanceSummaryByKey = useMemo(() => {
     const byGroup = new Map<string, GroupBalanceSummary[]>();
     const targetKeys = new Set(shipmentGroups.map((g) => g.key));
@@ -559,6 +665,34 @@ export function WarehouseDetailMovementHistoryTab({
   useEffect(() => {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
+  useEffect(() => {
+    if (!enabled) return;
+    const movementId = openMovementIdIntent ?? null;
+    if (movementId == null || movementId <= 0) return;
+    const target = shipmentGroups.find((g) => g.movements.some((m) => m.id === movementId));
+    if (!target) return;
+    setDetailsGroupKey(target.key);
+    onOpenMovementIdIntentConsumed?.();
+  }, [enabled, openMovementIdIntent, shipmentGroups, onOpenMovementIdIntentConsumed]);
+
+  useEffect(() => {
+    if (!headerEditOpen || !selectedDetailGroup) return;
+    const first = selectedDetailGroup.movements[0];
+    const findPersonnelId = (name?: string | null): string => {
+      const target = (name ?? "").trim().toLocaleLowerCase();
+      if (!target) return "";
+      const matched = peopleRaw.find(
+        (p) => (p.displayName ?? "").trim().toLocaleLowerCase() === target && (p.personnelId ?? 0) > 0
+      );
+      return matched?.personnelId != null ? String(matched.personnelId) : "";
+    };
+    const date = (first?.movementDate ?? "").slice(0, 10);
+    setHeaderEditBusinessDate(date);
+    setHeaderEditLegacyDate(date);
+    setHeaderEditDescription(first?.description?.trim() ?? "");
+    setHeaderEditCheckedBy(findPersonnelId(first?.checkedByPersonnelName));
+    setHeaderEditApprovedBy(findPersonnelId(first?.approvedByPersonnelName));
+  }, [headerEditOpen, selectedDetailGroup, peopleRaw]);
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
@@ -1010,20 +1144,194 @@ export function WarehouseDetailMovementHistoryTab({
         onClose={() => setInvoicePreviewTarget(null)}
       />
       <Modal
+        open={headerEditOpen && canEditHeaderInfo && selectedDetailGroup != null}
+        onClose={() => setHeaderEditOpen(false)}
+        titleId="warehouse-movement-header-edit-title"
+        title={t("warehouse.movementHeaderEditTitle")}
+        closeButtonLabel={t("common.close")}
+      >
+        <div className="mt-3 flex flex-col gap-3">
+          <DateField
+            label={t("warehouse.editInboundBusinessDate")}
+            labelRequired
+            required
+            value={headerEditBusinessDate}
+            onChange={(e) => setHeaderEditBusinessDate(e.target.value)}
+            disabled={updateInboundM.isPending}
+          />
+          <DateField
+            label={t("warehouse.editInboundLegacyDate")}
+            value={headerEditLegacyDate}
+            onChange={(e) => setHeaderEditLegacyDate(e.target.value)}
+            disabled={updateInboundM.isPending}
+          />
+          <Input
+            label={t("warehouse.movementNote")}
+            type="text"
+            value={headerEditDescription}
+            onChange={(e) => setHeaderEditDescription(e.target.value)}
+            disabled={updateInboundM.isPending}
+          />
+          <Select
+            label={t("warehouse.checkedByPersonnel")}
+            labelRequired
+            name="wh-header-edit-ck"
+            options={personnelSelectOptions}
+            value={headerEditCheckedBy}
+            onChange={(e) => setHeaderEditCheckedBy(e.target.value)}
+            onBlur={() => {}}
+            disabled={updateInboundM.isPending}
+          />
+          <Select
+            label={t("warehouse.approvedByPersonnel")}
+            labelRequired
+            name="wh-header-edit-ap"
+            options={personnelSelectOptions}
+            value={headerEditApprovedBy}
+            onChange={(e) => setHeaderEditApprovedBy(e.target.value)}
+            onBlur={() => {}}
+            disabled={updateInboundM.isPending}
+          />
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="secondary" className="min-h-11 w-full sm:w-auto" onClick={() => setHeaderEditOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              type="button"
+              className="min-h-11 w-full sm:w-auto"
+              disabled={updateInboundM.isPending}
+              onClick={() => void submitHeaderEdit()}
+            >
+              {t("warehouse.editInboundSave")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      <Modal
         open={selectedDetailGroup != null}
         onClose={() => setDetailsGroupKey(null)}
         titleId="warehouse-movement-detail-dialog-title"
         title={t("common.openDetailsDialog")}
         closeButtonLabel={t("common.close")}
         wide
-        className="!max-w-4xl"
+        wideExpanded
+        wideFixedHeight
       >
-        <div className="mt-4 max-h-[70vh] overflow-y-auto pr-1">
+        <div className="mt-3 min-h-0 flex-1 overflow-y-auto px-3 pb-3 pr-2 sm:mt-4 sm:px-4 sm:pb-4 sm:pr-3">
           {selectedDetailGroup ? (
             <div className="space-y-3">
+              <div className="rounded-lg border border-zinc-200 bg-white p-3 shadow-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-zinc-800">{t("warehouse.movementHeaderInfoTitle")}</p>
+                  {canEditHeaderInfo ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="min-h-8 px-2.5 text-xs"
+                      onClick={() => setHeaderEditOpen(true)}
+                    >
+                      {t("common.edit")}
+                    </Button>
+                  ) : null}
+                </div>
+                <p className="mt-1 text-[11px] text-zinc-500">{t("warehouse.movementHeaderInfoHint")}</p>
+                <div className="mt-2 rounded-md border border-zinc-200 bg-zinc-50/60">
+                  <div className="border-b border-zinc-200 px-3 py-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                          {t("warehouse.quickMovementDate")}
+                        </p>
+                        <p className="mt-1 text-base font-semibold text-zinc-900">
+                          {fmtDate(selectedDetailGroup.movements[0]?.movementDate ?? "")}
+                        </p>
+                      </div>
+                      <span className="inline-flex min-h-7 items-center rounded-full border border-zinc-300 bg-white px-2.5 text-[11px] font-semibold text-zinc-800">
+                        {selectedDetailTypeLabel}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2">
+                    <div className="border-b border-zinc-200 px-3 py-2 md:border-r">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                        {selectedDetailType === "OUT"
+                          ? t("warehouse.movementSourceWarehouseLabel")
+                          : t("warehouse.movementWarehouseLabel")}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-zinc-900">
+                        {warehouseName?.trim() || "—"}
+                      </p>
+                    </div>
+                    {selectedDetailType === "OUT" ? (
+                      <div className="border-b border-zinc-200 px-3 py-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                          {t("warehouse.movementOutBranch")}
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-zinc-900">
+                          {selectedDetailDestinationBranch || "—"}
+                        </p>
+                      </div>
+                    ) : null}
+                    <div className="border-b border-zinc-200 px-3 py-2 md:border-r">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{t("warehouse.movementNote")}</p>
+                      <p className="mt-1 line-clamp-2 text-sm font-medium text-zinc-900">
+                        {selectedDetailGroup.movements[0]?.description?.trim() || "—"}
+                      </p>
+                    </div>
+                    <div className="border-b border-zinc-200 px-3 py-2 md:border-r">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{t("warehouse.movementCheckedBy")}</p>
+                      <p className="mt-1 text-sm font-semibold text-zinc-900">
+                        {compactPeopleList(selectedDetailGroup.movements.map((m) => m.checkedByPersonnelName))}
+                      </p>
+                    </div>
+                    <div className="border-b border-zinc-200 px-3 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{t("warehouse.movementApprovedBy")}</p>
+                      <p className="mt-1 text-sm font-semibold text-zinc-900">
+                        {compactPeopleList(selectedDetailGroup.movements.map((m) => m.approvedByPersonnelName))}
+                      </p>
+                    </div>
+                    <div className="px-3 py-2 md:col-span-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                        {t("warehouse.movementInvoicesDialogTitle")}
+                      </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        {selectedDetailGroup.movements.filter((m) => m.hasInvoicePhoto).length === 0 ? (
+                          <p className="text-sm font-medium text-zinc-500">{t("warehouse.detailFieldEmpty")}</p>
+                        ) : (
+                          selectedDetailGroup.movements
+                            .filter((m) => m.hasInvoicePhoto)
+                            .map((m) => (
+                            <div
+                              key={`header-invoice-row-${m.id}`}
+                              className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-1.5 py-1"
+                            >
+                              <span className="max-w-[11rem] truncate px-1 text-xs font-medium text-zinc-800" title={m.productName}>
+                                {m.productName}
+                              </span>
+                              <button
+                                type="button"
+                                className="inline-flex min-h-7 items-center rounded-md border border-zinc-200 bg-zinc-50 px-1.5 text-[11px] font-medium text-zinc-900 hover:bg-zinc-100"
+                                onClick={() =>
+                                  setInvoicePreviewTarget({
+                                    movementId: m.id,
+                                    title: t("warehouse.movementInvoicePreviewTitle"),
+                                    subtitle: m.productName,
+                                  })
+                                }
+                              >
+                                {t("warehouse.openInvoicePhoto")}
+                              </button>
+                            </div>
+                            ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
               <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-2.5">
                 <p className="text-xs font-semibold text-zinc-800">
-                  {t("warehouse.movementMainTotalsDialogTitle")}
+                  {t("warehouse.movementSummaryDialogTitle")}
                 </p>
                 <div className="mt-2 space-y-1.5">
                   {shipmentMainProductTotals(selectedDetailGroup.movements).map((row) => (
@@ -1046,90 +1354,113 @@ export function WarehouseDetailMovementHistoryTab({
                   ))}
                 </div>
               </div>
-              <details className="rounded-lg border border-zinc-200 bg-zinc-50 p-2.5">
-                <summary className="cursor-pointer list-none text-xs font-semibold text-zinc-800">
-                  <span className="inline-flex w-full items-center justify-between">
-                    <span>{t("warehouse.movementAuditDialogTitle")}</span>
-                    <span className="text-[11px] font-medium text-zinc-500">
-                      {(groupBalanceSummaryByKey.get(selectedDetailGroup.key) ?? []).length}
-                    </span>
-                  </span>
-                </summary>
-                <div className="mt-2 space-y-2">
-                  {(groupBalanceSummaryByKey.get(selectedDetailGroup.key) ?? []).map((row) => (
-                    <div key={`dlg-audit-${row.id}`} className="rounded-md border border-zinc-200 bg-white p-2">
-                      <p className="truncate text-xs font-semibold text-zinc-800">
-                        {row.name}
-                        <span className="ml-1 text-zinc-500">
-                          {row.scope === "MAIN"
-                            ? t("warehouse.movementMainBalancesScopeMain")
-                            : t("warehouse.movementMainBalancesScopeProduct")}
-                        </span>
-                      </p>
-                      <div className="mt-1 grid grid-cols-3 gap-1">
-                        <div className="rounded bg-zinc-50 px-1.5 py-1 text-right">
-                          <p className="text-[10px] uppercase text-zinc-500">{t("warehouse.movementMainBalancesPrev")}</p>
-                          <p className="text-xs tabular-nums text-zinc-700">{formatLocaleAmount(row.previous, locale)}</p>
-                        </div>
-                        <div className="rounded bg-zinc-50 px-1.5 py-1 text-right">
-                          <p className="text-[10px] uppercase text-zinc-500">{t("warehouse.movementMainBalancesThisEntry")}</p>
-                          <p className={cn("text-xs font-semibold tabular-nums", row.delta >= 0 ? "text-emerald-700" : "text-red-700")}>
-                            {row.delta >= 0 ? "+" : ""}
-                            {formatLocaleAmount(row.delta, locale)}
-                          </p>
-                        </div>
-                        <div className="rounded border border-zinc-200 bg-zinc-100 px-1.5 py-1 text-right">
-                          <p className="text-[10px] uppercase text-zinc-500">{t("warehouse.movementMainBalancesNext")}</p>
-                          <p className="text-xs font-semibold tabular-nums text-zinc-900">{formatLocaleAmount(row.next, locale)}</p>
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-2.5">
+                <div className="rounded-xl border border-zinc-200 bg-zinc-100/80 p-1">
+                  <div className="grid grid-cols-1 gap-1 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      className={cn(
+                        "min-h-10 rounded-lg px-3 text-xs font-semibold transition-all duration-150",
+                        detailsContentTab === "LINES"
+                          ? "border border-zinc-300 bg-white text-zinc-900 shadow-sm"
+                          : "border border-transparent bg-transparent text-zinc-600 hover:bg-zinc-200/70 hover:text-zinc-900"
+                      )}
+                      onClick={() => setDetailsContentTab("LINES")}
+                    >
+                      {t("warehouse.movementLinesDialogTitle")} ({selectedDetailGroup.movements.length})
+                    </button>
+                    <button
+                      type="button"
+                      className={cn(
+                        "min-h-10 rounded-lg px-3 text-xs font-semibold transition-all duration-150",
+                        detailsContentTab === "AUDIT"
+                          ? "border border-zinc-300 bg-white text-zinc-900 shadow-sm"
+                          : "border border-transparent bg-transparent text-zinc-600 hover:bg-zinc-200/70 hover:text-zinc-900"
+                      )}
+                      onClick={() => setDetailsContentTab("AUDIT")}
+                    >
+                      {t("warehouse.movementAuditDialogTitle")} (
+                      {(groupBalanceSummaryByKey.get(selectedDetailGroup.key) ?? []).length})
+                    </button>
+                  </div>
+                </div>
+                <p className="mt-2 text-[11px] text-zinc-500">
+                  {detailsContentTab === "LINES"
+                    ? "Bu sekmede satir bazli duzenleme ve silme yapilir."
+                    : "Bu sekme sadece onceki/sonraki stok denetimini gosterir."}
+                </p>
+                {detailsContentTab === "LINES" ? (
+                  <div className="mt-2 space-y-2">
+                    {selectedDetailGroup.movements.map((m) => (
+                      <WarehouseMovementRowCard
+                        key={`detail-${m.id}`}
+                        m={m}
+                        fmtDate={fmtDate}
+                        t={t}
+                        hideShipmentGroup
+                        hideAuditMeta
+                        hideInvoiceSection
+                        warehouseId={warehouseId}
+                        onEditInboundFull={(row) => {
+                          if (row.type === "IN") setInboundFullMovementId(row.id);
+                        }}
+                        onDeleteInbound={confirmDeleteInboundFromRow}
+                        onEditOutboundShipment={(row) => {
+                          if (row.type === "OUT" && row.isDepotToBranchShipment) {
+                            setOutboundShipmentMovementId(row.id);
+                          }
+                        }}
+                        onDeleteOutboundShipment={confirmDeleteOutboundShipmentFromRow}
+                        onCreateInvoiceFromShipment={(row) => {
+                          if (row.type === "OUT" && row.isDepotToBranchShipment) {
+                            openInvoiceDraftFromShipment(row.id);
+                          }
+                        }}
+                        onPreviewInvoice={(row) => {
+                          if (row.type !== "IN" || !row.hasInvoicePhoto) return;
+                          setInvoicePreviewTarget({
+                            movementId: row.id,
+                            title: t("warehouse.movementInvoicePreviewTitle"),
+                            subtitle: row.productName,
+                          });
+                        }}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-2 space-y-2">
+                    {(groupBalanceSummaryByKey.get(selectedDetailGroup.key) ?? []).map((row) => (
+                      <div key={`dlg-audit-${row.id}`} className="rounded-md border border-zinc-200 bg-white p-2">
+                        <p className="truncate text-xs font-semibold text-zinc-800">
+                          {row.name}
+                          <span className="ml-1 text-zinc-500">
+                            {row.scope === "MAIN"
+                              ? t("warehouse.movementMainBalancesScopeMain")
+                              : t("warehouse.movementMainBalancesScopeProduct")}
+                          </span>
+                        </p>
+                        <div className="mt-1 grid grid-cols-3 gap-1">
+                          <div className="rounded bg-zinc-50 px-1.5 py-1 text-right">
+                            <p className="text-[10px] uppercase text-zinc-500">{t("warehouse.movementMainBalancesPrev")}</p>
+                            <p className="text-xs tabular-nums text-zinc-700">{formatLocaleAmount(row.previous, locale)}</p>
+                          </div>
+                          <div className="rounded bg-zinc-50 px-1.5 py-1 text-right">
+                            <p className="text-[10px] uppercase text-zinc-500">{t("warehouse.movementMainBalancesThisEntry")}</p>
+                            <p className={cn("text-xs font-semibold tabular-nums", row.delta >= 0 ? "text-emerald-700" : "text-red-700")}>
+                              {row.delta >= 0 ? "+" : ""}
+                              {formatLocaleAmount(row.delta, locale)}
+                            </p>
+                          </div>
+                          <div className="rounded border border-zinc-200 bg-zinc-100 px-1.5 py-1 text-right">
+                            <p className="text-[10px] uppercase text-zinc-500">{t("warehouse.movementMainBalancesNext")}</p>
+                            <p className="text-xs font-semibold tabular-nums text-zinc-900">{formatLocaleAmount(row.next, locale)}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </details>
-              <details className="rounded-lg border border-zinc-200 bg-zinc-50 p-2.5" open>
-                <summary className="cursor-pointer list-none text-xs font-semibold text-zinc-800">
-                  <span className="inline-flex w-full items-center justify-between">
-                    <span>{t("warehouse.movementLinesDialogTitle")}</span>
-                    <span className="text-[11px] font-medium text-zinc-500">{selectedDetailGroup.movements.length}</span>
-                  </span>
-                </summary>
-                <div className="mt-2 space-y-2">
-                  {selectedDetailGroup.movements.map((m) => (
-                    <WarehouseMovementRowCard
-                      key={`detail-${m.id}`}
-                      m={m}
-                      fmtDate={fmtDate}
-                      t={t}
-                      hideShipmentGroup
-                      warehouseId={warehouseId}
-                      onEditInboundFull={(row) => {
-                        if (row.type === "IN") setInboundFullMovementId(row.id);
-                      }}
-                      onDeleteInbound={confirmDeleteInboundFromRow}
-                      onEditOutboundShipment={(row) => {
-                        if (row.type === "OUT" && row.isDepotToBranchShipment) {
-                          setOutboundShipmentMovementId(row.id);
-                        }
-                      }}
-                      onDeleteOutboundShipment={confirmDeleteOutboundShipmentFromRow}
-                      onCreateInvoiceFromShipment={(row) => {
-                        if (row.type === "OUT" && row.isDepotToBranchShipment) {
-                          openInvoiceDraftFromShipment(row.id);
-                        }
-                      }}
-                      onPreviewInvoice={(row) => {
-                        if (row.type !== "IN" || !row.hasInvoicePhoto) return;
-                        setInvoicePreviewTarget({
-                          movementId: row.id,
-                          title: t("warehouse.movementInvoicePreviewTitle"),
-                          subtitle: row.productName,
-                        });
-                      }}
-                    />
-                  ))}
-                </div>
-              </details>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           ) : null}
         </div>

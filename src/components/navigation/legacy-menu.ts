@@ -150,7 +150,15 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
       mobileVisible: true,
       children: [
         ...(showWarehouseLink
-          ? [{ id: "warehouses", labelKey: "nav.warehouse", route: "/warehouses", icon: "branch" }]
+          ? [
+              { id: "warehouses", labelKey: "nav.warehouse", route: "/warehouses", icon: "branch" },
+              {
+                id: "warehouse-global-movements",
+                labelKey: "nav.warehouseGlobalMovements",
+                route: "/warehouses/movements",
+                icon: "branch",
+              },
+            ]
           : []),
         ...(showProducts
           ? [

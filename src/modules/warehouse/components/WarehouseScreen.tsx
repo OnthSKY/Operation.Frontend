@@ -64,6 +64,10 @@ export function WarehouseScreen() {
     null
   );
   const [listSearch, setListSearch] = useState("");
+  const movementTabIntentRaw = searchParams.get("openWarehouseTab");
+  const movementTabIntent = movementTabIntentRaw === "history" ? "history" : null;
+  const openMovementIdRaw = searchParams.get("openMovementId");
+  const openMovementIdIntent = openMovementIdRaw ? Number.parseInt(openMovementIdRaw, 10) : null;
 
   const { data: warehouses = [], isPending: whLoading, isError: whError, error: whErr } =
     useWarehousesList();
@@ -497,6 +501,8 @@ export function WarehouseScreen() {
         <WarehouseDetailModal
           open
           warehouseId={detailWarehouseId}
+          initialTabIntent={movementTabIntent}
+          openMovementIdIntent={openMovementIdIntent != null && Number.isFinite(openMovementIdIntent) && openMovementIdIntent > 0 ? openMovementIdIntent : null}
           onClose={() => setDetailWarehouseId(null)}
         />
       ) : null}

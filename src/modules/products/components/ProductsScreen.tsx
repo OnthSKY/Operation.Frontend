@@ -6,9 +6,11 @@ import { EditProductModal } from "@/modules/products/components/EditProductModal
 import { ProductDetailModal } from "@/modules/products/components/ProductDetailModal";
 import { SetProductCategoryModal } from "@/modules/products/components/SetProductCategoryModal";
 import {
+  useProductCategories,
   useProductsCatalogPaged,
   useSoftDeleteProduct,
 } from "@/modules/products/hooks/useProductQueries";
+import type { ProductCategory } from "@/modules/products/api/product-categories-api";
 import { fetchProductInventory } from "@/modules/products/api/products-api";
 import { useI18n } from "@/i18n/context";
 import { toErrorMessage } from "@/shared/lib/error-message";
@@ -16,13 +18,15 @@ import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
-import { detailOpenIconButtonClass, EyeIcon, PlusIcon } from "@/shared/ui/EyeIcon";
-import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
+import { EyeIcon, PlusIcon } from "@/shared/ui/EyeIcon";
 import { Card } from "@/shared/components/Card";
 import { MobileListCard } from "@/shared/components/MobileListCard";
 import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
-import { TableToolbarMoreMenu } from "@/shared/components/TableToolbarMoreMenu";
+import {
+  TableToolbarMoreMenu,
+  type TableToolbarMoreMenuItem,
+} from "@/shared/components/TableToolbarMoreMenu";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import {
   Table,
@@ -37,7 +41,7 @@ import type { ProductListItem } from "@/types/product";
 import { ToolbarGlyphPackage, ToolbarGlyphReceipt } from "@/shared/ui/ToolbarGlyph";
 import { cn } from "@/lib/cn";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 type CatalogViewRow =
   | {
@@ -122,12 +126,66 @@ function ChevronDownExpandIcon({ expanded, className }: { expanded: boolean; cla
   );
 }
 
-function productKv(label: string, value: string) {
+function productKv(label: string, value: ReactNode) {
   return (
     <div className="min-w-0">
       <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">{label}</p>
-      <p className="mt-0.5 break-words text-sm text-zinc-900">{value}</p>
+      <div className="mt-0.5 break-words text-sm text-zinc-900">{value}</div>
     </div>
+  );
+}
+
+function renderCategoryValue(r: ProductListItem, t: (key: string) => string) {
+  const category = r.categoryName?.trim() ? r.categoryName : "—";
+  if (r.parentProductId == null) {
+    return <span>{category}</span>;
+  }
+  return (
+    <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-900 ring-1 ring-violet-200/90">
+      <span className="truncate">{category}</span>
+      <span className="shrink-0 text-[0.65rem] uppercase tracking-wide text-violet-700">
+        {t("products.badgeVariant")}
+      </span>
+    </span>
+  );
+}
+
+function getCategoryHierarchyLabel(
+  row: ProductListItem,
+  categoryById: Map<number, ProductCategory>
+): { root: string; sub: string | null; full: string } | null {
+  if (row.categoryId == null || row.categoryId <= 0) {
+    return null;
+  }
+  const current = categoryById.get(row.categoryId);
+  if (!current) {
+    return null;
+  }
+  if (current.parentCategoryId == null) {
+    return { root: current.name, sub: null, full: current.name };
+  }
+  const parent = categoryById.get(current.parentCategoryId);
+  const root = parent?.name?.trim() || "—";
+  const sub = current.name?.trim() || "—";
+  return { root, sub, full: `${root} > ${sub}` };
+}
+
+function renderCategoryHierarchy(
+  row: ProductListItem,
+  categoryById: Map<number, ProductCategory>,
+  t: (key: string) => string
+) {
+  const hierarchy = getCategoryHierarchyLabel(row, categoryById);
+  if (!hierarchy) {
+    return renderCategoryValue(row, t);
+  }
+  if (!hierarchy.sub) {
+    return <span>{hierarchy.root}</span>;
+  }
+  return (
+    <span className="inline-flex max-w-full items-center rounded-full bg-zinc-100/90 px-2 py-0.5 text-xs font-semibold text-zinc-700 ring-1 ring-zinc-200">
+      <span className="truncate">{hierarchy.full}</span>
+    </span>
   );
 }
 
@@ -279,6 +337,7 @@ export function ProductsScreen() {
     isError,
     error,
   } = useProductsCatalogPaged(listPage, CATALOG_PAGE_SIZE, catalogSearch);
+  const { data: categories = [] } = useProductCategories();
   const del = useSoftDeleteProduct();
 
   const catalogRows = catalogPage?.items ?? [];
@@ -288,6 +347,11 @@ export function ProductsScreen() {
     () => Math.max(1, Math.ceil(totalCount / CATALOG_PAGE_SIZE)),
     [totalCount]
   );
+  const categoryById = useMemo(() => {
+    const map = new Map<number, ProductCategory>();
+    for (const c of categories) map.set(c.id, c);
+    return map;
+  }, [categories]);
 
   useEffect(() => {
     setListPage(1);
@@ -352,6 +416,43 @@ export function ProductsScreen() {
     setDetailId(id);
     setDetailLabel(name);
   };
+
+  const openWarehouseForProduct = (r: ProductListItem) => {
+    const warehouseId = r.byWarehouse?.[0]?.warehouseId;
+    if (warehouseId != null && warehouseId > 0) {
+      router.push(`/warehouse?openWarehouse=${warehouseId}`);
+      return;
+    }
+    router.push("/warehouse");
+  };
+
+  const quickActionsForRow = (r: ProductListItem): TableToolbarMoreMenuItem[] => [
+    {
+      id: `quick-add-sub-${r.id}`,
+      label: t("products.quickAddSubProduct"),
+      onSelect: () => {
+        setAddFixedParent({ id: r.id, name: r.name });
+        setAddOpen(true);
+      },
+      disabled: r.parentProductId != null,
+    },
+    {
+      id: `quick-shipment-out-${r.id}`,
+      label: t("products.quickShipmentOut"),
+      onSelect: () => openWarehouseForProduct(r),
+    },
+    {
+      id: `quick-warehouse-in-${r.id}`,
+      label: t("products.quickWarehouseIn"),
+      onSelect: () => openWarehouseForProduct(r),
+    },
+    {
+      id: `quick-delete-${r.id}`,
+      label: t("products.quickDelete"),
+      onSelect: () => onDelete(r.id, r.name),
+      disabled: del.isPending,
+    },
+  ];
 
   return (
     <>
@@ -432,8 +533,8 @@ export function ProductsScreen() {
                       type="button"
                       className={cn(
                         "touch-manipulation select-none",
-                        "inline-flex shrink-0 flex-col items-center justify-center gap-0 rounded-xl border border-zinc-200 bg-white px-2 py-2 text-zinc-700 shadow-sm outline-none",
-                        "min-h-11 min-w-11 active:bg-zinc-100 sm:min-h-10 sm:min-w-10",
+                        "inline-flex shrink-0 items-center justify-center gap-1 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-zinc-700 shadow-sm outline-none",
+                        "min-h-11 active:bg-zinc-100",
                         "hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-violet-400"
                       )}
                       onClick={() => toggleParentExpanded(r.id)}
@@ -443,14 +544,20 @@ export function ProductsScreen() {
                         String(subCount)
                       )}
                     >
-                      <ChevronDownExpandIcon expanded={subProductsVisible} className="h-5 w-5" />
-                      <span className="text-[0.7rem] font-bold leading-none tabular-nums text-zinc-800">
+                      <ChevronDownExpandIcon expanded={subProductsVisible} className="h-4 w-4 text-zinc-500" />
+                      <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-600">
+                        {t("products.badgeVariant")}
+                      </span>
+                      <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[0.75rem] font-bold leading-none tabular-nums text-violet-700 ring-1 ring-violet-200/80">
                         {subCount}
                       </span>
                     </button>
                   ) : null}
                   <div className="min-w-0 flex-1 self-center sm:self-start">
                 <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
+                  <span className="inline-flex items-center rounded-md bg-zinc-100 px-1.5 py-0.5 text-[0.65rem] font-semibold tabular-nums text-zinc-600 ring-1 ring-zinc-200">
+                    #{r.id}
+                  </span>
                   <p className="min-w-0 max-w-full break-words text-base font-semibold leading-snug text-zinc-900 [overflow-wrap:anywhere]">
                     {r.name}
                   </p>
@@ -470,7 +577,7 @@ export function ProductsScreen() {
                 <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
                   {productKv(
                     t("products.colCategory"),
-                    r.categoryName?.trim() ? r.categoryName : "—"
+                    renderCategoryHierarchy(r, categoryById, t)
                   )}
                   {productKv(t("products.colUnit"), r.unit?.trim() ? r.unit : "—")}
                   <div className="min-w-0 sm:col-span-2">
@@ -490,65 +597,27 @@ export function ProductsScreen() {
                     <ProductWarehouseChips r={r} t={t} />
                   </div>
                 </div>
-                <div className="flex min-w-0 flex-col gap-2 border-t border-zinc-100 pt-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end sm:gap-2">
-                  <div className="grid min-w-0 grid-cols-2 gap-2 sm:contents">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-11 w-full touch-manipulation sm:w-auto sm:min-h-9"
-                      onClick={() => setProductEdit(r)}
-                    >
-                      {t("products.editProduct")}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-11 w-full touch-manipulation sm:w-auto sm:min-h-9"
-                      onClick={() => setCategoryEdit(r)}
-                    >
-                      {t("products.setCategory")}
-                    </Button>
-                  </div>
-                  {r.parentProductId == null ? (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-11 w-full touch-manipulation sm:w-auto sm:min-h-9"
-                      onClick={() => {
-                        setAddFixedParent({ id: r.id, name: r.name });
-                        setAddOpen(true);
-                      }}
-                    >
-                      {t("products.addSubProduct")}
-                    </Button>
-                  ) : null}
-                  <div className="flex flex-nowrap justify-center gap-2 sm:contents">
-                    <Tooltip content={t("common.openDetailsDialog")} delayMs={200}>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className={`${detailOpenIconButtonClass} min-h-11 min-w-11 touch-manipulation`}
-                        aria-haspopup="dialog"
-                        aria-expanded={detailId === r.id}
-                        aria-label={t("common.openDetailsDialog")}
-                        title={t("common.openDetailsDialog")}
-                        onClick={() => openDetail(r.id, r.name)}
-                      >
-                        <EyeIcon />
-                      </Button>
-                    </Tooltip>
-                    <Tooltip content={t("common.delete")} delayMs={200}>
-                      <button
-                        type="button"
-                        className={`${trashIconActionButtonClass} min-h-11 min-w-11 touch-manipulation`}
-                        aria-label={t("common.delete")}
-                        onClick={() => onDelete(r.id, r.name)}
-                        disabled={del.isPending}
-                      >
-                        <TrashIcon />
-                      </button>
-                    </Tooltip>
-                  </div>
+                <div className="flex min-w-0 flex-col gap-2 border-t border-zinc-100 pt-3 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="min-h-11 w-full touch-manipulation sm:min-h-9 sm:w-auto"
+                    aria-haspopup="dialog"
+                    aria-expanded={detailId === r.id}
+                    aria-label={t("products.quickView")}
+                    title={t("products.quickView")}
+                    onClick={() => openDetail(r.id, r.name)}
+                  >
+                    <span className="inline-flex items-center gap-1.5">
+                      <EyeIcon />
+                      <span>{t("products.quickView")}</span>
+                    </span>
+                  </Button>
+                  <TableToolbarMoreMenu
+                    menuId={`product-mobile-quick-actions-${r.id}`}
+                    items={quickActionsForRow(r)}
+                    disabled={del.isPending}
+                  />
                 </div>
               </MobileListCard>
               );
@@ -584,19 +653,14 @@ export function ProductsScreen() {
                     )}
                   >
                     <TableCell className="min-w-0 max-w-[14rem] sm:max-w-none">
-                      <div
-                        className={cn(
-                          "flex min-w-0 flex-wrap items-start gap-2 sm:items-center",
-                          isChild && "pl-4 sm:pl-8"
-                        )}
-                      >
+                      <div className={cn("flex min-w-0 items-center gap-2", isChild && "pl-4 sm:pl-8")}>
                         {!isChild && subCount > 0 ? (
                           <button
                             type="button"
                             className={cn(
                               "touch-manipulation select-none",
-                              "inline-flex shrink-0 flex-col items-center justify-center gap-0 rounded-lg border border-zinc-200 bg-zinc-50 px-1.5 py-1.5 text-zinc-700 outline-none",
-                              "min-h-10 min-w-10 hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-violet-400 sm:min-h-9 sm:min-w-9 sm:flex-row sm:gap-0.5 sm:px-1 sm:py-0.5"
+                              "inline-flex shrink-0 items-center justify-center gap-1 rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-zinc-700 outline-none",
+                              "min-h-10 hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-violet-400 sm:min-h-9 sm:py-1"
                             )}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -608,8 +672,11 @@ export function ProductsScreen() {
                               String(subCount)
                             )}
                           >
-                            <ChevronDownExpandIcon expanded={subProductsVisible} className="h-4 w-4" />
-                            <span className="text-[0.65rem] font-bold tabular-nums text-zinc-800 sm:text-xs">
+                            <ChevronDownExpandIcon expanded={subProductsVisible} className="h-4 w-4 text-zinc-500" />
+                            <span className="hidden text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-600 lg:inline">
+                              {t("products.badgeVariant")}
+                            </span>
+                            <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[0.7rem] font-bold tabular-nums text-violet-700 ring-1 ring-violet-200/80 sm:text-xs">
                               {subCount}
                             </span>
                           </button>
@@ -617,6 +684,9 @@ export function ProductsScreen() {
                         {!isChild && subCount === 0 ? (
                           <span className="inline-flex w-9 shrink-0 justify-center sm:w-8" aria-hidden />
                         ) : null}
+                        <span className="inline-flex shrink-0 items-center rounded-md bg-zinc-100 px-1.5 py-0.5 text-[0.65rem] font-semibold tabular-nums text-zinc-600 ring-1 ring-zinc-200">
+                          #{r.id}
+                        </span>
                         <div
                           className={cn(
                             "min-w-0 flex-1 break-words font-medium leading-snug text-zinc-900 [overflow-wrap:anywhere]",
@@ -641,7 +711,7 @@ export function ProductsScreen() {
                       </div>
                     </TableCell>
                     <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 max-w-[10rem] truncate text-zinc-600 md:hidden lg:table-cell">
-                      {r.categoryName?.trim() ? r.categoryName : "—"}
+                      {renderCategoryHierarchy(r, categoryById, t)}
                     </TableCell>
                     <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 text-zinc-600 md:table-cell">
                       {r.unit ?? "—"}
@@ -654,68 +724,28 @@ export function ProductsScreen() {
                     <TableCell className="text-right tabular-nums font-medium">
                       {r.totalQuantity}
                     </TableCell>
-                    <TableCell className="w-[1%] whitespace-nowrap text-right">
+                    <TableCell className="w-[1%] whitespace-nowrap text-right align-middle">
                       <div className="inline-flex flex-nowrap items-center justify-end gap-1.5">
-                        <Tooltip content={t("products.editProduct")} delayMs={200}>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className="hidden px-2 text-xs md:inline-flex"
-                            onClick={() => setProductEdit(r)}
-                          >
-                            {t("products.editProductShort")}
-                          </Button>
-                        </Tooltip>
-                        <Tooltip content={t("products.setCategory")} delayMs={200}>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className="hidden px-2 text-xs lg:inline-flex"
-                            onClick={() => setCategoryEdit(r)}
-                          >
-                            {t("products.setCategoryShort")}
-                          </Button>
-                        </Tooltip>
-                        {r.parentProductId == null ? (
-                          <Tooltip content={t("products.addSubProduct")} delayMs={200}>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="hidden px-2 text-xs sm:inline-flex"
-                              onClick={() => {
-                                setAddFixedParent({ id: r.id, name: r.name });
-                                setAddOpen(true);
-                              }}
-                            >
-                              {t("products.addSubProductShort")}
-                            </Button>
-                          </Tooltip>
-                        ) : null}
-                        <Tooltip content={t("common.openDetailsDialog")} delayMs={200}>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className={detailOpenIconButtonClass}
-                            aria-haspopup="dialog"
-                            aria-expanded={detailId === r.id}
-                            aria-label={t("common.openDetailsDialog")}
-                            title={t("common.openDetailsDialog")}
-                            onClick={() => openDetail(r.id, r.name)}
-                          >
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="min-h-9 px-2.5 text-xs"
+                          aria-haspopup="dialog"
+                          aria-expanded={detailId === r.id}
+                          aria-label={t("products.quickView")}
+                          title={t("products.quickView")}
+                          onClick={() => openDetail(r.id, r.name)}
+                        >
+                          <span className="inline-flex items-center gap-1">
                             <EyeIcon />
-                          </Button>
-                        </Tooltip>
-                        <Tooltip content={t("common.delete")} delayMs={200}>
-                          <button
-                            type="button"
-                            className={trashIconActionButtonClass}
-                            aria-label={t("common.delete")}
-                            onClick={() => onDelete(r.id, r.name)}
-                            disabled={del.isPending}
-                          >
-                            <TrashIcon />
-                          </button>
-                        </Tooltip>
+                            <span>{t("products.quickView")}</span>
+                          </span>
+                        </Button>
+                        <TableToolbarMoreMenu
+                          menuId={`product-row-quick-actions-${r.id}`}
+                          items={quickActionsForRow(r)}
+                          disabled={del.isPending}
+                        />
                       </div>
                     </TableCell>
                   </TableRow>

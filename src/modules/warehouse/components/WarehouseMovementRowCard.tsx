@@ -3,7 +3,7 @@
 import { warehouseMovementInvoicePhotoUrl } from "@/modules/warehouse/api/warehouse-movements-api";
 import { cn } from "@/lib/cn";
 import { MobileListCard } from "@/shared/components/MobileListCard";
-import { PencilIcon, PlusIcon, detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
+import { PencilIcon, detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
 import { formatWarehouseShipmentDisplay } from "@/shared/lib/in-batch-group-label";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { Tooltip } from "@/shared/ui/Tooltip";
@@ -24,6 +24,8 @@ type Props = {
   fmtDate: (iso: string) => string;
   t: (key: string) => string;
   hideShipmentGroup?: boolean;
+  hideAuditMeta?: boolean;
+  hideInvoiceSection?: boolean;
   /** Depo hareketleri sekmesinde GİRİŞ satırı tam düzenleme / silme. */
   warehouseId?: number;
   onEditInboundFull?: (m: WarehouseMovementItem) => void;
@@ -40,6 +42,8 @@ export function WarehouseMovementRowCard({
   fmtDate,
   t,
   hideShipmentGroup,
+  hideAuditMeta = false,
+  hideInvoiceSection = false,
   warehouseId,
   onEditInboundFull,
   onDeleteInbound,
@@ -96,7 +100,7 @@ export function WarehouseMovementRowCard({
                 )}
                 onClick={() => onEditInboundFull(m)}
               >
-                <PlusIcon className="h-5 w-5 shrink-0" aria-hidden />
+                <PencilIcon className="h-5 w-5 shrink-0" aria-hidden />
               </button>
             </Tooltip>
           ) : null}
@@ -179,6 +183,57 @@ export function WarehouseMovementRowCard({
           ) : null}
         </p>
       </div>
+      {m.hasInvoicePhoto && !hideInvoiceSection ? (
+        <div className="mt-3 min-w-0 rounded-xl border border-zinc-200/90 bg-zinc-50/80 p-3 shadow-sm ring-1 ring-zinc-900/[0.03]">
+          <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+            {t("warehouse.attachmentsHeading")}
+          </p>
+          <div className="mt-2 flex min-w-0 flex-col gap-2 rounded-lg border border-zinc-200 bg-white p-2.5">
+            <p className="text-xs leading-relaxed text-zinc-600">{t("warehouse.movementInvoicePreviewHint")}</p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              {onPreviewInvoice ? (
+                <button
+                  type="button"
+                  className="inline-flex min-h-10 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm font-medium text-zinc-900 transition hover:bg-zinc-100"
+                  onClick={() => onPreviewInvoice(m)}
+                >
+                  {t("warehouse.openInvoicePhoto")}
+                </button>
+              ) : (
+                <a
+                  href={photoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-10 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm font-medium text-zinc-900 transition hover:bg-zinc-100"
+                >
+                  {t("warehouse.openInvoicePhoto")}
+                </a>
+              )}
+              <details className="group">
+                <summary className="cursor-pointer list-none text-xs font-medium text-zinc-600 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-500">
+                  {t("warehouse.details")}
+                </summary>
+                <div className="mt-2 w-full overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50 sm:w-40">
+                  {!thumbFailed ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={photoUrl}
+                      alt=""
+                      className="aspect-[3/4] w-full object-contain"
+                      loading="lazy"
+                      onError={() => setThumbFailed(true)}
+                    />
+                  ) : (
+                    <div className="flex aspect-[3/4] items-center justify-center text-xs text-zinc-500">
+                      {t("common.noData")}
+                    </div>
+                  )}
+                </div>
+              </details>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0">
         <span className="text-2xl font-bold tabular-nums text-zinc-900">{m.quantity}</span>
         <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">
@@ -200,46 +255,9 @@ export function WarehouseMovementRowCard({
               <span className="text-sm font-medium text-violet-900">{m.outDestinationBranchName.trim()}</span>
             )
           : null}
-        {movementKv(t("warehouse.movementNote"), m.description?.trim() ? m.description : "—")}
-        {movementKv(t("warehouse.movementCheckedBy"), m.checkedByPersonnelName ?? "—")}
-        {movementKv(t("warehouse.movementApprovedBy"), m.approvedByPersonnelName ?? "—")}
-        {m.hasInvoicePhoto ? (
-          <div className="min-w-0">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
-              {t("warehouse.attachmentsHeading")}
-            </p>
-            <div className="mt-2 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:gap-3">
-              {!thumbFailed ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={photoUrl}
-                  alt=""
-                  className="max-h-44 w-full max-w-full rounded-lg border border-zinc-200 bg-zinc-50 object-contain sm:max-w-xs"
-                  loading="lazy"
-                  onError={() => setThumbFailed(true)}
-                />
-              ) : null}
-              {onPreviewInvoice ? (
-                <button
-                  type="button"
-                  className="inline-flex shrink-0 text-sm font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-600"
-                  onClick={() => onPreviewInvoice(m)}
-                >
-                  {t("warehouse.openInvoicePhoto")}
-                </button>
-              ) : (
-                <a
-                  href={photoUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex shrink-0 text-sm font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-600"
-                >
-                  {t("warehouse.openInvoicePhoto")}
-                </a>
-              )}
-            </div>
-          </div>
-        ) : null}
+        {!hideAuditMeta ? movementKv(t("warehouse.movementNote"), m.description?.trim() ? m.description : "—") : null}
+        {!hideAuditMeta ? movementKv(t("warehouse.movementCheckedBy"), m.checkedByPersonnelName ?? "—") : null}
+        {!hideAuditMeta ? movementKv(t("warehouse.movementApprovedBy"), m.approvedByPersonnelName ?? "—") : null}
       </div>
     </MobileListCard>
   );

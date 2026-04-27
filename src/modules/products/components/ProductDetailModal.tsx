@@ -45,6 +45,19 @@ export function ProductDetailModal({ open, productId, productLabel, onClose, onE
     },
     open && tab === "costHistory" && productId != null && productId > 0
   );
+  const parentProductId = inv?.parentProductId ?? null;
+  const hasParentProduct = parentProductId != null && parentProductId > 0;
+  const {
+    data: parentCostRows = [],
+    isPending: parentCostLoading,
+    isError: parentCostErr,
+    error: parentCostError,
+  } = useProductCostHistory(
+    {
+      productId: hasParentProduct ? parentProductId : undefined,
+    },
+    open && tab === "costHistory" && hasParentProduct
+  );
 
   useEffect(() => {
     if (open) setTab("inventory");
@@ -272,6 +285,50 @@ export function ProductDetailModal({ open, productId, productLabel, onClose, onE
                   </TableBody>
                 </Table>
               )}
+              {hasParentProduct ? (
+                <div className="mt-5 border-t border-zinc-200 pt-4">
+                  <p className="mb-2 text-sm font-medium text-zinc-800">
+                    {t("products.parentCostHistoryTitle").replace(
+                      "{name}",
+                      inv?.parentProductName?.trim() || t("products.detailParentLine")
+                    )}
+                  </p>
+                  {parentCostErr ? (
+                    <p className="text-sm text-red-600">{toErrorMessage(parentCostError)}</p>
+                  ) : parentCostLoading ? (
+                    <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+                  ) : parentCostRows.length === 0 ? (
+                    <p className="text-sm text-zinc-500">{t("products.parentCostHistoryEmpty")}</p>
+                  ) : (
+                    <Table>
+                      <TableHead>
+                        <TableRow>
+                          <TableHeader>{t("products.costHistory.colDate")}</TableHeader>
+                          <TableHeader className="text-right">{t("products.costHistory.colExVat")}</TableHeader>
+                          <TableHeader className="text-right">{t("products.costHistory.colIncVat")}</TableHeader>
+                          <TableHeader className="text-right">{t("products.costHistory.colVatRate")}</TableHeader>
+                          <TableHeader>{t("products.costHistory.colNote")}</TableHeader>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {parentCostRows.map((r) => (
+                          <TableRow key={r.id}>
+                            <TableCell>{r.effectiveDate}</TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {formatLocaleAmount(r.unitCostExcludingVat, locale)}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              {formatLocaleAmount(r.unitCostIncludingVat, locale)}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">%{r.vatRate}</TableCell>
+                            <TableCell>{r.note?.trim() || "—"}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </div>
+              ) : null}
             </section>
           )}
         </div>

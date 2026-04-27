@@ -71,14 +71,17 @@ type Tab = "general" | "summary" | "stock" | "history" | "audit";
 type Props = {
   open: boolean;
   warehouseId: number;
+  initialTabIntent?: "history" | null;
+  openMovementIdIntent?: number | null;
   onClose: () => void;
 };
 
-export function WarehouseDetailModal({ open, warehouseId, onClose }: Props) {
+export function WarehouseDetailModal({ open, warehouseId, initialTabIntent = null, openMovementIdIntent = null, onClose }: Props) {
   const { t, locale } = useI18n();
   const [tab, setTab] = useState<Tab>("general");
   const [editOpen, setEditOpen] = useState(false);
   const [movementHistoryIntent, setMovementHistoryIntent] = useState<"" | "ALL" | "IN" | "OUT">("");
+  const [movementOpenIdIntent, setMovementOpenIdIntent] = useState<number | null>(null);
   const delWh = useSoftDeleteWarehouse();
   const { data: detail, isPending: detailLoading, isError, error } = useWarehouseDetail(
     open ? warehouseId : null,
@@ -90,8 +93,14 @@ export function WarehouseDetailModal({ open, warehouseId, onClose }: Props) {
   }, []);
 
   useEffect(() => {
-    if (open) setTab("general");
-  }, [open, warehouseId]);
+    if (!open) return;
+    if (initialTabIntent === "history") {
+      setTab("history");
+      setMovementHistoryIntent("ALL");
+      return;
+    }
+    setTab("general");
+  }, [open, warehouseId, initialTabIntent]);
 
   useEffect(() => {
     if (!open) setEditOpen(false);
@@ -100,6 +109,15 @@ export function WarehouseDetailModal({ open, warehouseId, onClose }: Props) {
   useEffect(() => {
     if (!open) setMovementHistoryIntent("");
   }, [open, warehouseId]);
+  useEffect(() => {
+    if (!open) {
+      setMovementOpenIdIntent(null);
+      return;
+    }
+    if (openMovementIdIntent != null && Number.isFinite(openMovementIdIntent) && openMovementIdIntent > 0) {
+      setMovementOpenIdIntent(openMovementIdIntent);
+    }
+  }, [open, warehouseId, openMovementIdIntent]);
 
   const onDeleteWarehouseFromGeneral = () => {
     if (!detail) return;
@@ -223,9 +241,12 @@ export function WarehouseDetailModal({ open, warehouseId, onClose }: Props) {
                 {tab === "history" ? (
                   <WarehouseDetailMovementHistoryTab
                     warehouseId={warehouseId}
+                    warehouseName={detail.name}
                     enabled={open && tab === "history"}
                     historyTypeIntent={movementHistoryIntent}
                     onHistoryTypeIntentConsumed={clearMovementHistoryIntent}
+                    openMovementIdIntent={movementOpenIdIntent}
+                    onOpenMovementIdIntentConsumed={() => setMovementOpenIdIntent(null)}
                   />
                 ) : null}
                 {tab === "audit" ? (

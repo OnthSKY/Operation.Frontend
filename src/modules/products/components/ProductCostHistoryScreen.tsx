@@ -6,7 +6,9 @@ import { useI18n } from "@/i18n/context";
 import { useProductsCatalog } from "@/modules/products/hooks/useProductQueries";
 import {
   useCreateProductCostEntry,
+  useDeleteProductCostEntry,
   useProductCostHistory,
+  useUpdateProductCostEntry,
 } from "@/modules/products/hooks/useProductCostQueries";
 import { Card } from "@/shared/components/Card";
 import { MobileListCard } from "@/shared/components/MobileListCard";
@@ -43,6 +45,8 @@ export function ProductCostHistoryScreen() {
   const { t, locale } = useI18n();
   const { data: catalog = [], isPending: isCatalogPending } = useProductsCatalog();
   const createEntry = useCreateProductCostEntry();
+  const updateEntry = useUpdateProductCostEntry();
+  const deleteEntry = useDeleteProductCostEntry();
 
   const [filterProductId, setFilterProductId] = useState(0);
   const [dateFrom, setDateFrom] = useState("");
@@ -50,6 +54,8 @@ export function ProductCostHistoryScreen() {
   const [filterOpen, setFilterOpen] = useState(false);
 
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [productId, setProductId] = useState(0);
   const [effectiveDate, setEffectiveDate] = useState(todayIso());
   const [unit, setUnit] = useState("");
@@ -77,7 +83,18 @@ export function ProductCostHistoryScreen() {
   const productOptions = useMemo(
     () => [
       { value: "0", label: t("products.costHistory.selectProduct") },
-      ...catalog.map((p) => ({ value: String(p.id), label: p.name })),
+      ...catalog.map((p) => {
+        const category = p.categoryName?.trim();
+        const unitLabel = p.unit?.trim() || "—";
+        const unitText = t("products.costHistory.productUnitShort").replace("{{unit}}", unitLabel);
+        const details = [category, unitText]
+          .filter(Boolean)
+          .join(" | ");
+        return {
+          value: String(p.id),
+          label: `${p.name} (#${p.id})${details ? ` - ${details}` : ""}`,
+        };
+      }),
     ],
     [catalog, t]
   );
@@ -157,6 +174,66 @@ export function ProductCostHistoryScreen() {
       setUnitCostIncVat("");
       setNote("");
       setAddDialogOpen(false);
+      void refetch();
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    }
+  };
+
+  const onEditOpen = (rowId: number) => {
+    const row = rows.find((x) => x.id === rowId);
+    if (!row) return;
+    setEditingId(row.id);
+    setProductId(row.productId);
+    setEffectiveDate(row.effectiveDate);
+    setUnit(row.unit);
+    setCurrencyCode(row.currencyCode);
+    setVatRate(String(row.vatRate));
+    setUnitCostExVat(String(row.unitCostExcludingVat));
+    setUnitCostIncVat(String(row.unitCostIncludingVat));
+    setNote(row.note ?? "");
+    setLastEditedCostField(null);
+    setEditDialogOpen(true);
+  };
+
+  const onUpdate = async () => {
+    const id = editingId ?? 0;
+    const ex = parseNum(unitCostExVat);
+    const inc = parseNum(unitCostIncVat);
+    const rate = parseNum(vatRate);
+    if (id <= 0 || !effectiveDate || !unit.trim() || !currencyCode.trim() || !Number.isFinite(ex) || !Number.isFinite(inc)) {
+      notify.error(t("products.costHistory.validationRequired"));
+      return;
+    }
+    if (!Number.isFinite(rate) || rate < 0 || rate > 100) {
+      notify.error(t("products.costHistory.validationVat"));
+      return;
+    }
+    try {
+      await updateEntry.mutateAsync({
+        id,
+        effectiveDate,
+        unit: unit.trim(),
+        currencyCode: currencyCode.trim().toUpperCase(),
+        vatRate: rate,
+        unitCostExcludingVat: ex,
+        unitCostIncludingVat: inc,
+        note: note.trim() || null,
+      });
+      notify.success(t("products.costHistory.updateSuccess"));
+      setEditDialogOpen(false);
+      setEditingId(null);
+      void refetch();
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    }
+  };
+
+  const onDelete = async (id: number) => {
+    if (!window.confirm(t("products.costHistory.deleteConfirm"))) return;
+    try {
+      await deleteEntry.mutateAsync(id);
+      notify.success(t("products.costHistory.deleteSuccess"));
       void refetch();
     } catch (e) {
       notify.error(toErrorMessage(e));
@@ -247,6 +324,14 @@ export function ProductCostHistoryScreen() {
                           {t("products.costHistory.vatRateShort")}: %{r.vatRate}
                         </p>
                         <p className="mt-1 break-words text-xs text-zinc-500">{r.note?.trim() || "—"}</p>
+                        <div className="mt-2 flex justify-end gap-2">
+                          <Button type="button" variant="secondary" onClick={() => onEditOpen(r.id)}>
+                            {t("common.edit")}
+                          </Button>
+                          <Button type="button" variant="ghost" onClick={() => void onDelete(r.id)}>
+                            {t("common.delete")}
+                          </Button>
+                        </div>
                       </MobileListCard>
                     ))}
                   </div>
@@ -263,6 +348,7 @@ export function ProductCostHistoryScreen() {
                           <TableHeader className="text-right">{t("products.costHistory.colIncVat")}</TableHeader>
                           <TableHeader className="text-right">{t("products.costHistory.colVatRate")}</TableHeader>
                           <TableHeader>{t("products.costHistory.colNote")}</TableHeader>
+                          <TableHeader className="text-right">{t("common.actions")}</TableHeader>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -280,6 +366,16 @@ export function ProductCostHistoryScreen() {
                             </TableCell>
                             <TableCell className="text-right tabular-nums">%{r.vatRate}</TableCell>
                             <TableCell>{r.note?.trim() || "—"}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="inline-flex items-center gap-2">
+                                <Button type="button" size="sm" variant="secondary" onClick={() => onEditOpen(r.id)}>
+                                  {t("common.edit")}
+                                </Button>
+                                <Button type="button" size="sm" variant="ghost" onClick={() => void onDelete(r.id)}>
+                                  {t("common.delete")}
+                                </Button>
+                              </div>
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -291,6 +387,108 @@ export function ProductCostHistoryScreen() {
           </div>
         }
       />
+
+      <Modal
+        open={editDialogOpen}
+        onClose={() => setEditDialogOpen(false)}
+        titleId="product-cost-edit-modal"
+        title={t("products.costHistory.editFormTitle")}
+        description={t("products.costHistory.subtitle")}
+        closeButtonLabel={t("common.close")}
+      >
+        <div className="space-y-3 px-4 pb-4 pt-1 sm:px-6 sm:pb-6">
+          <div className="grid gap-3 md:grid-cols-2">
+            <Input
+              name="productReadonly"
+              label={t("products.costHistory.productLabel")}
+              value={productOptions.find((opt) => opt.value === String(productId))?.label || ""}
+              readOnly
+            />
+            <DateField
+              name="effectiveDateEdit"
+              label={t("products.costHistory.effectiveDateLabel")}
+              value={effectiveDate}
+              onChange={(e) => setEffectiveDate(e.target.value)}
+            />
+            <Input
+              name="unitEdit"
+              label={t("products.costHistory.unitLabel")}
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+              maxLength={20}
+            />
+            <Select
+              name="currencyCodeEdit"
+              label={t("products.costHistory.currencyLabel")}
+              value={currencyCode}
+              options={currencyOptions}
+              onBlur={() => undefined}
+              onChange={(e) => setCurrencyCode((e.target.value || "TRY").toUpperCase())}
+            />
+            <Input
+              name="vatRateEdit"
+              label={t("products.costHistory.vatRateLabel")}
+              type="number"
+              min={0}
+              max={100}
+              step="0.01"
+              value={vatRate}
+              onChange={(e) => setVatRate(e.target.value)}
+            />
+            <Input
+              name="noteEdit"
+              label={t("products.costHistory.noteLabel")}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              maxLength={250}
+            />
+            <Input
+              name="unitCostExVatEdit"
+              label={t("products.costHistory.unitCostExVatLabel")}
+              type="number"
+              min={0}
+              step="0.01"
+              value={unitCostExVat}
+              onChange={(e) => {
+                const next = e.target.value;
+                setLastEditedCostField("ex");
+                setUnitCostExVat(next);
+                const ex = parseNum(next);
+                const rate = parseNum(vatRate);
+                if (!Number.isFinite(ex) || !Number.isFinite(rate) || rate < 0 || rate > 100) return;
+                setUnitCostIncVat(((ex * (100 + rate)) / 100).toFixed(2));
+              }}
+              onBlur={handleExVatBlur}
+            />
+            <Input
+              name="unitCostIncVatEdit"
+              label={t("products.costHistory.unitCostIncVatLabel")}
+              type="number"
+              min={0}
+              step="0.01"
+              value={unitCostIncVat}
+              onChange={(e) => {
+                const next = e.target.value;
+                setLastEditedCostField("inc");
+                setUnitCostIncVat(next);
+                const inc = parseNum(next);
+                const rate = parseNum(vatRate);
+                if (!Number.isFinite(inc) || !Number.isFinite(rate) || rate < 0 || rate > 100) return;
+                setUnitCostExVat(((inc * 100) / (100 + rate)).toFixed(2));
+              }}
+              onBlur={handleIncVatBlur}
+            />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={() => setEditDialogOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button type="button" onClick={() => void onUpdate()} disabled={updateEntry.isPending}>
+              {updateEntry.isPending ? t("common.saving") : t("common.save")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         open={addDialogOpen}

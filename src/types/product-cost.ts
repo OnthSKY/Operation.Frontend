@@ -28,3 +28,14 @@ export type CreateProductCostInput = {
   unitCostIncludingVat: number;
   note?: string | null;
 };
+
+export type UpdateProductCostInput = {
+  id: number;
+  effectiveDate: string;
+  unit: string;
+  currencyCode: string;
+  vatRate: number;
+  unitCostExcludingVat: number;
+  unitCostIncludingVat: number;
+  note?: string | null;
+};

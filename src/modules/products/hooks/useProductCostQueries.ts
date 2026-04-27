@@ -4,11 +4,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { productsRootKey } from "@/modules/stock/query-keys";
 import {
   createProductCostEntry,
+  deleteProductCostEntry,
   fetchProductCostHistory,
+  updateProductCostEntry,
 } from "@/modules/products/api/product-costs-api";
 import type {
   CreateProductCostInput,
   ProductCostHistoryQueryParams,
+  UpdateProductCostInput,
 } from "@/types/product-cost";
 
 export const productCostKeys = {
@@ -44,6 +47,28 @@ export function useCreateProductCostEntry() {
           dateTo: "",
         }),
       });
+    },
+  });
+}
+
+export function useUpdateProductCostEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateProductCostInput) => updateProductCostEntry(input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: productCostKeys.all });
+      void qc.invalidateQueries({ queryKey: [...productsRootKey, "catalog"] });
+    },
+  });
+}
+
+export function useDeleteProductCostEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => deleteProductCostEntry(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: productCostKeys.all });
+      void qc.invalidateQueries({ queryKey: [...productsRootKey, "catalog"] });
     },
   });
 }
