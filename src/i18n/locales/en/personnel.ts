@@ -631,6 +631,7 @@ export const personnel = {
     "Leave empty if this is the current coverage period.",
   insuranceAddPeriodSeasonArrivalBlocked:
     "Set the personnel’s tourism season arrival date on their record before adding an insurance period.",
+  insuranceAddPeriodGoSeasonArrivals: "Go to season arrivals tab",
   insuranceAddPeriodSaveBlockedSeasonArrival:
     "Enter the personnel's tourism season arrival date before saving.",
   insuranceAddPeriodSaveBlockedBranch:

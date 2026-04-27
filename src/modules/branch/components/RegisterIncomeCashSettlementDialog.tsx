@@ -6,6 +6,7 @@ import {
   usePatchBranchTransactionCashSettlement,
 } from "@/modules/branch/hooks/useBranchQueries";
 import { txCategoryLine } from "@/modules/branch/lib/branch-transaction-options";
+import { registerCashSettlementLabel } from "@/modules/branch/components/BranchDetailTabs.shared";
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
 import type { BranchTransaction } from "@/types/branch-transaction";
 import type { Personnel } from "@/types/personnel";
@@ -16,6 +17,7 @@ import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { Button } from "@/shared/ui/Button";
+import { Checkbox } from "@/shared/ui/Checkbox";
 import { Modal } from "@/shared/ui/Modal";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import { useQuery } from "@tanstack/react-query";
@@ -113,7 +115,7 @@ export function RegisterIncomeCashSettlementDialog({
 
   const staffOptions: SelectOption[] = useMemo(() => {
     const loc = locale === "tr" ? "tr" : "en";
-    const list = branchStaff.filter((p) => !p.isDeleted && p.branchId === branchId);
+    const list = branchStaff.filter((p) => !p.isDeleted);
     return [
       { value: "", label: t("branch.cashSettlementResponsiblePick") },
       ...[...list]
@@ -123,10 +125,13 @@ export function RegisterIncomeCashSettlementDialog({
           label: `${personnelDisplayName(p)} · ${t(`personnel.jobTitles.${p.jobTitle}`)}`,
         })),
     ];
-  }, [branchStaff, branchId, locale, t]);
+  }, [branchStaff, locale, t]);
 
   const allCandidatesSelected =
     candidates.length > 0 && candidates.every((c) => selectedIds.has(c.id));
+  const rowsWithExistingSettlement = candidates.filter(
+    (c) => String(c.cashSettlementParty ?? "").trim().length > 0
+  ).length;
 
   const selectionDirty =
     mode === "bulk" &&
@@ -271,10 +276,12 @@ export function RegisterIncomeCashSettlementDialog({
         ) : null}
 
         {mode === "bulk" && bulkDatesOk ? (
-          <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-2">
+          <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/80 p-2.5 shadow-inner shadow-zinc-200/30">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200/80 pb-2">
               <p className="text-xs font-semibold text-zinc-800">{t("branch.registerCashSettlementRowsTitle")}</p>
-              <p className="text-[11px] text-zinc-600">{selectedCountLabel}</p>
+              <p className="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-700 shadow-sm">
+                {selectedCountLabel}
+              </p>
             </div>
             {candidatesLoading ? (
               <p className="py-4 text-center text-sm text-zinc-500">{t("branch.registerCashSettlementCandidatesLoading")}</p>
@@ -284,29 +291,51 @@ export function RegisterIncomeCashSettlementDialog({
               <p className="py-4 text-center text-sm text-zinc-600">{t("branch.registerCashSettlementCandidatesEmpty")}</p>
             ) : (
               <>
-                <label className="flex cursor-pointer items-center gap-2 border-b border-zinc-200/60 px-1 py-2 text-sm font-medium text-zinc-800">
-                  <input
-                    type="checkbox"
-                    className="h-4 w-4 rounded border-zinc-400 text-zinc-900"
-                    checked={allCandidatesSelected}
-                    onChange={toggleSelectAll}
-                    aria-label={t("branch.registerCashSettlementSelectAll")}
-                  />
-                  <span>{t("branch.registerCashSettlementSelectAll")}</span>
-                </label>
+                <div className="my-2 rounded-lg border border-zinc-200/90 bg-white px-2 py-2 shadow-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        checked={allCandidatesSelected}
+                        onCheckedChange={() => toggleSelectAll()}
+                        aria-label={t("branch.registerCashSettlementSelectAll")}
+                      />
+                      <span className="text-sm font-semibold text-zinc-800">
+                        {t("branch.registerCashSettlementSelectAll")}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-zinc-500">{candidates.length}</span>
+                  </div>
+                  {rowsWithExistingSettlement > 0 ? (
+                    <p className="mt-1.5 text-[11px] font-medium text-amber-800">
+                      {t("branch.registerCashSettlementExistingRowsHint").replace(
+                        "{n}",
+                        String(rowsWithExistingSettlement)
+                      )}
+                    </p>
+                  ) : null}
+                </div>
                 <div className="max-h-56 overflow-y-auto overscroll-y-contain">
-                  <ul className="divide-y divide-zinc-200/80">
+                  <ul className="space-y-1.5">
                     {candidates.map((row) => (
                       <li key={row.id}>
-                        <label className="flex cursor-pointer items-start gap-2 px-1 py-2 text-sm hover:bg-white/80">
-                          <input
-                            type="checkbox"
-                            className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-400 text-zinc-900"
+                        {(() => {
+                          const existing = registerCashSettlementLabel(row, t);
+                          const hasExisting = existing.trim().length > 0;
+                          return (
+                        <div
+                          className={`flex items-start gap-2 rounded-lg border px-2 py-2 text-sm transition ${
+                            selectedIds.has(row.id)
+                              ? "border-violet-200 bg-violet-50/70 ring-1 ring-violet-100"
+                              : "border-zinc-200/80 bg-white hover:border-zinc-300 hover:bg-zinc-50/80"
+                          }`}
+                        >
+                          <Checkbox
+                            className="mt-0.5"
                             checked={selectedIds.has(row.id)}
-                            onChange={() => toggleRow(row.id)}
+                            onCheckedChange={() => toggleRow(row.id)}
                             aria-label={`#${row.id}`}
                           />
-                          <span className="min-w-0 flex-1">
+                          <div className="min-w-0 flex-1">
                             <span className="font-mono text-xs text-zinc-500">#{row.id}</span>{" "}
                             <span className="text-zinc-700">
                               {formatLocaleDate(row.transactionDate, locale)}
@@ -318,8 +347,15 @@ export function RegisterIncomeCashSettlementDialog({
                             <span className="mt-0.5 block text-xs text-zinc-600">
                               {txCategoryLine(row.mainCategory, row.category, t) || "—"}
                             </span>
-                          </span>
-                        </label>
+                            {hasExisting ? (
+                              <span className="mt-1.5 inline-flex items-center gap-1 rounded-full border border-amber-300/80 bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-900">
+                                {t("branch.registerCashSettlementExistingBadge")}: {existing}
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                          );
+                        })()}
                       </li>
                     ))}
                   </ul>

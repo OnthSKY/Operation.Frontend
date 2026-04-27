@@ -27,6 +27,7 @@ export const documents = {
   noDetail: "No detail",
   empty: "No documents found for current filters.",
   quickAdd: "Quick add document",
+  orderStatementPdfQuickFilter: "Order/Statement PDFs",
   uploadCategoryLabel: "Category",
   uploadBranchLabel: "Branch",
   uploadBranchKindLabel: "Document kind",

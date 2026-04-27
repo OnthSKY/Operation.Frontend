@@ -21,14 +21,25 @@ import { uploadBranchDocument } from "@/modules/branch/api/branch-documents-api"
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { computeSuggestedLineTotal } from "@/modules/order-account-statement/lib/suggested-line-total";
 import {
+  addOutboundInvoiceReceipt,
+  createShipmentInvoice,
   createOutboundInvoice,
+  fetchOutboundInvoices,
   fetchCounterpartySuggestions,
+  fetchShipmentInvoiceability,
   type CounterpartySuggestionRow,
+  type OutboundInvoiceResponse,
+  type ShipmentInvoiceabilityLine,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
 import { cn } from "@/lib/cn";
 import { OVERLAY_Z_INDEX, OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
 import { apiFetch } from "@/shared/api/client";
-import { fetchWarehouseOutboundShipmentMovementForEdit } from "@/modules/warehouse/api/warehouses-api";
+import {
+  fetchWarehouseOutboundShipmentMovementForEdit,
+  fetchWarehouses,
+  type WarehouseOutboundShipmentMovementEditResponse,
+} from "@/modules/warehouse/api/warehouses-api";
+import { fetchWarehouseMovementsPage } from "@/modules/warehouse/api/warehouse-stock-api";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatLocaleAmount, formatLocaleAmountInput, parseLocaleAmount } from "@/shared/lib/locale-amount";
 import { notify } from "@/shared/lib/notify";
@@ -37,6 +48,8 @@ import { detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
 import { ModernSelect } from "@/shared/ui/ModernSelect";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import { Button } from "@/shared/ui/Button";
+import { Modal } from "@/shared/ui/Modal";
+import { RichCombobox, type RichComboboxOption } from "@/shared/ui/RichCombobox";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -66,9 +79,32 @@ type LineDraft = OrderAccountLine & {
   kgText: string;
   tryPerKgText: string;
   selectedProductId?: number | null;
+  parentProductId?: number | null;
+  parentProductName?: string | null;
+  lineSource?: "shipment" | "manual";
+  manualReasonCode?: string | null;
+  sourceShipmentLineId?: number | null;
+  sourceWarehouseMovementId?: number | null;
 };
 type PaidDraft = PaidOnBehalfLine & { amountText: string };
 type PromoDraft = PromoDeductionLine & { amountText: string };
+type ShipmentOption = {
+  key: string;
+  warehouseId: number;
+  warehouseName: string;
+  branchName: string;
+  movementDate: string;
+  movementIds: number[];
+  items: Array<{
+    movementId: number;
+    productId: number;
+    parentProductId?: number | null;
+    parentProductName?: string | null;
+    productName: string;
+    quantity: number;
+    unit: string;
+  }>;
+};
 
 function newId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
@@ -89,6 +125,12 @@ function emptyLine(): LineDraft {
     kgText: "",
     tryPerKgText: "",
     selectedProductId: null,
+    parentProductId: null,
+    parentProductName: null,
+    lineSource: "manual",
+    manualReasonCode: "OPS_OTHER",
+    sourceShipmentLineId: null,
+    sourceWarehouseMovementId: null,
   };
 }
 
@@ -467,6 +509,48 @@ function isoDateOnly(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+function buildOrderAccountDocumentMetadata(input: {
+  orderDocumentKey: string;
+  companyName: string;
+  branchName: string;
+  title: string;
+  invoiceId?: number | null;
+  invoiceNo?: string | null;
+  counterpartyLabel?: string | null;
+}): string {
+  const parts = [
+    "Sipariş-hesap dökümü PDF",
+    `orderKey=${input.orderDocumentKey}`,
+    `company=${input.companyName || "—"}`,
+    `branch=${input.branchName || "—"}`,
+    `title=${input.title || "—"}`,
+  ];
+  if (input.invoiceId && Number.isFinite(input.invoiceId)) parts.push(`invoiceId=${input.invoiceId}`);
+  if (input.invoiceNo?.trim()) parts.push(`invoiceNo=${input.invoiceNo.trim()}`);
+  if (input.counterpartyLabel?.trim()) parts.push(`counterparty=${input.counterpartyLabel.trim()}`);
+  return parts.join(" · ");
+}
+
+function allocateReceiptByOpenAmount(
+  invoices: OutboundInvoiceResponse[],
+  amount: number
+): Array<{ invoiceId: number; amount: number }> {
+  if (!Number.isFinite(amount) || amount <= 0) return [];
+  const remainingByOldest = [...invoices]
+    .filter((x) => Number.isFinite(x.openAmount) && x.openAmount > 0)
+    .sort((a, b) => String(a.issueDate).localeCompare(String(b.issueDate)));
+  const result: Array<{ invoiceId: number; amount: number }> = [];
+  let left = amount;
+  for (const inv of remainingByOldest) {
+    if (left <= 0) break;
+    const useAmount = Math.min(left, Number(inv.openAmount) || 0);
+    if (useAmount <= 0) continue;
+    result.push({ invoiceId: inv.id, amount: useAmount });
+    left -= useAmount;
+  }
+  return result;
+}
+
 function parseLines(lines: LineDraft[], locale: Locale): OrderAccountLine[] {
   return lines.map((l) => {
     const q = (l.quantityText ?? "").trim();
@@ -477,6 +561,10 @@ function parseLines(lines: LineDraft[], locale: Locale): OrderAccountLine[] {
       description: l.description.trim(),
       amount: parseLocaleAmount(l.amountText, locale) || 0,
       isGift: l.isGift,
+      lineSource: l.lineSource ?? "manual",
+      manualReasonCode: l.manualReasonCode ?? "OPS_OTHER",
+      sourceShipmentLineId: l.sourceShipmentLineId ?? null,
+      sourceWarehouseMovementId: l.sourceWarehouseMovementId ?? null,
       ...(q ? { quantityText: q } : {}),
       ...(unit ? { unitText: unit } : {}),
       ...(u ? { unitPriceText: u } : {}),
@@ -1042,6 +1130,11 @@ function LineCalcBlock({
                           className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-2 py-2 text-sm tabular-nums"
                           value={line.unitPriceText}
                           onChange={(e) => patch({ unitPriceText: e.target.value })}
+                          onBlur={() => {
+                            const n = parseLocaleAmount(line.unitPriceText, locale);
+                            if (!Number.isFinite(n)) return;
+                            patch({ unitPriceText: formatLocaleAmountInput(n, locale) });
+                          }}
                         />
                       </label>
                     </div>
@@ -1572,7 +1665,9 @@ export function OrderAccountStatementScreen() {
   const [suggestions, setSuggestions] = useState<CounterpartySuggestionRow[]>([]);
   const [suggestionsBusy, setSuggestionsBusy] = useState(false);
   const [emblemDataUrl, setEmblemDataUrl] = useState("");
+  const [defaultEmblemDataUrl, setDefaultEmblemDataUrl] = useState("");
   const [documentTitle, setDocumentTitle] = useState("");
+  const [defaultCompanyName, setDefaultCompanyName] = useState("");
   const [showDocumentTagline, setShowDocumentTagline] = useState(true);
   const [lines, setLines] = useState<LineDraft[]>(() => [emptyLine()]);
   const [paidLines, setPaidLines] = useState<PaidDraft[]>(() => []);
@@ -1585,6 +1680,37 @@ export function OrderAccountStatementScreen() {
   const [showQuantityColumn, setShowQuantityColumn] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [portalMounted, setPortalMounted] = useState(false);
+  const [creationMode, setCreationMode] = useState<"manual" | "shipmentBased">("manual");
+  const [shipmentLinkMode, setShipmentLinkMode] = useState<"strict" | "partial">("strict");
+  const [shipmentInvoiceability, setShipmentInvoiceability] = useState<ShipmentInvoiceabilityLine[]>([]);
+  const [shipmentInvoiceabilityBusy, setShipmentInvoiceabilityBusy] = useState(false);
+  const [manualShipmentWarehouseIdText, setManualShipmentWarehouseIdText] = useState("");
+  const [manualShipmentMovementIdText, setManualShipmentMovementIdText] = useState("");
+  const [manualShipmentBusy, setManualShipmentBusy] = useState(false);
+  const [shipmentOptionsBusy, setShipmentOptionsBusy] = useState(false);
+  const [shipmentOptions, setShipmentOptions] = useState<ShipmentOption[]>([]);
+  const [selectedShipmentOptionKey, setSelectedShipmentOptionKey] = useState("");
+  const [shipmentDetailOpen, setShipmentDetailOpen] = useState(false);
+  const [selectedShipmentDetail, setSelectedShipmentDetail] = useState<WarehouseOutboundShipmentMovementEditResponse | null>(null);
+  const [selectedShipmentSource, setSelectedShipmentSource] = useState<{
+    key: string;
+    warehouseId: number;
+    primaryMovementId: number;
+    movementIds: number[];
+    source: "auto" | "manual";
+  } | null>(null);
+  const [selectedShipmentProductKind, setSelectedShipmentProductKind] = useState<"parent" | "child" | "unknown">(
+    "unknown"
+  );
+  const [lastCreatedInvoiceId, setLastCreatedInvoiceId] = useState<number | null>(null);
+  const [lastSavedDocumentId, setLastSavedDocumentId] = useState<number | null>(null);
+  const [orderDocumentKey, setOrderDocumentKey] = useState(() => `oas-${Date.now().toString(36)}`);
+  const [receiptAmountText, setReceiptAmountText] = useState("");
+  const [receiptNotesText, setReceiptNotesText] = useState("");
+  const [allocateReceiptToInvoices, setAllocateReceiptToInvoices] = useState(false);
+  const [invoiceAllocationText, setInvoiceAllocationText] = useState<Record<number, string>>({});
+  const [postingBusy, setPostingBusy] = useState(false);
+  const [editorPane, setEditorPane] = useState<"document" | "finance">("document");
 
   useEffect(() => {
     const branchIdText = linkedBranchId.trim();
@@ -1620,6 +1746,207 @@ export function OrderAccountStatementScreen() {
     const raw = (searchParams.get("invoiceDraft") ?? "").trim().toLowerCase();
     return raw === "1" || raw === "true" || raw === "yes";
   }, [searchParams]);
+  const orderKeyFromQuery = useMemo(() => (searchParams.get("orderKey") ?? "").trim(), [searchParams]);
+
+  useEffect(() => {
+    if (!shipmentPrefillParams) return;
+    setCreationMode("shipmentBased");
+  }, [shipmentPrefillParams]);
+
+  const loadShipmentIntoForm = useCallback(
+    async (warehouseId: number, movementId: number, source: "auto" | "manual") => {
+      const shipment = await fetchWarehouseOutboundShipmentMovementForEdit(warehouseId, movementId);
+      const productMeta = catalog.find((p) => p.id === shipment.productId);
+      const productKind: "parent" | "child" | "unknown" = productMeta
+        ? productMeta.parentProductId && productMeta.parentProductId > 0
+          ? "child"
+          : "parent"
+        : "unknown";
+      setSelectedShipmentProductKind(productKind);
+      setSelectedShipmentDetail(shipment);
+      setManualShipmentWarehouseIdText(String(warehouseId));
+      setManualShipmentMovementIdText(String(movementId));
+      setBranchName(shipment.branchName?.trim() || "");
+      setLinkedBranchId(String(shipment.branchId));
+      setShowQuantityColumn(true);
+      setSaveAsInvoice(true);
+      setSaveToSystem(true);
+      if (source === "auto") setInvoiceAutoPost(!shipmentPrefillDraftMode ? true : false);
+      setCustomerAccountIdText("");
+      setLines([
+        {
+          id: newId(),
+          description: shipment.productName?.trim() || "",
+          quantityText: formatLocaleAmountInput(Math.max(0, Number(shipment.quantity) || 0), locale),
+          unitText: shipment.unit?.trim() || "",
+          amount: 0,
+          amountText: "",
+          isGift: false,
+          priceCalcMode: "piece",
+          qtyText: formatLocaleAmountInput(Math.max(0, Number(shipment.quantity) || 0), locale),
+          unitPriceText: "",
+          kgText: "",
+          tryPerKgText: "",
+          selectedProductId: shipment.productId,
+          parentProductId: productMeta?.parentProductId ?? null,
+          parentProductName: productMeta?.parentProductName ?? null,
+          lineSource: "shipment",
+          manualReasonCode: null,
+          sourceShipmentLineId: shipment.branchStockMovementId,
+          sourceWarehouseMovementId: shipment.id,
+        },
+      ]);
+      setSelectedShipmentSource({
+        key: `${warehouseId}:${movementId}`,
+        warehouseId,
+        primaryMovementId: movementId,
+        movementIds: [movementId],
+        source,
+      });
+      if (!documentTitle.trim()) {
+        setDocumentTitle(t("reports.orderAccountStatementDocTitle"));
+      }
+      const rows = await fetchShipmentInvoiceability(movementId);
+      setShipmentInvoiceability(rows);
+    },
+    [catalog, documentTitle, locale, shipmentPrefillDraftMode, t]
+  );
+  const loadShipmentGroupIntoForm = useCallback(
+    async (option: ShipmentOption, source: "auto" | "manual") => {
+      const firstMovementId = option.movementIds[0];
+      if (!firstMovementId) return;
+      const first = await fetchWarehouseOutboundShipmentMovementForEdit(option.warehouseId, firstMovementId);
+      setSelectedShipmentDetail(first);
+      setManualShipmentWarehouseIdText(String(option.warehouseId));
+      setManualShipmentMovementIdText(String(firstMovementId));
+      setBranchName(first.branchName?.trim() || option.branchName || "");
+      setLinkedBranchId(String(first.branchId));
+      setShowQuantityColumn(true);
+      setSaveAsInvoice(true);
+      setSaveToSystem(true);
+      if (source === "auto") setInvoiceAutoPost(!shipmentPrefillDraftMode ? true : false);
+      setCustomerAccountIdText("");
+      const productById = new Map(catalog.map((p) => [p.id, p] as const));
+      const hasChild = option.items.some((x) => {
+        const p = productById.get(x.productId);
+        return Boolean(p?.parentProductId && p.parentProductId > 0);
+      });
+      const hasParent = option.items.some((x) => {
+        const p = productById.get(x.productId);
+        return Boolean(!p || !p.parentProductId || p.parentProductId <= 0);
+      });
+      setSelectedShipmentProductKind(hasChild && hasParent ? "unknown" : hasChild ? "child" : "parent");
+      setLines(
+        option.items.map((it) => ({
+          ...emptyLine(),
+          id: newId(),
+          description: it.productName?.trim() || "",
+          quantityText: formatLocaleAmountInput(Math.max(0, Number(it.quantity) || 0), locale),
+          unitText: it.unit?.trim() || "",
+          qtyText: formatLocaleAmountInput(Math.max(0, Number(it.quantity) || 0), locale),
+          selectedProductId: it.productId,
+          parentProductId: it.parentProductId ?? null,
+          parentProductName: it.parentProductName ?? null,
+          lineSource: "shipment",
+          manualReasonCode: null,
+          sourceShipmentLineId: null,
+          sourceWarehouseMovementId: it.movementId,
+        }))
+      );
+      setSelectedShipmentSource({
+        key: option.key,
+        warehouseId: option.warehouseId,
+        primaryMovementId: firstMovementId,
+        movementIds: option.movementIds,
+        source,
+      });
+      if (!documentTitle.trim()) {
+        setDocumentTitle(t("reports.orderAccountStatementDocTitle"));
+      }
+      const invoiceabilityGroups = await Promise.all(
+        option.movementIds.map(async (movementId) => await fetchShipmentInvoiceability(movementId))
+      );
+      setShipmentInvoiceability(invoiceabilityGroups.flat());
+    },
+    [catalog, documentTitle, locale, shipmentPrefillDraftMode, t]
+  );
+
+  useEffect(() => {
+    if (!orderKeyFromQuery) return;
+    setOrderDocumentKey(orderKeyFromQuery);
+  }, [orderKeyFromQuery]);
+
+  useEffect(() => {
+    if (creationMode !== "shipmentBased") return;
+    let alive = true;
+    setShipmentOptionsBusy(true);
+    void (async () => {
+      try {
+        const warehouses = await fetchWarehouses();
+        const pages = await Promise.all(
+          warehouses.map(async (w) => {
+            const page = await fetchWarehouseMovementsPage(w.id, { page: 1, pageSize: 200, type: "OUT" });
+            return { warehouse: w, items: page.items };
+          })
+        );
+        if (!alive) return;
+        const groups = new Map<string, ShipmentOption>();
+        for (const { warehouse, items } of pages) {
+          for (const m of items) {
+            if (!(m.type === "OUT" && m.isDepotToBranchShipment)) continue;
+            const branchName = m.outDestinationBranchName?.trim() || "-";
+            const groupKey = `${warehouse.id}|${branchName}|${m.movementDate}`;
+            const existing = groups.get(groupKey);
+            if (!existing) {
+              groups.set(groupKey, {
+                key: groupKey,
+                warehouseId: warehouse.id,
+                warehouseName: warehouse.name,
+                branchName,
+                movementDate: m.movementDate,
+                movementIds: [m.id],
+                items: [
+                  {
+                    movementId: m.id,
+                    productId: m.productId,
+                    parentProductId: m.parentProductId ?? null,
+                    parentProductName: m.parentProductName ?? null,
+                    productName: m.productName,
+                    quantity: Number(m.quantity) || 0,
+                    unit: m.unit?.trim() || "",
+                  },
+                ],
+              });
+            } else {
+              if (!existing.movementIds.includes(m.id)) existing.movementIds.push(m.id);
+              existing.items.push({
+                movementId: m.id,
+                productId: m.productId,
+                parentProductId: m.parentProductId ?? null,
+                parentProductName: m.parentProductName ?? null,
+                productName: m.productName,
+                quantity: Number(m.quantity) || 0,
+                unit: m.unit?.trim() || "",
+              });
+            }
+          }
+        }
+        const options: ShipmentOption[] = [...groups.values()].sort((a, b) =>
+          String(b.movementDate).localeCompare(String(a.movementDate))
+        );
+        setShipmentOptions(options);
+      } catch {
+        if (!alive) return;
+        setShipmentOptions([]);
+      } finally {
+        if (!alive) return;
+        setShipmentOptionsBusy(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [creationMode]);
 
   const loadBrandingLogoAsDataUrl = useCallback(async (updatedAtUtc?: string | null): Promise<string> => {
     const res = await apiFetch(companyBrandingLogoUrl(updatedAtUtc));
@@ -1648,13 +1975,16 @@ export function OrderAccountStatementScreen() {
     void fetchSystemBranding()
       .then(async (branding) => {
         if (!alive) return;
-        if (!companyName.trim() && branding.companyName?.trim()) {
-          setCompanyName(branding.companyName.trim());
+        const brandingCompany = branding.companyName?.trim() || "";
+        if (brandingCompany) {
+          setDefaultCompanyName(brandingCompany);
+          if (!companyName.trim()) setCompanyName(brandingCompany);
         }
         if (!emblemDataUrl && branding.hasLogo) {
           try {
             const dataUrl = await loadBrandingLogoAsDataUrl(branding.updatedAtUtc);
             if (!alive) return;
+            setDefaultEmblemDataUrl(dataUrl);
             setEmblemDataUrl(dataUrl);
           } catch {
             // Branding logo yoksa sessiz geç; kullanıcı manuel seçebilir.
@@ -1674,38 +2004,13 @@ export function OrderAccountStatementScreen() {
     if (shipmentPrefillKeyRef.current === shipmentPrefillParams.key) return;
     shipmentPrefillKeyRef.current = shipmentPrefillParams.key;
     let alive = true;
-    void fetchWarehouseOutboundShipmentMovementForEdit(
+    void loadShipmentIntoForm(
       shipmentPrefillParams.warehouseId,
-      shipmentPrefillParams.movementId
+      shipmentPrefillParams.movementId,
+      "auto"
     )
-      .then((shipment) => {
+      .then(() => {
         if (!alive) return;
-        setBranchName(shipment.branchName?.trim() || "");
-        setLinkedBranchId(String(shipment.branchId));
-        setShowQuantityColumn(true);
-        setSaveAsInvoice(true);
-        setInvoiceAutoPost(!shipmentPrefillDraftMode ? true : false);
-        setSaveToSystem(true);
-        setCustomerAccountIdText("");
-        setLines([
-          {
-            id: newId(),
-            description: shipment.productName?.trim() || "",
-            quantityText: formatLocaleAmountInput(Math.max(0, Number(shipment.quantity) || 0), locale),
-            unitText: shipment.unit?.trim() || "",
-            amount: 0,
-            amountText: "",
-            isGift: false,
-            priceCalcMode: "piece",
-            qtyText: formatLocaleAmountInput(Math.max(0, Number(shipment.quantity) || 0), locale),
-            unitPriceText: "",
-            kgText: "",
-            tryPerKgText: "",
-          },
-        ]);
-        if (!documentTitle.trim()) {
-          setDocumentTitle(t("reports.orderAccountStatementDocTitle"));
-        }
         // Sevkiyattan gelen akışta kullanıcı hızlıca PDF alabilsin diye önizlemeyi direkt aç.
         setPreviewModalOpen(true);
       })
@@ -1716,7 +2021,57 @@ export function OrderAccountStatementScreen() {
     return () => {
       alive = false;
     };
-  }, [documentTitle, locale, shipmentPrefillDraftMode, shipmentPrefillParams, t]);
+  }, [loadShipmentIntoForm, shipmentPrefillParams]);
+
+  useEffect(() => {
+    if (!selectedShipmentSource) {
+      setSelectedShipmentOptionKey("");
+      return;
+    }
+    setSelectedShipmentOptionKey(selectedShipmentSource.key);
+  }, [selectedShipmentSource]);
+
+  const shipmentComboboxOptions = useMemo<RichComboboxOption[]>(
+    () =>
+      shipmentOptions.map((opt) => ({
+        value: opt.key,
+        title: `${opt.warehouseName} · ${opt.branchName}`,
+        description: `${t("reports.orderAccountStatementShipmentDetailBranch")}: ${opt.branchName} · ${t("reports.orderAccountStatementShipmentDetailDate")}: ${opt.movementDate}`,
+        detail: `${t("reports.orderAccountStatementShipmentProductKindLabel")}: ${
+          opt.items.some((x) => x.parentProductId && x.parentProductId > 0)
+            ? t("reports.orderAccountStatementShipmentProductKindChild")
+            : t("reports.orderAccountStatementShipmentProductKindParent")
+        } · ${t("reports.orderAccountStatementShipmentProductCount")}: ${opt.items.length} · ${t("reports.orderAccountStatementShipmentDetailWarehouseId")}#${opt.warehouseId}`,
+      })),
+    [locale, shipmentOptions, t]
+  );
+
+  useEffect(() => {
+    if (!selectedShipmentSource) {
+      setShipmentInvoiceability([]);
+      return;
+    }
+    let alive = true;
+    setShipmentInvoiceabilityBusy(true);
+    void Promise.all(
+      selectedShipmentSource.movementIds.map(async (movementId) => await fetchShipmentInvoiceability(movementId))
+    )
+      .then((rowsGroups) => {
+        if (!alive) return;
+        setShipmentInvoiceability(rowsGroups.flat());
+      })
+      .catch(() => {
+        if (!alive) return;
+        setShipmentInvoiceability([]);
+      })
+      .finally(() => {
+        if (!alive) return;
+        setShipmentInvoiceabilityBusy(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [selectedShipmentSource]);
 
   useEffect(() => {
     let alive = true;
@@ -1792,6 +2147,8 @@ export function OrderAccountStatementScreen() {
           return {
             ...x,
             selectedProductId: p.id,
+            parentProductId: p.parentProductId ?? null,
+            parentProductName: p.parentProductName ?? null,
             description: p.name,
             unitText: nextUnitText,
             unitPriceText: suggestedUnitPrice,
@@ -1802,6 +2159,72 @@ export function OrderAccountStatementScreen() {
     },
     [catalog, latestCostByProductId, locale]
   );
+  const collapseLinesToParentProduct = useCallback(() => {
+    const productById = new Map(catalog.map((p) => [p.id, p] as const));
+    const normalize = (v: string) =>
+      v
+        .toLocaleLowerCase("tr-TR")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .trim();
+    const productByName = new Map(
+      catalog
+        .map((p) => [normalize(p.name ?? ""), p] as const)
+        .filter(([k]) => k.length > 0)
+    );
+    const grouped = new Map<string, LineDraft>();
+    const passthrough: LineDraft[] = [];
+    for (const line of lines) {
+      const productId = line.selectedProductId ?? 0;
+      const guessedByName = productByName.get(normalize(line.description ?? ""));
+      const product = productById.get(productId) ?? guessedByName;
+      const parentId = line.parentProductId ?? product?.parentProductId ?? null;
+      const parentName = (line.parentProductName ?? product?.parentProductName ?? "").trim();
+      if (!parentId || !parentName) {
+        passthrough.push({ ...line });
+        continue;
+      }
+      const key = `${parentId}:${(line.unitText ?? "").trim().toLowerCase()}`;
+      const qty = Math.max(0, parseLocaleAmount((line.quantityText ?? "").trim(), locale) || 0);
+      const amount = Number.isFinite(line.amount) ? line.amount : parseLocaleAmount(line.amountText, locale) || 0;
+      const prev = grouped.get(key);
+      if (!prev) {
+        grouped.set(key, {
+          ...line,
+          id: newId(),
+          description: parentName,
+          quantityText: qty > 0 ? formatLocaleAmountInput(qty, locale) : "",
+          amount: Math.max(0, amount),
+          amountText: amount > 0 ? formatLocaleAmountInput(amount, locale) : "",
+          selectedProductId: null,
+          parentProductId: null,
+          parentProductName: null,
+          lineSource: "manual",
+          manualReasonCode: "OPS_PARENT_MERGE",
+          sourceShipmentLineId: null,
+          sourceWarehouseMovementId: null,
+        });
+      } else {
+        const prevQty = Math.max(0, parseLocaleAmount((prev.quantityText ?? "").trim(), locale) || 0);
+        const prevAmount = Number.isFinite(prev.amount) ? prev.amount : parseLocaleAmount(prev.amountText, locale) || 0;
+        const mergedQty = prevQty + qty;
+        const mergedAmount = Math.max(0, prevAmount + amount);
+        grouped.set(key, {
+          ...prev,
+          quantityText: mergedQty > 0 ? formatLocaleAmountInput(mergedQty, locale) : "",
+          amount: mergedAmount,
+          amountText: mergedAmount > 0 ? formatLocaleAmountInput(mergedAmount, locale) : "",
+        });
+      }
+    }
+    const merged = [...passthrough, ...grouped.values()];
+    if (merged.length === lines.length) {
+      notify.error(t("reports.orderAccountStatementParentMergeNoop"));
+      return;
+    }
+    setLines(merged);
+    notify.success(t("reports.orderAccountStatementParentMergeApplied"));
+  }, [catalog, lines, locale, t]);
   const lineCompact = lines.length > 1;
   /** 4+ satır: liste ve tabloda ek sıkılaştırma */
   const lineDense = lines.length > 3;
@@ -2023,7 +2446,7 @@ export function OrderAccountStatementScreen() {
   }, [applyContentPreset, contentPreset, fillTekinSample]);
 
   const resetForm = useCallback(() => {
-    setCompanyName("");
+    setCompanyName(defaultCompanyName);
     setBranchName("");
     setLinkedBranchId("");
     setSaveToSystem(true);
@@ -2036,7 +2459,10 @@ export function OrderAccountStatementScreen() {
     setPaymentNote("");
     setShowPaymentOnPdf(true);
     setLastCreatedInvoiceNo("");
-    setEmblemDataUrl("");
+    setLastCreatedInvoiceId(null);
+    setLastSavedDocumentId(null);
+    setOrderDocumentKey(`oas-${Date.now().toString(36)}`);
+    setEmblemDataUrl(defaultEmblemDataUrl);
     setDocumentTitle("");
     setShowDocumentTagline(true);
     setLines([emptyLine()]);
@@ -2046,7 +2472,16 @@ export function OrderAccountStatementScreen() {
     setPreviousBalanceText("");
     setContentPreset("custom");
     setLayoutVariant("corporate");
-  }, []);
+    setCreationMode(shipmentPrefillParams ? "shipmentBased" : "manual");
+    setShipmentLinkMode("strict");
+    setSelectedShipmentSource(null);
+    setSelectedShipmentProductKind("unknown");
+    setShipmentInvoiceability([]);
+    setReceiptAmountText("");
+    setReceiptNotesText("");
+    setAllocateReceiptToInvoices(false);
+    setInvoiceAllocationText({});
+  }, [defaultCompanyName, defaultEmblemDataUrl, shipmentPrefillParams]);
 
   const onEmblemFileChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -2090,88 +2525,131 @@ export function OrderAccountStatementScreen() {
       a.rel = "noopener";
       a.click();
       URL.revokeObjectURL(dlUrl);
+
       const safeCompany = companyName.trim() || "—";
       const safeBranch = branchName.trim() || "—";
       const safeTitle = documentTitle.trim() || t("reports.orderAccountStatementDocTitle");
+      const parsedBranchId = parseInt(linkedBranchId, 10);
+      const parsedCustomerId = parseInt(customerAccountIdText, 10);
+      const useBranchCounterparty = Number.isFinite(parsedBranchId) && parsedBranchId > 0;
+      const counterpartyType = useBranchCounterparty ? "branch" : "customer";
+      const counterpartyId = useBranchCounterparty ? parsedBranchId : parsedCustomerId;
+      let createdInvoice: OutboundInvoiceResponse | null = null;
+
+      if (saveAsInvoice) {
+        if (!useBranchCounterparty && (!Number.isFinite(parsedCustomerId) || parsedCustomerId <= 0)) {
+          notify.error(t("reports.orderAccountStatementInvoiceCounterpartyRequired"));
+          return;
+        }
+        const payloadLines = parsedLines
+          .filter((l) => l.description.trim().length > 0 && Number.isFinite(l.amount) && l.amount > 0)
+          .map((l) => ({
+            description: l.description.trim(),
+            quantity: Math.max(1, parseLocaleAmount((l.quantityText ?? "").trim(), locale) || 1),
+            unit: (l.unitText ?? "").trim() || null,
+            unitPrice: Math.max(0, parseLocaleAmount((l.unitPriceText ?? "").trim(), locale) || l.amount),
+            lineAmount: Math.max(0, l.amount),
+            lineSource: l.lineSource === "shipment" ? ("shipment" as const) : ("manual" as const),
+            manualReasonCode: l.lineSource === "shipment" ? null : (l.manualReasonCode ?? "OPS_OTHER"),
+            sourceShipmentLineId: l.sourceShipmentLineId ?? null,
+          }));
+        if (payloadLines.length === 0) {
+          notify.error(t("reports.orderAccountStatementInvoiceLinesRequired"));
+          return;
+        }
+        const invoicePayload = {
+          counterpartyType,
+          counterpartyId,
+          issueDate: isoDateOnly(statementDate),
+          currencyCode: "TRY",
+          shipmentLinkMode: shipmentLinkMode,
+          autoPostLedger: invoiceAutoPost,
+          notes: buildOrderAccountDocumentMetadata({
+            orderDocumentKey,
+            companyName: safeCompany,
+            branchName: safeBranch,
+            title: safeTitle,
+            counterpartyLabel: `${counterpartyType}:${counterpartyId}`,
+          }),
+          paymentInfo: {
+            iban: paymentIban.trim() || null,
+            accountHolder: paymentAccountHolder.trim() || null,
+            bankName: paymentBankName.trim() || null,
+            paymentNote: paymentNote.trim() || null,
+            showOnPdf: showPaymentOnPdf,
+          },
+          lines: payloadLines,
+        };
+        const useShipmentEndpoint =
+          creationMode === "shipmentBased" &&
+          selectedShipmentSource != null &&
+          payloadLines.some((x) => x.lineSource === "shipment");
+        createdInvoice = useShipmentEndpoint
+          ? await createShipmentInvoice(selectedShipmentSource.primaryMovementId, {
+              ...invoicePayload,
+              shipmentLinks:
+                selectedShipmentSource != null
+                  ? selectedShipmentSource.movementIds.map((movementId) => ({
+                      warehouseMovementId: movementId,
+                      quantity: 0,
+                    }))
+                  : [],
+            })
+          : await createOutboundInvoice(invoicePayload);
+        setLastCreatedInvoiceNo(createdInvoice.documentNumber);
+        setLastCreatedInvoiceId(createdInvoice.id);
+        const createdCounterpartyType = createdInvoice.counterpartyType;
+        const createdCounterpartyId = createdInvoice.counterpartyId;
+        setSuggestions((prev) =>
+          [
+            {
+              counterpartyType: createdInvoice.counterpartyType,
+              counterpartyId: createdInvoice.counterpartyId,
+              counterpartyName: createdInvoice.counterpartyName,
+              currencyCode: createdInvoice.currencyCode,
+              invoicedTotal: createdInvoice.linesTotal,
+              paidTotal: createdInvoice.paidTotal,
+              openAmount: createdInvoice.openAmount,
+              lastInvoiceDate: createdInvoice.issueDate,
+              lastDocumentNumber: createdInvoice.documentNumber,
+            },
+            ...prev.filter(
+              (x) =>
+                !(x.counterpartyType === createdCounterpartyType && x.counterpartyId === createdCounterpartyId)
+            ),
+          ].slice(0, 10)
+        );
+        notify.success(t("reports.orderAccountStatementInvoiceSaved"));
+      }
 
       if (saveToSystem) {
-        const branchId = parseInt(linkedBranchId, 10);
+        const branchId = parsedBranchId;
         if (!Number.isFinite(branchId) || branchId <= 0) {
           notify.error(t("reports.orderAccountStatementSystemBranchRequired"));
         } else {
           const systemFile = new File([docBlob], name, { type: "application/pdf" });
-          const note = `${t("reports.orderAccountStatementSystemNotePrefix")} · ${safeCompany} · ${safeBranch} · ${safeTitle} · ${isoDateStamp(new Date())}`;
-          await uploadBranchDocument(branchId, {
+          const note = buildOrderAccountDocumentMetadata({
+            orderDocumentKey,
+            companyName: safeCompany,
+            branchName: safeBranch,
+            title: safeTitle,
+            invoiceId: createdInvoice?.id,
+            invoiceNo: createdInvoice?.documentNumber,
+            counterpartyLabel:
+              createdInvoice != null
+                ? `${createdInvoice.counterpartyType}:${createdInvoice.counterpartyId}`
+                : `${counterpartyType}:${counterpartyId}`,
+          });
+          const saved = await uploadBranchDocument(branchId, {
             file: systemFile,
             kind: "OTHER",
             notes: note,
           });
+          setLastSavedDocumentId(saved.id);
           notify.success(t("reports.orderAccountStatementSystemSaved"));
         }
       }
 
-      if (saveAsInvoice) {
-        const parsedBranchId = parseInt(linkedBranchId, 10);
-        const parsedCustomerId = parseInt(customerAccountIdText, 10);
-        const useBranchCounterparty = Number.isFinite(parsedBranchId) && parsedBranchId > 0;
-        if (!useBranchCounterparty && (!Number.isFinite(parsedCustomerId) || parsedCustomerId <= 0)) {
-          notify.error(t("reports.orderAccountStatementInvoiceCounterpartyRequired"));
-        } else {
-          const payloadLines = parsedLines
-            .filter((l) => l.description.trim().length > 0 && Number.isFinite(l.amount) && l.amount > 0)
-            .map((l) => ({
-              description: l.description.trim(),
-              quantity: Math.max(1, parseLocaleAmount((l.quantityText ?? "").trim(), locale) || 1),
-              unit: (l.unitText ?? "").trim() || null,
-              unitPrice: Math.max(0, parseLocaleAmount((l.unitPriceText ?? "").trim(), locale) || l.amount),
-              lineAmount: Math.max(0, l.amount),
-              lineSource: "manual" as const,
-              manualReasonCode: "OPS_OTHER",
-            }));
-
-          if (payloadLines.length === 0) {
-            notify.error(t("reports.orderAccountStatementInvoiceLinesRequired"));
-          } else {
-            const created = await createOutboundInvoice({
-              counterpartyType: useBranchCounterparty ? "branch" : "customer",
-              counterpartyId: useBranchCounterparty ? parsedBranchId : parsedCustomerId,
-              issueDate: isoDateOnly(statementDate),
-              currencyCode: "TRY",
-              shipmentLinkMode: "partial",
-              autoPostLedger: invoiceAutoPost,
-              notes: `${safeCompany} · ${safeBranch} · ${safeTitle}`,
-              paymentInfo: {
-                iban: paymentIban.trim() || null,
-                accountHolder: paymentAccountHolder.trim() || null,
-                bankName: paymentBankName.trim() || null,
-                paymentNote: paymentNote.trim() || null,
-                showOnPdf: showPaymentOnPdf,
-              },
-              lines: payloadLines,
-            });
-            setLastCreatedInvoiceNo(created.documentNumber);
-            setSuggestions((prev) =>
-              [
-                {
-                  counterpartyType: created.counterpartyType,
-                  counterpartyId: created.counterpartyId,
-                  counterpartyName: created.counterpartyName,
-                  currencyCode: created.currencyCode,
-                  invoicedTotal: created.linesTotal,
-                  paidTotal: created.paidTotal,
-                  openAmount: created.openAmount,
-                  lastInvoiceDate: created.issueDate,
-                  lastDocumentNumber: created.documentNumber,
-                },
-                ...prev.filter(
-                  (x) => !(x.counterpartyType === created.counterpartyType && x.counterpartyId === created.counterpartyId)
-                ),
-              ].slice(0, 10)
-            );
-            notify.success(t("reports.orderAccountStatementInvoiceSaved"));
-          }
-        }
-      }
     } catch (error) {
       notify.error(toErrorMessage(error));
     } finally {
@@ -2190,10 +2668,128 @@ export function OrderAccountStatementScreen() {
     paymentBankName,
     paymentIban,
     paymentNote,
+    creationMode,
+    shipmentLinkMode,
+    selectedShipmentSource,
+    orderDocumentKey,
     saveAsInvoice,
     saveToSystem,
     showPaymentOnPdf,
     statementDate,
+    t,
+  ]);
+
+  const onApplyReceipt = useCallback(async () => {
+    const receiptAmount = parseLocaleAmount(receiptAmountText, locale);
+    if (!Number.isFinite(receiptAmount) || receiptAmount <= 0) {
+      notify.error(t("reports.orderAccountStatementReceiptAmountRequired"));
+      return;
+    }
+    const parsedBranchId = parseInt(linkedBranchId, 10);
+    const parsedCustomerId = parseInt(customerAccountIdText, 10);
+    const useBranchCounterparty = Number.isFinite(parsedBranchId) && parsedBranchId > 0;
+    const counterpartyType = useBranchCounterparty ? "branch" : "customer";
+    const counterpartyId = useBranchCounterparty ? parsedBranchId : parsedCustomerId;
+    if (!useBranchCounterparty && (!Number.isFinite(parsedCustomerId) || parsedCustomerId <= 0)) {
+      notify.error(t("reports.orderAccountStatementInvoiceCounterpartyRequired"));
+      return;
+    }
+    setPostingBusy(true);
+    try {
+      const invoices = await fetchOutboundInvoices();
+      const openInvoices = invoices.filter(
+        (x) =>
+          x.counterpartyType === counterpartyType &&
+          x.counterpartyId === counterpartyId &&
+          Number.isFinite(x.openAmount) &&
+          x.openAmount > 0
+      );
+      if (openInvoices.length === 0) {
+        notify.error(t("reports.orderAccountStatementReceiptNoOpenInvoice"));
+        return;
+      }
+      let allocation = allocateReceiptByOpenAmount(openInvoices, receiptAmount);
+      if (allocateReceiptToInvoices) {
+        const manualAlloc = openInvoices
+          .map((inv) => ({
+            invoiceId: inv.id,
+            amount: Math.max(0, parseLocaleAmount(invoiceAllocationText[inv.id] ?? "", locale) || 0),
+          }))
+          .filter((x) => x.amount > 0);
+        if (manualAlloc.length > 0) allocation = manualAlloc;
+      }
+      if (allocation.length === 0) {
+        notify.error(t("reports.orderAccountStatementReceiptAllocationRequired"));
+        return;
+      }
+      for (const item of allocation) {
+        await addOutboundInvoiceReceipt(item.invoiceId, {
+          receiptDate: isoDateOnly(statementDate),
+          amount: item.amount,
+          currencyCode: "TRY",
+          notes: `${receiptNotesText.trim() || "general"} · orderKey=${orderDocumentKey}`,
+        });
+      }
+      notify.success(t("reports.orderAccountStatementReceiptSaved"));
+      setReceiptAmountText("");
+      setReceiptNotesText("");
+      setInvoiceAllocationText({});
+      const rows = await fetchCounterpartySuggestions();
+      setSuggestions(rows);
+    } catch (error) {
+      notify.error(toErrorMessage(error));
+    } finally {
+      setPostingBusy(false);
+    }
+  }, [
+    customerAccountIdText,
+    invoiceAllocationText,
+    linkedBranchId,
+    locale,
+    allocateReceiptToInvoices,
+    orderDocumentKey,
+    receiptAmountText,
+    receiptNotesText,
+    statementDate,
+    t,
+  ]);
+
+  const onLoadManualShipment = useCallback(async () => {
+    const selectedGroup = shipmentOptions.find((x) => x.key === selectedShipmentOptionKey);
+    if (selectedGroup) {
+      setManualShipmentBusy(true);
+      try {
+        await loadShipmentGroupIntoForm(selectedGroup, "manual");
+        notify.success(t("reports.orderAccountStatementShipmentManualLoaded"));
+      } catch (error) {
+        notify.error(toErrorMessage(error));
+      } finally {
+        setManualShipmentBusy(false);
+      }
+      return;
+    }
+    const warehouseId = Number.parseInt(manualShipmentWarehouseIdText, 10);
+    const movementId = Number.parseInt(manualShipmentMovementIdText, 10);
+    if (!Number.isFinite(warehouseId) || warehouseId <= 0 || !Number.isFinite(movementId) || movementId <= 0) {
+      notify.error(t("reports.orderAccountStatementShipmentManualInputRequired"));
+      return;
+    }
+    setManualShipmentBusy(true);
+    try {
+      await loadShipmentIntoForm(warehouseId, movementId, "manual");
+      notify.success(t("reports.orderAccountStatementShipmentManualLoaded"));
+    } catch (error) {
+      notify.error(toErrorMessage(error));
+    } finally {
+      setManualShipmentBusy(false);
+    }
+  }, [
+    loadShipmentGroupIntoForm,
+    loadShipmentIntoForm,
+    manualShipmentMovementIdText,
+    manualShipmentWarehouseIdText,
+    selectedShipmentOptionKey,
+    shipmentOptions,
     t,
   ]);
 
@@ -2223,6 +2819,171 @@ export function OrderAccountStatementScreen() {
 
       <div className="min-w-0 space-y-6">
           <StatementFormStep title={t("reports.orderAccountStatementStepHead")} stepVisual={{ tone: "indigo", icon: "header" }}>
+            <div className="mb-3 grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/70 p-3 md:grid-cols-2">
+              <Select
+                label={t("reports.orderAccountStatementCreationMode")}
+                name="order-account-creation-mode"
+                value={creationMode}
+                onChange={(e) => setCreationMode(e.target.value === "shipmentBased" ? "shipmentBased" : "manual")}
+                onBlur={() => {}}
+                options={[
+                  { value: "manual", label: t("reports.orderAccountStatementCreationModeManual") },
+                  { value: "shipmentBased", label: t("reports.orderAccountStatementCreationModeShipment") },
+                ]}
+              />
+              <Select
+                label={t("reports.orderAccountStatementShipmentLinkMode")}
+                name="order-account-shipment-link-mode"
+                value={shipmentLinkMode}
+                onChange={(e) => setShipmentLinkMode(e.target.value === "partial" ? "partial" : "strict")}
+                onBlur={() => {}}
+                options={[
+                  { value: "strict", label: t("reports.orderAccountStatementShipmentLinkModeStrict") },
+                  { value: "partial", label: t("reports.orderAccountStatementShipmentLinkModePartial") },
+                ]}
+                disabled={creationMode !== "shipmentBased"}
+              />
+              {creationMode === "shipmentBased" ? (
+                <div className="md:col-span-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-900">
+                  {selectedShipmentSource ? (
+                    <>
+                      <p className="font-semibold text-violet-900">
+                        {t("reports.orderAccountStatementShipmentSourceSelected")
+                          .replace("{warehouseId}", String(selectedShipmentSource.warehouseId))
+                          .replace("{movementId}", String(selectedShipmentSource.primaryMovementId))}
+                      </p>
+                      <p className="mt-0.5">
+                        {shipmentInvoiceabilityBusy
+                          ? t("reports.loading")
+                          : shipmentInvoiceability.length > 0
+                            ? t("reports.orderAccountStatementShipmentInvoiceabilityHint").replace(
+                                "{remaining}",
+                                formatLocaleAmount(
+                                  shipmentInvoiceability.reduce((sum, x) => sum + Math.max(0, Number(x.remainingQuantity) || 0), 0),
+                                  locale,
+                                  "TRY"
+                                )
+                              )
+                            : t("reports.orderAccountStatementShipmentNoInvoiceability")}
+                      </p>
+                      <p className="mt-0.5">
+                        {t("reports.orderAccountStatementShipmentProductKindLabel")}:{" "}
+                        {selectedShipmentProductKind === "child"
+                          ? t("reports.orderAccountStatementShipmentProductKindChild")
+                          : selectedShipmentProductKind === "parent"
+                            ? t("reports.orderAccountStatementShipmentProductKindParent")
+                            : t("reports.orderAccountStatementShipmentProductKindUnknown")}
+                      </p>
+                      {shipmentInvoiceability.length > 0 &&
+                      shipmentInvoiceability.reduce((sum, x) => sum + Math.max(0, Number(x.remainingQuantity) || 0), 0) <= 0 ? (
+                        <p className="mt-1 text-amber-900">
+                          {t("reports.orderAccountStatementShipmentAlreadyInvoicedHint")}
+                        </p>
+                      ) : null}
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-semibold text-violet-900">
+                        {t("reports.orderAccountStatementShipmentSourceMissingTitle")}
+                      </p>
+                      <p className="mt-0.5">
+                        {t("reports.orderAccountStatementShipmentSourceMissingHelp")}
+                      </p>
+                      <div className="mt-2">
+                        <Link
+                          href="/warehouses"
+                          className="inline-flex rounded-md border border-violet-300 bg-white px-2 py-1 text-[11px] font-semibold text-violet-800"
+                        >
+                          {t("reports.orderAccountStatementShipmentSourceMissingCta")}
+                        </Link>
+                      </div>
+                    </>
+                  )}
+                  <div className="mt-2 grid gap-2">
+                    <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+                      <RichCombobox
+                        value={selectedShipmentOptionKey}
+                        onChange={(nextKey) => {
+                          setSelectedShipmentOptionKey(nextKey);
+                          const selected = shipmentOptions.find((x) => x.key === nextKey);
+                          if (!selected) return;
+                          void loadShipmentGroupIntoForm(selected, "manual");
+                        }}
+                        options={shipmentComboboxOptions}
+                        placeholder={t("reports.orderAccountStatementShipmentSelectPlaceholder")}
+                        searchPlaceholder={t("reports.orderAccountStatementShipmentSearchPlaceholder")}
+                        emptyText={shipmentOptionsBusy ? t("common.loading") : t("documents.empty")}
+                        disabled={shipmentOptionsBusy || manualShipmentBusy}
+                      />
+                      <Button type="button" variant="secondary" onClick={() => void onLoadManualShipment()} disabled={manualShipmentBusy} className="min-h-9 text-xs">
+                        {manualShipmentBusy
+                          ? t("common.loading")
+                          : t("reports.orderAccountStatementShipmentManualLoadButton")}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setShipmentDetailOpen(true)}
+                        disabled={!selectedShipmentDetail}
+                        className="min-h-9 text-xs"
+                      >
+                        {t("reports.orderAccountStatementShipmentDetailButton")}
+                      </Button>
+                    </div>
+                    <p className="text-[11px] text-violet-800">
+                      {t("reports.orderAccountStatementShipmentManualInputHint")}
+                    </p>
+                    <div className="grid gap-2 sm:grid-cols-[1fr_1fr]">
+                      <input
+                        inputMode="numeric"
+                        value={manualShipmentWarehouseIdText}
+                        onChange={(e) => setManualShipmentWarehouseIdText(e.target.value)}
+                        placeholder={t("reports.orderAccountStatementShipmentManualWarehousePlaceholder")}
+                        className="rounded-md border border-violet-200 bg-white px-2 py-1 text-xs outline-none focus:border-violet-400"
+                      />
+                      <input
+                        inputMode="numeric"
+                        value={manualShipmentMovementIdText}
+                        onChange={(e) => setManualShipmentMovementIdText(e.target.value)}
+                        placeholder={t("reports.orderAccountStatementShipmentManualMovementPlaceholder")}
+                        className="rounded-md border border-violet-200 bg-white px-2 py-1 text-xs outline-none focus:border-violet-400"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+            <div className="mb-3 rounded-lg border border-zinc-200 bg-white p-1">
+              <div className="grid grid-cols-2 gap-1">
+                <button
+                  type="button"
+                  onClick={() => setEditorPane("document")}
+                  className={cn(
+                    "min-h-10 rounded-md px-3 py-2 text-sm font-semibold",
+                    editorPane === "document" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-700"
+                  )}
+                >
+                  {t("reports.orderAccountStatementPaneDocument")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditorPane("finance")}
+                  className={cn(
+                    "min-h-10 rounded-md px-3 py-2 text-sm font-semibold",
+                    editorPane === "finance" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-700"
+                  )}
+                >
+                  {t("reports.orderAccountStatementPaneFinance")}
+                </button>
+              </div>
+              <p className="px-2 pt-2 text-[11px] text-zinc-500">
+                {editorPane === "document"
+                  ? t("reports.orderAccountStatementPaneDocumentHelp")
+                  : t("reports.orderAccountStatementPaneFinanceHelp")}
+              </p>
+            </div>
+            {editorPane === "document" ? (
+            <>
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="block text-sm">
                 <span className="text-zinc-600">{t("reports.orderAccountStatementHeaderCompany")}</span>
@@ -2298,6 +3059,10 @@ export function OrderAccountStatementScreen() {
                 onChange={(e) => setDocumentTitle(e.target.value)}
               />
             </label>
+            </>
+            ) : null}
+            {editorPane === "finance" ? (
+            <>
             <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50/70 p-3">
               <label className="flex cursor-pointer items-start gap-2.5 text-sm">
                 <Checkbox
@@ -2410,8 +3175,74 @@ export function OrderAccountStatementScreen() {
                       {t("reports.orderAccountStatementLastInvoiceNo")}: {lastCreatedInvoiceNo}
                     </div>
                   ) : null}
+                  <p className="text-[11px] text-zinc-500">
+                    {t("reports.orderAccountStatementMetadataLinkHint")} ({orderDocumentKey})
+                  </p>
+                  {(lastCreatedInvoiceId || lastSavedDocumentId) ? (
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      {lastCreatedInvoiceId ? (
+                        <Link
+                          href={`/products/order-account-statement/summary?search=${encodeURIComponent(lastCreatedInvoiceNo)}`}
+                          className="rounded-md border border-zinc-200 bg-white px-2 py-1 font-semibold text-violet-700"
+                        >
+                          {t("reports.orderAccountStatementGoToRelatedInvoice")}
+                        </Link>
+                      ) : null}
+                      {lastSavedDocumentId ? (
+                        <Link
+                          href={`/documents?q=${encodeURIComponent(`orderKey=${orderDocumentKey}`)}`}
+                          className="rounded-md border border-zinc-200 bg-white px-2 py-1 font-semibold text-violet-700"
+                        >
+                          {t("reports.orderAccountStatementGoToRelatedPdf")}
+                        </Link>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               ) : null}
+            </div>
+            <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50/70 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                {t("reports.orderAccountStatementReceiptSectionTitle")}
+              </p>
+              <p className="mt-1 text-[11px] text-zinc-500">
+                {t("reports.orderAccountStatementReceiptSectionHelp")}
+              </p>
+              <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                <label className="block text-sm">
+                  <span className="text-zinc-600">{t("reports.orderAccountStatementReceiptAmount")}</span>
+                  <input
+                    inputMode="decimal"
+                    className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
+                    value={receiptAmountText}
+                    onChange={(e) => setReceiptAmountText(e.target.value)}
+                    placeholder="0,00"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="text-zinc-600">{t("reports.orderAccountStatementReceiptNotes")}</span>
+                  <input
+                    className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
+                    value={receiptNotesText}
+                    onChange={(e) => setReceiptNotesText(e.target.value)}
+                  />
+                </label>
+              </div>
+              <label className="mt-2 flex cursor-pointer items-start gap-2.5 text-sm">
+                <Checkbox
+                  className="mt-0.5"
+                  checked={allocateReceiptToInvoices}
+                  onCheckedChange={setAllocateReceiptToInvoices}
+                />
+                <span className="font-medium text-zinc-800">
+                  {t("reports.orderAccountStatementReceiptAllocateToggle")}
+                </span>
+              </label>
+              <div className="mt-3">
+                <Button type="button" variant="secondary" onClick={() => void onApplyReceipt()} disabled={postingBusy}>
+                  {postingBusy ? t("common.loading") : t("reports.orderAccountStatementReceiptApply")}
+                </Button>
+              </div>
             </div>
             <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50/70 p-3">
               <div className="flex items-center justify-between gap-2">
@@ -2442,6 +3273,8 @@ export function OrderAccountStatementScreen() {
                 </ul>
               )}
             </div>
+            </>
+            ) : null}
             <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-sm">
               <Checkbox
                 className="mt-0.5"
@@ -2475,7 +3308,21 @@ export function OrderAccountStatementScreen() {
               <OasIconButton
                 title={t("reports.orderAccountStatementAddLine")}
                 aria-label={t("reports.orderAccountStatementAddLine")}
-                onClick={() => setLines((prev) => [...prev, emptyLine()])}
+                onClick={() =>
+                  setLines((prev) => [
+                    ...prev,
+                    {
+                      ...emptyLine(),
+                      lineSource:
+                        creationMode === "shipmentBased" && shipmentLinkMode === "strict"
+                          ? "shipment"
+                          : "manual",
+                      manualReasonCode:
+                        creationMode === "shipmentBased" && shipmentLinkMode === "strict" ? null : "OPS_OTHER",
+                    },
+                  ])
+                }
+                disabled={creationMode === "shipmentBased" && shipmentLinkMode === "strict"}
               >
                 <IcPlus className="h-6 w-6" />
               </OasIconButton>
@@ -2485,6 +3332,21 @@ export function OrderAccountStatementScreen() {
             collapseLabelCollapse={t("reports.orderAccountStatementLinesSectionCollapse")}
           >
             <p className="mb-2 text-[11px] text-zinc-500 lg:hidden">{t("reports.orderAccountStatementTableScrollHint")}</p>
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-9 px-3 text-xs"
+                onClick={collapseLinesToParentProduct}
+              >
+                {t("reports.orderAccountStatementParentMergeButton")}
+              </Button>
+            </div>
+            {creationMode === "shipmentBased" && shipmentLinkMode === "strict" ? (
+              <p className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-900">
+                {t("reports.orderAccountStatementStrictModeManualBlocked")}
+              </p>
+            ) : null}
             <div
               className={cn(
                 "rounded-lg border border-dashed border-zinc-200 bg-zinc-50/80 px-3",
@@ -2563,7 +3425,25 @@ export function OrderAccountStatementScreen() {
                       onChange={(e) => {
                         const v = e.target.value;
                         setLines((prev) =>
-                          prev.map((x) => (x.id === line.id ? { ...x, description: v, selectedProductId: null } : x))
+                          prev.map((x) =>
+                            x.id === line.id
+                              ? {
+                                  ...x,
+                                  description: v,
+                                  selectedProductId: null,
+                                  parentProductId: null,
+                                  parentProductName: null,
+                                  lineSource:
+                                    creationMode === "shipmentBased" && shipmentLinkMode === "strict"
+                                      ? "shipment"
+                                      : "manual",
+                                  manualReasonCode:
+                                    creationMode === "shipmentBased" && shipmentLinkMode === "strict"
+                                      ? null
+                                      : "OPS_OTHER",
+                                }
+                              : x
+                          )
                         );
                       }}
                       placeholder={t("reports.orderAccountStatementLinePlaceholder")}
@@ -2642,6 +3522,15 @@ export function OrderAccountStatementScreen() {
                           onChange={(e) => {
                             const v = e.target.value;
                             setLines((prev) => prev.map((x) => (x.id === line.id ? { ...x, unitPriceText: v } : x)));
+                          }}
+                          onBlur={() => {
+                            const n = parseLocaleAmount(line.unitPriceText, locale);
+                            if (!Number.isFinite(n)) return;
+                            setLines((prev) =>
+                              prev.map((x) =>
+                                x.id === line.id ? { ...x, unitPriceText: formatLocaleAmountInput(n, locale) } : x
+                              )
+                            );
                           }}
                           placeholder="0"
                           autoComplete="off"
@@ -2889,7 +3778,25 @@ export function OrderAccountStatementScreen() {
                           onChange={(e) => {
                             const v = e.target.value;
                             setLines((prev) =>
-                              prev.map((x) => (x.id === line.id ? { ...x, description: v, selectedProductId: null } : x))
+                              prev.map((x) =>
+                                x.id === line.id
+                                  ? {
+                                      ...x,
+                                      description: v,
+                                      selectedProductId: null,
+                                      parentProductId: null,
+                                      parentProductName: null,
+                                      lineSource:
+                                        creationMode === "shipmentBased" && shipmentLinkMode === "strict"
+                                          ? "shipment"
+                                          : "manual",
+                                      manualReasonCode:
+                                        creationMode === "shipmentBased" && shipmentLinkMode === "strict"
+                                          ? null
+                                          : "OPS_OTHER",
+                                    }
+                                  : x
+                              )
                             );
                           }}
                           placeholder={t("reports.orderAccountStatementLinePlaceholder")}
@@ -3016,6 +3923,15 @@ export function OrderAccountStatementScreen() {
                               const v = e.target.value;
                               setLines((prev) => prev.map((x) => (x.id === line.id ? { ...x, unitPriceText: v } : x)));
                             }}
+                          onBlur={() => {
+                            const n = parseLocaleAmount(line.unitPriceText, locale);
+                            if (!Number.isFinite(n)) return;
+                            setLines((prev) =>
+                              prev.map((x) =>
+                                x.id === line.id ? { ...x, unitPriceText: formatLocaleAmountInput(n, locale) } : x
+                              )
+                            );
+                          }}
                             placeholder="0"
                             autoComplete="off"
                           />
@@ -3546,6 +4462,28 @@ export function OrderAccountStatementScreen() {
             document.body
           )
         : null}
+      <Modal
+        open={shipmentDetailOpen && selectedShipmentDetail != null}
+        onClose={() => setShipmentDetailOpen(false)}
+        titleId="order-account-shipment-detail-title"
+        title={t("reports.orderAccountStatementShipmentDetailTitle")}
+        closeButtonLabel={t("common.close")}
+        className="w-full max-w-lg"
+      >
+        {selectedShipmentDetail ? (
+          <div className="mt-3 space-y-2 text-sm text-zinc-700">
+            <p><span className="font-semibold">{t("reports.orderAccountStatementShipmentDetailWarehouseId")}:</span> {selectedShipmentSource?.warehouseId ?? "-"}</p>
+            <p><span className="font-semibold">{t("reports.orderAccountStatementShipmentDetailMovementId")}:</span> {selectedShipmentDetail.id}</p>
+            <p><span className="font-semibold">{t("reports.orderAccountStatementShipmentDetailBranch")}:</span> {selectedShipmentDetail.branchName}</p>
+            <p><span className="font-semibold">{t("reports.orderAccountStatementShipmentDetailProduct")}:</span> {selectedShipmentDetail.productName}</p>
+            <p>
+              <span className="font-semibold">{t("reports.orderAccountStatementShipmentDetailQuantity")}:</span>{" "}
+              {formatLocaleAmount(selectedShipmentDetail.quantity, locale, "TRY")} {selectedShipmentDetail.unit ?? ""}
+            </p>
+            <p><span className="font-semibold">{t("reports.orderAccountStatementShipmentDetailDate")}:</span> {selectedShipmentDetail.businessDate}</p>
+          </div>
+        ) : null}
+      </Modal>
     </div>
   );
 }

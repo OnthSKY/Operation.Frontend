@@ -641,6 +641,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { data: branding, isSuccess: brandingLoaded } = useSystemBrandingQuery(Boolean(user));
   const brandingTitle = branding?.companyName?.trim() || t("common.appName");
   const brandingIsCustom = Boolean(branding?.companyName?.trim());
+  const browserTabTitle = branding?.companyName?.trim()
+    ? `${branding.companyName.trim()} Ops.`
+    : "Operations";
 
   const displayName = user
     ? (user.fullName?.trim() || user.username).toLocaleUpperCase(
@@ -682,6 +685,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       document.body.style.overflow = prev;
     };
   }, [mobileNavOpen]);
+
+  useEffect(() => {
+    document.title = browserTabTitle;
+  }, [browserTabTitle]);
 
   const sidebarBody = (
     <>

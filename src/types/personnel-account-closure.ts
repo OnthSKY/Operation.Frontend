@@ -33,6 +33,7 @@ export type CreatePersonnelEmploymentTermBody = {
 export type UpdatePersonnelEmploymentTermBody = {
   validFrom?: string | null;
   arrivalDate?: string | null;
+  clearArrivalDate?: boolean;
   branchId?: number | null;
   salary?: number | null;
   currencyCode: string;

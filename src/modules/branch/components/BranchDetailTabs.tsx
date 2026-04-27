@@ -51,6 +51,7 @@ import { BranchDetailPersonnelTab } from "./BranchDetailPersonnelTab";
 import { BranchDetailIncomeTab } from "./BranchDetailIncomeTab";
 import { BranchDetailExpensesTab } from "./BranchDetailExpensesTab";
 import { BranchDetailStockTab } from "./BranchDetailStockTab";
+import { BranchDetailCurrentAccountTab } from "./BranchDetailCurrentAccountTab";
 import type { BranchPersonnelMoneySummaryItem } from "@/types/branch-personnel-money";
 import {
   isoMonthLocal,
@@ -189,6 +190,7 @@ export function BranchDetailTabs({
     if (!employeeSelfService) return;
     if (
       tab === "personnel" ||
+      tab === "currentAccount" ||
       tab === "tourismSeason" ||
       tab === "zReportAccounting" ||
       tab === "dashboard" ||
@@ -666,6 +668,7 @@ export function BranchDetailTabs({
       const all: { id: BranchDetailTabId; label: string }[] = [
       { id: "dashboard", label: t("branch.tabDashboard") },
       { id: "personnel", label: t("branch.tabPersonnel") },
+      { id: "currentAccount", label: t("branch.tabCurrentAccount") },
       { id: "income", label: t("branch.tabIncome") },
       { id: "expenses", label: t("branch.tabExpenses") },
       { id: "stock", label: t("branch.tabStock") },
@@ -777,6 +780,10 @@ export function BranchDetailTabs({
             personnelAdvanceFiscalYear={advanceYear}
           />
         )}
+
+        {tab === "currentAccount" && !employeeSelfService ? (
+          <BranchDetailCurrentAccountTab branchId={branch.id} active={tab === "currentAccount"} />
+        ) : null}
 
         {tab === "income" && (
           <BranchDetailIncomeTab

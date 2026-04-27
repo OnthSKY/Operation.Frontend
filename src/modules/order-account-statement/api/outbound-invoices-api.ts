@@ -31,6 +31,11 @@ export type CreateOutboundInvoiceRequest = {
   lines: OutboundInvoiceLineRequest[];
 };
 
+export type OutboundInvoiceShipmentLinkRequest = {
+  warehouseMovementId: number;
+  quantity: number;
+};
+
 export type OutboundInvoiceResponse = {
   id: number;
   documentNumber: string;
@@ -44,6 +49,28 @@ export type OutboundInvoiceResponse = {
   linesTotal: number;
   paidTotal: number;
   openAmount: number;
+};
+
+export type OutboundInvoiceReceiptRequest = {
+  receiptDate: string;
+  amount: number;
+  currencyCode: string;
+  notes?: string | null;
+};
+
+export type ShipmentInvoiceabilityLine = {
+  warehouseMovementId: number;
+  productId: number;
+  productName: string;
+  quantity: number;
+  alreadyInvoicedQuantity: number;
+  remainingQuantity: number;
+  movementDate: string;
+};
+
+export type CreateShipmentInvoiceRequest = Omit<CreateOutboundInvoiceRequest, "lines"> & {
+  lines: OutboundInvoiceLineRequest[];
+  shipmentLinks?: OutboundInvoiceShipmentLinkRequest[];
 };
 
 export type CounterpartySuggestionRow = {
@@ -83,6 +110,36 @@ export type CounterpartySummaryReport = {
 
 export async function createOutboundInvoice(input: CreateOutboundInvoiceRequest): Promise<OutboundInvoiceResponse> {
   return apiRequest<OutboundInvoiceResponse>("/outbound-invoices", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function createShipmentInvoice(
+  warehouseMovementId: number,
+  input: CreateShipmentInvoiceRequest
+): Promise<OutboundInvoiceResponse> {
+  return apiRequest<OutboundInvoiceResponse>(`/shipments/${warehouseMovementId}/create-invoice`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function fetchShipmentInvoiceability(
+  warehouseMovementId: number
+): Promise<ShipmentInvoiceabilityLine[]> {
+  return apiRequest<ShipmentInvoiceabilityLine[]>(`/shipments/${warehouseMovementId}/invoiceability`);
+}
+
+export async function fetchOutboundInvoices(): Promise<OutboundInvoiceResponse[]> {
+  return apiRequest<OutboundInvoiceResponse[]>("/outbound-invoices");
+}
+
+export async function addOutboundInvoiceReceipt(
+  invoiceId: number,
+  input: OutboundInvoiceReceiptRequest
+): Promise<OutboundInvoiceResponse> {
+  return apiRequest<OutboundInvoiceResponse>(`/outbound-invoices/${invoiceId}/receipts`, {
     method: "POST",
     body: JSON.stringify(input),
   });

@@ -18,6 +18,7 @@ export type DocumentsHubRow = {
   searchText: string;
   previewUrl: string;
   previewMode: "image" | "pdf" | "other";
+  relatedLinks?: Array<{ href: string; label: string }>;
   download: () => Promise<void>;
 };
 

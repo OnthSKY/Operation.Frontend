@@ -3063,6 +3063,11 @@ export function PersonnelDetailModal({
         open={insuranceAddOpen && insurancePid > 0}
         onClose={() => setInsuranceAddOpen(false)}
         personnelId={insurancePid}
+        seasonArrivalDate={personnel?.seasonArrivalDate}
+        onNavigateSeasonArrivals={() => {
+          setInsuranceAddOpen(false);
+          setTab("seasonArrivals");
+        }}
         defaultBranchId={personnel?.branchId ?? null}
         personnelDisplayName={
           personnel ? personnelDisplayName(personnel) : undefined

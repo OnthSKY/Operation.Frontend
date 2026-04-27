@@ -1,6 +1,7 @@
 export type BranchDetailTabId =
   | "dashboard"
   | "personnel"
+  | "currentAccount"
   | "income"
   | "expenses"
   | "stock"
@@ -12,6 +13,7 @@ export type BranchDetailTabId =
 const VALID: ReadonlySet<string> = new Set<BranchDetailTabId>([
   "dashboard",
   "personnel",
+  "currentAccount",
   "income",
   "expenses",
   "stock",
@@ -30,6 +32,7 @@ export function parseBranchDetailTabParam(raw: string | null): BranchDetailTabId
 const ESS_HIDDEN_TABS: ReadonlySet<BranchDetailTabId> = new Set([
   "dashboard",
   "personnel",
+  "currentAccount",
   "tourismSeason",
   "zReportAccounting",
   "documents",

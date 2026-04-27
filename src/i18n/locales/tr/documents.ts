@@ -27,6 +27,7 @@ export const documents = {
   noDetail: "Detay yok",
   empty: "Filtrelere uygun belge bulunamadı.",
   quickAdd: "Hızlı belge ekle",
+  orderStatementPdfQuickFilter: "Sipariş/Hesap Dökümü PDF",
   uploadCategoryLabel: "Kategori",
   uploadBranchLabel: "Şube",
   uploadBranchKindLabel: "Belge türü",

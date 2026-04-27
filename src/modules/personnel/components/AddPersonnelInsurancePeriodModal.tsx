@@ -43,6 +43,8 @@ type Props = {
   defaultBranchId?: number | null;
   /** Liste / detaydan gelen görünen ad (üst bilgi kartı). */
   personnelDisplayName?: string | null;
+  /** Engelde kullanıcıyı sezon gelişi sekmesine yönlendirir. */
+  onNavigateSeasonArrivals?: () => void;
 };
 
 export function AddPersonnelInsurancePeriodModal({
@@ -52,6 +54,7 @@ export function AddPersonnelInsurancePeriodModal({
   seasonArrivalDate,
   defaultBranchId,
   personnelDisplayName,
+  onNavigateSeasonArrivals,
 }: Props) {
   const { t } = useI18n();
   const mut = useAddPersonnelInsurancePeriod();
@@ -177,7 +180,17 @@ export function AddPersonnelInsurancePeriodModal({
                     className="rounded-2xl border border-amber-200/90 bg-amber-50/90 px-4 py-3 text-sm text-amber-950 shadow-sm"
                     role="alert"
                   >
-                    {t("personnel.insuranceAddPeriodSeasonArrivalBlocked")}
+                    <p>{t("personnel.insuranceAddPeriodSeasonArrivalBlocked")}</p>
+                    {onNavigateSeasonArrivals ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="mt-3 min-h-9 border-amber-300/80 bg-white/80 text-amber-900 hover:bg-amber-100"
+                        onClick={onNavigateSeasonArrivals}
+                      >
+                        {t("personnel.insuranceAddPeriodGoSeasonArrivals")}
+                      </Button>
+                    ) : null}
                   </div>
                 ) : null}
                 {nameChip ? (

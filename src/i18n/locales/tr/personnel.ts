@@ -376,6 +376,7 @@ export const personnel = {
   seasonArrivalsStatusClosed: "Kapalı",
   seasonArrivalsOpenEnded: "Açık",
   seasonArrivalsSaveArrival: "Gelişi kaydet",
+  seasonArrivalsClearArrival: "Gelişi temizle",
   seasonArrivalsRevertTooltip: "Son istihdam dönemini geri al",
   seasonArrivalsRevertBlockedSingleTerm: "Yalnızca tek istihdam dönemi var.",
   seasonArrivalsAddSectionTitle: "Yeni sezon gelişi (yeni dönem)",
@@ -390,6 +391,7 @@ export const personnel = {
     "Yeni dönemde maaş ve SGK hesap türü güncel dönemle aynı devralınır. Şube: {branch}.",
   seasonArrivalsInvalidDate: "Tarih alanlarını tam doldurun.",
   seasonArrivalsSaveSuccess: "Sezon geliş tarihi güncellendi.",
+  seasonArrivalsClearSuccess: "Sezon geliş tarihi temizlendi.",
   seasonArrivalsAddSuccess: "Yeni dönem ve geliş tarihi eklendi.",
   seasonArrivalsRevertConfirmTitle: "Son istihdam dönemini kaldır",
   seasonArrivalsRevertConfirmMessage:
@@ -639,6 +641,7 @@ export const personnel = {
     "Güncel açık dönem ise bitişi boş bırakın.",
   insuranceAddPeriodSeasonArrivalBlocked:
     "Sigorta dönemi ekleyebilmek için önce personel kaydında turizm sezonu geliş tarihini girin.",
+  insuranceAddPeriodGoSeasonArrivals: "Sezon gelişi sekmesine git",
   insuranceAddPeriodSaveBlockedSeasonArrival:
     "Kaydetmek için önce personel kaydında turizm sezonu geliş tarihini girin.",
   insuranceAddPeriodSaveBlockedBranch:

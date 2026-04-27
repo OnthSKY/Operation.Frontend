@@ -33,11 +33,13 @@ import { useEffect, useMemo, useState } from "react";
 
 function buildUpdateBody(
   term: PersonnelEmploymentTerm,
-  arrivalDate: string
+  arrivalDate: string,
+  clearArrivalDate: boolean = false
 ): UpdatePersonnelEmploymentTermBody {
   return {
     validFrom: term.validFrom.slice(0, 10),
     arrivalDate: arrivalDate.slice(0, 10),
+    clearArrivalDate,
     branchId: term.branchId,
     salary: term.salary,
     currencyCode: term.currencyCode,
@@ -135,6 +137,19 @@ export function PersonnelSeasonArrivalsTab({
         body: buildUpdateBody(openTerm, ad),
       });
       notify.success(t("personnel.seasonArrivalsSaveSuccess"));
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    }
+  };
+
+  const onClearOpenArrival = async () => {
+    if (readOnly || !openTerm) return;
+    try {
+      await updateMut.mutateAsync({
+        termId: openTerm.id,
+        body: buildUpdateBody(openTerm, openTerm.validFrom, true),
+      });
+      notify.success(t("personnel.seasonArrivalsClearSuccess"));
     } catch (e) {
       notify.error(toErrorMessage(e));
     }
@@ -277,6 +292,18 @@ export function PersonnelSeasonArrivalsTab({
                               onClick={() => void onSaveOpenArrival()}
                             >
                               {t("personnel.seasonArrivalsSaveArrival")}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="min-h-9 max-md:w-full"
+                              disabled={
+                                updateMut.isPending ||
+                                arrivalDraft.slice(0, 10) === openTerm.validFrom.slice(0, 10)
+                              }
+                              onClick={() => void onClearOpenArrival()}
+                            >
+                              {t("personnel.seasonArrivalsClearArrival")}
                             </Button>
                             <button
                               type="button"

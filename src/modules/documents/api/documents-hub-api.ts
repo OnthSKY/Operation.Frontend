@@ -21,6 +21,21 @@ import type { DocumentsHubRow } from "@/modules/documents/types";
 
 type TranslateFn = (key: string) => string;
 
+function parseOrderMetadata(notes: string | null | undefined): Record<string, string> {
+  const text = String(notes ?? "");
+  const parts = text.split("·").map((x) => x.trim()).filter(Boolean);
+  const map: Record<string, string> = {};
+  for (const part of parts) {
+    const eqIdx = part.indexOf("=");
+    if (eqIdx <= 0) continue;
+    const key = part.slice(0, eqIdx).trim();
+    const value = part.slice(eqIdx + 1).trim();
+    if (!key || !value) continue;
+    map[key] = value;
+  }
+  return map;
+}
+
 export async function fetchDocumentsHubRows(t: TranslateFn): Promise<DocumentsHubRow[]> {
   const [branches, personnelList, supplierInvoices] = await Promise.all([
     fetchBranches(),
@@ -135,6 +150,22 @@ export async function fetchDocumentsHubRows(t: TranslateFn): Promise<DocumentsHu
 
   for (const group of branchDocsByBranch) {
     for (const d of group.docs) {
+      const metadata = parseOrderMetadata(d.notes);
+      const relatedLinks =
+        metadata.orderKey || metadata.invoiceNo || metadata.invoiceId
+          ? [
+              {
+                href: `/products/order-account-statement?orderKey=${encodeURIComponent(metadata.orderKey ?? "")}`,
+                label: t("reports.orderAccountStatementGoToSourceOrder"),
+              },
+              {
+                href: `/products/order-account-statement/summary?search=${encodeURIComponent(
+                  metadata.invoiceNo ?? metadata.invoiceId ?? ""
+                )}`,
+                label: t("reports.orderAccountStatementGoToRelatedInvoice"),
+              },
+            ]
+          : undefined;
       rows.push({
         id: `branch-${group.branch.id}-doc-${d.id}`,
         category: "BRANCH_DOCUMENT",
@@ -144,6 +175,7 @@ export async function fetchDocumentsHubRows(t: TranslateFn): Promise<DocumentsHu
         searchText: `${group.branch.name} ${d.kind} ${d.originalFileName ?? ""} ${d.notes ?? ""}`,
         previewUrl: apiUrl(`/branches/${group.branch.id}/documents/${d.id}/file`),
         previewMode: d.contentType === "application/pdf" ? "pdf" : d.contentType.startsWith("image/") ? "image" : "other",
+        relatedLinks,
         download: async () => {
           const { blob, contentType } = await fetchBranchDocumentBlob(group.branch.id, d.id);
           const url = URL.createObjectURL(blob);

@@ -20,14 +20,17 @@ import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
 import type { BranchDocumentKind } from "@/types/branch-document";
 import { useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { useMemo, useState, type FocusEventHandler } from "react";
 
 const NOOP_BLUR: FocusEventHandler<HTMLInputElement> = () => {};
 
 export function DocumentsHubScreen() {
   const { t } = useI18n();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => (searchParams.get("q") ?? "").trim());
   const [category, setCategory] = useState("ALL");
   const [openError, setOpenError] = useState<string | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
@@ -87,6 +90,7 @@ export function DocumentsHubScreen() {
     { value: "WAREHOUSE_OUTBOUND_INVOICE", label: t("documents.categoryWarehouseOutboundInvoice") },
     { value: "OTHER_INVOICE", label: t("documents.categoryOtherInvoice") },
   ];
+  const orderPdfQuickFilter = "Sipariş-hesap dökümü PDF";
   const uploadCategoryOptions = categoryOptions.filter(
     (opt) =>
       opt.value !== "ALL" &&
@@ -257,6 +261,19 @@ export function DocumentsHubScreen() {
     <div className="space-y-2">
       <p className="font-medium text-zinc-900">{selectedRow.title}</p>
       <p className="text-sm text-zinc-600">{selectedRow.subtitle}</p>
+      {selectedRow.relatedLinks && selectedRow.relatedLinks.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {selectedRow.relatedLinks.map((lnk) => (
+            <Link
+              key={`${selectedRow.id}-${lnk.href}`}
+              href={lnk.href}
+              className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold text-violet-700"
+            >
+              {lnk.label}
+            </Link>
+          ))}
+        </div>
+      ) : null}
       {previewBody}
     </div>
   );
@@ -286,6 +303,28 @@ export function DocumentsHubScreen() {
             options={categoryOptions}
             menuZIndex={220}
           />
+        </div>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setCategory("BRANCH_DOCUMENT");
+              setQuery(orderPdfQuickFilter);
+            }}
+            className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-medium text-violet-800"
+          >
+            {t("documents.orderStatementPdfQuickFilter")}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setCategory("ALL");
+              setQuery("");
+            }}
+            className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700"
+          >
+            {t("common.clear")}
+          </button>
         </div>
       </div>
 
