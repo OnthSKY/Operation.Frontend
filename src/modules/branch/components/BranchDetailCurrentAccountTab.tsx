@@ -428,6 +428,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
       <Modal
         open={receiptInvoice != null}
         onClose={() => setReceiptInvoice(null)}
+        titleId="branch-current-account-receipt-modal-title"
         title={t("branch.currentAccountReceiptModalTitle")}
         closeButtonLabel={t("common.close")}
         className="max-w-md"
