@@ -773,7 +773,7 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   orderAccountStatementPaidOnBehalfHelp:
     "Örneğin tedarikçiye sizin ödediğiniz ama stoğu size gelmeyen kalemler. Net tutara eklenir.",
   orderAccountStatementAddPaidLine: "Bu gruba satır ekle",
-  orderAccountStatementGross: "Genel Toplam",
+  orderAccountStatementGross: "KALEMLER TOPLAMI",
   orderAccountStatementSubtotal: "ARA TOPLAM",
   orderAccountStatementNet: "NET ÖDENECEK TUTAR",
   orderAccountStatementPreviewTitle: "Önizleme (A4)",
@@ -803,6 +803,8 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   orderAccountStatementPaidSectionPdf: "Dışarıdan temin edilen",
   orderAccountStatementPromoLineFallback: "Promosyon",
   orderAccountStatementAdvanceShort: "Ön ödeme",
+  orderAccountStatementPreviousBalanceShort: "Devreden cari bakiye",
+  orderAccountStatementPreviousBalanceLine: "DEVREDEN CARİ BAKİYE",
   orderAccountStatementPaidEmpty: "Bu grupta satır yok; gerekirse «Bu gruba satır ekle» ile ekleyin.",
   orderAccountStatementColRow: "Sıra",
   orderAccountStatementColActions: "İşlem",

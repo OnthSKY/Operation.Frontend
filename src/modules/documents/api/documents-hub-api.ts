@@ -15,15 +15,17 @@ import { fetchWarehouseMovementsPage } from "@/modules/warehouse/api/warehouse-s
 import { warehouseMovementInvoicePhotoUrl } from "@/modules/warehouse/api/warehouse-movements-api";
 import { fetchVehicleDocuments } from "@/modules/vehicles/api/vehicle-documents-api";
 import { fetchVehicles } from "@/modules/vehicles/api/vehicles-api";
+import { fetchSupplierInvoices } from "@/modules/suppliers/api/suppliers-api";
 import { apiUrl } from "@/shared/api/client";
 import type { DocumentsHubRow } from "@/modules/documents/types";
 
 type TranslateFn = (key: string) => string;
 
 export async function fetchDocumentsHubRows(t: TranslateFn): Promise<DocumentsHubRow[]> {
-  const [branches, personnelList] = await Promise.all([
+  const [branches, personnelList, supplierInvoices] = await Promise.all([
     fetchBranches(),
     fetchPersonnelList({ status: "all" }),
+    fetchSupplierInvoices({}),
   ]);
   const warehouses = await fetchWarehouses();
   const vehicles = await fetchVehicles();
@@ -192,14 +194,29 @@ export async function fetchDocumentsHubRows(t: TranslateFn): Promise<DocumentsHu
     const items = group.page.items.filter((x) => x.hasInvoicePhoto === true);
     for (const row of items) {
       const photoUrl = warehouseMovementInvoicePhotoUrl(row.id);
-      const isInbound = row.type === "IN";
+      if (row.type === "IN") {
+        rows.push({
+          id: `warehouse-inbound-invoice-${row.id}`,
+          category: "WAREHOUSE_INBOUND_INVOICE",
+          title: group.warehouse.name,
+          subtitle: `${t("documents.warehouseInboundInvoiceLabel")} · ${row.productName}`,
+          detail: row.movementDate,
+          searchText: `${group.warehouse.name} ${row.productName} ${row.description ?? ""} invoice movement ${row.id} giris inbound depot warehouse`,
+          previewUrl: photoUrl,
+          previewMode: "image",
+          download: async () => {
+            window.open(photoUrl, "_blank", "noopener,noreferrer");
+          },
+        });
+        continue;
+      }
       rows.push({
-        id: isInbound ? `warehouse-inbound-invoice-${row.id}` : `warehouse-outbound-invoice-${row.id}`,
-        category: isInbound ? "WAREHOUSE_INBOUND_INVOICE" : "WAREHOUSE_OUTBOUND_INVOICE",
+        id: `warehouse-other-invoice-${row.id}`,
+        category: "OTHER_INVOICE",
         title: group.warehouse.name,
-        subtitle: `${isInbound ? t("documents.warehouseInboundInvoiceLabel") : t("documents.warehouseOutboundInvoiceLabel")} · ${row.productName}`,
+        subtitle: `${t("documents.otherInvoiceLabel")} · ${row.productName}`,
         detail: row.movementDate,
-        searchText: `${group.warehouse.name} ${row.productName} ${row.description ?? ""} invoice movement ${row.id} ${row.type === "IN" ? "giris inbound" : "cikis outbound"} depot warehouse`,
+        searchText: `${group.warehouse.name} ${row.productName} ${row.description ?? ""} invoice movement ${row.id} cikis outbound depot warehouse`,
         previewUrl: photoUrl,
         previewMode: "image",
         download: async () => {
@@ -207,6 +224,28 @@ export async function fetchDocumentsHubRows(t: TranslateFn): Promise<DocumentsHu
         },
       });
     }
+  }
+
+  for (const inv of supplierInvoices) {
+    if (!inv.formalSupplierInvoiceIssued) continue;
+    const detail = inv.documentDate || inv.dueDate || `#${inv.id}`;
+    const subtitle = inv.documentNumber?.trim()
+      ? `${t("documents.warehouseOutboundInvoiceLabel")} · ${inv.documentNumber.trim()}`
+      : `${t("documents.warehouseOutboundInvoiceLabel")} · #${inv.id}`;
+    const routeUrl = `/suppliers/invoices?invoiceId=${inv.id}`;
+    rows.push({
+      id: `system-outbound-invoice-${inv.id}`,
+      category: "WAREHOUSE_OUTBOUND_INVOICE",
+      title: inv.supplierName,
+      subtitle,
+      detail,
+      searchText: `${inv.supplierName} ${inv.documentNumber ?? ""} ${inv.description ?? ""} formal supplier invoice outbound ${inv.id}`,
+      previewUrl: routeUrl,
+      previewMode: "other",
+      download: async () => {
+        window.open(routeUrl, "_blank", "noopener,noreferrer");
+      },
+    });
   }
 
   for (const group of personnelYearClosures) {

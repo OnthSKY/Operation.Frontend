@@ -769,7 +769,7 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   orderAccountStatementPaidOnBehalfHelp:
     "Example: supplier items you paid for that do not ship to you. These amounts are added after the subtotal.",
   orderAccountStatementAddPaidLine: "Add line in this group",
-  orderAccountStatementGross: "Gross total",
+  orderAccountStatementGross: "LINE ITEMS TOTAL",
   orderAccountStatementSubtotal: "SUBTOTAL",
   orderAccountStatementNet: "NET DUE",
   orderAccountStatementPreviewTitle: "Preview (A4)",
@@ -799,6 +799,8 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   orderAccountStatementPaidSectionPdf: "Externally sourced",
   orderAccountStatementPromoLineFallback: "Promotion",
   orderAccountStatementAdvanceShort: "Prepayment",
+  orderAccountStatementPreviousBalanceShort: "Carried-forward account balance",
+  orderAccountStatementPreviousBalanceLine: "CARRIED-FORWARD ACCOUNT BALANCE",
   orderAccountStatementPaidEmpty: "No rows in this group â€” use â€œAdd lineâ€ if needed.",
   orderAccountStatementColRow: "#",
   orderAccountStatementColActions: "Action",

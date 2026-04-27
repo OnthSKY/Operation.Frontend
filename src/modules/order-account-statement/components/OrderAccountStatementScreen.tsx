@@ -884,14 +884,25 @@ function LineCalcBlock({
 
   const apply = useCallback(() => {
     if (suggestion == null || !Number.isFinite(suggestion)) return;
+    const qtyForPdf = (line.priceCalcMode === "piece" ? line.qtyText : line.kgText).trim();
+    const unitPriceForPdf = (line.priceCalcMode === "piece" ? line.unitPriceText : line.tryPerKgText).trim();
+    const unitForPdf = line.priceCalcMode === "piece" ? line.unitText ?? "" : "kg";
     setLines((prev) =>
       prev.map((x) =>
         x.id === line.id
-          ? { ...x, amount: suggestion, amountText: formatLocaleAmountInput(suggestion, locale) }
+          ? {
+              ...x,
+              amount: suggestion,
+              amountText: formatLocaleAmountInput(suggestion, locale),
+              quantityText: qtyForPdf,
+              unitPriceText: unitPriceForPdf,
+              unitText: unitForPdf,
+            }
           : x
       )
     );
-  }, [line.id, locale, setLines, suggestion]);
+    setCalcOpen(false);
+  }, [line.id, line.kgText, line.priceCalcMode, line.qtyText, line.tryPerKgText, line.unitPriceText, line.unitText, locale, setLines, suggestion]);
 
   const modePiece = line.priceCalcMode === "piece";
   const c = Boolean(compact);
@@ -900,176 +911,173 @@ function LineCalcBlock({
   const showLabel = t("reports.orderAccountStatementPriceCalcToggleShow");
   const wrap = cn("min-w-0", u && "origin-top scale-[0.97]", className);
 
-  if (!calcOpen) {
-    return (
-      <div className={wrap}>
-        <button
-          type="button"
-          onClick={() => setCalcOpen(true)}
-          className={cn(
-            "flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-dashed border-zinc-300 bg-white text-left text-zinc-800 transition",
-            u ? "px-1.5 py-1" : c ? "px-2 py-1.5" : "px-2.5 py-2",
-            "hover:border-zinc-400 hover:bg-zinc-50"
-          )}
-        >
-          <span
-            className={cn("min-w-0 font-medium text-zinc-600", u ? "text-[8px]" : c ? "text-[9px]" : "text-xs")}
-          >
-            {showLabel}
-          </span>
-          <IcChevronRight
-            className={u ? "h-4 w-4 shrink-0 text-zinc-500" : "h-5 w-5 shrink-0 text-zinc-500"}
-          />
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className={wrap}>
-      <div
-        className={cn("flex items-start justify-between gap-1", u ? "mb-0.5" : c ? "mb-1" : "mb-1.5")}
-      >
-        <p
-          className={cn(
-            u ? "text-[8px]" : c ? "text-[9px]" : "text-[10px]",
-            "min-w-0 pr-1 font-medium uppercase tracking-wide text-zinc-500"
-          )}
-        >
-          {t("reports.orderAccountStatementCalcHint")}
-        </p>
-        <OasIconButton
-          title={hideLabel}
-          aria-label={hideLabel}
-          onClick={() => setCalcOpen(false)}
-          className="!h-10 !min-h-10 !w-10 sm:!h-10 sm:!w-10 sm:!min-h-10"
-        >
-          <IcChevronUp className="h-4 w-4" />
-        </OasIconButton>
-      </div>
-      <p
+      <button
+        type="button"
+        onClick={() => setCalcOpen(true)}
         className={cn(
-          u ? "mb-0.5 mt-0.5 text-[8px]" : c ? "mb-1 mt-0.5 text-[9px]" : "mb-2 mt-0.5 text-[10px]",
-          "leading-snug text-zinc-500"
+          "flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-dashed border-zinc-300 bg-white text-left text-zinc-800 transition",
+          u ? "px-1.5 py-1" : c ? "px-2 py-1.5" : "px-2.5 py-2",
+          "hover:border-zinc-400 hover:bg-zinc-50"
         )}
       >
-        {modePiece ? t("reports.orderAccountStatementCalcHintPiece") : t("reports.orderAccountStatementCalcHintKg")}
-      </p>
-
-      <p
-        className={cn(
-          "mb-1 font-medium text-zinc-700",
-          u ? "text-[8px]" : c ? "text-[9px]" : "text-[10px] sm:text-[11px]"
-        )}
-      >
-        {t("reports.orderAccountStatementPriceModeLabel")}
-      </p>
-      <div className="flex max-w-sm gap-1.5">
-        <OasIconButton
-          title={t("reports.orderAccountStatementPriceModePiece")}
-          aria-label={t("reports.orderAccountStatementPriceModePiece")}
-          onClick={() => patch({ priceCalcMode: "piece" })}
-          className={cn(
-            c ? "!h-10 !min-h-10 !w-10 sm:!h-10 sm:!w-10 sm:!min-h-10" : "",
-            modePiece
-              ? "!border-zinc-800 !bg-zinc-900 !text-white"
-              : "!text-zinc-600 hover:!bg-zinc-50"
-          )}
-        >
-          <IcBox className={c ? "h-4 w-4" : "h-5 w-5"} />
-        </OasIconButton>
-        <OasIconButton
-          title={t("reports.orderAccountStatementPriceModeKg")}
-          aria-label={t("reports.orderAccountStatementPriceModeKg")}
-          onClick={() => patch({ priceCalcMode: "kg" })}
-          className={cn(
-            c ? "!h-10 !min-h-10 !w-10 sm:!h-10 sm:!w-10 sm:!min-h-10" : "",
-            !modePiece
-              ? "!border-zinc-800 !bg-zinc-900 !text-white"
-              : "!text-zinc-600 hover:!bg-zinc-50"
-          )}
-        >
-          <IcScale className={c ? "h-4 w-4" : "h-5 w-5"} />
-        </OasIconButton>
-      </div>
-
-      {modePiece ? (
-        <div className={cn("grid grid-cols-1 sm:grid-cols-2", c ? "mt-1.5 gap-1.5" : "mt-2 gap-2")}>
-          <label className={cn("block min-w-0 text-zinc-600", c ? "text-[10px]" : "text-[11px]")}>
-            {t("reports.orderAccountStatementQty")}
-            <input
-              inputMode="decimal"
-              className={cn(
-                "mt-0.5 w-full min-w-0 rounded-md border border-zinc-200 bg-white tabular-nums",
-                c ? "px-1.5 py-1 text-xs" : "px-2 py-2 text-sm"
-              )}
-              value={line.qtyText}
-              onChange={(e) => patch({ qtyText: e.target.value })}
-            />
-          </label>
-          <label className={cn("block min-w-0 text-zinc-600", c ? "text-[10px]" : "text-[11px]")}>
-            {t("reports.orderAccountStatementUnitPrice")}
-            <input
-              inputMode="decimal"
-              className={cn(
-                "mt-0.5 w-full min-w-0 rounded-md border border-zinc-200 bg-white tabular-nums",
-                c ? "px-1.5 py-1 text-xs" : "px-2 py-2 text-sm"
-              )}
-              value={line.unitPriceText}
-              onChange={(e) => patch({ unitPriceText: e.target.value })}
-            />
-          </label>
-        </div>
-      ) : (
-        <div className={cn("grid grid-cols-1 sm:grid-cols-2", c ? "mt-1.5 gap-1.5" : "mt-2 gap-2")}>
-          <label className={cn("block min-w-0 text-zinc-600", c ? "text-[10px]" : "text-[11px]")}>
-            {t("reports.orderAccountStatementKg")}
-            <input
-              inputMode="decimal"
-              className={cn(
-                "mt-0.5 w-full min-w-0 rounded-md border border-zinc-200 bg-white tabular-nums",
-                c ? "px-1.5 py-1 text-xs" : "px-2 py-2 text-sm"
-              )}
-              value={line.kgText}
-              onChange={(e) => patch({ kgText: e.target.value })}
-            />
-          </label>
-          <label className={cn("block min-w-0 text-zinc-600", c ? "text-[10px]" : "text-[11px]")}>
-            {t("reports.orderAccountStatementTryPerKg")}
-            <input
-              inputMode="decimal"
-              className={cn(
-                "mt-0.5 w-full min-w-0 rounded-md border border-zinc-200 bg-white tabular-nums",
-                c ? "px-1.5 py-1 text-xs" : "px-2 py-2 text-sm"
-              )}
-              value={line.tryPerKgText}
-              onChange={(e) => patch({ tryPerKgText: e.target.value })}
-            />
-          </label>
-        </div>
-      )}
+        <span className={cn("min-w-0 font-medium text-zinc-600", u ? "text-[8px]" : c ? "text-[9px]" : "text-xs")}>
+          {showLabel}
+        </span>
+        <IcChevronRight className={u ? "h-4 w-4 shrink-0 text-zinc-500" : "h-5 w-5 shrink-0 text-zinc-500"} />
+      </button>
 
       {suggestion != null ? (
-        <div
-          className={cn(
-            "flex min-w-0 items-center justify-between gap-2 rounded-md border border-zinc-300 bg-zinc-100 text-zinc-900",
-            u ? "mt-1.5 px-1.5 py-1 text-[9px]" : c ? "mt-2 px-2 py-1.5 text-[10px]" : "mt-3 px-3 py-2 text-xs"
-          )}
-        >
-          <span className="min-w-0 font-medium">
-            {t("reports.orderAccountStatementSuggestedTotal")}: {formatLocaleAmount(suggestion, locale, "TRY")}
-          </span>
-          <OasIconButton
-            variant="primary"
-            title={t("reports.orderAccountStatementApplySuggestion")}
-            aria-label={t("reports.orderAccountStatementApplySuggestion")}
-            onClick={apply}
-            className={c ? "!h-10 !min-h-10 !w-10 sm:!h-10 sm:!w-10 sm:!min-h-10" : ""}
-          >
-            <IcCheck className={c ? "h-4 w-4" : "h-6 w-6"} />
-          </OasIconButton>
-        </div>
+        <p className={cn("mt-1 text-zinc-500", u ? "text-[8px]" : "text-[9px]")}>
+          {t("reports.orderAccountStatementSuggestedTotal")}: {formatLocaleAmount(suggestion, locale, "TRY")}
+        </p>
       ) : null}
+
+      {calcOpen
+        ? createPortal(
+            <div
+              role="presentation"
+              className={cn(
+                "fixed inset-0 flex items-end justify-center bg-zinc-950/55 p-0 backdrop-blur-[1px] sm:items-center sm:p-4",
+                OVERLAY_Z_TW.modal
+              )}
+              onClick={() => setCalcOpen(false)}
+            >
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-label={t("reports.orderAccountStatementCalcHint")}
+                className="flex w-full max-w-2xl flex-col rounded-t-2xl bg-white shadow-2xl ring-1 ring-zinc-200 sm:rounded-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="flex items-center justify-between gap-3 border-b border-zinc-200 px-4 py-3 sm:px-5">
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold tracking-tight text-zinc-950">
+                      {t("reports.orderAccountStatementCalcHint")}
+                    </p>
+                    <p className="mt-0.5 text-xs text-zinc-500">
+                      {modePiece ? t("reports.orderAccountStatementCalcHintPiece") : t("reports.orderAccountStatementCalcHintKg")}
+                    </p>
+                  </div>
+                  <OasIconButton
+                    title={hideLabel}
+                    aria-label={hideLabel}
+                    onClick={() => setCalcOpen(false)}
+                    className="!h-14 !min-h-14 !w-14 sm:!h-14 sm:!w-14 sm:!min-h-14"
+                  >
+                    <IcX className="h-8 w-8" />
+                  </OasIconButton>
+                </div>
+
+                <div className="space-y-4 px-4 py-4 sm:px-5">
+                  <p className="text-xs font-medium text-zinc-700">{t("reports.orderAccountStatementPriceModeLabel")}</p>
+                  <div className="flex gap-2">
+                    <OasIconButton
+                      title={t("reports.orderAccountStatementPriceModePiece")}
+                      aria-label={t("reports.orderAccountStatementPriceModePiece")}
+                      onClick={() => patch({ priceCalcMode: "piece" })}
+                      className={cn(
+                        "!h-14 !min-h-14 !w-14 sm:!h-14 sm:!w-14 sm:!min-h-14",
+                        modePiece ? "!border-zinc-800 !bg-zinc-900 !text-white" : "!text-zinc-600 hover:!bg-zinc-50"
+                      )}
+                    >
+                      <IcBox className="h-8 w-8" />
+                    </OasIconButton>
+                    <OasIconButton
+                      title={t("reports.orderAccountStatementPriceModeKg")}
+                      aria-label={t("reports.orderAccountStatementPriceModeKg")}
+                      onClick={() => patch({ priceCalcMode: "kg" })}
+                      className={cn(
+                        "!h-14 !min-h-14 !w-14 sm:!h-14 sm:!w-14 sm:!min-h-14",
+                        !modePiece ? "!border-zinc-800 !bg-zinc-900 !text-white" : "!text-zinc-600 hover:!bg-zinc-50"
+                      )}
+                    >
+                      <IcScale className="h-8 w-8" />
+                    </OasIconButton>
+                  </div>
+
+                  {modePiece ? (
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                      <label className="block text-xs text-zinc-600">
+                        {t("reports.orderAccountStatementUnit")}
+                        <input
+                          className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-2 py-2 text-sm"
+                          value={line.unitText ?? ""}
+                          onChange={(e) => patch({ unitText: e.target.value })}
+                          placeholder={t("reports.orderAccountStatementUnitPlaceholder")}
+                        />
+                      </label>
+                      <label className="block text-xs text-zinc-600">
+                        {t("reports.orderAccountStatementQty")}
+                        <input
+                          inputMode="decimal"
+                          className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-2 py-2 text-sm tabular-nums"
+                          value={line.qtyText}
+                          onChange={(e) => patch({ qtyText: e.target.value })}
+                        />
+                      </label>
+                      <label className="block text-xs text-zinc-600">
+                        {t("reports.orderAccountStatementUnitPrice")}
+                        <input
+                          inputMode="decimal"
+                          className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-2 py-2 text-sm tabular-nums"
+                          value={line.unitPriceText}
+                          onChange={(e) => patch({ unitPriceText: e.target.value })}
+                        />
+                      </label>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <label className="block text-xs text-zinc-600">
+                        {t("reports.orderAccountStatementKg")}
+                        <input
+                          inputMode="decimal"
+                          className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-2 py-2 text-sm tabular-nums"
+                          value={line.kgText}
+                          onChange={(e) => patch({ kgText: e.target.value })}
+                        />
+                      </label>
+                      <label className="block text-xs text-zinc-600">
+                        {t("reports.orderAccountStatementTryPerKg")}
+                        <input
+                          inputMode="decimal"
+                          className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-2 py-2 text-sm tabular-nums"
+                          value={line.tryPerKgText}
+                          onChange={(e) => patch({ tryPerKgText: e.target.value })}
+                        />
+                      </label>
+                    </div>
+                  )}
+
+                  <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
+                    {t("reports.orderAccountStatementSuggestedTotal")}:{" "}
+                    <strong className="tabular-nums text-zinc-950">
+                      {suggestion != null ? formatLocaleAmount(suggestion, locale, "TRY") : "—"}
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 border-t border-zinc-200 px-4 py-3 sm:px-5">
+                  <Button type="button" variant="ghost" className="min-h-11 px-4" onClick={() => setCalcOpen(false)}>
+                    {t("common.close")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    className="min-h-11 gap-2 px-4"
+                    onClick={apply}
+                    disabled={suggestion == null || !Number.isFinite(suggestion)}
+                  >
+                    <IcCheck className="h-5 w-5" />
+                    <span>{t("reports.orderAccountStatementApplySuggestion")}</span>
+                  </Button>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }
@@ -1088,6 +1096,7 @@ type StatementPaperProps = {
   promoLines: PromoDeductionLine[];
   totals: ReturnType<typeof computeOrderAccountTotals>;
   advanceDeduction: number;
+  previousBalance: number;
   paidOnBehalf: PaidOnBehalfLine[];
   labels: {
     headerCompany: string;
@@ -1103,6 +1112,7 @@ type StatementPaperProps = {
     giftTotal: string;
     advance: string;
     subtotal: string;
+    previousBalance: string;
     net: string;
     giftSuffix: string;
     paidSection: string;
@@ -1126,6 +1136,7 @@ const StatementPaper = forwardRef<HTMLDivElement, StatementPaperProps>(function 
     promoLines,
     totals,
     advanceDeduction,
+    previousBalance,
     paidOnBehalf,
     labels,
     emptyHint,
@@ -1137,6 +1148,8 @@ const StatementPaper = forwardRef<HTMLDivElement, StatementPaperProps>(function 
   const minimal = layoutVariant === "minimal";
   const hasQty = showQuantityColumn;
   const invoiceLike = layoutVariant === "invoiceClassic" || layoutVariant === "eInvoice";
+  const hasDeductions = totals.giftLinesSum > 0 || promoLines.length > 0 || advanceDeduction > 0;
+  const showSubtotalRow = hasDeductions || totals.subtotal !== totals.grossTotal;
 
   const paperThemeClass =
     layoutVariant === "invoiceClassic"
@@ -1409,15 +1422,28 @@ const StatementPaper = forwardRef<HTMLDivElement, StatementPaperProps>(function 
             <span className="shrink-0 tabular-nums">−{fmt(advanceDeduction)}</span>
           </div>
         ) : null}
-        <div
-          className={cn(
-            "flex justify-between gap-3 border-t border-zinc-300 pt-2 font-black text-zinc-950",
-            dense ? "text-[10px]" : "text-[11px] sm:text-xs"
-          )}
-        >
-          <span>{labels.subtotal}</span>
-          <span className="shrink-0 tabular-nums">{fmt(totals.subtotal)}</span>
-        </div>
+        {showSubtotalRow ? (
+          <div
+            className={cn(
+              "flex justify-between gap-3 border-t border-zinc-300 pt-2 font-black text-zinc-950",
+              dense ? "text-[10px]" : "text-[11px] sm:text-xs"
+            )}
+          >
+            <span>{labels.subtotal}</span>
+            <span className="shrink-0 tabular-nums">{fmt(totals.subtotal)}</span>
+          </div>
+        ) : null}
+        {previousBalance > 0 ? (
+          <div
+            className={cn(
+              "mt-1 flex justify-between gap-3 rounded-md border border-zinc-300 bg-zinc-100/80 px-2 py-1.5 font-semibold text-zinc-900",
+              dense ? "text-[10px]" : "text-[11px] sm:text-xs"
+            )}
+          >
+            <span>{labels.previousBalance}</span>
+            <span className="shrink-0 tabular-nums">+{fmt(previousBalance)}</span>
+          </div>
+        ) : null}
         {paidOnBehalf.length > 0 ? (
           <div className="border-t border-dashed border-zinc-300 pt-2">
             <p
@@ -1519,6 +1545,7 @@ export function OrderAccountStatementScreen() {
   const [paidLines, setPaidLines] = useState<PaidDraft[]>(() => []);
   const [promoLines, setPromoLines] = useState<PromoDraft[]>(() => []);
   const [advanceText, setAdvanceText] = useState("");
+  const [previousBalanceText, setPreviousBalanceText] = useState("");
   const [statementDate] = useState(() => new Date());
   const [layoutVariant, setLayoutVariant] = useState<StatementLayoutVariant>("corporate");
   const [contentPreset, setContentPreset] = useState<OrderAccountContentPreset>("custom");
@@ -1559,9 +1586,10 @@ export function OrderAccountStatementScreen() {
   const parsedPaid = useMemo(() => parsePaid(paidLines, locale), [paidLines, locale]);
   const parsedPromo = useMemo(() => parsePromo(promoLines, locale), [promoLines, locale]);
   const advanceDeduction = Math.max(0, parseLocaleAmount(advanceText, locale) || 0);
+  const previousBalance = Math.max(0, parseLocaleAmount(previousBalanceText, locale) || 0);
   const totals = useMemo(
-    () => computeOrderAccountTotals(parsedLines, parsedPromo, advanceDeduction, parsedPaid),
-    [parsedLines, parsedPromo, advanceDeduction, parsedPaid]
+    () => computeOrderAccountTotals(parsedLines, parsedPromo, advanceDeduction, parsedPaid, previousBalance),
+    [parsedLines, parsedPromo, advanceDeduction, parsedPaid, previousBalance]
   );
 
   const issuedDateLabel = useMemo(
@@ -1602,6 +1630,7 @@ export function OrderAccountStatementScreen() {
       giftTotal: t("reports.orderAccountStatementGiftTotalLine"),
       advance: t("reports.orderAccountStatementAdvanceLine"),
       subtotal: t("reports.orderAccountStatementSubtotal"),
+      previousBalance: t("reports.orderAccountStatementPreviousBalanceLine"),
       net: t("reports.orderAccountStatementNet"),
       giftSuffix: t("reports.orderAccountStatementGiftSuffix"),
       paidSection: t("reports.orderAccountStatementPaidSectionPdf"),
@@ -1665,6 +1694,7 @@ export function OrderAccountStatementScreen() {
       },
     ]);
     setAdvanceText(formatLocaleAmountInput(250_000, locale));
+    setPreviousBalanceText(formatLocaleAmountInput(180_000, locale));
     setPaidLines([
       {
         id: newId(),
@@ -1690,6 +1720,7 @@ export function OrderAccountStatementScreen() {
     );
     setPromoLines([]);
     setAdvanceText("");
+    setPreviousBalanceText("");
     setPaidLines([]);
     setShowQuantityColumn(true);
     setContentPreset("cafe");
@@ -1715,6 +1746,7 @@ export function OrderAccountStatementScreen() {
       },
     ]);
     setAdvanceText("");
+    setPreviousBalanceText("");
     setPaidLines([]);
     setShowQuantityColumn(true);
     setContentPreset("bakery");
@@ -1733,6 +1765,7 @@ export function OrderAccountStatementScreen() {
     );
     setPromoLines([]);
     setAdvanceText(formatLocaleAmountInput(50_000, locale));
+    setPreviousBalanceText("");
     setPaidLines([
       {
         id: newId(),
@@ -1777,6 +1810,7 @@ export function OrderAccountStatementScreen() {
     setPaidLines([]);
     setPromoLines([]);
     setAdvanceText("");
+    setPreviousBalanceText("");
     setContentPreset("custom");
     setLayoutVariant("corporate");
   }, []);
@@ -2737,31 +2771,55 @@ export function OrderAccountStatementScreen() {
               </>
             )}
             <div className="mt-4 w-full max-w-xl rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 shadow-sm ring-1 ring-zinc-950/[0.02]">
-              <label className="block text-sm">
-                <span className="mb-1.5 inline-flex items-center gap-2 text-zinc-700">
-                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-white text-zinc-700 shadow-sm ring-1 ring-zinc-200">
-                    <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-                      <path
-                        fillRule="evenodd"
-                        d="M10 2.75a.75.75 0 01.75.75v.87a5.75 5.75 0 014.88 4.88h.87a.75.75 0 010 1.5h-.87a5.75 5.75 0 01-4.88 4.88v.87a.75.75 0 01-1.5 0v-.87a5.75 5.75 0 01-4.88-4.88h-.87a.75.75 0 010-1.5h.87a5.75 5.75 0 014.88-4.88V3.5a.75.75 0 01.75-.75zm0 3a4.25 4.25 0 100 8.5 4.25 4.25 0 000-8.5z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="block text-sm">
+                  <span className="mb-1.5 inline-flex items-center gap-2 text-zinc-700">
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-white text-zinc-700 shadow-sm ring-1 ring-zinc-200">
+                      <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                        <path
+                          fillRule="evenodd"
+                          d="M10 2.75a.75.75 0 01.75.75v.87a5.75 5.75 0 014.88 4.88h.87a.75.75 0 010 1.5h-.87a5.75 5.75 0 01-4.88 4.88v.87a.75.75 0 01-1.5 0v-.87a5.75 5.75 0 01-4.88-4.88h-.87a.75.75 0 010-1.5h.87a5.75 5.75 0 014.88-4.88V3.5a.75.75 0 01.75-.75zm0 3a4.25 4.25 0 100 8.5 4.25 4.25 0 000-8.5z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </span>
+                    <span className="font-medium">{t("reports.orderAccountStatementAdvanceShort")}</span>
                   </span>
-                  <span className="font-medium">{t("reports.orderAccountStatementAdvanceShort")}</span>
-                </span>
-                <input
-                  inputMode="decimal"
-                  className="w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm tabular-nums shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-300/60"
-                  placeholder="0"
-                  value={advanceText}
-                  onChange={(e) => setAdvanceText(e.target.value)}
-                  onBlur={() => {
-                    const n = parseLocaleAmount(advanceText, locale);
-                    if (Number.isFinite(n)) setAdvanceText(formatLocaleAmountInput(Math.max(0, n), locale));
-                  }}
-                />
-              </label>
+                  <input
+                    inputMode="decimal"
+                    className="w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm tabular-nums shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-300/60"
+                    placeholder="0"
+                    value={advanceText}
+                    onChange={(e) => setAdvanceText(e.target.value)}
+                    onBlur={() => {
+                      const n = parseLocaleAmount(advanceText, locale);
+                      if (Number.isFinite(n)) setAdvanceText(formatLocaleAmountInput(Math.max(0, n), locale));
+                    }}
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="mb-1.5 inline-flex items-center gap-2 text-zinc-700">
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-white text-zinc-700 shadow-sm ring-1 ring-zinc-200">
+                      <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                        <path d="M3.25 4.75A2.75 2.75 0 016 2h8a2.75 2.75 0 012.75 2.75v10.5A2.75 2.75 0 0114 18H6a2.75 2.75 0 01-2.75-2.75V4.75zM6 3.5c-.69 0-1.25.56-1.25 1.25v10.5c0 .69.56 1.25 1.25 1.25h8c.69 0 1.25-.56 1.25-1.25V4.75c0-.69-.56-1.25-1.25-1.25H6z" />
+                        <path d="M7 8.25a.75.75 0 01.75-.75h4.5a.75.75 0 010 1.5h-4.5A.75.75 0 017 8.25zM7 11.75a.75.75 0 01.75-.75h3a.75.75 0 010 1.5h-3a.75.75 0 01-.75-.75z" />
+                      </svg>
+                    </span>
+                    <span className="font-medium">{t("reports.orderAccountStatementPreviousBalanceShort")}</span>
+                  </span>
+                  <input
+                    inputMode="decimal"
+                    className="w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm tabular-nums shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-300/60"
+                    placeholder="0"
+                    value={previousBalanceText}
+                    onChange={(e) => setPreviousBalanceText(e.target.value)}
+                    onBlur={() => {
+                      const n = parseLocaleAmount(previousBalanceText, locale);
+                      if (Number.isFinite(n)) setPreviousBalanceText(formatLocaleAmountInput(Math.max(0, n), locale));
+                    }}
+                  />
+                </label>
+              </div>
             </div>
           </StatementFormStep>
 
@@ -2973,8 +3031,9 @@ export function OrderAccountStatementScreen() {
                       title={t("common.close")}
                       aria-label={t("common.close")}
                       onClick={() => setPreviewModalOpen(false)}
+                      className="!h-14 !min-h-14 !w-14 sm:!h-14 sm:!min-h-14 sm:!w-14"
                     >
-                      <IcX className="h-6 w-6" />
+                      <IcX className="h-7 w-7" />
                     </OasIconButton>
                     <OasIconButton
                       variant="primary"
@@ -2990,8 +3049,9 @@ export function OrderAccountStatementScreen() {
                       }
                       onClick={onDownloadPdf}
                       disabled={busy}
+                      className="!h-14 !min-h-14 !w-14 sm:!h-14 sm:!min-h-14 sm:!w-14"
                     >
-                      {busy ? <IcLoader className="h-6 w-6" /> : <IcDownload className="h-6 w-6" />}
+                      {busy ? <IcLoader className="h-7 w-7" /> : <IcDownload className="h-7 w-7" />}
                     </OasIconButton>
                   </div>
                 </div>
@@ -3027,6 +3087,7 @@ export function OrderAccountStatementScreen() {
                       promoLines={previewPromo}
                       totals={totals}
                       advanceDeduction={advanceDeduction}
+                      previousBalance={previousBalance}
                       paidOnBehalf={previewPaid}
                       labels={labels}
                       emptyHint={t("reports.orderAccountStatementPreviewEmpty")}

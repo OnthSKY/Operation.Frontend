@@ -32,6 +32,7 @@ export type OrderAccountTotals = {
   promoLinesSum: number;
   subtotal: number;
   paidOnBehalfSum: number;
+  previousBalance: number;
   netDue: number;
 };
 
@@ -43,7 +44,8 @@ export function computeOrderAccountTotals(
   lines: readonly OrderAccountLine[],
   promoLines: readonly PromoDeductionLine[],
   advanceDeduction: number,
-  paidOnBehalf: readonly PaidOnBehalfLine[]
+  paidOnBehalf: readonly PaidOnBehalfLine[],
+  previousBalance: number
 ): OrderAccountTotals {
   const grossTotal = lines.reduce((s, l) => s + finite(l.amount), 0);
   const giftLinesSum = lines.filter((l) => l.isGift).reduce((s, l) => s + finite(l.amount), 0);
@@ -51,6 +53,7 @@ export function computeOrderAccountTotals(
   const adv = Math.max(0, finite(advanceDeduction));
   const subtotal = grossTotal - giftLinesSum - promoLinesSum - adv;
   const paidOnBehalfSum = paidOnBehalf.reduce((s, l) => s + finite(l.amount), 0);
-  const netDue = subtotal + paidOnBehalfSum;
-  return { grossTotal, giftLinesSum, promoLinesSum, subtotal, paidOnBehalfSum, netDue };
+  const safePreviousBalance = Math.max(0, finite(previousBalance));
+  const netDue = subtotal + paidOnBehalfSum + safePreviousBalance;
+  return { grossTotal, giftLinesSum, promoLinesSum, subtotal, paidOnBehalfSum, previousBalance: safePreviousBalance, netDue };
 }

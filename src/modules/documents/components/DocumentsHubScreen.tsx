@@ -85,12 +85,14 @@ export function DocumentsHubScreen() {
     { value: "PERSONNEL_YEAR_CLOSURE", label: t("documents.categoryPersonnelYearClosure") },
     { value: "WAREHOUSE_INBOUND_INVOICE", label: t("documents.categoryWarehouseInboundInvoice") },
     { value: "WAREHOUSE_OUTBOUND_INVOICE", label: t("documents.categoryWarehouseOutboundInvoice") },
+    { value: "OTHER_INVOICE", label: t("documents.categoryOtherInvoice") },
   ];
   const uploadCategoryOptions = categoryOptions.filter(
     (opt) =>
       opt.value !== "ALL" &&
       opt.value !== "WAREHOUSE_INBOUND_INVOICE" &&
-      opt.value !== "WAREHOUSE_OUTBOUND_INVOICE"
+      opt.value !== "WAREHOUSE_OUTBOUND_INVOICE" &&
+      opt.value !== "OTHER_INVOICE"
   );
   const branchKindOptions: { value: BranchDocumentKind; label: string }[] = [
     { value: "TAX_BASE", label: t("documents.branchKindTaxBase") },
@@ -109,7 +111,8 @@ export function DocumentsHubScreen() {
     const initialCategory =
       category !== "ALL" &&
       category !== "WAREHOUSE_INBOUND_INVOICE" &&
-      category !== "WAREHOUSE_OUTBOUND_INVOICE"
+      category !== "WAREHOUSE_OUTBOUND_INVOICE" &&
+      category !== "OTHER_INVOICE"
         ? category
         : "BRANCH_DOCUMENT";
     setUploadCategory(initialCategory);
