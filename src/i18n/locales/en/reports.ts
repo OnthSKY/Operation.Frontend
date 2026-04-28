@@ -902,6 +902,12 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   counterpartySummaryPdfUnavailable: "N/A",
   counterpartySummaryPdfNotFound:
     "No stored PDF found for this invoice. The document may not have been saved into system documents.",
+  counterpartySummaryExportPdf: "Download current account PDF",
+  counterpartySummaryPdfTitle: "Current account movement summary",
+  counterpartySummaryPdfBranch: "Branch",
+  counterpartySummaryPdfFilters: "Filters",
+  counterpartySummaryPdfGeneratedAt: "Generated",
+  counterpartySummaryPdfTotals: "Totals (invoice/paid/open)",
   counterpartySummaryEmpty: "No records for these filters.",
   orderAccountStatementSystemBranchLabel: "System branch mapping",
   orderAccountStatementSystemBranchHelp:

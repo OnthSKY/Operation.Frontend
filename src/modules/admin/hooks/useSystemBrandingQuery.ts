@@ -28,7 +28,7 @@ function patchBrandingCache(qc: ReturnType<typeof useQueryClient>, data: Brandin
 export function usePutSystemBrandingMutation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { companyName: string | null }) => putSystemBranding(body),
+    mutationFn: (body: Parameters<typeof putSystemBranding>[0]) => putSystemBranding(body),
     onSuccess: (data) => {
       patchBrandingCache(qc, data);
       void qc.invalidateQueries({ queryKey: systemBrandingKeys.all });

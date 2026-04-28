@@ -1,6 +1,7 @@
 "use client";
 
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
+import { fetchBranchDocuments } from "@/modules/branch/api/branch-documents-api";
 import { FilterFunnelIcon } from "@/shared/components/FilterFunnelIcon";
 import { RightDrawer } from "@/shared/components/RightDrawer";
 import { OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
@@ -42,7 +43,7 @@ import {
   warehouseMovementShipmentGroupKey,
 } from "@/shared/lib/in-batch-group-label";
 import { EyeIcon } from "@/shared/ui/EyeIcon";
-import { PlusIcon, PaperclipIcon, detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
+import { PlusIcon, detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { fetchWarehouseMovementsPage } from "@/modules/warehouse/api/warehouse-stock-api";
 import { warehouseKeys } from "@/modules/warehouse/hooks/useWarehouseQueries";
@@ -106,6 +107,24 @@ function compactPeopleList(values: Array<string | null | undefined>): string {
   if (uniq.length === 0) return "—";
   if (uniq.length <= 2) return uniq.join(", ");
   return `${uniq.slice(0, 2).join(", ")} +${uniq.length - 2}`;
+}
+
+function parseShipmentMetadataFromNotes(notes: string | null | undefined): Record<string, string> {
+  const text = String(notes ?? "");
+  const parts = text
+    .split("·")
+    .map((x) => x.trim())
+    .filter(Boolean);
+  const map: Record<string, string> = {};
+  for (const part of parts) {
+    const eqIdx = part.indexOf("=");
+    if (eqIdx <= 0) continue;
+    const key = part.slice(0, eqIdx).trim();
+    const value = part.slice(eqIdx + 1).trim();
+    if (!key || !value) continue;
+    map[key] = value;
+  }
+  return map;
 }
 
 type GroupBalanceSummary = {
@@ -619,6 +638,14 @@ export function WarehouseDetailMovementHistoryTab({
   const selectedOutboundShipmentRepresentativeMovementId = canManageWholeOutboundShipment
     ? selectedDetailGroup?.movements[0]?.id ?? null
     : null;
+  const selectedOutboundBranchName = canManageWholeOutboundShipment
+    ? selectedDetailGroup?.movements[0]?.outDestinationBranchName?.trim() ?? ""
+    : "";
+  const selectedOutboundBranchId = useMemo(() => {
+    if (!selectedOutboundBranchName) return null;
+    const found = branches.find((b) => (b.name ?? "").trim().toLocaleLowerCase() === selectedOutboundBranchName.toLocaleLowerCase());
+    return found?.id != null && found.id > 0 ? found.id : null;
+  }, [branches, selectedOutboundBranchName]);
   const canEditHeaderInfo = useMemo(
     () => selectedDetailGroup != null && selectedDetailGroup.movements.every((m) => m.type === "IN"),
     [selectedDetailGroup]
@@ -863,6 +890,43 @@ export function WarehouseDetailMovementHistoryTab({
     appendProductOptions.length < appendProductsTotalCount &&
     !appendProductsPagedQ.isPending &&
     !appendProductsPagedQ.isFetching;
+  const shipmentPdfQueryEnabled =
+    canManageWholeOutboundShipment &&
+    selectedOutboundBranchId != null &&
+    selectedOutboundShipmentRepresentativeMovementId != null;
+  const shipmentPdfDocsQ = useQuery({
+    queryKey: [
+      ...warehouseKeys.all,
+      "shipmentPdfDocs",
+      selectedOutboundBranchId ?? 0,
+      selectedOutboundShipmentRepresentativeMovementId ?? 0,
+    ] as const,
+    queryFn: async () => await fetchBranchDocuments(selectedOutboundBranchId!),
+    enabled: shipmentPdfQueryEnabled,
+    staleTime: 30_000,
+  });
+  const hasShipmentPdfDoc = useMemo(() => {
+    if (!shipmentPdfQueryEnabled || !shipmentPdfDocsQ.data) return false;
+    const representativeId = selectedOutboundShipmentRepresentativeMovementId!;
+    const groupMovementIds = new Set(selectedDetailGroup?.movements.map((m) => m.id) ?? []);
+    return shipmentPdfDocsQ.data.some((doc) => {
+      const ct = (doc.contentType ?? "").toLocaleLowerCase();
+      if (!ct.includes("pdf")) return false;
+      const meta = parseShipmentMetadataFromNotes(doc.notes);
+      const primary = Number(meta.shipmentPrimaryMovementId ?? 0);
+      if (primary > 0 && primary === representativeId) return true;
+      const linked = String(meta.shipmentMovementIds ?? "")
+        .split(",")
+        .map((x) => Number(x.trim()))
+        .filter((n) => Number.isFinite(n) && n > 0);
+      return linked.some((movementId) => groupMovementIds.has(movementId));
+    });
+  }, [
+    shipmentPdfQueryEnabled,
+    shipmentPdfDocsQ.data,
+    selectedOutboundShipmentRepresentativeMovementId,
+    selectedDetailGroup,
+  ]);
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
@@ -1411,30 +1475,33 @@ export function WarehouseDetailMovementHistoryTab({
                             type="button"
                             variant="secondary"
                             className={cn(
-                              detailOpenIconButtonClass,
-                              "border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100"
+                              "min-h-11 gap-2 border-violet-200 bg-violet-50 px-3 text-violet-800 hover:bg-violet-100"
                             )}
                             onClick={() => {
                               if (selectedOutboundShipmentRepresentativeMovementId == null) return;
                               openInvoiceDraftFromShipment(selectedOutboundShipmentRepresentativeMovementId);
                             }}
                           >
-                            <PaperclipIcon className="h-5 w-5" />
+                            <PlusIcon className="h-5 w-5" />
+                            <span className="text-xs font-semibold sm:text-sm">{t("warehouse.movementHistoryCreateInvoiceFromShipment")}</span>
                           </Button>
                         </Tooltip>
-                        <Tooltip content={t("warehouse.movementHistoryOpenRelatedPdf")} delayMs={200}>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className={detailOpenIconButtonClass}
-                            onClick={() => {
-                              if (selectedOutboundShipmentRepresentativeMovementId == null) return;
-                              openRelatedShipmentPdfDocs(selectedOutboundShipmentRepresentativeMovementId);
-                            }}
-                          >
-                            <EyeIcon className="h-5 w-5" />
-                          </Button>
-                        </Tooltip>
+                        {hasShipmentPdfDoc ? (
+                          <Tooltip content={t("warehouse.movementHistoryOpenRelatedPdf")} delayMs={200}>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="min-h-11 gap-2 px-3"
+                              onClick={() => {
+                                if (selectedOutboundShipmentRepresentativeMovementId == null) return;
+                                openRelatedShipmentPdfDocs(selectedOutboundShipmentRepresentativeMovementId);
+                              }}
+                            >
+                              <EyeIcon className="h-5 w-5" />
+                              <span className="text-xs font-semibold sm:text-sm">{t("warehouse.movementHistoryOpenRelatedPdf")}</span>
+                            </Button>
+                          </Tooltip>
+                        ) : null}
                         <Tooltip content={t("warehouse.transferAddLine")} delayMs={200}>
                           <Button
                             type="button"

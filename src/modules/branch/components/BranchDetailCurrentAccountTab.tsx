@@ -4,10 +4,17 @@ import { fetchBranchDocumentBlob } from "@/modules/branch/api/branch-documents-a
 import {
   addOutboundInvoiceReceipt,
   fetchOutboundInvoices,
+  fetchOutboundInvoiceReceipts,
   type OutboundInvoiceResponse,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
+import {
+  companyBrandingLogoUrl,
+  fetchSystemBranding,
+} from "@/modules/admin/api/system-branding-api";
+import { downloadCounterpartyInvoiceStylePdf } from "@/modules/order-account-statement/lib/download-counterparty-invoice-style-pdf";
 import { useBranchDocuments, useUploadBranchDocument } from "@/modules/branch/hooks/useBranchQueries";
 import { useI18n } from "@/i18n/context";
+import { apiFetch } from "@/shared/api/client";
 import { LocalImageFileThumb } from "@/shared/components/LocalImageFileThumb";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatAmountInputOnBlur, formatLocaleAmount, parseLocaleAmount } from "@/shared/lib/locale-amount";
@@ -47,6 +54,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
   const [pdfOpeningId, setPdfOpeningId] = useState<number | null>(null);
   const [transferOpeningId, setTransferOpeningId] = useState<number | null>(null);
   const [receiptSaving, setReceiptSaving] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const uploadBranchDocumentMut = useUploadBranchDocument(branchId);
 
   const invoicesQuery = useQuery({
@@ -221,6 +229,64 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     }
   };
 
+  const exportCurrentAccountPdf = async () => {
+    if (rows.length === 0) return;
+    setExportingPdf(true);
+    try {
+      const branding = await fetchSystemBranding().catch(() => null);
+      const companyName = branding?.companyName?.trim() || "—";
+      let logoDataUrl = "";
+      if (branding?.hasLogo) {
+        try {
+          const res = await apiFetch(companyBrandingLogoUrl(branding.updatedAtUtc));
+          if (res.ok) {
+            const blob = await res.blob();
+            logoDataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+              reader.onerror = () => reject(reader.error ?? new Error("logo-read-failed"));
+              reader.readAsDataURL(blob);
+            });
+          }
+        } catch {
+          logoDataUrl = "";
+        }
+      }
+
+      const pdfRows = await Promise.all(
+        rows.map(async (invoice) => {
+          const receipts = await fetchOutboundInvoiceReceipts(invoice.id);
+          const paymentDate = receipts.length > 0 ? receipts[0]?.receiptDate ?? null : null;
+          return {
+            counterpartyName: invoice.counterpartyName,
+            counterpartyTypeLabel: t("reports.counterpartySummaryTypeBranch"),
+            documentNumber: invoice.documentNumber,
+            issueDate: formatLocaleDate(invoice.issueDate, locale),
+            invoiceAmount: formatLocaleAmount(invoice.linesTotal, locale, invoice.currencyCode),
+            paidAmount: formatLocaleAmount(invoice.paidTotal, locale, invoice.currencyCode),
+            openAmount: formatLocaleAmount(invoice.openAmount, locale, invoice.currencyCode),
+            paymentDate: paymentDate ? formatLocaleDate(paymentDate, locale) : "—",
+          };
+        })
+      );
+
+      await downloadCounterpartyInvoiceStylePdf(pdfRows, {
+        companyName,
+        branchName: rows[0]?.counterpartyName?.trim() || `#${branchId}`,
+        logoDataUrl,
+        title: t("branch.currentAccountPdfDocumentTitle"),
+        issuedAtLabel: `${t("branch.currentAccountPdfGeneratedAt")}: ${new Date().toLocaleDateString(locale)}`,
+        filtersLabel: `${t("branch.currentAccountPdfScope")}: ${t("branch.currentAccountPdfScopeBranchOnly")}`,
+        totalsLabel: `${t("branch.currentAccountPdfTotals")}: ${formatLocaleAmount(totals.invoiced, locale, "TRY")} / ${formatLocaleAmount(totals.paid, locale, "TRY")} / ${formatLocaleAmount(totals.open, locale, "TRY")}`,
+        fileName: `sube_cari_hesap_${branchId}_${new Date().toISOString().slice(0, 10)}.pdf`,
+      });
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    } finally {
+      setExportingPdf(false);
+    }
+  };
+
   const openTransferImage = async (invoiceId: number, mode: "view" | "download") => {
     const documentId = transferDocByInvoiceId.get(invoiceId);
     if (!documentId) return;
@@ -318,6 +384,17 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
             {formatLocaleAmount(totals.open, locale, "TRY")}
           </div>
         </div>
+      </div>
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          variant="secondary"
+          className="min-h-[44px]"
+          onClick={() => void exportCurrentAccountPdf()}
+          disabled={isLoading || rows.length === 0 || exportingPdf}
+        >
+          {exportingPdf ? t("common.loading") : t("branch.currentAccountExportPdf")}
+        </Button>
       </div>
 
       {isError && errorText ? <p className="text-sm text-red-600">{errorText}</p> : null}

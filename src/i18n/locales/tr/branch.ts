@@ -285,6 +285,12 @@ export const branch = {
     "Tahsilat dağıtıldı: {n} faturaya toplam {amount}.",
   currentAccountReceiptUnappliedRemainder:
     "Açık borç toplamı aşıldı; {amount} tutar uygulanamadı.",
+  currentAccountExportPdf: "Şube cari PDF indir",
+  currentAccountPdfDocumentTitle: "Şube cari hesap özeti",
+  currentAccountPdfGeneratedAt: "Üretilme",
+  currentAccountPdfScope: "Kapsam",
+  currentAccountPdfScopeBranchOnly: "Yalnız seçili şube",
+  currentAccountPdfTotals: "Toplamlar (fatura/tahsilat/açık)",
   tourismSeasonClosedOpenTab: "Turizm sezonu sekmesine git",
   expensesSeasonMissingForToday:
     "Bugün için bu şubede açık turizm sezonu tanımlı değil. Şube fiilen sezonda değilken şube kasasından gider yazmak tutarlı değildir; önce turizm sezonu kaydı ekleyin veya işlem tarihini sezon içine alın. Gider ve gelir dışı akışlar bu durumda sunucu tarafından engellenir; yalnızca gelir satırları merkez «Sezon kapalıyken izinler» politikasının açık olması halinde mümkün olabilir.",

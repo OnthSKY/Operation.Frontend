@@ -58,6 +58,15 @@ export type OutboundInvoiceReceiptRequest = {
   notes?: string | null;
 };
 
+export type OutboundInvoiceReceiptResponse = {
+  id: number;
+  outboundInvoiceId: number;
+  receiptDate: string;
+  amount: number;
+  currencyCode: string;
+  notes?: string | null;
+};
+
 export type ShipmentInvoiceabilityLine = {
   warehouseMovementId: number;
   productId: number;
@@ -143,6 +152,12 @@ export async function addOutboundInvoiceReceipt(
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export async function fetchOutboundInvoiceReceipts(
+  invoiceId: number
+): Promise<OutboundInvoiceReceiptResponse[]> {
+  return apiRequest<OutboundInvoiceReceiptResponse[]>(`/outbound-invoices/${invoiceId}/receipts`);
 }
 
 export async function deleteOutboundInvoice(invoiceId: number): Promise<void> {

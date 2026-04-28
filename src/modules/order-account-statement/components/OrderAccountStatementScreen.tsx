@@ -29,6 +29,9 @@ import {
   type OutboundInvoiceResponse,
   type ShipmentInvoiceabilityLine,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
+import { OrderAccountStatementActionsSection } from "@/modules/order-account-statement/components/OrderAccountStatementActionsSection";
+import { OrderAccountStatementDocumentContentSection } from "@/modules/order-account-statement/components/OrderAccountStatementDocumentContentSection";
+import { OrderAccountStatementPreviewSettings } from "@/modules/order-account-statement/components/OrderAccountStatementPreviewSettings";
 import { cn } from "@/lib/cn";
 import { OVERLAY_Z_INDEX, OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
 import { apiFetch } from "@/shared/api/client";
@@ -53,6 +56,7 @@ import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
+  Fragment,
   forwardRef,
   useCallback,
   useEffect,
@@ -149,6 +153,87 @@ function emptyPromo(): PromoDraft {
   return { id: newId(), description: "", amount: 0, amountText: "" };
 }
 
+const LINE_AMOUNT_MISMATCH_TOLERANCE = 0.01;
+
+function computeLineAmountMismatch(
+  line: Pick<LineDraft, "quantityText" | "unitText" | "unitPriceText" | "amountText" | "amount">,
+  locale: Locale
+): { expected: number; actual: number; diff: number } | null {
+  const qty = parseLocaleAmount((line.quantityText ?? "").trim(), locale);
+  const unitPrice = parseLocaleAmount((line.unitPriceText ?? "").trim(), locale);
+  const unit = (line.unitText ?? "").trim();
+  const explicitAmount = parseLocaleAmount((line.amountText ?? "").trim(), locale);
+  const actual = Number.isFinite(explicitAmount) ? explicitAmount : Number(line.amount) || 0;
+  if (!Number.isFinite(qty) || qty <= 0) return null;
+  if (!Number.isFinite(unitPrice) || unitPrice < 0) return null;
+  if (!unit) return null;
+  if (!Number.isFinite(actual) || actual < 0) return null;
+  const expected = qty * unitPrice;
+  const diff = Math.abs(expected - actual);
+  if (diff <= LINE_AMOUNT_MISMATCH_TOLERANCE) return null;
+  return { expected, actual, diff };
+}
+
+function RequiredMark() {
+  return <span className="ml-1 font-semibold text-red-500">*</span>;
+}
+
+function ScopePill({ kind }: { kind: "document" | "system" }) {
+  if (kind === "document") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-medium text-zinc-600">
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+        Belge
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-medium text-zinc-600">
+      <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" aria-hidden />
+      Sistem
+    </span>
+  );
+}
+
+function FlowStepPill({
+  index,
+  label,
+  state = "todo",
+}: {
+  index: number;
+  label: string;
+  state?: "done" | "current" | "todo";
+}) {
+  const isCurrent = state === "current";
+  const isDone = state === "done";
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] transition-colors",
+        isCurrent
+          ? "border-violet-300 bg-violet-50 text-violet-800"
+          : isDone
+            ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+            : "border-zinc-200 bg-white text-zinc-600"
+      )}
+    >
+      <span
+        className={cn(
+          "inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold",
+          isCurrent
+            ? "bg-violet-600 text-white"
+            : isDone
+              ? "bg-emerald-600 text-white"
+              : "bg-zinc-200 text-zinc-700"
+        )}
+      >
+        {isDone ? "✓" : index}
+      </span>
+      <span className="font-medium">{label}</span>
+    </span>
+  );
+}
+
 const oasIconSquareBtn = cn(
   detailOpenIconButtonClass,
   "!h-12 !min-h-12 !w-12 sm:!h-12 sm:!w-12 sm:!min-h-12"
@@ -192,9 +277,9 @@ function OasTrashButton({ label, onClick }: { label: string; onClick: () => void
       title={label}
       aria-label={label}
       onClick={onClick}
-      className="!border-zinc-200 !text-zinc-700 hover:!border-red-200/90 hover:!bg-red-50 hover:!text-red-800"
+      className="!border-zinc-200 !text-zinc-700 hover:!border-red-300 hover:!bg-red-50 hover:!text-red-700"
     >
-      <TrashIcon className="h-6 w-6" />
+      <TrashIcon className="h-6 w-6 shrink-0 text-current" />
     </OasIconButton>
   );
 }
@@ -317,6 +402,15 @@ function IcEraser({ className }: { className?: string }) {
   );
 }
 
+function IcCopy({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path d="M6 2.75A2.25 2.25 0 003.75 5v8A2.25 2.25 0 006 15.25h8A2.25 2.25 0 0016.25 13V5A2.25 2.25 0 0014 2.75H6zm0 1.5h8c.414 0 .75.336.75.75v8a.75.75 0 01-.75.75H6a.75.75 0 01-.75-.75V5c0-.414.336-.75.75-.75z" />
+      <path d="M3.5 5.75a.75.75 0 01.75.75v8.25c0 .69.56 1.25 1.25 1.25h8.25a.75.75 0 010 1.5H5.5A2.75 2.75 0 012.75 14.75V6.5a.75.75 0 01.75-.75z" />
+    </svg>
+  );
+}
+
 function IcLoader({ className }: { className?: string }) {
   return (
     <svg
@@ -422,6 +516,7 @@ function StatementFormStep({
   collapseLabelExpand,
   collapseLabelCollapse,
   stepVisual,
+  scopeKinds,
 }: {
   title: string;
   description?: string;
@@ -433,12 +528,20 @@ function StatementFormStep({
   collapseLabelCollapse?: string;
   /** Başlık yanında renkli ikon rozeti — adımları ayırt etmek için. */
   stepVisual?: { tone: OasStepVisualTone; icon: OasStepVisualIcon };
+  scopeKinds?: Array<"document" | "system">;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const titleBlock = (
     <div className="min-w-0 flex-1">
       <h2 className="text-[15px] font-bold leading-snug tracking-tight text-zinc-950">{title}</h2>
       {description ? <p className="mt-1.5 text-xs leading-relaxed text-zinc-600">{description}</p> : null}
+      {scopeKinds && scopeKinds.length > 0 ? (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          {scopeKinds.map((kind) => (
+            <ScopePill key={kind} kind={kind} />
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 
@@ -1238,6 +1341,20 @@ type StatementPaperProps = {
     paidSection: string;
     promoLineFallback: string;
   };
+  paymentInfo?: {
+    iban?: string | null;
+    accountHolder?: string | null;
+    bankName?: string | null;
+    paymentNote?: string | null;
+    showOnPdf?: boolean;
+  };
+  paymentLabels: {
+    section: string;
+    iban: string;
+    accountHolder: string;
+    bankName: string;
+    paymentNote: string;
+  };
   emptyHint: string;
 };
 
@@ -1259,6 +1376,8 @@ const StatementPaper = forwardRef<HTMLDivElement, StatementPaperProps>(function 
     previousBalance,
     paidOnBehalf,
     labels,
+    paymentInfo,
+    paymentLabels,
     emptyHint,
   },
   ref
@@ -1270,6 +1389,16 @@ const StatementPaper = forwardRef<HTMLDivElement, StatementPaperProps>(function 
   const invoiceLike = layoutVariant === "invoiceClassic" || layoutVariant === "eInvoice";
   const hasDeductions = totals.giftLinesSum > 0 || promoLines.length > 0 || advanceDeduction > 0;
   const showSubtotalRow = hasDeductions || totals.subtotal !== totals.grossTotal;
+  const paymentIban = (paymentInfo?.iban ?? "").trim();
+  const paymentAccountHolder = (paymentInfo?.accountHolder ?? "").trim();
+  const paymentBankName = (paymentInfo?.bankName ?? "").trim();
+  const paymentNote = (paymentInfo?.paymentNote ?? "").trim();
+  const showPaymentSection =
+    Boolean(paymentInfo?.showOnPdf) &&
+    (paymentIban.length > 0 ||
+      paymentAccountHolder.length > 0 ||
+      paymentBankName.length > 0 ||
+      paymentNote.length > 0);
 
   const paperThemeClass =
     layoutVariant === "invoiceClassic"
@@ -1582,6 +1711,42 @@ const StatementPaper = forwardRef<HTMLDivElement, StatementPaperProps>(function 
             ))}
           </div>
         ) : null}
+        {showPaymentSection ? (
+          <div className="mt-2 rounded-md border border-zinc-300 bg-zinc-50 px-2 py-2 text-zinc-800">
+            <p
+              className={cn(
+                "mb-1.5 font-black uppercase tracking-wide text-zinc-900",
+                dense ? "text-[8px]" : "text-[9px] sm:text-[10px]"
+              )}
+            >
+              {paymentLabels.section}
+            </p>
+            {paymentIban ? (
+              <div className="flex justify-between gap-3 py-0.5">
+                <span>{paymentLabels.iban}</span>
+                <span className="shrink-0 tabular-nums text-right">{paymentIban}</span>
+              </div>
+            ) : null}
+            {paymentAccountHolder ? (
+              <div className="flex justify-between gap-3 py-0.5">
+                <span>{paymentLabels.accountHolder}</span>
+                <span className="shrink-0 text-right">{paymentAccountHolder}</span>
+              </div>
+            ) : null}
+            {paymentBankName ? (
+              <div className="flex justify-between gap-3 py-0.5">
+                <span>{paymentLabels.bankName}</span>
+                <span className="shrink-0 text-right">{paymentBankName}</span>
+              </div>
+            ) : null}
+            {paymentNote ? (
+              <div className="flex justify-between gap-3 py-0.5">
+                <span>{paymentLabels.paymentNote}</span>
+                <span className="shrink-0 text-right">{paymentNote}</span>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <div
           className={cn(
             netRowClass,
@@ -1605,6 +1770,7 @@ function OasTemplatePickers({
   contentOptions,
   nameSuffix,
   menuZIndex,
+  hideContentPicker = false,
 }: {
   layoutVariant: StatementLayoutVariant;
   onLayoutChange: (v: StatementLayoutVariant) => void;
@@ -1614,11 +1780,12 @@ function OasTemplatePickers({
   contentOptions: SelectOption[];
   nameSuffix: string;
   menuZIndex?: number;
+  hideContentPicker?: boolean;
 }) {
   const { t } = useI18n();
   const noopBlur = useCallback(() => {}, []);
   return (
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className={cn("grid gap-3", hideContentPicker ? "sm:grid-cols-1" : "sm:grid-cols-2")}>
       <Select
         label={t("reports.orderAccountStatementLayoutTemplate")}
         name={`oas-layout-${nameSuffix}`}
@@ -1628,15 +1795,17 @@ function OasTemplatePickers({
         onBlur={noopBlur}
         menuZIndex={menuZIndex}
       />
-      <Select
-        label={t("reports.orderAccountStatementContentTemplate")}
-        name={`oas-content-${nameSuffix}`}
-        value={contentPreset}
-        options={contentOptions}
-        onChange={(e) => onContentPresetChange(e.target.value as OrderAccountContentPreset)}
-        onBlur={noopBlur}
-        menuZIndex={menuZIndex}
-      />
+      {!hideContentPicker ? (
+        <Select
+          label={t("reports.orderAccountStatementContentTemplate")}
+          name={`oas-content-${nameSuffix}`}
+          value={contentPreset}
+          options={contentOptions}
+          onChange={(e) => onContentPresetChange(e.target.value as OrderAccountContentPreset)}
+          onBlur={noopBlur}
+          menuZIndex={menuZIndex}
+        />
+      ) : null}
     </div>
   );
 }
@@ -1646,6 +1815,8 @@ export function OrderAccountStatementScreen() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const previewRef = useRef<HTMLDivElement>(null);
+  const linesSectionRef = useRef<HTMLDivElement>(null);
+  const emblemFileInputRef = useRef<HTMLInputElement>(null);
   const shipmentPrefillKeyRef = useRef<string>("");
   const brandingDefaultsLoadedRef = useRef(false);
   const [busy, setBusy] = useState(false);
@@ -1664,6 +1835,7 @@ export function OrderAccountStatementScreen() {
   const [saveToSystem, setSaveToSystem] = useState(true);
   const [saveAsInvoice, setSaveAsInvoice] = useState(false);
   const [invoiceAutoPost, setInvoiceAutoPost] = useState(true);
+  const [invoicePaymentDetailsOpen, setInvoicePaymentDetailsOpen] = useState(false);
   const [customerAccountIdText, setCustomerAccountIdText] = useState("");
   const [paymentIban, setPaymentIban] = useState("");
   const [paymentAccountHolder, setPaymentAccountHolder] = useState("");
@@ -1689,6 +1861,8 @@ export function OrderAccountStatementScreen() {
   const [layoutVariant, setLayoutVariant] = useState<StatementLayoutVariant>("corporate");
   const [contentPreset, setContentPreset] = useState<OrderAccountContentPreset>("custom");
   const [showQuantityColumn, setShowQuantityColumn] = useState(false);
+  const [mobileAdvancedOpen, setMobileAdvancedOpen] = useState(false);
+  const [desktopLineDetailsOpen, setDesktopLineDetailsOpen] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [confirmMultiActionOpen, setConfirmMultiActionOpen] = useState(false);
   const [multiActionSteps, setMultiActionSteps] = useState<MultiActionStep[]>([]);
@@ -1721,6 +1895,109 @@ export function OrderAccountStatementScreen() {
   const [lastSavedDocumentId, setLastSavedDocumentId] = useState<number | null>(null);
   const [orderDocumentKey, setOrderDocumentKey] = useState(() => `oas-${Date.now().toString(36)}`);
   const hasMultipleActions = saveAsInvoice || saveToSystem;
+  const lineAddBlocked = creationMode === "shipmentBased" && shipmentLinkMode === "strict";
+
+  const focusLineEditor = useCallback((lineId: string) => {
+    linesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => {
+      const el = document.querySelector<HTMLInputElement>(`[data-line-desc-id="${lineId}"]`);
+      if (!el) return;
+      el.focus();
+      try {
+        el.setSelectionRange(el.value.length, el.value.length);
+      } catch {
+        // no-op
+      }
+    }, 220);
+  }, []);
+  const focusLineField = useCallback((lineId: string, field: "description" | "amount") => {
+    window.setTimeout(() => {
+      const el = document.querySelector<HTMLInputElement>(`[data-line-id="${lineId}"][data-line-field="${field}"]`);
+      if (!el) return;
+      el.focus();
+      try {
+        el.setSelectionRange(el.value.length, el.value.length);
+      } catch {
+        // no-op
+      }
+    }, 120);
+  }, []);
+
+  const handleAddLine = useCallback(() => {
+    if (lineAddBlocked) return;
+    const id = newId();
+    setLines((prev) => [
+      ...prev,
+      {
+        ...emptyLine(),
+        id,
+        lineSource: lineAddBlocked ? "shipment" : "manual",
+        manualReasonCode: lineAddBlocked ? null : "OPS_OTHER",
+      },
+    ]);
+    focusLineEditor(id);
+  }, [focusLineEditor, lineAddBlocked]);
+  const handleDuplicateLastLine = useCallback(() => {
+    if (lineAddBlocked) return;
+    let createdId = "";
+    setLines((prev) => {
+      const last = prev[prev.length - 1];
+      if (!last) return prev;
+      createdId = newId();
+      return [
+        ...prev,
+        {
+          ...last,
+          id: createdId,
+          amount: 0,
+          amountText: "",
+          isGift: false,
+          lineSource: lineAddBlocked ? "shipment" : "manual",
+          manualReasonCode: lineAddBlocked ? null : (last.manualReasonCode ?? "OPS_OTHER"),
+          sourceShipmentLineId: null,
+          sourceWarehouseMovementId: null,
+        },
+      ];
+    });
+    if (createdId) focusLineEditor(createdId);
+  }, [focusLineEditor, lineAddBlocked]);
+  const mobileLineIssueCount = useMemo(() => {
+    return lines.filter((line) => {
+      const amount = parseLocaleAmount((line.amountText ?? "").trim(), locale) || 0;
+      const amountMismatch = showQuantityColumn ? computeLineAmountMismatch(line, locale) : null;
+      return !line.description.trim() || amount <= 0 || amountMismatch != null;
+    }).length;
+  }, [lines, locale, showQuantityColumn]);
+  const hasShipmentSelected = creationMode !== "shipmentBased" || selectedShipmentSource != null;
+  const hasDocumentBasics = Boolean(companyName.trim() && branchName.trim() && documentTitle.trim());
+  const hasReadyLine = lines.some((line) => {
+    const amount = parseLocaleAmount((line.amountText ?? "").trim(), locale) || 0;
+    return line.description.trim().length > 0 && amount > 0;
+  });
+  const flowCurrentStep = useMemo(() => {
+    if (!hasShipmentSelected) return 2;
+    if (!hasDocumentBasics) return creationMode === "shipmentBased" ? 3 : 2;
+    if (!hasReadyLine) return 3;
+    return 4;
+  }, [creationMode, hasDocumentBasics, hasReadyLine, hasShipmentSelected]);
+  const handleMobileLineEnter = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>, lineId: string, field: "description" | "amount") => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      if (field === "description") {
+        focusLineField(lineId, "amount");
+        return;
+      }
+      const idx = lines.findIndex((x) => x.id === lineId);
+      if (idx >= 0 && idx < lines.length - 1) {
+        const next = lines[idx + 1];
+        if (next) focusLineField(next.id, "description");
+        return;
+      }
+      handleAddLine();
+    },
+    [focusLineField, handleAddLine, lines]
+  );
 
   useEffect(() => {
     const branchIdText = linkedBranchId.trim();
@@ -1728,7 +2005,10 @@ export function OrderAccountStatementScreen() {
     if (!Number.isFinite(branchIdNum) || branchIdNum <= 0) return;
     // Şube seçildiğinde cari id'yi şube id ile başlayan bir taslak değere getir.
     setCustomerAccountIdText(`${branchIdNum}001`);
-  }, [linkedBranchId]);
+    // Sistem şubesi seçimi, belge başlığındaki şube adını da otomatik eşler.
+    const selectedBranch = branches.find((b) => b.id === branchIdNum);
+    if (selectedBranch?.name?.trim()) setBranchName(selectedBranch.name.trim());
+  }, [branches, linkedBranchId]);
 
   useEffect(() => {
     setPortalMounted(true);
@@ -1746,11 +2026,22 @@ export function OrderAccountStatementScreen() {
   const shipmentPrefillParams = useMemo(() => {
     const warehouseIdRaw = searchParams.get("shipmentWarehouseId") ?? "";
     const movementIdRaw = searchParams.get("shipmentMovementId") ?? "";
+    const movementIdsRaw = searchParams.get("shipmentMovementIds") ?? "";
     const warehouseId = Number.parseInt(warehouseIdRaw, 10);
     const movementId = Number.parseInt(movementIdRaw, 10);
     if (!Number.isFinite(warehouseId) || warehouseId <= 0) return null;
     if (!Number.isFinite(movementId) || movementId <= 0) return null;
-    return { warehouseId, movementId, key: `${warehouseId}:${movementId}` };
+    const parsedIds = movementIdsRaw
+      .split(",")
+      .map((x) => Number.parseInt(x.trim(), 10))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    const movementIds = Array.from(new Set([movementId, ...parsedIds]));
+    return {
+      warehouseId,
+      movementId,
+      movementIds,
+      key: `${warehouseId}:${movementIds.join(",")}`,
+    };
   }, [searchParams]);
   const shipmentPrefillDraftMode = useMemo(() => {
     const raw = (searchParams.get("invoiceDraft") ?? "").trim().toLowerCase();
@@ -1813,13 +2104,10 @@ export function OrderAccountStatementScreen() {
         movementIds: [movementId],
         source,
       });
-      if (!documentTitle.trim()) {
-        setDocumentTitle(t("reports.orderAccountStatementDocTitle"));
-      }
       const rows = await fetchShipmentInvoiceability(movementId);
       setShipmentInvoiceability(rows);
     },
-    [catalog, documentTitle, locale, shipmentPrefillDraftMode, t]
+    [catalog, locale, shipmentPrefillDraftMode]
   );
   const loadShipmentGroupIntoForm = useCallback(
     async (option: ShipmentOption, source: "auto" | "manual") => {
@@ -1870,15 +2158,12 @@ export function OrderAccountStatementScreen() {
         movementIds: option.movementIds,
         source,
       });
-      if (!documentTitle.trim()) {
-        setDocumentTitle(t("reports.orderAccountStatementDocTitle"));
-      }
       const invoiceabilityGroups = await Promise.all(
         option.movementIds.map(async (movementId) => await fetchShipmentInvoiceability(movementId))
       );
       setShipmentInvoiceability(invoiceabilityGroups.flat());
     },
-    [catalog, documentTitle, locale, shipmentPrefillDraftMode, t]
+    [catalog, locale, shipmentPrefillDraftMode]
   );
 
   useEffect(() => {
@@ -1989,13 +2274,15 @@ export function OrderAccountStatementScreen() {
         if (brandingCompany) {
           setDefaultCompanyName(brandingCompany);
           if (!companyName.trim()) setCompanyName(brandingCompany);
+          if (!documentTitle.trim()) setDocumentTitle(brandingCompany);
         }
-        if (!emblemDataUrl && branding.hasLogo) {
+        if (branding.hasLogo) {
           try {
             const dataUrl = await loadBrandingLogoAsDataUrl(branding.updatedAtUtc);
             if (!alive) return;
             setDefaultEmblemDataUrl(dataUrl);
-            setEmblemDataUrl(dataUrl);
+            const isUsingDefaultOrEmpty = !emblemDataUrl || emblemDataUrl === defaultEmblemDataUrl;
+            if (isUsingDefaultOrEmpty) setEmblemDataUrl(dataUrl);
           } catch {
             // Branding logo yoksa sessiz geç; kullanıcı manuel seçebilir.
           }
@@ -2007,18 +2294,48 @@ export function OrderAccountStatementScreen() {
     return () => {
       alive = false;
     };
-  }, [companyName, emblemDataUrl, loadBrandingLogoAsDataUrl]);
+  }, [loadBrandingLogoAsDataUrl]);
 
   useEffect(() => {
     if (!shipmentPrefillParams) return;
     if (shipmentPrefillKeyRef.current === shipmentPrefillParams.key) return;
     shipmentPrefillKeyRef.current = shipmentPrefillParams.key;
     let alive = true;
-    void loadShipmentIntoForm(
-      shipmentPrefillParams.warehouseId,
-      shipmentPrefillParams.movementId,
-      "auto"
-    )
+    const loadPromise =
+      shipmentPrefillParams.movementIds.length > 1
+        ? (async () => {
+            const details = await Promise.all(
+              shipmentPrefillParams.movementIds.map(async (movementId) =>
+                await fetchWarehouseOutboundShipmentMovementForEdit(shipmentPrefillParams.warehouseId, movementId)
+              )
+            );
+            const first = details[0];
+            if (!first) return;
+            const option: ShipmentOption = {
+              key: shipmentPrefillParams.key,
+              warehouseId: shipmentPrefillParams.warehouseId,
+              warehouseName: "",
+              branchName: first.branchName?.trim() || "",
+              movementDate: first.businessDate,
+              movementIds: details.map((x) => x.id),
+              items: details.map((x) => ({
+                movementId: x.id,
+                productId: x.productId,
+                parentProductId: null,
+                parentProductName: null,
+                productName: x.productName,
+                quantity: Number(x.quantity) || 0,
+                unit: x.unit?.trim() || "",
+              })),
+            };
+            await loadShipmentGroupIntoForm(option, "auto");
+          })()
+        : loadShipmentIntoForm(
+            shipmentPrefillParams.warehouseId,
+            shipmentPrefillParams.movementId,
+            "auto"
+          );
+    void loadPromise
       .then(() => {
         if (!alive) return;
         // Sevkiyattan gelen akışta kullanıcı hızlıca PDF alabilsin diye önizlemeyi direkt aç.
@@ -2031,7 +2348,7 @@ export function OrderAccountStatementScreen() {
     return () => {
       alive = false;
     };
-  }, [loadShipmentIntoForm, shipmentPrefillParams]);
+  }, [loadShipmentGroupIntoForm, loadShipmentIntoForm, shipmentPrefillParams]);
 
   useEffect(() => {
     if (!selectedShipmentSource) {
@@ -2184,16 +2501,24 @@ export function OrderAccountStatementScreen() {
     );
     const grouped = new Map<string, LineDraft>();
     const passthrough: LineDraft[] = [];
+    let changed = false;
     for (const line of lines) {
       const productId = line.selectedProductId ?? 0;
       const guessedByName = productByName.get(normalize(line.description ?? ""));
       const product = productById.get(productId) ?? guessedByName;
       const parentId = line.parentProductId ?? product?.parentProductId ?? null;
-      const parentName = (line.parentProductName ?? product?.parentProductName ?? "").trim();
+      const parentProduct = parentId ? productById.get(parentId) : null;
+      const parentName = (
+        line.parentProductName ??
+        product?.parentProductName ??
+        parentProduct?.name ??
+        ""
+      ).trim();
       if (!parentId || !parentName) {
         passthrough.push({ ...line });
         continue;
       }
+      changed = true;
       const key = `${parentId}:${(line.unitText ?? "").trim().toLowerCase()}`;
       const qty = Math.max(0, parseLocaleAmount((line.quantityText ?? "").trim(), locale) || 0);
       const amount = Number.isFinite(line.amount) ? line.amount : parseLocaleAmount(line.amountText, locale) || 0;
@@ -2206,7 +2531,7 @@ export function OrderAccountStatementScreen() {
           quantityText: qty > 0 ? formatLocaleAmountInput(qty, locale) : "",
           amount: Math.max(0, amount),
           amountText: amount > 0 ? formatLocaleAmountInput(amount, locale) : "",
-          selectedProductId: null,
+          selectedProductId: parentId,
           parentProductId: null,
           parentProductName: null,
           lineSource: "manual",
@@ -2228,7 +2553,7 @@ export function OrderAccountStatementScreen() {
       }
     }
     const merged = [...passthrough, ...grouped.values()];
-    if (merged.length === lines.length) {
+    if (!changed) {
       notify.error(t("reports.orderAccountStatementParentMergeNoop"));
       return;
     }
@@ -2499,7 +2824,7 @@ export function OrderAccountStatementScreen() {
     setLastSavedDocumentId(null);
     setOrderDocumentKey(`oas-${Date.now().toString(36)}`);
     setEmblemDataUrl(defaultEmblemDataUrl);
-    setDocumentTitle("");
+    setDocumentTitle(defaultCompanyName);
     setShowDocumentTagline(true);
     setLines([emptyLine()]);
     setPaidLines([]);
@@ -2590,7 +2915,7 @@ export function OrderAccountStatementScreen() {
 
       const safeCompany = companyName.trim() || "—";
       const safeBranch = branchName.trim() || "—";
-      const safeTitle = documentTitle.trim() || t("reports.orderAccountStatementDocTitle");
+      const safeTitle = documentTitle.trim();
       const parsedBranchId = parseInt(linkedBranchId, 10);
       const parsedCustomerId = parseInt(customerAccountIdText, 10);
       const useBranchCounterparty = Number.isFinite(parsedBranchId) && parsedBranchId > 0;
@@ -2870,8 +3195,50 @@ export function OrderAccountStatementScreen() {
       </header>
 
       <div className="min-w-0 space-y-6">
-          <StatementFormStep title={t("reports.orderAccountStatementStepHead")} stepVisual={{ tone: "indigo", icon: "header" }}>
-            <div className="mb-3 grid gap-3 rounded-lg border border-zinc-200 bg-zinc-50/70 p-3 md:grid-cols-2">
+          <StatementFormStep
+            title={t("reports.orderAccountStatementStepHead")}
+            stepVisual={{ tone: "indigo", icon: "header" }}
+            scopeKinds={["document", "system"]}
+          >
+            <div className="mb-3 rounded-lg border border-violet-200 bg-violet-50/60 px-3 py-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-800">Doldurma sirasi</p>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                <FlowStepPill index={1} label="Mod secimi" state={flowCurrentStep > 1 ? "done" : "current"} />
+                <FlowStepPill
+                  index={2}
+                  label={creationMode === "shipmentBased" ? "Sevkiyat secimi" : "Belge icerigi"}
+                  state={flowCurrentStep > 2 ? "done" : flowCurrentStep === 2 ? "current" : "todo"}
+                />
+                <FlowStepPill
+                  index={3}
+                  label="Kalemler ve tutarlar"
+                  state={flowCurrentStep > 3 ? "done" : flowCurrentStep === 3 ? "current" : "todo"}
+                />
+                <FlowStepPill index={4} label="Onizle ve indir" state={flowCurrentStep === 4 ? "current" : "todo"} />
+              </div>
+              {creationMode === "shipmentBased" ? (
+                <p className="mt-1.5 text-[11px] text-violet-800">
+                  Sevkiyat bazli akista once sevkiyat secin; sistem kalemleri ve sube bilgisini otomatik doldurur.
+                </p>
+              ) : (
+                <p className="mt-1.5 text-[11px] text-violet-800">
+                  Manuel akista once belge icerigini, sonra kalem/tutar alanlarini doldurup onizleme gecin.
+                </p>
+              )}
+            </div>
+            <div className="mb-3 rounded-xl border border-zinc-200 bg-zinc-50/70 p-3">
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-700">
+                2A · Sevkiyat / Mod
+              </p>
+              <span className="inline-flex rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-medium text-zinc-600">
+                Once bunu secin
+              </span>
+              </div>
+              <p className="mb-2 text-[11px] text-zinc-600">
+                Bu kart, verinin nereden gelecegini belirler (manuel / sevkiyat).
+              </p>
+              <div className="grid gap-3 md:grid-cols-2">
               <Select
                 label={t("reports.orderAccountStatementCreationMode")}
                 name="order-account-creation-mode"
@@ -2897,6 +3264,11 @@ export function OrderAccountStatementScreen() {
               />
               {creationMode === "shipmentBased" ? (
                 <div className="md:col-span-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-900">
+                  {!selectedShipmentSource ? (
+                    <p className="mb-2 rounded-md border border-violet-200 bg-white/70 px-2 py-1.5 text-[11px]">
+                      1) Sevkiyat secin, 2) kalemler otomatik gelir, 3) sadece eksikleri duzenleyin.
+                    </p>
+                  ) : null}
                   {selectedShipmentSource ? (
                     <>
                       <p className="font-semibold text-violet-900">
@@ -2988,14 +3360,14 @@ export function OrderAccountStatementScreen() {
                     <div className="grid gap-2 sm:grid-cols-[1fr_1fr]">
                       <input
                         inputMode="numeric"
-                        value={manualShipmentWarehouseIdText}
+                        value={manualShipmentWarehouseIdText ?? ""}
                         onChange={(e) => setManualShipmentWarehouseIdText(e.target.value)}
                         placeholder={t("reports.orderAccountStatementShipmentManualWarehousePlaceholder")}
                         className="rounded-md border border-violet-200 bg-white px-2 py-1 text-xs outline-none focus:border-violet-400"
                       />
                       <input
                         inputMode="numeric"
-                        value={manualShipmentMovementIdText}
+                        value={manualShipmentMovementIdText ?? ""}
                         onChange={(e) => setManualShipmentMovementIdText(e.target.value)}
                         placeholder={t("reports.orderAccountStatementShipmentManualMovementPlaceholder")}
                         className="rounded-md border border-violet-200 bg-white px-2 py-1 text-xs outline-none focus:border-violet-400"
@@ -3004,226 +3376,38 @@ export function OrderAccountStatementScreen() {
                   </div>
                 </div>
               ) : null}
-            </div>
-            <div className="mb-3 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[11px] text-zinc-500">
-              {t("reports.orderAccountStatementPaneDocumentHelp")}
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block text-sm">
-                <span className="text-zinc-600">{t("reports.orderAccountStatementHeaderCompany")}</span>
-                <input
-                  className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  autoComplete="organization"
-                />
-              </label>
-              <label className="block text-sm">
-                <span className="text-zinc-600">{t("reports.orderAccountStatementHeaderBranch")}</span>
-                <input
-                  className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
-                  value={branchName}
-                  onChange={(e) => setBranchName(e.target.value)}
-                />
-              </label>
-            </div>
-            <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-              <label className="block text-sm">
-                <span className="text-zinc-600">{t("reports.orderAccountStatementEmblem")}</span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="mt-1 block w-full cursor-pointer rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700 file:mr-3 file:rounded-md file:border-0 file:bg-zinc-900 file:px-2.5 file:py-1.5 file:text-xs file:font-semibold file:text-white hover:file:bg-zinc-800"
-                  onChange={onEmblemFileChange}
-                />
-                <span className="mt-1 block text-[11px] text-zinc-500">{t("reports.orderAccountStatementEmblemHelp")}</span>
-                {emblemDataUrl ? (
-                  <span className="mt-2 inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1">
-                    <img
-                      src={emblemDataUrl}
-                      alt={t("reports.orderAccountStatementEmblem")}
-                      className="h-8 w-8 rounded-md border border-zinc-200 bg-white object-contain p-0.5"
-                    />
-                    <span className="text-[11px] font-medium text-zinc-700">{t("reports.orderAccountStatementEmblem")}</span>
-                  </span>
-                ) : null}
-              </label>
-              <div className="flex min-h-11 items-end gap-2">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="min-h-11 gap-2"
-                  onClick={onUseBrandingEmblem}
-                  disabled={brandingLogoBusy}
-                >
-                  {brandingLogoBusy ? <IcLoader className="h-4 w-4" /> : null}
-                  <span>
-                    {brandingLogoBusy
-                      ? t("reports.orderAccountStatementEmblemFetching")
-                      : t("reports.orderAccountStatementEmblemUseInstitutionImage")}
-                  </span>
-                </Button>
-                {emblemDataUrl ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="min-h-11"
-                    onClick={() => setEmblemDataUrl("")}
-                  >
-                    {t("reports.orderAccountStatementEmblemClear")}
-                  </Button>
-                ) : null}
               </div>
             </div>
-            <label className="mt-3 block text-sm">
-              <span className="text-zinc-600">{t("reports.orderAccountStatementDocTitle")}</span>
-              <input
-                className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
-                value={documentTitle}
-                onChange={(e) => setDocumentTitle(e.target.value)}
-              />
-            </label>
-            <div className="mt-3 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-[11px] text-zinc-500">
-              {t("reports.orderAccountStatementPaneFinanceHelp")}
-            </div>
-            <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50/70 p-3">
-              <label className="flex cursor-pointer items-start gap-2.5 text-sm">
-                <Checkbox
-                  className="mt-0.5"
-                  checked={saveToSystem}
-                  onCheckedChange={setSaveToSystem}
-                />
-                <span className="min-w-0">
-                  <span className="font-medium text-zinc-800">
-                    {t("reports.orderAccountStatementSystemSaveToggle")}
-                  </span>
-                  <span className="mt-0.5 block text-[11px] font-normal text-zinc-500">
-                    {t("reports.orderAccountStatementSystemSaveToggleHelp")}
-                  </span>
-                </span>
-              </label>
-              <div className="mt-2">
-                <Select
-                  label={t("reports.orderAccountStatementSystemBranchLabel")}
-                  name="order-account-system-branch"
-                  options={branchSelectOptions}
-                  value={linkedBranchId}
-                  onChange={(e) => setLinkedBranchId(e.target.value)}
-                  onBlur={() => {}}
-                  disabled={!saveToSystem}
-                />
-                {saveToSystem ? (
-                  <p className="mt-1 text-xs text-zinc-500">
-                    {t("reports.orderAccountStatementSystemBranchHelp")}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-            <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50/70 p-3">
-              <label className="flex cursor-pointer items-start gap-2.5 text-sm">
-                <Checkbox className="mt-0.5" checked={saveAsInvoice} onCheckedChange={setSaveAsInvoice} />
-                <span className="min-w-0">
-                  <span className="font-medium text-zinc-800">{t("reports.orderAccountStatementInvoiceSaveToggle")}</span>
-                  <span className="mt-0.5 block text-[11px] font-normal text-zinc-500">
-                    {t("reports.orderAccountStatementInvoiceSaveToggleHelp")}
-                  </span>
-                </span>
-              </label>
-              {saveAsInvoice ? (
-                <div className="mt-3 space-y-3">
-                  <label className="flex cursor-pointer items-start gap-2.5 text-sm">
-                    <Checkbox className="mt-0.5" checked={invoiceAutoPost} onCheckedChange={setInvoiceAutoPost} />
-                    <span className="min-w-0">
-                      <span className="font-medium text-zinc-800">{t("reports.orderAccountStatementInvoiceAutoPost")}</span>
-                      <span className="mt-0.5 block text-[11px] font-normal text-zinc-500">
-                        {t("reports.orderAccountStatementInvoiceAutoPostHelp")}
-                      </span>
-                    </span>
-                  </label>
-                  <label className="block text-sm">
-                    <span className="text-zinc-600">{t("reports.orderAccountStatementCustomerAccountId")}</span>
-                    <input
-                      inputMode="numeric"
-                      className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
-                      value={customerAccountIdText}
-                      onChange={(e) => setCustomerAccountIdText(e.target.value)}
-                      placeholder={t("reports.orderAccountStatementCustomerAccountIdPlaceholder")}
-                      disabled={Boolean(linkedBranchId)}
-                    />
-                    <span className="mt-0.5 block text-[11px] text-zinc-500">
-                      {t("reports.orderAccountStatementCustomerAccountIdHelp")}
-                    </span>
-                  </label>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="block text-sm">
-                      <span className="text-zinc-600">{t("reports.orderAccountStatementPaymentIban")}</span>
-                      <input
-                        className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm uppercase outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
-                        value={paymentIban}
-                        onChange={(e) => setPaymentIban(e.target.value)}
-                        placeholder="TR00 0000 0000 0000 0000 0000 00"
-                      />
-                    </label>
-                    <label className="block text-sm">
-                      <span className="text-zinc-600">{t("reports.orderAccountStatementPaymentAccountHolder")}</span>
-                      <input
-                        className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
-                        value={paymentAccountHolder}
-                        onChange={(e) => setPaymentAccountHolder(e.target.value)}
-                      />
-                    </label>
-                    <label className="block text-sm">
-                      <span className="text-zinc-600">{t("reports.orderAccountStatementPaymentBankName")}</span>
-                      <input
-                        className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
-                        value={paymentBankName}
-                        onChange={(e) => setPaymentBankName(e.target.value)}
-                      />
-                    </label>
-                    <label className="block text-sm">
-                      <span className="text-zinc-600">{t("reports.orderAccountStatementPaymentNote")}</span>
-                      <input
-                        className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
-                        value={paymentNote}
-                        onChange={(e) => setPaymentNote(e.target.value)}
-                      />
-                    </label>
-                  </div>
-                  <label className="flex cursor-pointer items-start gap-2.5 text-sm">
-                    <Checkbox className="mt-0.5" checked={showPaymentOnPdf} onCheckedChange={setShowPaymentOnPdf} />
-                    <span className="font-medium text-zinc-800">{t("reports.orderAccountStatementPaymentShowOnPdf")}</span>
-                  </label>
-                  {lastCreatedInvoiceNo ? (
-                    <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800">
-                      {t("reports.orderAccountStatementLastInvoiceNo")}: {lastCreatedInvoiceNo}
-                    </div>
-                  ) : null}
-                  <p className="text-[11px] text-zinc-500">
-                    {t("reports.orderAccountStatementMetadataLinkHint")} ({orderDocumentKey})
-                  </p>
-                  {(lastCreatedInvoiceId || lastSavedDocumentId) ? (
-                    <div className="flex flex-wrap items-center gap-2 text-xs">
-                      {lastCreatedInvoiceId ? (
-                        <Link
-                          href={`/products/order-account-statement/summary?search=${encodeURIComponent(lastCreatedInvoiceNo)}`}
-                          className="rounded-md border border-zinc-200 bg-white px-2 py-1 font-semibold text-violet-700"
-                        >
-                          {t("reports.orderAccountStatementGoToRelatedInvoice")}
-                        </Link>
-                      ) : null}
-                      {lastSavedDocumentId ? (
-                        <Link
-                          href={`/documents?q=${encodeURIComponent(`orderKey=${orderDocumentKey}`)}`}
-                          className="rounded-md border border-zinc-200 bg-white px-2 py-1 font-semibold text-violet-700"
-                        >
-                          {t("reports.orderAccountStatementGoToRelatedPdf")}
-                        </Link>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
+            <OrderAccountStatementDocumentContentSection
+              t={t}
+              companyName={companyName}
+              setCompanyName={setCompanyName}
+              branchName={branchName}
+              setBranchName={setBranchName}
+              emblemDataUrl={emblemDataUrl}
+              setEmblemDataUrl={setEmblemDataUrl}
+              emblemFileInputRef={emblemFileInputRef}
+              onEmblemFileChange={onEmblemFileChange}
+              onUseBrandingEmblem={onUseBrandingEmblem}
+              brandingLogoBusy={brandingLogoBusy}
+              documentTitle={documentTitle}
+              setDocumentTitle={setDocumentTitle}
+              showDocumentTagline={showDocumentTagline}
+            />
+            <OrderAccountStatementActionsSection
+              t={t}
+              locale={locale}
+              saveToSystem={saveToSystem}
+              setSaveToSystem={setSaveToSystem}
+              branchSelectOptions={branchSelectOptions}
+              linkedBranchId={linkedBranchId}
+              setLinkedBranchId={setLinkedBranchId}
+              previousBalanceText={previousBalanceText}
+              setPreviousBalanceText={setPreviousBalanceText}
+              applySelectedBranchOpenBalance={applySelectedBranchOpenBalance}
+              applyBranchOpenBalanceBusy={applyBranchOpenBalanceBusy}
+              suggestionsBusy={suggestionsBusy}
+            />
             <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50/70 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
                 {t("reports.orderAccountStatementReceiptSectionTitle")}
@@ -3295,31 +3479,23 @@ export function OrderAccountStatementScreen() {
             </div>
           </StatementFormStep>
 
+          <div ref={linesSectionRef}>
           <StatementFormStep
             title={t("reports.orderAccountStatementStepLines")}
             stepVisual={{ tone: "emerald", icon: "lines" }}
+            scopeKinds={["document", "system"]}
             actions={
-              <OasIconButton
-                title={t("reports.orderAccountStatementAddLine")}
-                aria-label={t("reports.orderAccountStatementAddLine")}
-                onClick={() =>
-                  setLines((prev) => [
-                    ...prev,
-                    {
-                      ...emptyLine(),
-                      lineSource:
-                        creationMode === "shipmentBased" && shipmentLinkMode === "strict"
-                          ? "shipment"
-                          : "manual",
-                      manualReasonCode:
-                        creationMode === "shipmentBased" && shipmentLinkMode === "strict" ? null : "OPS_OTHER",
-                    },
-                  ])
-                }
-                disabled={creationMode === "shipmentBased" && shipmentLinkMode === "strict"}
-              >
-                <PlusIcon className="h-6 w-6" />
-              </OasIconButton>
+              <div className="hidden lg:block">
+                <OasIconButton
+                  title={t("reports.orderAccountStatementAddLine")}
+                  aria-label={t("reports.orderAccountStatementAddLine")}
+                  onClick={handleAddLine}
+                  disabled={lineAddBlocked}
+                  className="!border-zinc-300 !text-zinc-700 hover:!text-zinc-900"
+                >
+                  <PlusIcon className="h-6 w-6 shrink-0 text-current" />
+                </OasIconButton>
+              </div>
             }
             collapsible
             collapseLabelExpand={t("reports.orderAccountStatementLinesSectionExpand")}
@@ -3334,6 +3510,14 @@ export function OrderAccountStatementScreen() {
                 onClick={collapseLinesToParentProduct}
               >
                 {t("reports.orderAccountStatementParentMergeButton")}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className="hidden min-h-9 px-3 text-xs lg:inline-flex"
+                onClick={() => setDesktopLineDetailsOpen((v) => !v)}
+              >
+                {desktopLineDetailsOpen ? "Masaustu sade gorunum" : "Masaustu detaylari goster"}
               </Button>
             </div>
             {creationMode === "shipmentBased" && shipmentLinkMode === "strict" ? (
@@ -3359,6 +3543,15 @@ export function OrderAccountStatementScreen() {
                 </span>
               </label>
             </div>
+            <div className="mb-2 lg:hidden">
+              <button
+                type="button"
+                className="inline-flex min-h-9 items-center rounded-md border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700"
+                onClick={() => setMobileAdvancedOpen((v) => !v)}
+              >
+                {mobileAdvancedOpen ? "Hizli giris modu" : "Gelismis alanlari goster"}
+              </button>
+            </div>
 
             <ul
               className={cn(
@@ -3366,11 +3559,14 @@ export function OrderAccountStatementScreen() {
                 lineDense ? "mt-1.5 space-y-1" : lineCompact ? "mt-2 space-y-2" : "mt-3 space-y-3"
               )}
             >
-              {lines.map((line, rowIndex) => (
+              {lines.map((line, rowIndex) => {
+                const amountMismatch = showQuantityColumn ? computeLineAmountMismatch(line, locale) : null;
+                return (
                 <li
                   key={line.id}
                   className={cn(
                     "rounded-lg border border-zinc-200 bg-zinc-50/40 shadow-sm",
+                    Boolean(amountMismatch) && "border-red-200 bg-red-50/40 ring-1 ring-red-100",
                     lineDense ? "p-2" : lineCompact ? "p-2.5" : "p-3"
                   )}
                 >
@@ -3406,6 +3602,7 @@ export function OrderAccountStatementScreen() {
                     )}
                   >
                     {t("reports.orderAccountStatementColProduct")}
+                    <RequiredMark />
                     <input
                       className={cn(
                         "mt-1 w-full rounded-md border border-zinc-200 bg-white",
@@ -3415,6 +3612,9 @@ export function OrderAccountStatementScreen() {
                             ? "px-1.5 py-1.5 text-xs"
                             : "px-2 py-2 text-sm"
                       )}
+                      data-line-desc-id={line.id}
+                      data-line-id={line.id}
+                      data-line-field="description"
                       value={line.description}
                       onChange={(e) => {
                         const v = e.target.value;
@@ -3440,10 +3640,12 @@ export function OrderAccountStatementScreen() {
                           )
                         );
                       }}
+                      onKeyDown={(e) => handleMobileLineEnter(e, line.id, "description")}
                       placeholder={t("reports.orderAccountStatementLinePlaceholder")}
                     />
                   </label>
-                  {showQuantityColumn ? (
+                  {showQuantityColumn && mobileAdvancedOpen ? (
+                    <>
                     <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-3">
                       <label
                         className={cn(
@@ -3486,7 +3688,7 @@ export function OrderAccountStatementScreen() {
                                 ? "px-1.5 py-1.5 text-xs"
                                 : "px-2 py-1.5 text-sm"
                           )}
-                          value={line.unitText}
+                          value={line.unitText ?? ""}
                           onChange={(e) => {
                             const v = e.target.value;
                             setLines((prev) => prev.map((x) => (x.id === line.id ? { ...x, unitText: v } : x)));
@@ -3531,6 +3733,13 @@ export function OrderAccountStatementScreen() {
                         />
                       </label>
                     </div>
+                    {amountMismatch ? (
+                      <p className="mt-1.5 rounded-md border border-red-200 bg-red-50/80 px-2 py-1 text-[11px] text-red-700">
+                        Kalem tutarı uyumsuz: {formatLocaleAmount(amountMismatch.expected, locale, "TRY")} beklenirken{" "}
+                        {formatLocaleAmount(amountMismatch.actual, locale, "TRY")} girildi.
+                      </p>
+                    ) : null}
+                    </>
                   ) : null}
                   {canPickProducts ? (
                     <ModernSelect
@@ -3596,7 +3805,10 @@ export function OrderAccountStatementScreen() {
                       )}
                     >
                       {t("reports.orderAccountStatementAmount")}
+                      <RequiredMark />
                       <input
+                        data-line-id={line.id}
+                        data-line-field="amount"
                         inputMode="decimal"
                         className={cn(
                           "mt-0.5 w-full rounded-md border border-zinc-200 bg-white text-right tabular-nums",
@@ -3620,6 +3832,7 @@ export function OrderAccountStatementScreen() {
                             )
                           );
                         }}
+                        onKeyDown={(e) => handleMobileLineEnter(e, line.id, "amount")}
                       />
                     </label>
                     <div className="flex min-h-0 items-end pb-0.5">
@@ -3648,8 +3861,21 @@ export function OrderAccountStatementScreen() {
                     </div>
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
+            <div className="mt-3 lg:hidden">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={handleAddLine}
+                disabled={lineAddBlocked}
+                className="min-h-11 w-full gap-2 !border-zinc-300 !text-zinc-800"
+              >
+                <PlusIcon className="h-5 w-5 shrink-0 text-current" />
+                <span>{t("reports.orderAccountStatementAddLine")}</span>
+              </Button>
+            </div>
 
             {/* Tablet ve üstü: tablo */}
             <div
@@ -3686,6 +3912,7 @@ export function OrderAccountStatementScreen() {
                       className={cn("min-w-[10rem] px-2", lineDense ? "py-1" : lineCompact ? "py-1.5" : "py-2.5")}
                     >
                       {t("reports.orderAccountStatementColProduct")}
+                      <RequiredMark />
                     </th>
                     {showQuantityColumn ? (
                       <th
@@ -3728,6 +3955,7 @@ export function OrderAccountStatementScreen() {
                       )}
                     >
                       {t("reports.orderAccountStatementAmount")}
+                      <RequiredMark />
                     </th>
                     <th
                       scope="col"
@@ -3750,8 +3978,16 @@ export function OrderAccountStatementScreen() {
                   </tr>
                 </thead>
                 <tbody>
-                  {lines.map((line, rowIndex) => (
-                    <tr key={line.id} className="border-b border-zinc-100 last:border-b-0">
+                  {lines.map((line, rowIndex) => {
+                    const amountMismatch = showQuantityColumn ? computeLineAmountMismatch(line, locale) : null;
+                    return (
+                    <Fragment key={line.id}>
+                    <tr
+                      className={cn(
+                        "border-b border-zinc-100 last:border-b-0",
+                        Boolean(amountMismatch) && "bg-red-50/35"
+                      )}
+                    >
                       <td
                         className={cn(
                           "align-top px-1.5 text-center text-zinc-500",
@@ -3768,6 +4004,7 @@ export function OrderAccountStatementScreen() {
                             "w-full min-w-0 rounded-md border border-zinc-200",
                             lineDense ? "px-1 py-0.5" : lineCompact ? "px-1.5 py-1" : "px-2 py-1.5"
                           )}
+                          data-line-desc-id={line.id}
                           value={line.description}
                           onChange={(e) => {
                             const v = e.target.value;
@@ -3795,7 +4032,7 @@ export function OrderAccountStatementScreen() {
                           }}
                           placeholder={t("reports.orderAccountStatementLinePlaceholder")}
                         />
-                        {canPickProducts ? (
+                        {canPickProducts && desktopLineDetailsOpen ? (
                           <ModernSelect
                             className={cn(
                               "border-dashed bg-zinc-50/80",
@@ -3821,7 +4058,7 @@ export function OrderAccountStatementScreen() {
                             ))}
                           </ModernSelect>
                         ) : null}
-                        {line.selectedProductId ? (
+                        {line.selectedProductId && desktopLineDetailsOpen ? (
                           (() => {
                             const cost = latestCostByProductId.get(line.selectedProductId);
                             if (!cost) {
@@ -3842,15 +4079,17 @@ export function OrderAccountStatementScreen() {
                             );
                           })()
                         ) : null}
-                        <LineCalcBlock
-                          line={line}
-                          locale={locale}
-                          t={t}
-                          setLines={setLines}
-                          compact={lineCompact}
-                          ultraCompact={lineDense}
-                          className={cn("max-w-xl", lineDense ? "mt-1" : "mt-1.5")}
-                        />
+                        {desktopLineDetailsOpen ? (
+                          <LineCalcBlock
+                            line={line}
+                            locale={locale}
+                            t={t}
+                            setLines={setLines}
+                            compact={lineCompact}
+                            ultraCompact={lineDense}
+                            className={cn("max-w-xl", lineDense ? "mt-1" : "mt-1.5")}
+                          />
+                        ) : null}
                       </td>
                         {showQuantityColumn ? (
                           <td
@@ -3888,7 +4127,7 @@ export function OrderAccountStatementScreen() {
                                   ? "px-1 py-1 text-[11px]"
                                   : "px-1.5 py-1.5"
                             )}
-                            value={line.unitText}
+                            value={line.unitText ?? ""}
                             onChange={(e) => {
                               const v = e.target.value;
                               setLines((prev) => prev.map((x) => (x.id === line.id ? { ...x, unitText: v } : x)));
@@ -3994,23 +4233,36 @@ export function OrderAccountStatementScreen() {
                         </div>
                       </td>
                     </tr>
-                  ))}
+                    {amountMismatch ? (
+                      <tr className="border-b border-red-100 bg-red-50/50">
+                        <td colSpan={showQuantityColumn ? 8 : 5} className="px-2 py-1.5 text-[11px] text-red-700">
+                          Kalem tutarı uyumsuz: {formatLocaleAmount(amountMismatch.expected, locale, "TRY")} beklenirken{" "}
+                          {formatLocaleAmount(amountMismatch.actual, locale, "TRY")} girildi.
+                        </td>
+                      </tr>
+                    ) : null}
+                    </Fragment>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           </StatementFormStep>
+          </div>
 
           <StatementFormStep
             title={t("reports.orderAccountStatementStepPromoLines")}
             description={t("reports.orderAccountStatementPromoLinesHelp")}
             stepVisual={{ tone: "amber", icon: "promo" }}
+            scopeKinds={["document", "system"]}
             actions={
               <OasIconButton
                 title={t("reports.orderAccountStatementAddPromoLine")}
                 aria-label={t("reports.orderAccountStatementAddPromoLine")}
                 onClick={() => setPromoLines((p) => [...p, emptyPromo()])}
+                className="!border-zinc-300 !text-zinc-700 hover:!text-zinc-900"
               >
-                <PlusIcon className="h-6 w-6" />
+                <PlusIcon className="h-6 w-6 shrink-0 text-current" />
               </OasIconButton>
             }
           >
@@ -4127,7 +4379,7 @@ export function OrderAccountStatementScreen() {
                 </div>
               </>
             )}
-            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+            <div className="mt-4">
               <section className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 shadow-sm ring-1 ring-zinc-950/[0.02]">
                 <label className="block text-sm">
                   <span className="mb-1.5 inline-flex items-center gap-2 text-zinc-700">
@@ -4172,43 +4424,6 @@ export function OrderAccountStatementScreen() {
                   </label>
                 ) : null}
               </section>
-              <section className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 shadow-sm ring-1 ring-zinc-950/[0.02]">
-                <label className="block text-sm">
-                  <span className="mb-1.5 inline-flex items-center gap-2 text-zinc-700">
-                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-white text-zinc-700 shadow-sm ring-1 ring-zinc-200">
-                      <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-                        <path d="M3.25 4.75A2.75 2.75 0 016 2h8a2.75 2.75 0 012.75 2.75v10.5A2.75 2.75 0 0114 18H6a2.75 2.75 0 01-2.75-2.75V4.75zM6 3.5c-.69 0-1.25.56-1.25 1.25v10.5c0 .69.56 1.25 1.25 1.25h8c.69 0 1.25-.56 1.25-1.25V4.75c0-.69-.56-1.25-1.25-1.25H6z" />
-                        <path d="M7 8.25a.75.75 0 01.75-.75h4.5a.75.75 0 010 1.5h-4.5A.75.75 0 017 8.25zM7 11.75a.75.75 0 01.75-.75h3a.75.75 0 010 1.5h-3a.75.75 0 01-.75-.75z" />
-                      </svg>
-                    </span>
-                    <span className="font-medium">{t("reports.orderAccountStatementPreviousBalanceShort")}</span>
-                  </span>
-                  <div className="grid gap-2">
-                    <input
-                      inputMode="decimal"
-                      className="w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm tabular-nums shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-300/60"
-                      placeholder="0"
-                      value={previousBalanceText}
-                      onChange={(e) => setPreviousBalanceText(e.target.value)}
-                      onBlur={() => {
-                        const n = parseLocaleAmount(previousBalanceText, locale);
-                        if (Number.isFinite(n)) setPreviousBalanceText(formatLocaleAmountInput(Math.max(0, n), locale));
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className="h-10 justify-center whitespace-nowrap rounded-xl border border-zinc-200 bg-white px-3 text-sm sm:justify-start"
-                      onClick={applySelectedBranchOpenBalance}
-                      disabled={applyBranchOpenBalanceBusy || suggestionsBusy}
-                    >
-                      {applyBranchOpenBalanceBusy
-                        ? t("reports.loading")
-                        : t("reports.orderAccountStatementSystemBranchBalanceUse")}
-                    </Button>
-                  </div>
-                </label>
-              </section>
             </div>
           </StatementFormStep>
 
@@ -4216,13 +4431,15 @@ export function OrderAccountStatementScreen() {
             title={t("reports.orderAccountStatementStepExtraPaid")}
             description={t("reports.orderAccountStatementPaidOnBehalfHelp")}
             stepVisual={{ tone: "sky", icon: "paid" }}
+            scopeKinds={["document", "system"]}
             actions={
               <OasIconButton
                 title={t("reports.orderAccountStatementAddPaidLine")}
                 aria-label={t("reports.orderAccountStatementAddPaidLine")}
                 onClick={() => setPaidLines((p) => [...p, emptyPaid()])}
+                className="!border-zinc-300 !text-zinc-700 hover:!text-zinc-900"
               >
-                <PlusIcon className="h-6 w-6" />
+                <PlusIcon className="h-6 w-6 shrink-0 text-current" />
               </OasIconButton>
             }
           >
@@ -4360,13 +4577,6 @@ export function OrderAccountStatementScreen() {
             </Button>
           </div>
 
-          <StatementFormStep
-            title={t("reports.orderAccountStatementPreviewTitle")}
-            description={t("reports.orderAccountStatementPreviewHint")}
-            stepVisual={{ tone: "violet", icon: "preview" }}
-          >
-            <p className="text-sm leading-relaxed text-zinc-600">{t("reports.orderAccountStatementPreviewIntro")}</p>
-          </StatementFormStep>
       </div>
 
       <div
@@ -4375,6 +4585,33 @@ export function OrderAccountStatementScreen() {
           OVERLAY_Z_TW.branchDetailSheet
         )}
       >
+        {mobileLineIssueCount > 0 ? (
+          <p className="mb-2 text-center text-[11px] font-medium text-amber-700 lg:hidden">
+            {mobileLineIssueCount} kalemde eksik/uyumsuz bilgi var.
+          </p>
+        ) : null}
+        <div className="mb-2 grid grid-cols-2 gap-2 lg:hidden">
+          <Button
+            type="button"
+            variant="secondary"
+            className="!min-h-10 !w-full gap-1.5 px-2 text-xs"
+            onClick={handleAddLine}
+            disabled={lineAddBlocked}
+          >
+            <PlusIcon className="h-4 w-4 shrink-0" />
+            <span>Satır ekle</span>
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            className="!min-h-10 !w-full gap-1.5 px-2 text-xs"
+            onClick={handleDuplicateLastLine}
+            disabled={lineAddBlocked || lines.length === 0}
+          >
+            <IcCopy className="h-4 w-4 shrink-0" />
+            <span>Son satırı kopyala</span>
+          </Button>
+        </div>
         <div className="flex w-full justify-center">
           <Button
             type="button"
@@ -4457,6 +4694,31 @@ export function OrderAccountStatementScreen() {
                     contentOptions={contentSelectOptions}
                     nameSuffix="preview"
                     menuZIndex={OVERLAY_Z_INDEX.modalNested + 20}
+                    hideContentPicker
+                  />
+                  <OrderAccountStatementPreviewSettings
+                    t={t}
+                    saveAsInvoice={saveAsInvoice}
+                    setSaveAsInvoice={setSaveAsInvoice}
+                    saveToSystem={saveToSystem}
+                    setSaveToSystem={setSaveToSystem}
+                    invoiceAutoPost={invoiceAutoPost}
+                    setInvoiceAutoPost={setInvoiceAutoPost}
+                    customerAccountIdText={customerAccountIdText}
+                    setCustomerAccountIdText={setCustomerAccountIdText}
+                    linkedBranchId={linkedBranchId}
+                    invoicePaymentDetailsOpen={invoicePaymentDetailsOpen}
+                    setInvoicePaymentDetailsOpen={setInvoicePaymentDetailsOpen}
+                    paymentIban={paymentIban}
+                    setPaymentIban={setPaymentIban}
+                    paymentAccountHolder={paymentAccountHolder}
+                    setPaymentAccountHolder={setPaymentAccountHolder}
+                    paymentBankName={paymentBankName}
+                    setPaymentBankName={setPaymentBankName}
+                    paymentNote={paymentNote}
+                    setPaymentNote={setPaymentNote}
+                    showPaymentOnPdf={showPaymentOnPdf}
+                    setShowPaymentOnPdf={setShowPaymentOnPdf}
                   />
                 </div>
                 <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-zinc-100/90 p-3 sm:p-5">
@@ -4478,6 +4740,20 @@ export function OrderAccountStatementScreen() {
                       advanceDeduction={advanceDeduction}
                       previousBalance={previousBalance}
                       paidOnBehalf={previewPaid}
+                      paymentInfo={{
+                        iban: paymentIban,
+                        accountHolder: paymentAccountHolder,
+                        bankName: paymentBankName,
+                        paymentNote: paymentNote,
+                        showOnPdf: showPaymentOnPdf,
+                      }}
+                      paymentLabels={{
+                        section: "Ödeme bilgileri",
+                        iban: t("reports.orderAccountStatementPaymentIban"),
+                        accountHolder: t("reports.orderAccountStatementPaymentAccountHolder"),
+                        bankName: t("reports.orderAccountStatementPaymentBankName"),
+                        paymentNote: t("reports.orderAccountStatementPaymentNote"),
+                      }}
                       labels={labels}
                       emptyHint={t("reports.orderAccountStatementPreviewEmpty")}
                     />

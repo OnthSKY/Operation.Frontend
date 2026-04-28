@@ -25,6 +25,16 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+type InstitutionBankAccountDraft = {
+  id?: string;
+  localId: string;
+  displayName: string;
+  iban: string;
+  accountHolder: string;
+  bankName: string;
+  isDefaultForInvoices: boolean;
+};
+
 export function BrandingSettingsScreen() {
   const { t, locale } = useI18n();
   const router = useRouter();
@@ -37,13 +47,26 @@ export function BrandingSettingsScreen() {
   const postLogoMut = usePostSystemBrandingLogoMutation();
   const delLogoMut = useDeleteSystemBrandingLogoMutation();
   const [nameDraft, setNameDraft] = useState("");
+  const [bankAccountsDraft, setBankAccountsDraft] = useState<InstitutionBankAccountDraft[]>([]);
 
   useEffect(() => {
     if (isReady && user && user.role !== "ADMIN") router.replace("/personnel");
   }, [isReady, user, router]);
 
   useEffect(() => {
-    if (data) setNameDraft(data.companyName ?? "");
+    if (!data) return;
+    setNameDraft(data.companyName ?? "");
+    setBankAccountsDraft(
+      (data.institutionBankAccounts ?? []).map((x) => ({
+        id: x.id,
+        localId: crypto.randomUUID(),
+        displayName: x.displayName ?? "",
+        iban: x.iban ?? "",
+        accountHolder: x.accountHolder ?? "",
+        bankName: x.bankName ?? "",
+        isDefaultForInvoices: Boolean(x.isDefaultForInvoices),
+      }))
+    );
   }, [data]);
 
   if (!isReady || !user) {
@@ -62,16 +85,72 @@ export function BrandingSettingsScreen() {
     );
   }
 
-  const saveName = async () => {
+  const saveBranding = async () => {
     const trimmed = nameDraft.trim();
+    const cleanedBankAccounts = bankAccountsDraft
+      .map((x) => ({
+        id: x.id,
+        displayName: x.displayName.trim(),
+        iban: x.iban.trim(),
+        accountHolder: x.accountHolder.trim() || null,
+        bankName: x.bankName.trim() || null,
+        isDefaultForInvoices: x.isDefaultForInvoices,
+      }))
+      .filter((x) => x.displayName.length > 0 && x.iban.length > 0);
+    const defaultCount = cleanedBankAccounts.filter((x) => x.isDefaultForInvoices).length;
+    if (cleanedBankAccounts.length > 0 && defaultCount !== 1) {
+      notify.error(t("settings.brandingBankAccountsDefaultValidation"));
+      return;
+    }
     try {
       await putMut.mutateAsync({
         companyName: trimmed.length > 0 ? trimmed : "",
+        institutionBankAccounts: cleanedBankAccounts,
       });
       notify.success(t("settings.brandingSaved"));
     } catch (e) {
       notify.error(toErrorMessage(e));
     }
+  };
+
+  const addBankAccountDraft = () => {
+    setBankAccountsDraft((prev) => [
+      ...prev,
+      {
+        localId: crypto.randomUUID(),
+        displayName: "",
+        iban: "",
+        accountHolder: "",
+        bankName: "",
+        isDefaultForInvoices: prev.length === 0,
+      },
+    ]);
+  };
+
+  const removeBankAccountDraft = (localId: string) => {
+    setBankAccountsDraft((prev) => {
+      const next = prev.filter((x) => x.localId !== localId);
+      if (next.length === 0) return next;
+      if (next.some((x) => x.isDefaultForInvoices)) return next;
+      return next.map((x, idx) => ({ ...x, isDefaultForInvoices: idx === 0 }));
+    });
+  };
+
+  const setBankAccountDraftField = (
+    localId: string,
+    field: keyof Omit<InstitutionBankAccountDraft, "localId" | "id" | "isDefaultForInvoices">,
+    value: string
+  ) => {
+    setBankAccountsDraft((prev) => prev.map((x) => (x.localId === localId ? { ...x, [field]: value } : x)));
+  };
+
+  const setDefaultBankAccount = (localId: string) => {
+    setBankAccountsDraft((prev) =>
+      prev.map((x) => ({
+        ...x,
+        isDefaultForInvoices: x.localId === localId,
+      }))
+    );
   };
 
   const onPickLogo = async (f: File | null) => {
@@ -179,12 +258,98 @@ export function BrandingSettingsScreen() {
                 type="button"
                 className="w-full shrink-0 sm:w-auto"
                 disabled={putMut.isPending}
-                onClick={() => void saveName()}
+                onClick={() => void saveBranding()}
               >
                 {putMut.isPending ? t("common.saving") : t("common.save")}
               </Button>
             </div>
           </Card>
+
+              <Card className="p-4 sm:p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h2 className="text-sm font-bold uppercase tracking-wide text-zinc-500">
+                      {t("settings.brandingSectionBankAccounts")}
+                    </h2>
+                    <p className="mt-1 text-xs text-zinc-500">{t("settings.brandingSectionBankAccountsHint")}</p>
+                  </div>
+                  <Button type="button" variant="secondary" onClick={addBankAccountDraft}>
+                    {t("settings.brandingBankAccountAdd")}
+                  </Button>
+                </div>
+                <div className="mt-4 flex flex-col gap-3">
+                  {bankAccountsDraft.length === 0 ? (
+                    <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+                      {t("settings.brandingBankAccountsEmpty")}
+                    </p>
+                  ) : null}
+                  {bankAccountsDraft.map((account) => (
+                    <div key={account.localId} className="rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <label className="inline-flex items-center gap-2 text-xs font-medium text-zinc-700">
+                          <input
+                            type="radio"
+                            name="default-bank-account"
+                            checked={account.isDefaultForInvoices}
+                            onChange={() => setDefaultBankAccount(account.localId)}
+                          />
+                          {t("settings.brandingBankAccountDefault")}
+                        </label>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="text-red-700 ring-red-200 hover:bg-red-50"
+                          onClick={() => removeBankAccountDraft(account.localId)}
+                        >
+                          {t("settings.brandingBankAccountRemove")}
+                        </Button>
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <label className="text-xs font-medium text-zinc-700">
+                          {t("settings.brandingBankAccountDisplayName")}
+                          <Input
+                            value={account.displayName}
+                            onChange={(e) =>
+                              setBankAccountDraftField(account.localId, "displayName", e.target.value)
+                            }
+                            maxLength={120}
+                            className="mt-1 w-full"
+                          />
+                        </label>
+                        <label className="text-xs font-medium text-zinc-700">
+                          {t("settings.brandingBankAccountIban")}
+                          <Input
+                            value={account.iban}
+                            onChange={(e) => setBankAccountDraftField(account.localId, "iban", e.target.value)}
+                            maxLength={64}
+                            className="mt-1 w-full uppercase"
+                          />
+                        </label>
+                        <label className="text-xs font-medium text-zinc-700">
+                          {t("settings.brandingBankAccountHolder")}
+                          <Input
+                            value={account.accountHolder}
+                            onChange={(e) =>
+                              setBankAccountDraftField(account.localId, "accountHolder", e.target.value)
+                            }
+                            maxLength={200}
+                            className="mt-1 w-full"
+                          />
+                        </label>
+                        <label className="text-xs font-medium text-zinc-700">
+                          {t("settings.brandingBankAccountBankName")}
+                          <Input
+                            value={account.bankName}
+                            onChange={(e) => setBankAccountDraftField(account.localId, "bankName", e.target.value)}
+                            maxLength={200}
+                            className="mt-1 w-full"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
 
               <Card className="p-4 sm:p-5">
             <h2 className="text-sm font-bold uppercase tracking-wide text-zinc-500">
@@ -255,7 +420,7 @@ export function BrandingSettingsScreen() {
             type="button"
             className="min-h-11 w-full rounded-xl text-sm font-semibold"
             disabled={putMut.isPending || isPending || isError || !data}
-            onClick={() => void saveName()}
+            onClick={() => void saveBranding()}
           >
             {putMut.isPending ? t("common.saving") : t("common.save")}
           </Button>

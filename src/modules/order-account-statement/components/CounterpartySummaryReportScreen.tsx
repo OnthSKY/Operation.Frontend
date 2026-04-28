@@ -10,14 +10,22 @@ import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import {
   deleteOutboundInvoice,
   fetchOutboundInvoices,
+  fetchOutboundInvoiceReceipts,
   fetchCounterpartySummaryReport,
   type CounterpartySummaryFilters,
   type CounterpartySummaryReport,
   type CounterpartySuggestionRow,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
+import {
+  companyBrandingLogoUrl,
+  fetchSystemBranding,
+} from "@/modules/admin/api/system-branding-api";
+import { downloadCounterpartyInvoiceStylePdf } from "@/modules/order-account-statement/lib/download-counterparty-invoice-style-pdf";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { currencySelectOptions } from "@/shared/lib/currency-select-options";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
+import { formatLocaleDate } from "@/shared/lib/locale-date";
+import { apiFetch } from "@/shared/api/client";
 import { FilterFunnelIcon } from "@/shared/components/FilterFunnelIcon";
 import { RightDrawer } from "@/shared/components/RightDrawer";
 import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
@@ -65,6 +73,7 @@ export function CounterpartySummaryReportScreen() {
   const { data: branches = [] } = useBranchesList();
   const [report, setReport] = useState<CounterpartySummaryReport>(defaultReport);
   const [busy, setBusy] = useState(false);
+  const [exportBusy, setExportBusy] = useState(false);
   const [pdfBusyKey, setPdfBusyKey] = useState("");
   const [errorText, setErrorText] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -275,6 +284,112 @@ export function CounterpartySummaryReportScreen() {
     [filters, load, resolveBranchInvoiceArtifacts, t]
   );
 
+  const downloadSummaryPdf = useCallback(async () => {
+    setExportBusy(true);
+    setErrorText("");
+    try {
+      const invoices = await fetchOutboundInvoices();
+      const selectedBranchNumericId = Number.parseInt(selectedBranchId, 10);
+      const selectedCounterpartyType = (filters.counterpartyType ?? "").trim();
+      const selectedCurrency = (filters.currencyCode ?? "").trim().toUpperCase();
+      const selectedSearch = (filters.search ?? "").trim().toLowerCase();
+
+      const filteredInvoices = invoices.filter((invoice) => {
+        if (selectedCounterpartyType && invoice.counterpartyType !== selectedCounterpartyType) return false;
+        if (selectedCurrency && invoice.currencyCode.toUpperCase() !== selectedCurrency) return false;
+        if (filters.issueDateFrom && invoice.issueDate < filters.issueDateFrom) return false;
+        if (filters.issueDateTo && invoice.issueDate > filters.issueDateTo) return false;
+        if (
+          Number.isFinite(selectedBranchNumericId) &&
+          selectedBranchNumericId > 0 &&
+          invoice.counterpartyType === "branch" &&
+          invoice.counterpartyId !== selectedBranchNumericId
+        ) {
+          return false;
+        }
+        if (selectedSearch) {
+          const haystack = `${invoice.counterpartyName} ${invoice.documentNumber}`.toLowerCase();
+          if (!haystack.includes(selectedSearch)) return false;
+        }
+        if (filters.onlyWithOpenBalance && Number(invoice.openAmount) <= 0) return false;
+        return true;
+      });
+
+      if (filteredInvoices.length === 0) {
+        setErrorText(t("reports.counterpartySummaryEmpty"));
+        return;
+      }
+
+      const rows = await Promise.all(
+        filteredInvoices.map(async (invoice) => {
+          const receipts = await fetchOutboundInvoiceReceipts(invoice.id);
+          const lastPaymentDate = receipts.length > 0 ? receipts[0]?.receiptDate ?? null : null;
+          return {
+            counterpartyName: invoice.counterpartyName,
+            counterpartyTypeLabel:
+              invoice.counterpartyType === "branch"
+                ? t("reports.counterpartySummaryTypeBranch")
+                : t("reports.counterpartySummaryTypeCustomer"),
+            documentNumber: invoice.documentNumber,
+            issueDate: formatLocaleDate(invoice.issueDate, locale),
+            invoiceAmount: formatLocaleAmount(invoice.linesTotal, locale, invoice.currencyCode || "TRY"),
+            paidAmount: formatLocaleAmount(invoice.paidTotal, locale, invoice.currencyCode || "TRY"),
+            openAmount: formatLocaleAmount(invoice.openAmount, locale, invoice.currencyCode || "TRY"),
+            paymentDate: lastPaymentDate ? formatLocaleDate(lastPaymentDate, locale) : "—",
+          };
+        })
+      );
+
+      const invoiceTotal = filteredInvoices.reduce((acc, item) => acc + (Number(item.linesTotal) || 0), 0);
+      const paidTotal = filteredInvoices.reduce((acc, item) => acc + (Number(item.paidTotal) || 0), 0);
+      const openTotal = filteredInvoices.reduce((acc, item) => acc + (Number(item.openAmount) || 0), 0);
+      const branchName =
+        Number.isFinite(selectedBranchNumericId) && selectedBranchNumericId > 0
+          ? branches.find((b) => b.id === selectedBranchNumericId)?.name ?? `#${selectedBranchNumericId}`
+          : t("reports.counterpartySummaryBranchAll");
+
+      const branding = await fetchSystemBranding().catch(() => null);
+      const companyName = branding?.companyName?.trim() || "—";
+      let logoDataUrl = "";
+      if (branding?.hasLogo) {
+        try {
+          const res = await apiFetch(companyBrandingLogoUrl(branding.updatedAtUtc));
+          if (res.ok) {
+            const blob = await res.blob();
+            logoDataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+              reader.onerror = () => reject(reader.error ?? new Error("logo-read-failed"));
+              reader.readAsDataURL(blob);
+            });
+          }
+        } catch {
+          logoDataUrl = "";
+        }
+      }
+
+      await downloadCounterpartyInvoiceStylePdf(rows, {
+        companyName,
+        branchName,
+        logoDataUrl,
+        title: t("reports.counterpartySummaryPdfTitle"),
+        issuedAtLabel: `${t("reports.counterpartySummaryPdfGeneratedAt")}: ${new Date().toLocaleDateString(locale)}`,
+        filtersLabel: `${t("reports.counterpartySummaryPdfFilters")}: ${[
+          selectedCounterpartyType || t("reports.counterpartySummaryTypeAll"),
+          selectedCurrency || "TRY",
+          filters.issueDateFrom || "—",
+          filters.issueDateTo || "—",
+        ].join(" · ")}`,
+        totalsLabel: `${t("reports.counterpartySummaryPdfTotals")}: ${formatLocaleAmount(invoiceTotal, locale, selectedCurrency || "TRY")} / ${formatLocaleAmount(paidTotal, locale, selectedCurrency || "TRY")} / ${formatLocaleAmount(openTotal, locale, selectedCurrency || "TRY")}`,
+        fileName: `cari_hesap_faturasi_${new Date().toISOString().slice(0, 10)}.pdf`,
+      });
+    } catch (error) {
+      setErrorText(toErrorMessage(error));
+    } finally {
+      setExportBusy(false);
+    }
+  }, [branches, filters, locale, selectedBranchId, t]);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
@@ -344,6 +459,15 @@ export function CounterpartySummaryReportScreen() {
               </svg>
             </Button>
           </Tooltip>
+          <Button
+            type="button"
+            variant="secondary"
+            className="h-11 px-3"
+            onClick={() => void downloadSummaryPdf()}
+            disabled={busy || exportBusy}
+          >
+            {exportBusy ? t("common.loading") : t("reports.counterpartySummaryExportPdf")}
+          </Button>
         </div>
         </div>
       </div>

@@ -906,6 +906,12 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   counterpartySummaryPdfUnavailable: "Yok",
   counterpartySummaryPdfNotFound:
     "Bu fatura için sistemde kayıtlı PDF bulunamadı. Belge sisteme kaydedilmemiş olabilir.",
+  counterpartySummaryExportPdf: "Cari detay PDF indir",
+  counterpartySummaryPdfTitle: "Cari hareket özeti",
+  counterpartySummaryPdfBranch: "Şube",
+  counterpartySummaryPdfFilters: "Filtre",
+  counterpartySummaryPdfGeneratedAt: "Üretilme",
+  counterpartySummaryPdfTotals: "Toplamlar (fatura/tahsilat/açık)",
   counterpartySummaryEmpty: "Bu filtrelerle kayıt bulunamadı.",
   orderAccountStatementSystemBranchLabel: "Sistem eşleşme şubesi",
   orderAccountStatementSystemBranchHelp:

@@ -279,6 +279,12 @@ export const branch = {
     "Receipt distributed across {n} invoice(s), total {amount}.",
   currentAccountReceiptUnappliedRemainder:
     "Open debt total is lower than payment; {amount} could not be applied.",
+  currentAccountExportPdf: "Download branch current-account PDF",
+  currentAccountPdfDocumentTitle: "Branch current account summary",
+  currentAccountPdfGeneratedAt: "Generated",
+  currentAccountPdfScope: "Scope",
+  currentAccountPdfScopeBranchOnly: "Selected branch only",
+  currentAccountPdfTotals: "Totals (invoice/paid/open)",
   tourismSeasonClosedOpenTab: "Go to tourism season tab",
   expensesSeasonMissingForToday:
     "There is no open tourism season covering today for this branch. Without an operating season, posting branch-register expenses is blocked on the server; add a season row or pick a transaction date inside an open season. Only register income lines may still be allowed when the central “Closed season allowances” policy permits it.",

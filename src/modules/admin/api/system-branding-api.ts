@@ -3,8 +3,18 @@ import { apiRequest, apiUrl } from "@/lib/api/base-api";
 export type BrandingSettingsPayload = {
   companyName: string | null;
   hasLogo: boolean;
+  institutionBankAccounts: InstitutionBankAccountPayload[];
   updatedAtUtc: string | null;
   updatedByUserId: number | null;
+};
+
+export type InstitutionBankAccountPayload = {
+  id: string;
+  displayName: string;
+  iban: string;
+  accountHolder?: string | null;
+  bankName?: string | null;
+  isDefaultForInvoices: boolean;
 };
 
 export async function fetchSystemBranding(): Promise<BrandingSettingsPayload> {
@@ -12,7 +22,15 @@ export async function fetchSystemBranding(): Promise<BrandingSettingsPayload> {
 }
 
 export async function putSystemBranding(body: {
-  companyName: string | null;
+  companyName?: string | null;
+  institutionBankAccounts?: {
+    id?: string;
+    displayName: string;
+    iban: string;
+    accountHolder?: string | null;
+    bankName?: string | null;
+    isDefaultForInvoices: boolean;
+  }[];
 }): Promise<BrandingSettingsPayload> {
   return apiRequest<BrandingSettingsPayload>("/system/branding", {
     method: "PUT",
