@@ -106,22 +106,19 @@ export function RegisterIncomeCashSettlementDialog({
   }, [mode, open, candidates]);
 
   const partyOptions: SelectOption[] = useMemo(() => {
-    const all: SelectOption[] = [
+    return [
       { value: "", label: t("branch.cashSettlementUnset") },
       { value: "PATRON", label: t("branch.cashSettlementPatron") },
       { value: "BRANCH_MANAGER", label: t("branch.cashSettlementBranchManager") },
       { value: "REMAINS_AT_BRANCH", label: t("branch.cashSettlementRemainsAtBranch") },
     ];
-    if (mode === "bulk") return all.filter((o) => o.value !== "PATRON");
-    return all;
-  }, [mode, t]);
+  }, [t]);
 
   const staffOptions: SelectOption[] = useMemo(() => {
     const loc = locale === "tr" ? "tr" : "en";
-    const list = branchStaff.filter((p) => !p.isDeleted);
     return [
       { value: "", label: t("branch.cashSettlementResponsiblePick") },
-      ...[...list]
+      ...[...branchStaff]
         .sort((a, b) => a.fullName.localeCompare(b.fullName, loc))
         .map((p) => ({
           value: String(p.id),
