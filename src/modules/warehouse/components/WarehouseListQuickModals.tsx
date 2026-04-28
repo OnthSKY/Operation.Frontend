@@ -8,6 +8,7 @@ import {
 import { WarehouseTransferFreightValuationBar } from "@/modules/warehouse/components/WarehouseTransferFreightValuationBar";
 import { useProductsCatalog } from "@/modules/products/hooks/useProductQueries";
 import {
+  usePreviewWarehouseTransferToBranch,
   useRegisterWarehouseMovement,
   useTransferWarehouseToBranch,
   useWarehousePeopleOptions,
@@ -555,6 +556,7 @@ export function WarehouseListTransferModal({
   const { data: branches = [], isPending: branchesLoading } = useBranchesList();
   const { data: peopleRaw = [], isPending: peopleLoading } = useWarehousePeopleOptions(open);
   const transfer = useTransferWarehouseToBranch();
+  const transferPreview = usePreviewWarehouseTransferToBranch();
 
   const inStockRows = useMemo(() => stockRows.filter((r) => r.quantity > 0), [stockRows]);
 
@@ -573,6 +575,10 @@ export function WarehouseListTransferModal({
   const [freightPay, setFreightPay] = useState<WarehouseFreightPaymentSource>("REGISTER");
   const [freightPocket, setFreightPocket] = useState("");
   const [freightNote, setFreightNote] = useState("");
+  const [previewToken, setPreviewToken] = useState<string | null>(null);
+  const [previewAllocations, setPreviewAllocations] = useState<
+    { requestedProductId: number; allocatedProductId: number; quantity: number }[]
+  >([]);
   const [pending, setPending] = useState(false);
 
   const personnelOptions = useMemo(
@@ -641,13 +647,22 @@ export function WarehouseListTransferModal({
     setFreightPay("REGISTER");
     setFreightPocket("");
     setFreightNote("");
+    setPreviewToken(null);
+    setPreviewAllocations([]);
   }, [open, warehouseId]);
+
+  useEffect(() => {
+    if (!open) return;
+    setPreviewToken(null);
+    setPreviewAllocations([]);
+  }, [open, movementDate, branchId, lines]);
 
   const disabled =
     stockLoading ||
     branchesLoading ||
     peopleLoading ||
     pending ||
+    transferPreview.isPending ||
     transfer.isPending ||
     inStockRows.length === 0;
   const desc = whName ? `${whName} · ${t("warehouse.transferModalHint")}` : t("warehouse.transferModalHint");
@@ -665,7 +680,7 @@ export function WarehouseListTransferModal({
     freightNote.trim() !== "";
   const requestTransferClose = useDirtyGuard({
     isDirty: transferDirty,
-    isBlocked: pending || transfer.isPending,
+    isBlocked: pending || transfer.isPending || transferPreview.isPending,
     confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
     onClose,
   });
@@ -726,6 +741,10 @@ export function WarehouseListTransferModal({
       }
       pocketPid = p;
     }
+    if (!previewToken) {
+      notify.error(t("warehouse.transferPreviewRequired"));
+      return;
+    }
     setPending(true);
     try {
       await transfer.mutateAsync({
@@ -748,9 +767,56 @@ export function WarehouseListTransferModal({
               freightNote: freightNote.trim() ? freightNote.trim() : null,
             }
           : {}),
+        confirmAllocation: true,
+        allocationToken: previewToken,
       });
       notify.success(t("toast.transferToBranchOk"));
       onClose();
+    } catch (err) {
+      notify.error(apiUserFacingMessage(err, t));
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const onPreview = async () => {
+    if (warehouseId == null || warehouseId <= 0) return;
+    const b = Number(branchId);
+    if (!Number.isFinite(b) || b <= 0) {
+      notify.error(t("warehouse.transferPickBranch"));
+      return;
+    }
+    const parsed: { productId: number; quantity: number }[] = [];
+    for (const line of lines) {
+      const pid = Number(line.productId);
+      if (!Number.isFinite(pid) || pid <= 0) continue;
+      const n = Number(line.qty.replace(",", "."));
+      if (!Number.isFinite(n) || n <= 0) {
+        notify.error(t("warehouse.invalidQuantity"));
+        return;
+      }
+      const row = inStockRows.find((r) => r.productId === pid);
+      if (!row || n > row.quantity) {
+        notify.error(t("warehouse.invalidQuantity"));
+        return;
+      }
+      parsed.push({ productId: pid, quantity: n });
+    }
+    if (parsed.length === 0) {
+      notify.error(t("warehouse.transferAtLeastOneProductLine"));
+      return;
+    }
+    setPending(true);
+    try {
+      const preview = await transferPreview.mutateAsync({
+        warehouseId,
+        branchId: b,
+        lines: parsed,
+        movementDate,
+      });
+      setPreviewToken(preview.allocationToken);
+      setPreviewAllocations(preview.allocations);
+      notify.success(t("warehouse.transferPreviewReady"));
     } catch (err) {
       notify.error(apiUserFacingMessage(err, t));
     } finally {
@@ -929,6 +995,22 @@ export function WarehouseListTransferModal({
               disabled={disabled}
             />
           ) : null}
+          {previewAllocations.length > 0 ? (
+            <div className="rounded-lg border border-violet-200 bg-violet-50/60 px-3 py-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-violet-800">
+                {t("warehouse.transferPreviewTitle")}
+              </p>
+              <ul className="mt-1 space-y-1 text-xs text-zinc-700">
+                {previewAllocations.map((a, idx) => (
+                  <li key={`${a.allocatedProductId}-${idx}`}>
+                    {t("warehouse.transferPreviewLine")
+                      .replace("{{productId}}", String(a.allocatedProductId))
+                      .replace("{{qty}}", String(a.quantity))}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:flex-wrap sm:justify-end">
             <Button
               type="button"
@@ -941,6 +1023,15 @@ export function WarehouseListTransferModal({
             </Button>
             <Button type="submit" className="min-h-11 w-full sm:min-w-[10rem] sm:flex-1" disabled={disabled}>
               {t("warehouse.transferSubmit")}
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-11 w-full sm:w-auto sm:min-w-[10rem]"
+              disabled={disabled}
+              onClick={() => void onPreview()}
+            >
+              {t("warehouse.transferPreviewButton")}
             </Button>
           </div>
         </form>
