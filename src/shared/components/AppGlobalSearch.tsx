@@ -446,6 +446,12 @@ export function AppGlobalSearch() {
   }, [open]);
 
   useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener("app-global-search-open", onOpen);
+    return () => window.removeEventListener("app-global-search-open", onOpen);
+  }, []);
+
+  useEffect(() => {
     if (!open) return;
     const prevOverflow = document.body.style.overflow;
     const prevPaddingRight = document.body.style.paddingRight;

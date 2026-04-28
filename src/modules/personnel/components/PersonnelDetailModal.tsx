@@ -1056,7 +1056,8 @@ export function PersonnelDetailModal({
         wide
         wideFixedHeight
         wideExpanded
-        className="!p-0"
+        backdropClassName="max-sm:items-stretch max-sm:p-0 max-sm:pt-0 max-sm:pb-0"
+        className="!p-0 max-sm:!h-[100dvh] max-sm:!max-h-[100dvh] max-sm:!w-screen max-sm:!max-w-none max-sm:!rounded-none max-sm:!border-x-0 max-sm:!border-b-0"
       >
         {!personnel ? null : (
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">

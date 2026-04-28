@@ -691,26 +691,6 @@ export function BranchScreen() {
                     </button>
                     <div className="border-t border-zinc-100 px-3 py-3 sm:px-4">
                       <div className="flex min-h-11 flex-row gap-2">
-                        <Tooltip content={t("common.openDetailsDialog")} delayMs={200}>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className={cn(
-                              detailOpenIconButtonClass,
-                              "min-h-11 min-w-11 shrink-0 border-violet-200/80 bg-violet-50/90 text-violet-900 hover:bg-violet-100/90"
-                            )}
-                            aria-haspopup="dialog"
-                            aria-expanded={active}
-                            aria-label={t("common.openDetails")}
-                            title={t("common.openDetails")}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openBranchDetail(b.id);
-                            }}
-                          >
-                            <EyeIcon className="h-5 w-5 shrink-0" />
-                          </Button>
-                        </Tooltip>
                         <BranchQuickActionsMenu
                           menuId={`branch-quick-${b.id}`}
                           triggerLabel={t("branch.quickActions")}

@@ -70,6 +70,7 @@ export function TopNavbar({ onOpenMenu, breadcrumbs }: TopNavbarProps) {
           <div className="flex items-center gap-1 rounded-lg bg-zinc-100 p-1">
             <button
               type="button"
+              onClick={() => window.dispatchEvent(new Event("app-global-search-open"))}
               className="inline-flex min-w-[44px] items-center justify-center rounded-lg text-zinc-500 transition-colors duration-200 hover:bg-zinc-100 hover:text-zinc-800 md:hidden"
               style={{ minHeight: TOUCH_TARGET_MIN }}
               aria-label={t("search.open")}
