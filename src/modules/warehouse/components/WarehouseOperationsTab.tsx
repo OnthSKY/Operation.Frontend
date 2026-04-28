@@ -23,6 +23,7 @@ import {
   type WarehouseStockGroupMode,
 } from "@/modules/warehouse/lib/warehouse-stock-grouped-sections";
 import {
+  usePreviewWarehouseTransferToBranch,
   useRegisterWarehouseMovement,
   useSoftDeleteWarehouse,
   useTransferWarehouseToBranch,
@@ -252,6 +253,7 @@ export function WarehouseOperationsTab({
 
   const delWh = useSoftDeleteWarehouse();
   const movement = useRegisterWarehouseMovement();
+  const transferPreview = usePreviewWarehouseTransferToBranch();
   const toBranch = useTransferWarehouseToBranch();
 
   const quickDisabled = stockLoading || catLoading || peopleLoading;
@@ -508,6 +510,7 @@ export function WarehouseOperationsTab({
                           branchesReady={branchesReady}
                           disabled={quickDisabled}
                           movementMutate={movement.mutateAsync}
+                          transferPreviewMutate={transferPreview.mutateAsync}
                           transferMutate={toBranch.mutateAsync}
                           personnelOptions={personnelOptions}
                         />
@@ -524,6 +527,7 @@ export function WarehouseOperationsTab({
                       branchesReady={branchesReady}
                       disabled={quickDisabled}
                       movementMutate={movement.mutateAsync}
+                      transferPreviewMutate={transferPreview.mutateAsync}
                       transferMutate={toBranch.mutateAsync}
                       personnelOptions={personnelOptions}
                     />
@@ -583,6 +587,7 @@ export function WarehouseOperationsTab({
                               branchesReady={branchesReady}
                               disabled={quickDisabled}
                               movementMutate={movement.mutateAsync}
+                              transferPreviewMutate={transferPreview.mutateAsync}
                               transferMutate={toBranch.mutateAsync}
                               personnelOptions={personnelOptions}
                             />
@@ -599,6 +604,7 @@ export function WarehouseOperationsTab({
                           branchesReady={branchesReady}
                           disabled={quickDisabled}
                           movementMutate={movement.mutateAsync}
+                          transferPreviewMutate={transferPreview.mutateAsync}
                           transferMutate={toBranch.mutateAsync}
                           personnelOptions={personnelOptions}
                         />

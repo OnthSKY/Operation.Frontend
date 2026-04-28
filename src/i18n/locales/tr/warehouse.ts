@@ -343,6 +343,11 @@ export const warehouse = {
   transferQty: "Çıkış miktarı",
   transferDescription: "Açıklama (isteğe bağlı)",
   transferSubmit: "Şubeye çıkışı kaydet",
+  transferPreviewButton: "Dağılımı önizle",
+  transferPreviewRequired: "Önce dağılım önizlemesi alın.",
+  transferPreviewReady: "Dağılım önizlemesi hazır. Kontrol edip kaydedin.",
+  transferPreviewTitle: "Dağılım önizlemesi",
+  transferPreviewLine: "Ürün #{{productId}}: {{qty}}",
   transferModalHint:
     "Aynı sevkiyat için bir veya daha fazla ürün ve miktar ekleyin; ardından hedef şubeyi seçin. Açıklama isteğe bağlıdır.",
   transferLinesSection: "Bu sevkiyattaki ürünler",

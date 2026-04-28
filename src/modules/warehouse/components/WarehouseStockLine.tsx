@@ -72,6 +72,20 @@ type TransferInput = {
   freightExpensePaymentSource?: string | null;
   freightExpensePocketPersonnelId?: number | null;
   freightNote?: string | null;
+  confirmAllocation: boolean;
+  allocationToken: string;
+};
+
+type TransferPreviewInput = {
+  warehouseId: number;
+  branchId: number;
+  lines: { productId: number; quantity: number }[];
+  movementDate: string;
+};
+
+type TransferPreviewResult = {
+  allocations: { requestedProductId: number; allocatedProductId: number; quantity: number }[];
+  allocationToken: string;
 };
 
 type Props = {
@@ -82,6 +96,7 @@ type Props = {
   branchesReady: boolean;
   disabled: boolean;
   movementMutate: (input: MoveInput) => Promise<unknown>;
+  transferPreviewMutate: (input: TransferPreviewInput) => Promise<TransferPreviewResult>;
   transferMutate: (input: TransferInput) => Promise<unknown>;
   personnelOptions: { value: string; label: string }[];
   variant: "card" | "table";
@@ -97,6 +112,7 @@ export function WarehouseStockLine({
   branchesReady,
   disabled,
   movementMutate,
+  transferPreviewMutate,
   transferMutate,
   personnelOptions,
   variant,
@@ -125,6 +141,10 @@ export function WarehouseStockLine({
   const [inUnitCost, setInUnitCost] = useState("");
   const [inCurrency, setInCurrency] = useState("TRY");
   const [pending, setPending] = useState<null | "in" | "transfer">(null);
+  const [previewToken, setPreviewToken] = useState<string | null>(null);
+  const [previewAllocations, setPreviewAllocations] = useState<
+    { requestedProductId: number; allocatedProductId: number; quantity: number }[]
+  >([]);
 
   const personnelSelectOptions = useMemo(
     () => [{ value: "", label: t("warehouse.personnelPickPlaceholder") }, ...personnelOptions],
@@ -156,7 +176,15 @@ export function WarehouseStockLine({
     setFreightPay("REGISTER");
     setFreightPocket("");
     setFreightNote("");
+    setPreviewToken(null);
+    setPreviewAllocations([]);
   }, [transferOpen]);
+
+  useEffect(() => {
+    if (!transferOpen) return;
+    setPreviewToken(null);
+    setPreviewAllocations([]);
+  }, [transferOpen, branchId, tQty, movementDate, row.productId]);
 
   const off = disabled || pending !== null;
   const canOut = row.quantity > 0;
@@ -294,6 +322,10 @@ export function WarehouseStockLine({
       }
       pocketPid = p;
     }
+    if (!previewToken) {
+      notify.error(t("warehouse.transferPreviewRequired"));
+      return;
+    }
     setPending("transfer");
     try {
       await transferMutate({
@@ -316,12 +348,43 @@ export function WarehouseStockLine({
               freightNote: freightNote.trim() ? freightNote.trim() : null,
             }
           : {}),
+        confirmAllocation: true,
+        allocationToken: previewToken,
       });
       notify.success(t("toast.transferToBranchOk"));
       setTransferOpen(false);
       setBranchId("");
       setTQty("1");
       setTDesc("");
+    } catch (e) {
+      notify.error(apiUserFacingMessage(e, t));
+    } finally {
+      setPending(null);
+    }
+  };
+
+  const runPreviewTransfer = async () => {
+    const b = Number(branchId);
+    const n = Number(tQty.replace(",", "."));
+    if (!Number.isFinite(b) || b <= 0) {
+      notify.error(t("warehouse.transferPickBranch"));
+      return;
+    }
+    if (!Number.isFinite(n) || n <= 0 || n > row.quantity) {
+      notify.error(t("warehouse.invalidQuantity"));
+      return;
+    }
+    setPending("transfer");
+    try {
+      const preview = await transferPreviewMutate({
+        warehouseId,
+        branchId: b,
+        lines: [{ productId: row.productId, quantity: n }],
+        movementDate,
+      });
+      setPreviewToken(preview.allocationToken);
+      setPreviewAllocations(preview.allocations);
+      notify.success(t("warehouse.transferPreviewReady"));
     } catch (e) {
       notify.error(apiUserFacingMessage(e, t));
     } finally {
@@ -693,6 +756,22 @@ export function WarehouseStockLine({
             disabled={off}
           />
         ) : null}
+        {previewAllocations.length > 0 ? (
+          <div className="rounded-lg border border-violet-200 bg-violet-50/60 px-3 py-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-violet-800">
+              {t("warehouse.transferPreviewTitle")}
+            </p>
+            <ul className="mt-1 space-y-1 text-xs text-zinc-700">
+              {previewAllocations.map((a, idx) => (
+                <li key={`${a.allocatedProductId}-${idx}`}>
+                  {t("warehouse.transferPreviewLine")
+                    .replace("{{productId}}", String(a.allocatedProductId))
+                    .replace("{{qty}}", String(a.quantity))}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:flex-wrap sm:justify-end">
           <Button
             type="button"
@@ -705,6 +784,15 @@ export function WarehouseStockLine({
           </Button>
           <Button type="submit" className="min-h-11 w-full sm:min-w-[10rem] sm:flex-1" disabled={off}>
             {t("warehouse.transferSubmit")}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            className="min-h-11 w-full sm:w-auto sm:min-w-[10rem]"
+            disabled={off}
+            onClick={() => void runPreviewTransfer()}
+          >
+            {t("warehouse.transferPreviewButton")}
           </Button>
         </div>
       </form>

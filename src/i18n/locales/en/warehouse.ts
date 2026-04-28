@@ -342,6 +342,11 @@ export const warehouse = {
   transferQty: "Issue quantity",
   transferDescription: "Description (optional)",
   transferSubmit: "Save branch issue",
+  transferPreviewButton: "Preview allocation",
+  transferPreviewRequired: "Get allocation preview first.",
+  transferPreviewReady: "Allocation preview is ready. Review and save.",
+  transferPreviewTitle: "Allocation preview",
+  transferPreviewLine: "Product #{{productId}}: {{qty}}",
   transferModalHint:
     "Add one or more products and quantities for the same shipment. Then choose the destination branch. Note is optional.",
   transferLinesSection: "Products in this shipment",

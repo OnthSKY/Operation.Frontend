@@ -28,7 +28,10 @@ import {
   type UpdateWarehouseOutboundShipmentMovementBody,
 } from "@/modules/warehouse/api/warehouses-api";
 import { registerWarehouseMovement } from "@/modules/warehouse/api/warehouse-movements-api";
-import { transferWarehouseToBranch } from "@/modules/warehouse/api/warehouse-transfer-api";
+import {
+  previewWarehouseTransferToBranch,
+  transferWarehouseToBranch,
+} from "@/modules/warehouse/api/warehouse-transfer-api";
 import { branchKeys } from "@/modules/branch/hooks/useBranchQueries";
 import { dashboardOverviewKeys } from "@/modules/dashboard/query-keys";
 import type {
@@ -354,5 +357,11 @@ export function useTransferWarehouseToBranch() {
       void qc.invalidateQueries({ queryKey: productsRootKey });
       void qc.invalidateQueries({ queryKey: branchKeys.all });
     },
+  });
+}
+
+export function usePreviewWarehouseTransferToBranch() {
+  return useMutation({
+    mutationFn: previewWarehouseTransferToBranch,
   });
 }

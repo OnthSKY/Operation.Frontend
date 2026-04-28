@@ -1021,8 +1021,6 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
               branchStaff={staff}
               mode={cashSettleDialog.mode}
               singleRow={cashSettleDialog.mode === "single" ? cashSettleDialog.row : null}
-              bulkDateFrom={incFrom}
-              bulkDateTo={incTo}
               onApplied={() => {
                 void refetchInc();
                 refetchIncomeSummaryBlocks();

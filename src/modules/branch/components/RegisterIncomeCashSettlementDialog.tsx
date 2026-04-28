@@ -16,8 +16,10 @@ import { notify } from "@/shared/lib/notify";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
+import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { Button } from "@/shared/ui/Button";
 import { Checkbox } from "@/shared/ui/Checkbox";
+import { DateField } from "@/shared/ui/DateField";
 import { Modal } from "@/shared/ui/Modal";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import { useQuery } from "@tanstack/react-query";
@@ -30,8 +32,6 @@ type Props = {
   branchStaff: Personnel[];
   mode: "single" | "bulk";
   singleRow: BranchTransaction | null;
-  bulkDateFrom: string;
-  bulkDateTo: string;
   onApplied: () => void;
 };
 
@@ -42,8 +42,6 @@ export function RegisterIncomeCashSettlementDialog({
   branchStaff,
   mode,
   singleRow,
-  bulkDateFrom,
-  bulkDateTo,
   onApplied,
 }: Props) {
   const { t, locale } = useI18n();
@@ -54,6 +52,8 @@ export function RegisterIncomeCashSettlementDialog({
   const [party, setParty] = useState("");
   const [personnelId, setPersonnelId] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
+  const [bulkDateFrom, setBulkDateFrom] = useState("");
+  const [bulkDateTo, setBulkDateTo] = useState("");
 
   const bulkDatesOk =
     bulkDateFrom.length === 10 && bulkDateTo.length === 10 && bulkDateFrom <= bulkDateTo;
@@ -94,6 +94,9 @@ export function RegisterIncomeCashSettlementDialog({
     if (mode === "bulk") {
       setParty("");
       setPersonnelId("");
+      const today = localIsoDate();
+      setBulkDateFrom(today);
+      setBulkDateTo(today);
     }
   }, [open, mode, singleRow?.id, singleRow?.cashSettlementParty, singleRow?.cashSettlementPersonnelId]);
 
@@ -247,9 +250,20 @@ export function RegisterIncomeCashSettlementDialog({
       onClose={requestClose}
       narrow={mode === "single"}
       wide={mode === "bulk"}
+      className={
+        mode === "bulk"
+          ? "max-w-[min(100vw-2rem,88rem)] sm:max-w-[min(100vw-2.5rem,90rem)] lg:max-w-[min(100vw-3rem,96rem)]"
+          : undefined
+      }
       closeButtonLabel={t("common.close")}
     >
-      <div className="space-y-4">
+      <div
+        className={
+          mode === "bulk"
+            ? "space-y-4 px-3 pb-3 sm:px-4 sm:pb-4 md:px-5 md:pb-5"
+            : "space-y-4"
+        }
+      >
         {mode === "single" && singleRow ? (
           <p className="text-xs leading-relaxed text-zinc-600">
             {t("branch.registerCashSettlementLeadSingle")}{" "}
@@ -273,6 +287,22 @@ export function RegisterIncomeCashSettlementDialog({
         )}
         {mode === "bulk" ? (
           <p className="text-xs text-amber-900/90">{t("branch.registerCashSettlementHintPatronBulk")}</p>
+        ) : null}
+        {mode === "bulk" ? (
+          <div className="grid grid-cols-1 gap-3 rounded-xl border border-zinc-200/80 bg-zinc-50/70 p-2.5 sm:grid-cols-2">
+            <DateField
+              label={t("branch.filterDateFrom")}
+              value={bulkDateFrom}
+              onChange={(e) => setBulkDateFrom(e.target.value)}
+              className="min-w-0"
+            />
+            <DateField
+              label={t("branch.filterDateTo")}
+              value={bulkDateTo}
+              onChange={(e) => setBulkDateTo(e.target.value)}
+              className="min-w-0"
+            />
+          </div>
         ) : null}
 
         {mode === "bulk" && bulkDatesOk ? (

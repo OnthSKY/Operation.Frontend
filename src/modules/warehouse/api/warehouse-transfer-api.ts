@@ -9,6 +9,18 @@ export type TransferWarehouseToBranchItemResponse = {
 export type TransferWarehouseToBranchResponse = {
   items: TransferWarehouseToBranchItemResponse[];
   freightBranchTransactionId?: number | null;
+  appliedAllocationToken?: string | null;
+};
+
+export type TransferWarehouseToBranchPreviewLine = {
+  requestedProductId: number;
+  allocatedProductId: number;
+  quantity: number;
+};
+
+export type TransferWarehouseToBranchPreviewResponse = {
+  allocations: TransferWarehouseToBranchPreviewLine[];
+  allocationToken: string;
 };
 
 export type TransferWarehouseToBranchLineInput = {
@@ -52,6 +64,8 @@ export async function transferWarehouseToBranch(input: {
   freightExpensePaymentSource?: string | null;
   freightExpensePocketPersonnelId?: number | null;
   freightNote?: string | null;
+  confirmAllocation: boolean;
+  allocationToken: string;
 }): Promise<TransferWarehouseToBranchResponse> {
   return apiRequest<TransferWarehouseToBranchResponse>("/warehouse/transfer-to-branch", {
     method: "POST",
@@ -69,6 +83,25 @@ export async function transferWarehouseToBranch(input: {
       freightExpensePaymentSource: input.freightExpensePaymentSource ?? null,
       freightExpensePocketPersonnelId: input.freightExpensePocketPersonnelId ?? null,
       freightNote: input.freightNote ?? null,
+      confirmAllocation: input.confirmAllocation,
+      allocationToken: input.allocationToken,
+    }),
+  });
+}
+
+export async function previewWarehouseTransferToBranch(input: {
+  warehouseId: number;
+  branchId: number;
+  lines: TransferWarehouseToBranchLineInput[];
+  movementDate: string;
+}): Promise<TransferWarehouseToBranchPreviewResponse> {
+  return apiRequest<TransferWarehouseToBranchPreviewResponse>("/warehouse/transfer-to-branch/preview", {
+    method: "POST",
+    body: JSON.stringify({
+      warehouseId: input.warehouseId,
+      branchId: input.branchId,
+      lines: input.lines,
+      movementDate: input.movementDate,
     }),
   });
 }
