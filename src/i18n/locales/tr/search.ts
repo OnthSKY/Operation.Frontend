@@ -1,5 +1,6 @@
 export const search = {
   subGuide: "Panel kullanımı ve modül yönlendirmesi",
+  subSalesDeck: "POC satış sunumu ve toplantı akışı",
   subDashboard: "Özet — gelir, gider, net",
   subPersonnel: "Personel listesi",
   subAdvance: "Personele avans",

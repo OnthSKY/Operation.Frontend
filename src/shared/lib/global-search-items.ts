@@ -17,6 +17,14 @@ export const GLOBAL_SEARCH_ITEMS: GlobalSearchItemDef[] = [
       "nasıl kullanırım kullanım kılavuzu yardım help guide walkthrough yönlendirme talimat kullanıcı",
   },
   {
+    id: "sales-deck",
+    href: "/guide/sales-deck",
+    titleKey: "nav.salesDeck",
+    subtitleKey: "search.subSalesDeck",
+    match:
+      "satış sunumu sales deck poc katalog pitch demo discovery teklif toplantı meeting value proposition",
+  },
+  {
     id: "home",
     href: "/",
     titleKey: "nav.home",

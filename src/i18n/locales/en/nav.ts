@@ -55,6 +55,7 @@ export const nav = {
   vehicles: "Vehicles",
   insurances: "Insurances",
   guide: "How to use",
+  salesDeck: "POC sales deck",
   myFinances: "My advances & expenses",
   myFinancesAdvances: "Your advances",
   myFinancesExpenses: "Expenses attributed to you",
@@ -72,6 +73,8 @@ export const nav = {
   tooltip: {
     guide:
       "Module purpose, daily tips, and the Mission tab map how cash and stock tracking fits together.",
+    salesDeck:
+      "Compact POC flow for sales calls: problem, solution, scope, success criteria, and close.",
     home:
       "Today’s income, expense, and net cash plus the branches daily grid—a snapshot of patron/branch cash activity. Use Reports for category and period breakdowns.",
     reports:

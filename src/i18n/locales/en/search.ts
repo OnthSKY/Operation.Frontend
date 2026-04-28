@@ -1,5 +1,6 @@
 export const search = {
   subGuide: "App walkthrough and module links",
+  subSalesDeck: "POC sales presentation and meeting flow",
   subDashboard: "Dashboard — income, expense, net",
   subPersonnel: "Team list",
   subAdvance: "Give advance to staff",

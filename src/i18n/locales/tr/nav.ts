@@ -53,6 +53,7 @@ export const nav = {
   vehicles: "Araçlar",
   insurances: "Sigortalar",
   guide: "Nasıl kullanırım?",
+  salesDeck: "POC satış sunumu",
   myFinances: "Avans ve giderlerim",
   myFinancesAdvances: "Avanslarınız",
   myFinancesExpenses: "Size yazılan giderler",
@@ -71,6 +72,8 @@ export const nav = {
   tooltip: {
     guide:
       "Tüm modüllerin ne işe yaradığı, günlük kullanım ipuçları ve “misyon” sekmesiyle para–stok takibinin haritası burada.",
+    salesDeck:
+      "Satış görüşmeleri için kısa POC sunum akışı: problem, çözüm, kapsam, başarı kriterleri ve kapanış adımları.",
     home:
       "Bugünkü gelir, gider ve net nakit özeti ile şubelerin günlük durumu. Patron/şube kasasından akan fişlerin anlık fotoğrafı; kategori ve dönem kırılımı için Raporlar’a geçin.",
     reports:
