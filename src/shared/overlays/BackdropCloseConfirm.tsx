@@ -24,10 +24,10 @@ export function BackdropCloseConfirm({ open, onCancel, onConfirm }: Props) {
   return (
     <div
       className={cn(
-        "absolute inset-0 z-[25] flex items-end justify-center",
+        "absolute inset-0 z-[25] flex items-center justify-center",
         "pl-[max(0.5rem,env(safe-area-inset-left,0px))] pr-[max(0.5rem,env(safe-area-inset-right,0px))]",
-        "pt-[max(0.5rem,env(safe-area-inset-top,0px))] pb-[max(0.75rem,env(safe-area-inset-bottom,0.5rem))]",
-        "sm:items-center sm:p-4 sm:pb-4"
+        "pt-[max(0.5rem,env(safe-area-inset-top,0px))] pb-[max(0.5rem,env(safe-area-inset-bottom,0.5rem))]",
+        "sm:p-4 sm:pb-4"
       )}
       role="alertdialog"
       aria-modal="true"
@@ -43,8 +43,8 @@ export function BackdropCloseConfirm({ open, onCancel, onConfirm }: Props) {
       />
       <div
         className={cn(
-          "relative z-[1] w-full max-w-[min(22rem,calc(100vw-1.25rem))] rounded-xl border border-zinc-200 bg-white p-4 shadow-xl",
-          "sm:max-w-sm sm:p-5"
+          "relative z-[1] w-full max-w-[min(24rem,calc(100vw-1.25rem))] rounded-2xl border border-zinc-200 bg-white p-4 shadow-2xl shadow-zinc-900/15",
+          "sm:max-w-md sm:p-5"
         )}
       >
         <h3 id={titleId} className="text-base font-semibold text-zinc-900 sm:text-lg">

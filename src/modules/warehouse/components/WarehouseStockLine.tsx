@@ -16,6 +16,7 @@ import { LocalImageFileThumb } from "@/shared/components/LocalImageFileThumb";
 import { IMAGE_FILE_INPUT_ACCEPT } from "@/shared/lib/image-upload-limits";
 import { validateImageFileForUpload } from "@/shared/lib/validate-image-upload";
 import { Button } from "@/shared/ui/Button";
+import { Checkbox } from "@/shared/ui/Checkbox";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
@@ -72,8 +73,8 @@ type TransferInput = {
   freightExpensePaymentSource?: string | null;
   freightExpensePocketPersonnelId?: number | null;
   freightNote?: string | null;
-  confirmAllocation: boolean;
-  allocationToken: string;
+  confirmAllocation?: boolean;
+  allocationToken?: string | null;
 };
 
 type TransferPreviewInput = {
@@ -209,6 +210,16 @@ export function WarehouseStockLine({
     if (!Number.isFinite(n) || n <= 0 || n > row.quantity) return [];
     return [{ productId: row.productId, quantity: n }];
   }, [tQty, row.productId, row.quantity]);
+  const previewRequestedTotals = useMemo(() => {
+    const totals = new Map<number, number>();
+    for (const a of previewAllocations) {
+      totals.set(a.requestedProductId, (totals.get(a.requestedProductId) ?? 0) + a.quantity);
+    }
+    return Array.from(totals.entries()).map(([requestedProductId, quantity]) => ({
+      requestedProductId,
+      quantity,
+    }));
+  }, [previewAllocations]);
 
   const runDepoIn = async (e: FormEvent) => {
     e.preventDefault();
@@ -322,12 +333,21 @@ export function WarehouseStockLine({
       }
       pocketPid = p;
     }
-    if (!previewToken) {
-      notify.error(t("warehouse.transferPreviewRequired"));
-      return;
-    }
     setPending("transfer");
     try {
+      if (!previewToken) {
+        const preview = await transferPreviewMutate({
+          warehouseId,
+          branchId: b,
+          lines: [{ productId: row.productId, quantity: n }],
+          movementDate,
+        });
+        setPreviewToken(preview.allocationToken);
+        setPreviewAllocations(preview.allocations);
+        notify.success("Önizleme hazır. Kaydet'e tekrar basarak onaylayın.");
+        return;
+      }
+
       await transferMutate({
         warehouseId,
         branchId: b,
@@ -348,43 +368,18 @@ export function WarehouseStockLine({
               freightNote: freightNote.trim() ? freightNote.trim() : null,
             }
           : {}),
-        confirmAllocation: true,
-        allocationToken: previewToken,
+        ...(previewToken
+          ? {
+              confirmAllocation: true,
+              allocationToken: previewToken,
+            }
+          : {}),
       });
       notify.success(t("toast.transferToBranchOk"));
       setTransferOpen(false);
       setBranchId("");
       setTQty("1");
       setTDesc("");
-    } catch (e) {
-      notify.error(apiUserFacingMessage(e, t));
-    } finally {
-      setPending(null);
-    }
-  };
-
-  const runPreviewTransfer = async () => {
-    const b = Number(branchId);
-    const n = Number(tQty.replace(",", "."));
-    if (!Number.isFinite(b) || b <= 0) {
-      notify.error(t("warehouse.transferPickBranch"));
-      return;
-    }
-    if (!Number.isFinite(n) || n <= 0 || n > row.quantity) {
-      notify.error(t("warehouse.invalidQuantity"));
-      return;
-    }
-    setPending("transfer");
-    try {
-      const preview = await transferPreviewMutate({
-        warehouseId,
-        branchId: b,
-        lines: [{ productId: row.productId, quantity: n }],
-        movementDate,
-      });
-      setPreviewToken(preview.allocationToken);
-      setPreviewAllocations(preview.allocations);
-      notify.success(t("warehouse.transferPreviewReady"));
     } catch (e) {
       notify.error(apiUserFacingMessage(e, t));
     } finally {
@@ -736,12 +731,11 @@ export function WarehouseStockLine({
           disabled={off || trManualReceiverEnabled}
         />
         <label className="flex cursor-pointer items-start gap-2 text-sm text-zinc-800">
-          <input
-            type="checkbox"
-            className="mt-1 h-4 w-4 shrink-0 rounded border-zinc-300 text-zinc-900"
+          <Checkbox
+            className="mt-0.5"
             checked={trManualReceiverEnabled}
             disabled={off}
-            onChange={(e) => setTrManualReceiverEnabled(e.target.checked)}
+            onCheckedChange={(checked) => setTrManualReceiverEnabled(checked === true)}
           />
           <span>{t("warehouse.transferManualReceiverToggle")}</span>
         </label>
@@ -761,6 +755,15 @@ export function WarehouseStockLine({
             <p className="text-xs font-semibold uppercase tracking-wide text-violet-800">
               {t("warehouse.transferPreviewTitle")}
             </p>
+            {previewRequestedTotals.length > 0 ? (
+              <ul className="mt-1 space-y-1 text-xs font-medium text-zinc-800">
+                {previewRequestedTotals.map((a, idx) => (
+                  <li key={`requested-${a.requestedProductId}-${idx}`}>
+                    Ana ürün #{a.requestedProductId}: {a.quantity}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             <ul className="mt-1 space-y-1 text-xs text-zinc-700">
               {previewAllocations.map((a, idx) => (
                 <li key={`${a.allocatedProductId}-${idx}`}>
@@ -784,15 +787,6 @@ export function WarehouseStockLine({
           </Button>
           <Button type="submit" className="min-h-11 w-full sm:min-w-[10rem] sm:flex-1" disabled={off}>
             {t("warehouse.transferSubmit")}
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            className="min-h-11 w-full sm:w-auto sm:min-w-[10rem]"
-            disabled={off}
-            onClick={() => void runPreviewTransfer()}
-          >
-            {t("warehouse.transferPreviewButton")}
           </Button>
         </div>
       </form>

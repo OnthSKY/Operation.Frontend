@@ -25,6 +25,7 @@ import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { notify } from "@/shared/lib/notify";
 import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { Button } from "@/shared/ui/Button";
+import { Checkbox } from "@/shared/ui/Checkbox";
 import { DateField } from "@/shared/ui/DateField";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
@@ -37,6 +38,7 @@ function newDraftLineKey() {
 }
 
 type LineDraft = { key: string; productId: string; qty: string };
+type TransferLinePayload = { productId: number; quantity: number };
 
 type ResolvedReceiptLine = {
   key: string;
@@ -213,7 +215,7 @@ export function WarehouseListDepoInModal({
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (warehouseId == null || warehouseId <= 0) return;
-    const parsed: { productId: number; quantity: number }[] = [];
+    const parsed: TransferLinePayload[] = [];
     for (const line of lines) {
       const pid = Number(line.productId);
       if (!Number.isFinite(pid) || pid <= 0) continue;
@@ -619,6 +621,16 @@ export function WarehouseListTransferModal({
     }
     return out;
   }, [lines, inStockRows]);
+  const previewRequestedTotals = useMemo(() => {
+    const totals = new Map<number, number>();
+    for (const a of previewAllocations) {
+      totals.set(a.requestedProductId, (totals.get(a.requestedProductId) ?? 0) + a.quantity);
+    }
+    return Array.from(totals.entries()).map(([requestedProductId, quantity]) => ({
+      requestedProductId,
+      quantity,
+    }));
+  }, [previewAllocations]);
 
   const addLine = useCallback(() => {
     setLines((ls) => [...ls, { key: newDraftLineKey(), productId: "", qty: "1" }]);
@@ -741,13 +753,37 @@ export function WarehouseListTransferModal({
       }
       pocketPid = p;
     }
-    if (!previewToken) {
-      notify.error(t("warehouse.transferPreviewRequired"));
-      return;
-    }
     setPending(true);
     try {
-      await transfer.mutateAsync({
+      if (!previewToken) {
+        const preview = await transferPreview.mutateAsync({
+          warehouseId,
+          branchId: b,
+          lines: parsed,
+          movementDate,
+        });
+        setPreviewToken(preview.allocationToken);
+        setPreviewAllocations(preview.allocations);
+        notify.success("Önizleme hazır. Kaydet'e tekrar basarak onaylayın.");
+        return;
+      }
+
+      const transferPayload: {
+        warehouseId: number;
+        branchId: number;
+        lines: TransferLinePayload[];
+        movementDate: string;
+        description?: string | null;
+        transportedByPersonnelId: number;
+        sentByPersonnelId: number;
+        receivedByPersonnelId: number;
+        freightAmount?: number | null;
+        freightExpensePaymentSource?: string | null;
+        freightExpensePocketPersonnelId?: number | null;
+        freightNote?: string | null;
+        confirmAllocation?: boolean;
+        allocationToken?: string | null;
+      } = {
         warehouseId,
         branchId: b,
         lines: parsed,
@@ -767,56 +803,17 @@ export function WarehouseListTransferModal({
               freightNote: freightNote.trim() ? freightNote.trim() : null,
             }
           : {}),
-        confirmAllocation: true,
-        allocationToken: previewToken,
+      };
+      if (previewToken) {
+        transferPayload.confirmAllocation = true;
+        transferPayload.allocationToken = previewToken;
+      }
+
+      await transfer.mutateAsync({
+        ...transferPayload,
       });
       notify.success(t("toast.transferToBranchOk"));
       onClose();
-    } catch (err) {
-      notify.error(apiUserFacingMessage(err, t));
-    } finally {
-      setPending(false);
-    }
-  };
-
-  const onPreview = async () => {
-    if (warehouseId == null || warehouseId <= 0) return;
-    const b = Number(branchId);
-    if (!Number.isFinite(b) || b <= 0) {
-      notify.error(t("warehouse.transferPickBranch"));
-      return;
-    }
-    const parsed: { productId: number; quantity: number }[] = [];
-    for (const line of lines) {
-      const pid = Number(line.productId);
-      if (!Number.isFinite(pid) || pid <= 0) continue;
-      const n = Number(line.qty.replace(",", "."));
-      if (!Number.isFinite(n) || n <= 0) {
-        notify.error(t("warehouse.invalidQuantity"));
-        return;
-      }
-      const row = inStockRows.find((r) => r.productId === pid);
-      if (!row || n > row.quantity) {
-        notify.error(t("warehouse.invalidQuantity"));
-        return;
-      }
-      parsed.push({ productId: pid, quantity: n });
-    }
-    if (parsed.length === 0) {
-      notify.error(t("warehouse.transferAtLeastOneProductLine"));
-      return;
-    }
-    setPending(true);
-    try {
-      const preview = await transferPreview.mutateAsync({
-        warehouseId,
-        branchId: b,
-        lines: parsed,
-        movementDate,
-      });
-      setPreviewToken(preview.allocationToken);
-      setPreviewAllocations(preview.allocations);
-      notify.success(t("warehouse.transferPreviewReady"));
     } catch (err) {
       notify.error(apiUserFacingMessage(err, t));
     } finally {
@@ -832,6 +829,7 @@ export function WarehouseListTransferModal({
       title={t("warehouse.transferRowTitle")}
       description={desc}
       closeButtonLabel={t("common.close")}
+      className={cn("w-full", lines.length >= 3 ? "max-w-2xl" : "max-w-lg")}
     >
       {stockLoading ? (
         <p className="mt-4 text-sm text-zinc-500">{t("common.loading")}</p>
@@ -839,7 +837,7 @@ export function WarehouseListTransferModal({
         <p className="mt-4 text-sm text-zinc-600">{t("warehouse.listQuickTransferNoStock")}</p>
       ) : (
         <form
-          className="mt-4 flex max-h-[min(78dvh,28rem)] flex-col gap-3 overflow-y-auto [-webkit-overflow-scrolling:touch] sm:max-h-none sm:overflow-visible"
+          className="mt-3 flex max-h-[min(82dvh,34rem)] flex-col gap-3 overflow-y-auto [-webkit-overflow-scrolling:touch] sm:mt-4 sm:max-h-[min(78dvh,40rem)] sm:overflow-visible"
           onSubmit={(e) => void onSubmit(e)}
         >
           <DateField
@@ -854,15 +852,35 @@ export function WarehouseListTransferModal({
             <p className="text-sm font-medium text-zinc-800">{t("warehouse.transferLinesSection")}</p>
             {lines.map((line, idx) => {
               const selectedRow = inStockRows.find((r) => String(r.productId) === line.productId);
+              const compact = lines.length >= 2;
               return (
                 <div
                   key={line.key}
-                  className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-3 shadow-sm"
+                  className={cn(
+                    "rounded-xl border border-zinc-200/90 bg-white shadow-sm ring-1 ring-zinc-950/[0.03]",
+                    compact ? "px-1.5 py-1 sm:px-2" : "p-2 sm:p-2.5"
+                  )}
                 >
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
-                    <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 flex-nowrap items-end gap-1.5 sm:gap-2">
+                    <span
+                      className={cn(
+                        "flex shrink-0 select-none items-center justify-center rounded-md bg-zinc-100 font-bold tabular-nums text-zinc-500",
+                        compact
+                          ? "h-9 w-6 text-[0.6rem] sm:h-10 sm:w-7 sm:text-[0.65rem]"
+                          : "h-9 w-7 text-[0.65rem] sm:h-10 sm:w-8 sm:text-xs"
+                      )}
+                      aria-hidden
+                    >
+                      {idx + 1}
+                    </span>
+                    <div className="min-w-0 flex-1 basis-0">
                       <Select
-                        label={t("warehouse.transferProduct")}
+                        label={idx === 0 ? t("warehouse.transferProduct") : undefined}
+                        ariaLabel={
+                          idx > 0
+                            ? `${t("warehouse.transferProduct")} (${idx + 1})`
+                            : undefined
+                        }
                         labelRequired={idx === 0}
                         name={`wh-list-tr-product-${line.key}`}
                         options={productOptions}
@@ -870,29 +888,38 @@ export function WarehouseListTransferModal({
                         onChange={(e) => updateLine(line.key, { productId: e.target.value })}
                         onBlur={() => {}}
                         disabled={disabled}
+                        className={cn("min-w-0", compact && "min-h-11 py-2 text-sm")}
                       />
                     </div>
-                    <div className="w-full sm:w-28">
+                    <div className={cn("shrink-0", compact ? "w-[4.25rem] sm:w-24" : "w-24 sm:w-28")}>
                       <Input
                         type="text"
                         inputMode="decimal"
                         autoComplete="off"
-                        label={t("warehouse.transferQty")}
+                        label={idx === 0 ? t("warehouse.transferQty") : undefined}
                         labelRequired={idx === 0}
+                        aria-label={idx > 0 ? t("warehouse.transferQty") : undefined}
                         value={line.qty}
                         onChange={(e) => updateLine(line.key, { qty: e.target.value })}
                         disabled={disabled}
+                        className={cn("min-w-0 text-center tabular-nums", compact && "min-h-11 py-2 text-sm")}
                       />
                     </div>
                     <Button
                       type="button"
                       variant="secondary"
-                      className="min-h-11 w-full shrink-0 sm:mb-0.5 sm:w-auto"
+                      className={cn(
+                        "shrink-0 self-end rounded-lg border-zinc-200 p-0 font-light leading-none text-zinc-500 hover:border-red-200 hover:bg-red-50 hover:text-red-700",
+                        compact
+                          ? "mb-0.5 h-9 w-9 text-base sm:h-10 sm:w-10 sm:text-lg"
+                          : "mb-0.5 h-10 w-10 text-lg"
+                      )}
                       disabled={disabled || lines.length <= 1}
                       onClick={() => removeLine(line.key)}
                       aria-label={t("warehouse.transferRemoveLine")}
+                      title={t("warehouse.transferRemoveLine")}
                     >
-                      {t("warehouse.transferRemoveLine")}
+                      <span aria-hidden>×</span>
                     </Button>
                   </div>
                   {selectedRow ? (
@@ -903,7 +930,13 @@ export function WarehouseListTransferModal({
                 </div>
               );
             })}
-            <Button type="button" variant="secondary" className="w-full min-h-11 sm:w-auto" disabled={disabled} onClick={addLine}>
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-[44px] min-w-[44px] w-full touch-manipulation text-sm sm:min-h-11 sm:w-auto"
+              disabled={disabled}
+              onClick={addLine}
+            >
               {t("warehouse.transferAddLine")}
             </Button>
           </div>
@@ -975,12 +1008,11 @@ export function WarehouseListTransferModal({
             disabled={disabled || trManualReceiverEnabled}
           />
           <label className="flex cursor-pointer items-start gap-2 text-sm text-zinc-800">
-            <input
-              type="checkbox"
-              className="mt-1 h-4 w-4 shrink-0 rounded border-zinc-300 text-zinc-900"
+            <Checkbox
+              className="mt-0.5"
               checked={trManualReceiverEnabled}
               disabled={disabled}
-              onChange={(e) => setTrManualReceiverEnabled(e.target.checked)}
+              onCheckedChange={(checked) => setTrManualReceiverEnabled(checked === true)}
             />
             <span>{t("warehouse.transferManualReceiverToggle")}</span>
           </label>
@@ -1000,6 +1032,15 @@ export function WarehouseListTransferModal({
               <p className="text-xs font-semibold uppercase tracking-wide text-violet-800">
                 {t("warehouse.transferPreviewTitle")}
               </p>
+              {previewRequestedTotals.length > 0 ? (
+                <ul className="mt-1 space-y-1 text-xs font-medium text-zinc-800">
+                  {previewRequestedTotals.map((a, idx) => (
+                    <li key={`requested-${a.requestedProductId}-${idx}`}>
+                      Ana ürün #{a.requestedProductId}: {a.quantity}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
               <ul className="mt-1 space-y-1 text-xs text-zinc-700">
                 {previewAllocations.map((a, idx) => (
                   <li key={`${a.allocatedProductId}-${idx}`}>
@@ -1011,27 +1052,18 @@ export function WarehouseListTransferModal({
               </ul>
             </div>
           ) : null}
-          <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:flex-wrap sm:justify-end">
+          <div className="sticky bottom-0 -mx-1 flex flex-col gap-2 border-t border-zinc-200/80 bg-white/95 px-1 pt-2 pb-0.5 backdrop-blur-sm sm:static sm:mx-0 sm:flex-row sm:flex-wrap sm:justify-end sm:border-0 sm:bg-transparent sm:px-0 sm:pt-1 sm:backdrop-blur-none">
             <Button
               type="button"
               variant="secondary"
-              className="min-h-11 w-full sm:w-auto sm:min-w-[7rem]"
+              className="min-h-11 w-full touch-manipulation sm:w-auto sm:min-w-[7rem]"
               disabled={disabled}
               onClick={requestTransferClose}
             >
               {t("common.cancel")}
             </Button>
-            <Button type="submit" className="min-h-11 w-full sm:min-w-[10rem] sm:flex-1" disabled={disabled}>
+            <Button type="submit" className="min-h-11 w-full touch-manipulation sm:min-w-[10rem] sm:flex-1" disabled={disabled}>
               {t("warehouse.transferSubmit")}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11 w-full sm:w-auto sm:min-w-[10rem]"
-              disabled={disabled}
-              onClick={() => void onPreview()}
-            >
-              {t("warehouse.transferPreviewButton")}
             </Button>
           </div>
         </form>

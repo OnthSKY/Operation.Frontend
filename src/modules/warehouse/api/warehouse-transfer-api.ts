@@ -64,8 +64,8 @@ export async function transferWarehouseToBranch(input: {
   freightExpensePaymentSource?: string | null;
   freightExpensePocketPersonnelId?: number | null;
   freightNote?: string | null;
-  confirmAllocation: boolean;
-  allocationToken: string;
+  confirmAllocation?: boolean;
+  allocationToken?: string | null;
 }): Promise<TransferWarehouseToBranchResponse> {
   return apiRequest<TransferWarehouseToBranchResponse>("/warehouse/transfer-to-branch", {
     method: "POST",
@@ -83,8 +83,8 @@ export async function transferWarehouseToBranch(input: {
       freightExpensePaymentSource: input.freightExpensePaymentSource ?? null,
       freightExpensePocketPersonnelId: input.freightExpensePocketPersonnelId ?? null,
       freightNote: input.freightNote ?? null,
-      confirmAllocation: input.confirmAllocation,
-      allocationToken: input.allocationToken,
+      confirmAllocation: input.confirmAllocation ?? false,
+      allocationToken: input.allocationToken ?? null,
     }),
   });
 }
