@@ -184,6 +184,7 @@ export const warehouse = {
   movementHistoryActionRowDelete: "Delete this receipt",
   movementHistoryActionShipmentDelete: "Delete this shipment",
   movementHistoryCreateInvoiceFromShipment: "Create invoice from this shipment",
+  movementHistoryOpenRelatedPdf: "Open PDFs for this shipment",
   movementHistoryActionEditDates: "Correct batch dates",
   movementHistoryShowLines: "Show lines",
   movementHistoryHideLines: "Hide lines",

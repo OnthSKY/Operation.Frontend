@@ -513,6 +513,9 @@ function buildOrderAccountDocumentMetadata(input: {
   counterpartyLabel?: string | null;
   receivedAdvanceAmount?: number | null;
   receivedAdvancePostToLedger?: boolean | null;
+  shipmentWarehouseId?: number | null;
+  shipmentPrimaryMovementId?: number | null;
+  shipmentMovementIds?: number[] | null;
 }): string {
   const parts = [
     "Sipariş-hesap dökümü PDF",
@@ -524,6 +527,16 @@ function buildOrderAccountDocumentMetadata(input: {
   if (input.invoiceId && Number.isFinite(input.invoiceId)) parts.push(`invoiceId=${input.invoiceId}`);
   if (input.invoiceNo?.trim()) parts.push(`invoiceNo=${input.invoiceNo.trim()}`);
   if (input.counterpartyLabel?.trim()) parts.push(`counterparty=${input.counterpartyLabel.trim()}`);
+  if (Number.isFinite(input.shipmentWarehouseId) && (input.shipmentWarehouseId ?? 0) > 0) {
+    parts.push(`shipmentWarehouseId=${input.shipmentWarehouseId}`);
+  }
+  if (Number.isFinite(input.shipmentPrimaryMovementId) && (input.shipmentPrimaryMovementId ?? 0) > 0) {
+    parts.push(`shipmentPrimaryMovementId=${input.shipmentPrimaryMovementId}`);
+  }
+  if (Array.isArray(input.shipmentMovementIds) && input.shipmentMovementIds.length > 0) {
+    const ids = input.shipmentMovementIds.filter((x) => Number.isFinite(x) && x > 0);
+    if (ids.length > 0) parts.push(`shipmentMovementIds=${ids.join(",")}`);
+  }
   if (Number.isFinite(input.receivedAdvanceAmount) && (input.receivedAdvanceAmount ?? 0) > 0) {
     parts.push(`receivedAdvance=${input.receivedAdvanceAmount}`);
     if (input.receivedAdvancePostToLedger != null) {
@@ -2635,6 +2648,9 @@ export function OrderAccountStatementScreen() {
             branchName: safeBranch,
             title: safeTitle,
             counterpartyLabel: `${counterpartyType}:${counterpartyId}`,
+            shipmentWarehouseId: selectedShipmentSource?.warehouseId ?? null,
+            shipmentPrimaryMovementId: selectedShipmentSource?.primaryMovementId ?? null,
+            shipmentMovementIds: selectedShipmentSource?.movementIds ?? null,
             receivedAdvanceAmount: advanceDeduction,
             receivedAdvancePostToLedger:
               advanceDeduction > 0 ? receivedAdvancePostToLedger : null,
@@ -2714,6 +2730,9 @@ export function OrderAccountStatementScreen() {
               createdInvoice != null
                 ? `${createdInvoice.counterpartyType}:${createdInvoice.counterpartyId}`
                 : `${counterpartyType}:${counterpartyId}`,
+            shipmentWarehouseId: selectedShipmentSource?.warehouseId ?? null,
+            shipmentPrimaryMovementId: selectedShipmentSource?.primaryMovementId ?? null,
+            shipmentMovementIds: selectedShipmentSource?.movementIds ?? null,
             receivedAdvanceAmount: advanceDeduction,
             receivedAdvancePostToLedger:
               advanceDeduction > 0 ? receivedAdvancePostToLedger : null,

@@ -184,6 +184,7 @@ export const warehouse = {
   movementHistoryActionRowDelete: "Bu girişi sil",
   movementHistoryActionShipmentDelete: "Bu sevkiyatı sil",
   movementHistoryCreateInvoiceFromShipment: "Bu sevkiyattan fatura oluştur",
+  movementHistoryOpenRelatedPdf: "Bu sevkiyatın PDF belgelerini aç",
   movementHistoryActionEditDates: "Parti tarihlerini düzelt",
   movementHistoryShowLines: "Satırları göster",
   movementHistoryHideLines: "Satırları gizle",

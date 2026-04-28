@@ -365,6 +365,13 @@ export function WarehouseDetailMovementHistoryTab({
     },
     [router, warehouseId]
   );
+  const openRelatedShipmentPdfDocs = useCallback(
+    (movementId: number) => {
+      if (!Number.isFinite(movementId) || movementId <= 0) return;
+      router.push(`/documents?q=${encodeURIComponent(`shipmentPrimaryMovementId=${movementId}`)}`);
+    },
+    [router]
+  );
 
   useEffect(() => {
     setFiltersDrawerOpen(false);
@@ -1361,6 +1368,19 @@ export function WarehouseDetailMovementHistoryTab({
                             }}
                           >
                             <PaperclipIcon className="h-5 w-5" />
+                          </Button>
+                        </Tooltip>
+                        <Tooltip content={t("warehouse.movementHistoryOpenRelatedPdf")} delayMs={200}>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className={detailOpenIconButtonClass}
+                            onClick={() => {
+                              if (selectedOutboundShipmentRepresentativeMovementId == null) return;
+                              openRelatedShipmentPdfDocs(selectedOutboundShipmentRepresentativeMovementId);
+                            }}
+                          >
+                            <EyeIcon className="h-5 w-5" />
                           </Button>
                         </Tooltip>
                         <Tooltip content={t("warehouse.transferAddLine")} delayMs={200}>

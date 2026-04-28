@@ -60,6 +60,9 @@ function humanizeDocumentDetail(raw: string): string {
       branch: "Şube",
       company: "Firma",
       title: "Belge",
+      shipmentWarehouseId: "Sevkiyat depo",
+      shipmentPrimaryMovementId: "Sevkiyat hareket",
+      shipmentMovementIds: "Sevkiyat satırları",
     };
     const parsed = text
       .split("·")
