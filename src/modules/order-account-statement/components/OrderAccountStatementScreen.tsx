@@ -2621,9 +2621,9 @@ export function OrderAccountStatementScreen() {
           };
         })
       );
-      void loadSalesSuggestionForLine(lineId, productId, true);
+      setLinePriceSuggestionByLineId((prev) => ({ ...prev, [lineId]: undefined }));
     },
-    [catalog, latestCostByProductId, locale, loadSalesSuggestionForLine]
+    [catalog, latestCostByProductId, locale]
   );
   const collapseLinesToParentProduct = useCallback(() => {
     const productById = new Map(catalog.map((p) => [p.id, p] as const));
@@ -3952,6 +3952,18 @@ export function OrderAccountStatementScreen() {
                               <Button
                                 type="button"
                                 variant="secondary"
+                                className="mr-1 min-h-8 px-2 py-1 text-[11px]"
+                                onClick={() =>
+                                  line.selectedProductId
+                                    ? void loadSalesSuggestionForLine(line.id, line.selectedProductId, true)
+                                    : undefined
+                                }
+                              >
+                                Satış önerisi çek
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="secondary"
                                 className="min-h-8 px-2 py-1 text-[11px]"
                                 onClick={() => void openPriceHistoryForLine(line)}
                               >
@@ -3982,6 +3994,18 @@ export function OrderAccountStatementScreen() {
                             </p>
                           ) : null}
                           <div>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="mr-1 min-h-8 px-2 py-1 text-[11px]"
+                              onClick={() =>
+                                line.selectedProductId
+                                  ? void loadSalesSuggestionForLine(line.id, line.selectedProductId, true)
+                                  : undefined
+                              }
+                            >
+                              Satış önerisi çek
+                            </Button>
                             <Button
                               type="button"
                               variant="secondary"
