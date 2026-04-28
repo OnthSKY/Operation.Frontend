@@ -1732,9 +1732,9 @@ export function WarehouseDetailMovementHistoryTab({
                         hideInvoiceSection
                         warehouseId={warehouseId}
                         onEditInboundFull={(row) => {
-                          if (!canManageWholeInboundShipment && row.type === "IN") setInboundFullMovementId(row.id);
+                          if (row.type === "IN") setInboundFullMovementId(row.id);
                         }}
-                        onDeleteInbound={canManageWholeInboundShipment ? undefined : confirmDeleteInboundFromRow}
+                        onDeleteInbound={confirmDeleteInboundFromRow}
                         onEditOutboundShipment={(row) => {
                           if (row.type === "OUT" && row.isDepotToBranchShipment) {
                             setOutboundShipmentMovementId(row.id);
