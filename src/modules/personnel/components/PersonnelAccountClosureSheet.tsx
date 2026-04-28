@@ -165,7 +165,7 @@ function YearCloseBalanceGuide({
               key={line.currencyCode}
               className="rounded-xl border border-zinc-200/90 bg-white/80 px-3 py-3"
             >
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                 {line.currencyCode}
               </p>
               <ul className="mt-2 divide-y divide-zinc-100 text-xs">
@@ -208,7 +208,7 @@ function YearCloseBalanceGuide({
           );
         })}
       </div>
-      <p className="mt-3 text-[11px] leading-relaxed text-zinc-500">
+      <p className="mt-3 text-xs leading-relaxed text-zinc-500">
         {t("personnel.accountClosure.closeYearGuideHandoverNote")}
       </p>
     </Card>
@@ -243,7 +243,7 @@ function ClosureLinesBlock({
           </div>
           <div className="divide-y divide-zinc-100 text-sm">
             <div>
-              <p className="bg-zinc-50/50 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              <p className="bg-zinc-50/50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
                 {t("personnel.accountClosure.groupPaidOutLabel")}
               </p>
               <ul className="divide-y divide-zinc-100">
@@ -262,7 +262,7 @@ function ClosureLinesBlock({
               </ul>
             </div>
             <div>
-              <p className="bg-zinc-50/50 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              <p className="bg-zinc-50/50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
                 {t("personnel.accountClosure.groupExpensesLabel")}
               </p>
               <ul>
@@ -275,7 +275,7 @@ function ClosureLinesBlock({
               </ul>
             </div>
             <div>
-              <p className="bg-zinc-50/50 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              <p className="bg-zinc-50/50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
                 {t("personnel.accountClosure.groupHandoverLabel")}
               </p>
               <ul>
@@ -940,7 +940,7 @@ export function PersonnelAccountClosureSheet({
                     </div>
                   ))}
                 </div>
-                <p className="mt-2 px-1 text-center text-[11px] leading-snug text-zinc-500">
+                <p className="mt-2 px-1 text-center text-xs leading-snug text-zinc-500">
                   {t(
                     "personnel.accountClosure.closeYearMobileTabsFooterHint",
                   )}
@@ -1325,7 +1325,7 @@ export function PersonnelAccountClosureSheet({
                                     <Button
                                       type="button"
                                       variant="secondary"
-                                      className="min-h-9 w-full sm:w-auto"
+                                      className="min-h-[44px] min-w-[44px] w-full sm:w-auto"
                                       onClick={() =>
                                         setClosureWorkedDays(
                                           String(workedDaysSeasonSuggestion.days),
@@ -1394,7 +1394,7 @@ export function PersonnelAccountClosureSheet({
                                 <Button
                                   type="button"
                                   variant="secondary"
-                                  className="min-h-9 w-full shrink-0 sm:w-auto"
+                                  className="min-h-[44px] min-w-[44px] w-full shrink-0 sm:w-auto"
                                   onClick={() =>
                                     setClosureExpectedSalary(
                                       formatLocaleAmountInput(

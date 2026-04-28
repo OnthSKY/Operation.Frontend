@@ -406,7 +406,7 @@ export function WarehouseScreen() {
                         {t("warehouse.listColTotalOnHand")}: {qtyLabel}
                       </p>
                       {created ? (
-                        <p className="mt-1 text-[11px] text-zinc-400">
+                        <p className="mt-1 text-xs text-zinc-400">
                           {t("warehouse.createdAtLabel")}: {created}
                         </p>
                       ) : null}

@@ -154,7 +154,7 @@ export function WarehouseProductScopeFilters({
             }}
             onBlur={() => {}}
             disabled={disabled}
-            className="min-h-11 sm:min-h-10 sm:text-sm"
+            className="min-h-11 sm:min-h-[44px] sm:text-sm"
           />
           <Select
             label={t("warehouse.scopeSubCategory")}
@@ -173,7 +173,7 @@ export function WarehouseProductScopeFilters({
             }}
             onBlur={() => {}}
             disabled={disabled || mainUnset}
-            className="min-h-11 sm:min-h-10 sm:text-sm"
+            className="min-h-11 sm:min-h-[44px] sm:text-sm"
           />
           <Select
             label={t("warehouse.scopeMainProduct")}
@@ -191,7 +191,7 @@ export function WarehouseProductScopeFilters({
             }}
             onBlur={() => {}}
             disabled={disabled}
-            className="min-h-11 sm:min-h-10 sm:text-sm"
+            className="min-h-11 sm:min-h-[44px] sm:text-sm"
           />
           <Select
             label={t("warehouse.scopeSubProduct")}
@@ -208,7 +208,7 @@ export function WarehouseProductScopeFilters({
             }}
             onBlur={() => {}}
             disabled={disabled}
-            className="min-h-11 sm:min-h-10 sm:text-sm"
+            className="min-h-11 sm:min-h-[44px] sm:text-sm"
           />
         </>
       )}

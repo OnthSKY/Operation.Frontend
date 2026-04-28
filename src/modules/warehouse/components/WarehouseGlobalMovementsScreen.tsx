@@ -26,6 +26,7 @@ import { Select, type SelectOption } from "@/shared/ui/Select";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { ResponsiveTableFrame } from "@/shared/tables/ResponsiveTableFrame";
 
 const PAGE_SIZE = 25;
 const DRAWER_SELECT_Z = 280;
@@ -249,107 +250,115 @@ export function WarehouseGlobalMovementsScreen() {
       ) : null}
 
       {items.length > 0 ? (
-        <>
-        <div className={cn("space-y-2 sm:hidden", isFetching && "opacity-75")}>
-          {items.map((m: WarehouseGlobalMovementRow) => {
-            const batchCell = formatWarehouseShipmentDisplay(m.inBatchGroupId, m.id);
-            return (
-              <div key={`m-card-${m.warehouseId}-${m.id}`} className="rounded-lg border border-zinc-200 bg-white p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-zinc-900">{formatLocaleDate(m.movementDate, locale)}</p>
-                  <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", m.type === "IN" ? "bg-emerald-100 text-emerald-900" : "bg-red-100 text-red-900")}>
-                    {m.type === "IN" ? t("products.typeIn") : t("products.typeOut")}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className="mt-2 text-left text-sm font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-700"
-                  onClick={() => openMovementDetail(m)}
-                >
-                  {m.productName}
-                </button>
-                <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                  <div><p className="text-zinc-500">{t("products.colWarehouse")}</p><p className="font-medium text-zinc-800">{m.warehouseName}</p></div>
-                  <div><p className="text-zinc-500">{t("warehouse.movementOutBranch")}</p><p className="font-medium text-zinc-800">{m.outDestinationBranchName || "—"}</p></div>
-                  <div><p className="text-zinc-500">{t("warehouse.movementBatchGroup")}</p><p className="font-mono text-[11px] text-zinc-700" title={batchCell.title}>{batchCell.text}</p></div>
-                  <div><p className="text-zinc-500">{t("products.colQty")}</p><p className="font-semibold tabular-nums text-zinc-900">{m.quantity}</p></div>
-                </div>
-                <p className="mt-2 text-xs text-zinc-600">{m.description || "—"}</p>
-                {m.type === "IN" && m.hasInvoicePhoto ? (
-                  <a
-                    href={warehouseMovementInvoicePhotoUrl(m.id)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-2 inline-flex text-xs font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-600"
-                  >
-                    {t("warehouse.openInvoicePhoto")}
-                  </a>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-        <div className={cn("hidden overflow-x-auto rounded-lg border border-zinc-200 bg-white sm:block", isFetching && "opacity-75")}>
-          <table className="w-full min-w-[980px] border-collapse text-left text-sm">
-            <thead>
-              <tr className="border-b border-zinc-200 bg-zinc-50">
-                <th className="px-3 py-2.5 font-semibold">{t("products.mColDate")}</th>
-                <th className="px-3 py-2.5 font-semibold">{t("products.colWarehouse")}</th>
-                <th className="px-3 py-2.5 font-semibold">{t("products.colName")}</th>
-                <th className="px-3 py-2.5 font-semibold">{t("products.mColType")}</th>
-                <th className="px-3 py-2.5 font-semibold">{t("warehouse.movementBatchGroup")}</th>
-                <th className="px-3 py-2.5 font-semibold">{t("warehouse.movementOutBranch")}</th>
-                <th className="px-3 py-2.5 text-right font-semibold">{t("products.colQty")}</th>
-                <th className="px-3 py-2.5 font-semibold">{t("products.mColNote")}</th>
-                <th className="px-3 py-2.5 font-semibold">{t("warehouse.mColInvoice")}</th>
-              </tr>
-            </thead>
-            <tbody>
+        <ResponsiveTableFrame
+          mobileVisibilityClassName="sm:flex md:hidden"
+          desktopVisibilityClassName="hidden md:block"
+          mobileClassName={cn("space-y-2", isFetching && "opacity-75")}
+          desktopClassName={cn("rounded-lg border border-zinc-200 bg-white", isFetching && "opacity-75")}
+          desktopInsetScroll
+          desktopScrollClassName="overflow-x-auto"
+          mobile={
+            <>
               {items.map((m: WarehouseGlobalMovementRow) => {
                 const batchCell = formatWarehouseShipmentDisplay(m.inBatchGroupId, m.id);
                 return (
-                  <tr key={`${m.warehouseId}-${m.id}`} className="border-b border-zinc-100 last:border-0">
-                    <td className="px-3 py-2">{formatLocaleDate(m.movementDate, locale)}</td>
-                    <td className="px-3 py-2">{m.warehouseName}</td>
-                    <td className="px-3 py-2">
-                      <button
-                        type="button"
-                        className="text-left font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-700"
-                        onClick={() => openMovementDetail(m)}
+                  <div key={`m-card-${m.warehouseId}-${m.id}`} className="rounded-lg border border-zinc-200 bg-white p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-zinc-900">{formatLocaleDate(m.movementDate, locale)}</p>
+                      <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", m.type === "IN" ? "bg-emerald-100 text-emerald-900" : "bg-red-100 text-red-900")}>
+                        {m.type === "IN" ? t("products.typeIn") : t("products.typeOut")}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="mt-2 text-left text-sm font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-700"
+                      onClick={() => openMovementDetail(m)}
+                    >
+                      {m.productName}
+                    </button>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                      <div><p className="text-zinc-500">{t("products.colWarehouse")}</p><p className="font-medium text-zinc-800">{m.warehouseName}</p></div>
+                      <div><p className="text-zinc-500">{t("warehouse.movementOutBranch")}</p><p className="font-medium text-zinc-800">{m.outDestinationBranchName || "—"}</p></div>
+                      <div><p className="text-zinc-500">{t("warehouse.movementBatchGroup")}</p><p className="font-mono text-xs text-zinc-700" title={batchCell.title}>{batchCell.text}</p></div>
+                      <div><p className="text-zinc-500">{t("products.colQty")}</p><p className="font-semibold tabular-nums text-zinc-900">{m.quantity}</p></div>
+                    </div>
+                    <p className="mt-2 text-xs text-zinc-600">{m.description || "—"}</p>
+                    {m.type === "IN" && m.hasInvoicePhoto ? (
+                      <a
+                        href={warehouseMovementInvoicePhotoUrl(m.id)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-flex text-xs font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-600"
                       >
-                        {m.productName}
-                      </button>
-                    </td>
-                    <td className="px-3 py-2">
-                      {m.type === "IN" ? t("products.typeIn") : t("products.typeOut")}
-                    </td>
-                    <td className="px-3 py-2 font-mono text-xs" title={batchCell.title}>
-                      {batchCell.text}
-                    </td>
-                    <td className="px-3 py-2">{m.outDestinationBranchName || "—"}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{m.quantity}</td>
-                    <td className="max-w-[20rem] truncate px-3 py-2 text-zinc-600">{m.description || "—"}</td>
-                    <td className="px-3 py-2">
-                      {m.type === "IN" && m.hasInvoicePhoto ? (
-                        <a
-                          href={warehouseMovementInvoicePhotoUrl(m.id)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-600"
-                        >
-                          {t("warehouse.openInvoicePhoto")}
-                        </a>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                  </tr>
+                        {t("warehouse.openInvoicePhoto")}
+                      </a>
+                    ) : null}
+                  </div>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
-        </>
+            </>
+          }
+          desktop={
+            <table className="w-full min-w-0 lg:min-w-[980px] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-zinc-200 bg-zinc-50">
+                  <th className="px-3 py-2.5 font-semibold">{t("products.mColDate")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("products.colWarehouse")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("products.colName")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("products.mColType")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("warehouse.movementBatchGroup")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("warehouse.movementOutBranch")}</th>
+                  <th className="px-3 py-2.5 text-right font-semibold">{t("products.colQty")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("products.mColNote")}</th>
+                  <th className="px-3 py-2.5 font-semibold">{t("warehouse.mColInvoice")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((m: WarehouseGlobalMovementRow) => {
+                  const batchCell = formatWarehouseShipmentDisplay(m.inBatchGroupId, m.id);
+                  return (
+                    <tr key={`${m.warehouseId}-${m.id}`} className="border-b border-zinc-100 last:border-0">
+                      <td className="px-3 py-2">{formatLocaleDate(m.movementDate, locale)}</td>
+                      <td className="px-3 py-2">{m.warehouseName}</td>
+                      <td className="px-3 py-2">
+                        <button
+                          type="button"
+                          className="text-left font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-700"
+                          onClick={() => openMovementDetail(m)}
+                        >
+                          {m.productName}
+                        </button>
+                      </td>
+                      <td className="px-3 py-2">
+                        {m.type === "IN" ? t("products.typeIn") : t("products.typeOut")}
+                      </td>
+                      <td className="px-3 py-2 font-mono text-xs" title={batchCell.title}>
+                        {batchCell.text}
+                      </td>
+                      <td className="px-3 py-2">{m.outDestinationBranchName || "—"}</td>
+                      <td className="px-3 py-2 text-right tabular-nums">{m.quantity}</td>
+                      <td className="max-w-[20rem] truncate px-3 py-2 text-zinc-600">{m.description || "—"}</td>
+                      <td className="px-3 py-2">
+                        {m.type === "IN" && m.hasInvoicePhoto ? (
+                          <a
+                            href={warehouseMovementInvoicePhotoUrl(m.id)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-600"
+                          >
+                            {t("warehouse.openInvoicePhoto")}
+                          </a>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          }
+        />
       ) : null}
 
       {!isPending && totalCount > 0 ? (

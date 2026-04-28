@@ -255,7 +255,7 @@ export function PersonnelAdvanceHistory({
     : null;
 
   const totalsBlock = showAttributedExpenses ? (
-      <p className="mt-1 text-[11px] leading-snug text-zinc-600 sm:text-xs">
+      <p className="mt-1 text-xs leading-snug text-zinc-600 sm:text-xs">
         <span className="text-zinc-500">
           {t("personnel.costsSummaryTotalAdvancesLabel")}
         </span>{" "}
@@ -316,7 +316,7 @@ export function PersonnelAdvanceHistory({
                     <span className="inline-flex flex-wrap items-center gap-1">
                       <span
                         className={cn(
-                          "rounded border px-1 py-px text-[10px] font-semibold uppercase leading-none",
+                          "rounded border px-1 py-px text-xs font-semibold uppercase leading-none",
                           "border-amber-200 bg-amber-50 text-amber-900",
                         )}
                       >
@@ -338,7 +338,7 @@ export function PersonnelAdvanceHistory({
                         row.advance.currencyCode,
                       )}
                     </span>
-                    <span className="w-full text-[11px] text-zinc-500 sm:w-auto">
+                    <span className="w-full text-xs text-zinc-500 sm:w-auto">
                       {sourceAbbrev(t, row.advance.sourceType)} ·{" "}
                       {row.advance.effectiveYear}
                       {row.advance.hasLinkedRegisterExpense ? (
@@ -357,7 +357,7 @@ export function PersonnelAdvanceHistory({
                     <span className="inline-flex flex-wrap items-center gap-1">
                       <span
                         className={cn(
-                          "rounded border px-1 py-px text-[10px] font-semibold uppercase leading-none",
+                          "rounded border px-1 py-px text-xs font-semibold uppercase leading-none",
                           "border-violet-200 bg-violet-50 text-violet-900",
                         )}
                       >
@@ -375,7 +375,7 @@ export function PersonnelAdvanceHistory({
                         row.tx.currencyCode,
                       )}
                     </span>
-                    <span className="w-full text-[11px] text-zinc-500 sm:w-auto">
+                    <span className="w-full text-xs text-zinc-500 sm:w-auto">
                       {txCategoryLine(row.tx.mainCategory, row.tx.category, t)}
                     </span>
                   </li>
@@ -383,7 +383,7 @@ export function PersonnelAdvanceHistory({
               )}
             </ul>
             {combinedTotalRows > maxDetailRows ? (
-              <p className="mt-1 text-[11px] text-zinc-400">
+              <p className="mt-1 text-xs text-zinc-400">
                 +{combinedTotalRows - maxDetailRows}{" "}
                 {t("personnel.advanceHistoryMore")}
               </p>
@@ -442,7 +442,7 @@ export function PersonnelAdvanceHistory({
                 <div className="flex flex-wrap items-center gap-2">
                   <span
                     className={cn(
-                      "rounded border px-1.5 py-0.5 text-[10px] font-semibold leading-none",
+                      "rounded border px-1.5 py-0.5 text-xs font-semibold leading-none",
                       "border-amber-200 bg-amber-50 text-amber-900",
                     )}
                   >
@@ -495,7 +495,7 @@ export function PersonnelAdvanceHistory({
                 <div className="flex flex-wrap items-center gap-2">
                   <span
                     className={cn(
-                      "rounded border px-1.5 py-0.5 text-[10px] font-semibold leading-none",
+                      "rounded border px-1.5 py-0.5 text-xs font-semibold leading-none",
                       "border-violet-200 bg-violet-50 text-violet-900",
                     )}
                   >

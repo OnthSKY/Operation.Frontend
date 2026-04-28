@@ -414,13 +414,13 @@ export function PersonnelPocketClaimToPatronDialog({
           autoComplete="off"
         />
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="secondary" className="min-h-10" onClick={requestClose}>
+          <Button type="button" variant="secondary" className="min-h-[44px] min-w-[44px]" onClick={requestClose}>
             {t("common.cancel")}
           </Button>
           <Button
             type="button"
             variant="primary"
-            className="min-h-10"
+            className="min-h-[44px] min-w-[44px]"
             disabled={submitDisabled}
             onClick={() => void onSubmit()}
           >
@@ -649,13 +649,13 @@ export function PersonnelPocketClaimToStaffDialog({
           autoComplete="off"
         />
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="secondary" className="min-h-10" onClick={requestClose}>
+          <Button type="button" variant="secondary" className="min-h-[44px] min-w-[44px]" onClick={requestClose}>
             {t("common.cancel")}
           </Button>
           <Button
             type="button"
             variant="primary"
-            className="min-h-10"
+            className="min-h-[44px] min-w-[44px]"
             disabled={submitDisabled}
             onClick={() => void onSubmit()}
           >

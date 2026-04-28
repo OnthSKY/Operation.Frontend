@@ -353,7 +353,7 @@ export function BranchDetailPersonnelTab(props: BranchDetailPersonnelTabProps) {
                                 <Button
                                   type="button"
                                   variant="secondary"
-                                  className="min-h-10 w-full text-sm"
+                                  className="min-h-[44px] w-full text-sm"
                                   onClick={() => openAdvance(p.id)}
                                 >
                                   {t("branch.staffGiveAdvanceRow")}
@@ -427,7 +427,7 @@ export function BranchDetailPersonnelTab(props: BranchDetailPersonnelTabProps) {
                                       <Button
                                         type="button"
                                         variant="secondary"
-                                        className="min-h-9 px-2 py-1 text-xs"
+                                        className="min-h-[44px] min-w-[44px] px-2 py-1 text-xs"
                                         onClick={() => openAdvance(p.id)}
                                       >
                                         {t("branch.staffGiveAdvanceRow")}
@@ -608,7 +608,7 @@ export function BranchDetailPersonnelTab(props: BranchDetailPersonnelTabProps) {
                                 <Button
                                   type="button"
                                   variant="secondary"
-                                  className="min-h-10 w-full text-sm"
+                                  className="min-h-[44px] w-full text-sm"
                                   onClick={() => openAdvance(r.personnel.id)}
                                 >
                                   {t("branch.staffGiveAdvanceRow")}
@@ -701,7 +701,7 @@ export function BranchDetailPersonnelTab(props: BranchDetailPersonnelTabProps) {
                                       <Button
                                         type="button"
                                         variant="secondary"
-                                        className="min-h-9 px-2 py-1 text-xs"
+                                        className="min-h-[44px] min-w-[44px] px-2 py-1 text-xs"
                                         onClick={() => openAdvance(r.personnel.id)}
                                       >
                                         {t("branch.staffGiveAdvanceRow")}

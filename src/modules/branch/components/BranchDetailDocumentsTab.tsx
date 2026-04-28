@@ -10,12 +10,15 @@ import { useI18n } from "@/i18n/context";
 import type { BranchDocumentKind } from "@/types/branch-document";
 import { formatLocaleDateTime } from "@/shared/lib/locale-date";
 import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
+import { Tooltip } from "@/shared/ui/Tooltip";
 import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
+import { detailOpenIconButtonClass, DownloadIcon, EyeIcon } from "@/shared/ui/EyeIcon";
 import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
+import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { useEffect, useMemo, useState, type FocusEventHandler } from "react";
 
 const UPLOAD_MODAL_TITLE_ID = "branch-doc-upload-title";
@@ -44,7 +47,10 @@ export function BranchDetailDocumentsTab({ branchId, active, readOnly = false }:
   const [file, setFile] = useState<File | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [openingId, setOpeningId] = useState<number | null>(null);
+  const [loadingDocAction, setLoadingDocAction] = useState<{
+    id: number;
+    mode: "view" | "download";
+  } | null>(null);
 
   const selectedFileType = file?.type?.toLowerCase() ?? "";
   const filePreviewMode = useMemo<"image" | "pdf" | "other">(() => {
@@ -107,8 +113,28 @@ export function BranchDetailDocumentsTab({ branchId, active, readOnly = false }:
     }
   };
 
-  const openFile = async (documentId: number) => {
-    setOpeningId(documentId);
+  const viewFile = async (documentId: number) => {
+    const previewWindow = window.open("", "_blank", "noopener,noreferrer");
+    setLoadingDocAction({ id: documentId, mode: "view" });
+    try {
+      const { blob } = await fetchBranchDocumentBlob(branchId, documentId);
+      const url = URL.createObjectURL(blob);
+      if (previewWindow) {
+        previewWindow.location.href = url;
+      } else {
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (e) {
+      previewWindow?.close();
+      notify.error(toErrorMessage(e));
+    } finally {
+      setLoadingDocAction(null);
+    }
+  };
+
+  const downloadFile = async (documentId: number) => {
+    setLoadingDocAction({ id: documentId, mode: "download" });
     try {
       const { blob, contentType } = await fetchBranchDocumentBlob(branchId, documentId);
       const url = URL.createObjectURL(blob);
@@ -129,13 +155,27 @@ export function BranchDetailDocumentsTab({ branchId, active, readOnly = false }:
     } catch (e) {
       notify.error(toErrorMessage(e));
     } finally {
-      setOpeningId(null);
+      setLoadingDocAction(null);
     }
   };
 
   const kindLabel = (k: BranchDocumentKind) => {
     const opt = KIND_OPTIONS.find((o) => o.value === k);
     return opt ? t(opt.labelKey) : k;
+  };
+  const summarizeNotes = (value: string) => {
+    const parts = value
+      .split("·")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    return parts[0] ?? value.trim();
+  };
+  const extractShipmentNo = (row: { notes: string | null; originalFileName: string | null }) => {
+    const source = `${row.notes ?? ""} ${row.originalFileName ?? ""}`;
+    const match =
+      source.match(/(?:sevkiyatNo|shipmentNo|irsaliyeNo|invoiceNo)\s*=\s*([^\s·,;]+)/i) ??
+      source.match(/(?:sevkiyat|shipment|irsaliye)\s*[:#-]?\s*([A-Z0-9-]{4,})/i);
+    return match?.[1] ?? null;
   };
   const isUploadDirty =
     kind !== "TAX_BASE" ||
@@ -156,7 +196,7 @@ export function BranchDetailDocumentsTab({ branchId, active, readOnly = false }:
           <Button
             type="button"
             variant="primary"
-            className="min-h-10 px-3 py-2 text-sm"
+            className="min-h-[44px] min-w-[44px] px-3 py-2 text-sm"
             onClick={openCreate}
           >
             {t("branch.documentsAdd")}
@@ -174,46 +214,82 @@ export function BranchDetailDocumentsTab({ branchId, active, readOnly = false }:
         <p className="text-sm text-zinc-500">{t("branch.documentsEmpty")}</p>
       ) : (
         <ul className="space-y-2">
-          {data.map((row) => (
-            <li
-              key={row.id}
-              className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-zinc-200 bg-white p-3"
-            >
-              <div className="min-w-0 flex-1">
-                <div className="font-medium text-zinc-900">{kindLabel(row.kind)}</div>
-                <div className="truncate text-sm text-zinc-600">
-                  {row.originalFileName ?? row.contentType}
+          {data.map((row) => {
+            const shipmentNo = extractShipmentNo(row);
+            return (
+              <li
+                key={row.id}
+                className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-zinc-200 bg-white p-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-zinc-900">{kindLabel(row.kind)}</div>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-700">
+                      {formatLocaleDateTime(row.createdAt, locale)}
+                    </span>
+                    {shipmentNo ? (
+                      <span className="rounded-md bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
+                        {t("branch.documentsShipmentNo")}: {shipmentNo}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="truncate text-sm text-zinc-600">
+                    {row.originalFileName ?? row.contentType}
+                  </div>
+                  {row.notes ? (
+                    <div
+                      className="mt-1 line-clamp-2 text-sm text-zinc-500"
+                      title={row.notes}
+                    >
+                      {summarizeNotes(row.notes)}
+                    </div>
+                  ) : null}
                 </div>
-                {row.notes ? (
-                  <div className="mt-1 text-sm text-zinc-500">{row.notes}</div>
-                ) : null}
-                <div className="mt-1 text-xs text-zinc-400">
-                  {formatLocaleDateTime(row.createdAt, locale)}
-                </div>
-              </div>
-              <div className="flex shrink-0 flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="min-h-10 px-3 py-2 text-sm"
-                  disabled={openingId === row.id}
-                  onClick={() => void openFile(row.id)}
-                >
-                  {openingId === row.id ? t("common.loading") : t("branch.documentsOpen")}
-                </Button>
-                {!readOnly ? (
+                <div className="flex shrink-0 flex-wrap gap-2">
+                <Tooltip content={t("branch.documentsView")} delayMs={200}>
                   <Button
                     type="button"
-                    variant="ghost"
-                    className="min-h-10 px-3 py-2 text-sm"
-                    onClick={() => setDeleteId(row.id)}
+                    variant="secondary"
+                    className={detailOpenIconButtonClass}
+                    disabled={loadingDocAction?.id === row.id}
+                    aria-label={t("branch.documentsView")}
+                    title={t("branch.documentsView")}
+                    onClick={() => void viewFile(row.id)}
                   >
-                    {t("common.delete")}
+                    <EyeIcon />
                   </Button>
+                </Tooltip>
+                <Tooltip content={t("branch.documentsOpen")} delayMs={200}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className={detailOpenIconButtonClass}
+                    disabled={loadingDocAction?.id === row.id}
+                    aria-label={t("branch.documentsOpen")}
+                    title={t("branch.documentsOpen")}
+                    onClick={() => void downloadFile(row.id)}
+                  >
+                    <DownloadIcon />
+                  </Button>
+                </Tooltip>
+                {!readOnly ? (
+                  <Tooltip content={t("common.delete")} delayMs={200}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className={trashIconActionButtonClass}
+                      aria-label={t("common.delete")}
+                      title={t("common.delete")}
+                      onClick={() => setDeleteId(row.id)}
+                    >
+                      <TrashIcon />
+                    </Button>
+                  </Tooltip>
                 ) : null}
-              </div>
-            </li>
-          ))}
+                </div>
+              </li>
+            );
+          })}
         </ul>
       )}
 

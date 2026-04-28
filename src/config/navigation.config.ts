@@ -1,57 +1,66 @@
-export type NavigationItem = {
-  id: string;
+export type NavItem = {
   label: string;
-  title: string;
-  route: string;
-  icon: "dashboard" | "branch" | "reports" | "personnel";
-  mobileVisible: boolean;
-  order: number;
+  path: string;
+  icon: string;
+  mobile?: boolean;
+  order?: number;
+  isMore?: boolean;
   permission?: string;
   roles?: string[];
-  badgeKey?: "notifications";
-  featureFlag?: string;
 };
 
-export const NAVIGATION_ITEMS: NavigationItem[] = [
+export const NAV_ITEMS: NavItem[] = [
   {
-    id: "dashboard",
-    label: "Dashboard",
-    title: "Dashboard",
-    route: "/",
-    icon: "dashboard",
-    mobileVisible: true,
-    order: 1,
-    permission: "ui.dashboard",
-  },
-  {
-    id: "branch",
-    label: "Branch",
-    title: "Sube Yonetimi",
-    route: "/branches",
-    icon: "branch",
-    mobileVisible: true,
-    order: 2,
-    permission: "ui.branches",
-  },
-  {
-    id: "reports",
-    label: "Reports",
-    title: "Raporlar",
-    route: "/reports",
-    icon: "reports",
-    mobileVisible: true,
-    order: 3,
-    permission: "ui.reports",
-    badgeKey: "notifications",
-  },
-  {
-    id: "personnel",
-    label: "Personnel",
-    title: "Personel",
-    route: "/personnel",
+    label: "Personeller",
+    path: "/personnel",
     icon: "personnel",
-    mobileVisible: true,
-    order: 4,
-    permission: "ui.personnel",
+    mobile: true,
+    order: 1,
+  },
+  {
+    label: "Şubeler",
+    path: "/branches",
+    icon: "branch",
+    mobile: true,
+    order: 2,
+  },
+  {
+    label: "Depolar",
+    path: "/warehouses",
+    icon: "warehouse",
+    mobile: true,
+    order: 3,
+  },
+  {
+    label: "More",
+    path: "/more",
+    icon: "menu",
+    mobile: true,
+    isMore: true,
+    order: 5,
+  },
+  {
+    label: "Dashboard",
+    path: "/",
+    icon: "home",
+    mobile: false,
+  },
+  {
+    label: "Reports",
+    path: "/reports",
+    icon: "chart",
+    mobile: false,
+  },
+  {
+    label: "Products",
+    path: "/products",
+    icon: "box",
+    mobile: false,
+  },
+  {
+    label: "Warehouse",
+    path: "/warehouse",
+    icon: "warehouse",
+    mobile: false,
   },
 ];

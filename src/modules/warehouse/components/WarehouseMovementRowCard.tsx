@@ -194,7 +194,7 @@ export function WarehouseMovementRowCard({
               {onPreviewInvoice ? (
                 <button
                   type="button"
-                  className="inline-flex min-h-10 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm font-medium text-zinc-900 transition hover:bg-zinc-100"
+                  className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm font-medium text-zinc-900 transition hover:bg-zinc-100"
                   onClick={() => onPreviewInvoice(m)}
                 >
                   {t("warehouse.openInvoicePhoto")}
@@ -204,7 +204,7 @@ export function WarehouseMovementRowCard({
                   href={photoUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex min-h-10 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm font-medium text-zinc-900 transition hover:bg-zinc-100"
+                  className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm font-medium text-zinc-900 transition hover:bg-zinc-100"
                 >
                   {t("warehouse.openInvoicePhoto")}
                 </a>

@@ -8,7 +8,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useI18n } from "@/i18n/context";
 import {
+  getConfiguredMobileNavItems,
   getVisibleNavItems,
+  isActiveRoute,
   resolveMostSpecificRoute,
   resolveBadge,
   trackNavClick,
@@ -39,6 +41,7 @@ export function MobileSidebar({ open, onClose, badgeState }: MobileSidebarProps)
     () => getVisibleNavItems(user, t),
     [user, t]
   );
+  const quickAccessItems = useMemo(() => getConfiguredMobileNavItems(sortedItems), [sortedItems]);
   const activeRoute = useMemo(
     () => resolveMostSpecificRoute(pathname, sortedItems),
     [pathname, sortedItems]
@@ -179,6 +182,38 @@ export function MobileSidebar({ open, onClose, badgeState }: MobileSidebarProps)
           className="m-2 flex-1 space-y-1 overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-2 shadow-sm"
           aria-label="Primary mobile navigation"
         >
+          {quickAccessItems.length ? (
+            <div className="mb-2 rounded-xl border border-zinc-200 bg-zinc-50/80 p-2">
+              <p className="px-1 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                {t("nav.dockNav")}
+              </p>
+              <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                {quickAccessItems.map((item) => {
+                  const active = isActiveRoute(pathname, item.route);
+                  return (
+                    <Link
+                      key={item.id}
+                      href={item.route}
+                      prefetch
+                      onClick={() => {
+                        if (navScrollRef.current) savedScrollTop.current = navScrollRef.current.scrollTop;
+                        trackNavClick(item.route);
+                        onClose();
+                      }}
+                      className={`flex min-h-[44px] items-center gap-2 rounded-lg px-2.5 text-sm font-medium transition-colors ${
+                        active
+                          ? "border border-indigo-100 bg-indigo-50 text-indigo-700"
+                          : "text-zinc-600 hover:bg-zinc-100/80 hover:text-zinc-900"
+                      }`}
+                    >
+                      <NavIcon icon={item.icon} />
+                      <span className="truncate">{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
           <div className="mb-2 rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-2">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
               {t("nav.mobileGroupHintTitle")}

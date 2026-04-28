@@ -12,6 +12,7 @@ import { hasStaffOperationsNotifications } from "@/lib/auth/permissions";
 import { StaffHeaderNotifications } from "@/shared/components/StaffHeaderNotifications";
 import { AppGlobalSearch } from "@/shared/components/AppGlobalSearch";
 import { accountRoleLabel } from "@/modules/account/lib/role-label";
+import { useIsMobile } from "@/shared/lib/use-is-mobile";
 
 type TopNavbarProps = {
   onOpenMenu: () => void;
@@ -25,8 +26,13 @@ export function TopNavbar({ onOpenMenu, breadcrumbs }: TopNavbarProps) {
   const visibleItems = useMemo(() => getVisibleNavItems(user, t), [user, t]);
   const showStaffNotifications = hasStaffOperationsNotifications(user);
   const title = resolveRouteTitle(pathname, flattenNavItems(visibleItems));
+  const isMobile = useIsMobile();
   const breadcrumbContext = breadcrumbs.slice(0, -1).join(" / ");
-  const subtitle = title === t("dashboard.title") ? t("dashboard.subtitle") : breadcrumbContext;
+  const subtitle = isMobile
+    ? ""
+    : title === t("dashboard.title")
+      ? t("dashboard.subtitle")
+      : breadcrumbContext;
   const roleText = user ? accountRoleLabel(user.role, t) : "";
 
   return (
@@ -34,11 +40,11 @@ export function TopNavbar({ onOpenMenu, breadcrumbs }: TopNavbarProps) {
       style={{ zIndex: Z_INDEX.navbar }}
       className="fixed inset-x-0 top-0 h-16 border-b border-zinc-200 bg-white/85 shadow-[0_1px_0_rgba(0,0,0,0.06)] backdrop-blur"
     >
-      <div className="mx-auto flex h-16 max-w-full items-center justify-between gap-2 px-3 md:gap-3 md:px-6">
+      <div className="mx-auto flex h-16 max-w-full items-center justify-between gap-2 px-3 sm:px-4 md:gap-3 md:px-6">
         <button
           type="button"
           onClick={onOpenMenu}
-          className="inline-flex w-11 items-center justify-center rounded-lg text-zinc-500 transition-colors duration-200 hover:bg-zinc-100 hover:text-zinc-800 md:hidden"
+          className="inline-flex min-w-[44px] items-center justify-center rounded-lg text-zinc-500 transition-colors duration-200 hover:bg-zinc-100 hover:text-zinc-800 md:hidden"
           style={{ minHeight: TOUCH_TARGET_MIN }}
           aria-label={t("nav.menuOpen")}
         >
@@ -50,10 +56,10 @@ export function TopNavbar({ onOpenMenu, breadcrumbs }: TopNavbarProps) {
           {subtitle ? (
             <div className="hidden max-w-full items-center gap-2 rounded-lg bg-zinc-100/80 px-2 py-1 sm:inline-flex">
               <span className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500" aria-hidden />
-              <p className="truncate text-xs font-medium text-zinc-600">{subtitle}</p>
+              <p className="truncate text-xs leading-5 font-medium text-zinc-600 sm:text-sm">{subtitle}</p>
             </div>
           ) : null}
-          <h1 className="truncate text-[1.02rem] leading-tight font-semibold text-zinc-900 sm:mt-1 sm:text-lg">
+          <h1 className="truncate text-base leading-tight font-semibold text-zinc-900 sm:mt-1 sm:text-lg md:text-xl">
             {title}
           </h1>
         </div>
@@ -64,7 +70,7 @@ export function TopNavbar({ onOpenMenu, breadcrumbs }: TopNavbarProps) {
           <div className="flex items-center gap-1 rounded-lg bg-zinc-100 p-1">
             <button
               type="button"
-              className="inline-flex w-10 items-center justify-center rounded-lg text-zinc-500 transition-colors duration-200 hover:bg-zinc-100 hover:text-zinc-800 md:hidden"
+              className="inline-flex min-w-[44px] items-center justify-center rounded-lg text-zinc-500 transition-colors duration-200 hover:bg-zinc-100 hover:text-zinc-800 md:hidden"
               style={{ minHeight: TOUCH_TARGET_MIN }}
               aria-label={t("search.open")}
               title={t("search.open")}

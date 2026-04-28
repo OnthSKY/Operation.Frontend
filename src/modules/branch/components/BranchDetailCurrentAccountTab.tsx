@@ -197,8 +197,8 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     const { hasPdf, action, invoiceId, compact } = opts;
     const loading = pdfOpeningId === invoiceId;
     const baseClass = compact
-      ? "min-h-9 h-9 w-9 min-w-0 p-0"
-      : "min-h-10 h-10 w-10 min-w-0 p-0";
+      ? "min-h-[44px] h-11 w-11 min-w-0 p-0"
+      : "min-h-[44px] h-11 w-11 min-w-0 p-0";
     const labelKey =
       action === "view" ? "branch.currentAccountPdfView" : "branch.currentAccountPdfDownload";
     const Icon = !hasPdf ? CircleOff : action === "view" ? Eye : Download;
@@ -322,7 +322,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                       <Button
                         type="button"
                         variant="primary"
-                        className="min-h-9 px-2 py-1 text-xs"
+                        className="min-h-[44px] min-w-[44px] px-2 py-1 text-xs"
                         disabled={Number(r.openAmount) <= 0}
                         onClick={() => {
                           setReceiptInvoice(r);
@@ -407,7 +407,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                   <Button
                     type="button"
                     variant="primary"
-                    className="min-h-10 px-2 py-2 text-xs"
+                    className="min-h-[44px] min-w-[44px] px-2 py-2 text-xs"
                     disabled={Number(r.openAmount) <= 0}
                     onClick={() => {
                       setReceiptInvoice(r);
@@ -460,7 +460,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                 <Button
                   type="button"
                   variant="secondary"
-                  className="min-h-8 px-2 py-1 text-xs"
+                  className="min-h-[44px] min-w-[44px] px-2 py-1 text-xs"
                   onClick={() =>
                     setReceiptAmount(
                       formatAmountInputOnBlur(String(receiptInvoice.openAmount ?? ""), locale)

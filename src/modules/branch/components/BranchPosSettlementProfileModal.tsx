@@ -166,7 +166,7 @@ function BranchPosSettlementProfileFormInner({
         value={beneficiaryType}
         onChange={(e) => setBeneficiaryType(e.target.value)}
         onBlur={() => {}}
-        className="min-h-11 sm:min-h-10 sm:text-sm"
+        className="min-h-11 sm:min-h-[44px] sm:text-sm"
       />
       <Select
         name="branchPosBeneficiaryPersonnel"
@@ -176,7 +176,7 @@ function BranchPosSettlementProfileFormInner({
         onChange={(e) => setBeneficiaryPersonnelId(e.target.value)}
         onBlur={() => {}}
         disabled={beneficiaryType.toUpperCase() !== "BRANCH_PERSONNEL"}
-        className="min-h-11 sm:min-h-10 sm:text-sm"
+        className="min-h-11 sm:min-h-[44px] sm:text-sm"
       />
       <div className="flex flex-col gap-1">
         <Input

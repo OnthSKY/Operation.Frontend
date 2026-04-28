@@ -16,7 +16,7 @@ export function Card({ children, className, title, description, headerActions }:
   return (
     <div
       className={cn(
-        "rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5",
+        "rounded-xl border border-zinc-200 bg-white p-3 shadow-sm sm:p-4 md:p-5",
         className
       )}
     >
@@ -25,7 +25,7 @@ export function Card({ children, className, title, description, headerActions }:
           {(title || headerActions) && (
             <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-2">
               {title ? (
-                <h2 className="min-w-0 flex-1 text-[1.0625rem] font-semibold leading-snug tracking-tight text-zinc-900 sm:text-base">
+                <h2 className="min-w-0 flex-1 text-base font-semibold leading-snug tracking-tight text-zinc-900 sm:text-lg md:text-xl">
                   {title}
                 </h2>
               ) : (
@@ -39,7 +39,7 @@ export function Card({ children, className, title, description, headerActions }:
           {description ? (
             <p
               className={cn(
-                "text-sm leading-relaxed text-zinc-600 sm:text-zinc-500",
+                "text-xs leading-5 text-zinc-600 sm:text-sm sm:leading-6 sm:text-zinc-500 md:text-base",
                 title || headerActions ? "mt-1 sm:mt-0.5" : ""
               )}
             >

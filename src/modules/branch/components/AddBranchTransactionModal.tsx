@@ -1201,6 +1201,15 @@ export function AddBranchTransactionModal({
         .map((b) => ({ value: String(b.id), label: b.name })),
     ];
   }, [branchesForPersonnelExpense, locale, t]);
+  const resolvedBranchName = useMemo(() => {
+    if (resolvedBranchId == null || resolvedBranchId <= 0) return "";
+    return (
+      branchesForPersonnelExpense.find((b) => b.id === resolvedBranchId)?.name ??
+      `#${resolvedBranchId}`
+    );
+  }, [branchesForPersonnelExpense, resolvedBranchId]);
+  const canSelectExpenseTargetBranch =
+    personnelExpenseFlow && (propBranchId == null || propBranchId <= 0);
 
   const branchStaffOptions = useMemo(() => {
     const list = allPersonnel.filter(
@@ -2194,6 +2203,39 @@ export function AddBranchTransactionModal({
                 </p>
               </div>
             ) : null}
+            {txType.toUpperCase() === "OUT" && personnelExpenseFlow ? (
+              <div className="min-w-0 lg:col-span-2 rounded-lg border border-zinc-200 bg-zinc-50/90 px-3 py-2.5">
+                {canSelectExpenseTargetBranch ? (
+                  <>
+                    <Select
+                      label={t("branch.txExpenseTargetBranchLabel")}
+                      options={personnelExpenseBranchOptions}
+                      name={personnelExpenseBranchField.name}
+                      value={String(personnelExpenseBranchField.value ?? "")}
+                      onChange={(e) => personnelExpenseBranchField.onChange(e.target.value)}
+                      onBlur={personnelExpenseBranchField.onBlur}
+                      ref={personnelExpenseBranchField.ref}
+                      error={errors.personnelExpenseBranchId?.message}
+                    />
+                    <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                      {t("branch.txExpenseTargetBranchHintEditable")}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs font-medium text-zinc-500">
+                      {t("branch.txExpenseTargetBranchLabel")}
+                    </p>
+                    <p className="mt-0.5 text-sm font-semibold text-zinc-900">
+                      {resolvedBranchName || t("branch.txExpenseTargetBranchUnknown")}
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                      {t("branch.txExpenseTargetBranchHintFixed")}
+                    </p>
+                  </>
+                )}
+              </div>
+            ) : null}
             {!personnelExpenseFlow ? (
               <div className="min-w-0 lg:col-span-2">
                 <Select
@@ -2714,7 +2756,7 @@ export function AddBranchTransactionModal({
                                 <Button
                                   type="button"
                                   variant="ghost"
-                                  className="h-8 min-w-0 shrink-0 px-2 text-xs text-red-700 hover:bg-red-50 hover:text-red-800"
+                                  className="min-h-[44px] min-w-[44px] shrink-0 px-3 text-sm text-red-700 hover:bg-red-50 hover:text-red-800"
                                   onClick={() =>
                                     setDayCloseBundledConfirmedLines((prev) =>
                                       prev.filter((x) => x.id !== row.id)
@@ -2833,24 +2875,6 @@ export function AddBranchTransactionModal({
             !isPocketClaimTransferMain &&
             !isInvoiceUnpaid ? (
               <div className="min-w-0 lg:col-span-2">
-                {personnelExpenseFlow &&
-                (propBranchId == null || propBranchId <= 0) ? (
-                  <div className="mb-3 min-w-0">
-                    <Select
-                      label={t("branch.txPersonnelExpenseBranchLabel")}
-                      options={personnelExpenseBranchOptions}
-                      name={personnelExpenseBranchField.name}
-                      value={String(personnelExpenseBranchField.value ?? "")}
-                      onChange={(e) => personnelExpenseBranchField.onChange(e.target.value)}
-                      onBlur={personnelExpenseBranchField.onBlur}
-                      ref={personnelExpenseBranchField.ref}
-                      error={errors.personnelExpenseBranchId?.message}
-                    />
-                    <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-                      {t("branch.txPersonnelExpenseBranchHint")}
-                    </p>
-                  </div>
-                ) : null}
                 {isPatronDebtRepayMain ? (
                   <p className="mb-1.5 text-xs leading-relaxed text-zinc-600">
                     {t("branch.txPatronDebtRepayModalHint")}

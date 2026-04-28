@@ -95,7 +95,7 @@ export function WarehouseTransferFreightValuationBar({
       <Button
         type="button"
         variant="secondary"
-        className="mt-2 min-h-9 w-full text-xs sm:w-auto"
+        className="mt-2 min-h-[44px] min-w-[44px] w-full text-xs sm:w-auto"
         onClick={() => onApplySuggestedFreight(String(data.suggestedFreightAmount))}
       >
         {t("warehouse.transferValuationApplyFreight")}

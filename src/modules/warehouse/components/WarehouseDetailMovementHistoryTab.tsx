@@ -716,7 +716,7 @@ export function WarehouseDetailMovementHistoryTab({
               role="tab"
               aria-selected={type === v}
               className={cn(
-                "min-h-10 shrink-0 snap-start rounded-full px-3 py-2 text-xs font-semibold transition-colors sm:text-sm",
+                "min-h-[44px] min-w-[44px] shrink-0 snap-start rounded-full px-3 py-2 text-xs font-semibold transition-colors sm:text-sm",
                 type === v
                   ? "bg-violet-700 text-white shadow-sm ring-1 ring-violet-600/80"
                   : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
@@ -1007,7 +1007,7 @@ export function WarehouseDetailMovementHistoryTab({
                           </p>
                           <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-lg border border-zinc-200/80 bg-white p-1.5">
                             <div className="rounded bg-zinc-50 px-1.5 py-1">
-                              <p className="text-[10px] uppercase tracking-wide text-zinc-500">
+                              <p className="text-xs uppercase tracking-wide text-zinc-500">
                                 {t("warehouse.movementMainBalancesPrev")}
                               </p>
                               <p className="text-right text-xs font-medium tabular-nums text-zinc-700 sm:text-sm">
@@ -1015,7 +1015,7 @@ export function WarehouseDetailMovementHistoryTab({
                               </p>
                             </div>
                             <div className="rounded bg-zinc-50 px-1.5 py-1">
-                              <p className="text-[10px] uppercase tracking-wide text-zinc-500">
+                              <p className="text-xs uppercase tracking-wide text-zinc-500">
                                 {t("warehouse.movementMainBalancesThisEntry")}
                               </p>
                               <p
@@ -1029,7 +1029,7 @@ export function WarehouseDetailMovementHistoryTab({
                               </p>
                             </div>
                             <div className="rounded border border-zinc-200 bg-zinc-100 px-1.5 py-1">
-                              <p className="text-[10px] uppercase tracking-wide text-zinc-600">
+                              <p className="text-xs uppercase tracking-wide text-zinc-600">
                                 {t("warehouse.movementMainBalancesNext")}
                               </p>
                               <p className="text-right text-sm font-bold tabular-nums text-zinc-900">
@@ -1038,7 +1038,7 @@ export function WarehouseDetailMovementHistoryTab({
                             </div>
                           </div>
                           {displayUnit ? (
-                            <p className="mt-1 text-right text-[11px] font-medium text-zinc-500">{displayUnit}</p>
+                            <p className="mt-1 text-right text-xs font-medium text-zinc-500">{displayUnit}</p>
                           ) : null}
                         </div>
                         {singleType === "IN" ? (
@@ -1227,33 +1227,33 @@ export function WarehouseDetailMovementHistoryTab({
                     <Button
                       type="button"
                       variant="secondary"
-                      className="min-h-8 px-2.5 text-xs"
+                      className="min-h-[44px] min-w-[44px] px-2.5 text-xs"
                       onClick={() => setHeaderEditOpen(true)}
                     >
                       {t("common.edit")}
                     </Button>
                   ) : null}
                 </div>
-                <p className="mt-1 text-[11px] text-zinc-500">{t("warehouse.movementHeaderInfoHint")}</p>
+                <p className="mt-1 text-xs text-zinc-500">{t("warehouse.movementHeaderInfoHint")}</p>
                 <div className="mt-2 rounded-md border border-zinc-200 bg-zinc-50/60">
                   <div className="border-b border-zinc-200 px-3 py-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                           {t("warehouse.quickMovementDate")}
                         </p>
                         <p className="mt-1 text-base font-semibold text-zinc-900">
                           {fmtDate(selectedDetailGroup.movements[0]?.movementDate ?? "")}
                         </p>
                       </div>
-                      <span className="inline-flex min-h-7 items-center rounded-full border border-zinc-300 bg-white px-2.5 text-[11px] font-semibold text-zinc-800">
+                      <span className="inline-flex min-h-[44px] min-w-[44px] items-center rounded-full border border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-800">
                         {selectedDetailTypeLabel}
                       </span>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2">
                     <div className="border-b border-zinc-200 px-3 py-2 md:border-r">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                         {selectedDetailType === "OUT"
                           ? t("warehouse.movementSourceWarehouseLabel")
                           : t("warehouse.movementWarehouseLabel")}
@@ -1264,7 +1264,7 @@ export function WarehouseDetailMovementHistoryTab({
                     </div>
                     {selectedDetailType === "OUT" ? (
                       <div className="border-b border-zinc-200 px-3 py-2">
-                        <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                           {t("warehouse.movementOutBranch")}
                         </p>
                         <p className="mt-1 text-sm font-semibold text-zinc-900">
@@ -1273,25 +1273,25 @@ export function WarehouseDetailMovementHistoryTab({
                       </div>
                     ) : null}
                     <div className="border-b border-zinc-200 px-3 py-2 md:border-r">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{t("warehouse.movementNote")}</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{t("warehouse.movementNote")}</p>
                       <p className="mt-1 line-clamp-2 text-sm font-medium text-zinc-900">
                         {selectedDetailGroup.movements[0]?.description?.trim() || "—"}
                       </p>
                     </div>
                     <div className="border-b border-zinc-200 px-3 py-2 md:border-r">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{t("warehouse.movementCheckedBy")}</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{t("warehouse.movementCheckedBy")}</p>
                       <p className="mt-1 text-sm font-semibold text-zinc-900">
                         {compactPeopleList(selectedDetailGroup.movements.map((m) => m.checkedByPersonnelName))}
                       </p>
                     </div>
                     <div className="border-b border-zinc-200 px-3 py-2">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{t("warehouse.movementApprovedBy")}</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{t("warehouse.movementApprovedBy")}</p>
                       <p className="mt-1 text-sm font-semibold text-zinc-900">
                         {compactPeopleList(selectedDetailGroup.movements.map((m) => m.approvedByPersonnelName))}
                       </p>
                     </div>
                     <div className="px-3 py-2 md:col-span-2">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                         {t("warehouse.movementInvoicesDialogTitle")}
                       </p>
                       <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -1310,7 +1310,7 @@ export function WarehouseDetailMovementHistoryTab({
                               </span>
                               <button
                                 type="button"
-                                className="inline-flex min-h-7 items-center rounded-md border border-zinc-200 bg-zinc-50 px-1.5 text-[11px] font-medium text-zinc-900 hover:bg-zinc-100"
+                                className="inline-flex min-h-[44px] min-w-[44px] items-center rounded-md border border-zinc-200 bg-zinc-50 px-1.5 text-xs font-medium text-zinc-900 hover:bg-zinc-100"
                                 onClick={() =>
                                   setInvoicePreviewTarget({
                                     movementId: m.id,
@@ -1360,7 +1360,7 @@ export function WarehouseDetailMovementHistoryTab({
                     <button
                       type="button"
                       className={cn(
-                        "min-h-10 rounded-lg px-3 text-xs font-semibold transition-all duration-150",
+                        "min-h-[44px] min-w-[44px] rounded-lg px-3 text-xs font-semibold transition-all duration-150",
                         detailsContentTab === "LINES"
                           ? "border border-zinc-300 bg-white text-zinc-900 shadow-sm"
                           : "border border-transparent bg-transparent text-zinc-600 hover:bg-zinc-200/70 hover:text-zinc-900"
@@ -1372,7 +1372,7 @@ export function WarehouseDetailMovementHistoryTab({
                     <button
                       type="button"
                       className={cn(
-                        "min-h-10 rounded-lg px-3 text-xs font-semibold transition-all duration-150",
+                        "min-h-[44px] min-w-[44px] rounded-lg px-3 text-xs font-semibold transition-all duration-150",
                         detailsContentTab === "AUDIT"
                           ? "border border-zinc-300 bg-white text-zinc-900 shadow-sm"
                           : "border border-transparent bg-transparent text-zinc-600 hover:bg-zinc-200/70 hover:text-zinc-900"
@@ -1384,7 +1384,7 @@ export function WarehouseDetailMovementHistoryTab({
                     </button>
                   </div>
                 </div>
-                <p className="mt-2 text-[11px] text-zinc-500">
+                <p className="mt-2 text-xs text-zinc-500">
                   {detailsContentTab === "LINES"
                     ? "Bu sekmede satir bazli duzenleme ve silme yapilir."
                     : "Bu sekme sadece onceki/sonraki stok denetimini gosterir."}
@@ -1441,18 +1441,18 @@ export function WarehouseDetailMovementHistoryTab({
                         </p>
                         <div className="mt-1 grid grid-cols-3 gap-1">
                           <div className="rounded bg-zinc-50 px-1.5 py-1 text-right">
-                            <p className="text-[10px] uppercase text-zinc-500">{t("warehouse.movementMainBalancesPrev")}</p>
+                            <p className="text-xs uppercase text-zinc-500">{t("warehouse.movementMainBalancesPrev")}</p>
                             <p className="text-xs tabular-nums text-zinc-700">{formatLocaleAmount(row.previous, locale)}</p>
                           </div>
                           <div className="rounded bg-zinc-50 px-1.5 py-1 text-right">
-                            <p className="text-[10px] uppercase text-zinc-500">{t("warehouse.movementMainBalancesThisEntry")}</p>
+                            <p className="text-xs uppercase text-zinc-500">{t("warehouse.movementMainBalancesThisEntry")}</p>
                             <p className={cn("text-xs font-semibold tabular-nums", row.delta >= 0 ? "text-emerald-700" : "text-red-700")}>
                               {row.delta >= 0 ? "+" : ""}
                               {formatLocaleAmount(row.delta, locale)}
                             </p>
                           </div>
                           <div className="rounded border border-zinc-200 bg-zinc-100 px-1.5 py-1 text-right">
-                            <p className="text-[10px] uppercase text-zinc-500">{t("warehouse.movementMainBalancesNext")}</p>
+                            <p className="text-xs uppercase text-zinc-500">{t("warehouse.movementMainBalancesNext")}</p>
                             <p className="text-xs font-semibold tabular-nums text-zinc-900">{formatLocaleAmount(row.next, locale)}</p>
                           </div>
                         </div>

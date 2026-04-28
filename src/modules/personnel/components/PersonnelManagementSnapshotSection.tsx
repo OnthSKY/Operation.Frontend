@@ -427,6 +427,11 @@ export function PersonnelManagementSnapshotSection({
     locale,
     t,
   ]);
+  const handoverHeroIncomingTotal = handoverRow?.totalCashHandoverAsResponsibleAllTime ?? 0;
+  const handoverHeroSpentTotal = Math.max(
+    0,
+    handoverHeroIncomingTotal - handoverPoolHeroMetrics.heroValue
+  );
 
   const branchIdsForPocket = useMemo(() => {
     if (!personnel || personnel.isDeleted) return [];
@@ -521,7 +526,7 @@ export function PersonnelManagementSnapshotSection({
       {isError ? (
         <div className="mt-4 flex flex-col gap-2">
           <p className="text-sm text-red-600">{toErrorMessage(error)}</p>
-          <Button type="button" variant="secondary" className="w-full min-h-10 sm:w-auto" onClick={() => refetch()}>
+          <Button type="button" variant="secondary" className="w-full min-h-[44px] min-w-[44px] sm:w-auto" onClick={() => refetch()}>
             {t("common.retry")}
           </Button>
         </div>
@@ -667,7 +672,7 @@ export function PersonnelManagementSnapshotSection({
                       <Button
                         type="button"
                         variant="secondary"
-                        className="min-h-10 w-full shrink-0 sm:w-auto"
+                        className="min-h-[44px] min-w-[44px] w-full shrink-0 sm:w-auto"
                         onClick={onOpenCostsDetail}
                       >
                         {t("personnel.detailMgmtPocketOpenCosts")}
@@ -742,17 +747,49 @@ export function PersonnelManagementSnapshotSection({
                 </p>
               ) : null}
               {handoverRow ? (
-                <MetricTile
-                  label={t("personnel.detailMgmtHandoverSubTabHeroRemaining")}
-                  value={formatMoneyDash(
-                    handoverPoolHeroMetrics.heroValue,
-                    dash,
-                    locale,
-                    handoverPoolHeroMetrics.ccy
-                  )}
-                  hint={handoverSubTabHeroHint}
-                  emphasis="sky"
-                />
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+                  <MetricTile
+                    label={t("personnel.detailMgmtHandoverHeroIncomingTotal")}
+                    value={formatMoneyDash(
+                      handoverHeroIncomingTotal,
+                      dash,
+                      locale,
+                      handoverPoolHeroMetrics.ccy
+                    )}
+                    hint={t("personnel.detailMgmtHandoverSubTabHintGross").replace(
+                      "{gross}",
+                      formatMoneyDash(
+                        handoverHeroIncomingTotal,
+                        dash,
+                        locale,
+                        handoverPoolHeroMetrics.ccy
+                      )
+                    )}
+                    emphasis="neutral"
+                  />
+                  <MetricTile
+                    label={t("personnel.detailMgmtHandoverSubTabHeroRemaining")}
+                    value={formatMoneyDash(
+                      handoverPoolHeroMetrics.heroValue,
+                      dash,
+                      locale,
+                      handoverPoolHeroMetrics.ccy
+                    )}
+                    hint={handoverSubTabHeroHint}
+                    emphasis="sky"
+                  />
+                  <MetricTile
+                    label={t("personnel.detailMgmtHandoverHeroSpentTotal")}
+                    value={formatMoneyDash(
+                      handoverHeroSpentTotal,
+                      dash,
+                      locale,
+                      handoverPoolHeroMetrics.ccy
+                    )}
+                    hint={t("personnel.detailMgmtHandoverHeroSpentHint")}
+                    emphasis="negative"
+                  />
+                </div>
               ) : null}
 
               <div className="overflow-hidden rounded-xl border border-zinc-200/90 bg-white shadow-sm shadow-zinc-900/5">
@@ -769,7 +806,7 @@ export function PersonnelManagementSnapshotSection({
                         role="tab"
                         aria-selected={cashHandoverSubTab === "in"}
                         className={cn(
-                          "min-h-10 rounded-[0.65rem] px-2.5 py-2 text-center text-xs font-semibold leading-snug transition sm:px-3 sm:text-sm",
+                          "min-h-[44px] min-w-[44px] rounded-[0.65rem] px-2.5 py-2 text-center text-xs font-semibold leading-snug transition sm:px-3 sm:text-sm",
                           cashHandoverSubTab === "in"
                             ? "bg-white text-sky-950 shadow-sm ring-1 ring-sky-300/70"
                             : "text-zinc-600 hover:bg-white/70 hover:text-zinc-800"
@@ -783,7 +820,7 @@ export function PersonnelManagementSnapshotSection({
                         role="tab"
                         aria-selected={cashHandoverSubTab === "out"}
                         className={cn(
-                          "min-h-10 rounded-[0.65rem] px-2.5 py-2 text-center text-xs font-semibold leading-snug transition sm:px-3 sm:text-sm",
+                          "min-h-[44px] min-w-[44px] rounded-[0.65rem] px-2.5 py-2 text-center text-xs font-semibold leading-snug transition sm:px-3 sm:text-sm",
                           cashHandoverSubTab === "out"
                             ? "bg-white text-amber-950 shadow-sm ring-1 ring-amber-300/70"
                             : "text-zinc-600 hover:bg-white/70 hover:text-zinc-800"
@@ -795,7 +832,7 @@ export function PersonnelManagementSnapshotSection({
                     </div>
                     <button
                       type="button"
-                      className="relative flex min-h-10 shrink-0 items-center justify-center gap-1.5 self-stretch rounded-xl border border-zinc-300/90 bg-white px-3 text-zinc-800 shadow-sm transition hover:bg-zinc-50 sm:h-10 sm:min-h-0 sm:w-10 sm:px-0 sm:self-center"
+                      className="relative flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center gap-1.5 self-stretch rounded-xl border border-zinc-300/90 bg-white px-3 text-zinc-800 shadow-sm transition hover:bg-zinc-50 sm:h-11 sm:min-h-[44px] sm:w-11 sm:px-0 sm:self-center"
                       aria-label={t("personnel.detailMgmtHandoverFilterAria")}
                       onClick={() => {
                         setHovDraft(hovApplied);
@@ -921,7 +958,7 @@ export function PersonnelManagementSnapshotSection({
                               <Button
                                 type="button"
                                 variant="secondary"
-                                className="min-h-9 px-3 text-xs font-semibold max-md:w-full"
+                                className="min-h-[44px] min-w-[44px] px-3 text-xs font-semibold max-md:w-full"
                                 onClick={() => onHandoverOpenExpenseRegister?.(ctx)}
                               >
                                 {t("personnel.detailMgmtHandoverActionExpenseShort")}
@@ -929,7 +966,7 @@ export function PersonnelManagementSnapshotSection({
                               <Button
                                 type="button"
                                 variant="secondary"
-                                className="min-h-9 px-3 text-xs font-semibold max-md:w-full"
+                                className="min-h-[44px] min-w-[44px] px-3 text-xs font-semibold max-md:w-full"
                                 onClick={() => onHandoverOpenPatronRegisterRepay?.(ctx)}
                               >
                                 {t("personnel.detailMgmtHandoverActionPatronShort")}
@@ -948,7 +985,7 @@ export function PersonnelManagementSnapshotSection({
                     <Button
                       type="button"
                       variant="secondary"
-                      className="w-full min-h-10 sm:w-auto"
+                      className="w-full min-h-[44px] min-w-[44px] sm:w-auto"
                       onClick={() => handoverList.refetch()}
                     >
                       {t("common.retry")}
@@ -971,7 +1008,7 @@ export function PersonnelManagementSnapshotSection({
                     ) : (
                       <>
                         <div className="mt-3 overflow-x-auto">
-                          <Table className="min-w-[56rem]">
+                          <Table className="w-full min-w-0 lg:min-w-[56rem]">
                             <TableHead>
                               <TableRow>
                                 <TableHeader>{t("personnel.detailMgmtHandoverColDate")}</TableHeader>
@@ -1057,7 +1094,7 @@ export function PersonnelManagementSnapshotSection({
                         <Button
                           type="button"
                           variant="secondary"
-                          className="min-h-10 w-full sm:w-auto"
+                          className="min-h-[44px] min-w-[44px] w-full sm:w-auto"
                           disabled={hovPage <= 1 || handoverList.isFetching}
                           onClick={() => setHovPage((p) => Math.max(1, p - 1))}
                         >
@@ -1066,7 +1103,7 @@ export function PersonnelManagementSnapshotSection({
                         <Button
                           type="button"
                           variant="secondary"
-                          className="min-h-10 w-full sm:w-auto"
+                          className="min-h-[44px] min-w-[44px] w-full sm:w-auto"
                           disabled={hovPage >= hovPages || handoverList.isFetching}
                           onClick={() => setHovPage((p) => p + 1)}
                         >
@@ -1110,7 +1147,7 @@ export function PersonnelManagementSnapshotSection({
                     <Button
                       type="button"
                       variant="secondary"
-                      className="w-full min-h-10 sm:w-auto"
+                      className="w-full min-h-[44px] min-w-[44px] sm:w-auto"
                       onClick={() => outflowList.refetch()}
                     >
                       {t("common.retry")}
@@ -1133,7 +1170,7 @@ export function PersonnelManagementSnapshotSection({
                     ) : (
                       <>
                         <div className="mt-3 overflow-x-auto">
-                          <Table className="min-w-[68rem]">
+                          <Table className="w-full min-w-0 lg:min-w-[68rem]">
                             <TableHead>
                               <TableRow>
                                 <TableHeader>{t("personnel.detailMgmtHandoverColDate")}</TableHeader>
@@ -1225,7 +1262,7 @@ export function PersonnelManagementSnapshotSection({
                         <Button
                           type="button"
                           variant="secondary"
-                          className="min-h-10 w-full sm:w-auto"
+                          className="min-h-[44px] min-w-[44px] w-full sm:w-auto"
                           disabled={outPage <= 1 || outflowList.isFetching}
                           onClick={() => setOutPage((p) => Math.max(1, p - 1))}
                         >
@@ -1234,7 +1271,7 @@ export function PersonnelManagementSnapshotSection({
                         <Button
                           type="button"
                           variant="secondary"
-                          className="min-h-10 w-full sm:w-auto"
+                          className="min-h-[44px] min-w-[44px] w-full sm:w-auto"
                           disabled={outPage >= outPages || outflowList.isFetching}
                           onClick={() => setOutPage((p) => p + 1)}
                         >
@@ -1303,14 +1340,14 @@ export function PersonnelManagementSnapshotSection({
             <Button
               type="button"
               variant="secondary"
-              className="min-h-10 w-full sm:flex-1"
+              className="min-h-[44px] min-w-[44px] w-full sm:flex-1"
               onClick={() => setHovDraft(emptyHandoverFilters())}
             >
               {t("personnel.detailMgmtHandoverFilterReset")}
             </Button>
             <Button
               type="button"
-              className="min-h-10 w-full sm:flex-1"
+              className="min-h-[44px] min-w-[44px] w-full sm:flex-1"
               onClick={() => {
                 setHovApplied(hovDraft);
                 setHovPage(1);

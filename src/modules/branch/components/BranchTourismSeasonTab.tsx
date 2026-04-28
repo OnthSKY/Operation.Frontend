@@ -246,14 +246,14 @@ export function BranchTourismSeasonTab({ branchId, active }: Props) {
                   </div>
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  <Button type="button" variant="secondary" className="min-h-10" onClick={() => openEdit(row)}>
+                  <Button type="button" variant="secondary" className="min-h-[44px] min-w-[44px]" onClick={() => openEdit(row)}>
                     {t("branch.tSeasonEdit")}
                   </Button>
                   {deleteId === row.id ? (
                     <>
                       <Button
                         type="button"
-                        className="min-h-10"
+                        className="min-h-[44px] min-w-[44px]"
                         onClick={() => void onConfirmDelete(row.id)}
                         disabled={deleteMut.isPending}
                       >
@@ -262,7 +262,7 @@ export function BranchTourismSeasonTab({ branchId, active }: Props) {
                       <Button
                         type="button"
                         variant="secondary"
-                        className="min-h-10"
+                        className="min-h-[44px] min-w-[44px]"
                         onClick={() => setDeleteId(null)}
                         disabled={deleteMut.isPending}
                       >
@@ -270,7 +270,7 @@ export function BranchTourismSeasonTab({ branchId, active }: Props) {
                       </Button>
                     </>
                   ) : (
-                    <Button type="button" variant="secondary" className="min-h-10" onClick={() => setDeleteId(row.id)}>
+                    <Button type="button" variant="secondary" className="min-h-[44px] min-w-[44px]" onClick={() => setDeleteId(row.id)}>
                       {t("branch.tSeasonDelete")}
                     </Button>
                   )}
@@ -320,7 +320,7 @@ export function BranchTourismSeasonTab({ branchId, active }: Props) {
                           <div className="flex flex-wrap justify-end gap-1">
                             <Button
                               type="button"
-                              className="min-h-9 px-2 text-sm"
+                              className="min-h-[44px] min-w-[44px] px-2 text-sm"
                               onClick={() => void onConfirmDelete(row.id)}
                               disabled={deleteMut.isPending}
                             >
@@ -329,7 +329,7 @@ export function BranchTourismSeasonTab({ branchId, active }: Props) {
                             <Button
                               type="button"
                               variant="secondary"
-                              className="min-h-9 px-2 text-sm"
+                              className="min-h-[44px] min-w-[44px] px-2 text-sm"
                               onClick={() => setDeleteId(null)}
                               disabled={deleteMut.isPending}
                             >
@@ -342,7 +342,7 @@ export function BranchTourismSeasonTab({ branchId, active }: Props) {
                           <Button
                             type="button"
                             variant="secondary"
-                            className="min-h-9 px-2 text-sm"
+                            className="min-h-[44px] min-w-[44px] px-2 text-sm"
                             onClick={() => openEdit(row)}
                           >
                             {t("branch.tSeasonEdit")}
@@ -350,7 +350,7 @@ export function BranchTourismSeasonTab({ branchId, active }: Props) {
                           <Button
                             type="button"
                             variant="secondary"
-                            className="min-h-9 px-2 text-sm"
+                            className="min-h-[44px] min-w-[44px] px-2 text-sm"
                             onClick={() => setDeleteId(row.id)}
                           >
                             {t("branch.tSeasonDelete")}

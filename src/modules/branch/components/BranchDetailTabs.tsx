@@ -705,7 +705,7 @@ export function BranchDetailTabs({
               aria-selected={tab === x.id}
               title={x.label}
               className={cn(
-                "min-h-10 shrink-0 snap-start whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold leading-tight transition-all sm:px-4 sm:text-sm",
+                "min-h-[44px] min-w-[44px] shrink-0 snap-start whitespace-nowrap rounded-xl px-3 py-2 text-xs font-semibold leading-tight transition-all sm:px-4 sm:text-sm",
                 tab === x.id
                   ? "bg-zinc-900 text-white shadow-sm shadow-zinc-900/25 ring-1 ring-zinc-800"
                   : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"

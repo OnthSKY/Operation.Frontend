@@ -1558,7 +1558,7 @@ export function PersonnelDetailModal({
                         <Button
                           type="button"
                           variant="secondary"
-                          className="min-h-10 shrink-0"
+                          className="min-h-[44px] min-w-[44px] shrink-0"
                           disabled={personnel.isDeleted}
                           onClick={() => setInsuranceAddOpen(true)}
                         >
@@ -1779,7 +1779,7 @@ export function PersonnelDetailModal({
                                         <Button
                                           type="button"
                                           variant="secondary"
-                                          className="min-h-9 shrink-0 px-2.5 text-xs font-semibold"
+                                          className="min-h-[44px] min-w-[44px] shrink-0 px-2.5 text-xs font-semibold"
                                           aria-label={t(
                                             "personnel.detailPocketActionRegisterTooltip",
                                           )}
@@ -1803,7 +1803,7 @@ export function PersonnelDetailModal({
                                         <Button
                                           type="button"
                                           variant="secondary"
-                                          className="min-h-9 shrink-0 px-2.5 text-xs font-semibold"
+                                          className="min-h-[44px] min-w-[44px] shrink-0 px-2.5 text-xs font-semibold"
                                           aria-label={t(
                                             "personnel.detailPocketActionPatronRepayTooltip",
                                           )}
@@ -1829,7 +1829,7 @@ export function PersonnelDetailModal({
                                             <Button
                                               type="button"
                                               variant="secondary"
-                                              className="min-h-9 shrink-0 px-2.5 text-xs font-semibold"
+                                              className="min-h-[44px] min-w-[44px] shrink-0 px-2.5 text-xs font-semibold"
                                               aria-label={t(
                                                 "personnel.detailPocketActionClaimToPatronTooltip",
                                               )}
@@ -1854,7 +1854,7 @@ export function PersonnelDetailModal({
                                             <Button
                                               type="button"
                                               variant="secondary"
-                                              className="min-h-9 shrink-0 px-2.5 text-xs font-semibold"
+                                              className="min-h-[44px] min-w-[44px] shrink-0 px-2.5 text-xs font-semibold"
                                               aria-label={t(
                                                 "personnel.detailPocketActionClaimToStaffTooltip",
                                               )}
@@ -1910,7 +1910,7 @@ export function PersonnelDetailModal({
                         <Button
                           type="button"
                           variant="secondary"
-                          className="min-h-10 w-full shrink-0 sm:w-auto sm:min-w-[10rem]"
+                          className="min-h-[44px] min-w-[44px] w-full shrink-0 sm:w-auto sm:min-w-[10rem]"
                           onClick={() => setCostsActionsDrawerOpen(true)}
                         >
                           {t("personnel.detailCostsActions")}
@@ -2120,7 +2120,7 @@ export function PersonnelDetailModal({
                             )}
                           </div>
                           <div className="hidden min-w-0 overflow-x-auto md:block">
-                            <Table className="min-w-[44rem] border-0 text-sm">
+                            <Table className="w-full min-w-0 lg:min-w-[44rem] border-0 text-sm">
                               <TableHead>
                                 <TableRow>
                                   <TableHeader className="w-[1%] whitespace-nowrap">
@@ -2315,7 +2315,7 @@ export function PersonnelDetailModal({
                               <Button
                                 type="button"
                                 variant="secondary"
-                                className="min-h-10"
+                                className="min-h-[44px] min-w-[44px]"
                                 disabled={advSafePage <= 1}
                                 onClick={() =>
                                   setAdvPage((p) => Math.max(1, p - 1))
@@ -2326,7 +2326,7 @@ export function PersonnelDetailModal({
                               <Button
                                 type="button"
                                 variant="secondary"
-                                className="min-h-10"
+                                className="min-h-[44px] min-w-[44px]"
                                 disabled={advSafePage >= advTotalPages}
                                 onClick={() =>
                                   setAdvPage((p) =>
@@ -2357,7 +2357,7 @@ export function PersonnelDetailModal({
                       <Button
                         type="button"
                         variant="secondary"
-                        className="min-h-10 w-full shrink-0 sm:w-auto"
+                        className="min-h-[44px] min-w-[44px] w-full shrink-0 sm:w-auto"
                         disabled={personnel.isDeleted}
                         onClick={() => {
                           setAccountClosureYearSummary(true);
@@ -2530,7 +2530,7 @@ export function PersonnelDetailModal({
                         </div>
                         <div className="hidden min-w-0 lg:block">
                           <div className="overflow-x-auto rounded-lg border border-zinc-200 [-webkit-overflow-scrolling:touch]">
-                            <table className="w-full min-w-[64rem] border-collapse text-left text-sm">
+                            <table className="w-full min-w-0 lg:min-w-[64rem] border-collapse text-left text-sm">
                               <thead className="bg-zinc-50 text-zinc-700">
                                 <tr>
                                   <th className="min-w-[4rem] px-3 py-3 pl-4 font-medium">
@@ -2619,7 +2619,7 @@ export function PersonnelDetailModal({
                                       <Button
                                         type="button"
                                         variant="secondary"
-                                        className="min-h-9"
+                                        className="min-h-[44px] min-w-[44px]"
                                         disabled={
                                           personnel.isDeleted ||
                                           (reopenYearMut.isPending &&
@@ -2765,13 +2765,13 @@ export function PersonnelDetailModal({
                                     {nm}
                                   </p>
                                   {isCurrent ? (
-                                    <span className="shrink-0 rounded-full bg-violet-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                                    <span className="shrink-0 rounded-full bg-violet-600 px-2 py-0.5 text-xs font-bold uppercase tracking-wide text-white">
                                       {t(
                                         "personnel.detailRolesBranchCurrentTag",
                                       )}
                                     </span>
                                   ) : (
-                                    <span className="shrink-0 rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                                    <span className="shrink-0 rounded-full border border-zinc-200 bg-white px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-zinc-500">
                                       {t(
                                         "personnel.detailRolesBranchHistoricTag",
                                       )}
@@ -2876,7 +2876,7 @@ export function PersonnelDetailModal({
                             <Button
                               type="button"
                               variant="secondary"
-                              className="mt-3 min-h-10"
+                              className="mt-3 min-h-[44px] min-w-[44px]"
                               disabled={updateWhMut.isPending || whLoading}
                               onClick={() => void runAssignWarehouse()}
                             >
@@ -2923,14 +2923,14 @@ export function PersonnelDetailModal({
                                   </p>
                                   <div className="mt-2 flex flex-wrap gap-1.5">
                                     {tags.includes("manager") ? (
-                                      <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-[11px] font-semibold text-violet-900">
+                                      <span className="rounded-full bg-violet-100 px-2.5 py-0.5 text-xs font-semibold text-violet-900">
                                         {t(
                                           "personnel.detailRolesAssignRoleManager",
                                         )}
                                       </span>
                                     ) : null}
                                     {tags.includes("master") ? (
-                                      <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-semibold text-amber-950">
+                                      <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-semibold text-amber-950">
                                         {t(
                                           "personnel.detailRolesAssignRoleMaster",
                                         )}

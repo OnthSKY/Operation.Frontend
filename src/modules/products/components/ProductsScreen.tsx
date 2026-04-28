@@ -625,7 +625,7 @@ export function ProductsScreen() {
           </div>
 
           <div className="hidden min-w-0 w-full md:block">
-            <Table className="min-w-[40rem] sm:min-w-[44rem] lg:min-w-[720px]">
+            <Table className="w-full min-w-0 lg:min-w-[44rem] xl:min-w-[720px]">
               <TableHead>
                 <TableRow>
                   <TableHeader>{t("products.colName")}</TableHeader>

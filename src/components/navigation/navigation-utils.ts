@@ -5,6 +5,8 @@ import { mapLegacyMenu, type NavigationItem } from "./navigation-mapper";
 import type { AuthUser } from "@/lib/auth/types";
 import { track } from "@/lib/analytics";
 import { isFeatureEnabled } from "@/lib/feature-flags";
+import { NAV_ITEMS, type NavItem } from "@/config/navigation.config";
+import type { NavIconName } from "./nav-icons";
 
 export function isActiveRoute(pathname: string, route: string): boolean {
   if (route === "/") return pathname === "/";
@@ -92,4 +94,71 @@ export function resolveBadge(item: NavigationItem, state: NavBadgeState): number
     default:
       return null;
   }
+}
+
+export type ConfiguredMobileNavItem = {
+  id: string;
+  label: string;
+  route: string;
+  icon: NavIconName;
+  sourceItem?: NavigationItem;
+};
+
+function mapConfigIcon(icon: NavItem["icon"]): NavIconName {
+  switch (icon) {
+    case "home":
+      return "dashboard";
+    case "chart":
+      return "reports";
+    case "personnel":
+      return "personnel";
+    case "branch":
+      return "branch";
+    case "box":
+      return "branch";
+    case "warehouse":
+      return "warehouse";
+    case "menu":
+      return "reports";
+    default:
+      return "reports";
+  }
+}
+
+function pathCandidates(path: string): string[] {
+  if (path === "/dashboard") return ["/dashboard", "/"];
+  if (path === "/warehouse") return ["/warehouse", "/warehouses"];
+  return [path];
+}
+
+function matchConfigToVisible(
+  cfg: NavItem,
+  flatVisible: NavigationItem[]
+): NavigationItem | undefined {
+  const candidates = pathCandidates(cfg.path);
+  return candidates
+    .map((route) => flatVisible.find((item) => item.route === route))
+    .find(Boolean);
+}
+
+export function getConfiguredMobileNavItems(visibleItems: NavigationItem[]): ConfiguredMobileNavItem[] {
+  const flatVisible = flattenItems(visibleItems);
+  const configured = NAV_ITEMS.filter((x) => x.mobile && !x.isMore)
+    .slice()
+    .sort((a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER));
+
+  return configured
+    .map((cfg) => {
+      const sourceItem = matchConfigToVisible(cfg, flatVisible);
+      if (!sourceItem) return null;
+      return {
+        id: `${cfg.path}-${sourceItem.id}`,
+        label: cfg.label,
+        route: sourceItem.route,
+        icon: mapConfigIcon(cfg.icon),
+        sourceItem,
+      } satisfies ConfiguredMobileNavItem;
+    })
+    .filter((item): item is ConfiguredMobileNavItem => Boolean(item))
+    .slice(0, 4);
 }

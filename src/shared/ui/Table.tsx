@@ -21,13 +21,13 @@ export function Table({
       <div
         data-table-mobile-cards={mobileCards ? true : undefined}
         className={cn(
-          "w-full overflow-x-auto overscroll-x-contain rounded-lg border border-zinc-200 [-webkit-overflow-scrolling:touch]",
+          "w-full overflow-x-auto overscroll-x-contain rounded-xl border border-zinc-200 [-webkit-overflow-scrolling:touch]",
           mobileCards && "max-md:overflow-visible max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:p-0"
         )}
       >
         <table
           className={cn(
-            "w-full min-w-[320px] border-collapse text-left text-sm",
+            "w-full min-w-[320px] border-collapse text-left text-xs sm:text-sm md:text-base",
             mobileCards &&
               "max-md:block max-md:min-w-0 max-md:border-separate max-md:border-spacing-y-3 max-md:bg-transparent",
             className
@@ -88,7 +88,7 @@ export function TableHeader({
 }: ThHTMLAttributes<HTMLTableCellElement>) {
   return (
     <th
-      className={cn("px-3 py-3 font-medium first:pl-4 last:pr-4", className)}
+      className={cn("px-3 py-3 text-xs font-medium sm:text-sm md:text-base first:pl-4 last:pr-4", className)}
       {...props}
     />
   );
@@ -107,7 +107,7 @@ export function TableCell({
     <td
       data-label={hasLabel ? label : undefined}
       className={cn(
-        "px-3 py-3 align-middle first:pl-4 last:pr-4",
+        "px-3 py-3 text-xs align-middle sm:text-sm md:text-base first:pl-4 last:pr-4",
         mobileCards &&
           hasLabel &&
           "max-md:flex max-md:min-w-0 max-md:w-full max-md:items-start max-md:justify-between max-md:gap-3 max-md:border-b max-md:border-zinc-100 max-md:py-2.5 max-md:first:pt-2 max-md:last:border-b-0",

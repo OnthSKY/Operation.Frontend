@@ -62,7 +62,7 @@ function DetailModeToggle({
   const { t } = useI18n();
   const btn = (active: boolean) =>
     cn(
-      "min-h-9 flex-1 rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors",
+      "min-h-[44px] min-w-[44px] flex-1 rounded-lg border px-2 py-1.5 text-xs font-medium transition-colors",
       active
         ? "border-violet-400 bg-violet-50 text-violet-900"
         : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50",

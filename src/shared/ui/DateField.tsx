@@ -174,13 +174,13 @@ function dateWithinMinMax(
 }
 
 const triggerShellClass =
-  "flex min-h-12 w-full min-w-0 max-w-full items-stretch gap-0 rounded-lg border border-zinc-300 bg-white text-base outline-none transition-[box-shadow,border-color] focus-within:border-zinc-900 focus-within:ring-2 focus-within:ring-zinc-900 sm:min-h-11 sm:text-sm disabled:bg-zinc-50 disabled:text-zinc-400";
+  "flex h-10 min-h-[44px] w-full min-w-0 max-w-full items-stretch gap-0 rounded-xl border border-zinc-300 bg-white text-sm outline-none transition-[box-shadow,border-color] focus-within:border-zinc-900 focus-within:ring-2 focus-within:ring-zinc-900 sm:h-11 sm:text-base md:h-12 disabled:bg-zinc-50 disabled:text-zinc-400";
 
 const textInputClass =
-  "min-w-0 flex-1 border-0 bg-transparent px-3 py-2.5 text-left text-base text-zinc-900 outline-none placeholder:text-zinc-400 disabled:cursor-not-allowed sm:py-2 sm:text-sm tabular-nums";
+  "min-w-0 flex-1 border-0 bg-transparent px-3 py-2 text-left text-sm text-zinc-900 outline-none placeholder:text-zinc-400 disabled:cursor-not-allowed sm:text-base tabular-nums";
 
 const calendarTriggerBtnClass =
-  "inline-flex shrink-0 items-center justify-center border-l border-zinc-200 px-3 text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-800 focus-visible:relative focus-visible:z-[1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-40";
+  "inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center border-l border-zinc-200 px-3 text-zinc-500 transition-colors hover:bg-zinc-50 hover:text-zinc-800 focus-visible:relative focus-visible:z-[1] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-zinc-900 disabled:cursor-not-allowed disabled:opacity-40";
 
 function mergeRefs<T>(node: T | null, ref: ForwardedRef<T>): void {
   if (typeof ref === "function") ref(node);

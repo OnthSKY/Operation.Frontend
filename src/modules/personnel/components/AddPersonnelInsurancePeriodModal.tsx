@@ -185,7 +185,7 @@ export function AddPersonnelInsurancePeriodModal({
                       <Button
                         type="button"
                         variant="secondary"
-                        className="mt-3 min-h-9 border-amber-300/80 bg-white/80 text-amber-900 hover:bg-amber-100"
+                        className="mt-3 min-h-[44px] min-w-[44px] border-amber-300/80 bg-white/80 text-amber-900 hover:bg-amber-100"
                         onClick={onNavigateSeasonArrivals}
                       >
                         {t("personnel.insuranceAddPeriodGoSeasonArrivals")}
@@ -199,7 +199,7 @@ export function AddPersonnelInsurancePeriodModal({
                       <IconShieldPerson className="h-6 w-6" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-800/90">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-emerald-800/90">
                         {t("personnel.insuranceIntakeModalPersonCaption")}
                       </p>
                       <p className="truncate text-sm font-semibold text-zinc-900">{nameChip}</p>

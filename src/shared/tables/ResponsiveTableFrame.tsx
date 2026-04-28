@@ -11,6 +11,8 @@ type Props = {
   mobileProps?: ComponentPropsWithoutRef<"div">;
   mobileClassName?: string;
   desktopClassName?: string;
+  mobileVisibilityClassName?: string;
+  desktopVisibilityClassName?: string;
   /** Wide tables: horizontal scroll + edge bleed on small desktop */
   desktopInsetScroll?: boolean;
   desktopScrollClassName?: string;
@@ -26,6 +28,8 @@ export function ResponsiveTableFrame({
   mobileProps,
   mobileClassName,
   desktopClassName,
+  mobileVisibilityClassName,
+  desktopVisibilityClassName,
   desktopInsetScroll,
   desktopScrollClassName,
 }: Props) {
@@ -41,12 +45,12 @@ export function ResponsiveTableFrame({
   return (
     <>
       <div
-        className={cn(mobileDefault, mobileClassName, mobilePropClass)}
+        className={cn(mobileDefault, mobileVisibilityClassName, mobileClassName, mobilePropClass)}
         {...restMobile}
       >
         {mobile}
       </div>
-      <div className={cn(desktopDefault, desktopClassName)}>
+      <div className={cn(desktopDefault, desktopVisibilityClassName, desktopClassName)}>
         {desktopInsetScroll ? <div className={scrollWrap}>{desktop}</div> : desktop}
       </div>
     </>

@@ -136,7 +136,7 @@ function IncomePatronRegisterSplitPanel({
     formatMoneyDash(n, t("personnel.dash"), locale, "TRY");
   const splitBlock = (subTitle: string, rows: { label: string; value: number }[]) => (
     <div className="rounded-lg border border-white/90 bg-white/60 p-2.5 shadow-sm">
-      <h4 className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">{subTitle}</h4>
+      <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-600">{subTitle}</h4>
       <dl className="mt-2 space-y-1.5">
         {rows.map((r) => (
           <div key={r.label} className="flex justify-between gap-3 text-sm">
@@ -192,7 +192,7 @@ function IncomePatronRegisterSplitPanel({
           { label: t("branch.incomeSplitOtherOutPocket"), value: d.outPaidFromPersonnelPocket },
         ])}
         <div className="rounded-lg border border-emerald-200/70 bg-emerald-50/50 p-2.5 shadow-sm">
-          <h4 className="text-[11px] font-semibold uppercase tracking-wide text-emerald-900/90">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-emerald-900/90">
             {t("branch.incomeSplitDayNetPatron")}
           </h4>
           <p className="mt-2 font-mono text-base font-semibold tabular-nums text-emerald-950">
@@ -320,7 +320,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                       >
                         <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
                           <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
-                            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                               {t("branch.incomeCumulativeCash")}
                             </p>
                             {incomeCashTotalAndParties(
@@ -332,7 +332,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                             )}
                           </div>
                           <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
-                            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                               {t("branch.incomeCumulativeCard")}
                             </p>
                             <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-base">
@@ -345,7 +345,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                             </p>
                           </div>
                           <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-2.5 shadow-sm ring-1 ring-emerald-200/60 sm:p-3">
-                            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-600">
+                            <p className="text-xs font-medium uppercase tracking-wide text-zinc-600">
                               {t("branch.incomeCumulativeTotal")}
                             </p>
                             <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-emerald-900 sm:text-base">
@@ -373,7 +373,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                         {incThroughToday.hasActiveTourismSeasonForAsOf ? (
                           <div className="mt-2 grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
                               <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
-                                <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                                <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                                   {t("branch.incomeCumulativeCash")}
                                 </p>
                                 {incomeCashTotalAndParties(
@@ -385,7 +385,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                                 )}
                               </div>
                               <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
-                                <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                                <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                                   {t("branch.incomeCumulativeCard")}
                                 </p>
                                 <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-base">
@@ -398,7 +398,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                                 </p>
                               </div>
                               <div className="rounded-lg border border-teal-200 bg-teal-50/60 p-2.5 shadow-sm ring-1 ring-teal-200/50 sm:p-3">
-                                <p className="text-[10px] font-medium uppercase tracking-wide text-teal-950/80">
+                                <p className="text-xs font-medium uppercase tracking-wide text-teal-950/80">
                                   {t("branch.incomeCumulativeTotal")}
                                 </p>
                                 <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-teal-950 sm:text-base">
@@ -453,7 +453,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                       >
                         <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
                           <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
-                            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                               {t("branch.incomePeriodCash")}
                             </p>
                             {incomeCashTotalAndParties(
@@ -466,7 +466,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                             {listSummaryPatronCashLine(incListPatronOverlay, t, locale)}
                           </div>
                           <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
-                            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                               {t("branch.incomePeriodCard")}
                             </p>
                             <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-base">
@@ -481,7 +481,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                             {listSummaryPatronCardLine(incListPatronOverlay, t, locale)}
                           </div>
                           <div className="rounded-lg border border-slate-200 bg-slate-100/80 p-2.5 shadow-sm sm:p-3">
-                            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-600">
+                            <p className="text-xs font-medium uppercase tracking-wide text-zinc-600">
                               {t("branch.incomePeriodTotal")}
                             </p>
                             <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-base">
@@ -515,7 +515,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                       >
                         <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-3">
                           <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
-                            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                               {t("branch.incomeCloseCash")}
                             </p>
                             {incomeCashTotalAndParties(
@@ -528,7 +528,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                             {listSummaryPatronCashLine(incListPatronOverlay, t, locale)}
                           </div>
                           <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
-                            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                               {t("branch.incomeCloseCard")}
                             </p>
                             <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-base">
@@ -543,7 +543,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                             {listSummaryPatronCardLine(incListPatronOverlay, t, locale)}
                           </div>
                           <div className="rounded-lg border border-slate-200 bg-slate-100/80 p-2.5 shadow-sm sm:p-3">
-                            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-600">
+                            <p className="text-xs font-medium uppercase tracking-wide text-zinc-600">
                               {t("branch.incomeCloseTotal")}
                             </p>
                             <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-base">
@@ -642,7 +642,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                       <p className="text-xs font-semibold text-zinc-700">
                         {t("branch.incomeFilterDrawerTitle")}
                       </p>
-                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
+                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
                         {incActiveFilterCount > 0
                           ? `${incActiveFilterCount} · ${t("branch.incomeFilterOpenButton")}`
                           : t("branch.txFilterAny")}
@@ -651,7 +651,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                     {incActiveFilterCount > 0 ? (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {hasIncDateFilters ? (
-                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] text-zinc-700">
+                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700">
                             {t("branch.filterDateFrom")}:{" "}
                             {showIncDateFrom ? formatLocaleDate(incFrom, locale) : t("personnel.dash")} ·{" "}
                             {t("branch.filterDateTo")}:{" "}
@@ -659,12 +659,12 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                           </span>
                         ) : null}
                         {hasIncMainFilter ? (
-                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] text-zinc-700">
+                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700">
                             {t("branch.txFilterMainCategory")}: {incMainLabel}
                           </span>
                         ) : null}
                         {hasIncCashFilter ? (
-                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] text-zinc-700">
+                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700">
                             {t("branch.txFilterCashSettlement")}: {incCashLabel}
                           </span>
                         ) : null}
@@ -690,7 +690,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                   </div>
                   <div className="mt-2 rounded-lg border border-zinc-200 bg-white p-2.5">
                     <p className="text-xs font-semibold text-zinc-700">{t("branch.filterApplyRefresh")}</p>
-                    <p className="mt-0.5 text-[11px] text-zinc-500">
+                    <p className="mt-0.5 text-xs text-zinc-500">
                       {t("branch.filterToday")} / {t("branch.filterAllDates")}
                     </p>
                     <div className="mt-2 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
@@ -882,7 +882,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                             <Button
                               type="button"
                               variant="secondary"
-                              className="min-h-9 shrink-0 px-2 text-xs"
+                              className="min-h-[44px] min-w-[44px] shrink-0 px-2 text-xs"
                               onClick={() => setCashSettleDialog({ mode: "single", row })}
                             >
                               {t("branch.registerCashSettlementOpenSingle")}
@@ -958,7 +958,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                                 <Button
                                   type="button"
                                   variant="secondary"
-                                  className="min-h-9 px-2 text-xs"
+                                  className="min-h-[44px] min-w-[44px] px-2 text-xs"
                                   onClick={() => setCashSettleDialog({ mode: "single", row })}
                                 >
                                   {t("branch.registerCashSettlementOpenSingle")}

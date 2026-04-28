@@ -300,6 +300,8 @@ export const branch = {
     "Upload PDF or image files (tax base, work permit, agriculture certificate, etc.). Staff can add and remove; everyone who can open the branch can download.",
   documentsAdd: "Upload document",
   documentsEmpty: "No documents uploaded for this branch yet.",
+  documentsView: "View",
+  documentsShipmentNo: "Shipment No",
   documentsOpen: "Download",
   documentsUploadTitle: "Upload branch document",
   documentsKindLabel: "Document type",
@@ -647,6 +649,12 @@ export const branch = {
   txPersonnelExpenseBranchPick: "Select branch…",
   txPersonnelExpenseBranchHint:
     "Register payments post to this branch’s cash. For staff without an assigned branch, pick the branch first.",
+  txExpenseTargetBranchLabel: "Branch this expense posts to",
+  txExpenseTargetBranchHintEditable:
+    "Choose which branch register this record will be posted to.",
+  txExpenseTargetBranchHintFixed:
+    "This record is fixed to this branch register.",
+  txExpenseTargetBranchUnknown: "Branch not found",
   txPersonnelExpensePaymentHintNoBranch:
     "Pick the branch first, then mark register or owner payment.",
   txPersonnelExpensePaymentHintWithBranch:

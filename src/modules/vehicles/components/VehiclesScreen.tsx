@@ -1482,7 +1482,7 @@ export function VehiclesScreen() {
 
             <div className="mt-4 hidden w-full min-w-0 overflow-x-auto overscroll-x-contain lg:block">
               <div className="w-max min-w-full">
-                <Table className="min-w-[52rem] [&_thead_th]:whitespace-nowrap">
+                <Table className="w-full min-w-0 xl:min-w-[52rem] [&_thead_th]:whitespace-nowrap">
                   <TableHead>
                     <TableRow>
                       <TableHeader>{t("vehicles.plate")}</TableHeader>

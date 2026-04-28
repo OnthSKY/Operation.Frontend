@@ -600,7 +600,7 @@ export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
                   <Button
                     type="button"
                     variant="secondary"
-                    className="min-h-11 w-full shrink-0 sm:min-h-10 sm:w-auto md:hidden"
+                    className="min-h-11 w-full shrink-0 sm:min-h-[44px] sm:w-auto md:hidden"
                     onClick={onOpenStockDetailTab}
                   >
                     {t("branch.dashStockOpenDetailTab")}

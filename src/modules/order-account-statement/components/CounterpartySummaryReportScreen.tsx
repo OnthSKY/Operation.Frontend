@@ -359,8 +359,123 @@ export function CounterpartySummaryReportScreen() {
       {errorText ? <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{errorText}</p> : null}
       {busy ? <p className="text-sm text-zinc-500">{t("reports.loading")}</p> : null}
 
-      <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
-        <table className="w-full min-w-[780px] text-sm">
+      <div className="space-y-3 md:hidden">
+        {reportItems.map((row) => (
+          <div
+            key={`${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`}
+            className="rounded-xl border border-zinc-200 bg-white p-3 sm:p-4"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-zinc-900">{row.counterpartyName}</p>
+                <p className="text-xs text-zinc-600">
+                  {row.counterpartyType === "branch"
+                    ? t("reports.counterpartySummaryTypeBranch")
+                    : t("reports.counterpartySummaryTypeCustomer")}
+                </p>
+              </div>
+              <p className="text-sm font-semibold tabular-nums text-violet-800">
+                {formatLocaleAmount(row.openAmount, locale, row.currencyCode || "TRY")}
+              </p>
+            </div>
+            <dl className="mt-3 grid grid-cols-2 gap-2 text-xs sm:text-sm">
+              <div>
+                <dt className="text-zinc-500">{t("reports.counterpartySummaryColInvoiced")}</dt>
+                <dd className="font-medium tabular-nums text-zinc-900">
+                  {formatLocaleAmount(row.invoicedTotal, locale, row.currencyCode || "TRY")}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-zinc-500">{t("reports.counterpartySummaryColPaid")}</dt>
+                <dd className="font-medium tabular-nums text-zinc-900">
+                  {formatLocaleAmount(row.paidTotal, locale, row.currencyCode || "TRY")}
+                </dd>
+              </div>
+            </dl>
+            <p className="mt-2 truncate text-xs text-zinc-600 sm:text-sm">
+              {row.lastDocumentNumber ? `${row.lastDocumentNumber} · ${row.lastInvoiceDate ?? "—"}` : "—"}
+            </p>
+            <div className="mt-3 flex items-center gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                className={detailOpenIconButtonClass}
+                aria-label={t("reports.counterpartySummaryPdfPreview")}
+                disabled={
+                  row.counterpartyType !== "branch" ||
+                  !row.lastDocumentNumber ||
+                  pdfBusyKey === `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`
+                }
+                onClick={() => void previewLastInvoicePdf(row)}
+              >
+                <EyeIcon className="h-4 w-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className={detailOpenIconButtonClass}
+                aria-label={t("reports.counterpartySummaryPdfDownload")}
+                disabled={
+                  row.counterpartyType !== "branch" ||
+                  !row.lastDocumentNumber ||
+                  pdfBusyKey === `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`
+                }
+                onClick={() => void openLastInvoicePdf(row)}
+              >
+                <svg
+                  aria-hidden
+                  className="h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 3v12" />
+                  <path d="m7 10 5 5 5-5" />
+                  <path d="M5 21h14" />
+                </svg>
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className={detailOpenIconButtonClass}
+                aria-label={t("reports.counterpartySummaryDeleteInvoice")}
+                disabled={
+                  row.counterpartyType !== "branch" ||
+                  !row.lastDocumentNumber ||
+                  pdfBusyKey === `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`
+                }
+                onClick={() => void deleteLastInvoiceWithPdf(row)}
+              >
+                <svg
+                  aria-hidden
+                  className="h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M3 6h18" />
+                  <path d="M8 6V4h8v2" />
+                  <path d="M19 6l-1 14H6L5 6" />
+                </svg>
+              </Button>
+            </div>
+          </div>
+        ))}
+        {reportItems.length === 0 && !busy ? (
+          <p className="rounded-xl border border-zinc-200 bg-white px-3 py-4 text-center text-sm text-zinc-500">
+            {t("reports.counterpartySummaryEmpty")}
+          </p>
+        ) : null}
+      </div>
+
+      <div className="hidden overflow-x-auto rounded-xl border border-zinc-200 bg-white md:block">
+        <table className="w-full min-w-0 lg:min-w-[780px] text-sm">
           <thead className="bg-zinc-50 text-zinc-700">
             <tr>
               <th className="px-3 py-2 text-left">{t("reports.counterpartySummaryColName")}</th>
@@ -511,7 +626,7 @@ export function CounterpartySummaryReportScreen() {
           <label className="block">
             <span className="text-sm text-zinc-600">{t("reports.counterpartySummarySearch")}</span>
             <input
-              className="mt-1 w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
+              className="mt-1 h-10 min-h-[44px] w-full rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200 sm:h-11 sm:text-base"
               value={filters.search ?? ""}
               onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
               placeholder={t("reports.counterpartySummarySearchPlaceholder")}

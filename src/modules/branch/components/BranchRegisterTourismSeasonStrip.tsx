@@ -53,7 +53,7 @@ export function BranchRegisterTourismSeasonStrip({
         {tourismSeasonHref ? (
           <Link
             href={tourismSeasonHref}
-            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg border border-amber-300/80 bg-white/90 px-3 text-xs font-semibold text-amber-950 shadow-sm transition-colors hover:bg-amber-50/90 sm:min-h-9"
+            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg border border-amber-300/80 bg-white/90 px-3 text-xs font-semibold text-amber-950 shadow-sm transition-colors hover:bg-amber-50/90 sm:min-h-[44px]"
           >
             {t("branch.tourismSeasonClosedOpenTab")}
           </Link>
@@ -100,7 +100,7 @@ export function BranchRegisterTourismSeasonStrip({
       {tourismSeasonHref ? (
         <Link
           href={tourismSeasonHref}
-          className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg border border-teal-200/80 bg-teal-50/60 px-3 text-xs font-semibold text-teal-900 shadow-sm transition-colors hover:bg-teal-50 sm:min-h-9 sm:self-center"
+          className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg border border-teal-200/80 bg-teal-50/60 px-3 text-xs font-semibold text-teal-900 shadow-sm transition-colors hover:bg-teal-50 sm:min-h-[44px] sm:self-center"
         >
           {t("branch.tourismSeasonClosedOpenTab")}
         </Link>

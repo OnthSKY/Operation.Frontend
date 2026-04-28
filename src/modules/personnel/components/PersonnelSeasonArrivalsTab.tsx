@@ -208,7 +208,7 @@ export function PersonnelSeasonArrivalsTab({
         {isError ? (
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <p className="text-sm text-red-600">{toErrorMessage(error)}</p>
-            <Button type="button" variant="secondary" className="min-h-9" onClick={() => void refetch()}>
+            <Button type="button" variant="secondary" className="min-h-[44px] min-w-[44px]" onClick={() => void refetch()}>
               {t("common.retry")}
             </Button>
           </div>
@@ -287,7 +287,7 @@ export function PersonnelSeasonArrivalsTab({
                             <Button
                               type="button"
                               variant="secondary"
-                              className="min-h-9 max-md:w-full"
+                              className="min-h-[44px] min-w-[44px] max-md:w-full"
                               disabled={!arrivalDirty || updateMut.isPending}
                               onClick={() => void onSaveOpenArrival()}
                             >
@@ -296,7 +296,7 @@ export function PersonnelSeasonArrivalsTab({
                             <Button
                               type="button"
                               variant="secondary"
-                              className="min-h-9 max-md:w-full"
+                              className="min-h-[44px] min-w-[44px] max-md:w-full"
                               disabled={
                                 updateMut.isPending ||
                                 arrivalDraft.slice(0, 10) === row.validFrom.slice(0, 10)
@@ -370,7 +370,7 @@ export function PersonnelSeasonArrivalsTab({
             </div>
             <Button
               type="button"
-              className="min-h-10 max-md:w-full"
+              className="min-h-[44px] min-w-[44px] max-md:w-full"
               disabled={createMut.isPending || newValidFrom.trim() === ""}
               onClick={() => void onAddTerm()}
             >

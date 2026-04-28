@@ -137,13 +137,13 @@ export function BranchNotesTab({ branchId, active, readOnly = false }: Props) {
                   </span>
                   {!readOnly ? (
                     <div className="flex flex-wrap gap-2">
-                      <Button type="button" variant="secondary" className="min-h-9 text-xs" onClick={() => openEdit(row)}>
+                      <Button type="button" variant="secondary" className="min-h-[44px] min-w-[44px] text-xs" onClick={() => openEdit(row)}>
                         {t("branch.notesEdit")}
                       </Button>
                       <Button
                         type="button"
                         variant="secondary"
-                        className={cn("min-h-9 text-xs text-red-700 hover:bg-red-50")}
+                        className={cn("min-h-[44px] min-w-[44px] text-xs text-red-700 hover:bg-red-50")}
                         onClick={() => setDeleteId(row.id)}
                       >
                         {t("branch.notesDelete")}

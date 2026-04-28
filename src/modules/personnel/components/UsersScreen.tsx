@@ -35,6 +35,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useController, useForm } from "react-hook-form";
+import { ResponsiveTableFrame } from "@/shared/tables/ResponsiveTableFrame";
 
 type FormValues = {
   username: string;
@@ -374,8 +375,13 @@ export function UsersScreen() {
             {t("users.empty")}
           </div>
         ) : (
-          <>
-            <ul className="flex flex-col gap-3 p-3 lg:hidden">
+          <ResponsiveTableFrame
+            mobileVisibilityClassName="md:flex lg:hidden"
+            desktopVisibilityClassName="hidden lg:block"
+            mobileClassName="p-3"
+            desktopClassName="lg:overflow-x-auto"
+            mobile={
+            <ul className="flex flex-col gap-3">
               {rows.map((r) => (
                 <li
                   key={r.id}
@@ -463,9 +469,9 @@ export function UsersScreen() {
                 </li>
               ))}
             </ul>
-
-            <div className="hidden lg:block lg:overflow-x-auto">
-              <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+            }
+            desktop={
+              <table className="w-full min-w-0 lg:min-w-[760px] border-collapse text-left text-sm">
                 <thead className="border-b border-zinc-200 bg-zinc-50 text-zinc-700">
                   <tr>
                     <th className="whitespace-nowrap px-4 py-3 font-medium">
@@ -561,8 +567,8 @@ export function UsersScreen() {
                   ))}
                 </tbody>
               </table>
-            </div>
-          </>
+            }
+          />
         )}
           </Card>
         }

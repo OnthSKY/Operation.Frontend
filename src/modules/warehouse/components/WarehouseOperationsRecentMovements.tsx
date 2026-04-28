@@ -91,7 +91,7 @@ export function WarehouseOperationsRecentMovements({
           <Button
             type="button"
             variant="secondary"
-            className="min-h-11 w-full shrink-0 sm:min-h-10 sm:w-auto"
+            className="min-h-11 w-full shrink-0 sm:min-h-[44px] sm:w-auto"
             onClick={onViewAllMovements}
           >
             {t("warehouse.operationsViewAllMovements")}

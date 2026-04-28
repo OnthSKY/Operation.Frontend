@@ -117,7 +117,7 @@ export function WarehouseSummaryKpiCards({
               <Button
                 type="button"
                 variant="secondary"
-                className="min-h-11 w-full shrink-0 sm:min-h-10 sm:w-auto"
+                className="min-h-11 w-full shrink-0 sm:min-h-[44px] sm:w-auto"
                 onClick={onOpenMovementsTab}
               >
                 {t("warehouse.summaryKpiOpenMovements")}
@@ -127,7 +127,7 @@ export function WarehouseSummaryKpiCards({
               <Button
                 type="button"
                 variant="secondary"
-                className="min-h-11 w-full shrink-0 border-emerald-200/90 text-emerald-950 ring-emerald-100/80 hover:bg-emerald-50/90 sm:min-h-10 sm:w-auto"
+                className="min-h-11 w-full shrink-0 border-emerald-200/90 text-emerald-950 ring-emerald-100/80 hover:bg-emerald-50/90 sm:min-h-[44px] sm:w-auto"
                 onClick={onOpenInboundMovementsTab}
               >
                 {t("warehouse.summaryKpiOpenInboundMovements")}

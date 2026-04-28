@@ -224,7 +224,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                         lead={
                           <>
                             <p>{t("branch.expensesSummaryLifetimeBlockLead")}</p>
-                            <p className="mt-2 max-w-2xl rounded-md border border-zinc-200/80 bg-white/60 px-2 py-1.5 text-[10px] leading-snug text-zinc-600">
+                            <p className="mt-2 max-w-2xl rounded-md border border-zinc-200/80 bg-white/60 px-2 py-1.5 text-xs leading-snug text-zinc-600">
                               {t("branch.expensesSummaryCardsOrthogonalNote")}
                             </p>
                           </>
@@ -267,7 +267,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                               lead={
                                 <>
                                   <p>{t("branch.expensesSummarySeasonBlockLead")}</p>
-                                  <p className="mt-2 max-w-2xl rounded-md border border-zinc-200/80 bg-white/60 px-2 py-1.5 text-[10px] leading-snug text-zinc-600">
+                                  <p className="mt-2 max-w-2xl rounded-md border border-zinc-200/80 bg-white/60 px-2 py-1.5 text-xs leading-snug text-zinc-600">
                                     {t("branch.expensesSummaryCardsOrthogonalNote")}
                                   </p>
                                 </>
@@ -323,7 +323,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                       </p>
                       <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
                         <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
-                          <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                             {t("branch.expensesListFilteredTotal")}
                           </p>
                           <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-red-800 sm:text-base">
@@ -336,7 +336,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                           </p>
                         </div>
                         <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
-                          <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+                          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                             {t("branch.expensesListPeriodPatronTotal")}
                           </p>
                           <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-violet-950 sm:text-base">
@@ -347,12 +347,12 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                               "TRY"
                             )}
                           </p>
-                          <p className="mt-1 text-[10px] leading-snug text-zinc-500">
+                          <p className="mt-1 text-xs leading-snug text-zinc-500">
                             {t("branch.patronFlowExpenseHint")}
                           </p>
                         </div>
                         <div className="rounded-lg border border-slate-200 bg-slate-100/80 p-2.5 shadow-sm sm:p-3">
-                          <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-600">
+                          <p className="text-xs font-medium uppercase tracking-wide text-zinc-600">
                             {t("branch.expensesListPeriodRowCount")}
                           </p>
                           <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-base">
@@ -371,7 +371,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                           {formatLocaleDate(expListDetailSingleDay, locale)}
                         </span>
                       </p>
-                      <p className="mt-2 max-w-2xl rounded-md border border-slate-200/90 bg-slate-100/50 px-2 py-1.5 text-[10px] leading-snug text-zinc-600">
+                      <p className="mt-2 max-w-2xl rounded-md border border-slate-200/90 bg-slate-100/50 px-2 py-1.5 text-xs leading-snug text-zinc-600">
                         {t("branch.expensesSummaryCardsOrthogonalNote")}
                       </p>
                       <div className="mt-1 rounded-xl border border-slate-200 bg-white p-2 shadow-sm sm:p-3">
@@ -448,7 +448,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                       <p className="text-xs font-semibold text-zinc-700">
                         {t("branch.expenseFilterDrawerTitle")}
                       </p>
-                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">
+                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">
                         {expActiveFilterCount > 0
                           ? `${expActiveFilterCount} · ${t("branch.incomeFilterOpenButton")}`
                           : t("branch.txFilterAny")}
@@ -457,7 +457,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                     {expActiveFilterCount > 0 ? (
                       <div className="mt-2 flex flex-wrap gap-1.5">
                         {hasExpDateFilters ? (
-                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] text-zinc-700">
+                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700">
                             {t("branch.filterDateFrom")}:{" "}
                             {showExpDateFrom ? formatLocaleDate(expFrom, locale) : t("personnel.dash")} ·{" "}
                             {t("branch.filterDateTo")}:{" "}
@@ -465,12 +465,12 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                           </span>
                         ) : null}
                         {hasExpMainFilter ? (
-                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] text-zinc-700">
+                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700">
                             {t("branch.txFilterMainCategory")}: {expMainLabel}
                           </span>
                         ) : null}
                         {hasExpPayFilter ? (
-                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] text-zinc-700">
+                          <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700">
                             {t("branch.txFilterExpensePayment")}: {expPayLabel}
                           </span>
                         ) : null}
@@ -495,7 +495,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                   </div>
                   <div className="mt-2 rounded-lg border border-zinc-200 bg-white p-2.5">
                     <p className="text-xs font-semibold text-zinc-700">{t("branch.filterApplyRefresh")}</p>
-                    <p className="mt-0.5 text-[11px] text-zinc-500">
+                    <p className="mt-0.5 text-xs text-zinc-500">
                       {t("branch.filterToday")} / {t("branch.filterAllDates")}
                     </p>
                     <div className="mt-2 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
@@ -631,7 +631,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                         {txCategoryLine(row.mainCategory, row.category, t) || t("personnel.dash")}
                       </p>
                       {branchTxNonPnl(row) ? (
-                        <p className="mt-0.5 text-[11px] font-medium text-sky-800">
+                        <p className="mt-0.5 text-xs font-medium text-sky-800">
                           {t("branch.txNonPnlBadge")}
                         </p>
                       ) : null}
@@ -684,7 +684,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                         <Button
                           type="button"
                           variant="secondary"
-                          className="mt-2 w-full min-h-10 text-sm"
+                          className="mt-2 w-full min-h-[44px] text-sm"
                           onClick={() => setInvoiceSettleRow(row)}
                         >
                           {t("branch.invoiceSettleSubmit")}
@@ -750,7 +750,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                               {txCategoryLine(row.mainCategory, row.category, t) || t("personnel.dash")}
                             </div>
                             {branchTxNonPnl(row) ? (
-                              <p className="mt-0.5 text-[11px] font-medium text-sky-800">
+                              <p className="mt-0.5 text-xs font-medium text-sky-800">
                                 {t("branch.txNonPnlBadge")}
                               </p>
                             ) : null}
@@ -782,7 +782,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                                       "—"}
                             </div>
                             {pocketLine ? (
-                              <p className="mt-0.5 text-[11px] text-zinc-500">{pocketLine}</p>
+                              <p className="mt-0.5 text-xs text-zinc-500">{pocketLine}</p>
                             ) : null}
                           </TableCell>
                           <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 max-w-[14rem] truncate text-sm text-zinc-600 md:table-cell">
@@ -808,7 +808,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                                 <Button
                                   type="button"
                                   variant="secondary"
-                                  className="mb-1.5 w-full min-h-9 px-2 text-xs"
+                                  className="mb-1.5 w-full min-h-[44px] min-w-[44px] px-2 text-xs"
                                   onClick={() => setInvoiceSettleRow(row)}
                                 >
                                   {t("branch.invoiceSettleSubmit")}

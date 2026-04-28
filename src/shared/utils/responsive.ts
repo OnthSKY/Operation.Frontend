@@ -1,7 +1,7 @@
 export const text = {
   pageTitle: "text-base sm:text-lg md:text-xl",
   sectionTitle: "text-sm sm:text-base md:text-lg",
-  body: "text-xs sm:text-sm md:text-base leading-5 sm:leading-6",
+  body: "text-xs sm:text-sm md:text-base",
 } as const;
 
 export const spacing = {

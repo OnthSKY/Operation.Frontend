@@ -925,6 +925,9 @@ export const personnel = {
     "Tüm şubeler (aynı para birimi) toplamı: {amount}. Patrona ödeme tek şube kaydıdır; tutarı ilgili şubenin havuz satırından veya aşağıdaki listeden o şubeyle açın.",
   detailMgmtHandoverSubTabHintGross:
     "Alınan nakit toplamı (IN, size yazılı brüt, tüm zaman): {gross}",
+  detailMgmtHandoverHeroIncomingTotal: "Gelen toplam",
+  detailMgmtHandoverHeroSpentTotal: "Harcanan toplam",
+  detailMgmtHandoverHeroSpentHint: "Formül: Gelen toplam − Kalan toplam",
   detailMgmtHandoverLinesTitle: "Kasaya alınan nakit satırları (IN)",
   detailMgmtHandoverActionsIntro:
     "Harcanan tarafta: şube gideri (kasadan) ve havuzdan patrona ödeme. İşlemler şube ve para birimi bazında toplam kalandan yapılır. «Patrona ödeme» sihirbazında tutarı siz girersiniz; hangi IN satırından düşüleceğini seçmezsiniz — tutar toplamdan düşülür ve kayıt tarafında en eski satırlardan başlayarak otomatik bölünür. Şube gideri sihirbazında isteğe bağlı olarak belirli IN # yazabilirsiniz.",

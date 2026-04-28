@@ -8,12 +8,14 @@ import { useMemo, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useI18n } from "@/i18n/context";
 import {
+  getConfiguredMobileNavItems,
   getVisibleNavItems,
   isActiveRoute,
   resolveBadge,
   trackNavClick,
   type NavBadgeState,
 } from "./navigation-utils";
+import { useSoftKeyboardOpen } from "@/shared/lib/use-soft-keyboard-open";
 
 type MobileBottomNavProps = {
   onOpenMore: () => void;
@@ -48,7 +50,7 @@ function DockTabContent({ active, caption, captionTitle, badge, icon }: DockTabC
           aria-hidden
         />
       ) : null}
-      <span className="relative z-10 flex min-h-[3.25rem] w-full min-w-0 flex-col items-center justify-center gap-1 px-0.5 py-1">
+      <span className="relative z-10 flex min-h-[3.125rem] w-full min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 py-1">
         <span className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center">
           <span
             className={`transition-[color,transform] duration-200 ease-out will-change-transform group-active:scale-[0.94] ${
@@ -61,9 +63,9 @@ function DockTabContent({ active, caption, captionTitle, badge, icon }: DockTabC
         </span>
         <span
           title={captionTitle}
-          className={`w-full min-w-0 max-w-full px-0.5 text-center text-[10px] font-medium leading-[1.25] tracking-[-0.015em] antialiased sm:text-[11px] ${
+          className={`w-full min-w-0 max-w-full truncate px-0.5 text-center text-[10px] font-medium leading-tight tracking-[-0.01em] antialiased sm:text-[11px] ${
             active ? "font-semibold text-zinc-900" : "text-zinc-500"
-          } line-clamp-2 break-words [overflow-wrap:anywhere]`}
+          }`}
         >
           {caption}
         </span>
@@ -76,20 +78,23 @@ export function MobileBottomNav({ onOpenMore, badgeState }: MobileBottomNavProps
   const pathname = usePathname() ?? "/";
   const { user } = useAuth();
   const { t } = useI18n();
-  const mobileItems = useMemo(
-    () =>
-      getVisibleNavItems(user, t)
-        .filter((x) => x.mobileVisible)
-        .slice(0, 4),
-    [user, t]
-  );
+  const keyboardOpen = useSoftKeyboardOpen();
+  const mobileItems = useMemo(() => {
+    const visibleItems = getVisibleNavItems(user, t);
+    return getConfiguredMobileNavItems(visibleItems);
+  }, [user, t]);
 
   return (
     <div
-      className="pointer-events-none fixed inset-x-0 bottom-0 md:hidden"
+      className={`pointer-events-none fixed inset-x-0 bottom-0 transition-opacity duration-150 md:hidden ${
+        keyboardOpen ? "opacity-0" : "opacity-100"
+      }`}
       style={{ zIndex: Z_INDEX.navbar + 1 }}
+      aria-hidden={keyboardOpen}
     >
-      <div className="pointer-events-auto pt-2 pb-[env(safe-area-inset-bottom,0px)] pl-[max(0.75rem,env(safe-area-inset-left,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] sm:pl-[max(1rem,env(safe-area-inset-left,0px))] sm:pr-[max(1rem,env(safe-area-inset-right,0px))]">
+      <div
+        className={`${keyboardOpen ? "pointer-events-none" : "pointer-events-auto"} pt-1 pb-[env(safe-area-inset-bottom,0px)] pl-[max(0.75rem,env(safe-area-inset-left,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] sm:pt-1.5 sm:pl-[max(1rem,env(safe-area-inset-left,0px))] sm:pr-[max(1rem,env(safe-area-inset-right,0px))]`}
+      >
         <nav
           className="relative mx-auto max-w-screen-md antialiased"
           aria-label={t("nav.dockNav")}
@@ -104,15 +109,15 @@ export function MobileBottomNav({ onOpenMore, badgeState }: MobileBottomNavProps
             >
               {mobileItems.map((item) => {
                 const active = isActiveRoute(pathname, item.route);
-                const badge = resolveBadge(item, badgeState);
-                const caption = item.dockLabel ?? item.label;
+                const badge = item.sourceItem ? resolveBadge(item.sourceItem, badgeState) : null;
+                const caption = item.label;
                 return (
                   <Link
                     key={item.id}
                     href={item.route}
                     prefetch
                     title={item.label}
-                    className={`group relative flex w-full min-w-0 flex-col items-center justify-center rounded-[0.875rem] outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-violet-500/45 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-100/80 ${
+                    className={`group relative flex min-h-[44px] min-w-[44px] w-full flex-col items-center justify-center rounded-[0.875rem] outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-violet-500/45 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-100/80 ${
                       active ? "text-zinc-900" : "text-zinc-500"
                     }`}
                     aria-label={item.label}
@@ -121,7 +126,7 @@ export function MobileBottomNav({ onOpenMore, badgeState }: MobileBottomNavProps
                     <DockTabContent
                       active={active}
                       caption={caption}
-                      captionTitle={item.dockLabel ? item.label : undefined}
+                      captionTitle={item.label}
                       badge={badge}
                       icon={<NavIcon icon={item.icon} />}
                     />
@@ -130,7 +135,7 @@ export function MobileBottomNav({ onOpenMore, badgeState }: MobileBottomNavProps
               })}
               <button
                 type="button"
-                className="group relative flex w-full min-w-0 flex-col items-center justify-center rounded-[0.875rem] text-zinc-500 outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-violet-500/45 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-100/80 active:text-zinc-700"
+                className="group relative flex min-h-[44px] min-w-[44px] w-full flex-col items-center justify-center rounded-[0.875rem] text-zinc-500 outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-violet-500/45 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-100/80 active:text-zinc-700"
                 aria-label={t("nav.menuOpen")}
                 onClick={onOpenMore}
               >

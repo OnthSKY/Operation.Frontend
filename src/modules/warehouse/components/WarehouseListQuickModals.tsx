@@ -392,7 +392,7 @@ export function WarehouseListDepoInModal({
             <Button
               type="button"
               variant="secondary"
-              className="min-h-10 w-full touch-manipulation text-sm sm:min-h-11 sm:w-auto"
+              className="min-h-[44px] min-w-[44px] w-full touch-manipulation text-sm sm:min-h-11 sm:w-auto"
               disabled={disabled}
               onClick={addDepoLine}
             >

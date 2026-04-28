@@ -35,7 +35,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           name={name}
           aria-required={labelRequired ? true : undefined}
           className={cn(
-            "min-h-12 w-full rounded-lg border border-zinc-300 bg-white px-3 text-base text-zinc-900 outline-none ring-zinc-900 focus:border-zinc-900 focus:ring-2",
+            "h-10 min-h-[44px] w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none ring-zinc-900 focus:border-zinc-900 focus:ring-2 sm:h-11 sm:text-base md:h-12",
             hasError && "border-red-500 focus:border-red-500 focus:ring-red-500",
             className
           )}

@@ -116,7 +116,7 @@ export function EditPersonnelInsurancePeriodModal({
               <FormSection>
                 {nameChip ? (
                   <div className="rounded-xl border border-zinc-200/90 bg-zinc-50 px-3 py-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                       {t("personnel.insuranceIntakeModalPersonCaption")}
                     </p>
                     <p className="truncate text-sm font-semibold text-zinc-900">{nameChip}</p>

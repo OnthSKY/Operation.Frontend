@@ -60,13 +60,33 @@
 html {
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+html,
+body {
+  overflow-x: hidden;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
-  -webkit-tap-highlight-color: color-mix(in srgb, var(--foreground) 6%, transparent);
+  -webkit-tap-highlight-color: transparent;
+  text-rendering: optimizeLegibility;
+}
+
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea,
+  [contenteditable="true"] {
+    scroll-margin-bottom: 7rem;
+  }
 }
 
 /* Masaüstünde tıklanabilir alanlarda net pointer geri bildirimi. */

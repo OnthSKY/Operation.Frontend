@@ -689,51 +689,32 @@ export function BranchScreen() {
                         </span>
                       </div>
                     </button>
-                    <BranchMetricsToggle
-                      open={mOpen}
-                      onToggle={toggleMetrics(b.id)}
-                      t={t}
-                      layout="mobileRow"
-                    />
-                    {mOpen ? (
-                      <div className="border-t border-zinc-100 px-3 pb-3 pt-1 sm:px-4">
-                        <BranchListMetricsPanel
-                          branchId={b.id}
-                          open={mOpen}
-                          monthUtcKey={dashboardMonthUtc}
-                          hideMoney={personnelPortal}
-                          seasonSummary={`${t("branch.tableSeason")}: ${seasonLabel(b.seasonStatus, t)}`}
-                        />
-                      </div>
-                    ) : null}
-                    <div className="flex flex-col gap-2 border-t border-zinc-100 px-3 py-3 sm:px-4">
-                      <Tooltip content={t("common.openDetailsDialog")} delayMs={200}>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className={cn(
-                            "flex min-h-11 w-full touch-manipulation items-center justify-center gap-2 border-violet-200/80 bg-violet-50/90 px-4 py-2.5 text-violet-950 hover:bg-violet-100/90"
-                          )}
-                          aria-haspopup="dialog"
-                          aria-expanded={active}
-                          aria-label={t("common.openDetails")}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openBranchDetail(b.id);
-                          }}
-                        >
-                          <EyeIcon className="h-5 w-5 shrink-0" />
-                          <span className="text-sm font-semibold">
-                            {t("common.openDetails")}
-                          </span>
-                        </Button>
-                      </Tooltip>
+                    <div className="border-t border-zinc-100 px-3 py-3 sm:px-4">
                       <div className="flex min-h-11 flex-row gap-2">
+                        <Tooltip content={t("common.openDetailsDialog")} delayMs={200}>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className={cn(
+                              detailOpenIconButtonClass,
+                              "min-h-11 min-w-11 shrink-0 border-violet-200/80 bg-violet-50/90 text-violet-900 hover:bg-violet-100/90"
+                            )}
+                            aria-haspopup="dialog"
+                            aria-expanded={active}
+                            aria-label={t("common.openDetails")}
+                            title={t("common.openDetails")}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openBranchDetail(b.id);
+                            }}
+                          >
+                            <EyeIcon className="h-5 w-5 shrink-0" />
+                          </Button>
+                        </Tooltip>
                         <BranchQuickActionsMenu
                           menuId={`branch-quick-${b.id}`}
                           triggerLabel={t("branch.quickActions")}
                           compact
-                          fillTrigger
                           sections={branchQuickSectionsFor(b)}
                         />
                         {!personnelPortal ? (

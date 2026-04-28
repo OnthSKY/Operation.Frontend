@@ -943,7 +943,7 @@ export function PersonnelCostsScreen() {
                       columns={costColumns}
                       rows={displayRowsFiltered}
                       getRowKey={(r) => r.key}
-                      tableClassName="min-w-[70rem] lg:min-w-[78rem]"
+                      tableClassName="w-full min-w-0 lg:min-w-[70rem] xl:min-w-[78rem]"
                     />
                   }
                 />

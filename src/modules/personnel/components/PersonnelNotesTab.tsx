@@ -120,7 +120,7 @@ export function PersonnelNotesTab({ personnelId, active, readOnly = false }: Pro
       ) : isError ? (
         <div className="space-y-2">
           <p className="text-sm text-red-600">{toErrorMessage(error)}</p>
-          <Button type="button" variant="secondary" className="min-h-10" onClick={() => void refetch()}>
+          <Button type="button" variant="secondary" className="min-h-[44px] min-w-[44px]" onClick={() => void refetch()}>
             {t("common.retry")}
           </Button>
         </div>
@@ -147,10 +147,10 @@ export function PersonnelNotesTab({ personnelId, active, readOnly = false }: Pro
               </div>
               {!readOnly ? (
                 <div className="flex shrink-0 flex-wrap gap-2">
-                  <Button type="button" variant="secondary" className="min-h-10" onClick={() => openEdit(row)}>
+                  <Button type="button" variant="secondary" className="min-h-[44px] min-w-[44px]" onClick={() => openEdit(row)}>
                     {t("personnel.notesEdit")}
                   </Button>
-                  <Button type="button" variant="secondary" className="min-h-10" onClick={() => setDeleteId(row.id)}>
+                  <Button type="button" variant="secondary" className="min-h-[44px] min-w-[44px]" onClick={() => setDeleteId(row.id)}>
                     {t("personnel.notesDelete")}
                   </Button>
                 </div>

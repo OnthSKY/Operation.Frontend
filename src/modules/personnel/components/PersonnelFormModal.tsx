@@ -913,7 +913,7 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
                   : t("personnel.nationalIdPhotosPickHint")}
               </p>
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                <label className="flex min-h-10 cursor-pointer flex-col gap-1 rounded-lg border border-dashed border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-600 sm:flex-1">
+                <label className="flex min-h-[44px] min-w-[44px] cursor-pointer flex-col gap-1 rounded-lg border border-dashed border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-600 sm:flex-1">
                   <span className="font-medium text-zinc-800">
                     {t("personnel.nationalIdPhotosFront")}
                   </span>
@@ -950,7 +950,7 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
                     />
                   ) : null}
                 </label>
-                <label className="flex min-h-10 cursor-pointer flex-col gap-1 rounded-lg border border-dashed border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-600 sm:flex-1">
+                <label className="flex min-h-[44px] min-w-[44px] cursor-pointer flex-col gap-1 rounded-lg border border-dashed border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-600 sm:flex-1">
                   <span className="font-medium text-zinc-800">
                     {t("personnel.nationalIdPhotosBack")}
                   </span>
@@ -996,7 +996,7 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
                   : t("personnel.profilePhotosPickHint")}
               </p>
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                <label className="flex min-h-10 cursor-pointer flex-col gap-1 rounded-lg border border-dashed border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-600 sm:flex-1">
+                <label className="flex min-h-[44px] min-w-[44px] cursor-pointer flex-col gap-1 rounded-lg border border-dashed border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-600 sm:flex-1">
                   <span className="font-medium text-zinc-800">
                     {t("personnel.profilePhotoSlot1")}
                   </span>
@@ -1036,7 +1036,7 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
                     />
                   ) : null}
                 </label>
-                <label className="flex min-h-10 cursor-pointer flex-col gap-1 rounded-lg border border-dashed border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-600 sm:flex-1">
+                <label className="flex min-h-[44px] min-w-[44px] cursor-pointer flex-col gap-1 rounded-lg border border-dashed border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-600 sm:flex-1">
                   <span className="font-medium text-zinc-800">
                     {t("personnel.profilePhotoSlot2")}
                   </span>

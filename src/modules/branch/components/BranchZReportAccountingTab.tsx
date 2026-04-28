@@ -157,7 +157,7 @@ export function BranchZReportAccountingTab({ branchId, active }: Props) {
                         <Button
                           type="button"
                           variant="secondary"
-                          className="h-8 min-w-[6.5rem] text-xs"
+                          className="min-h-[44px] min-w-[44px] px-3 text-sm sm:text-xs"
                           disabled={
                             markM.isPending &&
                             markM.variables?.branchId === branchId &&

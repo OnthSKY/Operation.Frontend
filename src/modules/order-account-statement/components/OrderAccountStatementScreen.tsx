@@ -3610,7 +3610,7 @@ export function OrderAccountStatementScreen() {
               <table
                 className={cn(
                   "w-full border-collapse text-left",
-                  showQuantityColumn ? "min-w-[63rem]" : "min-w-[42rem]",
+                  showQuantityColumn ? "min-w-0 xl:min-w-[63rem]" : "min-w-0 lg:min-w-[42rem]",
                   lineDense ? "text-[11px]" : lineCompact ? "text-xs" : "text-sm"
                 )}
               >

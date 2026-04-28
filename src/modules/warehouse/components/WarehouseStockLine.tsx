@@ -406,7 +406,7 @@ export function WarehouseStockLine({
         aria-expanded={depoInOpen}
         onClick={() => setDepoInOpen(true)}
         className={cn(
-          variant === "card" ? "min-h-11 flex-1 px-3 sm:flex-none" : "min-h-9 px-3 text-sm"
+          variant === "card" ? "min-h-11 flex-1 px-3 sm:flex-none" : "min-h-[44px] min-w-[44px] px-3 text-sm"
         )}
       >
         {t("warehouse.actionDepoProductIn")}
@@ -424,7 +424,7 @@ export function WarehouseStockLine({
           aria-expanded={transferOpen}
           onClick={() => setTransferOpen(true)}
           className={cn(
-            variant === "card" ? "min-h-11 w-full sm:w-auto sm:flex-1" : "min-h-9 px-3 text-sm",
+            variant === "card" ? "min-h-11 w-full sm:w-auto sm:flex-1" : "min-h-[44px] min-w-[44px] px-3 text-sm",
             !canTransfer && "opacity-50"
           )}
         >

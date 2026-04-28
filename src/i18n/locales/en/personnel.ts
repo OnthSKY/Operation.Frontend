@@ -913,6 +913,9 @@ export const personnel = {
     "All branches (same currency) total: {amount}. Owner payments are one branch at a time; open the flow from that branch’s pool row below.",
   detailMgmtHandoverSubTabHintGross:
     "Total cash received (IN, gross assigned to you, all time): {gross}",
+  detailMgmtHandoverHeroIncomingTotal: "Total received",
+  detailMgmtHandoverHeroSpentTotal: "Total spent",
+  detailMgmtHandoverHeroSpentHint: "Formula: Total received - Total remaining",
   detailMgmtHandoverLinesTitle: "Cash received lines (IN)",
   detailMgmtHandoverActionsIntro:
     "Spending covers branch expenses and owner payments from the pool. Actions use the total remaining pool per branch and currency. The “to owner” wizard only needs an amount — it draws from the pool and allocates oldest IN lines automatically (multiple OUTs if needed). The expense wizard can optionally include a specific handover IN #.",

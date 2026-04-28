@@ -19,6 +19,28 @@ export function EyeIcon({ className }: { className?: string }) {
   );
 }
 
+/** İndir — dosya indirme aksiyonu; EyeIcon ile aynı çizgi kalınlığı. */
+export function DownloadIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 4v10" />
+      <path d="m8.5 10.5 3.5 3.5 3.5-3.5" />
+      <path d="M4 19h16" />
+    </svg>
+  );
+}
+
 /** Artı — alt kategori ekleme vb.; EyeIcon ile aynı çizgi kalınlığı. */
 export function PlusIcon({ className }: { className?: string }) {
   return (

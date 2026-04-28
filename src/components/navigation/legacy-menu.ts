@@ -127,7 +127,7 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
     operationsChildren.push({ id: "insurances", labelKey: "nav.insurances", route: "/insurances", icon: "personnel" });
   }
   if (showFleet) {
-    operationsChildren.push({ id: "vehicles", labelKey: "nav.vehicles", route: "/vehicles", icon: "branch" });
+    operationsChildren.push({ id: "vehicles", labelKey: "nav.vehicles", route: "/vehicles", icon: "vehicles" });
   }
   if (operationsChildren.length) {
     items.push({
@@ -146,26 +146,26 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
       labelKey: "nav.groupWarehouseProducts",
       dockLabelKey: "nav.dockWarehouseShort",
       route: showWarehouseLink ? "/warehouses" : "/products",
-      icon: "branch",
+      icon: "warehouse",
       mobileVisible: true,
       children: [
         ...(showWarehouseLink
           ? [
-              { id: "warehouses", labelKey: "nav.warehouse", route: "/warehouses", icon: "branch" },
+              { id: "warehouses", labelKey: "nav.warehouse", route: "/warehouses", icon: "warehouse" },
               {
                 id: "warehouse-global-movements",
                 labelKey: "nav.warehouseGlobalMovements",
                 route: "/warehouses/movements",
-                icon: "branch",
+                icon: "movements",
               },
             ]
           : []),
         ...(showProducts
           ? [
-              { id: "products", labelKey: "nav.products", route: "/products", icon: "branch" },
-              { id: "product-categories", labelKey: "nav.productCategories", route: "/products/categories", icon: "branch" },
-              { id: "product-cost-history", labelKey: "nav.productCostHistory", route: "/products/cost-history", icon: "reports" },
-              { id: "order-account-statement", labelKey: "reports.sidebarOrderAccountStatement", route: "/products/order-account-statement", icon: "reports" },
+              { id: "products", labelKey: "nav.products", route: "/products", icon: "products" },
+              { id: "product-categories", labelKey: "nav.productCategories", route: "/products/categories", icon: "categories" },
+              { id: "product-cost-history", labelKey: "nav.productCostHistory", route: "/products/cost-history", icon: "cost" },
+              { id: "order-account-statement", labelKey: "reports.sidebarOrderAccountStatement", route: "/products/order-account-statement", icon: "invoices" },
               { id: "counterparty-summary", labelKey: "reports.sidebarCounterpartySummary", route: "/products/order-account-statement/summary", icon: "reports" },
             ]
           : []),
@@ -178,8 +178,8 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
       id: "documents-records",
       labelKey: "nav.groupDocumentsRecords",
       route: "/documents",
-      icon: "reports",
-      children: [{ id: "documents", labelKey: "nav.documents", route: "/documents", icon: "reports" }],
+      icon: "documents",
+      children: [{ id: "documents", labelKey: "nav.documents", route: "/documents", icon: "documents" }],
     });
   }
 
@@ -188,10 +188,10 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
       id: "procurement",
       labelKey: "nav.groupProcurement",
       route: "/suppliers",
-      icon: "branch",
+      icon: "suppliers",
       children: [
-        { id: "suppliers", labelKey: "nav.suppliers", route: "/suppliers", icon: "branch" },
-        { id: "supplier-invoices", labelKey: "nav.supplierInvoices", route: "/suppliers/invoices", icon: "branch" },
+        { id: "suppliers", labelKey: "nav.suppliers", route: "/suppliers", icon: "suppliers" },
+        { id: "supplier-invoices", labelKey: "nav.supplierInvoices", route: "/suppliers/invoices", icon: "invoices" },
       ],
     });
   }
@@ -201,15 +201,15 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
       id: "system",
       labelKey: "nav.groupSystemManagement",
       route: "/admin/settings",
-      icon: "reports",
+      icon: "settings",
       children: [
-        { id: "system-settings-home", labelKey: "nav.systemSettingsHome", route: "/admin/settings", icon: "reports" },
-        { id: "system-users", labelKey: "nav.systemUsers", route: "/admin/users", icon: "personnel" },
-        { id: "system-authz", labelKey: "nav.adminNavAuthorization", route: "/admin/settings/authorization", icon: "reports" },
+        { id: "system-settings-home", labelKey: "nav.systemSettingsHome", route: "/admin/settings", icon: "settings" },
+        { id: "system-users", labelKey: "nav.systemUsers", route: "/admin/users", icon: "users" },
+        { id: "system-authz", labelKey: "nav.adminNavAuthorization", route: "/admin/settings/authorization", icon: "roles" },
         // Keep existing system entries; only grouping changes.
-        { id: "system-notifications", labelKey: "nav.adminNavNotifications", route: "/admin/settings/notifications", icon: "reports" },
-        { id: "system-branding", labelKey: "nav.adminNavBranding", route: "/admin/settings/branding", icon: "reports" },
-        { id: "system-tourism-policy", labelKey: "nav.adminNavTourismSeasonPolicy", route: "/admin/settings/tourism-season-closed-policy", icon: "reports" },
+        { id: "system-notifications", labelKey: "nav.adminNavNotifications", route: "/admin/settings/notifications", icon: "notifications" },
+        { id: "system-branding", labelKey: "nav.adminNavBranding", route: "/admin/settings/branding", icon: "branding" },
+        { id: "system-tourism-policy", labelKey: "nav.adminNavTourismSeasonPolicy", route: "/admin/settings/tourism-season-closed-policy", icon: "settings" },
       ],
     });
   }

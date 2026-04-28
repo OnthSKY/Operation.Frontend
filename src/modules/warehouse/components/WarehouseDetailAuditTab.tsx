@@ -24,7 +24,7 @@ const PAGE_SIZE = 20;
 function auditKv(label: string, value: ReactNode) {
   return (
     <div className="min-w-0">
-      <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">{label}</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{label}</p>
       <p className="mt-0.5 break-words font-mono text-sm text-zinc-900">{value}</p>
     </div>
   );
@@ -41,18 +41,18 @@ function AuditPayloadBlock({ row, t }: { row: WarehouseAuditItem; t: (key: strin
           </summary>
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
             <div>
-              <p className="text-[10px] font-semibold uppercase text-zinc-500">
+              <p className="text-xs font-semibold uppercase text-zinc-500">
                 {t("warehouse.auditColOld")}
               </p>
-              <pre className="mt-1 max-h-36 overflow-auto whitespace-pre-wrap break-all rounded border border-zinc-200 bg-white p-2 text-[10px] text-zinc-800 [-webkit-overflow-scrolling:touch]">
+              <pre className="mt-1 max-h-36 overflow-auto whitespace-pre-wrap break-all rounded border border-zinc-200 bg-white p-2 text-xs text-zinc-800 [-webkit-overflow-scrolling:touch]">
                 {row.oldDataJson ?? "—"}
               </pre>
             </div>
             <div>
-              <p className="text-[10px] font-semibold uppercase text-zinc-500">
+              <p className="text-xs font-semibold uppercase text-zinc-500">
                 {t("warehouse.auditColNew")}
               </p>
-              <pre className="mt-1 max-h-36 overflow-auto whitespace-pre-wrap break-all rounded border border-amber-200 bg-amber-50/80 p-2 text-[10px] text-zinc-900 [-webkit-overflow-scrolling:touch]">
+              <pre className="mt-1 max-h-36 overflow-auto whitespace-pre-wrap break-all rounded border border-amber-200 bg-amber-50/80 p-2 text-xs text-zinc-900 [-webkit-overflow-scrolling:touch]">
                 {row.newDataJson ?? "—"}
               </pre>
             </div>
@@ -63,7 +63,7 @@ function AuditPayloadBlock({ row, t }: { row: WarehouseAuditItem; t: (key: strin
         <summary className="cursor-pointer touch-manipulation font-medium text-zinc-800">
           {t("warehouse.auditShowJson")}
         </summary>
-        <pre className="mt-2 max-h-44 overflow-auto whitespace-pre-wrap break-all rounded bg-white p-2 text-[10px] text-zinc-800 [-webkit-overflow-scrolling:touch]">
+        <pre className="mt-2 max-h-44 overflow-auto whitespace-pre-wrap break-all rounded bg-white p-2 text-xs text-zinc-800 [-webkit-overflow-scrolling:touch]">
           {row.newDataJson ?? row.oldDataJson ?? "—"}
         </pre>
       </details>
@@ -173,7 +173,7 @@ export function WarehouseDetailAuditTab({ warehouseId, enabled }: Props) {
                       {row.tableName}
                     </span>
                     {whUpdate ? (
-                      <span className="rounded-full bg-amber-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                      <span className="rounded-full bg-amber-600 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-white">
                         {t("warehouse.auditBadgeWarehouseEdit")}
                       </span>
                     ) : null}
@@ -183,7 +183,7 @@ export function WarehouseDetailAuditTab({ warehouseId, enabled }: Props) {
                     {auditKv(t("warehouse.auditColRecord"), row.recordId ?? "—")}
                   </div>
                   <div className="mt-4 border-t border-zinc-100 pt-3">
-                    <p className="mb-2 text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
                       {t("warehouse.auditColPayload")}
                     </p>
                     <AuditPayloadBlock row={row} t={t} />
@@ -222,7 +222,7 @@ export function WarehouseDetailAuditTab({ warehouseId, enabled }: Props) {
                         <span className="inline-flex flex-wrap items-center gap-1.5">
                           {row.tableName}
                           {whUpdate ? (
-                            <span className="rounded-full bg-amber-600 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                            <span className="rounded-full bg-amber-600 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-white">
                               {t("warehouse.auditBadgeWarehouseEdit")}
                             </span>
                           ) : null}

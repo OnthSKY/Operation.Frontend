@@ -9,7 +9,25 @@ export type NavigationItem = {
   dockLabel?: string;
   title: string;
   route: string;
-  icon: "dashboard" | "branch" | "reports" | "personnel";
+  icon:
+    | "dashboard"
+    | "branch"
+    | "reports"
+    | "personnel"
+    | "warehouse"
+    | "movements"
+    | "products"
+    | "categories"
+    | "cost"
+    | "documents"
+    | "suppliers"
+    | "invoices"
+    | "settings"
+    | "users"
+    | "roles"
+    | "notifications"
+    | "branding"
+    | "vehicles";
   mobileVisible: boolean;
   badgeKey?: "notifications";
   featureFlag?: string;
@@ -17,7 +35,26 @@ export type NavigationItem = {
 };
 
 function normalizeIcon(icon: string): NavigationItem["icon"] {
-  if (icon === "dashboard" || icon === "branch" || icon === "reports" || icon === "personnel") {
+  if (
+    icon === "dashboard" ||
+    icon === "branch" ||
+    icon === "reports" ||
+    icon === "personnel" ||
+    icon === "warehouse" ||
+    icon === "movements" ||
+    icon === "products" ||
+    icon === "categories" ||
+    icon === "cost" ||
+    icon === "documents" ||
+    icon === "suppliers" ||
+    icon === "invoices" ||
+    icon === "settings" ||
+    icon === "users" ||
+    icon === "roles" ||
+    icon === "notifications" ||
+    icon === "branding" ||
+    icon === "vehicles"
+  ) {
     return icon;
   }
   return "reports";

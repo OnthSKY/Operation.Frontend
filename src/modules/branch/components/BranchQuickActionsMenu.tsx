@@ -243,7 +243,7 @@ export function BranchQuickActionsMenu({
                         "flex min-h-11 w-full items-center rounded-xl px-3 py-2.5 text-left text-[15px] leading-snug text-zinc-800 antialiased",
                         "transition-[background-color,transform] duration-150 active:scale-[0.99] sm:active:scale-100",
                         "hover:bg-violet-50/90 active:bg-violet-100/70",
-                        "sm:min-h-9 sm:rounded-lg sm:px-2.5 sm:py-2 sm:text-[13px] sm:leading-normal"
+                        "sm:min-h-[44px] sm:rounded-lg sm:px-2.5 sm:py-2 sm:text-[13px] sm:leading-normal"
                       )}
                       onClick={() => {
                         item.onSelect();

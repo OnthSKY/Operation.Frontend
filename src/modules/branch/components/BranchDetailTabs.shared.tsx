@@ -159,7 +159,7 @@ export function incomeCashTotalAndParties(
         {formatMoneyDash(totalCash, t("personnel.dash"), locale, "TRY")}
       </p>
       {rows.length ? (
-        <ul className="mt-2 space-y-0.5 border-t border-zinc-200/80 pt-2 text-[10px] leading-snug text-zinc-600">
+        <ul className="mt-2 space-y-0.5 border-t border-zinc-200/80 pt-2 text-xs leading-snug text-zinc-600">
           {rows.map((row) =>
             row.labelKey === "branch.incomeCashPartyBranchManager" && bmDetail ? (
               <li key={row.labelKey} className="space-y-1">
@@ -169,7 +169,7 @@ export function incomeCashTotalAndParties(
                     {formatMoneyDash(row.v, t("personnel.dash"), locale, "TRY")}
                   </span>
                 </div>
-                <details className="rounded-md border border-zinc-200/90 bg-zinc-50/80 text-[10px] text-zinc-700">
+                <details className="rounded-md border border-zinc-200/90 bg-zinc-50/80 text-xs text-zinc-700">
                   <summary className="cursor-pointer select-none list-none px-2 py-1.5 font-medium text-zinc-600 outline-none [&::-webkit-details-marker]:hidden">
                     {t("branch.incomeCashBranchManagerBreakdownToggle")}
                   </summary>
@@ -319,8 +319,8 @@ function expenseOverviewCardAxisLine(
       className={cn(
         "w-full max-w-none font-medium text-zinc-600 text-pretty [overflow-wrap:anywhere]",
         isModal
-          ? "mt-2 text-xs leading-snug sm:text-[11px] sm:leading-snug"
-          : "mt-0.5 text-[9px] leading-tight"
+          ? "mt-2 text-xs leading-snug sm:text-xs sm:leading-snug"
+          : "mt-0.5 text-xs leading-tight"
       )}
     >
       {t(expenseOverviewCardAxisKey(card))}
@@ -357,7 +357,7 @@ function expenseGeneralOverheadOverlapCallout(
     ) : null;
 
   return (
-    <div className="rounded-lg border border-amber-200/80 bg-amber-50/70 p-2.5 text-[10px] leading-relaxed text-amber-950/90">
+    <div className="rounded-lg border border-amber-200/80 bg-amber-50/70 p-2.5 text-xs leading-relaxed text-amber-950/90">
       <p className="font-semibold">{t("branch.expensesOverlapTitle")}</p>
       <ul className="mt-1.5 list-inside list-disc space-y-0.5">
         {line("branch.expensesOverlapBulPatron", p)}
@@ -365,7 +365,7 @@ function expenseGeneralOverheadOverlapCallout(
         {line("branch.expensesOverlapBulPocket", pk)}
         {line("branch.expensesOverlapBulBranchMain", b)}
       </ul>
-      <p className="mt-2 border-t border-amber-200/60 pt-2 text-[10px] text-amber-950/85">
+      <p className="mt-2 border-t border-amber-200/60 pt-2 text-xs text-amber-950/85">
         {t("branch.expensesOverlapFooter")}
       </p>
     </div>
@@ -456,13 +456,13 @@ export function ExpenseGoLinesDetailTable(opts: {
       <Table>
         <TableHead>
           <TableRow>
-            <TableHeader className="text-[10px] uppercase">{col.pool}</TableHeader>
-            <TableHeader className="text-[10px] uppercase">{col.date}</TableHeader>
-            <TableHeader className="text-[10px] uppercase">{col.amount}</TableHeader>
-            <TableHeader className="text-[10px] uppercase">{col.main}</TableHeader>
-            <TableHeader className="text-[10px] uppercase">{col.pay}</TableHeader>
-            <TableHeader className="text-[10px] uppercase">{col.desc}</TableHeader>
-            <TableHeader className="text-[10px] uppercase">{col.tx}</TableHeader>
+            <TableHeader className="text-xs uppercase">{col.pool}</TableHeader>
+            <TableHeader className="text-xs uppercase">{col.date}</TableHeader>
+            <TableHeader className="text-xs uppercase">{col.amount}</TableHeader>
+            <TableHeader className="text-xs uppercase">{col.main}</TableHeader>
+            <TableHeader className="text-xs uppercase">{col.pay}</TableHeader>
+            <TableHeader className="text-xs uppercase">{col.desc}</TableHeader>
+            <TableHeader className="text-xs uppercase">{col.tx}</TableHeader>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -526,7 +526,7 @@ function BranchOperatingExpenseLinesList(opts: {
   return (
     <div className="mt-3 space-y-2">
       <p className="text-xs font-medium text-zinc-800">{t("branch.expensesBranchOperatingListTitle")}</p>
-      <p className="text-[10px] leading-snug text-zinc-500">{t("branch.expensesBranchOperatingListLead")}</p>
+      <p className="text-xs leading-snug text-zinc-500">{t("branch.expensesBranchOperatingListLead")}</p>
       <ul className="space-y-2.5">
         {lines.map((row) => (
           <li
@@ -537,7 +537,7 @@ function BranchOperatingExpenseLinesList(opts: {
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                 <span
                   className={cn(
-                    "shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                    "shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide",
                     row.isGeneralOverheadShare
                       ? "bg-indigo-100 text-indigo-900"
                       : "bg-emerald-50 text-emerald-900 ring-1 ring-emerald-200/80"
@@ -555,7 +555,7 @@ function BranchOperatingExpenseLinesList(opts: {
                 {formatMoneyDash(row.amount, t("personnel.dash"), locale, "TRY")}
               </span>
             </div>
-            <div className="mt-2 space-y-1 text-[11px] leading-snug text-zinc-600">
+            <div className="mt-2 space-y-1 text-xs leading-snug text-zinc-600">
               <p>
                 <span className="font-medium text-zinc-500">{t("branch.expensesCardDetailGoColMain")}: </span>
                 {row.mainCategory ? txCategoryLine(row.mainCategory, row.category, t) : "—"}
@@ -576,7 +576,7 @@ function BranchOperatingExpenseLinesList(opts: {
                   {row.description}
                 </p>
               ) : null}
-              <p className="font-mono text-[10px] text-zinc-400">
+              <p className="font-mono text-xs text-zinc-400">
                 {t("branch.expensesCardDetailGoColTx")} · {row.branchTransactionId}
               </p>
             </div>
@@ -584,7 +584,7 @@ function BranchOperatingExpenseLinesList(opts: {
         ))}
       </ul>
       {lines.length >= 250 ? (
-        <p className="mt-2 text-[10px] leading-snug text-amber-900/90">{t("branch.expensesBranchOperatingListTruncated")}</p>
+        <p className="mt-2 text-xs leading-snug text-amber-900/90">{t("branch.expensesBranchOperatingListTruncated")}</p>
       ) : null}
     </div>
   );
@@ -672,7 +672,7 @@ export function ExpenseOverviewDetailModal(opts: {
             })}
             {goR > 0.005 ? (
               <>
-                <p className="mt-2 text-[10px] leading-snug text-zinc-500">
+                <p className="mt-2 text-xs leading-snug text-zinc-500">
                   {t("branch.expensesCardDetailGoTableVsCardHint")}
                 </p>
                 <p className="mt-3 border-t border-zinc-200 pt-3 text-xs leading-relaxed text-amber-950/90">
@@ -687,7 +687,7 @@ export function ExpenseOverviewDetailModal(opts: {
                   {t("branch.expensesCardDetailGoLinesTitleRegister")}
                 </p>
                 <ExpenseGoLinesDetailTable rows={regLines} t={t} locale={locale} />
-                <p className="mt-2 text-[10px] leading-relaxed text-zinc-500">
+                <p className="mt-2 text-xs leading-relaxed text-zinc-500">
                   {t("branch.expensesCardDetailGoLinesRegisterFootnote")}
                 </p>
               </>
@@ -709,7 +709,7 @@ export function ExpenseOverviewDetailModal(opts: {
             })}
             {goP > 0.005 ? (
               <>
-                <p className="mt-2 text-[10px] leading-snug text-zinc-500">
+                <p className="mt-2 text-xs leading-snug text-zinc-500">
                   {t("branch.expensesCardDetailGoTableVsCardHint")}
                 </p>
                 <p className="mt-3 border-t border-zinc-200 pt-3 text-xs leading-relaxed text-amber-950/90">
@@ -743,7 +743,7 @@ export function ExpenseOverviewDetailModal(opts: {
             })}
             {goPk > 0.005 ? (
               <>
-                <p className="mt-2 text-[10px] leading-snug text-zinc-500">
+                <p className="mt-2 text-xs leading-snug text-zinc-500">
                   {t("branch.expensesCardDetailGoTableVsCardHint")}
                 </p>
                 <p className="mt-3 border-t border-zinc-200 pt-3 text-xs leading-relaxed text-amber-950/90">
@@ -785,7 +785,7 @@ export function ExpenseOverviewDetailModal(opts: {
               <BranchOperatingExpenseLinesList lines={branchOpLines} t={t} locale={locale} />
             ) : goB > 0.005 ? (
               <>
-                <p className="mt-2 text-[10px] leading-snug text-zinc-500">
+                <p className="mt-2 text-xs leading-snug text-zinc-500">
                   {t("branch.expensesCardDetailGoTableVsCardHint")}
                 </p>
                 <p className="mt-3 border-t border-zinc-200 pt-3 text-xs leading-relaxed text-amber-950/90">
@@ -804,7 +804,7 @@ export function ExpenseOverviewDetailModal(opts: {
                     <p className="mt-1 text-lg font-semibold tabular-nums text-zinc-900">
                       {formatMoneyDash(branchNonGoRemainder, t("personnel.dash"), locale, "TRY")}
                     </p>
-                    <p className="mt-1.5 text-[10px] leading-snug text-zinc-600">
+                    <p className="mt-1.5 text-xs leading-snug text-zinc-600">
                       {t("branch.expensesCardDetailBranchNonGoPortionHint")}
                     </p>
                   </div>
@@ -836,13 +836,13 @@ export function ExpenseOverviewDetailModal(opts: {
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableHeader className="text-[10px] uppercase">{col.pool}</TableHeader>
-                    <TableHeader className="text-[10px] uppercase">{col.date}</TableHeader>
-                    <TableHeader className="text-[10px] uppercase">{col.amount}</TableHeader>
-                    <TableHeader className="text-[10px] uppercase">{col.main}</TableHeader>
-                    <TableHeader className="text-[10px] uppercase">{col.pay}</TableHeader>
-                    <TableHeader className="text-[10px] uppercase">{col.desc}</TableHeader>
-                    <TableHeader className="text-[10px] uppercase">{col.tx}</TableHeader>
+                    <TableHeader className="text-xs uppercase">{col.pool}</TableHeader>
+                    <TableHeader className="text-xs uppercase">{col.date}</TableHeader>
+                    <TableHeader className="text-xs uppercase">{col.amount}</TableHeader>
+                    <TableHeader className="text-xs uppercase">{col.main}</TableHeader>
+                    <TableHeader className="text-xs uppercase">{col.pay}</TableHeader>
+                    <TableHeader className="text-xs uppercase">{col.desc}</TableHeader>
+                    <TableHeader className="text-xs uppercase">{col.tx}</TableHeader>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -940,7 +940,7 @@ export function ExpenseOverviewDetailModal(opts: {
       >
         <header className="grid shrink-0 grid-cols-1 gap-3 border-b border-zinc-100 px-3 pb-3 pt-[max(0.5rem,env(safe-area-inset-top,0px))] sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:gap-x-4 sm:px-5 sm:py-4">
           <div className="min-w-0">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{periodTitle}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{periodTitle}</p>
             <h3
               id="expense-overview-detail-title"
               className="mt-1 w-full max-w-none text-balance text-base font-semibold leading-snug text-zinc-900 [overflow-wrap:anywhere] sm:mt-0.5 sm:text-lg sm:leading-tight"
@@ -989,13 +989,13 @@ export function expenseTabPeriodOverviewBlock(opts: {
       className="rounded-lg border border-white bg-white p-2.5 text-left shadow-sm transition hover:bg-zinc-50/90 hover:ring-2 hover:ring-zinc-300/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400 sm:p-3"
       onClick={() => onOpenCard(card)}
     >
-      <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">{t(labelKey)}</p>
+      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{t(labelKey)}</p>
       {expenseOverviewCardAxisLine(card, t)}
       <p className={`mt-0.5 text-sm font-semibold tabular-nums tracking-tight sm:text-base ${valueClass}`}>
         {formatMoneyDash(value, t("personnel.dash"), locale, "TRY")}
       </p>
-      {hintKey ? <p className="mt-1 text-[10px] leading-snug text-zinc-500">{t(hintKey)}</p> : null}
-      <p className="mt-1.5 text-[9px] font-medium text-zinc-400">{t("branch.expensesCardTapForDetail")}</p>
+      {hintKey ? <p className="mt-1 text-xs leading-snug text-zinc-500">{t(hintKey)}</p> : null}
+      <p className="mt-1.5 text-xs font-medium text-zinc-400">{t("branch.expensesCardTapForDetail")}</p>
     </button>
   );
 
@@ -1036,7 +1036,7 @@ export function expenseTabPeriodOverviewBlock(opts: {
           className="rounded-lg border border-white bg-white p-2.5 text-left shadow-sm transition hover:bg-zinc-50/90 hover:ring-2 hover:ring-zinc-300/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400 sm:p-3"
           onClick={() => onOpenCard("topCategory")}
         >
-          <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
             {t("branch.expensesTabTopExpenseCategory")}
           </p>
           {expenseOverviewCardAxisLine("topCategory", t)}
@@ -1048,22 +1048,22 @@ export function expenseTabPeriodOverviewBlock(opts: {
           <p className="mt-1 text-sm font-semibold tabular-nums tracking-tight text-red-900/85 sm:text-base">
             {formatMoneyDash(ins.topExpenseAmount, t("personnel.dash"), locale, "TRY")}
           </p>
-          <p className="mt-1 text-[9px] font-medium text-zinc-400">{t("branch.expensesCardTapForDetail")}</p>
+          <p className="mt-1 text-xs font-medium text-zinc-400">{t("branch.expensesCardTapForDetail")}</p>
         </button>
         <button
           type="button"
           className="rounded-lg border border-white bg-white p-2.5 text-left shadow-sm transition hover:bg-zinc-50/90 hover:ring-2 hover:ring-zinc-300/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400 sm:p-3"
           onClick={() => onOpenCard("outCount")}
         >
-          <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-500">
+          <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
             {t("branch.expensesTabEconomicOutCount")}
           </p>
           {expenseOverviewCardAxisLine("outCount", t)}
           <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-base">
             {ins.economicOutTransactionCount}
           </p>
-          <p className="mt-1 text-[10px] leading-snug text-zinc-500">{t("branch.expensesTabEconomicOutCountHint")}</p>
-          <p className="mt-1 text-[9px] font-medium text-zinc-400">{t("branch.expensesCardTapForDetail")}</p>
+          <p className="mt-1 text-xs leading-snug text-zinc-500">{t("branch.expensesTabEconomicOutCountHint")}</p>
+          <p className="mt-1 text-xs font-medium text-zinc-400">{t("branch.expensesCardTapForDetail")}</p>
         </button>
       </div>
     </div>
@@ -1084,7 +1084,7 @@ export function listSummaryPatronCashLine(
 ): ReactNode {
   if (!patron || !patronIncomeToPatronVisible(patron) || Math.abs(patron.cash) <= 0.005) return null;
   return (
-    <div className="mt-2 flex justify-between gap-2 border-t border-slate-200/90 pt-2 text-[10px] text-zinc-600">
+    <div className="mt-2 flex justify-between gap-2 border-t border-slate-200/90 pt-2 text-xs text-zinc-600">
       <span className="min-w-0">{t("branch.incomeListPatronTransferredCash")}</span>
       <span className="shrink-0 tabular-nums font-medium text-zinc-800">
         {formatMoneyDash(patron.cash, t("personnel.dash"), locale, "TRY")}
@@ -1100,7 +1100,7 @@ export function listSummaryPatronCardLine(
 ): ReactNode {
   if (!patron || !patronIncomeToPatronVisible(patron) || Math.abs(patron.card) <= 0.005) return null;
   return (
-    <div className="mt-2 flex justify-between gap-2 border-t border-slate-200/90 pt-2 text-[10px] text-zinc-600">
+    <div className="mt-2 flex justify-between gap-2 border-t border-slate-200/90 pt-2 text-xs text-zinc-600">
       <span className="min-w-0">{t("branch.incomeListPatronTransferredCard")}</span>
       <span className="shrink-0 tabular-nums font-medium text-zinc-800">
         {formatMoneyDash(patron.card, t("personnel.dash"), locale, "TRY")}
@@ -1116,7 +1116,7 @@ export function listSummaryPatronTotalLine(
 ): ReactNode {
   if (!patron || !patronIncomeToPatronVisible(patron) || Math.abs(patron.total) <= 0.005) return null;
   return (
-    <div className="mt-2 flex justify-between gap-2 border-t border-slate-200/90 pt-2 text-[10px] text-zinc-600">
+    <div className="mt-2 flex justify-between gap-2 border-t border-slate-200/90 pt-2 text-xs text-zinc-600">
       <span className="min-w-0">{t("branch.incomeListPatronTransferredTotal")}</span>
       <span className="shrink-0 tabular-nums font-medium text-zinc-800">
         {formatMoneyDash(patron.total, t("personnel.dash"), locale, "TRY")}
@@ -1127,7 +1127,7 @@ export function listSummaryPatronTotalLine(
 
 export function listSummaryPosPatronHint(t: (key: string) => string): ReactNode {
   return (
-    <p className="mt-2 border-t border-slate-200/90 pt-2 text-[10px] leading-snug text-zinc-600">
+    <p className="mt-2 border-t border-slate-200/90 pt-2 text-xs leading-snug text-zinc-600">
       {t("branch.incomeListPosPatronHint")}
     </p>
   );
@@ -1140,7 +1140,7 @@ export function listSummaryPatronUnspecifiedNote(
 ): ReactNode {
   if (!patron || patron.unspecified <= 0.009) return null;
   return (
-    <p className="mt-2 text-[10px] text-amber-900/85">
+    <p className="mt-2 text-xs text-amber-900/85">
       {t("branch.patronFlowIncomeUnspecified")}:{" "}
       {formatMoneyDash(patron.unspecified, t("personnel.dash"), locale, "TRY")}
     </p>
@@ -1275,7 +1275,7 @@ export function PersonnelPocketRepayCta({
     <Button
       type="button"
       title={t("branch.personnelPayPocketDebtHint")}
-      className={cn("min-h-10", buttonClassName)}
+      className={cn("min-h-[44px] min-w-[44px]", buttonClassName)}
       onClick={() => onPay(personnelId, cur)}
     >
       {t("branch.personnelPayPocketDebt")}
@@ -1309,7 +1309,7 @@ export function BranchTxDeleteRow({
           <Button
             type="button"
             variant="secondary"
-            className="min-h-9 text-xs"
+            className="min-h-[44px] min-w-[44px] text-xs"
             disabled={busy}
             onClick={() => onSetPending(null)}
           >
@@ -1317,7 +1317,7 @@ export function BranchTxDeleteRow({
           </Button>
           <Button
             type="button"
-            className="min-h-9 bg-red-600 text-xs text-white hover:bg-red-700"
+            className="min-h-[44px] min-w-[44px] bg-red-600 text-xs text-white hover:bg-red-700"
             disabled={busy}
             onClick={() => void onConfirm(transactionId)}
           >
@@ -1408,7 +1408,7 @@ export function DashCard({
       {badge ? (
         <p
           className={cn(
-            "mb-1.5 text-[10px] font-bold uppercase tracking-wider",
+            "mb-1.5 text-xs font-bold uppercase tracking-wider",
             badgeTone
           )}
         >
@@ -1426,7 +1426,7 @@ export function DashCard({
         {value}
       </p>
       {hint ? (
-        <div className="mt-1.5 text-[11px] leading-snug text-zinc-500 [&_span]:text-inherit">{hint}</div>
+        <div className="mt-1.5 text-xs leading-snug text-zinc-500 [&_span]:text-inherit">{hint}</div>
       ) : null}
     </div>
   );

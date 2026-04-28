@@ -306,6 +306,8 @@ export const branch = {
     "Vergi matrahı, çalışma belgesi, tarım belgesi vb. PDF veya görsel yükleyebilirsiniz. Yükleme ve silme yetkili kullanıcılara açıktır; şubeyi görebilen herkes indirebilir.",
   documentsAdd: "Belge yükle",
   documentsEmpty: "Bu şube için henüz yüklenmiş belge yok.",
+  documentsView: "Görüntüle",
+  documentsShipmentNo: "Sevkiyat No",
   documentsOpen: "İndir",
   documentsUploadTitle: "Şube belgesi yükle",
   documentsKindLabel: "Belge türü",
@@ -652,6 +654,12 @@ export const branch = {
   txPersonnelExpenseBranchPick: "Şube seçin…",
   txPersonnelExpenseBranchHint:
     "Kasadan ödeme bu şubenin kasasına yazılır. Şubesi atanmamış personelde önce şubeyi seçin.",
+  txExpenseTargetBranchLabel: "Giderin yazılacağı şube",
+  txExpenseTargetBranchHintEditable:
+    "Bu kaydın hangi şube kasasına yazılacağını buradan seçin.",
+  txExpenseTargetBranchHintFixed:
+    "Bu kayıt sabit olarak bu şube kasasına yazılır.",
+  txExpenseTargetBranchUnknown: "Şube bulunamadı",
   txPersonnelExpensePaymentHintNoBranch:
     "Önce şubeyi seçin; ardından kasadan veya patronun karşılamasından birini işaretleyin.",
   txPersonnelExpensePaymentHintWithBranch:

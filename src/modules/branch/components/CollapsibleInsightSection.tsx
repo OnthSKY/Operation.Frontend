@@ -27,7 +27,7 @@ export function CollapsibleInsightSection({
       <h3 className="m-0 text-sm font-semibold text-zinc-900">
         <button
           type="button"
-          className="flex w-full min-h-11 touch-manipulation items-start justify-between gap-2 rounded-lg py-0.5 text-left outline-none ring-zinc-400 focus-visible:ring-2 sm:min-h-10"
+          className="flex w-full min-h-11 touch-manipulation items-start justify-between gap-2 rounded-lg py-0.5 text-left outline-none ring-zinc-400 focus-visible:ring-2 sm:min-h-[44px]"
           aria-expanded={open}
           aria-controls={panelId}
           onClick={() => setOpen((v) => !v)}

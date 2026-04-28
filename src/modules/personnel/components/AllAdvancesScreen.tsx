@@ -309,7 +309,7 @@ export function AllAdvancesScreen() {
                 columns={advanceColumns}
                 rows={data}
                 getRowKey={(row) => row.id}
-                tableClassName="min-w-[56rem]"
+                tableClassName="w-full min-w-0 lg:min-w-[56rem]"
               />
             }
           />
