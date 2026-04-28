@@ -94,6 +94,9 @@ export async function previewWarehouseTransferToBranch(input: {
   branchId: number;
   lines: TransferWarehouseToBranchLineInput[];
   movementDate: string;
+  transportedByPersonnelId: number;
+  sentByPersonnelId: number;
+  receivedByPersonnelId: number;
 }): Promise<TransferWarehouseToBranchPreviewResponse> {
   return apiRequest<TransferWarehouseToBranchPreviewResponse>("/warehouse/transfer-to-branch/preview", {
     method: "POST",
@@ -102,6 +105,9 @@ export async function previewWarehouseTransferToBranch(input: {
       branchId: input.branchId,
       lines: input.lines,
       movementDate: input.movementDate,
+      transportedByPersonnelId: input.transportedByPersonnelId,
+      sentByPersonnelId: input.sentByPersonnelId,
+      receivedByPersonnelId: input.receivedByPersonnelId,
     }),
   });
 }

@@ -516,7 +516,7 @@ export function WarehouseListDepoInModal({
             </section>
           ) : null}
 
-          <div className="sticky bottom-0 -mx-1 flex flex-col gap-2 border-t border-zinc-200/80 bg-white/95 px-1 pt-2 pb-0.5 backdrop-blur-sm sm:static sm:mx-0 sm:flex-row sm:flex-wrap sm:justify-end sm:border-0 sm:bg-transparent sm:px-0 sm:pt-1 sm:backdrop-blur-none">
+          <div className="flex flex-col gap-2 border-t border-zinc-200/80 pt-2 sm:flex-row sm:flex-wrap sm:justify-end sm:border-0 sm:pt-1">
             <Button
               type="button"
               variant="secondary"
@@ -761,6 +761,9 @@ export function WarehouseListTransferModal({
           branchId: b,
           lines: parsed,
           movementDate,
+          transportedByPersonnelId: transportedBy,
+          sentByPersonnelId: sentBy,
+          receivedByPersonnelId: trManualReceiverEnabled ? sentBy : receivedBy,
         });
         setPreviewToken(preview.allocationToken);
         setPreviewAllocations(preview.allocations);

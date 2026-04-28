@@ -82,6 +82,9 @@ type TransferPreviewInput = {
   branchId: number;
   lines: { productId: number; quantity: number }[];
   movementDate: string;
+  transportedByPersonnelId: number;
+  sentByPersonnelId: number;
+  receivedByPersonnelId: number;
 };
 
 type TransferPreviewResult = {
@@ -341,6 +344,9 @@ export function WarehouseStockLine({
           branchId: b,
           lines: [{ productId: row.productId, quantity: n }],
           movementDate,
+          transportedByPersonnelId: transportedBy,
+          sentByPersonnelId: sentBy,
+          receivedByPersonnelId: trManualReceiverEnabled ? sentBy : receivedBy,
         });
         setPreviewToken(preview.allocationToken);
         setPreviewAllocations(preview.allocations);
