@@ -202,6 +202,39 @@ export function PersonnelManagementSnapshotSection({
       ),
     [snap?.cashHandoverPoolRemainingByBranch]
   );
+  const handoverPoolCurrencyRows = useMemo(() => {
+    const byCurrency = new Map<
+      string,
+      { totalRemainingHandover: number; actionBranchId: number; branchCount: number }
+    >();
+    for (const row of handoverPoolRows) {
+      const ccy = (row.currencyCode ?? "").trim().toUpperCase();
+      if (!ccy) continue;
+      const amount = Number(row.totalRemainingHandover) || 0;
+      if (amount <= 0.009) continue;
+      const current = byCurrency.get(ccy);
+      if (current == null) {
+        byCurrency.set(ccy, {
+          totalRemainingHandover: amount,
+          actionBranchId: row.branchId,
+          branchCount: 1,
+        });
+        continue;
+      }
+      current.totalRemainingHandover += amount;
+      current.branchCount += 1;
+      if (
+        personnel.branchId != null &&
+        personnel.branchId > 0 &&
+        row.branchId === personnel.branchId
+      ) {
+        current.actionBranchId = row.branchId;
+      }
+    }
+    return [...byCurrency.entries()]
+      .map(([currencyCode, row]) => ({ currencyCode, ...row }))
+      .sort((a, b) => a.currencyCode.localeCompare(b.currencyCode));
+  }, [handoverPoolRows, personnel.branchId]);
   useEffect(() => {
     setHovPage(1);
     setOutPage(1);
@@ -315,10 +348,7 @@ export function PersonnelManagementSnapshotSection({
     return `${t("personnel.detailMgmtTileCashHandoverHint")} · ${String(snap.currentCalendarYear)}: ${ytd} · ${t("personnel.detailProfileCashHandoverCount").replace("{n}", String(snap.cashHandoverResponsibleRecordCount))}`;
   }, [handoverRow, snap, dash, locale, t]);
 
-  /**
-   * Büyük kutu: patrona ödeme tek şube + o şubenin IN satırlarıyla sınırlı olduğundan,
-   * öncelikle personel kartındaki atanan şubenin kalanı gösterilir (tüm şubeler toplamı değil).
-   */
+  /** Büyük kutu: personelin bağlı tüm şubelerindeki kasa devir kalanlarının genel toplamı. */
   const handoverPoolHeroMetrics = useMemo(() => {
     if (!snap) {
       return {
@@ -338,26 +368,14 @@ export function PersonnelManagementSnapshotSection({
       (s, r) => s + (Number(r.totalRemainingHandover) || 0),
       0
     );
-    const bid =
-      personnel.branchId != null && personnel.branchId > 0 ? personnel.branchId : null;
-    let heroValue = 0;
-    if (rows.length === 0) {
-      heroValue = 0;
-    } else if (bid != null) {
-      const m = rows.find((r) => r.branchId === bid);
-      heroValue = m ? Number(m.totalRemainingHandover) || 0 : 0;
-    } else if (rows.length === 1) {
-      heroValue = Number(rows[0]?.totalRemainingHandover) || 0;
-    } else {
-      heroValue = totalAllBranches;
-    }
+    const heroValue = totalAllBranches;
     return {
       heroValue,
       ccy,
       totalAllBranches,
       branchCount: rows.length,
     };
-  }, [snap, handoverRow, primary, personnel.branchId]);
+  }, [snap, handoverRow, primary]);
 
   const handoverSubTabHeroHint = useMemo(() => {
     if (!handoverRow || !snap) return "";
@@ -370,12 +388,7 @@ export function PersonnelManagementSnapshotSection({
     const grossLine = t("personnel.detailMgmtHandoverSubTabHintGross").replace("{gross}", gross);
     let out = `${grossLine} · ${handoverHint}`;
     const { heroValue, totalAllBranches, branchCount, ccy } = handoverPoolHeroMetrics;
-    if (
-      branchCount > 1 &&
-      totalAllBranches > heroValue + 0.009 &&
-      personnel.branchId != null &&
-      personnel.branchId > 0
-    ) {
+    if (branchCount > 1) {
       const totalLabel = formatMoneyDash(totalAllBranches, dash, locale, ccy);
       out = `${out} · ${t("personnel.detailMgmtHandoverHeroAllBranchesFootnote").replace("{amount}", totalLabel)}`;
     }
@@ -385,7 +398,6 @@ export function PersonnelManagementSnapshotSection({
     snap,
     handoverHint,
     handoverPoolHeroMetrics,
-    personnel.branchId,
     dash,
     locale,
     t,
@@ -706,13 +718,7 @@ export function PersonnelManagementSnapshotSection({
               ) : null}
               {handoverRow ? (
                 <MetricTile
-                  label={
-                    handoverPoolHeroMetrics.branchCount > 1 &&
-                    personnel.branchId != null &&
-                    personnel.branchId > 0
-                      ? t("personnel.detailMgmtHandoverHeroRemainingAssignedBranch")
-                      : t("personnel.detailMgmtHandoverSubTabHeroRemaining")
-                  }
+                  label={t("personnel.detailMgmtHandoverSubTabHeroRemaining")}
                   value={formatMoneyDash(
                     handoverPoolHeroMetrics.heroValue,
                     dash,
@@ -822,32 +828,29 @@ export function PersonnelManagementSnapshotSection({
                     ) : null}
                   </div>
 
-                {handoverActionsEnabled && handoverPoolRows.length > 0 ? (
+                {handoverActionsEnabled && handoverPoolCurrencyRows.length > 0 ? (
                   <div className="mt-3 space-y-2 rounded-lg border border-sky-300/50 bg-white/60 p-3">
                     <p className="text-xs font-semibold uppercase tracking-wide text-sky-950/90">
                       {t("personnel.detailMgmtHandoverPoolTitle")}
                     </p>
                     <ul className="space-y-2">
-                      {handoverPoolRows.map((r) => {
-                        const bname =
-                          r.branchName?.trim() ||
-                          branchNameById?.get(r.branchId) ||
-                          `#${r.branchId}`;
+                      {handoverPoolCurrencyRows.map((r) => {
                         const ctx = {
-                          branchId: r.branchId,
+                          branchId: r.actionBranchId,
                           currencyCode: r.currencyCode,
                           suggestedAmount: r.totalRemainingHandover,
                         };
                         return (
                           <li
-                            key={`${r.branchId}-${r.currencyCode}`}
+                            key={r.currencyCode}
                             className="flex flex-col gap-2 rounded-md border border-sky-200/70 bg-white/90 p-2.5 sm:flex-row sm:items-center sm:justify-between"
                           >
                             <div className="min-w-0 text-sm">
-                              <span className="font-medium text-zinc-900">{bname}</span>
+                              <span className="font-medium text-zinc-900">
+                                {t("personnel.detailMgmtHandoverPoolRemainingLabel")}
+                              </span>
                               <span className="text-zinc-600"> · {r.currencyCode}</span>
                               <div className="mt-0.5 font-mono text-sm font-semibold text-zinc-900">
-                                {t("personnel.detailMgmtHandoverPoolRemainingLabel")}:{" "}
                                 {formatMoneyDash(
                                   r.totalRemainingHandover,
                                   dash,
@@ -855,6 +858,19 @@ export function PersonnelManagementSnapshotSection({
                                   r.currencyCode
                                 )}
                               </div>
+                              {r.branchCount > 1 ? (
+                                <div className="mt-0.5 text-xs text-zinc-600">
+                                  {t("personnel.detailMgmtHandoverHeroAllBranchesFootnote").replace(
+                                    "{amount}",
+                                    formatMoneyDash(
+                                      r.totalRemainingHandover,
+                                      dash,
+                                      locale,
+                                      r.currencyCode
+                                    )
+                                  )}
+                                </div>
+                              ) : null}
                             </div>
                             <div className="flex flex-wrap gap-2 max-md:w-full">
                               <Button
