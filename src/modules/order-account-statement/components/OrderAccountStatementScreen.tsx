@@ -2347,7 +2347,7 @@ export function OrderAccountStatementScreen() {
     }
     setApplyBranchOpenBalanceBusy(true);
     const amount = branchOpenAmountById.get(branchId);
-    if (!Number.isFinite(amount)) {
+    if (amount == null || !Number.isFinite(amount)) {
       notify.error(t("reports.orderAccountStatementSystemBranchBalanceMissing"));
       setApplyBranchOpenBalanceBusy(false);
       return;

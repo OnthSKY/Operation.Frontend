@@ -1691,6 +1691,7 @@ export function WarehouseDetailMovementHistoryTab({
       <Modal
         open={appendLineOpen && selectedDetailGroup != null && canManageWholeOutboundShipment}
         onClose={() => setAppendLineOpen(false)}
+        titleId="warehouse-transfer-add-line-title"
         title={t("warehouse.transferAddLine")}
         closeButtonLabel={t("common.close")}
       >
