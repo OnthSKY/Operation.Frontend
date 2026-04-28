@@ -8,6 +8,7 @@ import {
 } from "@/modules/branch/api/branch-documents-api";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import {
+  deleteCustomerAccount,
   deleteOutboundInvoice,
   fetchOutboundInvoices,
   fetchOutboundInvoiceReceipts,
@@ -22,6 +23,8 @@ import {
 } from "@/modules/admin/api/system-branding-api";
 import { downloadCounterpartyInvoiceStylePdf } from "@/modules/order-account-statement/lib/download-counterparty-invoice-style-pdf";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { notify } from "@/shared/lib/notify";
+import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { currencySelectOptions } from "@/shared/lib/currency-select-options";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
@@ -257,31 +260,72 @@ export function CounterpartySummaryReportScreen() {
     async (row: CounterpartySuggestionRow) => {
       if (row.counterpartyType !== "branch" || !row.lastDocumentNumber) return;
       const key = `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`;
-      const confirmed = window.confirm(
-        t("reports.counterpartySummaryDeleteConfirm") ||
-          "Bu fatura, bağlı cari kaydı ve PDF kaydı soft-delete edilecek. Devam edilsin mi?"
-      );
-      if (!confirmed) return;
-      setPdfBusyKey(key);
-      setErrorText("");
-      try {
-        const { invoice, document } = await resolveBranchInvoiceArtifacts(row);
-        if (!invoice) {
-          setErrorText(t("reports.counterpartySummaryDeleteInvoiceNotFound"));
-          return;
-        }
-        if (document) {
-          await deleteBranchDocument(row.counterpartyId, document.id);
-        }
-        await deleteOutboundInvoice(invoice.id);
-        await load(filters);
-      } catch (error) {
-        setErrorText(toErrorMessage(error));
-      } finally {
-        setPdfBusyKey("");
-      }
+      notifyConfirmToast({
+        toastId: `counterparty-delete-invoice-${key}`,
+        title: t("reports.counterpartySummaryDeleteInvoice"),
+        message:
+          t("reports.counterpartySummaryDeleteConfirm") ||
+          "Bu fatura, bağlı cari kaydı ve PDF kaydı soft-delete edilecek. Devam edilsin mi?",
+        cancelLabel: t("common.cancel"),
+        confirmLabel: t("common.delete"),
+        onConfirm: async () => {
+          setPdfBusyKey(key);
+          setErrorText("");
+          try {
+            const { invoice, document } = await resolveBranchInvoiceArtifacts(row);
+            if (!invoice) {
+              const msg = t("reports.counterpartySummaryDeleteInvoiceNotFound");
+              setErrorText(msg);
+              notify.error(msg);
+              return;
+            }
+            if (document) {
+              await deleteBranchDocument(row.counterpartyId, document.id);
+            }
+            await deleteOutboundInvoice(invoice.id);
+            await load(filters);
+            notify.success(t("common.deleted"));
+          } catch (error) {
+            const msg = toErrorMessage(error);
+            setErrorText(msg);
+            notify.error(msg);
+          } finally {
+            setPdfBusyKey("");
+          }
+        },
+      });
     },
     [filters, load, resolveBranchInvoiceArtifacts, t]
+  );
+
+  const deleteCustomerCounterparty = useCallback(
+    async (row: CounterpartySuggestionRow) => {
+      if (row.counterpartyType !== "customer" || row.counterpartyId <= 0) return;
+      const key = `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`;
+      notifyConfirmToast({
+        toastId: `counterparty-delete-customer-${key}`,
+        title: "Cari hesabı sil",
+        message: `"${row.counterpartyName}" cari hesabı soft-delete yapılacak.`,
+        cancelLabel: t("common.cancel"),
+        confirmLabel: t("common.delete"),
+        onConfirm: async () => {
+          setPdfBusyKey(key);
+          setErrorText("");
+          try {
+            await deleteCustomerAccount(row.counterpartyId);
+            await load(filters);
+            notify.success(t("common.deleted"));
+          } catch (error) {
+            const msg = toErrorMessage(error);
+            setErrorText(msg);
+            notify.error(msg);
+          } finally {
+            setPdfBusyKey("");
+          }
+        },
+      });
+    },
+    [filters, load, t]
   );
 
   const downloadSummaryPdf = useCallback(async () => {
@@ -567,11 +611,15 @@ export function CounterpartySummaryReportScreen() {
                 className={detailOpenIconButtonClass}
                 aria-label={t("reports.counterpartySummaryDeleteInvoice")}
                 disabled={
-                  row.counterpartyType !== "branch" ||
-                  !row.lastDocumentNumber ||
+                  (row.counterpartyType === "branch" && !row.lastDocumentNumber) ||
+                  (row.counterpartyType !== "branch" && row.counterpartyType !== "customer") ||
                   pdfBusyKey === `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`
                 }
-                onClick={() => void deleteLastInvoiceWithPdf(row)}
+                onClick={() =>
+                  row.counterpartyType === "customer"
+                    ? void deleteCustomerCounterparty(row)
+                    : void deleteLastInvoiceWithPdf(row)
+                }
               >
                 <svg
                   aria-hidden
@@ -688,11 +736,15 @@ export function CounterpartySummaryReportScreen() {
                     className={detailOpenIconButtonClass}
                     aria-label={t("reports.counterpartySummaryDeleteInvoice")}
                     disabled={
-                      row.counterpartyType !== "branch" ||
-                      !row.lastDocumentNumber ||
+                      (row.counterpartyType === "branch" && !row.lastDocumentNumber) ||
+                      (row.counterpartyType !== "branch" && row.counterpartyType !== "customer") ||
                       pdfBusyKey === `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`
                     }
-                    onClick={() => void deleteLastInvoiceWithPdf(row)}
+                    onClick={() =>
+                      row.counterpartyType === "customer"
+                        ? void deleteCustomerCounterparty(row)
+                        : void deleteLastInvoiceWithPdf(row)
+                    }
                   >
                     <svg
                       aria-hidden

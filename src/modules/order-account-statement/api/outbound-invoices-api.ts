@@ -196,6 +196,10 @@ export async function fetchCounterpartySuggestions(): Promise<CounterpartySugges
   return apiRequest<CounterpartySuggestionRow[]>("/outbound-invoices/suggestions/counterparties");
 }
 
+export async function deleteCustomerAccount(customerAccountId: number): Promise<void> {
+  await apiRequest<null>(`/customer-accounts/${customerAccountId}`, { method: "DELETE" });
+}
+
 export async function fetchCounterpartySummaryReport(
   filters: CounterpartySummaryFilters = {}
 ): Promise<CounterpartySummaryReport> {

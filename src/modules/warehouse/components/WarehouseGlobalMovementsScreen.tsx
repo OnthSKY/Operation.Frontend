@@ -45,6 +45,20 @@ type ShipmentGroupSummary = {
   totalQuantity: number;
 };
 
+function shipmentOutboundBranchSummary(rows: WarehouseGlobalMovementRow[]): string | null {
+  const names = Array.from(
+    new Set(
+      rows
+        .filter((r) => r.type === "OUT")
+        .map((r) => (r.outDestinationBranchName ?? "").trim())
+        .filter((name) => name.length > 0)
+    )
+  );
+  if (names.length === 0) return null;
+  if (names.length === 1) return names[0] ?? null;
+  return `${names[0]} +${names.length - 1}`;
+}
+
 function parseShipmentMetadataFromNotes(notes: string | null | undefined): Record<string, string> {
   const text = String(notes ?? "");
   const parts = text
@@ -516,6 +530,7 @@ export function WarehouseGlobalMovementsScreen() {
               const batchCell = formatWarehouseShipmentDisplay(row.inBatchGroupId, row.id);
               const hasPdfActions = row.type === "OUT";
               const hasSystemPdf = hasSystemPdfByShipmentGroupKey.get(group.key) === true;
+              const outboundBranchSummary = shipmentOutboundBranchSummary(group.rows);
               return (
                 <details key={group.key} className="rounded-lg border border-zinc-200 bg-white p-3">
                   <summary className="cursor-pointer list-none">
@@ -527,6 +542,11 @@ export function WarehouseGlobalMovementsScreen() {
                         <p className="text-xs text-zinc-600">
                           {t("warehouse.movementBatchGroup")}: {batchCell.text} · {t("warehouse.globalShipmentLineCount").replace("{count}", String(group.lineCount))}
                         </p>
+                        {row.type === "OUT" ? (
+                          <p className="text-xs text-zinc-600">
+                            {t("warehouse.movementOutBranch")}: {outboundBranchSummary || "—"}
+                          </p>
+                        ) : null}
                       </div>
                       <span
                         className={cn(
