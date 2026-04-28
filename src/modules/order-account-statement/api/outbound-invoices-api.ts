@@ -9,6 +9,7 @@ export type OutboundInvoicePaymentInfoRequest = {
 };
 
 export type OutboundInvoiceLineRequest = {
+  productId?: number | null;
   description: string;
   quantity: number;
   unit?: string | null;
@@ -117,6 +118,31 @@ export type CounterpartySummaryReport = {
   totals: CounterpartySummaryTotals;
 };
 
+export type SalesPriceSuggestion = {
+  suggestedUnitPrice: number;
+  avgUnitPrice: number;
+  lastUnitPrice: number;
+  sampleCount: number;
+  basis: "counterparty_90d" | "counterparty_all" | "product_global" | string;
+  currencyCode: string;
+};
+
+export type SalesPriceHistoryRow = {
+  id: number;
+  productId: number;
+  productName: string;
+  counterpartyType: "branch" | "customer";
+  counterpartyId: number;
+  counterpartyName: string;
+  currencyCode: string;
+  unit?: string | null;
+  unitPrice: number;
+  issueDate: string;
+  sourceOutboundInvoiceId?: number | null;
+  sourceOutboundInvoiceLineId?: number | null;
+  createdAt: string;
+};
+
 export async function createOutboundInvoice(input: CreateOutboundInvoiceRequest): Promise<OutboundInvoiceResponse> {
   return apiRequest<OutboundInvoiceResponse>("/outbound-invoices", {
     method: "POST",
@@ -190,4 +216,45 @@ export async function fetchCounterpartySummaryReport(
   return apiRequest<CounterpartySummaryReport>(
     `/outbound-invoices/reports/counterparty-summary?${params.toString()}`
   );
+}
+
+export async function fetchSalesPriceSuggestion(params: {
+  productId: number;
+  counterpartyType: "branch" | "customer";
+  counterpartyId: number;
+  currencyCode?: string;
+  lookbackDays?: number;
+}): Promise<SalesPriceSuggestion | null> {
+  const q = new URLSearchParams({
+    productId: String(params.productId),
+    counterpartyType: params.counterpartyType,
+    counterpartyId: String(params.counterpartyId),
+    currencyCode: (params.currencyCode ?? "TRY").trim().toUpperCase(),
+    lookbackDays: String(Math.max(1, params.lookbackDays ?? 90)),
+  });
+  return apiRequest<SalesPriceSuggestion | null>(`/outbound-invoices/price-suggestions?${q.toString()}`);
+}
+
+export async function fetchSalesPriceHistory(params: {
+  productId?: number | null;
+  counterpartyType?: "branch" | "customer" | "";
+  counterpartyId?: number | null;
+  currencyCode?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  limit?: number;
+}): Promise<SalesPriceHistoryRow[]> {
+  const q = new URLSearchParams();
+  if (params.productId != null && params.productId > 0) q.set("productId", String(params.productId));
+  if (params.counterpartyType === "branch" || params.counterpartyType === "customer") {
+    q.set("counterpartyType", params.counterpartyType);
+  }
+  if (params.counterpartyId != null && params.counterpartyId > 0) {
+    q.set("counterpartyId", String(params.counterpartyId));
+  }
+  if ((params.currencyCode ?? "").trim()) q.set("currencyCode", params.currencyCode!.trim().toUpperCase());
+  if ((params.dateFrom ?? "").length === 10) q.set("dateFrom", params.dateFrom!);
+  if ((params.dateTo ?? "").length === 10) q.set("dateTo", params.dateTo!);
+  q.set("limit", String(Math.max(1, Math.min(1000, params.limit ?? 200))));
+  return apiRequest<SalesPriceHistoryRow[]>(`/outbound-invoices/price-history?${q.toString()}`);
 }

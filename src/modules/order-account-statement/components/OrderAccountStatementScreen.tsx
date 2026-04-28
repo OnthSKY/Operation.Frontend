@@ -24,9 +24,13 @@ import {
   createShipmentInvoice,
   createOutboundInvoice,
   fetchCounterpartySuggestions,
+  fetchSalesPriceHistory,
+  fetchSalesPriceSuggestion,
   fetchShipmentInvoiceability,
   type CounterpartySuggestionRow,
   type OutboundInvoiceResponse,
+  type SalesPriceHistoryRow,
+  type SalesPriceSuggestion,
   type ShipmentInvoiceabilityLine,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
 import { OrderAccountStatementActionsSection } from "@/modules/order-account-statement/components/OrderAccountStatementActionsSection";
@@ -1866,6 +1870,13 @@ export function OrderAccountStatementScreen() {
   const [lastCreatedInvoiceNo, setLastCreatedInvoiceNo] = useState("");
   const [suggestions, setSuggestions] = useState<CounterpartySuggestionRow[]>([]);
   const [suggestionsBusy, setSuggestionsBusy] = useState(false);
+  const [linePriceSuggestionByLineId, setLinePriceSuggestionByLineId] = useState<
+    Record<string, SalesPriceSuggestion | undefined>
+  >({});
+  const [priceHistoryOpen, setPriceHistoryOpen] = useState(false);
+  const [priceHistoryRows, setPriceHistoryRows] = useState<SalesPriceHistoryRow[]>([]);
+  const [priceHistoryBusy, setPriceHistoryBusy] = useState(false);
+  const [priceHistoryTitle, setPriceHistoryTitle] = useState("");
   const [applyBranchOpenBalanceBusy, setApplyBranchOpenBalanceBusy] = useState(false);
   const [emblemDataUrl, setEmblemDataUrl] = useState("");
   const [defaultEmblemDataUrl, setDefaultEmblemDataUrl] = useState("");
@@ -2509,6 +2520,77 @@ export function OrderAccountStatementScreen() {
       };
     });
   }, [catalogOptions, latestCostByProductId, locale, t]);
+  const activeCounterparty = useMemo(() => {
+    const branchId = Number.parseInt(linkedBranchId, 10);
+    if (Number.isFinite(branchId) && branchId > 0) {
+      return { counterpartyType: "branch" as const, counterpartyId: branchId };
+    }
+    const customerId = Number.parseInt(customerAccountIdText, 10);
+    if (Number.isFinite(customerId) && customerId > 0) {
+      return { counterpartyType: "customer" as const, counterpartyId: customerId };
+    }
+    return null;
+  }, [linkedBranchId, customerAccountIdText]);
+  const loadSalesSuggestionForLine = useCallback(
+    async (lineId: string, productId: number, applyIfEmpty = true) => {
+      if (!activeCounterparty || !Number.isFinite(productId) || productId <= 0) return;
+      try {
+        const suggestion = await fetchSalesPriceSuggestion({
+          productId,
+          counterpartyType: activeCounterparty.counterpartyType,
+          counterpartyId: activeCounterparty.counterpartyId,
+          currencyCode: "TRY",
+          lookbackDays: 90,
+        });
+        setLinePriceSuggestionByLineId((prev) => ({ ...prev, [lineId]: suggestion ?? undefined }));
+        if (!suggestion || !applyIfEmpty) return;
+        const normalizedSuggested = formatLocaleAmountInput(
+          Math.max(0, Number(suggestion.suggestedUnitPrice) || 0),
+          locale
+        );
+        setLines((prev) =>
+          prev.map((line) => {
+            if (line.id !== lineId) return line;
+            const current = (line.unitPriceText ?? "").trim();
+            if (current.length > 0) return line;
+            return {
+              ...line,
+              unitPriceText: normalizedSuggested,
+              tryPerKgText: line.priceCalcMode === "kg" ? normalizedSuggested : line.tryPerKgText,
+            };
+          })
+        );
+      } catch {
+        setLinePriceSuggestionByLineId((prev) => ({ ...prev, [lineId]: undefined }));
+      }
+    },
+    [activeCounterparty, locale]
+  );
+  const openPriceHistoryForLine = useCallback(
+    async (line: LineDraft) => {
+      const productId = line.selectedProductId ?? 0;
+      if (productId <= 0 || !activeCounterparty) return;
+      setPriceHistoryOpen(true);
+      setPriceHistoryBusy(true);
+      setPriceHistoryRows([]);
+      setPriceHistoryTitle(line.description?.trim() || t("reports.orderAccountStatementPickProduct"));
+      try {
+        const rows = await fetchSalesPriceHistory({
+          productId,
+          counterpartyType: activeCounterparty.counterpartyType,
+          counterpartyId: activeCounterparty.counterpartyId,
+          currencyCode: "TRY",
+          limit: 50,
+        });
+        setPriceHistoryRows(rows);
+      } catch (e) {
+        notify.error(toErrorMessage(e));
+      } finally {
+        setPriceHistoryBusy(false);
+      }
+    },
+    [activeCounterparty, t]
+  );
   const applyCatalogProductToLine = useCallback(
     (lineId: string, productIdRaw: string) => {
       if (!productIdRaw) return;
@@ -2539,8 +2621,9 @@ export function OrderAccountStatementScreen() {
           };
         })
       );
+      void loadSalesSuggestionForLine(lineId, productId, true);
     },
-    [catalog, latestCostByProductId, locale]
+    [catalog, latestCostByProductId, locale, loadSalesSuggestionForLine]
   );
   const collapseLinesToParentProduct = useCallback(() => {
     const productById = new Map(catalog.map((p) => [p.id, p] as const));
@@ -2988,12 +3071,13 @@ export function OrderAccountStatementScreen() {
           setStepState("invoice", "pending");
           return;
         }
-        const invalidLineCount = parsedLines.filter(
+        const invalidLineCount = lines.filter(
           (l) => l.description.trim().length === 0 || !Number.isFinite(l.amount) || l.amount <= 0
         ).length;
-        const payloadLines = parsedLines
+        const payloadLines = lines
           .filter((l) => l.description.trim().length > 0 && Number.isFinite(l.amount) && l.amount > 0)
           .map((l) => ({
+            productId: l.selectedProductId ?? null,
             description: l.description.trim(),
             quantity: Math.max(1, parseLocaleAmount((l.quantityText ?? "").trim(), locale) || 1),
             unit: (l.unitText ?? "").trim() || null,
@@ -3007,7 +3091,7 @@ export function OrderAccountStatementScreen() {
           notify.error(
             t("reports.orderAccountStatementInvoiceLinesRequiredDetailed").replace(
               "{invalidCount}",
-              String(invalidLineCount || parsedLines.length)
+              String(invalidLineCount || lines.length)
             )
           );
           setStepState("invoice", "pending");
@@ -3846,21 +3930,68 @@ export function OrderAccountStatementScreen() {
                   {line.selectedProductId ? (
                     (() => {
                       const cost = latestCostByProductId.get(line.selectedProductId);
+                      const priceSuggestion = linePriceSuggestionByLineId[line.id];
                       if (!cost) {
                         return (
-                          <p className="mt-1 text-[11px] text-zinc-500">
-                            {t("reports.orderAccountStatementCostSuggestionMissing")}
-                          </p>
+                          <div className="mt-1 flex flex-col gap-1">
+                            <p className="text-[11px] text-zinc-500">
+                              {t("reports.orderAccountStatementCostSuggestionMissing")}
+                            </p>
+                            {priceSuggestion ? (
+                              <p className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] text-blue-800">
+                                Satış önerisi:{" "}
+                                {formatLocaleAmount(
+                                  Number(priceSuggestion.suggestedUnitPrice || 0),
+                                  locale,
+                                  priceSuggestion.currencyCode
+                                )}{" "}
+                                ({priceSuggestion.basis}, n={priceSuggestion.sampleCount})
+                              </p>
+                            ) : null}
+                            <div>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                className="min-h-8 px-2 py-1 text-[11px]"
+                                onClick={() => void openPriceHistoryForLine(line)}
+                              >
+                                Fiyat geçmişi
+                              </Button>
+                            </div>
+                          </div>
                         );
                       }
                       return (
-                        <p className="mt-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] text-emerald-800">
-                          {t("reports.orderAccountStatementSuggestedCostShort")}:{" "}
-                          {formatLocaleAmount(Number(cost.unitCostExcludingVat || 0), locale, cost.currencyCode)}
-                          {" · "}
-                          {t("reports.orderAccountStatementCostIncVatShort")}:{" "}
-                          {formatLocaleAmount(Number(cost.unitCostIncludingVat || 0), locale, cost.currencyCode)}
-                        </p>
+                        <div className="mt-1 flex flex-col gap-1">
+                          <p className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] text-emerald-800">
+                            {t("reports.orderAccountStatementSuggestedCostShort")}:{" "}
+                            {formatLocaleAmount(Number(cost.unitCostExcludingVat || 0), locale, cost.currencyCode)}
+                            {" · "}
+                            {t("reports.orderAccountStatementCostIncVatShort")}:{" "}
+                            {formatLocaleAmount(Number(cost.unitCostIncludingVat || 0), locale, cost.currencyCode)}
+                          </p>
+                          {priceSuggestion ? (
+                            <p className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] text-blue-800">
+                              Satış önerisi:{" "}
+                              {formatLocaleAmount(
+                                Number(priceSuggestion.suggestedUnitPrice || 0),
+                                locale,
+                                priceSuggestion.currencyCode
+                              )}{" "}
+                              ({priceSuggestion.basis}, n={priceSuggestion.sampleCount})
+                            </p>
+                          ) : null}
+                          <div>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="min-h-8 px-2 py-1 text-[11px]"
+                              onClick={() => void openPriceHistoryForLine(line)}
+                            >
+                              Fiyat geçmişi
+                            </Button>
+                          </div>
+                        </div>
                       );
                     })()
                   ) : null}
@@ -4953,6 +5084,51 @@ export function OrderAccountStatementScreen() {
               {multiActionRunning ? t("reports.orderAccountStatementProgressRunning") : t("common.close")}
             </Button>
           </div>
+        </div>
+      </Modal>
+      <Modal
+        open={priceHistoryOpen}
+        onClose={() => setPriceHistoryOpen(false)}
+        titleId="order-account-price-history-title"
+        title={`Fiyat geçmişi · ${priceHistoryTitle || "Ürün"}`}
+        closeButtonLabel={t("common.close")}
+        className="w-full max-w-3xl"
+      >
+        <div className="mt-2">
+          {priceHistoryBusy ? (
+            <p className="text-sm text-zinc-600">{t("common.loading")}</p>
+          ) : priceHistoryRows.length === 0 ? (
+            <p className="text-sm text-zinc-500">Kayıt bulunamadı.</p>
+          ) : (
+            <div className="max-h-[60vh] overflow-auto rounded-md border border-zinc-200">
+              <table className="w-full min-w-[680px] border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-zinc-200 bg-zinc-50 text-zinc-700">
+                    <th className="px-2 py-2 text-left">Tarih</th>
+                    <th className="px-2 py-2 text-left">Cari</th>
+                    <th className="px-2 py-2 text-right">Birim fiyat</th>
+                    <th className="px-2 py-2 text-left">Birim</th>
+                    <th className="px-2 py-2 text-left">Kaynak fatura</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {priceHistoryRows.map((row) => (
+                    <tr key={row.id} className="border-b border-zinc-100 text-zinc-800 last:border-0">
+                      <td className="px-2 py-1.5">{row.issueDate}</td>
+                      <td className="px-2 py-1.5">{row.counterpartyName}</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">
+                        {formatLocaleAmount(Number(row.unitPrice || 0), locale, row.currencyCode)}
+                      </td>
+                      <td className="px-2 py-1.5">{row.unit || "—"}</td>
+                      <td className="px-2 py-1.5">
+                        {row.sourceOutboundInvoiceId ? `#${row.sourceOutboundInvoiceId}` : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </Modal>
     </div>
