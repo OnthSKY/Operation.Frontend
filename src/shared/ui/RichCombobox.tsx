@@ -17,6 +17,12 @@ type RichComboboxProps = {
   placeholder: string;
   searchPlaceholder: string;
   emptyText: string;
+  query?: string;
+  onQueryChange?: (value: string) => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
+  onReachEnd?: () => void;
+  loadingText?: string;
   disabled?: boolean;
   className?: string;
 };
@@ -28,18 +34,32 @@ export function RichCombobox({
   placeholder,
   searchPlaceholder,
   emptyText,
+  query,
+  onQueryChange,
+  hasMore = false,
+  isLoadingMore = false,
+  onReachEnd,
+  loadingText,
   disabled,
   className,
 }: RichComboboxProps) {
-  const [query, setQuery] = useState("");
+  const [internalQuery, setInternalQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const resolvedQuery = query ?? internalQuery;
+  const setResolvedQuery = (value: string) => {
+    if (onQueryChange) {
+      onQueryChange(value);
+      return;
+    }
+    setInternalQuery(value);
+  };
   const filtered = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase("tr-TR");
+    const q = resolvedQuery.trim().toLocaleLowerCase("tr-TR");
     if (!q) return options;
     return options.filter((opt) =>
       `${opt.title} ${opt.description ?? ""} ${opt.detail ?? ""}`.toLocaleLowerCase("tr-TR").includes(q)
     );
-  }, [options, query]);
+  }, [options, resolvedQuery]);
   const selected = useMemo(() => options.find((x) => x.value === value) ?? null, [options, value]);
 
   return (
@@ -64,14 +84,22 @@ export function RichCombobox({
         <div className="absolute z-40 mt-1 w-full rounded-md border border-zinc-200 bg-white shadow-lg">
           <div className="border-b border-zinc-100 p-2">
             <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              value={resolvedQuery}
+              onChange={(e) => setResolvedQuery(e.target.value)}
               placeholder={searchPlaceholder}
               disabled={disabled}
               className="w-full rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-zinc-400"
             />
           </div>
-          <div className="max-h-[min(48vh,18rem)] overflow-y-auto">
+          <div
+            className="max-h-[min(48vh,18rem)] overflow-y-auto"
+            onScroll={(e) => {
+              if (!onReachEnd || !hasMore || isLoadingMore) return;
+              const target = e.currentTarget;
+              const remaining = target.scrollHeight - target.scrollTop - target.clientHeight;
+              if (remaining <= 24) onReachEnd();
+            }}
+          >
             {filtered.length === 0 ? (
               <p className="px-3 py-2 text-xs text-zinc-500">{emptyText}</p>
             ) : (
@@ -111,6 +139,11 @@ export function RichCombobox({
                 })}
               </ul>
             )}
+            {isLoadingMore ? (
+              <p className="border-t border-zinc-100 px-3 py-2 text-xs text-zinc-500">
+                {loadingText ?? "Loading..."}
+              </p>
+            ) : null}
           </div>
         </div>
       ) : null}

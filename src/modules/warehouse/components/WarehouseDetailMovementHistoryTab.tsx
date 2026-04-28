@@ -20,7 +20,6 @@ import {
   useSoftDeleteWarehouseOutboundShipmentMovement,
   useUpdateWarehouseInboundMovement,
   useWarehousePeopleOptions,
-  useWarehouseStock,
 } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
@@ -31,8 +30,10 @@ import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
+import { RichCombobox, type RichComboboxOption } from "@/shared/ui/RichCombobox";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import { Tooltip } from "@/shared/ui/Tooltip";
+import { useProductsCatalogPaged } from "@/modules/products/hooks/useProductQueries";
 import type { WarehouseMovementItem, WarehouseMovementsPageParams } from "@/types/warehouse";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
@@ -41,7 +42,7 @@ import {
   warehouseMovementShipmentGroupKey,
 } from "@/shared/lib/in-batch-group-label";
 import { EyeIcon } from "@/shared/ui/EyeIcon";
-import { PencilIcon, PlusIcon, PaperclipIcon, detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
+import { PlusIcon, PaperclipIcon, detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { fetchWarehouseMovementsPage } from "@/modules/warehouse/api/warehouse-stock-api";
 import { warehouseKeys } from "@/modules/warehouse/hooks/useWarehouseQueries";
@@ -161,6 +162,7 @@ function buildShipmentGroups(items: WarehouseMovementItem[]) {
 const GROUP_PAGE_SIZE = 10;
 const MOVEMENTS_FETCH_PAGE_SIZE = 200;
 const DRAWER_SELECT_Z = 280;
+const APPEND_PRODUCTS_PAGE_SIZE = 50;
 
 type Props = {
   warehouseId: number;
@@ -224,10 +226,14 @@ export function WarehouseDetailMovementHistoryTab({
   const appendOutboundLineM = useAppendWarehouseOutboundShipmentLine();
   const updateInboundM = useUpdateWarehouseInboundMovement();
   const { data: peopleRaw = [] } = useWarehousePeopleOptions(enabled);
-  const { data: stockRows = [] } = useWarehouseStock(enabled ? warehouseId : null, {});
   const [appendLineOpen, setAppendLineOpen] = useState(false);
   const [appendProductId, setAppendProductId] = useState("");
   const [appendQty, setAppendQty] = useState("1");
+  const [appendProductSearch, setAppendProductSearch] = useState("");
+  const [appendProductsPage, setAppendProductsPage] = useState(1);
+  const [appendProductCatalogRows, setAppendProductCatalogRows] = useState<
+    Array<{ id: number; name: string; parentProductName?: string | null; unit?: string | null }>
+  >([]);
 
   const confirmDeleteInboundFromRow = useCallback(
     (m: WarehouseMovementItem) => {
@@ -393,6 +399,9 @@ export function WarehouseDetailMovementHistoryTab({
     setAppendLineOpen(false);
     setAppendProductId("");
     setAppendQty("1");
+    setAppendProductSearch("");
+    setAppendProductsPage(1);
+    setAppendProductCatalogRows([]);
   }, [warehouseId]);
 
   useEffect(() => {
@@ -623,17 +632,19 @@ export function WarehouseDetailMovementHistoryTab({
     ],
     [peopleRaw, t]
   );
-  const appendProductOptions = useMemo<SelectOption[]>(
-    () => [
-      { value: "", label: t("warehouse.listQuickPickProduct") },
-      ...stockRows
-        .filter((r) => r.quantity > 0)
-        .map((r) => ({
-          value: String(r.productId),
-          label: `${r.parentProductName?.trim() && r.parentProductName?.trim() !== r.productName.trim() ? `${r.parentProductName} › ` : ""}${r.productName}${r.unit?.trim() ? ` (${r.unit.trim()})` : ""}`,
-        })),
-    ],
-    [stockRows, t]
+  const appendProductOptions = useMemo<RichComboboxOption[]>(
+    () =>
+      appendProductCatalogRows.map((r) => {
+        const parent = r.parentProductName?.trim();
+        const productName = r.name.trim();
+        const title = parent && parent !== productName ? `${parent} › ${productName}` : productName;
+        return {
+          value: String(r.id),
+          title,
+          description: r.unit?.trim() ? `(${r.unit.trim()})` : undefined,
+        };
+      }),
+    [appendProductCatalogRows]
   );
   const submitHeaderEdit = useCallback(async () => {
     if (!selectedDetailGroup || !canEditHeaderInfo) return;
@@ -811,6 +822,47 @@ export function WarehouseDetailMovementHistoryTab({
     setHeaderEditCheckedBy(findPersonnelId(first?.checkedByPersonnelName));
     setHeaderEditApprovedBy(findPersonnelId(first?.approvedByPersonnelName));
   }, [headerEditOpen, selectedDetailGroup, peopleRaw]);
+
+  const appendProductsEnabled = appendLineOpen && selectedDetailGroup != null && canManageWholeOutboundShipment;
+  const appendProductsPagedQ = useProductsCatalogPaged(
+    appendProductsPage,
+    APPEND_PRODUCTS_PAGE_SIZE,
+    appendProductSearch,
+    appendProductsEnabled
+  );
+
+  useEffect(() => {
+    if (!appendProductsEnabled) return;
+    setAppendProductsPage(1);
+    setAppendProductCatalogRows([]);
+  }, [appendProductsEnabled, appendProductSearch]);
+
+  useEffect(() => {
+    const data = appendProductsPagedQ.data;
+    if (!data || !appendProductsEnabled) return;
+    setAppendProductCatalogRows((prev) => {
+      const source = appendProductsPage === 1 ? [] : prev;
+      const map = new Map<number, { id: number; name: string; parentProductName?: string | null; unit?: string | null }>();
+      for (const row of source) map.set(row.id, row);
+      for (const item of data.items) {
+        if (item.id > 0) {
+          map.set(item.id, {
+            id: item.id,
+            name: item.name,
+            parentProductName: item.parentProductName,
+            unit: item.unit,
+          });
+        }
+      }
+      return Array.from(map.values());
+    });
+  }, [appendProductsPagedQ.data, appendProductsEnabled, appendProductsPage]);
+  const appendProductsTotalCount = appendProductsPagedQ.data?.totalCount ?? 0;
+  const appendCanLoadMore =
+    appendProductsEnabled &&
+    appendProductOptions.length < appendProductsTotalCount &&
+    !appendProductsPagedQ.isPending &&
+    !appendProductsPagedQ.isFetching;
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
@@ -1393,18 +1445,6 @@ export function WarehouseDetailMovementHistoryTab({
                             <PlusIcon className="h-5 w-5" />
                           </Button>
                         </Tooltip>
-                        <Tooltip content={t("warehouse.movementHistoryOpenLinesToEdit")} delayMs={200}>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className={detailOpenIconButtonClass}
-                            onClick={() => {
-                              setDetailsContentTab("LINES");
-                            }}
-                          >
-                            <PencilIcon className="h-5 w-5" />
-                          </Button>
-                        </Tooltip>
                         <Tooltip content={t("warehouse.editOutboundShipmentDeleteAction")} delayMs={200}>
                           <Button
                             type="button"
@@ -1696,16 +1736,29 @@ export function WarehouseDetailMovementHistoryTab({
         closeButtonLabel={t("common.close")}
       >
         <div className="mt-3 flex flex-col gap-3">
-          <Select
-            label={t("warehouse.movementProduct")}
-            labelRequired
-            name="wh-shipment-append-product"
-            options={appendProductOptions}
-            value={appendProductId}
-            onChange={(e) => setAppendProductId(e.target.value)}
-            onBlur={() => {}}
-            disabled={appendOutboundLineM.isPending}
-          />
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-zinc-800">
+              {t("warehouse.movementProduct")} <span className="text-red-600">*</span>
+            </p>
+            <RichCombobox
+              value={appendProductId}
+              onChange={setAppendProductId}
+              options={appendProductOptions}
+              query={appendProductSearch}
+              onQueryChange={setAppendProductSearch}
+              onReachEnd={() => {
+                if (!appendCanLoadMore) return;
+                setAppendProductsPage((p) => p + 1);
+              }}
+              hasMore={appendCanLoadMore}
+              isLoadingMore={appendProductsPagedQ.isFetching}
+              placeholder={t("warehouse.listQuickPickProduct")}
+              searchPlaceholder={t("products.searchPlaceholder")}
+              emptyText={t("products.empty")}
+              loadingText={t("common.loading")}
+              disabled={appendOutboundLineM.isPending}
+            />
+          </div>
           <Input
             label={t("warehouse.transferQty")}
             labelRequired
