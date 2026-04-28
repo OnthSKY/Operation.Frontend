@@ -26,7 +26,7 @@ export const common = {
   openDetailsDialog: "Opens the detail dialog",
   dateDisplayHint:
     "Dates in tables and lists use month/day/year (example: {{example}}).",
-  imageUploadTooLarge: "Image is too large (max 5 MB).",
+  imageUploadTooLarge: "Image is too large (max 8 MB).",
   imageUploadNotImage:
     "Only a real image file is allowed (JPEG, PNG, WebP, HEIC or AVIF). Declared type must match the file contents.",
   filters: "Filters",

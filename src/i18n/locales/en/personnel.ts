@@ -138,6 +138,8 @@ export const personnel = {
   settlementPrintFooterHint:
     "Use Print for your printer or Save as PDF from the print dialog. Download keeps an HTML copy on your device. Nothing is stored on the server.",
   settlementPrintSeasonTenureTitle: "Season tenure (arrival through today)",
+  settlementPrintSeasonWorkedDaysLine:
+    "Tourism season start: {arrival} · Total days worked this season: {days}.",
   settlementPrintSeasonTenureLine:
     "From season arrival {arrival} through {asOf}: {months} mo., {days} d.",
   settlementPrintSuggestedAccruedSalaryLabel: "Suggested accrual (from recorded monthly pay):",
@@ -557,9 +559,9 @@ export const personnel = {
   nationalIdCardGenerationNew: "New chip ID",
   nationalIdCardGenerationUnset: "Not specified",
   nationalIdPhotosPickHint:
-    "Optional: upload front and/or back after saving (JPEG/PNG/WebP, max 5 MB each).",
+    "Optional: upload front and/or back after saving (JPEG/PNG/WebP, max 8 MB each).",
   nationalIdPhotosEditPickHint:
-    "Replace front and/or back if needed (JPEG/PNG/WebP, max 5 MB each). Saving runs record update, then uploads any new files.",
+    "Replace front and/or back if needed (JPEG/PNG/WebP, max 8 MB each). Saving runs record update, then uploads any new files.",
   nationalIdPhotosFront: "Front",
   nationalIdPhotosBack: "Back",
   nationalIdPhotoUploaded: "Uploaded",
@@ -577,7 +579,7 @@ export const personnel = {
   nationalIdPhotosFileTooLarge: "Image exceeds the maximum upload size.",
   nationalIdPhotosUpload: "Save photos / card type",
   profilePhotosPickHint:
-    "Optional: up to two profile photos (JPEG/PNG/WebP, max 5 MB each). First photo is used as the avatar where shown.",
+    "Optional: up to two profile photos (JPEG/PNG/WebP, max 8 MB each). First photo is used as the avatar where shown.",
   profilePhotosEditPickHint:
     "Replace profile photo 1 and/or 2 if needed. Saving updates the record first, then uploads selected files.",
   profilePhotosSectionTitle: "Profile photos",
@@ -984,6 +986,8 @@ export const personnel = {
     "Net = total salary paid − total advances taken (non-deleted rows, active branches). Reconcile with official books.",
   detailMgmtTileTenure: "Tenure",
   detailMgmtTileTenureHint: "Hire date → today (days)",
+  detailMgmtTileTourismSeasonDays: "This season",
+  detailMgmtTileTourismSeasonDaysHint: "Days since tourism season arrival (inclusive)",
   detailMgmtTileAdvanceTotal: "Total advances",
   detailMgmtTileSalaryTotal: "Total salary paid",
   detailMgmtTileNetAll: "Net position",

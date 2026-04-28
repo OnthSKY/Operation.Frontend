@@ -141,6 +141,8 @@ export const personnel = {
   settlementPrintFooterHint:
     "Yazdır ile yazıcı veya yazdır penceresinden PDF olarak kaydet. İndir ile cihazınıza HTML kopyası alınır. Sunucuya dosya kaydedilmez.",
   settlementPrintSeasonTenureTitle: "Sezon süresi (gelişten bugüne)",
+  settlementPrintSeasonWorkedDaysLine:
+    "Turizm sezonuna başlangıç: {arrival} · Bu sezonda toplam çalışma süresi: {days} gün.",
   settlementPrintSeasonTenureLine:
     "Turizm sezonuna geliş {arrival} — {asOf} arası: {months} ay {days} gün.",
   settlementPrintSuggestedAccruedSalaryLabel: "Öneri — hak ediş (kayıtlı aylık üzerinden):",
@@ -567,9 +569,9 @@ export const personnel = {
   nationalIdCardGenerationNew: "Yeni çipli kimlik",
   nationalIdCardGenerationUnset: "Belirtilmedi",
   nationalIdPhotosPickHint:
-    "İsteğe bağlı: kaydettikten sonra ön ve/veya arka yüz (JPEG/PNG/WebP, dosya başına en fazla 5 MB).",
+    "İsteğe bağlı: kaydettikten sonra ön ve/veya arka yüz (JPEG/PNG/WebP, dosya başına en fazla 8 MB).",
   nationalIdPhotosEditPickHint:
-    "Gerekirse ön ve/veya arka yüzü değiştirin (JPEG/PNG/WebP, dosya başına en fazla 5 MB). Kaydet önce kaydı günceller, ardından seçilen dosyaları yükler.",
+    "Gerekirse ön ve/veya arka yüzü değiştirin (JPEG/PNG/WebP, dosya başına en fazla 8 MB). Kaydet önce kaydı günceller, ardından seçilen dosyaları yükler.",
   nationalIdPhotosFront: "Ön yüz",
   nationalIdPhotosBack: "Arka yüz",
   nationalIdPhotoUploaded: "Yüklü",
@@ -587,7 +589,7 @@ export const personnel = {
   nationalIdPhotosFileTooLarge: "Görsel izin verilen boyutu aşıyor.",
   nationalIdPhotosUpload: "Fotoğraf / kimlik tipini kaydet",
   profilePhotosPickHint:
-    "İsteğe bağlı: en fazla 2 profil fotoğrafı (JPEG/PNG/WebP, dosya başına en fazla 5 MB). Birinci fotoğraf, gösterilen yerlerde avatar olarak kullanılır.",
+    "İsteğe bağlı: en fazla 2 profil fotoğrafı (JPEG/PNG/WebP, dosya başına en fazla 8 MB). Birinci fotoğraf, gösterilen yerlerde avatar olarak kullanılır.",
   profilePhotosEditPickHint:
     "Gerekirse 1. ve/veya 2. profil fotoğrafını değiştirin. Kaydet önce kaydı günceller, ardından seçilen dosyaları yükler.",
   profilePhotosSectionTitle: "Profil fotoğrafları",
@@ -996,6 +998,8 @@ export const personnel = {
     "Net = ödenen maaş toplamı − alınan avans toplamı (silinmemiş kayıtlar, aktif şubeler). Muhasebe kesinliği için resmi defterlerle karşılaştırın.",
   detailMgmtTileTenure: "Kıdem",
   detailMgmtTileTenureHint: "İşe girişten bugüne (gün)",
+  detailMgmtTileTourismSeasonDays: "Bu sezon",
+  detailMgmtTileTourismSeasonDaysHint: "Turizm sezonuna gelişten bugüne (gün)",
   detailMgmtTileAdvanceTotal: "Toplam avans",
   detailMgmtTileSalaryTotal: "Toplam maaş",
   detailMgmtTileNetAll: "Net durum",

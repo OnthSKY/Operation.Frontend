@@ -26,6 +26,123 @@ import { useMemo, useState, type FocusEventHandler } from "react";
 
 const NOOP_BLUR: FocusEventHandler<HTMLInputElement> = () => {};
 
+function documentBadgeClass(category: DocumentsHubRow["category"]): string {
+  switch (category) {
+    case "BRANCH_DOCUMENT":
+      return "border-violet-200 bg-violet-50 text-violet-800";
+    case "VEHICLE_DOCUMENT":
+    case "VEHICLE_INSURANCE_POLICY":
+      return "border-sky-200 bg-sky-50 text-sky-800";
+    case "PERSONNEL_NATIONAL_ID":
+    case "PERSONNEL_PROFILE":
+    case "PERSONNEL_YEAR_CLOSURE":
+      return "border-emerald-200 bg-emerald-50 text-emerald-800";
+    case "WAREHOUSE_INBOUND_INVOICE":
+    case "WAREHOUSE_OUTBOUND_INVOICE":
+      return "border-amber-200 bg-amber-50 text-amber-900";
+    case "OTHER_INVOICE":
+      return "border-zinc-300 bg-zinc-100 text-zinc-700";
+    default:
+      return "border-zinc-200 bg-zinc-100 text-zinc-700";
+  }
+}
+
+function humanizeDocumentDetail(raw: string): string {
+  const text = String(raw ?? "").trim();
+  if (!text) return "";
+
+  // Convert metadata payload-like text to readable summary.
+  if (text.includes("=") && text.includes("·")) {
+    const labelMap: Record<string, string> = {
+      orderKey: "Sipariş",
+      invoiceNo: "Fatura No",
+      invoiceId: "Fatura ID",
+      branch: "Şube",
+      company: "Firma",
+      title: "Belge",
+    };
+    const parsed = text
+      .split("·")
+      .map((x) => x.trim())
+      .filter(Boolean)
+      .map((part) => {
+        const idx = part.indexOf("=");
+        if (idx <= 0) return null;
+        const key = part.slice(0, idx).trim();
+        const value = part.slice(idx + 1).trim();
+        if (!value) return null;
+        return `${labelMap[key] ?? key}: ${value}`;
+      })
+      .filter((x): x is string => Boolean(x));
+
+    if (parsed.length > 0) return parsed.slice(0, 3).join(" · ");
+  }
+
+  // Keep dates compact on cards.
+  if (/^\d{4}-\d{2}-\d{2}T/.test(text)) {
+    return text.slice(0, 10);
+  }
+
+  return text;
+}
+
+function formatDocumentDate(raw: string): string {
+  const text = String(raw ?? "").trim();
+  if (/^\d{4}-\d{2}-\d{2}T/.test(text)) return text.slice(0, 10);
+  return text;
+}
+
+function buildDocumentCardLines(
+  row: DocumentsHubRow,
+  categoryLabel: string
+): { title: string; subtitle: string; detail: string } {
+  const subtitle = String(row.subtitle ?? "").trim();
+  const detail = humanizeDocumentDetail(row.detail);
+
+  switch (row.category) {
+    case "BRANCH_DOCUMENT":
+      return {
+        title: row.title,
+        subtitle: subtitle || "Belge dosyasi",
+        detail: detail || categoryLabel,
+      };
+    case "VEHICLE_DOCUMENT":
+    case "VEHICLE_INSURANCE_POLICY":
+      return {
+        title: row.title,
+        subtitle: subtitle || categoryLabel,
+        detail: detail || "Arac belgesi",
+      };
+    case "PERSONNEL_NATIONAL_ID":
+    case "PERSONNEL_PROFILE":
+      return {
+        title: row.title,
+        subtitle: categoryLabel,
+        detail: detail || subtitle,
+      };
+    case "PERSONNEL_YEAR_CLOSURE":
+      return {
+        title: row.title,
+        subtitle: subtitle || categoryLabel,
+        detail: detail || "Yil kapanis dokumani",
+      };
+    case "WAREHOUSE_INBOUND_INVOICE":
+    case "WAREHOUSE_OUTBOUND_INVOICE":
+    case "OTHER_INVOICE":
+      return {
+        title: row.title,
+        subtitle: subtitle || categoryLabel,
+        detail: formatDocumentDate(detail),
+      };
+    default:
+      return {
+        title: row.title,
+        subtitle: subtitle || categoryLabel,
+        detail,
+      };
+  }
+}
+
 export function DocumentsHubScreen() {
   const { t } = useI18n();
   const searchParams = useSearchParams();
@@ -90,6 +207,15 @@ export function DocumentsHubScreen() {
     { value: "WAREHOUSE_OUTBOUND_INVOICE", label: t("documents.categoryWarehouseOutboundInvoice") },
     { value: "OTHER_INVOICE", label: t("documents.categoryOtherInvoice") },
   ];
+  const categoryLabelMap = useMemo(
+    () =>
+      Object.fromEntries(
+        categoryOptions
+          .filter((opt) => opt.value !== "ALL")
+          .map((opt) => [opt.value, opt.label])
+      ) as Record<string, string>,
+    [categoryOptions]
+  );
   const orderPdfQuickFilter = "Sipariş-hesap dökümü PDF";
   const uploadCategoryOptions = categoryOptions.filter(
     (opt) =>
@@ -279,8 +405,8 @@ export function DocumentsHubScreen() {
   );
 
   return (
-    <div className="space-y-3 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:space-y-4">
-      <div className="sticky top-0 z-10 rounded-2xl border border-zinc-200 bg-white/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-white/80 sm:p-4">
+    <div className="space-y-3 overflow-x-hidden pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:space-y-4">
+      <div className="rounded-2xl border border-zinc-200 bg-white/95 p-3 md:sticky md:top-2 md:z-10 md:backdrop-blur md:supports-[backdrop-filter]:bg-white/80 sm:p-4">
         <h1 className="text-lg font-semibold text-zinc-900">{t("documents.pageTitle")}</h1>
         <p className="mt-1 text-sm text-zinc-600">{t("documents.pageDescription")}</p>
         <div className="mt-3 flex md:mt-4 md:justify-end">
@@ -309,16 +435,22 @@ export function DocumentsHubScreen() {
             menuZIndex={220}
           />
         </div>
-        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <div className="mt-2 flex items-center gap-2">
           <button
             type="button"
             onClick={() => {
               setCategory("BRANCH_DOCUMENT");
               setQuery(orderPdfQuickFilter);
             }}
-            className="min-h-[44px] min-w-[44px] rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-medium text-violet-800"
+            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-violet-800"
+            aria-label={t("documents.orderStatementPdfQuickFilter")}
+            title={t("documents.orderStatementPdfQuickFilter")}
           >
-            {t("documents.orderStatementPdfQuickFilter")}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M3 5h18" />
+              <path d="M6 12h12" />
+              <path d="M10 19h4" />
+            </svg>
           </button>
           <button
             type="button"
@@ -326,9 +458,14 @@ export function DocumentsHubScreen() {
               setCategory("ALL");
               setQuery("");
             }}
-            className="min-h-[44px] min-w-[44px] rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-medium text-zinc-700"
+            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-zinc-200 bg-white px-3 py-1 text-zinc-700"
+            aria-label="Temizle"
+            title="Temizle"
           >
-            {t("common.clear")}
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M18 6 6 18" />
+              <path d="m6 6 12 12" />
+            </svg>
           </button>
         </div>
       </div>
@@ -336,7 +473,7 @@ export function DocumentsHubScreen() {
       {openError ? <p className="text-sm text-red-600">{openError}</p> : null}
 
       <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,34rem)]">
-      <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+      <div className="min-w-0 overflow-x-hidden rounded-2xl border border-zinc-200 bg-white p-3">
         {loading ? (
           <p className="text-sm text-zinc-500">{t("common.loading")}</p>
         ) : filteredRows.length === 0 ? (
@@ -344,68 +481,79 @@ export function DocumentsHubScreen() {
         ) : (
           <ul className="space-y-2">
             {filteredRows.map((r) => (
+              (() => {
+                const categoryLabel = categoryLabelMap[r.category] ?? r.category;
+                const lines = buildDocumentCardLines(r, categoryLabel);
+                return (
               <li
                 key={r.id}
-                className={`flex flex-col gap-3 rounded-xl border p-3 ${
+                className={`rounded-xl border p-3 shadow-sm transition-colors ${
                   selectedRow?.id === r.id
                     ? "border-zinc-900 bg-zinc-100"
                     : "border-zinc-200 bg-zinc-50"
                 }`}
               >
-                <div className="min-w-0 flex-1">
+                <div className="flex items-start gap-3">
                   <button
                     type="button"
-                    className="min-h-11 w-full rounded-lg p-1 text-left touch-manipulation"
+                    className="min-h-[44px] min-w-0 flex-1 rounded-lg p-1 text-left touch-manipulation"
                     onClick={() => setSelectedId(r.id)}
                   >
-                    <p className="font-medium text-zinc-900">{r.title}</p>
-                    <p className="line-clamp-2 text-sm text-zinc-700">{r.subtitle}</p>
-                    <p className="mt-1 text-xs text-zinc-500">{r.detail}</p>
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      <p className="line-clamp-1 min-w-0 break-words text-base font-semibold text-zinc-900">{lines.title}</p>
+                      <span
+                        className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${documentBadgeClass(r.category)}`}
+                      >
+                        {categoryLabel}
+                      </span>
+                    </div>
+                    <p className="mt-1 line-clamp-1 break-all text-sm text-zinc-700">{lines.subtitle}</p>
+                    <p className="mt-1 line-clamp-2 break-words text-xs text-zinc-500">{lines.detail}</p>
                   </button>
-                </div>
-                <div className="flex w-full items-center gap-2 sm:w-auto">
-                  <button
-                    type="button"
-                    className="inline-flex min-h-[44px] min-w-[44px] flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 sm:flex-none lg:hidden"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedId(r.id);
-                      setMobilePreviewOpen(true);
-                    }}
-                    aria-label={t("documents.open")}
-                    title={t("documents.open")}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                    <span>{t("documents.open")}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="inline-flex min-h-[44px] min-w-[44px] flex-1 touch-manipulation items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60 sm:flex-none"
-                    disabled={openingId === r.id}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOpenError(null);
-                      setOpeningId(r.id);
-                      void r
-                        .download()
-                        .catch((e2) => setOpenError(toErrorMessage(e2)))
-                        .finally(() => setOpeningId(null));
-                    }}
-                    aria-label={t("documents.download")}
-                    title={t("documents.download")}
-                  >
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="7 10 12 15 17 10" />
-                      <line x1="12" y1="15" x2="12" y2="3" />
-                    </svg>
-                    <span>{t("documents.download")}</span>
-                  </button>
+                  <div className="flex shrink-0 flex-col items-center gap-2">
+                    <button
+                      type="button"
+                      className="inline-flex min-h-[44px] min-w-[44px] touch-manipulation items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-700 transition hover:bg-zinc-100 lg:hidden"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedId(r.id);
+                        setMobilePreviewOpen(true);
+                      }}
+                      aria-label={t("documents.open")}
+                      title={t("documents.open")}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z" />
+                        <circle cx="12" cy="12" r="3" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      className="inline-flex min-h-[44px] min-w-[44px] touch-manipulation items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-60"
+                      disabled={openingId === r.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenError(null);
+                        setOpeningId(r.id);
+                        void r
+                          .download()
+                          .catch((e2) => setOpenError(toErrorMessage(e2)))
+                          .finally(() => setOpeningId(null));
+                      }}
+                      aria-label={t("documents.download")}
+                      title={t("documents.download")}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="7 10 12 15 17 10" />
+                        <line x1="12" y1="15" x2="12" y2="3" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </li>
+                );
+              })()
             ))}
           </ul>
         )}

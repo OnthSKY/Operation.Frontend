@@ -673,9 +673,9 @@ export const branch = {
     "Bu gider türü veya ödeme kaynağı için kasa nakit para devri satırı bağlanamaz.",
   txAdvanceNeedBranch: "Kasadan avans için geçerli bir şube seçilmeli.",
   receiptPhotoOptional:
-    "Fiş fotoğrafı (isteğe bağlı, en fazla 5 MB — JPEG, PNG, WebP, telefondan HEIC/AVIF)",
+    "Fiş fotoğrafı (isteğe bağlı, en fazla 8 MB — JPEG, PNG, WebP, telefondan HEIC/AVIF)",
   receiptPhotoRequiredWhenInvoice:
-    "Fatura görseli (zorunlu, en fazla 5 MB — JPEG, PNG, WebP, telefondan HEIC/AVIF)",
+    "Fatura görseli (zorunlu, en fazla 8 MB — JPEG, PNG, WebP, telefondan HEIC/AVIF)",
   invoiceReceiptPhotoRequired:
     "Tedarikçi faturası için fatura/fiş görseli yüklemeniz gerekir.",
   openReceiptPhoto: "Fişi aç",

@@ -20,6 +20,7 @@ import type {
 } from "@/types/personnel-management-snapshot";
 import type { Personnel } from "@/types/personnel";
 import { RightDrawer } from "@/shared/components/RightDrawer";
+import { enumerateLocalIsoDatesInclusive, localIsoDate } from "@/shared/lib/local-iso-date";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { toErrorMessage } from "@/shared/lib/error-message";
@@ -43,6 +44,16 @@ function formatHireShort(iso: string): string {
   const d = iso?.slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return iso ?? "—";
   return new Date(d + "T12:00:00").toLocaleDateString();
+}
+
+function countSeasonDaysInclusive(seasonArrivalDate: string | null | undefined): number | null {
+  const from = typeof seasonArrivalDate === "string" ? seasonArrivalDate.trim().slice(0, 10) : "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from)) return null;
+  const to = localIsoDate();
+  if (from > to) return null;
+  const { dates, truncated } = enumerateLocalIsoDatesInclusive(from, to, 800);
+  if (truncated || dates.length < 1) return null;
+  return dates.length;
 }
 
 function signedMoney(
@@ -475,6 +486,10 @@ export function PersonnelManagementSnapshotSection({
   const summaryHandoverAll = handoverRow?.totalCashHandoverAsResponsibleAllTime ?? 0;
   const summaryHandoverCcy =
     handoverRow?.currencyCode?.trim().toUpperCase() || primary?.currencyCode?.trim().toUpperCase() || "TRY";
+  const tourismSeasonDays = useMemo(
+    () => countSeasonDaysInclusive(personnel.seasonArrivalDate),
+    [personnel.seasonArrivalDate]
+  );
 
   if (!open) return null;
 
@@ -560,6 +575,12 @@ export function PersonnelManagementSnapshotSection({
                   label={t("personnel.detailMgmtTileTenure")}
                   value={`${snap.tenureDaysInclusive}`}
                   hint={t("personnel.detailMgmtTileTenureHint")}
+                  emphasis="violet"
+                />
+                <MetricTile
+                  label={t("personnel.detailMgmtTileTourismSeasonDays")}
+                  value={tourismSeasonDays == null ? dash : String(tourismSeasonDays)}
+                  hint={t("personnel.detailMgmtTileTourismSeasonDaysHint")}
                   emphasis="violet"
                 />
                 <MetricTile

@@ -53,7 +53,7 @@ export const settings = {
   brandingCompanyNameLabel: "Görünen ad",
   brandingCompanyNamePlaceholder: "ör. SKY Turizm A.Ş.",
   brandingSectionLogo: "Logo",
-  brandingSectionLogoHint: "Kare veya yatay görsel; JPEG, PNG, WebP, HEIC veya AVIF (en fazla 5 MB).",
+  brandingSectionLogoHint: "Kare veya yatay görsel; JPEG, PNG, WebP, HEIC veya AVIF (en fazla 8 MB).",
   brandingLogoEmpty: "Logo yok",
   brandingUploadLogo: "Logo yükle",
   brandingReplaceLogo: "Logoyu değiştir",

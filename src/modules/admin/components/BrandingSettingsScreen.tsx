@@ -11,6 +11,7 @@ import {
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
 import { StickyActionBar } from "@/components/mobile/StickyActionBar";
+import { MAX_IMAGE_UPLOAD_BYTES } from "@/shared/lib/image-upload-limits";
 import { Card } from "@/shared/components/Card";
 import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
@@ -75,7 +76,7 @@ export function BrandingSettingsScreen() {
 
   const onPickLogo = async (f: File | null) => {
     if (!f || f.size <= 0) return;
-    const max = 5 * 1024 * 1024;
+    const max = MAX_IMAGE_UPLOAD_BYTES;
     if (f.size > max) {
       notify.error(t("common.imageUploadTooLarge"));
       return;

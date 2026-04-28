@@ -668,9 +668,9 @@ export const branch = {
     "Physical cash handover line id is not allowed for this expense type or payment source.",
   txAdvanceNeedBranch: "Register advance requires a valid branch.",
   receiptPhotoOptional:
-    "Receipt photo (optional, max 5 MB — JPEG, PNG, WebP, HEIC/AVIF from phone)",
+    "Receipt photo (optional, max 8 MB — JPEG, PNG, WebP, HEIC/AVIF from phone)",
   receiptPhotoRequiredWhenInvoice:
-    "Invoice image (required, max 5 MB — JPEG, PNG, WebP, HEIC/AVIF from phone)",
+    "Invoice image (required, max 8 MB — JPEG, PNG, WebP, HEIC/AVIF from phone)",
   invoiceReceiptPhotoRequired: "Supplier invoices require an invoice/receipt photo.",
   openReceiptPhoto: "Open receipt",
   txColActions: "Action",

@@ -26,7 +26,7 @@ export const common = {
   openDetailsDialog: "Detay penceresini açar",
   dateDisplayHint:
     "Tablo ve listelerdeki tarihler gün.ay.yıl sırasındadır (örn. {{example}}).",
-  imageUploadTooLarge: "Görsel çok büyük (en fazla 5 MB).",
+  imageUploadTooLarge: "Görsel çok büyük (en fazla 8 MB).",
   imageUploadNotImage:
     "Yalnızca geçerli bir görsel dosyası seçilebilir (JPEG, PNG, WebP, HEIC veya AVIF). Bildirilen tür ile dosya içeriği eşleşmelidir.",
   filters: "Filtreler",

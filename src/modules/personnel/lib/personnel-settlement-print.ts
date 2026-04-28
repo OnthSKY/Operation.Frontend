@@ -152,6 +152,14 @@ function calendarMonthsAndDaysFromTo(
   return { months, days };
 }
 
+function inclusiveCalendarDaysFromTo(startIso: string, endIso: string): number | null {
+  const start = parseYmd(startIso);
+  const end = parseYmd(endIso);
+  if (!start || !end) return null;
+  if (ymdCompare(start, end) > 0) return null;
+  return dayDiffYmd(start, end) + 1;
+}
+
 async function loadPersonnelSettlementPersonRow(
   personnelId: number
 ): Promise<{ personnel: Personnel | null; profilePhotoDataUrl: string | null }> {
@@ -191,6 +199,8 @@ function renderPersonnelSeasonTenureBlock(opts: {
     opts.todayIso
   );
   if (!tenure) return "";
+  const totalDays = inclusiveCalendarDaysFromTo(opts.seasonArrivalIso, opts.todayIso);
+  if (totalDays == null) return "";
   const arrivalDisp = formatLocaleDate(
     opts.seasonArrivalIso,
     locale,
@@ -202,6 +212,9 @@ function renderPersonnelSeasonTenureBlock(opts: {
     .replace("{asOf}", asOfDisp)
     .replace("{months}", String(tenure.months))
     .replace("{days}", String(tenure.days));
+  const workedDaysLine = t("personnel.settlementPrintSeasonWorkedDaysLine")
+    .replace("{arrival}", arrivalDisp)
+    .replace("{days}", String(totalDays));
 
   const ccy = String(opts.currencyCode ?? "TRY").trim().toUpperCase() || "TRY";
   const sal = opts.monthlySalary;
@@ -231,6 +244,7 @@ function renderPersonnelSeasonTenureBlock(opts: {
   <div class="season-tenure-title">${escapeHtml(
     t("personnel.settlementPrintSeasonTenureTitle")
   )}</div>
+  <p class="season-tenure-body"><strong>${escapeHtml(workedDaysLine)}</strong></p>
   <p class="season-tenure-body">${escapeHtml(body)}</p>
   ${salaryBlock}
   ${disclaimerBlock}

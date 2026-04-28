@@ -53,7 +53,7 @@ export const settings = {
   brandingCompanyNameLabel: "Display name",
   brandingCompanyNamePlaceholder: "e.g. ACME Tourism",
   brandingSectionLogo: "Logo",
-  brandingSectionLogoHint: "Square or wide image; JPEG, PNG, WebP, HEIC or AVIF (max 5 MB).",
+  brandingSectionLogoHint: "Square or wide image; JPEG, PNG, WebP, HEIC or AVIF (max 8 MB).",
   brandingLogoEmpty: "No logo",
   brandingUploadLogo: "Upload logo",
   brandingReplaceLogo: "Replace logo",

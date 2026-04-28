@@ -100,7 +100,7 @@ export const warehouse = {
   depoInSharedNoteHint:
     "Optional; stored on the movement and editable later from the receipt detail screen.",
   invoicePhotoOptional:
-    "Shipment invoice (optional, max 5 MB — JPEG, PNG, WebP, HEIC/AVIF)",
+    "Shipment invoice (optional, max 8 MB — JPEG, PNG, WebP, HEIC/AVIF)",
   editInboundInvoiceUploadLabel: "Invoice image (new or replace)",
   editInboundInvoiceUploadHint:
     "You can add this after saving. JPEG, PNG, or WebP; the selected file replaces any existing photo.",

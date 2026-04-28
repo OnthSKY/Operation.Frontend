@@ -100,7 +100,7 @@ export const warehouse = {
   depoInSharedNoteHint:
     "İsteğe bağlı; hareket kaydında görünür, depo girişi düzenlemeden sonra da değiştirilebilir.",
   invoicePhotoOptional:
-    "Sevkiyat faturası (isteğe bağlı, en fazla 5 MB — JPEG, PNG, WebP, HEIC/AVIF)",
+    "Sevkiyat faturası (isteğe bağlı, en fazla 8 MB — JPEG, PNG, WebP, HEIC/AVIF)",
   editInboundInvoiceUploadLabel: "Fatura görseli (yeni veya değiştir)",
   editInboundInvoiceUploadHint:
     "Kayıttan sonra da eklenebilir. JPEG, PNG veya WebP; seçilen dosya mevcut görselin yerine yazılır.",
