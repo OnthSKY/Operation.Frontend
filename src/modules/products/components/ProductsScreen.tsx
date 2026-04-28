@@ -420,10 +420,10 @@ export function ProductsScreen() {
   const openWarehouseForProduct = (r: ProductListItem) => {
     const warehouseId = r.byWarehouse?.[0]?.warehouseId;
     if (warehouseId != null && warehouseId > 0) {
-      router.push(`/warehouse?openWarehouse=${warehouseId}`);
+      router.push(`/warehouses?openWarehouse=${warehouseId}`);
       return;
     }
-    router.push("/warehouse");
+    router.push("/warehouses");
   };
 
   const quickActionsForRow = (r: ProductListItem): TableToolbarMoreMenuItem[] => [

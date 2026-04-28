@@ -1536,6 +1536,31 @@ export function WarehouseDetailMovementHistoryTab({
                         </Tooltip>
                       </>
                     ) : null}
+                    {canManageWholeInboundShipment ? (
+                      <>
+                        <Tooltip content={t("warehouse.depoInAddLine")} delayMs={200}>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className={detailOpenIconButtonClass}
+                            onClick={() => setAppendInboundLineOpen(true)}
+                          >
+                            <PlusIcon className="h-5 w-5" />
+                          </Button>
+                        </Tooltip>
+                        <Tooltip content={t("warehouse.editInboundFullDeleteAction")} delayMs={200}>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="min-h-[44px] min-w-[44px] border-red-200 px-3 text-xs text-red-800 hover:bg-red-50"
+                            disabled={softDeleteInboundM.isPending}
+                            onClick={() => confirmDeleteWholeInboundShipment(selectedDetailGroup)}
+                          >
+                            {t("warehouse.editInboundFullDeleteAction")}
+                          </Button>
+                        </Tooltip>
+                      </>
+                    ) : null}
                   </div>
                 </div>
                 <p className="mt-1 text-xs text-zinc-500">{t("warehouse.movementHeaderInfoHint")}</p>
@@ -1696,50 +1721,6 @@ export function WarehouseDetailMovementHistoryTab({
                 </p>
                 {detailsContentTab === "LINES" ? (
                   <div className="mt-2 space-y-2">
-                    {canManageWholeInboundShipment ? (
-                      <div className="rounded-lg border border-emerald-200/70 bg-emerald-50/40 p-2.5">
-                        <p className="text-xs font-semibold text-emerald-900">{t("warehouse.movementsTypeSegmentInbound")}</p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          <Tooltip content={t("warehouse.depoInAddLine")} delayMs={200}>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className={detailOpenIconButtonClass}
-                              onClick={() => setAppendInboundLineOpen(true)}
-                            >
-                              <PlusIcon className="h-5 w-5" />
-                            </Button>
-                          </Tooltip>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className="min-h-[44px] min-w-[44px] px-3 text-xs"
-                            onClick={() => {
-                              if (!selectedDetailGroup) return;
-                              const first = selectedDetailGroup.movements[0];
-                              const batchId = first?.inBatchGroupId?.trim() || null;
-                              setEditInboundTarget({
-                                movementBatchId: batchId,
-                                soloMovementId: batchId ? null : first?.id ?? null,
-                                defaultBusinessDate: (first?.movementDate ?? "").slice(0, 10),
-                              });
-                              setEditInboundOpen(true);
-                            }}
-                          >
-                            {t("common.edit")}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className="min-h-[44px] min-w-[44px] border-red-200 px-3 text-xs text-red-800 hover:bg-red-50"
-                            disabled={softDeleteInboundM.isPending}
-                            onClick={() => confirmDeleteWholeInboundShipment(selectedDetailGroup)}
-                          >
-                            {t("warehouse.editInboundFullDeleteAction")}
-                          </Button>
-                        </div>
-                      </div>
-                    ) : null}
                     {selectedDetailGroup.movements.map((m) => (
                       <WarehouseMovementRowCard
                         key={`detail-${m.id}`}
@@ -1755,13 +1736,11 @@ export function WarehouseDetailMovementHistoryTab({
                         }}
                         onDeleteInbound={canManageWholeInboundShipment ? undefined : confirmDeleteInboundFromRow}
                         onEditOutboundShipment={(row) => {
-                          if (!canManageWholeOutboundShipment && row.type === "OUT" && row.isDepotToBranchShipment) {
+                          if (row.type === "OUT" && row.isDepotToBranchShipment) {
                             setOutboundShipmentMovementId(row.id);
                           }
                         }}
-                        onDeleteOutboundShipment={
-                          canManageWholeOutboundShipment ? undefined : confirmDeleteOutboundShipmentFromRow
-                        }
+                        onDeleteOutboundShipment={confirmDeleteOutboundShipmentFromRow}
                         onCreateInvoiceFromShipment={(row) => {
                           if (!canManageWholeOutboundShipment && row.type === "OUT" && row.isDepotToBranchShipment) {
                             openInvoiceDraftFromShipment(row.id);
