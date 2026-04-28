@@ -658,6 +658,7 @@ export function BranchStockInboundPanel({ branchId }: Props) {
           <Modal
             open={activeShipment != null}
             onClose={() => setActiveShipmentKey(null)}
+            titleId="branch-stock-shipment-modal-title"
             title={t("branch.stockShipmentModalTitle")}
             description={
               activeShipmentBatchCell
