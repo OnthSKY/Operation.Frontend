@@ -43,5 +43,8 @@ export const search = {
   catPersonnel: "Personnel",
   catAdvance: "Advance",
   catVehicle: "Vehicle",
+  catBranchTransaction: "Branch transaction",
+  catWarehouseMovement: "Warehouse movement",
+  catDocument: "Document",
   loadingRecords: "Loading…",
 } as const;

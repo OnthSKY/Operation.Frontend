@@ -43,5 +43,8 @@ export const search = {
   catPersonnel: "Personel",
   catAdvance: "Avans",
   catVehicle: "Araç",
+  catBranchTransaction: "Şube hareketi",
+  catWarehouseMovement: "Depo hareketi",
+  catDocument: "Belge",
   loadingRecords: "Yükleniyor…",
 } as const;

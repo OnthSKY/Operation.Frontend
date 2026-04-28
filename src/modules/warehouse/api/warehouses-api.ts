@@ -187,6 +187,11 @@ export type UpdateWarehouseOutboundShipmentMovementBody = {
   clearInvoicePhoto: boolean;
 };
 
+export type AppendWarehouseOutboundShipmentLineBody = {
+  productId: number;
+  quantity: number;
+};
+
 export async function fetchWarehouseOutboundShipmentMovementForEdit(
   warehouseId: number,
   movementId: number
@@ -227,6 +232,23 @@ export async function softDeleteWarehouseOutboundShipmentMovement(
   await apiRequest<null>(`/warehouses/${warehouseId}/movements/outbound-shipment/${movementId}`, {
     method: "DELETE",
   });
+}
+
+export async function appendWarehouseOutboundShipmentLine(
+  warehouseId: number,
+  movementId: number,
+  body: AppendWarehouseOutboundShipmentLineBody
+): Promise<WarehouseMovementResponse> {
+  return apiRequest<WarehouseMovementResponse>(
+    `/warehouses/${warehouseId}/movements/outbound-shipment/${movementId}/append-line`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        productId: body.productId,
+        quantity: body.quantity,
+      }),
+    }
+  );
 }
 
 export async function patchWarehouseInboundMovementDates(

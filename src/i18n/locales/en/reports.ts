@@ -771,7 +771,7 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   orderAccountStatementPromoDiscount: "Gift / promotion deduction (subtracted from gross)",
   orderAccountStatementAdvance: "Prepayment (subtracted from gross)",
   orderAccountStatementPromoLine: "Gift / Promotion",
-  orderAccountStatementAdvanceLine: "Prepayment",
+  orderAccountStatementAdvanceLine: "RECEIVED PREPAYMENT",
   orderAccountStatementPaidOnBehalfTitle: "Paid by you, not received into stock",
   orderAccountStatementPaidOnBehalfHelp:
     "Example: supplier items you paid for that do not ship to you. These amounts are added after the subtotal.",
@@ -805,7 +805,11 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   orderAccountStatementGiftTotalLine: "Gift product lines",
   orderAccountStatementPaidSectionPdf: "Externally sourced",
   orderAccountStatementPromoLineFallback: "Promotion",
-  orderAccountStatementAdvanceShort: "Prepayment",
+  orderAccountStatementAdvanceShort: "Received prepayment",
+  orderAccountStatementReceivedAdvancePostToLedger:
+    "Post received prepayment to ledger",
+  orderAccountStatementReceivedAdvancePostToLedgerHelp:
+    "When enabled, the record note includes that received prepayment should be posted to ledger.",
   orderAccountStatementPreviousBalanceShort: "Carried-forward account balance",
   orderAccountStatementPreviousBalanceLine: "CARRIED-FORWARD ACCOUNT BALANCE",
   orderAccountStatementPaidEmpty: "No rows in this group â€” use â€œAdd lineâ€ if needed.",
@@ -902,6 +906,13 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   orderAccountStatementSystemBranchLabel: "System branch mapping",
   orderAccountStatementSystemBranchHelp:
     "Choose which branch will own this document in the system.",
+  orderAccountStatementSystemBranchBalanceUse: "Use branch open balance",
+  orderAccountStatementSystemBranchBalanceSelectFirst:
+    "Select the system branch first.",
+  orderAccountStatementSystemBranchBalanceMissing:
+    "No open balance found for the selected branch.",
+  orderAccountStatementSystemBranchBalanceApplied:
+    "Selected branch open balance was applied to carried-forward balance.",
   orderAccountStatementSystemBranchNone: "Select branch...",
   orderAccountStatementSystemBranchRequired:
     "Select a branch to save this document in the system.",

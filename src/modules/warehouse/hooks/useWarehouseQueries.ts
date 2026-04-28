@@ -9,6 +9,7 @@ import {
   fetchWarehouseStock,
 } from "@/modules/warehouse/api/warehouse-stock-api";
 import {
+  appendWarehouseOutboundShipmentLine,
   createWarehouse,
   fetchWarehouseInboundMovementForEdit,
   fetchWarehouseOutboundShipmentMovementForEdit,
@@ -24,6 +25,7 @@ import {
   updateWarehouseOutboundShipmentMovement,
   uploadWarehouseInboundMovementInvoicePhoto,
   type PatchWarehouseInboundMovementDatesInput,
+  type AppendWarehouseOutboundShipmentLineBody,
   type UpdateWarehouseInboundMovementBody,
   type UpdateWarehouseOutboundShipmentMovementBody,
 } from "@/modules/warehouse/api/warehouses-api";
@@ -305,6 +307,30 @@ export function useSoftDeleteWarehouseOutboundShipmentMovement() {
       invalidateWarehouseQueries(qc);
       void qc.invalidateQueries({ queryKey: productsRootKey });
       void qc.invalidateQueries({ queryKey: branchKeys.list() });
+    },
+  });
+}
+
+export function useAppendWarehouseOutboundShipmentLine() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: {
+      warehouseId: number;
+      movementId: number;
+      body: AppendWarehouseOutboundShipmentLineBody;
+    }) => appendWarehouseOutboundShipmentLine(vars.warehouseId, vars.movementId, vars.body),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "movementsPage", vars.warehouseId],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "auditPage", vars.warehouseId],
+        exact: false,
+      });
+      invalidateWarehouseQueries(qc);
+      void qc.invalidateQueries({ queryKey: productsRootKey });
+      void qc.invalidateQueries({ queryKey: branchKeys.all });
     },
   });
 }

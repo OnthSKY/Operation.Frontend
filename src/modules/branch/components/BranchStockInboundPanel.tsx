@@ -20,6 +20,7 @@ import { MobileListCard } from "@/shared/components/MobileListCard";
 import { Button } from "@/shared/ui/Button";
 import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileFilters";
 import { DateField } from "@/shared/ui/DateField";
+import { Modal } from "@/shared/ui/Modal";
 import type { BranchStockReceiptRow } from "@/types/branch";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
@@ -128,6 +129,7 @@ export function BranchStockInboundPanel({ branchId }: Props) {
   const [expandedShipmentKeys, setExpandedShipmentKeys] = useState<ReadonlySet<string>>(
     () => new Set()
   );
+  const [activeShipmentKey, setActiveShipmentKey] = useState<string | null>(null);
 
   useEffect(() => {
     const today = localIsoDate();
@@ -141,6 +143,7 @@ export function BranchStockInboundPanel({ branchId }: Props) {
     setDateTo(today);
     setPage(1);
     setExpandedShipmentKeys(new Set());
+    setActiveShipmentKey(null);
   }, [branchId]);
 
   useEffect(() => {
@@ -192,6 +195,34 @@ export function BranchStockInboundPanel({ branchId }: Props) {
   const totalCount = data?.totalCount ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const filteredTotalQty = Number(data?.filteredTotalQuantity ?? 0) || 0;
+  const mainProductBreakdown = useMemo(() => {
+    const groups = new Map<number, { productId: number; productName: string; quantity: number }>();
+    for (const row of items) {
+      const hasParent = row.parentProductId != null && row.parentProductId > 0;
+      const productId = hasParent ? row.parentProductId! : row.productId;
+      const productName = hasParent
+        ? row.parentProductName?.trim() || row.productName.trim()
+        : row.productName.trim();
+      const existing = groups.get(productId);
+      if (existing) {
+        existing.quantity += row.quantity;
+      } else {
+        groups.set(productId, {
+          productId,
+          productName: productName.length > 0 ? productName : `#${productId}`,
+          quantity: row.quantity,
+        });
+      }
+    }
+    return Array.from(groups.values()).sort((a, b) => {
+      if (b.quantity !== a.quantity) return b.quantity - a.quantity;
+      return a.productName.localeCompare(b.productName, undefined, { sensitivity: "base" });
+    });
+  }, [items]);
+  const mainProductBreakdownTotal = useMemo(
+    () => mainProductBreakdown.reduce((sum, g) => sum + g.quantity, 0),
+    [mainProductBreakdown]
+  );
 
   const shipmentGroups = useMemo(() => {
     const map = new Map<string, BranchStockReceiptRow[]>();
@@ -221,6 +252,17 @@ export function BranchStockInboundPanel({ branchId }: Props) {
   }, [items]);
 
   const fmtDate = (iso: string) => formatLocaleDate(iso, locale);
+  const activeShipment = useMemo(() => {
+    if (!activeShipmentKey) return null;
+    return shipmentGroups.find((g) => g.key === activeShipmentKey) ?? null;
+  }, [activeShipmentKey, shipmentGroups]);
+  const activeShipmentSample = activeShipment?.movements[0] ?? null;
+  const activeShipmentBatchCell = activeShipmentSample
+    ? formatWarehouseShipmentDisplay(
+        activeShipmentSample.inBatchGroupId ?? null,
+        activeShipmentSample.warehouseMovementId ?? activeShipmentSample.id
+      )
+    : null;
 
   const today = localIsoDate();
   const filtersActive = useMemo(() => {
@@ -325,6 +367,34 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                   {formatLocaleAmount(filteredTotalQty, locale)}
                 </p>
               </div>
+              {mainProductBreakdown.length > 0 ? (
+                <div className="min-w-0 rounded-md border border-violet-200/80 bg-violet-50/60 px-3 py-2.5">
+                  <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-violet-900">
+                    {t("branch.stockReceiptsParentBreakdownTitle")}
+                  </p>
+                  <ul className="mt-1.5 space-y-1.5 text-xs sm:text-sm">
+                    {mainProductBreakdown.map((g) => (
+                      <li key={`parent-${g.productId}`} className="flex items-baseline justify-between gap-3">
+                        <span className="min-w-0 truncate text-zinc-800">{g.productName}</span>
+                        <span className="shrink-0 font-semibold tabular-nums text-violet-950">
+                          {formatLocaleAmount(g.quantity, locale)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-2 text-[0.65rem] leading-snug text-violet-900/80 sm:text-xs">
+                    {t("branch.stockReceiptsParentBreakdownHint").replace(
+                      "{{qty}}",
+                      formatLocaleAmount(mainProductBreakdownTotal, locale)
+                    )}
+                  </p>
+                  {totalCount > items.length ? (
+                    <p className="mt-1 text-[0.65rem] leading-snug text-violet-900/80 sm:text-xs">
+                      {t("branch.stockReceiptsParentBreakdownPageOnly")}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
             <p className="mt-2 text-[0.65rem] leading-snug text-zinc-500 sm:text-xs">
               {t("branch.stockReceiptsTotalsHint")}
@@ -396,6 +466,17 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                         <span className="min-w-0 flex-1 basis-[min(100%,12rem)] truncate text-xs text-zinc-600 sm:text-sm">
                           {preview}
                         </span>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="min-h-9 shrink-0 px-2.5 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveShipmentKey(key);
+                          }}
+                        >
+                          {t("branch.stockShipmentQuickOpen")}
+                        </Button>
                       </button>
                       {open ? (
                         <div className="flex flex-col gap-4 border-t border-zinc-100 bg-zinc-50/60 px-2 py-2">
@@ -476,6 +557,17 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                         <span className="min-w-0 flex-1 basis-[min(100%,12rem)] truncate text-xs text-zinc-600 sm:text-sm">
                           {preview}
                         </span>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="min-h-9 shrink-0 px-2.5 text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveShipmentKey(key);
+                          }}
+                        >
+                          {t("branch.stockShipmentQuickOpen")}
+                        </Button>
                       </button>
                       {open ? (
                         <div
@@ -563,6 +655,54 @@ export function BranchStockInboundPanel({ branchId }: Props) {
               ) : null}
             </>
           )}
+          <Modal
+            open={activeShipment != null}
+            onClose={() => setActiveShipmentKey(null)}
+            title={t("branch.stockShipmentModalTitle")}
+            description={
+              activeShipmentBatchCell
+                ? t("branch.stockShipmentModalHint").replace("{{shipment}}", activeShipmentBatchCell.text)
+                : undefined
+            }
+            closeButtonLabel={t("common.close")}
+          >
+            {activeShipment ? (
+              <div className="mt-4 max-h-[min(75dvh,38rem)] overflow-y-auto">
+                <div className="overflow-x-auto rounded-md border border-zinc-200 bg-white">
+                  <table className="min-w-full text-sm">
+                    <thead className="border-b border-zinc-200 bg-zinc-50 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                      <tr>
+                        <th className="px-3 py-2">{t("branch.stockColDate")}</th>
+                        <th className="px-3 py-2">{t("branch.stockColProduct")}</th>
+                        <th className="px-3 py-2 text-right">{t("branch.stockColQty")}</th>
+                        <th className="hidden px-3 py-2 md:table-cell">{t("branch.stockColWarehouse")}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-zinc-100">
+                      {activeShipment.movements.map((row) => (
+                        <tr key={row.id}>
+                          <td className="whitespace-nowrap px-3 py-2 text-zinc-700">{fmtDate(row.movementDate)}</td>
+                          <td className="px-3 py-2 font-medium text-zinc-900">
+                            {row.parentProductName?.trim() ? (
+                              <span className="mb-0.5 block text-[0.65rem] font-semibold uppercase tracking-wide text-violet-800">
+                                {row.parentProductName}
+                              </span>
+                            ) : null}
+                            {row.productName}
+                            {row.unit ? <span className="font-normal text-zinc-500"> ({row.unit})</span> : null}
+                          </td>
+                          <td className="px-3 py-2 text-right tabular-nums">{row.quantity}</td>
+                          <td className="hidden px-3 py-2 text-zinc-600 md:table-cell">
+                            {row.warehouseName?.trim() ?? "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : null}
+          </Modal>
         </>
       ) : null}
     </div>

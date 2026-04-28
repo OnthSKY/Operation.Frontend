@@ -3,34 +3,16 @@
 import { useAuth } from "@/lib/auth/AuthContext";
 import { isPersonnelPortalRole } from "@/lib/auth/roles";
 import { useI18n } from "@/i18n/context";
-import type { Locale } from "@/i18n/messages";
-import { fetchBranches } from "@/modules/branch/api/branches-api";
-import { fetchAllAdvances } from "@/modules/personnel/api/advances-api";
-import { fetchPersonnelList } from "@/modules/personnel/api/personnel-api";
-import { fetchUsersList } from "@/modules/personnel/api/users-api";
-import { fetchProductsCatalog } from "@/modules/products/api/products-api";
-import { fetchVehicles } from "@/modules/vehicles/api/vehicles-api";
-import { fetchWarehouses } from "@/modules/warehouse/api/warehouses-api";
+import { fetchGlobalSearch, type GlobalSearchHit } from "@/shared/api/global-search-api";
 import { cn } from "@/lib/cn";
 import {
   GLOBAL_SEARCH_ITEMS,
   type GlobalSearchItemDef,
 } from "@/shared/lib/global-search-items";
 import { toErrorMessage } from "@/shared/lib/error-message";
-import { accountRoleLabel } from "@/modules/account/lib/role-label";
-import { formatLocaleDate } from "@/shared/lib/locale-date";
-import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
 import { OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
-import { Modal } from "@/shared/ui/Modal";
 import { Tooltip } from "@/shared/ui/Tooltip";
-import type { AdvanceListItem } from "@/types/advance";
-import type { Branch } from "@/types/branch";
-import type { Personnel } from "@/types/personnel";
-import type { ProductListItem } from "@/types/product";
-import type { UserListItem } from "@/types/user";
-import type { VehicleListItem } from "@/types/vehicle";
-import type { WarehouseListItem } from "@/types/warehouse";
 import { useRouter } from "next/navigation";
 import {
   Fragment,
@@ -45,7 +27,7 @@ import {
 
 const DEBOUNCE_MS = 320;
 const MIN_ENTITY_QUERY_LEN = 2;
-const MAX_ENTITY_RESULTS = 40;
+const MAX_ENTITY_RESULTS = 50;
 
 const GLOBAL_SEARCH_DENY_FOR_PERSONNEL = new Set([
   "home",
@@ -70,242 +52,69 @@ function norm(s: string, locale: string) {
   return s.toLocaleLowerCase(locale);
 }
 
-type ListsBundle = {
-  branches: Branch[];
-  personnel: Personnel[];
-  warehouses: WarehouseListItem[];
-  advances: AdvanceListItem[];
-  products: ProductListItem[];
-  vehicles: VehicleListItem[];
-  users: UserListItem[];
-};
-
-type EntityHit =
-  | { kind: "branch"; branch: Branch }
-  | { kind: "personnel"; personnel: Personnel }
-  | { kind: "warehouse"; warehouse: WarehouseListItem }
-  | { kind: "advance"; advance: AdvanceListItem }
-  | { kind: "product"; product: ProductListItem }
-  | { kind: "vehicle"; vehicle: VehicleListItem }
-  | { kind: "user"; user: UserListItem };
-
 type Row =
   | { type: "nav"; nav: GlobalSearchItemDef }
-  | { type: "entity"; hit: EntityHit };
+  | { type: "entity"; hit: GlobalSearchHit };
 
-function warehouseHaystack(w: WarehouseListItem): string {
-  return [
-    w.name,
-    w.address ?? "",
-    w.city ?? "",
-    w.responsibleManagerDisplayName ?? "",
-    w.responsibleMasterDisplayName ?? "",
-  ]
-    .join(" ")
-    .trim();
-}
-
-function advanceHaystack(a: AdvanceListItem): string {
-  return [
-    a.personnelFullName ?? "",
-    a.branchName ?? "",
-    a.description ?? "",
-    String(a.amount),
-    a.advanceDate?.slice(0, 10) ?? "",
-    String(a.effectiveYear),
-    a.sourceType ?? "",
-  ]
-    .join(" ")
-    .trim();
-}
-
-function productHaystack(p: ProductListItem): string {
-  return [
-    p.name,
-    p.unit ?? "",
-    p.categoryName ?? "",
-    ...(p.byWarehouse ?? []).map((w) => `${w.warehouseName} ${w.quantity}`),
-  ]
-    .join(" ")
-    .trim();
-}
-
-function userHaystack(u: UserListItem): string {
-  return [u.username, u.fullName ?? "", u.role, u.status].join(" ").trim();
-}
-
-function vehicleHaystack(v: VehicleListItem): string {
-  return [
-    v.plateNumber,
-    v.plateNumber.replace(/\s+/g, ""),
-    v.brand,
-    v.model,
-    v.year != null ? String(v.year) : "",
-    v.status,
-    v.assignedPersonnelName ?? "",
-    v.assignedBranchName ?? "",
-  ]
-    .join(" ")
-    .trim();
-}
-
-/** Plaka: boşluk/tire farkını yok sayarak eşleşme (örn. 34 abc ↔ 34ABC). */
-function plateMatchesQuery(plateRaw: string, Q: string, loc: string): boolean {
-  const plate = norm(plateRaw, loc);
-  if (plate.includes(Q)) return true;
-  const qCompact = Q.replace(/[\s.-]+/g, "");
-  if (qCompact.length < 2) return false;
-  const pCompact = plate.replace(/[\s.-]+/g, "");
-  return pCompact.includes(qCompact);
-}
-
-function sourceAbbrev(t: (k: string) => string, st: string): string {
-  const u = st.toUpperCase();
-  if (u === "PATRON") return t("personnel.advanceSourceAbbrPatron");
-  if (u === "BANK") return t("personnel.advanceSourceAbbrBank");
-  return t("personnel.advanceSourceAbbrCash");
-}
-
-function AdvanceSearchDetailModal({
-  open,
-  row,
-  onClose,
-  t,
-  locale,
-}: {
-  open: boolean;
-  row: AdvanceListItem | null;
-  onClose: () => void;
-  t: (k: string) => string;
-  locale: Locale;
-}) {
-  const dash = t("personnel.dash");
-  if (!open || !row) return null;
-  const dateLabel = formatLocaleDate(row.advanceDate, locale, dash);
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      titleId="global-search-advance-detail"
-      title={row.personnelFullName?.trim() || t("personnel.advance")}
-      description={`${t("search.catAdvance")} · ${row.branchName?.trim() || dash}`}
-      closeButtonLabel={t("common.close")}
-    >
-      <dl className="mt-2 space-y-3 text-sm">
-        <div className="flex justify-between gap-3">
-          <dt className="text-zinc-500">{t("personnel.advanceDate")}</dt>
-          <dd className="text-right font-medium text-zinc-900">{dateLabel}</dd>
-        </div>
-        <div className="flex justify-between gap-3">
-          <dt className="text-zinc-500">{t("personnel.sourceType")}</dt>
-          <dd className="text-right text-zinc-900">
-            {sourceAbbrev(t, row.sourceType)}
-          </dd>
-        </div>
-        <div className="flex justify-between gap-3">
-          <dt className="text-zinc-500">{t("personnel.effectiveYear")}</dt>
-          <dd className="text-right tabular-nums text-zinc-900">
-            {row.effectiveYear}
-          </dd>
-        </div>
-        <div className="flex justify-between gap-3">
-          <dt className="text-zinc-500">{t("personnel.amount")}</dt>
-          <dd className="text-right font-semibold tabular-nums text-zinc-900">
-            {formatMoneyDash(row.amount, dash, locale)}{" "}
-            <span className="text-xs font-normal text-zinc-500">
-              {row.currencyCode}
-            </span>
-          </dd>
-        </div>
-        <div>
-          <dt className="text-zinc-500">{t("personnel.note")}</dt>
-          <dd className="mt-1 whitespace-pre-wrap break-words text-zinc-900">
-            {row.description?.trim() || dash}
-          </dd>
-        </div>
-      </dl>
-    </Modal>
-  );
-}
-
-function buildEntityHits(bundle: ListsBundle, qRaw: string, loc: string): EntityHit[] {
-  const Q = norm(qRaw.trim(), loc);
-  if (!Q) return [];
-  const out: EntityHit[] = [];
-  for (const branch of bundle.branches) {
-    if (norm(branch.name, loc).includes(Q)) {
-      out.push({ kind: "branch", branch });
-    }
-  }
-  for (const personnel of bundle.personnel) {
-    if (personnel.isDeleted) continue;
-    if (norm(personnel.fullName, loc).includes(Q)) {
-      out.push({ kind: "personnel", personnel });
-    }
-  }
-  for (const warehouse of bundle.warehouses) {
-    if (norm(warehouseHaystack(warehouse), loc).includes(Q)) {
-      out.push({ kind: "warehouse", warehouse });
-    }
-  }
-  for (const advance of bundle.advances) {
-    if (norm(advanceHaystack(advance), loc).includes(Q)) {
-      out.push({ kind: "advance", advance });
-    }
-  }
-  for (const product of bundle.products) {
-    if (norm(productHaystack(product), loc).includes(Q)) {
-      out.push({ kind: "product", product });
-    }
-  }
-  for (const vehicle of bundle.vehicles) {
-    if (
-      plateMatchesQuery(vehicle.plateNumber, Q, loc) ||
-      norm(vehicleHaystack(vehicle), loc).includes(Q)
-    ) {
-      out.push({ kind: "vehicle", vehicle });
-    }
-  }
-  for (const sysUser of bundle.users) {
-    if (norm(userHaystack(sysUser), loc).includes(Q)) {
-      out.push({ kind: "user", user: sysUser });
-    }
-  }
-  return out.slice(0, MAX_ENTITY_RESULTS);
-}
+type SearchKindOption = {
+  kind: GlobalSearchHit["kind"];
+  label: string;
+};
 
 export function AppGlobalSearch() {
   const { t, locale } = useI18n();
   const { user } = useAuth();
   const personnelPortal = isPersonnelPortalRole(user?.role);
-  const isAdminUser = user?.role === "ADMIN";
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const fetchGen = useRef(0);
-
-  const [bundle, setBundle] = useState<{
-    queryKey: string;
-    data: ListsBundle;
-  } | null>(null);
+  const [entityHits, setEntityHits] = useState<GlobalSearchHit[]>([]);
   const [entityLoading, setEntityLoading] = useState(false);
   const [entityError, setEntityError] = useState<string | null>(null);
-
-  const [advanceDetail, setAdvanceDetail] = useState<AdvanceListItem | null>(
-    null
-  );
+  const [selectedKinds, setSelectedKinds] = useState<GlobalSearchHit["kind"][]>([]);
 
   const debouncedQuery = useDebouncedValue(query, DEBOUNCE_MS);
   const loc = locale === "tr" ? "tr-TR" : "en-US";
 
   const debouncedTrim = debouncedQuery.trim();
   const entityQueryOk = debouncedTrim.length >= MIN_ENTITY_QUERY_LEN;
+  const kindOptions = useMemo<SearchKindOption[]>(
+    () => [
+      { kind: "branch", label: t("search.catBranch") },
+      { kind: "personnel", label: t("search.catPersonnel") },
+      { kind: "warehouse", label: t("search.catWarehouse") },
+      { kind: "vehicle", label: t("search.catVehicle") },
+      { kind: "product", label: t("search.catProduct") },
+      { kind: "advance", label: t("search.catAdvance") },
+      { kind: "user", label: t("search.catUser") },
+      { kind: "supplierInvoice", label: t("search.subSupplierInvoices") },
+      { kind: "branchTransaction", label: t("search.catBranchTransaction") },
+      { kind: "warehouseMovement", label: t("search.catWarehouseMovement") },
+      { kind: "document", label: t("search.catDocument") },
+    ],
+    [t]
+  );
+  const availableKindOptions = useMemo(() => {
+    const admin = user?.role === "ADMIN";
+    return kindOptions.filter((opt) => {
+      if (!admin && opt.kind === "user") return false;
+      if (personnelPortal) {
+        return (
+          opt.kind === "branch" ||
+          opt.kind === "vehicle" ||
+          opt.kind === "document"
+        );
+      }
+      return true;
+    });
+  }, [kindOptions, user?.role, personnelPortal]);
 
   useEffect(() => {
     if (!entityQueryOk) {
-      setBundle(null);
+      setEntityHits([]);
       setEntityLoading(false);
       setEntityError(null);
       return;
@@ -316,45 +125,27 @@ export function AppGlobalSearch() {
     setEntityError(null);
     void (async () => {
       try {
-        const [branches, personnel, warehouses, advances, products, vehicles, users] =
-          personnelPortal
-            ? await Promise.all([
-                fetchBranches(),
-                Promise.resolve([] as Personnel[]),
-                Promise.resolve([] as WarehouseListItem[]),
-                Promise.resolve([] as AdvanceListItem[]),
-                Promise.resolve([] as ProductListItem[]),
-                fetchVehicles(),
-                Promise.resolve([] as UserListItem[]),
-              ])
-            : await Promise.all([
-                fetchBranches(),
-                fetchPersonnelList().then((r) => r.items),
-                fetchWarehouses(),
-                fetchAllAdvances({ limit: 1000 }),
-                fetchProductsCatalog(),
-                fetchVehicles(),
-                isAdminUser ? fetchUsersList() : Promise.resolve([] as UserListItem[]),
-              ]);
-        if (id !== fetchGen.current) return;
-        setBundle({
-          queryKey: q,
-          data: { branches, personnel, warehouses, advances, products, vehicles, users },
+        const items = await fetchGlobalSearch(q, 10, {
+          types: selectedKinds,
+          limitTotal: MAX_ENTITY_RESULTS,
         });
+        if (id !== fetchGen.current) return;
+        setEntityHits(items.slice(0, MAX_ENTITY_RESULTS));
       } catch (e) {
         if (id !== fetchGen.current) return;
-        setBundle(null);
+        setEntityHits([]);
         setEntityError(toErrorMessage(e));
       } finally {
         if (id === fetchGen.current) setEntityLoading(false);
       }
     })();
-  }, [debouncedTrim, entityQueryOk, personnelPortal, isAdminUser]);
+  }, [debouncedTrim, entityQueryOk, selectedKinds]);
 
-  const entityHits = useMemo(() => {
-    if (!entityQueryOk || !bundle || bundle.queryKey !== debouncedTrim) return [];
-    return buildEntityHits(bundle.data, debouncedTrim, loc);
-  }, [entityQueryOk, bundle, debouncedTrim, loc]);
+  useEffect(() => {
+    setSelectedKinds((prev) =>
+      prev.filter((kind) => availableKindOptions.some((opt) => opt.kind === kind))
+    );
+  }, [availableKindOptions]);
 
   const navFiltered = useMemo(() => {
     const base = personnelPortal
@@ -393,11 +184,6 @@ export function AppGlobalSearch() {
     [router]
   );
 
-  const closeSearchOnly = useCallback(() => {
-    setOpen(false);
-    setQuery("");
-  }, []);
-
   const activateRow = useCallback(
     (row: Row | undefined) => {
       if (!row) return;
@@ -406,25 +192,19 @@ export function AppGlobalSearch() {
         return;
       }
       const h = row.hit;
-      if (h.kind === "advance") {
-        closeSearchOnly();
-        setAdvanceDetail(h.advance);
-        return;
-      }
       setOpen(false);
       setQuery("");
-      if (h.kind === "branch") go(`/branches?openBranch=${h.branch.id}`);
-      else if (h.kind === "warehouse")
-        go(`/warehouses?openWarehouse=${h.warehouse.id}`);
-      else if (h.kind === "personnel")
-        go(`/personnel?openPersonnel=${h.personnel.id}`);
-      else if (h.kind === "product")
-        go(`/products?openProduct=${h.product.id}`);
-      else if (h.kind === "vehicle")
-        go(`/vehicles?openVehicle=${h.vehicle.id}`);
-      else go(`/admin/users?openUser=${h.user.id}`);
+      if (h.route?.trim()) {
+        go(h.route);
+        return;
+      }
+      if (h.kind === "branch") go(`/branches?openBranch=${h.id}`);
+      else if (h.kind === "warehouse") go(`/warehouses?openWarehouse=${h.id}`);
+      else if (h.kind === "personnel") go(`/personnel?openPersonnel=${h.id}`);
+      else if (h.kind === "product") go(`/products?openProduct=${h.id}`);
+      else if (h.kind === "vehicle") go(`/vehicles?openVehicle=${h.id}`);
     },
-    [go, closeSearchOnly]
+    [go]
   );
 
   useEffect(() => {
@@ -576,18 +356,7 @@ export function AppGlobalSearch() {
                       ? `command-search-${rows[highlight].nav.id}`
                       : (() => {
                           const h = rows[highlight].hit;
-                          if (h.kind === "branch") return `command-search-ent-branch-${h.branch.id}`;
-                          if (h.kind === "personnel")
-                            return `command-search-ent-personnel-${h.personnel.id}`;
-                          if (h.kind === "warehouse")
-                            return `command-search-ent-warehouse-${h.warehouse.id}`;
-                          if (h.kind === "advance")
-                            return `command-search-ent-advance-${h.advance.id}`;
-                          if (h.kind === "product")
-                            return `command-search-ent-product-${h.product.id}`;
-                          if (h.kind === "vehicle")
-                            return `command-search-ent-vehicle-${h.vehicle.id}`;
-                          return `command-search-ent-user-${h.user.id}`;
+                          return `command-search-ent-${h.kind}-${h.id}`;
                         })()
                     : undefined
                 }
@@ -606,6 +375,46 @@ export function AppGlobalSearch() {
                 {t("search.loadingRecords")}
               </p>
             ) : null}
+            <div className="border-b border-zinc-100 px-3 py-2">
+              <div className="flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setSelectedKinds([])}
+                  className={cn(
+                    "rounded-full border px-2 py-1 text-[11px] font-medium",
+                    selectedKinds.length === 0
+                      ? "border-zinc-900 bg-zinc-900 text-white"
+                      : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"
+                  )}
+                >
+                  {t("common.all")}
+                </button>
+                {availableKindOptions.map((opt) => {
+                  const active = selectedKinds.includes(opt.kind);
+                  return (
+                    <button
+                      key={opt.kind}
+                      type="button"
+                      onClick={() =>
+                        setSelectedKinds((prev) =>
+                          prev.includes(opt.kind)
+                            ? prev.filter((k) => k !== opt.kind)
+                            : [...prev, opt.kind]
+                        )
+                      }
+                      className={cn(
+                        "rounded-full border px-2 py-1 text-[11px] font-medium",
+                        active
+                          ? "border-zinc-900 bg-zinc-900 text-white"
+                          : "border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             <div
               id="command-search-list"
               role="listbox"
@@ -682,19 +491,7 @@ export function AppGlobalSearch() {
                     }
                     const hit = row.hit;
                     const entId =
-                      hit.kind === "branch"
-                        ? `command-search-ent-branch-${hit.branch.id}`
-                        : hit.kind === "personnel"
-                          ? `command-search-ent-personnel-${hit.personnel.id}`
-                          : hit.kind === "warehouse"
-                            ? `command-search-ent-warehouse-${hit.warehouse.id}`
-                            : hit.kind === "advance"
-                              ? `command-search-ent-advance-${hit.advance.id}`
-                              : hit.kind === "product"
-                                ? `command-search-ent-product-${hit.product.id}`
-                                : hit.kind === "vehicle"
-                                  ? `command-search-ent-vehicle-${hit.vehicle.id}`
-                                  : `command-search-ent-user-${hit.user.id}`;
+                      `command-search-ent-${hit.kind}-${hit.id}`;
                     const cat =
                       hit.kind === "branch"
                         ? t("search.catBranch")
@@ -704,40 +501,21 @@ export function AppGlobalSearch() {
                             ? t("search.catWarehouse")
                             : hit.kind === "advance"
                               ? t("search.catAdvance")
-                              : hit.kind === "product"
+                            : hit.kind === "product"
                                 ? t("search.catProduct")
-                                : hit.kind === "vehicle"
-                                  ? t("search.catVehicle")
-                                  : t("search.catUser");
-                    const title =
-                      hit.kind === "branch"
-                        ? hit.branch.name
-                        : hit.kind === "personnel"
-                          ? hit.personnel.fullName
-                          : hit.kind === "warehouse"
-                            ? hit.warehouse.name
-                            : hit.kind === "advance"
-                              ? hit.advance.personnelFullName?.trim() ||
-                                t("personnel.advance")
-                              : hit.kind === "product"
-                                ? hit.product.name
-                                : hit.kind === "vehicle"
-                                  ? hit.vehicle.plateNumber
-                                  : hit.user.username;
-                    const sub =
-                      hit.kind === "branch"
-                        ? cat
-                        : hit.kind === "personnel"
-                          ? `${cat} · ${hit.personnel.branchId != null ? `#${hit.personnel.branchId}` : "—"}`
-                          : hit.kind === "warehouse"
-                            ? `${cat} · ${[hit.warehouse.city, hit.warehouse.address].filter(Boolean).join(" · ") || "—"}`
-                            : hit.kind === "advance"
-                              ? `${cat} · ${hit.advance.branchName?.trim() || "—"}${hit.advance.description?.trim() ? ` · ${hit.advance.description.trim().slice(0, 80)}${hit.advance.description.trim().length > 80 ? "…" : ""}` : ""}`
-                              : hit.kind === "product"
-                                ? `${cat}${hit.product.categoryName ? ` · ${hit.product.categoryName}` : ""}${hit.product.unit ? ` · ${hit.product.unit}` : ""}`
-                                : hit.kind === "vehicle"
-                                  ? `${cat} · ${hit.vehicle.brand} ${hit.vehicle.model}${hit.vehicle.year != null ? ` · ${hit.vehicle.year}` : ""} · ${hit.vehicle.status}${hit.vehicle.assignedPersonnelName || hit.vehicle.assignedBranchName ? ` · ${hit.vehicle.assignedPersonnelName ?? hit.vehicle.assignedBranchName}` : ""}`
-                                  : `${cat} · ${hit.user.fullName?.trim() || "—"} · ${accountRoleLabel(hit.user.role, t)}`;
+                                : hit.kind === "user"
+                                  ? t("search.catUser")
+                                  : hit.kind === "supplierInvoice"
+                                    ? t("search.subSupplierInvoices")
+                                    : hit.kind === "branchTransaction"
+                                      ? t("search.catBranchTransaction")
+                                      : hit.kind === "warehouseMovement"
+                                        ? t("search.catWarehouseMovement")
+                                        : hit.kind === "document"
+                                          ? t("search.catDocument")
+                                : t("search.catVehicle");
+                    const title = hit.title;
+                    const sub = `${cat}${hit.subtitle?.trim() ? ` · ${hit.subtitle.trim()}` : ""}`;
                     bits.push(
                       <button
                         key={entId}
@@ -773,14 +551,6 @@ export function AppGlobalSearch() {
           </div>
         </div>
       ) : null}
-
-      <AdvanceSearchDetailModal
-        open={advanceDetail != null}
-        row={advanceDetail}
-        onClose={() => setAdvanceDetail(null)}
-        t={t}
-        locale={locale}
-      />
     </>
   );
 }

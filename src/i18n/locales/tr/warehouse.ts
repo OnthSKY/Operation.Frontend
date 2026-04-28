@@ -72,7 +72,7 @@ export const warehouse = {
   auditColPayload: "Veri",
   auditShowJson: "JSON göster",
   actionDepoProductIn: "Depo ürün girişi",
-  actionBranchProductOut: "Şube ürün çıkışı",
+  actionBranchProductOut: "Şubeye sevkiyat",
   qtyLabelDepoIn: "Depo giriş miktarı",
   depoInUnitCostOptional: "Birim maliyet (isteğe bağlı)",
   depoInUnitCostHint:
@@ -91,7 +91,7 @@ export const warehouse = {
   depoInReceiptSummaryGroupTotal: "Ara toplam",
   depoInReceiptSummaryMixedUnitsHint:
     "Bu grupta satırların birimleri farklı; sayılar yine de toplanmıştır.",
-  transferRowTitle: "Şube ürün çıkışı",
+  transferRowTitle: "Şubeye sevkiyat",
   movementsEmpty: "Henüz bu depoda kayıtlı hareket yok.",
   movementTypeCol: "Tür",
   movementNote: "Açıklama",
@@ -111,14 +111,14 @@ export const warehouse = {
   movementsFiltersToggle: "Depo hareketi filtreleri",
   movementsFilterIconAria: "Filtreleri aç",
   movementsFilterDrawerHint:
-    "Ürün kapsamı, hedef şube ve tarih aralığı ile listeyi daraltın. Giriş / sevkiyat ayrımı üstteki sekmelerdedir. Uygula listeyi yeniler ve çekmeceyi kapatır.",
+    "Ürün kapsamı, hedef şube ve tarih aralığı ile listeyi daraltın. Depo girişi / Şube Sevkiyatı ayrımı üstteki sekmelerdedir. Uygula listeyi yeniler ve çekmeceyi kapatır.",
   movementsSubPanelAria: "Depo hareketleri alt bölümleri",
   movementsSubTabStock: "Stok işlemleri",
   movementsSubTabHistory: "Hareket geçmişi",
   movementsTypeSegmentAria: "Hareket türü",
   movementsTypeSegmentAll: "Tümü",
-  movementsTypeSegmentInbound: "Depo girişleri",
-  movementsTypeSegmentOutbound: "Sevkiyat",
+  movementsTypeSegmentInbound: "Depo girişi",
+  movementsTypeSegmentOutbound: "Şube Sevkiyatı",
   editInboundBatchTitle: "Depo girişi tarihlerini düzelt",
   editInboundBatchHint:
     "Aynı partideki tüm giriş satırları ve ilişkili şube stok hareketlerinin iş günü tarihi güncellenir; işlem denetim kaydına yazılır.",
@@ -145,6 +145,7 @@ export const warehouse = {
   editInboundFullOpenRow: "Girişi düzenle",
   editOutboundShipmentTitle: "Sevkiyat satırını düzenle",
   editOutboundShipmentSaved: "Sevkiyat güncellendi.",
+  appendOutboundShipmentLineSaved: "Sevkiyata yeni kalem eklendi.",
   editOutboundShipmentOpenRow: "Sevkiyatı düzenle",
   editOutboundShipmentSave: "Kaydet",
   editOutboundShipmentAuditHint:
@@ -259,7 +260,7 @@ export const warehouse = {
   detailProductCountWithStock: "Pozitif stoklu SKU sayısı",
   detailTotalOnHandQuantity: "Toplam stok miktarı (özet)",
   stockHint:
-    "Tüm katalog ürünleri; «Depo ürün girişi» ve «Şube ürün çıkışı» (pencereler) ile stok hareketi. Ortak hareket tarihi üstte.",
+    "Tüm katalog ürünleri; «Depo ürün girişi» ve «Şubeye sevkiyat» (pencereler) ile stok hareketi. Ortak hareket tarihi üstte.",
   stockOpsFiltersTitle: "Stok listesi filtreleri",
   stockOpsFiltersToggle: "Stok filtrelerini aç",
   stockOpsFiltersDrawerHint:
@@ -323,7 +324,7 @@ export const warehouse = {
   movementsTotalsIn: "Toplam giriş miktarı",
   movementsTotalsOut: "Toplam çıkış miktarı",
   movementsTotalsHint:
-    "Ürün/kategori, tarih ve varsa hedef şubeye göre: giriş toplamı tüm girişler, çıkış toplamı seçili şubeye gidenler (şube seçili değilse tüm çıkışlar). Üstteki «Tümü / Depo girişleri / Sevkiyat» yalnızca listeyi daraltır. Sevkiyat/ürün adedi değildir; birimler karışabilir.",
+    "Ürün/kategori, tarih ve varsa hedef şubeye göre: giriş toplamı tüm girişler, çıkış toplamı seçili şubeye gidenler (şube seçili değilse tüm çıkışlar). Üstteki «Tümü / Depo girişi / Şube Sevkiyatı» yalnızca listeyi daraltır. Sevkiyat/ürün adedi değildir; birimler karışabilir.",
   movementsFilterGroupCounts:
     "Aynı filtrelere göre (tüm sayfalar): {{in}} giriş grubu · {{out}} çıkış grubu. Her grup bir sevkiyat partisi veya tek satırdır.",
   movementsOutboundByBranchTitle: "Depodan şubeye sevkiyat — hedef şubeye göre",

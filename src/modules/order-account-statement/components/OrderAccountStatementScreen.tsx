@@ -42,9 +42,10 @@ import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatLocaleAmount, formatLocaleAmountInput, parseLocaleAmount } from "@/shared/lib/locale-amount";
 import { notify } from "@/shared/lib/notify";
 import { Checkbox } from "@/shared/ui/Checkbox";
-import { detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
+import { detailOpenIconButtonClass, PlusIcon } from "@/shared/ui/EyeIcon";
 import { ModernSelect } from "@/shared/ui/ModernSelect";
 import { Select, type SelectOption } from "@/shared/ui/Select";
+import { TrashIcon } from "@/shared/ui/TrashIcon";
 import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
 import { RichCombobox, type RichComboboxOption } from "@/shared/ui/RichCombobox";
@@ -193,21 +194,8 @@ function OasTrashButton({ label, onClick }: { label: string; onClick: () => void
       onClick={onClick}
       className="!border-zinc-200 !text-zinc-700 hover:!border-red-200/90 hover:!bg-red-50 hover:!text-red-800"
     >
-      <svg className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-        <path
-          fillRule="evenodd"
-          d="M8.75 1A2.25 2.25 0 006.5 3.25V4H3.25a.75.75 0 000 1.5H4v10.5A2.25 2.25 0 006.25 18h7.5A2.25 2.25 0 0016 15.75V5.5h.75a.75.75 0 000-1.5H13.5V3.25A2.25 2.25 0 0011.25 1h-2.5zM8 4V3.25A.75.75 0 008.75 3h2.5a.75.75 0 01.75.75V4H8zM6.5 5.5v9.5a.75.75 0 00.75.75h7.5a.75.75 0 00.75-.75V5.5h-9zM8.75 8.25a.75.75 0 00-1.5 0v5.5a.75.75 0 001.5 0v-5.5zm3.5 0a.75.75 0 00-1.5 0v5.5a.75.75 0 001.5 0v-5.5z"
-        />
-      </svg>
+      <TrashIcon className="h-6 w-6" />
     </OasIconButton>
-  );
-}
-
-function IcPlus({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-      <path d="M10.75 4.75a.75.75 0 00-1.5 0v4.5h-4.5a.75.75 0 000 1.5h4.5v4.5a.75.75 0 001.5 0v-4.5h4.5a.75.75 0 000-1.5h-4.5v-4.5z" />
-    </svg>
   );
 }
 
@@ -523,6 +511,8 @@ function buildOrderAccountDocumentMetadata(input: {
   invoiceId?: number | null;
   invoiceNo?: string | null;
   counterpartyLabel?: string | null;
+  receivedAdvanceAmount?: number | null;
+  receivedAdvancePostToLedger?: boolean | null;
 }): string {
   const parts = [
     "Sipariş-hesap dökümü PDF",
@@ -534,6 +524,12 @@ function buildOrderAccountDocumentMetadata(input: {
   if (input.invoiceId && Number.isFinite(input.invoiceId)) parts.push(`invoiceId=${input.invoiceId}`);
   if (input.invoiceNo?.trim()) parts.push(`invoiceNo=${input.invoiceNo.trim()}`);
   if (input.counterpartyLabel?.trim()) parts.push(`counterparty=${input.counterpartyLabel.trim()}`);
+  if (Number.isFinite(input.receivedAdvanceAmount) && (input.receivedAdvanceAmount ?? 0) > 0) {
+    parts.push(`receivedAdvance=${input.receivedAdvanceAmount}`);
+    if (input.receivedAdvancePostToLedger != null) {
+      parts.push(`receivedAdvanceLedger=${input.receivedAdvancePostToLedger ? "yes" : "no"}`);
+    }
+  }
   return parts.join(" · ");
 }
 
@@ -1664,6 +1660,7 @@ export function OrderAccountStatementScreen() {
   const [lastCreatedInvoiceNo, setLastCreatedInvoiceNo] = useState("");
   const [suggestions, setSuggestions] = useState<CounterpartySuggestionRow[]>([]);
   const [suggestionsBusy, setSuggestionsBusy] = useState(false);
+  const [applyBranchOpenBalanceBusy, setApplyBranchOpenBalanceBusy] = useState(false);
   const [emblemDataUrl, setEmblemDataUrl] = useState("");
   const [defaultEmblemDataUrl, setDefaultEmblemDataUrl] = useState("");
   const [documentTitle, setDocumentTitle] = useState("");
@@ -1673,6 +1670,7 @@ export function OrderAccountStatementScreen() {
   const [paidLines, setPaidLines] = useState<PaidDraft[]>(() => []);
   const [promoLines, setPromoLines] = useState<PromoDraft[]>(() => []);
   const [advanceText, setAdvanceText] = useState("");
+  const [receivedAdvancePostToLedger, setReceivedAdvancePostToLedger] = useState(true);
   const [previousBalanceText, setPreviousBalanceText] = useState("");
   const [statementDate] = useState(() => new Date());
   const [layoutVariant, setLayoutVariant] = useState<StatementLayoutVariant>("corporate");
@@ -2319,6 +2317,32 @@ export function OrderAccountStatementScreen() {
     ],
     [branches, locale, t]
   );
+  const branchOpenAmountById = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const row of suggestions) {
+      if (row.counterpartyType !== "branch") continue;
+      if (!Number.isFinite(row.counterpartyId) || row.counterpartyId <= 0) continue;
+      map.set(row.counterpartyId, Math.max(0, Number(row.openAmount) || 0));
+    }
+    return map;
+  }, [suggestions]);
+  const applySelectedBranchOpenBalance = useCallback(() => {
+    const branchId = Number.parseInt(linkedBranchId.trim(), 10);
+    if (!Number.isFinite(branchId) || branchId <= 0) {
+      notify.error(t("reports.orderAccountStatementSystemBranchBalanceSelectFirst"));
+      return;
+    }
+    setApplyBranchOpenBalanceBusy(true);
+    const amount = branchOpenAmountById.get(branchId);
+    if (!Number.isFinite(amount)) {
+      notify.error(t("reports.orderAccountStatementSystemBranchBalanceMissing"));
+      setApplyBranchOpenBalanceBusy(false);
+      return;
+    }
+    setPreviousBalanceText(formatLocaleAmountInput(Math.max(0, amount), locale));
+    notify.success(t("reports.orderAccountStatementSystemBranchBalanceApplied"));
+    setApplyBranchOpenBalanceBusy(false);
+  }, [branchOpenAmountById, linkedBranchId, locale, t]);
 
   const fillTekinSample = useCallback(() => {
     setCompanyName("TEKİN USTA DONDURMA");
@@ -2611,6 +2635,9 @@ export function OrderAccountStatementScreen() {
             branchName: safeBranch,
             title: safeTitle,
             counterpartyLabel: `${counterpartyType}:${counterpartyId}`,
+            receivedAdvanceAmount: advanceDeduction,
+            receivedAdvancePostToLedger:
+              advanceDeduction > 0 ? receivedAdvancePostToLedger : null,
           }),
           paymentInfo: {
             iban: paymentIban.trim() || null,
@@ -2687,6 +2714,9 @@ export function OrderAccountStatementScreen() {
               createdInvoice != null
                 ? `${createdInvoice.counterpartyType}:${createdInvoice.counterpartyId}`
                 : `${counterpartyType}:${counterpartyId}`,
+            receivedAdvanceAmount: advanceDeduction,
+            receivedAdvancePostToLedger:
+              advanceDeduction > 0 ? receivedAdvancePostToLedger : null,
           });
           const saved = await uploadBranchDocument(branchId, {
             file: systemFile,
@@ -2715,12 +2745,14 @@ export function OrderAccountStatementScreen() {
     linkedBranchId,
     locale,
     parsedLines,
+    advanceDeduction,
     paymentAccountHolder,
     paymentBankName,
     paymentIban,
     paymentNote,
     creationMode,
     shipmentLinkMode,
+    receivedAdvancePostToLedger,
     selectedShipmentSource,
     orderDocumentKey,
     saveAsInvoice,
@@ -3267,7 +3299,7 @@ export function OrderAccountStatementScreen() {
                 }
                 disabled={creationMode === "shipmentBased" && shipmentLinkMode === "strict"}
               >
-                <IcPlus className="h-6 w-6" />
+                <PlusIcon className="h-6 w-6" />
               </OasIconButton>
             }
             collapsible
@@ -3959,7 +3991,7 @@ export function OrderAccountStatementScreen() {
                 aria-label={t("reports.orderAccountStatementAddPromoLine")}
                 onClick={() => setPromoLines((p) => [...p, emptyPromo()])}
               >
-                <IcPlus className="h-6 w-6" />
+                <PlusIcon className="h-6 w-6" />
               </OasIconButton>
             }
           >
@@ -4076,8 +4108,8 @@ export function OrderAccountStatementScreen() {
                 </div>
               </>
             )}
-            <div className="mt-4 w-full max-w-xl rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 shadow-sm ring-1 ring-zinc-950/[0.02]">
-              <div className="grid gap-3 md:grid-cols-2">
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              <section className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 shadow-sm ring-1 ring-zinc-950/[0.02]">
                 <label className="block text-sm">
                   <span className="mb-1.5 inline-flex items-center gap-2 text-zinc-700">
                     <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-white text-zinc-700 shadow-sm ring-1 ring-zinc-200">
@@ -4103,6 +4135,25 @@ export function OrderAccountStatementScreen() {
                     }}
                   />
                 </label>
+                {advanceDeduction > 0 ? (
+                  <label className="mt-2 flex cursor-pointer items-start gap-2.5 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm">
+                    <Checkbox
+                      className="mt-0.5"
+                      checked={receivedAdvancePostToLedger}
+                      onCheckedChange={(next) => setReceivedAdvancePostToLedger(next === true)}
+                    />
+                    <span className="min-w-0">
+                      <span className="font-medium text-zinc-800">
+                        {t("reports.orderAccountStatementReceivedAdvancePostToLedger")}
+                      </span>
+                      <span className="mt-0.5 block text-[11px] font-normal text-zinc-500">
+                        {t("reports.orderAccountStatementReceivedAdvancePostToLedgerHelp")}
+                      </span>
+                    </span>
+                  </label>
+                ) : null}
+              </section>
+              <section className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 shadow-sm ring-1 ring-zinc-950/[0.02]">
                 <label className="block text-sm">
                   <span className="mb-1.5 inline-flex items-center gap-2 text-zinc-700">
                     <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-white text-zinc-700 shadow-sm ring-1 ring-zinc-200">
@@ -4113,19 +4164,32 @@ export function OrderAccountStatementScreen() {
                     </span>
                     <span className="font-medium">{t("reports.orderAccountStatementPreviousBalanceShort")}</span>
                   </span>
-                  <input
-                    inputMode="decimal"
-                    className="w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm tabular-nums shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-300/60"
-                    placeholder="0"
-                    value={previousBalanceText}
-                    onChange={(e) => setPreviousBalanceText(e.target.value)}
-                    onBlur={() => {
-                      const n = parseLocaleAmount(previousBalanceText, locale);
-                      if (Number.isFinite(n)) setPreviousBalanceText(formatLocaleAmountInput(Math.max(0, n), locale));
-                    }}
-                  />
+                  <div className="grid gap-2">
+                    <input
+                      inputMode="decimal"
+                      className="w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm tabular-nums shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-300/60"
+                      placeholder="0"
+                      value={previousBalanceText}
+                      onChange={(e) => setPreviousBalanceText(e.target.value)}
+                      onBlur={() => {
+                        const n = parseLocaleAmount(previousBalanceText, locale);
+                        if (Number.isFinite(n)) setPreviousBalanceText(formatLocaleAmountInput(Math.max(0, n), locale));
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="h-10 justify-center whitespace-nowrap rounded-xl border border-zinc-200 bg-white px-3 text-sm sm:justify-start"
+                      onClick={applySelectedBranchOpenBalance}
+                      disabled={applyBranchOpenBalanceBusy || suggestionsBusy}
+                    >
+                      {applyBranchOpenBalanceBusy
+                        ? t("reports.loading")
+                        : t("reports.orderAccountStatementSystemBranchBalanceUse")}
+                    </Button>
+                  </div>
                 </label>
-              </div>
+              </section>
             </div>
           </StatementFormStep>
 
@@ -4139,7 +4203,7 @@ export function OrderAccountStatementScreen() {
                 aria-label={t("reports.orderAccountStatementAddPaidLine")}
                 onClick={() => setPaidLines((p) => [...p, emptyPaid()])}
               >
-                <IcPlus className="h-6 w-6" />
+                <PlusIcon className="h-6 w-6" />
               </OasIconButton>
             }
           >

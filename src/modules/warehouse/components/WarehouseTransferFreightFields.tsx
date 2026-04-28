@@ -21,6 +21,29 @@ type Props = {
   disabled: boolean;
 };
 
+function parseFreightAmount(input: string): number {
+  const normalized = input.replace(/\./g, "").replace(",", ".").trim();
+  return Number(normalized);
+}
+
+function formatFreightAmountInput(input: string): string {
+  const sanitized = input.replace(/[^\d.,]/g, "");
+  if (!sanitized) return "";
+  const lastComma = sanitized.lastIndexOf(",");
+  const lastDot = sanitized.lastIndexOf(".");
+  const sepIdx = Math.max(lastComma, lastDot);
+  const hasDecimal = sepIdx >= 0;
+  const intRaw = hasDecimal ? sanitized.slice(0, sepIdx) : sanitized;
+  const fracRaw = hasDecimal ? sanitized.slice(sepIdx + 1) : "";
+  const intDigits = intRaw.replace(/\D/g, "");
+  const fracDigits = fracRaw.replace(/\D/g, "").slice(0, 2);
+  const groupedInt = intDigits
+    ? new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 }).format(Number(intDigits))
+    : "0";
+  if (!hasDecimal) return groupedInt;
+  return `${groupedInt},${fracDigits}`;
+}
+
 export function WarehouseTransferFreightFields({
   freightAmount,
   onFreightAmountChange,
@@ -34,7 +57,7 @@ export function WarehouseTransferFreightFields({
   disabled,
 }: Props) {
   const { t } = useI18n();
-  const fr = Number(freightAmount.replace(",", "."));
+  const fr = parseFreightAmount(freightAmount);
   const freightActive = Number.isFinite(fr) && fr > 0;
 
   const payOptions = useMemo<SelectOption[]>(
@@ -55,7 +78,7 @@ export function WarehouseTransferFreightFields({
         autoComplete="off"
         label={t("warehouse.transferFreightAmount")}
         value={freightAmount}
-        onChange={(e) => onFreightAmountChange(e.target.value)}
+        onChange={(e) => onFreightAmountChange(formatFreightAmountInput(e.target.value))}
         disabled={disabled}
       />
       {freightActive ? (

@@ -117,8 +117,8 @@ export const warehouse = {
   movementsSubTabHistory: "Movement history",
   movementsTypeSegmentAria: "Movement type",
   movementsTypeSegmentAll: "All",
-  movementsTypeSegmentInbound: "Warehouse receipts",
-  movementsTypeSegmentOutbound: "Shipments",
+  movementsTypeSegmentInbound: "Warehouse inbound",
+  movementsTypeSegmentOutbound: "Warehouse outbound (branch shipment)",
   editInboundBatchTitle: "Correct warehouse receipt dates",
   editInboundBatchHint:
     "Updates business dates for every inbound line in the batch and syncs related branch stock movements; the change is written to the audit log.",
@@ -145,6 +145,7 @@ export const warehouse = {
   editInboundFullOpenRow: "Edit receipt",
   editOutboundShipmentTitle: "Edit depot shipment line",
   editOutboundShipmentSaved: "Shipment updated.",
+  appendOutboundShipmentLineSaved: "A new line was added to the shipment.",
   editOutboundShipmentOpenRow: "Edit shipment",
   editOutboundShipmentSave: "Save",
   editOutboundShipmentAuditHint:

@@ -43,7 +43,7 @@ export const nav = {
   documents: "Belgeler",
   dailyBranchRegister: "Kasa günü (tüm şubeler)",
   generalOverhead: "Genel giderler",
-  warehouse: "Depo",
+  warehouse: "Depolar",
   warehouseGlobalMovements: "Tüm depo hareketleri",
   products: "Ürünler",
   productCategories: "Kategoriler",

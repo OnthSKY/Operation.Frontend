@@ -34,6 +34,11 @@ function mergeDescriptionWithManualReceiver(base: string, manualReceiver: string
   return cleanBase ? `${cleanBase}\n${MANUAL_RECEIVER_PREFIX} ${receiver}` : `${MANUAL_RECEIVER_PREFIX} ${receiver}`;
 }
 
+function parseFreightAmount(input: string): number {
+  const normalized = input.replace(/\./g, "").replace(",", ".").trim();
+  return Number(normalized);
+}
+
 type MoveInput =
   | {
       warehouseId: number;
@@ -213,16 +218,52 @@ export function WarehouseStockLine({
     if (!Number.isFinite(n) || n <= 0 || n > row.quantity) return [];
     return [{ productId: row.productId, quantity: n }];
   }, [tQty, row.productId, row.quantity]);
-  const previewRequestedTotals = useMemo(() => {
-    const totals = new Map<number, number>();
+  const previewMainGroups = useMemo(() => {
+    const groups = new Map<
+      number,
+      {
+        mainProductId: number;
+        mainProductName: string;
+        quantity: number;
+        allocations: Map<number, { productId: number; productName: string; unit: string | null; quantity: number }>;
+      }
+    >();
     for (const a of previewAllocations) {
-      totals.set(a.requestedProductId, (totals.get(a.requestedProductId) ?? 0) + a.quantity);
+      const requestedParentId = row.parentProductId;
+      const mainProductId =
+        requestedParentId != null && Number.isFinite(requestedParentId) && requestedParentId > 0
+          ? requestedParentId
+          : a.requestedProductId;
+      const mainProductName = row.parentProductName?.trim() || row.productName.trim() || `#${mainProductId}`;
+      const existingGroup = groups.get(mainProductId);
+      if (existingGroup) {
+        existingGroup.quantity += a.quantity;
+      } else {
+        groups.set(mainProductId, {
+          mainProductId,
+          mainProductName,
+          quantity: a.quantity,
+          allocations: new Map(),
+        });
+      }
+      const group = groups.get(mainProductId)!;
+      const existingAllocation = group.allocations.get(a.allocatedProductId);
+      if (existingAllocation) {
+        existingAllocation.quantity += a.quantity;
+      } else {
+        group.allocations.set(a.allocatedProductId, {
+          productId: a.allocatedProductId,
+          productName: a.allocatedProductId === row.productId ? row.productName.trim() : `#${a.allocatedProductId}`,
+          unit: row.unit?.trim() || null,
+          quantity: a.quantity,
+        });
+      }
     }
-    return Array.from(totals.entries()).map(([requestedProductId, quantity]) => ({
-      requestedProductId,
-      quantity,
+    return Array.from(groups.values()).map((group) => ({
+      ...group,
+      allocations: Array.from(group.allocations.values()),
     }));
-  }, [previewAllocations]);
+  }, [previewAllocations, row.parentProductId, row.parentProductName, row.productId, row.productName, row.unit]);
 
   const runDepoIn = async (e: FormEvent) => {
     e.preventDefault();
@@ -325,7 +366,7 @@ export function WarehouseStockLine({
       notify.error(t("warehouse.transferManualReceiverRequired"));
       return;
     }
-    const frN = Number(freightAmount.replace(",", "."));
+    const frN = parseFreightAmount(freightAmount);
     const hasFreight = Number.isFinite(frN) && frN > 0;
     let pocketPid: number | undefined;
     if (hasFreight && freightPay === "PERSONNEL_POCKET") {
@@ -761,24 +802,27 @@ export function WarehouseStockLine({
             <p className="text-xs font-semibold uppercase tracking-wide text-violet-800">
               {t("warehouse.transferPreviewTitle")}
             </p>
-            {previewRequestedTotals.length > 0 ? (
-              <ul className="mt-1 space-y-1 text-xs font-medium text-zinc-800">
-                {previewRequestedTotals.map((a, idx) => (
-                  <li key={`requested-${a.requestedProductId}-${idx}`}>
-                    Ana ürün #{a.requestedProductId}: {a.quantity}
+            {previewMainGroups.length > 0 ? (
+              <ul className="mt-1.5 space-y-2 text-xs text-zinc-800">
+                {previewMainGroups.map((group) => (
+                  <li key={`main-${group.mainProductId}`} className="rounded border border-violet-200/80 bg-white/70 px-2 py-1.5">
+                    <p className="font-semibold text-zinc-900">
+                      Ana ürün: {group.mainProductName} ({formatLocaleAmount(group.quantity, locale)})
+                    </p>
+                    {group.allocations.length > 0 ? (
+                      <ul className="mt-1 space-y-0.5 pl-3 text-zinc-700">
+                        {group.allocations.map((a) => (
+                          <li key={`allocated-${group.mainProductId}-${a.productId}`}>
+                            • {a.productName}: {formatLocaleAmount(a.quantity, locale)}
+                            {a.unit ? ` ${a.unit}` : ""}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </li>
                 ))}
               </ul>
             ) : null}
-            <ul className="mt-1 space-y-1 text-xs text-zinc-700">
-              {previewAllocations.map((a, idx) => (
-                <li key={`${a.allocatedProductId}-${idx}`}>
-                  {t("warehouse.transferPreviewLine")
-                    .replace("{{productId}}", String(a.allocatedProductId))
-                    .replace("{{qty}}", String(a.quantity))}
-                </li>
-              ))}
-            </ul>
           </div>
         ) : null}
         <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:flex-wrap sm:justify-end">

@@ -125,6 +125,7 @@ export function WarehouseScreen() {
       },
     });
   };
+  const actionIconClass = "h-5 w-5 sm:h-[1.35rem] sm:w-[1.35rem]";
 
   return (
     <>
@@ -174,7 +175,7 @@ export function WarehouseScreen() {
                       onClick={() => setWhModal(true)}
                       aria-label={t("warehouse.addWarehouse")}
                     >
-                      <PlusIcon />
+                      <PlusIcon className={actionIconClass} />
                     </Button>
                   </Tooltip>
                 }
@@ -194,7 +195,7 @@ export function WarehouseScreen() {
                       onClick={() => setWhModal(true)}
                       aria-label={t("warehouse.addWarehouse")}
                     >
-                      <PlusIcon />
+                      <PlusIcon className={actionIconClass} />
                     </Button>
                   </Tooltip>
                 }
@@ -299,7 +300,7 @@ export function WarehouseScreen() {
                               title={t("warehouse.listActionDepoProductIn")}
                               onClick={() => setQuickDepoTarget({ id: w.id, name: w.name })}
                             >
-                              <PlusProductIcon />
+                              <PlusProductIcon className={actionIconClass} />
                             </Button>
                           </Tooltip>
                           <Tooltip
@@ -317,7 +318,7 @@ export function WarehouseScreen() {
                               title={t("warehouse.listActionBranchTransfer")}
                               onClick={() => setQuickTransferTarget({ id: w.id, name: w.name })}
                             >
-                              <BranchTransferListIcon />
+                              <BranchTransferListIcon className={actionIconClass} />
                             </Button>
                           </Tooltip>
                           <Tooltip className="shrink-0" content={t("common.openDetailsDialog")} delayMs={200}>
@@ -331,7 +332,7 @@ export function WarehouseScreen() {
                               title={t("common.openDetailsDialog")}
                               onClick={() => openDetail(w.id)}
                             >
-                              <EyeIcon />
+                              <EyeIcon className={actionIconClass} />
                             </Button>
                           </Tooltip>
                           <Tooltip
@@ -346,7 +347,7 @@ export function WarehouseScreen() {
                               onClick={() => onDeleteWarehouseRow(w)}
                               disabled={delWh.isPending}
                             >
-                              <TrashIcon />
+                              <TrashIcon className={actionIconClass} />
                             </button>
                           </Tooltip>
                         </div>
@@ -426,7 +427,7 @@ export function WarehouseScreen() {
                           title={t("warehouse.listActionDepoProductIn")}
                           onClick={() => setQuickDepoTarget({ id: w.id, name: w.name })}
                         >
-                          <PlusProductIcon />
+                          <PlusProductIcon className={actionIconClass} />
                         </Button>
                       </Tooltip>
                       <Tooltip
@@ -444,7 +445,7 @@ export function WarehouseScreen() {
                           title={t("warehouse.listActionBranchTransfer")}
                           onClick={() => setQuickTransferTarget({ id: w.id, name: w.name })}
                         >
-                          <BranchTransferListIcon />
+                          <BranchTransferListIcon className={actionIconClass} />
                         </Button>
                       </Tooltip>
                       <Tooltip className="shrink-0" content={t("common.openDetailsDialog")} delayMs={200}>
@@ -458,7 +459,7 @@ export function WarehouseScreen() {
                           title={t("common.openDetailsDialog")}
                           onClick={() => openDetail(w.id)}
                         >
-                          <EyeIcon />
+                          <EyeIcon className={actionIconClass} />
                         </Button>
                       </Tooltip>
                       <Tooltip
@@ -473,7 +474,7 @@ export function WarehouseScreen() {
                           onClick={() => onDeleteWarehouseRow(w)}
                           disabled={delWh.isPending}
                         >
-                          <TrashIcon />
+                          <TrashIcon className={actionIconClass} />
                         </button>
                       </Tooltip>
                     </div>

@@ -775,7 +775,7 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   orderAccountStatementPromoDiscount: "Hediye / promosyon indirimi (toplamdan düşülecek)",
   orderAccountStatementAdvance: "Ön ödeme (toplamdan düşülecek)",
   orderAccountStatementPromoLine: "Hediye / Promosyon",
-  orderAccountStatementAdvanceLine: "Ön Ödeme",
+  orderAccountStatementAdvanceLine: "ALINAN ÖN ÖDEME",
   orderAccountStatementPaidOnBehalfTitle: "Bizden çıkmayan, alınana ödediğiniz",
   orderAccountStatementPaidOnBehalfHelp:
     "Örneğin tedarikçiye sizin ödediğiniz ama stoğu size gelmeyen kalemler. Net tutara eklenir.",
@@ -809,7 +809,11 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   orderAccountStatementGiftTotalLine: "Hediye ürün kalemleri",
   orderAccountStatementPaidSectionPdf: "Dışarıdan temin edilen",
   orderAccountStatementPromoLineFallback: "Promosyon",
-  orderAccountStatementAdvanceShort: "Ön ödeme",
+  orderAccountStatementAdvanceShort: "Alınan ön ödeme",
+  orderAccountStatementReceivedAdvancePostToLedger:
+    "Alınan ön ödeme cariye işlensin",
+  orderAccountStatementReceivedAdvancePostToLedgerHelp:
+    "Açıkken alınan ön ödeme için cariye işleme notu kayda eklenir.",
   orderAccountStatementPreviousBalanceShort: "Devreden cari bakiye",
   orderAccountStatementPreviousBalanceLine: "DEVREDEN CARİ BAKİYE",
   orderAccountStatementPaidEmpty: "Bu grupta satır yok; gerekirse «Bu gruba satır ekle» ile ekleyin.",
@@ -906,6 +910,13 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   orderAccountStatementSystemBranchLabel: "Sistem eşleşme şubesi",
   orderAccountStatementSystemBranchHelp:
     "Belgenin hangi şube altında görüneceğini seçin. Seçili şubenin belge listesine kaydedilir.",
+  orderAccountStatementSystemBranchBalanceUse: "Şube bakiyesini getir",
+  orderAccountStatementSystemBranchBalanceSelectFirst:
+    "Önce sistem eşleşme şubesini seçin.",
+  orderAccountStatementSystemBranchBalanceMissing:
+    "Seçili şube için açık bakiye bulunamadı.",
+  orderAccountStatementSystemBranchBalanceApplied:
+    "Şubenin açık bakiyesi devreden bakiye alanına yazıldı.",
   orderAccountStatementSystemBranchNone: "Şube seçin…",
   orderAccountStatementSystemBranchRequired:
     "Sisteme kaydetmek için bir şube seçin.",

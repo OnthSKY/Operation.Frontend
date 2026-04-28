@@ -15,10 +15,12 @@ import { WarehouseMovementInvoicePreviewModal } from "@/modules/warehouse/compon
 import { WarehouseMovementRowCard } from "@/modules/warehouse/components/WarehouseMovementRowCard";
 import { warehouseScopeEffectiveCategoryId } from "@/modules/warehouse/lib/warehouse-scope-filters";
 import {
+  useAppendWarehouseOutboundShipmentLine,
   useSoftDeleteWarehouseInboundMovement,
   useSoftDeleteWarehouseOutboundShipmentMovement,
   useUpdateWarehouseInboundMovement,
   useWarehousePeopleOptions,
+  useWarehouseStock,
 } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
@@ -39,6 +41,8 @@ import {
   warehouseMovementShipmentGroupKey,
 } from "@/shared/lib/in-batch-group-label";
 import { EyeIcon } from "@/shared/ui/EyeIcon";
+import { PencilIcon, PlusIcon, PaperclipIcon, detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
+import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { fetchWarehouseMovementsPage } from "@/modules/warehouse/api/warehouse-stock-api";
 import { warehouseKeys } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import { useQuery } from "@tanstack/react-query";
@@ -217,8 +221,13 @@ export function WarehouseDetailMovementHistoryTab({
   } | null>(null);
   const softDeleteInboundM = useSoftDeleteWarehouseInboundMovement();
   const softDeleteOutboundShipmentM = useSoftDeleteWarehouseOutboundShipmentMovement();
+  const appendOutboundLineM = useAppendWarehouseOutboundShipmentLine();
   const updateInboundM = useUpdateWarehouseInboundMovement();
   const { data: peopleRaw = [] } = useWarehousePeopleOptions(enabled);
+  const { data: stockRows = [] } = useWarehouseStock(enabled ? warehouseId : null, {});
+  const [appendLineOpen, setAppendLineOpen] = useState(false);
+  const [appendProductId, setAppendProductId] = useState("");
+  const [appendQty, setAppendQty] = useState("1");
 
   const confirmDeleteInboundFromRow = useCallback(
     (m: WarehouseMovementItem) => {
@@ -247,6 +256,40 @@ export function WarehouseDetailMovementHistoryTab({
     [softDeleteInboundM, t, warehouseId]
   );
 
+  const confirmDeleteWholeInboundShipment = useCallback(
+    (group: { key: string; movements: WarehouseMovementItem[] } | null) => {
+      if (!group) return;
+      const inboundRows = group.movements.filter((m) => m.type === "IN");
+      if (inboundRows.length === 0) return;
+      notifyConfirmToast({
+        toastId: `wh-inbound-del-group-${warehouseId}-${group.key}`,
+        title: t("warehouse.editInboundFullDeleteTitle"),
+        message: (
+          <>
+            <p>{t("warehouse.editInboundFullDeleteBody")}</p>
+            <p className="mt-2 text-sm text-zinc-700">
+              {t("warehouse.movementLinesDialogTitle")}: {inboundRows.length}
+            </p>
+          </>
+        ),
+        cancelLabel: t("common.cancel"),
+        confirmLabel: t("common.delete"),
+        onConfirm: async () => {
+          try {
+            for (const row of inboundRows) {
+              await softDeleteInboundM.mutateAsync({ warehouseId, movementId: row.id });
+            }
+            notify.success(t("warehouse.editInboundFullDeleted"));
+            setDetailsGroupKey(null);
+          } catch (e) {
+            notify.error(toErrorMessage(e));
+          }
+        },
+      });
+    },
+    [softDeleteInboundM, t, warehouseId]
+  );
+
   const confirmDeleteOutboundShipmentFromRow = useCallback(
     (m: WarehouseMovementItem) => {
       if (m.type !== "OUT" || !m.isDepotToBranchShipment) return;
@@ -265,6 +308,42 @@ export function WarehouseDetailMovementHistoryTab({
           try {
             await softDeleteOutboundShipmentM.mutateAsync({ warehouseId, movementId: m.id });
             notify.success(t("warehouse.editOutboundShipmentDeleted"));
+          } catch (e) {
+            notify.error(toErrorMessage(e));
+          }
+        },
+      });
+    },
+    [softDeleteOutboundShipmentM, t, warehouseId]
+  );
+
+  const confirmDeleteWholeOutboundShipment = useCallback(
+    (group: { key: string; movements: WarehouseMovementItem[] } | null) => {
+      if (!group) return;
+      const shipmentRows = group.movements.filter((m) => m.type === "OUT" && m.isDepotToBranchShipment);
+      if (shipmentRows.length === 0) return;
+      const firstProduct = shipmentRows[0]?.productName?.trim() || "—";
+      notifyConfirmToast({
+        toastId: `wh-outbound-shipment-del-group-${warehouseId}-${group.key}`,
+        title: t("warehouse.editOutboundShipmentDeleteTitle"),
+        message: (
+          <>
+            <p>{t("warehouse.editOutboundShipmentDeleteBody")}</p>
+            <p className="mt-2 text-sm text-zinc-700">
+              {t("warehouse.movementLinesDialogTitle")}: {shipmentRows.length}
+            </p>
+            <p className="break-words text-xs text-zinc-500">{firstProduct}</p>
+          </>
+        ),
+        cancelLabel: t("common.cancel"),
+        confirmLabel: t("common.delete"),
+        onConfirm: async () => {
+          try {
+            for (const row of shipmentRows) {
+              await softDeleteOutboundShipmentM.mutateAsync({ warehouseId, movementId: row.id });
+            }
+            notify.success(t("warehouse.editOutboundShipmentDeleted"));
+            setDetailsGroupKey(null);
           } catch (e) {
             notify.error(toErrorMessage(e));
           }
@@ -304,6 +383,9 @@ export function WarehouseDetailMovementHistoryTab({
     setOutboundShipmentMovementId(null);
     setDetailsGroupKey(null);
     setDetailsContentTab("LINES");
+    setAppendLineOpen(false);
+    setAppendProductId("");
+    setAppendQty("1");
   }, [warehouseId]);
 
   useEffect(() => {
@@ -504,6 +586,23 @@ export function WarehouseDetailMovementHistoryTab({
   const selectedDetailDestinationBranch = selectedDetailGroup
     ? shipmentBranchSummary(selectedDetailGroup.movements)
     : null;
+  const canManageWholeOutboundShipment = useMemo(
+    () =>
+      selectedDetailGroup != null &&
+      selectedDetailGroup.movements.length > 0 &&
+      selectedDetailGroup.movements.every((m) => m.type === "OUT" && m.isDepotToBranchShipment),
+    [selectedDetailGroup]
+  );
+  const canManageWholeInboundShipment = useMemo(
+    () =>
+      selectedDetailGroup != null &&
+      selectedDetailGroup.movements.length > 0 &&
+      selectedDetailGroup.movements.every((m) => m.type === "IN"),
+    [selectedDetailGroup]
+  );
+  const selectedOutboundShipmentRepresentativeMovementId = canManageWholeOutboundShipment
+    ? selectedDetailGroup?.movements[0]?.id ?? null
+    : null;
   const canEditHeaderInfo = useMemo(
     () => selectedDetailGroup != null && selectedDetailGroup.movements.every((m) => m.type === "IN"),
     [selectedDetailGroup]
@@ -516,6 +615,18 @@ export function WarehouseDetailMovementHistoryTab({
         .map((o) => ({ value: String(o.personnelId), label: o.displayName })),
     ],
     [peopleRaw, t]
+  );
+  const appendProductOptions = useMemo<SelectOption[]>(
+    () => [
+      { value: "", label: t("warehouse.listQuickPickProduct") },
+      ...stockRows
+        .filter((r) => r.quantity > 0)
+        .map((r) => ({
+          value: String(r.productId),
+          label: `${r.parentProductName?.trim() && r.parentProductName?.trim() !== r.productName.trim() ? `${r.parentProductName} › ` : ""}${r.productName}${r.unit?.trim() ? ` (${r.unit.trim()})` : ""}`,
+        })),
+    ],
+    [stockRows, t]
   );
   const submitHeaderEdit = useCallback(async () => {
     if (!selectedDetailGroup || !canEditHeaderInfo) return;
@@ -701,7 +812,7 @@ export function WarehouseDetailMovementHistoryTab({
         <div
           role="tablist"
           aria-label={t("warehouse.movementsTypeSegmentAria")}
-          className="flex w-full snap-x snap-mandatory gap-1.5 overflow-x-auto [-webkit-overflow-scrolling:touch] sm:w-auto sm:flex-wrap sm:overflow-visible"
+          className="flex w-full snap-x snap-mandatory gap-1 overflow-x-auto rounded-2xl border border-zinc-200/80 bg-zinc-100/80 p-1 shadow-inner [-webkit-overflow-scrolling:touch] sm:w-auto sm:flex-wrap sm:overflow-visible"
         >
           {(
             [
@@ -716,10 +827,10 @@ export function WarehouseDetailMovementHistoryTab({
               role="tab"
               aria-selected={type === v}
               className={cn(
-                "min-h-[44px] min-w-[44px] shrink-0 snap-start rounded-full px-3 py-2 text-xs font-semibold transition-colors sm:text-sm",
+                "min-h-[44px] min-w-[44px] shrink-0 snap-start rounded-xl px-3.5 py-2 text-xs font-semibold transition-all duration-150 sm:text-sm",
                 type === v
-                  ? "bg-violet-700 text-white shadow-sm ring-1 ring-violet-600/80"
-                  : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+                  ? "bg-white text-violet-800 shadow-sm ring-1 ring-violet-300/80"
+                  : "bg-transparent text-zinc-600 hover:bg-white/70 hover:text-zinc-900"
               )}
               onClick={() => setType(v)}
             >
@@ -1223,16 +1334,71 @@ export function WarehouseDetailMovementHistoryTab({
               <div className="rounded-lg border border-zinc-200 bg-white p-3 shadow-sm">
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-xs font-semibold text-zinc-800">{t("warehouse.movementHeaderInfoTitle")}</p>
-                  {canEditHeaderInfo ? (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-[44px] min-w-[44px] px-2.5 text-xs"
-                      onClick={() => setHeaderEditOpen(true)}
-                    >
-                      {t("common.edit")}
-                    </Button>
-                  ) : null}
+                  <div className="ml-auto flex items-center gap-2">
+                    {canEditHeaderInfo ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="min-h-[44px] min-w-[44px] px-2.5 text-xs"
+                        onClick={() => setHeaderEditOpen(true)}
+                      >
+                        {t("common.edit")}
+                      </Button>
+                    ) : null}
+                    {canManageWholeOutboundShipment ? (
+                      <>
+                        <Tooltip content={t("warehouse.movementHistoryCreateInvoiceFromShipment")} delayMs={200}>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className={cn(
+                              detailOpenIconButtonClass,
+                              "border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100"
+                            )}
+                            onClick={() => {
+                              if (selectedOutboundShipmentRepresentativeMovementId == null) return;
+                              openInvoiceDraftFromShipment(selectedOutboundShipmentRepresentativeMovementId);
+                            }}
+                          >
+                            <PaperclipIcon className="h-5 w-5" />
+                          </Button>
+                        </Tooltip>
+                        <Tooltip content={t("warehouse.transferAddLine")} delayMs={200}>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className={detailOpenIconButtonClass}
+                            onClick={() => setAppendLineOpen(true)}
+                          >
+                            <PlusIcon className="h-5 w-5" />
+                          </Button>
+                        </Tooltip>
+                        <Tooltip content={t("warehouse.movementHistoryOpenLinesToEdit")} delayMs={200}>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className={detailOpenIconButtonClass}
+                            onClick={() => {
+                              setDetailsContentTab("LINES");
+                            }}
+                          >
+                            <PencilIcon className="h-5 w-5" />
+                          </Button>
+                        </Tooltip>
+                        <Tooltip content={t("warehouse.editOutboundShipmentDeleteAction")} delayMs={200}>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className={trashIconActionButtonClass}
+                            disabled={softDeleteOutboundShipmentM.isPending}
+                            onClick={() => confirmDeleteWholeOutboundShipment(selectedDetailGroup)}
+                          >
+                            <TrashIcon className="h-5 w-5" />
+                          </Button>
+                        </Tooltip>
+                      </>
+                    ) : null}
+                  </div>
                 </div>
                 <p className="mt-1 text-xs text-zinc-500">{t("warehouse.movementHeaderInfoHint")}</p>
                 <div className="mt-2 rounded-md border border-zinc-200 bg-zinc-50/60">
@@ -1250,6 +1416,7 @@ export function WarehouseDetailMovementHistoryTab({
                         {selectedDetailTypeLabel}
                       </span>
                     </div>
+                    
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2">
                     <div className="border-b border-zinc-200 px-3 py-2 md:border-r">
@@ -1391,6 +1558,40 @@ export function WarehouseDetailMovementHistoryTab({
                 </p>
                 {detailsContentTab === "LINES" ? (
                   <div className="mt-2 space-y-2">
+                    {canManageWholeInboundShipment ? (
+                      <div className="rounded-lg border border-emerald-200/70 bg-emerald-50/40 p-2.5">
+                        <p className="text-xs font-semibold text-emerald-900">{t("warehouse.movementsTypeSegmentInbound")}</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="min-h-[44px] min-w-[44px] px-3 text-xs"
+                            onClick={() => {
+                              if (!selectedDetailGroup) return;
+                              const first = selectedDetailGroup.movements[0];
+                              const batchId = first?.inBatchGroupId?.trim() || null;
+                              setEditInboundTarget({
+                                movementBatchId: batchId,
+                                soloMovementId: batchId ? null : first?.id ?? null,
+                                defaultBusinessDate: (first?.movementDate ?? "").slice(0, 10),
+                              });
+                              setEditInboundOpen(true);
+                            }}
+                          >
+                            {t("common.edit")}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="min-h-[44px] min-w-[44px] border-red-200 px-3 text-xs text-red-800 hover:bg-red-50"
+                            disabled={softDeleteInboundM.isPending}
+                            onClick={() => confirmDeleteWholeInboundShipment(selectedDetailGroup)}
+                          >
+                            {t("warehouse.editInboundFullDeleteAction")}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
                     {selectedDetailGroup.movements.map((m) => (
                       <WarehouseMovementRowCard
                         key={`detail-${m.id}`}
@@ -1402,17 +1603,19 @@ export function WarehouseDetailMovementHistoryTab({
                         hideInvoiceSection
                         warehouseId={warehouseId}
                         onEditInboundFull={(row) => {
-                          if (row.type === "IN") setInboundFullMovementId(row.id);
+                          if (!canManageWholeInboundShipment && row.type === "IN") setInboundFullMovementId(row.id);
                         }}
-                        onDeleteInbound={confirmDeleteInboundFromRow}
+                        onDeleteInbound={canManageWholeInboundShipment ? undefined : confirmDeleteInboundFromRow}
                         onEditOutboundShipment={(row) => {
-                          if (row.type === "OUT" && row.isDepotToBranchShipment) {
+                          if (!canManageWholeOutboundShipment && row.type === "OUT" && row.isDepotToBranchShipment) {
                             setOutboundShipmentMovementId(row.id);
                           }
                         }}
-                        onDeleteOutboundShipment={confirmDeleteOutboundShipmentFromRow}
+                        onDeleteOutboundShipment={
+                          canManageWholeOutboundShipment ? undefined : confirmDeleteOutboundShipmentFromRow
+                        }
                         onCreateInvoiceFromShipment={(row) => {
-                          if (row.type === "OUT" && row.isDepotToBranchShipment) {
+                          if (!canManageWholeOutboundShipment && row.type === "OUT" && row.isDepotToBranchShipment) {
                             openInvoiceDraftFromShipment(row.id);
                           }
                         }}
@@ -1463,6 +1666,73 @@ export function WarehouseDetailMovementHistoryTab({
               </div>
             </div>
           ) : null}
+        </div>
+      </Modal>
+      <Modal
+        open={appendLineOpen && selectedDetailGroup != null && canManageWholeOutboundShipment}
+        onClose={() => setAppendLineOpen(false)}
+        title={t("warehouse.transferAddLine")}
+        closeButtonLabel={t("common.close")}
+      >
+        <div className="mt-3 flex flex-col gap-3">
+          <Select
+            label={t("warehouse.movementProduct")}
+            labelRequired
+            name="wh-shipment-append-product"
+            options={appendProductOptions}
+            value={appendProductId}
+            onChange={(e) => setAppendProductId(e.target.value)}
+            onBlur={() => {}}
+            disabled={appendOutboundLineM.isPending}
+          />
+          <Input
+            label={t("warehouse.transferQty")}
+            labelRequired
+            type="text"
+            inputMode="decimal"
+            autoComplete="off"
+            value={appendQty}
+            onChange={(e) => setAppendQty(e.target.value)}
+            disabled={appendOutboundLineM.isPending}
+          />
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="secondary" className="min-h-11 w-full sm:w-auto" onClick={() => setAppendLineOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              type="button"
+              className="min-h-11 w-full sm:w-auto"
+              disabled={appendOutboundLineM.isPending}
+              onClick={async () => {
+                if (selectedOutboundShipmentRepresentativeMovementId == null) return;
+                const pid = Number(appendProductId);
+                const qty = Number(appendQty.replace(",", "."));
+                if (!Number.isFinite(pid) || pid <= 0) {
+                  notify.error(t("warehouse.listQuickPickProductError"));
+                  return;
+                }
+                if (!Number.isFinite(qty) || qty <= 0) {
+                  notify.error(t("warehouse.invalidQuantity"));
+                  return;
+                }
+                try {
+                  await appendOutboundLineM.mutateAsync({
+                    warehouseId,
+                    movementId: selectedOutboundShipmentRepresentativeMovementId,
+                    body: { productId: pid, quantity: qty },
+                  });
+                  notify.success(t("warehouse.appendOutboundShipmentLineSaved"));
+                  setAppendLineOpen(false);
+                  setAppendProductId("");
+                  setAppendQty("1");
+                } catch (e) {
+                  notify.error(toErrorMessage(e));
+                }
+              }}
+            >
+              {t("common.save")}
+            </Button>
+          </div>
         </div>
       </Modal>
     </div>

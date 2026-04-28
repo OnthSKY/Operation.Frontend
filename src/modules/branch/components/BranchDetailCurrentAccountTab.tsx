@@ -6,13 +6,15 @@ import {
   fetchOutboundInvoices,
   type OutboundInvoiceResponse,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
-import { useBranchDocuments } from "@/modules/branch/hooks/useBranchQueries";
+import { useBranchDocuments, useUploadBranchDocument } from "@/modules/branch/hooks/useBranchQueries";
 import { useI18n } from "@/i18n/context";
+import { LocalImageFileThumb } from "@/shared/components/LocalImageFileThumb";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatAmountInputOnBlur, formatLocaleAmount, parseLocaleAmount } from "@/shared/lib/locale-amount";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { notify } from "@/shared/lib/notify";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { validateImageFileForUpload } from "@/shared/lib/validate-image-upload";
 import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -41,8 +43,11 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
   const [receiptDate, setReceiptDate] = useState(localIsoDate());
   const [receiptAmount, setReceiptAmount] = useState("");
   const [receiptNote, setReceiptNote] = useState("");
+  const [receiptTransferImage, setReceiptTransferImage] = useState<File | null>(null);
   const [pdfOpeningId, setPdfOpeningId] = useState<number | null>(null);
+  const [transferOpeningId, setTransferOpeningId] = useState<number | null>(null);
   const [receiptSaving, setReceiptSaving] = useState(false);
+  const uploadBranchDocumentMut = useUploadBranchDocument(branchId);
 
   const invoicesQuery = useQuery({
     queryKey: ["branchCurrentAccountInvoices", branchId],
@@ -63,6 +68,23 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     const map = new Map<number, number>();
     for (const doc of docsQuery.data ?? []) {
       if (doc.contentType !== "application/pdf") continue;
+      const invoiceId = parseInvoiceIdFromNote(doc.notes);
+      if (invoiceId == null || map.has(invoiceId)) continue;
+      map.set(invoiceId, doc.id);
+    }
+    return map;
+  }, [docsQuery.data]);
+
+  const transferDocByInvoiceId = useMemo(() => {
+    const map = new Map<number, number>();
+    const docs = docsQuery.data ?? [];
+    const sorted = [...docs].sort((a, b) => {
+      const aTs = Date.parse(a.createdAt ?? "") || 0;
+      const bTs = Date.parse(b.createdAt ?? "") || 0;
+      return bTs - aTs;
+    });
+    for (const doc of sorted) {
+      if (!doc.contentType.startsWith("image/")) continue;
       const invoiceId = parseInvoiceIdFromNote(doc.notes);
       if (invoiceId == null || map.has(invoiceId)) continue;
       map.set(invoiceId, doc.id);
@@ -115,6 +137,17 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
       notify.error(t("branch.currentAccountInvalidReceiptAmount"));
       return;
     }
+    if (receiptTransferImage) {
+      const v = await validateImageFileForUpload(receiptTransferImage);
+      if (!v.ok) {
+        notify.error(
+          v.reason === "size"
+            ? t("common.imageUploadTooLarge")
+            : t("common.imageUploadNotImage")
+        );
+        return;
+      }
+    }
     const currencyCode = receiptInvoice.currencyCode;
     const openRows = rows
       .filter(
@@ -151,6 +184,13 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
           currencyCode,
           notes: receiptNote.trim() || null,
         });
+        if (receiptTransferImage) {
+          await uploadBranchDocumentMut.mutateAsync({
+            file: receiptTransferImage,
+            kind: "OTHER",
+            notes: `title=banka_dekontu · source=current_account_receipt · invoiceId=${r.id} · receiptDate=${receiptDate}`,
+          });
+        }
         appliedTotal += apply;
         appliedCount += 1;
         remaining -= apply;
@@ -173,10 +213,41 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
       setReceiptDate(localIsoDate());
       setReceiptAmount("");
       setReceiptNote("");
+      setReceiptTransferImage(null);
     } catch (e) {
       notify.error(toErrorMessage(e));
     } finally {
       setReceiptSaving(false);
+    }
+  };
+
+  const openTransferImage = async (invoiceId: number, mode: "view" | "download") => {
+    const documentId = transferDocByInvoiceId.get(invoiceId);
+    if (!documentId) return;
+    setTransferOpeningId(invoiceId);
+    try {
+      const { blob, contentType } = await fetchBranchDocumentBlob(branchId, documentId);
+      const url = URL.createObjectURL(blob);
+      if (mode === "view") {
+        window.open(url, "_blank", "noopener,noreferrer");
+      } else {
+        const a = document.createElement("a");
+        a.href = url;
+        const ext =
+          contentType.includes("png")
+            ? "png"
+            : contentType.includes("webp")
+              ? "webp"
+              : "jpg";
+        a.download = `receipt-transfer-${invoiceId}.${ext}`;
+        a.rel = "noopener";
+        a.click();
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 1_500);
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    } finally {
+      setTransferOpeningId(null);
     }
   };
 
@@ -267,12 +338,14 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                 <th className="px-3 py-2 text-right">{t("branch.currentAccountColPaid")}</th>
                 <th className="px-3 py-2 text-right">{t("branch.currentAccountColOpen")}</th>
                 <th className="px-3 py-2 text-center">{t("branch.currentAccountColPdfStatus")}</th>
+                <th className="px-3 py-2 text-center">{t("branch.currentAccountColReceiptImageStatus")}</th>
                 <th className="px-3 py-2 text-center">{t("branch.currentAccountColActions")}</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r) => {
                 const hasPdf = pdfDocByInvoiceId.has(r.id);
+                const hasTransfer = transferDocByInvoiceId.has(r.id);
                 const isCollected =
                   Number.isFinite(Number(r.paidTotal)) &&
                   Number.isFinite(Number(r.openAmount)) &&
@@ -319,6 +392,49 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                       )}
                     </td>
                     <td className="px-3 py-2 text-center">
+                      <div className="mb-1 text-xs text-zinc-500">
+                        {hasTransfer
+                          ? t("branch.currentAccountReceiptImageStatusSaved")
+                          : t("branch.currentAccountReceiptImageStatusMissing")}
+                      </div>
+                      {hasTransfer ? (
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="min-h-[44px] h-11 w-11 min-w-0 p-0"
+                            title={t("branch.currentAccountReceiptImageView")}
+                            aria-label={t("branch.currentAccountReceiptImageView")}
+                            disabled={transferOpeningId === r.id}
+                            onClick={() => void openTransferImage(r.id, "view")}
+                          >
+                            {transferOpeningId === r.id ? (
+                              <span className="text-[10px] font-medium">{t("common.loading")}</span>
+                            ) : (
+                              <Eye className="h-4 w-4" aria-hidden />
+                            )}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="min-h-[44px] h-11 w-11 min-w-0 p-0"
+                            title={t("branch.currentAccountReceiptImageDownload")}
+                            aria-label={t("branch.currentAccountReceiptImageDownload")}
+                            disabled={transferOpeningId === r.id}
+                            onClick={() => void openTransferImage(r.id, "download")}
+                          >
+                            {transferOpeningId === r.id ? (
+                              <span className="text-[10px] font-medium">{t("common.loading")}</span>
+                            ) : (
+                              <Download className="h-4 w-4" aria-hidden />
+                            )}
+                          </Button>
+                        </div>
+                      ) : (
+                        <span className="inline-block text-xs text-zinc-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-center">
                       <Button
                         type="button"
                         variant="primary"
@@ -329,6 +445,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                           setReceiptDate(localIsoDate());
                           setReceiptAmount("");
                           setReceiptNote("");
+                          setReceiptTransferImage(null);
                         }}
                       >
                         {t("branch.currentAccountAddReceipt")}
@@ -346,6 +463,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
         <div className="space-y-3 md:hidden">
           {rows.map((r) => {
             const hasPdf = pdfDocByInvoiceId.has(r.id);
+            const hasTransfer = transferDocByInvoiceId.has(r.id);
             const isCollected =
               Number.isFinite(Number(r.paidTotal)) &&
               Number.isFinite(Number(r.openAmount)) &&
@@ -414,10 +532,16 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                       setReceiptDate(localIsoDate());
                       setReceiptAmount("");
                       setReceiptNote("");
+                      setReceiptTransferImage(null);
                     }}
                   >
                     {t("branch.currentAccountAddReceipt")}
                   </Button>
+                </div>
+                <div className="mt-2 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-600">
+                  {hasTransfer
+                    ? t("branch.currentAccountReceiptImageStatusSaved")
+                    : t("branch.currentAccountReceiptImageStatusMissing")}
                 </div>
               </div>
             );
@@ -488,6 +612,24 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
               value={receiptNote}
               onChange={(e) => setReceiptNote(e.target.value)}
             />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-zinc-700">
+              {t("branch.currentAccountReceiptImage")}
+            </label>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/avif,.jpg,.jpeg,.png,.webp,.heic,.heif,.avif"
+              className="block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+              onChange={(e) => setReceiptTransferImage(e.target.files?.[0] ?? null)}
+            />
+            <LocalImageFileThumb
+              file={receiptTransferImage}
+              className="h-20 max-h-20 max-w-[8rem] sm:h-24 sm:max-h-24 sm:max-w-[10rem]"
+            />
+            {receiptTransferImage ? (
+              <p className="mt-1 text-xs text-zinc-500">{receiptTransferImage.name}</p>
+            ) : null}
           </div>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={() => setReceiptInvoice(null)}>
