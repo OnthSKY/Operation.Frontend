@@ -192,6 +192,11 @@ export type AppendWarehouseOutboundShipmentLineBody = {
   quantity: number;
 };
 
+export type AppendWarehouseInboundLineBody = {
+  productId: number;
+  quantity: number;
+};
+
 export async function fetchWarehouseOutboundShipmentMovementForEdit(
   warehouseId: number,
   movementId: number
@@ -241,6 +246,23 @@ export async function appendWarehouseOutboundShipmentLine(
 ): Promise<WarehouseMovementResponse> {
   return apiRequest<WarehouseMovementResponse>(
     `/warehouses/${warehouseId}/movements/outbound-shipment/${movementId}/append-line`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        productId: body.productId,
+        quantity: body.quantity,
+      }),
+    }
+  );
+}
+
+export async function appendWarehouseInboundLine(
+  warehouseId: number,
+  movementId: number,
+  body: AppendWarehouseInboundLineBody
+): Promise<WarehouseMovementResponse> {
+  return apiRequest<WarehouseMovementResponse>(
+    `/warehouses/${warehouseId}/movements/inbound/${movementId}/append-line`,
     {
       method: "POST",
       body: JSON.stringify({

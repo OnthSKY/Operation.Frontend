@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/cn";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 export type RichComboboxOption = {
   value: string;
@@ -45,6 +45,7 @@ export function RichCombobox({
 }: RichComboboxProps) {
   const [internalQuery, setInternalQuery] = useState("");
   const [open, setOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const resolvedQuery = query ?? internalQuery;
   const setResolvedQuery = (value: string) => {
     if (onQueryChange) {
@@ -61,12 +62,33 @@ export function RichCombobox({
     );
   }, [options, resolvedQuery]);
   const selected = useMemo(() => options.find((x) => x.value === value) ?? null, [options, value]);
+  const closeAndReset = () => {
+    setOpen(false);
+    setResolvedQuery("");
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    setResolvedQuery("");
+    const timer = window.setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [open]);
 
   return (
     <div className={cn("relative", className)}>
       <button
         type="button"
         onClick={() => setOpen((p) => !p)}
+        onKeyDown={(e) => {
+          if (disabled || open) return;
+          const printable = e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey;
+          if (!printable) return;
+          e.preventDefault();
+          setOpen(true);
+          setResolvedQuery(e.key);
+        }}
         disabled={disabled}
         className={cn(
           "w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-left transition",
@@ -84,6 +106,7 @@ export function RichCombobox({
         <div className="absolute z-40 mt-1 w-full rounded-md border border-zinc-200 bg-white shadow-lg">
           <div className="border-b border-zinc-100 p-2">
             <input
+              ref={searchInputRef}
               value={resolvedQuery}
               onChange={(e) => setResolvedQuery(e.target.value)}
               placeholder={searchPlaceholder}
@@ -112,7 +135,7 @@ export function RichCombobox({
                         type="button"
                         onClick={() => {
                           onChange(opt.value);
-                          setOpen(false);
+                          closeAndReset();
                         }}
                         disabled={disabled}
                         className={cn(
@@ -152,7 +175,7 @@ export function RichCombobox({
           type="button"
           aria-label="Close options"
           className="fixed inset-0 z-30 cursor-default bg-transparent"
-          onClick={() => setOpen(false)}
+          onClick={closeAndReset}
         />
       ) : null}
     </div>

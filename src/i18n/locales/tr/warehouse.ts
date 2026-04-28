@@ -157,6 +157,7 @@ export const warehouse = {
   editInboundFullOpenRow: "Girişi düzenle",
   editOutboundShipmentTitle: "Sevkiyat satırını düzenle",
   editOutboundShipmentSaved: "Sevkiyat güncellendi.",
+  appendInboundLineSaved: "Depo girişine yeni kalem eklendi.",
   appendOutboundShipmentLineSaved: "Sevkiyata yeni kalem eklendi.",
   editOutboundShipmentOpenRow: "Sevkiyatı düzenle",
   editOutboundShipmentSave: "Kaydet",

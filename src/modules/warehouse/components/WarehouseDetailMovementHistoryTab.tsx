@@ -16,6 +16,7 @@ import { WarehouseMovementInvoicePreviewModal } from "@/modules/warehouse/compon
 import { WarehouseMovementRowCard } from "@/modules/warehouse/components/WarehouseMovementRowCard";
 import { warehouseScopeEffectiveCategoryId } from "@/modules/warehouse/lib/warehouse-scope-filters";
 import {
+  useAppendWarehouseInboundLine,
   useAppendWarehouseOutboundShipmentLine,
   useSoftDeleteWarehouseInboundMovement,
   useSoftDeleteWarehouseOutboundShipmentMovement,
@@ -242,10 +243,14 @@ export function WarehouseDetailMovementHistoryTab({
   } | null>(null);
   const softDeleteInboundM = useSoftDeleteWarehouseInboundMovement();
   const softDeleteOutboundShipmentM = useSoftDeleteWarehouseOutboundShipmentMovement();
+  const appendInboundLineM = useAppendWarehouseInboundLine();
   const appendOutboundLineM = useAppendWarehouseOutboundShipmentLine();
   const updateInboundM = useUpdateWarehouseInboundMovement();
   const { data: peopleRaw = [] } = useWarehousePeopleOptions(enabled);
   const [appendLineOpen, setAppendLineOpen] = useState(false);
+  const [appendInboundLineOpen, setAppendInboundLineOpen] = useState(false);
+  const [appendInboundProductId, setAppendInboundProductId] = useState("");
+  const [appendInboundQty, setAppendInboundQty] = useState("1");
   const [appendProductId, setAppendProductId] = useState("");
   const [appendQty, setAppendQty] = useState("1");
   const [appendProductSearch, setAppendProductSearch] = useState("");
@@ -415,6 +420,9 @@ export function WarehouseDetailMovementHistoryTab({
     setOutboundShipmentMovementId(null);
     setDetailsGroupKey(null);
     setDetailsContentTab("LINES");
+    setAppendInboundLineOpen(false);
+    setAppendInboundProductId("");
+    setAppendInboundQty("1");
     setAppendLineOpen(false);
     setAppendProductId("");
     setAppendQty("1");
@@ -850,7 +858,10 @@ export function WarehouseDetailMovementHistoryTab({
     setHeaderEditApprovedBy(findPersonnelId(first?.approvedByPersonnelName));
   }, [headerEditOpen, selectedDetailGroup, peopleRaw]);
 
-  const appendProductsEnabled = appendLineOpen && selectedDetailGroup != null && canManageWholeOutboundShipment;
+  const appendProductsEnabled =
+    selectedDetailGroup != null &&
+    ((appendLineOpen && canManageWholeOutboundShipment) ||
+      (appendInboundLineOpen && canManageWholeInboundShipment));
   const appendProductsPagedQ = useProductsCatalogPaged(
     appendProductsPage,
     APPEND_PRODUCTS_PAGE_SIZE,
@@ -1689,6 +1700,16 @@ export function WarehouseDetailMovementHistoryTab({
                       <div className="rounded-lg border border-emerald-200/70 bg-emerald-50/40 p-2.5">
                         <p className="text-xs font-semibold text-emerald-900">{t("warehouse.movementsTypeSegmentInbound")}</p>
                         <div className="mt-2 flex flex-wrap gap-2">
+                          <Tooltip content={t("warehouse.depoInAddLine")} delayMs={200}>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className={detailOpenIconButtonClass}
+                              onClick={() => setAppendInboundLineOpen(true)}
+                            >
+                              <PlusIcon className="h-5 w-5" />
+                            </Button>
+                          </Tooltip>
                           <Button
                             type="button"
                             variant="secondary"
@@ -1796,6 +1817,89 @@ export function WarehouseDetailMovementHistoryTab({
         </div>
       </Modal>
       <Modal
+        open={appendInboundLineOpen && selectedDetailGroup != null && canManageWholeInboundShipment}
+        onClose={() => setAppendInboundLineOpen(false)}
+        titleId="warehouse-inbound-add-line-title"
+        title={t("warehouse.depoInAddLine")}
+        closeButtonLabel={t("common.close")}
+      >
+        <div className="mt-3 flex flex-col gap-3">
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-zinc-800">
+              {t("warehouse.movementProduct")} <span className="text-red-600">*</span>
+            </p>
+            <RichCombobox
+              value={appendInboundProductId}
+              onChange={setAppendInboundProductId}
+              options={appendProductOptions}
+              query={appendProductSearch}
+              onQueryChange={setAppendProductSearch}
+              onReachEnd={() => {
+                if (!appendCanLoadMore) return;
+                setAppendProductsPage((p) => p + 1);
+              }}
+              hasMore={appendCanLoadMore}
+              isLoadingMore={appendProductsPagedQ.isFetching}
+              placeholder={t("warehouse.listQuickPickProduct")}
+              searchPlaceholder={t("products.catalogSearchPlaceholder")}
+              emptyText={t("products.empty")}
+              loadingText={t("common.loading")}
+              disabled={appendInboundLineM.isPending}
+            />
+          </div>
+          <Input
+            label={t("warehouse.qtyLabelDepoIn")}
+            labelRequired
+            type="text"
+            inputMode="decimal"
+            autoComplete="off"
+            value={appendInboundQty}
+            onChange={(e) => setAppendInboundQty(e.target.value)}
+            disabled={appendInboundLineM.isPending}
+          />
+          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <Button type="button" variant="secondary" className="min-h-11 w-full sm:w-auto" onClick={() => setAppendInboundLineOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              type="button"
+              className="min-h-11 w-full sm:w-auto"
+              disabled={appendInboundLineM.isPending}
+              onClick={async () => {
+                if (!selectedDetailGroup) return;
+                const representativeMovementId = selectedDetailGroup.movements[0]?.id ?? 0;
+                if (representativeMovementId <= 0) return;
+                const pid = Number(appendInboundProductId);
+                const qty = Number(appendInboundQty.replace(",", "."));
+                if (!Number.isFinite(pid) || pid <= 0) {
+                  notify.error(t("warehouse.listQuickPickProductError"));
+                  return;
+                }
+                if (!Number.isFinite(qty) || qty <= 0) {
+                  notify.error(t("warehouse.invalidQuantity"));
+                  return;
+                }
+                try {
+                  await appendInboundLineM.mutateAsync({
+                    warehouseId,
+                    movementId: representativeMovementId,
+                    body: { productId: pid, quantity: qty },
+                  });
+                  notify.success(t("warehouse.appendInboundLineSaved"));
+                  setAppendInboundLineOpen(false);
+                  setAppendInboundProductId("");
+                  setAppendInboundQty("1");
+                } catch (e) {
+                  notify.error(toErrorMessage(e));
+                }
+              }}
+            >
+              {t("common.save")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+      <Modal
         open={appendLineOpen && selectedDetailGroup != null && canManageWholeOutboundShipment}
         onClose={() => setAppendLineOpen(false)}
         titleId="warehouse-transfer-add-line-title"
@@ -1820,7 +1924,7 @@ export function WarehouseDetailMovementHistoryTab({
               hasMore={appendCanLoadMore}
               isLoadingMore={appendProductsPagedQ.isFetching}
               placeholder={t("warehouse.listQuickPickProduct")}
-              searchPlaceholder={t("products.searchPlaceholder")}
+              searchPlaceholder={t("products.catalogSearchPlaceholder")}
               emptyText={t("products.empty")}
               loadingText={t("common.loading")}
               disabled={appendOutboundLineM.isPending}

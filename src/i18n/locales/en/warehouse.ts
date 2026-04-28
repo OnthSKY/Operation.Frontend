@@ -157,6 +157,7 @@ export const warehouse = {
   editInboundFullOpenRow: "Edit receipt",
   editOutboundShipmentTitle: "Edit depot shipment line",
   editOutboundShipmentSaved: "Shipment updated.",
+  appendInboundLineSaved: "A new line was added to the warehouse receipt.",
   appendOutboundShipmentLineSaved: "A new line was added to the shipment.",
   editOutboundShipmentOpenRow: "Edit shipment",
   editOutboundShipmentSave: "Save",
