@@ -298,7 +298,7 @@ export const branch = {
   currentAccountPdfIbanBankName: "Bank name",
   currentAccountPdfIbanNote: "Note (optional)",
   currentAccountPdfPreview: "Generate preview",
-  currentAccountPdfDownload: "Download PDF",
+  currentAccountPdfExport: "Download PDF",
   currentAccountPdfPreviewHint: "Click “Generate preview” to render the PDF preview.",
   tourismSeasonClosedOpenTab: "Go to tourism season tab",
   expensesSeasonMissingForToday:

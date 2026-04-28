@@ -857,7 +857,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
               {pdfPreviewLoading ? t("common.loading") : t("branch.currentAccountPdfPreview")}
             </Button>
             <Button type="button" variant="primary" disabled={pdfPreviewLoading || exportingPdf || selectedPdfInvoiceIds.size === 0} onClick={() => void exportCurrentAccountPdf()}>
-              {exportingPdf ? t("common.loading") : t("branch.currentAccountPdfDownload")}
+              {exportingPdf ? t("common.loading") : t("branch.currentAccountPdfExport")}
             </Button>
           </div>
           <div className="h-[60vh] overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">

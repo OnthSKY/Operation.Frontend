@@ -304,7 +304,7 @@ export const branch = {
   currentAccountPdfIbanBankName: "Banka adı",
   currentAccountPdfIbanNote: "Not (isteğe bağlı)",
   currentAccountPdfPreview: "Ön izleme oluştur",
-  currentAccountPdfDownload: "PDF indir",
+  currentAccountPdfExport: "PDF indir",
   currentAccountPdfPreviewHint: "Ön izleme için «Ön izleme oluştur» butonuna basın.",
   tourismSeasonClosedOpenTab: "Turizm sezonu sekmesine git",
   expensesSeasonMissingForToday:
