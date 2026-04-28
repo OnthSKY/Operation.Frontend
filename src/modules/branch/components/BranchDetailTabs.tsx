@@ -792,6 +792,7 @@ export function BranchDetailTabs({
             employeeSelfService={employeeSelfService}
             branchId={branch.id}
             staff={staff}
+            allPersonnel={activePersonnel}
             branchIdForTourismLink={branch.id}
             incThroughToday={incThroughToday}
             incSummaryShowErr={incSummaryShowErr}

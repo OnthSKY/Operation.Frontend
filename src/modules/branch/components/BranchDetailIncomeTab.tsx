@@ -57,6 +57,7 @@ export type BranchDetailIncomeTabProps = {
   employeeSelfService: boolean;
   branchId: number;
   staff: Personnel[];
+  allPersonnel: Personnel[];
   /** Turizm sezonu sekmesine derin link (yalnızca tam yetkili görünümde). */
   branchIdForTourismLink?: number | null;
   incThroughToday: BranchRegisterSummary | null | undefined;
@@ -210,6 +211,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
     employeeSelfService,
     branchId,
     staff,
+    allPersonnel,
     branchIdForTourismLink,
     incThroughToday,
     incSummaryShowErr,
@@ -1018,7 +1020,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
               open
               onClose={() => setCashSettleDialog(null)}
               branchId={branchId}
-              branchStaff={staff}
+              branchStaff={allPersonnel}
               mode={cashSettleDialog.mode}
               singleRow={cashSettleDialog.mode === "single" ? cashSettleDialog.row : null}
               onApplied={() => {
