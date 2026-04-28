@@ -1884,6 +1884,8 @@ export function OrderAccountStatementScreen() {
   const [showQuantityColumn, setShowQuantityColumn] = useState(false);
   const [mobileAdvancedOpen, setMobileAdvancedOpen] = useState(false);
   const [desktopLineDetailsOpen, setDesktopLineDetailsOpen] = useState(false);
+  const [draggingLineId, setDraggingLineId] = useState<string | null>(null);
+  const [dragOverLineId, setDragOverLineId] = useState<string | null>(null);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [confirmMultiActionOpen, setConfirmMultiActionOpen] = useState(false);
   const [multiActionSteps, setMultiActionSteps] = useState<MultiActionStep[]>([]);
@@ -1958,6 +1960,39 @@ export function OrderAccountStatementScreen() {
     ]);
     focusLineEditor(id);
   }, [focusLineEditor, lineAddBlocked]);
+  const moveLine = useCallback((fromId: string, toId: string) => {
+    if (!fromId || !toId || fromId === toId) return;
+    setLines((prev) => {
+      const fromIndex = prev.findIndex((x) => x.id === fromId);
+      const toIndex = prev.findIndex((x) => x.id === toId);
+      if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      if (!moved) return prev;
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  }, []);
+  const beginLineDrag = useCallback((lineId: string) => {
+    setDraggingLineId(lineId);
+    setDragOverLineId(lineId);
+  }, []);
+  const finishLineDrag = useCallback(() => {
+    setDraggingLineId(null);
+    setDragOverLineId(null);
+  }, []);
+  const hoverLineDropTarget = useCallback((lineId: string) => {
+    if (!draggingLineId || draggingLineId === lineId) return;
+    setDragOverLineId(lineId);
+  }, [draggingLineId]);
+  const dropLineOnTarget = useCallback((lineId: string) => {
+    if (!draggingLineId || draggingLineId === lineId) {
+      finishLineDrag();
+      return;
+    }
+    moveLine(draggingLineId, lineId);
+    finishLineDrag();
+  }, [draggingLineId, finishLineDrag, moveLine]);
   const handleDuplicateLastLine = useCallback(() => {
     if (lineAddBlocked) return;
     let createdId = "";
@@ -3587,9 +3622,26 @@ export function OrderAccountStatementScreen() {
                 return (
                 <li
                   key={line.id}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.effectAllowed = "move";
+                    e.dataTransfer.setData("text/plain", line.id);
+                    beginLineDrag(line.id);
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    hoverLineDropTarget(line.id);
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    dropLineOnTarget(line.id);
+                  }}
+                  onDragEnd={finishLineDrag}
                   className={cn(
                     "rounded-lg border border-zinc-200 bg-zinc-50/40 shadow-sm",
                     Boolean(amountMismatch) && "border-red-200 bg-red-50/40 ring-1 ring-red-100",
+                    draggingLineId === line.id && "opacity-55",
+                    dragOverLineId === line.id && draggingLineId !== line.id && "ring-2 ring-violet-200",
                     lineDense ? "p-2" : lineCompact ? "p-2.5" : "p-3"
                   )}
                 >
@@ -3611,6 +3663,7 @@ export function OrderAccountStatementScreen() {
                     >
                       {rowIndex + 1}
                     </span>
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">surukle</span>
                     {lines.length > 1 ? (
                       <OasTrashButton
                         label={t("reports.orderAccountStatementRemove")}
@@ -4006,9 +4059,26 @@ export function OrderAccountStatementScreen() {
                     return (
                     <Fragment key={line.id}>
                     <tr
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.effectAllowed = "move";
+                        e.dataTransfer.setData("text/plain", line.id);
+                        beginLineDrag(line.id);
+                      }}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        hoverLineDropTarget(line.id);
+                      }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        dropLineOnTarget(line.id);
+                      }}
+                      onDragEnd={finishLineDrag}
                       className={cn(
                         "border-b border-zinc-100 last:border-b-0",
-                        Boolean(amountMismatch) && "bg-red-50/35"
+                        Boolean(amountMismatch) && "bg-red-50/35",
+                        draggingLineId === line.id && "opacity-60",
+                        dragOverLineId === line.id && draggingLineId !== line.id && "ring-2 ring-inset ring-violet-200"
                       )}
                     >
                       <td

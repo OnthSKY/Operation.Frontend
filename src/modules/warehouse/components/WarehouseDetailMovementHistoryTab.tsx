@@ -384,13 +384,23 @@ export function WarehouseDetailMovementHistoryTab({
   );
 
   const openInvoiceDraftFromShipment = useCallback(
-    (movementId: number) => {
+    (movementId: number, movementIds?: number[] | null) => {
       if (!Number.isFinite(movementId) || movementId <= 0 || warehouseId <= 0) return;
+      const validMovementIds = Array.from(
+        new Set(
+          (movementIds ?? [])
+            .map((id) => Number(id))
+            .filter((id) => Number.isFinite(id) && id > 0)
+        )
+      );
       const params = new URLSearchParams({
         shipmentWarehouseId: String(warehouseId),
         shipmentMovementId: String(movementId),
         invoiceDraft: "1",
       });
+      if (validMovementIds.length > 0) {
+        params.set("shipmentMovementIds", validMovementIds.join(","));
+      }
       router.push(`/products/order-account-statement?${params.toString()}`);
     },
     [router, warehouseId]
@@ -1490,7 +1500,12 @@ export function WarehouseDetailMovementHistoryTab({
                             )}
                             onClick={() => {
                               if (selectedOutboundShipmentRepresentativeMovementId == null) return;
-                              openInvoiceDraftFromShipment(selectedOutboundShipmentRepresentativeMovementId);
+                              openInvoiceDraftFromShipment(
+                                selectedOutboundShipmentRepresentativeMovementId,
+                                selectedDetailGroup?.movements
+                                  .map((m) => m.id)
+                                  .filter((id) => Number.isFinite(id) && id > 0) ?? []
+                              );
                             }}
                           >
                             <PlusIcon className="h-5 w-5" />
