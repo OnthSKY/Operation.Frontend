@@ -148,17 +148,18 @@ export function getConfiguredMobileNavItems(visibleItems: NavigationItem[]): Con
     .sort((a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER));
 
   return configured
-    .map((cfg) => {
+    .flatMap((cfg): ConfiguredMobileNavItem[] => {
       const sourceItem = matchConfigToVisible(cfg, flatVisible);
-      if (!sourceItem) return null;
-      return {
-        id: `${cfg.path}-${sourceItem.id}`,
-        label: cfg.label,
-        route: sourceItem.route,
-        icon: mapConfigIcon(cfg.icon),
-        sourceItem,
-      } satisfies ConfiguredMobileNavItem;
+      if (!sourceItem) return [];
+      return [
+        {
+          id: `${cfg.path}-${sourceItem.id}`,
+          label: cfg.label,
+          route: sourceItem.route,
+          icon: mapConfigIcon(cfg.icon),
+          sourceItem,
+        },
+      ];
     })
-    .filter((item): item is ConfiguredMobileNavItem => Boolean(item))
     .slice(0, 4);
 }
