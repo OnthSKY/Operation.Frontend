@@ -151,6 +151,7 @@ export async function fetchDocumentsHubRows(t: TranslateFn): Promise<DocumentsHu
   for (const group of branchDocsByBranch) {
     for (const d of group.docs) {
       const metadata = parseOrderMetadata(d.notes);
+      const pdfDocumentNo = metadata.pdfDocumentNo?.trim() || "";
       const relatedLinks =
         metadata.orderKey || metadata.invoiceNo || metadata.invoiceId
           ? [
@@ -170,9 +171,12 @@ export async function fetchDocumentsHubRows(t: TranslateFn): Promise<DocumentsHu
         id: `branch-${group.branch.id}-doc-${d.id}`,
         category: "BRANCH_DOCUMENT",
         title: group.branch.name,
-        subtitle: d.originalFileName ?? d.kind,
+        subtitle:
+          pdfDocumentNo.length > 0
+            ? `Sipariş-hesap dökümü PDF · ${pdfDocumentNo}`
+            : d.originalFileName ?? d.kind,
         detail: d.notes ?? d.kind,
-        searchText: `${group.branch.name} ${d.kind} ${d.originalFileName ?? ""} ${d.notes ?? ""}`,
+        searchText: `${group.branch.name} ${d.kind} ${d.originalFileName ?? ""} ${d.notes ?? ""} ${pdfDocumentNo}`,
         previewUrl: apiUrl(`/branches/${group.branch.id}/documents/${d.id}/file`),
         previewMode: d.contentType === "application/pdf" ? "pdf" : d.contentType.startsWith("image/") ? "image" : "other",
         relatedLinks,

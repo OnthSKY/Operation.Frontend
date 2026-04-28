@@ -55,6 +55,7 @@ function humanizeDocumentDetail(raw: string): string {
   if (text.includes("=") && text.includes("·")) {
     const labelMap: Record<string, string> = {
       orderKey: "Sipariş",
+      pdfDocumentNo: "Belge No",
       invoiceNo: "Fatura No",
       invoiceId: "Fatura ID",
       branch: "Şube",

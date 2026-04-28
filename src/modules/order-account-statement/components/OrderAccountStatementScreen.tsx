@@ -608,6 +608,7 @@ function isoDateOnly(d: Date): string {
 
 function buildOrderAccountDocumentMetadata(input: {
   orderDocumentKey: string;
+  pdfDocumentNo?: string | null;
   companyName: string;
   branchName: string;
   title: string;
@@ -623,6 +624,7 @@ function buildOrderAccountDocumentMetadata(input: {
   const parts = [
     "Sipariş-hesap dökümü PDF",
     `orderKey=${input.orderDocumentKey}`,
+    `pdfDocumentNo=${input.pdfDocumentNo?.trim() || input.orderDocumentKey}`,
     `company=${input.companyName || "—"}`,
     `branch=${input.branchName || "—"}`,
     `title=${input.title || "—"}`,
@@ -1355,6 +1357,11 @@ type StatementPaperProps = {
     bankName: string;
     paymentNote: string;
   };
+  documentMeta: {
+    referenceId: string;
+    systemDocumentId?: number | null;
+    generationLabel: string;
+  };
   emptyHint: string;
 };
 
@@ -1378,6 +1385,7 @@ const StatementPaper = forwardRef<HTMLDivElement, StatementPaperProps>(function 
     labels,
     paymentInfo,
     paymentLabels,
+    documentMeta,
     emptyHint,
   },
   ref
@@ -1506,16 +1514,29 @@ const StatementPaper = forwardRef<HTMLDivElement, StatementPaperProps>(function 
               />
             ) : null}
           </div>
-          <div className={cn("flex flex-wrap items-center justify-end gap-2 text-zinc-600", dense ? "text-[9px]" : "text-[10px] sm:text-xs")}>
-            <span className="font-medium">{labels.issuedPrefix}</span>
-            <span
-              className={cn(
-                "rounded-full bg-zinc-900 font-bold tabular-nums text-white shadow-sm",
-                dense ? "px-2.5 py-0.5" : "px-3 py-1 text-[11px] sm:text-xs"
-              )}
-            >
-              {issuedDate}
-            </span>
+          <div className="rounded-lg border border-zinc-300 bg-white shadow-sm">
+            <div className="flex items-center justify-end gap-2 border-b border-zinc-200 px-2.5 py-1.5 text-zinc-600">
+              <span className={cn("font-medium", dense ? "text-[9px]" : "text-[10px] sm:text-xs")}>{labels.issuedPrefix}</span>
+              <span
+                className={cn(
+                  "rounded border border-zinc-300 bg-zinc-50 font-semibold tabular-nums text-zinc-800",
+                  dense ? "px-2 py-0.5 text-[9px]" : "px-2.5 py-0.5 text-[11px] sm:text-xs"
+                )}
+              >
+                {issuedDate}
+              </span>
+            </div>
+            <div className={cn("px-2.5 py-1.5 text-right text-zinc-700", dense ? "text-[8px]" : "text-[9px] sm:text-[10px]")}>
+              <span className="font-semibold">{documentMeta.generationLabel}</span>
+              <span className="mx-1.5 text-zinc-400">|</span>
+              <span className="font-mono">REF: {documentMeta.referenceId}</span>
+              {documentMeta.systemDocumentId ? (
+                <>
+                  <span className="mx-1.5 text-zinc-400">|</span>
+                  <span className="font-mono">DOC: {documentMeta.systemDocumentId}</span>
+                </>
+              ) : null}
+            </div>
           </div>
         </div>
 
@@ -1712,37 +1733,37 @@ const StatementPaper = forwardRef<HTMLDivElement, StatementPaperProps>(function 
           </div>
         ) : null}
         {showPaymentSection ? (
-          <div className="mt-2 rounded-md border border-zinc-300 bg-zinc-50 px-2 py-2 text-zinc-800">
+          <div className="mt-2 rounded-md border border-zinc-400 bg-white px-2.5 py-2 text-zinc-800 shadow-[inset_0_0_0_1px_rgba(24,24,27,0.03)]">
             <p
               className={cn(
-                "mb-1.5 font-black uppercase tracking-wide text-zinc-900",
+                "mb-2 inline-flex rounded border border-zinc-300 bg-zinc-100 px-2 py-0.5 font-black uppercase tracking-wide text-zinc-900",
                 dense ? "text-[8px]" : "text-[9px] sm:text-[10px]"
               )}
             >
               {paymentLabels.section}
             </p>
             {paymentIban ? (
-              <div className="flex justify-between gap-3 py-0.5">
-                <span>{paymentLabels.iban}</span>
-                <span className="shrink-0 tabular-nums text-right">{paymentIban}</span>
+              <div className="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-3 border-t border-zinc-200 py-1">
+                <span className="font-semibold text-zinc-700">{paymentLabels.iban}</span>
+                <span className="tabular-nums text-right">{paymentIban}</span>
               </div>
             ) : null}
             {paymentAccountHolder ? (
-              <div className="flex justify-between gap-3 py-0.5">
-                <span>{paymentLabels.accountHolder}</span>
-                <span className="shrink-0 text-right">{paymentAccountHolder}</span>
+              <div className="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-3 border-t border-zinc-200 py-1">
+                <span className="font-semibold text-zinc-700">{paymentLabels.accountHolder}</span>
+                <span className="text-right">{paymentAccountHolder}</span>
               </div>
             ) : null}
             {paymentBankName ? (
-              <div className="flex justify-between gap-3 py-0.5">
-                <span>{paymentLabels.bankName}</span>
-                <span className="shrink-0 text-right">{paymentBankName}</span>
+              <div className="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-3 border-t border-zinc-200 py-1">
+                <span className="font-semibold text-zinc-700">{paymentLabels.bankName}</span>
+                <span className="text-right">{paymentBankName}</span>
               </div>
             ) : null}
             {paymentNote ? (
-              <div className="flex justify-between gap-3 py-0.5">
-                <span>{paymentLabels.paymentNote}</span>
-                <span className="shrink-0 text-right">{paymentNote}</span>
+              <div className="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-3 border-t border-zinc-200 py-1">
+                <span className="font-semibold text-zinc-700">{paymentLabels.paymentNote}</span>
+                <span className="text-right">{paymentNote}</span>
               </div>
             ) : null}
           </div>
@@ -3043,9 +3064,11 @@ export function OrderAccountStatementScreen() {
           notify.error(t("reports.orderAccountStatementSystemBranchRequired"));
           setStepState("system", "pending");
         } else {
+          const pdfDocumentNo = `CRP-${new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 14)}`;
           const systemFile = new File([docBlob], name, { type: "application/pdf" });
           const note = buildOrderAccountDocumentMetadata({
             orderDocumentKey,
+            pdfDocumentNo,
             companyName: safeCompany,
             branchName: safeBranch,
             title: safeTitle,
@@ -4753,6 +4776,11 @@ export function OrderAccountStatementScreen() {
                         accountHolder: t("reports.orderAccountStatementPaymentAccountHolder"),
                         bankName: t("reports.orderAccountStatementPaymentBankName"),
                         paymentNote: t("reports.orderAccountStatementPaymentNote"),
+                      }}
+                      documentMeta={{
+                        referenceId: orderDocumentKey,
+                        systemDocumentId: lastSavedDocumentId,
+                        generationLabel: "PDF oluşturma",
                       }}
                       labels={labels}
                       emptyHint={t("reports.orderAccountStatementPreviewEmpty")}

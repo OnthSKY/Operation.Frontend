@@ -22,7 +22,32 @@ export type CounterpartyInvoiceStylePdfMeta = {
   filtersLabel: string;
   totalsLabel: string;
   fileName: string;
+  showCompanyName?: boolean;
+  showLogo?: boolean;
+  paymentInfo?: {
+    iban?: string;
+    accountHolder?: string;
+    bankName?: string;
+    note?: string;
+  };
+  footerTotals?: {
+    invoicedLabel: string;
+    invoicedValue: string;
+    paidLabel: string;
+    paidValue: string;
+    openLabel: string;
+    openValue: string;
+  };
 };
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
 
 function createPaperNode(rows: CounterpartyInvoiceStylePdfRow[], meta: CounterpartyInvoiceStylePdfMeta): HTMLElement {
   const root = document.createElement("div");
@@ -49,7 +74,7 @@ function createPaperNode(rows: CounterpartyInvoiceStylePdfRow[], meta: Counterpa
   const logoWrap = document.createElement("div");
   logoWrap.style.minHeight = "88px";
   logoWrap.style.minWidth = "88px";
-  if (meta.logoDataUrl) {
+  if (meta.showLogo !== false && meta.logoDataUrl) {
     const img = document.createElement("img");
     img.src = meta.logoDataUrl;
     img.alt = "";
@@ -83,7 +108,7 @@ function createPaperNode(rows: CounterpartyInvoiceStylePdfRow[], meta: Counterpa
   titleArea.style.marginTop = "10px";
   titleArea.style.textAlign = "center";
   titleArea.innerHTML = `
-    <div style="font-size:28px;font-weight:800;letter-spacing:0.02em;text-transform:uppercase;">${meta.companyName || "—"}</div>
+    <div style="font-size:28px;font-weight:800;letter-spacing:0.02em;text-transform:uppercase;">${meta.showCompanyName === false ? "—" : escapeHtml(meta.companyName || "—")}</div>
     <div style="font-size:14px;color:#475569;margin-top:2px;">${meta.branchName || "—"}</div>
     <div style="margin-top:8px;border:1px solid #94a3b8;background:#f1f5f9;padding:8px 10px;font-size:18px;font-weight:800;text-transform:uppercase;">${meta.title}</div>
   `;
@@ -130,6 +155,54 @@ function createPaperNode(rows: CounterpartyInvoiceStylePdfRow[], meta: Counterpa
   table.appendChild(tbody);
   root.appendChild(table);
 
+  if (meta.footerTotals) {
+    const totalsWrap = document.createElement("div");
+    totalsWrap.style.marginTop = "14px";
+    totalsWrap.style.border = "1px solid #cbd5e1";
+    totalsWrap.style.borderRadius = "10px";
+    totalsWrap.style.padding = "10px 12px";
+    totalsWrap.style.background = "#f8fafc";
+    totalsWrap.innerHTML = `
+      <div style="font-size:11px;color:#334155;text-transform:uppercase;letter-spacing:0.03em;">Toplamlar</div>
+      <div style="margin-top:6px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;font-size:12px;">
+        <div>
+          <div style="color:#64748b;">${escapeHtml(meta.footerTotals.invoicedLabel)}</div>
+          <div style="font-weight:700;color:#0f172a;">${escapeHtml(meta.footerTotals.invoicedValue)}</div>
+        </div>
+        <div>
+          <div style="color:#64748b;">${escapeHtml(meta.footerTotals.paidLabel)}</div>
+          <div style="font-weight:700;color:#166534;">${escapeHtml(meta.footerTotals.paidValue)}</div>
+        </div>
+        <div>
+          <div style="color:#64748b;">${escapeHtml(meta.footerTotals.openLabel)}</div>
+          <div style="font-weight:700;color:#92400e;">${escapeHtml(meta.footerTotals.openValue)}</div>
+        </div>
+      </div>
+    `;
+    root.appendChild(totalsWrap);
+  }
+
+  const iban = meta.paymentInfo?.iban?.trim() ?? "";
+  const accountHolder = meta.paymentInfo?.accountHolder?.trim() ?? "";
+  const bankName = meta.paymentInfo?.bankName?.trim() ?? "";
+  const note = meta.paymentInfo?.note?.trim() ?? "";
+  if (iban || accountHolder || bankName || note) {
+    const paymentWrap = document.createElement("div");
+    paymentWrap.style.marginTop = "10px";
+    paymentWrap.style.border = "1px dashed #cbd5e1";
+    paymentWrap.style.borderRadius = "10px";
+    paymentWrap.style.padding = "10px 12px";
+    paymentWrap.style.background = "#ffffff";
+    paymentWrap.innerHTML = `
+      <div style="font-size:11px;color:#334155;text-transform:uppercase;letter-spacing:0.03em;">Odeme bilgileri</div>
+      ${iban ? `<div style="margin-top:6px;font-size:12px;"><b>IBAN:</b> ${escapeHtml(iban)}</div>` : ""}
+      ${accountHolder ? `<div style="margin-top:4px;font-size:12px;"><b>Hesap sahibi:</b> ${escapeHtml(accountHolder)}</div>` : ""}
+      ${bankName ? `<div style="margin-top:4px;font-size:12px;"><b>Banka:</b> ${escapeHtml(bankName)}</div>` : ""}
+      ${note ? `<div style="margin-top:4px;font-size:12px;"><b>Not:</b> ${escapeHtml(note)}</div>` : ""}
+    `;
+    root.appendChild(paymentWrap);
+  }
+
   return root;
 }
 
@@ -147,6 +220,28 @@ export async function downloadCounterpartyInvoiceStylePdf(
   document.body.appendChild(holder);
   try {
     await downloadHtmlNodeAsSinglePagePdf(paper, meta.fileName);
+  } finally {
+    holder.remove();
+  }
+}
+
+export async function buildCounterpartyInvoiceStylePdfBlob(
+  rows: CounterpartyInvoiceStylePdfRow[],
+  meta: CounterpartyInvoiceStylePdfMeta
+): Promise<Blob> {
+  const paper = createPaperNode(rows, meta);
+  const holder = document.createElement("div");
+  holder.style.position = "fixed";
+  holder.style.left = "-100000px";
+  holder.style.top = "0";
+  holder.style.zIndex = "-1";
+  holder.appendChild(paper);
+  document.body.appendChild(holder);
+  try {
+    const { buildHtmlNodeSinglePagePdfBlob } = await import(
+      "@/modules/order-account-statement/lib/download-preview-as-pdf"
+    );
+    return await buildHtmlNodeSinglePagePdfBlob(paper);
   } finally {
     holder.remove();
   }
