@@ -205,24 +205,43 @@ export function PersonnelManagementSnapshotSection({
   const handoverPoolCurrencyRows = useMemo(() => {
     const byCurrency = new Map<
       string,
-      { totalRemainingHandover: number; actionBranchId: number; branchCount: number }
+      {
+        totalRemainingHandover: number;
+        actionBranchId: number;
+        branchCount: number;
+        branchBreakdown: Array<{
+          branchId: number;
+          branchName: string;
+          amount: number;
+        }>;
+      }
     >();
     for (const row of handoverPoolRows) {
       const ccy = (row.currencyCode ?? "").trim().toUpperCase();
       if (!ccy) continue;
       const amount = Number(row.totalRemainingHandover) || 0;
       if (amount <= 0.009) continue;
+      const branchName =
+        row.branchName?.trim() ||
+        branchNameById?.get(row.branchId) ||
+        `#${row.branchId}`;
       const current = byCurrency.get(ccy);
       if (current == null) {
         byCurrency.set(ccy, {
           totalRemainingHandover: amount,
           actionBranchId: row.branchId,
           branchCount: 1,
+          branchBreakdown: [{ branchId: row.branchId, branchName, amount }],
         });
         continue;
       }
       current.totalRemainingHandover += amount;
       current.branchCount += 1;
+      current.branchBreakdown.push({
+        branchId: row.branchId,
+        branchName,
+        amount,
+      });
       if (
         personnel.branchId != null &&
         personnel.branchId > 0 &&
@@ -232,9 +251,15 @@ export function PersonnelManagementSnapshotSection({
       }
     }
     return [...byCurrency.entries()]
-      .map(([currencyCode, row]) => ({ currencyCode, ...row }))
+      .map(([currencyCode, row]) => ({
+        currencyCode,
+        ...row,
+        branchBreakdown: [...row.branchBreakdown].sort((a, b) =>
+          a.branchName.localeCompare(b.branchName)
+        ),
+      }))
       .sort((a, b) => a.currencyCode.localeCompare(b.currencyCode));
-  }, [handoverPoolRows, personnel.branchId]);
+  }, [handoverPoolRows, personnel.branchId, branchNameById]);
   useEffect(() => {
     setHovPage(1);
     setOutPage(1);
@@ -858,6 +883,26 @@ export function PersonnelManagementSnapshotSection({
                                   r.currencyCode
                                 )}
                               </div>
+                              {r.branchBreakdown.length > 0 ? (
+                                <div className="mt-1.5 space-y-0.5 text-xs text-zinc-700">
+                                  {r.branchBreakdown.map((b) => (
+                                    <div
+                                      key={`${r.currencyCode}-${b.branchId}`}
+                                      className="flex items-center justify-between gap-3"
+                                    >
+                                      <span className="truncate">{b.branchName}</span>
+                                      <span className="shrink-0 font-mono">
+                                        {formatMoneyDash(
+                                          b.amount,
+                                          dash,
+                                          locale,
+                                          r.currencyCode
+                                        )}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : null}
                               {r.branchCount > 1 ? (
                                 <div className="mt-0.5 text-xs text-zinc-600">
                                   {t("personnel.detailMgmtHandoverHeroAllBranchesFootnote").replace(
