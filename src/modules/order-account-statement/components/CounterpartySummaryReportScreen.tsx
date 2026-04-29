@@ -210,11 +210,18 @@ export function CounterpartySummaryReportScreen() {
           }
         }
 
-        for (const item of invoiceBreakdown) {
-          const receiptValues = receiptBreakdown.get(item[0]);
+        for (let i = 0; i < invoiceBreakdown.length; i += 1) {
+          const [invoiceId, totals] = invoiceBreakdown[i];
+          const receiptValues = receiptBreakdown.get(invoiceId);
           if (!receiptValues) continue;
-          if (item[1].promoTotal <= 0.009) item[1].promoTotal = receiptValues.promo;
-          if (item[1].advanceTotal <= 0.009) item[1].advanceTotal = receiptValues.advance;
+          invoiceBreakdown[i] = [
+            invoiceId,
+            {
+              ...totals,
+              promoTotal: totals.promoTotal <= 0.009 ? receiptValues.promo : totals.promoTotal,
+              advanceTotal: totals.advanceTotal <= 0.009 ? receiptValues.advance : totals.advanceTotal,
+            },
+          ] as const;
         }
       }
       const nextPromoByInvoiceId = new Map<number, number>(invoiceBreakdown.map(([id, x]) => [id, x.promoTotal]));
