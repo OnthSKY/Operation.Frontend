@@ -13,6 +13,60 @@ import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 
+function EyeToggleIcon({ open }: { open: boolean }) {
+  if (!open) {
+    return (
+      <svg
+        className="h-4 w-4"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6Z" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+    );
+  }
+  return (
+    <svg
+      className="h-4 w-4"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M3 3l18 18" />
+      <path d="M10.6 10.6A3 3 0 0 0 12 15a3 3 0 0 0 2.4-4.4" />
+      <path d="M9.9 5.1A10.6 10.6 0 0 1 12 5c6.5 0 10 7 10 7a17.3 17.3 0 0 1-4.4 5.2" />
+      <path d="M6.6 6.6C3.8 8.3 2 12 2 12a17.5 17.5 0 0 0 6.2 6" />
+    </svg>
+  );
+}
+
+function ExpandToggleIcon({ open }: { open: boolean }) {
+  return (
+    <svg
+      className={cn("h-4 w-4 transition-transform", open && "rotate-180")}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
 function sortAdvancesDesc(rows: Advance[]): Advance[] {
   return [...rows].sort((a, b) => {
     const da = a.advanceDate.slice(0, 10);
@@ -281,18 +335,20 @@ export function PersonnelAdvanceHistory({
       {maskSensitiveAmounts ? (
         <button
           type="button"
-          className="min-h-10 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-left text-xs font-semibold text-sky-700 transition-colors hover:bg-sky-100 hover:text-sky-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+          className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 p-2 text-sky-700 transition-colors hover:bg-sky-100 hover:text-sky-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
           onClick={() => setAmountsRevealed((v) => !v)}
           aria-label={
             amountsRevealed
-              ? t("personnel.salaryHideAria")
-              : t("personnel.salaryRevealAria")
+              ? `${t("personnel.amount")} · ${t("personnel.costsSummaryHideDetail")}`
+              : `${t("personnel.amount")} · ${t("personnel.costsSummaryShowDetail")}`
+          }
+          title={
+            amountsRevealed
+              ? `${t("personnel.amount")} · ${t("personnel.costsSummaryHideDetail")}`
+              : `${t("personnel.amount")} · ${t("personnel.costsSummaryShowDetail")}`
           }
         >
-          {t("personnel.amount")} ·{" "}
-          {amountsRevealed
-            ? t("personnel.costsSummaryHideDetail")
-            : t("personnel.costsSummaryShowDetail")}
+          <EyeToggleIcon open={amountsRevealed} />
         </button>
       ) : null}
     </div>
@@ -322,13 +378,21 @@ export function PersonnelAdvanceHistory({
         {totalsBlock}
         <button
           type="button"
-          className="mt-1.5 min-h-10 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-left text-xs font-semibold text-sky-700 transition-colors hover:bg-sky-100 hover:text-sky-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+          className="mt-1.5 inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 p-2 text-sky-700 transition-colors hover:bg-sky-100 hover:text-sky-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
           aria-expanded={inlineDetailsOpen}
           onClick={() => setInlineDetailsOpen((v) => !v)}
+          aria-label={
+            inlineDetailsOpen
+              ? t("personnel.costsSummaryHideDetail")
+              : t("personnel.costsSummaryShowDetail")
+          }
+          title={
+            inlineDetailsOpen
+              ? t("personnel.costsSummaryHideDetail")
+              : t("personnel.costsSummaryShowDetail")
+          }
         >
-          {inlineDetailsOpen
-            ? t("personnel.costsSummaryHideDetail")
-            : t("personnel.costsSummaryShowDetail")}
+          <ExpandToggleIcon open={inlineDetailsOpen} />
         </button>
         {inlineDetailsOpen ? (
           <>

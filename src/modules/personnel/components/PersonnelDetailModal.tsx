@@ -38,6 +38,7 @@ import { PersonnelProfilePhotoAvatar } from "@/modules/personnel/components/Pers
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import {
   useDeleteAdvance,
+  useDeletePersonnelInsurancePeriod,
   usePersonnelAdvancesAll,
   usePersonnelInsurancePeriods,
   usePersonnelManagementSnapshot,
@@ -539,6 +540,7 @@ export function PersonnelDetailModal({
       insurancePid,
       open && insurancePid > 0 && tab === "insurance",
     );
+  const deleteInsurancePeriodMut = useDeletePersonnelInsurancePeriod();
   const updateWhMut = useUpdateWarehouse();
 
   const pid = personnel?.id ?? 0;
@@ -635,6 +637,33 @@ export function PersonnelDetailModal({
   );
   const deleteAdvanceMut = useDeleteAdvance();
   const deleteTxMut = useDeleteBranchTransaction();
+  const askDeleteInsurancePeriod = useCallback(
+    (row: PersonnelInsurancePeriod) => {
+      if (!personnel || personnel.isDeleted) return;
+      notifyConfirmToast({
+        toastId: `personnel-insurance-period-delete-inline-${personnel.id}-${row.id}`,
+        title: t("personnel.insurancePeriodDeleteTitle"),
+        message: t("personnel.insurancePeriodDeleteAsk"),
+        cancelLabel: t("common.cancel"),
+        confirmLabel: t("common.delete"),
+        onConfirm: async () => {
+          try {
+            await deleteInsurancePeriodMut.mutateAsync({
+              personnelId: personnel.id,
+              periodId: row.id,
+            });
+            notify.success(t("personnel.insurancePeriodDeleted"));
+            if (insuranceEditPeriod?.id === row.id) {
+              setInsuranceEditPeriod(null);
+            }
+          } catch (err) {
+            notify.error(toErrorMessage(err));
+          }
+        },
+      });
+    },
+    [personnel, t, deleteInsurancePeriodMut, insuranceEditPeriod?.id],
+  );
   const {
     data: yearClosures = [],
     isPending: yearClosuresLoading,
@@ -1710,6 +1739,23 @@ export function PersonnelDetailModal({
                                             >
                                               <PencilIcon className="mx-auto opacity-90" />
                                             </Button>
+                                          </Tooltip>
+                                          <Tooltip
+                                            content={t("common.delete")}
+                                            delayMs={150}
+                                          >
+                                            <button
+                                              type="button"
+                                              className={trashIconActionButtonClass}
+                                              title={t("common.delete")}
+                                              aria-label={t("common.delete")}
+                                              disabled={deleteInsurancePeriodMut.isPending}
+                                              onClick={() =>
+                                                askDeleteInsurancePeriod(row)
+                                              }
+                                            >
+                                              <TrashIcon />
+                                            </button>
                                           </Tooltip>
                                         </div>
                                       )}

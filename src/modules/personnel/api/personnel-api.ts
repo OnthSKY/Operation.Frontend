@@ -448,11 +448,14 @@ export async function updatePersonnelInsurancePeriod(
   input: UpdatePersonnelInsurancePeriodInput
 ): Promise<PersonnelInsurancePeriod> {
   const s = String(input.coverageStartDate).trim().slice(0, 10);
-  const d = String(input.coverageEndDate).trim().slice(0, 10);
   const body: Record<string, unknown> = {
     coverageStartDate: s,
-    coverageEndDate: d,
   };
+  if (input.coverageEndDate != null && String(input.coverageEndDate).trim() !== "") {
+    body.coverageEndDate = String(input.coverageEndDate).trim().slice(0, 10);
+  } else {
+    body.coverageEndDate = null;
+  }
   body.notes =
     input.notes == null || String(input.notes).trim() === ""
       ? null

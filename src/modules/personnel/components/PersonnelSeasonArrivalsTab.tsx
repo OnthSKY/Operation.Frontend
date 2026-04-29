@@ -15,8 +15,8 @@ import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
+import { DateField } from "@/shared/ui/DateField";
 import { PencilIcon } from "@/shared/ui/EyeIcon";
-import { Input } from "@/shared/ui/Input";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import {
   Table,
@@ -294,16 +294,16 @@ export function PersonnelSeasonArrivalsTab({
                         className="align-middle"
                       >
                         {isOpen && !readOnly ? (
-                          <Input
-                            type="date"
+                          <DateField
+                            mode="date"
                             className="w-full max-w-[11rem] max-md:max-w-none"
                             value={arrivalDraft}
                             onChange={(e) => setArrivalDraft(e.target.value)}
                             disabled={updateMut.isPending}
                           />
                         ) : rowEditing && !readOnly ? (
-                          <Input
-                            type="date"
+                          <DateField
+                            mode="date"
                             className="w-full max-w-[11rem] max-md:max-w-none"
                             value={editingArrivalDraft}
                             onChange={(e) => setEditingArrivalDraft(e.target.value)}
@@ -462,8 +462,8 @@ export function PersonnelSeasonArrivalsTab({
               <label className="mb-1 block text-xs font-medium text-zinc-600">
                 {t("personnel.seasonArrivalsNewValidFrom")}
               </label>
-              <Input
-                type="date"
+              <DateField
+                mode="date"
                 value={newValidFrom}
                 onChange={(e) => setNewValidFrom(e.target.value)}
                 disabled={createMut.isPending}
@@ -473,8 +473,8 @@ export function PersonnelSeasonArrivalsTab({
               <label className="mb-1 block text-xs font-medium text-zinc-600">
                 {t("personnel.seasonArrivalsNewArrival")}
               </label>
-              <Input
-                type="date"
+              <DateField
+                mode="date"
                 value={newArrivalDate}
                 onChange={(e) => setNewArrivalDate(e.target.value)}
                 disabled={createMut.isPending}

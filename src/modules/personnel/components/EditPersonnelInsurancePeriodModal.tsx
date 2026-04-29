@@ -56,11 +56,15 @@ export function EditPersonnelInsurancePeriodModal({
     if (!period) return;
     const s = start.trim();
     const e = end.trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(s) || !/^\d{4}-\d{2}-\d{2}$/.test(e)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) {
       notify.error(t("common.required"));
       return;
     }
-    if (e < s) {
+    if (e !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(e)) {
+      notify.error(t("common.required"));
+      return;
+    }
+    if (e !== "" && e < s) {
       notify.error(t("personnel.insuranceDateOrderInvalid"));
       return;
     }
@@ -70,7 +74,7 @@ export function EditPersonnelInsurancePeriodModal({
         periodId: period.id,
         input: {
           coverageStartDate: s,
-          coverageEndDate: e,
+          coverageEndDate: e === "" ? null : e,
           notes: notes.trim() === "" ? null : notes.trim(),
         },
       });
@@ -166,9 +170,7 @@ export function EditPersonnelInsurancePeriodModal({
                   onChange={(ev) => setStart(ev.target.value)}
                 />
                 <DateField
-                  label={t("personnel.insuranceEditPeriodEndLabel")}
-                  labelRequired
-                  required
+                  label={t("personnel.insuranceAddPeriodEndOptional")}
                   value={end}
                   onChange={(ev) => setEnd(ev.target.value)}
                 />
