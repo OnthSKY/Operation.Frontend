@@ -40,10 +40,10 @@ import {
 import { useQueries } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 
-function formatHireShort(iso: string): string {
+function formatHireShort(iso: string, locale: Locale, dash: string): string {
   const d = iso?.slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return iso ?? "—";
-  return new Date(d + "T12:00:00").toLocaleDateString();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return dash;
+  return formatLocaleDate(d, locale, dash);
 }
 
 function countSeasonDaysInclusive(seasonArrivalDate: string | null | undefined): number | null {
@@ -490,6 +490,7 @@ export function PersonnelManagementSnapshotSection({
     () => countSeasonDaysInclusive(personnel.seasonArrivalDate),
     [personnel.seasonArrivalDate]
   );
+  const hireDateLabel = formatHireShort(snap?.hireDate ?? "", locale, dash);
 
   if (!open) return null;
 
@@ -563,8 +564,12 @@ export function PersonnelManagementSnapshotSection({
                   {t("personnel.detailMgmtStoryP1")
                     .replace("{name}", personnelDisplayName(personnel))
                     .replace("{days}", String(snap.tenureDaysInclusive))
-                    .replace("{hire}", formatHireShort(snap.hireDate))}
+                    .replace("{hire}", formatHireShort(snap.hireDate, locale, dash))}
                 </p>
+                <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-violet-300 bg-violet-100/80 px-2.5 py-1 text-xs font-semibold text-violet-950">
+                  <span>{t("personnel.tableCompanyHireDate")}:</span>
+                  <span className="font-mono text-sm tabular-nums">{hireDateLabel}</span>
+                </div>
                 <p className="mt-3 text-sm font-semibold leading-relaxed text-zinc-900">{storyNet}</p>
                 <p className="mt-2 text-xs leading-relaxed text-zinc-700 sm:text-sm">{ytdLine}</p>
                 <p className="mt-3 text-xs leading-relaxed text-zinc-500">{t("personnel.detailMgmtFootnote")}</p>

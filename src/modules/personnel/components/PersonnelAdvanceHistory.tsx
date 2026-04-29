@@ -316,22 +316,38 @@ export function PersonnelAdvanceHistory({
     : null;
 
   const totalsBlock = showAttributedExpenses ? (
-    <div className="mt-1 space-y-2 text-xs leading-snug text-zinc-600">
-      <p className="sm:text-xs">
-        <span className="text-zinc-500">
-          {t("personnel.costsSummaryTotalAdvancesLabel")}
-        </span>{" "}
-        <strong className="font-semibold text-zinc-900">
-          {amountsRevealed ? advanceTotalsLabel : "***"}
-        </strong>
-        <span className="mx-1 text-zinc-300">·</span>
+    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 text-xs leading-snug text-zinc-600">
+      {maskSensitiveAmounts ? (
+        <button
+          type="button"
+          className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-left transition-colors hover:bg-zinc-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+          onClick={() => setAmountsRevealed((v) => !v)}
+          aria-label={t("personnel.costsSummaryShowDetail")}
+        >
+          <span className="text-zinc-500">
+            {t("personnel.costsSummaryTotalAdvancesLabel")}
+          </span>{" "}
+          <strong className="font-semibold text-zinc-900">
+            {amountsRevealed ? advanceTotalsLabel : "***"}
+          </strong>
+        </button>
+      ) : (
+        <span>
+          <span className="text-zinc-500">
+            {t("personnel.costsSummaryTotalAdvancesLabel")}
+          </span>{" "}
+          <strong className="font-semibold text-zinc-900">{advanceTotalsLabel}</strong>
+        </span>
+      )}
+      <span className="text-zinc-300">·</span>
+      <span>
         <span className="text-zinc-500">
           {t("personnel.costsSummaryTotalExpensesLabel")}
         </span>{" "}
         <strong className="font-semibold text-zinc-900">
           {amountsRevealed ? expenseTotalsLabel : "***"}
         </strong>
-      </p>
+      </span>
       {maskSensitiveAmounts ? (
         <button
           type="button"
@@ -375,25 +391,27 @@ export function PersonnelAdvanceHistory({
             </>
           )}
         </p>
-        {totalsBlock}
-        <button
-          type="button"
-          className="mt-1.5 inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 p-2 text-sky-700 transition-colors hover:bg-sky-100 hover:text-sky-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
-          aria-expanded={inlineDetailsOpen}
-          onClick={() => setInlineDetailsOpen((v) => !v)}
-          aria-label={
-            inlineDetailsOpen
-              ? t("personnel.costsSummaryHideDetail")
-              : t("personnel.costsSummaryShowDetail")
-          }
-          title={
-            inlineDetailsOpen
-              ? t("personnel.costsSummaryHideDetail")
-              : t("personnel.costsSummaryShowDetail")
-          }
-        >
-          <ExpandToggleIcon open={inlineDetailsOpen} />
-        </button>
+        <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          {totalsBlock}
+          <button
+            type="button"
+            className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 p-2 text-sky-700 transition-colors hover:bg-sky-100 hover:text-sky-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+            aria-expanded={inlineDetailsOpen}
+            onClick={() => setInlineDetailsOpen((v) => !v)}
+            aria-label={
+              inlineDetailsOpen
+                ? t("personnel.costsSummaryHideDetail")
+                : t("personnel.costsSummaryShowDetail")
+            }
+            title={
+              inlineDetailsOpen
+                ? t("personnel.costsSummaryHideDetail")
+                : t("personnel.costsSummaryShowDetail")
+            }
+          >
+            <ExpandToggleIcon open={inlineDetailsOpen} />
+          </button>
+        </div>
         {inlineDetailsOpen ? (
           <>
             <ul className="mt-1.5 space-y-1 border-t border-zinc-100 pt-1.5 text-zinc-600">

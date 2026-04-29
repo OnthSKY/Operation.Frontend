@@ -97,6 +97,7 @@ export function AdvancePersonnelModal({
     () => [
       { value: "CASH", label: t("personnel.sourceCash") },
       { value: "PATRON", label: t("personnel.sourcePatron") },
+      { value: "PERSONNEL_POCKET", label: t("personnel.sourcePersonnelPocket") },
     ],
     [t]
   );
@@ -115,7 +116,8 @@ export function AdvancePersonnelModal({
     rules: {
       validate: (v) => {
         const st = (getValues("sourceType") || "CASH").toUpperCase();
-        if (st !== "CASH") return true;
+        const needsBranch = st === "CASH" || st === "PERSONNEL_POCKET";
+        if (!needsBranch) return true;
         const n = Number(v);
         if (!v || Number.isNaN(n) || n < 1) {
           return t("personnel.advanceBranchInvalid");
@@ -225,7 +227,7 @@ export function AdvancePersonnelModal({
       Number.isFinite(explicitBranch) && explicitBranch > 0;
 
     let branchIdForPayload: number | undefined;
-    if (st === "CASH") {
+    if (st === "CASH" || st === "PERSONNEL_POCKET") {
       if (!hasExplicitBranch) {
         notify.error(t("personnel.advanceBranchInvalid"));
         return;
@@ -328,7 +330,7 @@ export function AdvancePersonnelModal({
                 />
                 <Select
                   label={t("personnel.branchForAdvance")}
-                  labelRequired={(sourceTypeWatch || "CASH").toUpperCase() === "CASH"}
+                  labelRequired={["CASH", "PERSONNEL_POCKET"].includes((sourceTypeWatch || "CASH").toUpperCase())}
                   options={branchOptions}
                   name={branchField.name}
                   value={String(branchField.value ?? "")}
@@ -340,7 +342,7 @@ export function AdvancePersonnelModal({
                 {selectedPersonnel?.branchId != null && selectedPersonnel.branchId > 0 ? (
                   <p className="text-xs text-zinc-500">{t("personnel.advanceBranchPrefilledHint")}</p>
                 ) : null}
-                {(sourceTypeWatch || "CASH").toUpperCase() !== "CASH" ? (
+                {(sourceTypeWatch || "CASH").toUpperCase() === "PATRON" ? (
                   <p className="text-xs text-zinc-500">{t("personnel.advanceBranchOptionalWhenNotCash")}</p>
                 ) : null}
               </FormSection>

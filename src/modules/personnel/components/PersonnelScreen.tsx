@@ -210,6 +210,12 @@ function PersonnelInsuranceBadge({
   personnel: Personnel;
   t: (key: string) => string;
 }) {
+  const hasAnyInsurancePeriod =
+    Boolean(personnel.insuranceStartDate) || Boolean(personnel.insuranceEndDate);
+  const showPending = !personnel.insuranceStarted && !hasAnyInsurancePeriod;
+
+  if (!personnel.insuranceStarted && !showPending) return null;
+
   return (
     <span
       className={cn(
