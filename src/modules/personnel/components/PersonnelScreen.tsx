@@ -1365,6 +1365,7 @@ export function PersonnelScreen() {
                               variant="card"
                               className="text-left"
                               showAttributedExpenses
+                              maskSensitiveAmounts
                             />
                           </div>
                         </>
@@ -1523,6 +1524,7 @@ export function PersonnelScreen() {
                             variant="inline"
                             maxDetailRows={4}
                             showAttributedExpenses
+                            maskSensitiveAmounts
                           />
                         </TableCell>
                         <TableCell className="text-right">

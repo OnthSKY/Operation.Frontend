@@ -11,7 +11,7 @@ import type { BranchTransaction } from "@/types/branch-transaction";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 function sortAdvancesDesc(rows: Advance[]): Advance[] {
   return [...rows].sort((a, b) => {
@@ -115,6 +115,8 @@ type Props = {
    * false: yalnız avans (şube personel kartı vb.).
    */
   showAttributedExpenses?: boolean;
+  /** Tutarları varsayılan gizle, tıklayınca göster. */
+  maskSensitiveAmounts?: boolean;
 };
 
 export function PersonnelAdvanceHistory({
@@ -124,10 +126,15 @@ export function PersonnelAdvanceHistory({
   className,
   variant = "card",
   showAttributedExpenses = false,
+  maskSensitiveAmounts = false,
 }: Props) {
   const { t, locale } = useI18n();
   const dash = t("personnel.dash");
   const [inlineDetailsOpen, setInlineDetailsOpen] = useState(false);
+  const [amountsRevealed, setAmountsRevealed] = useState(!maskSensitiveAmounts);
+  useEffect(() => {
+    setAmountsRevealed(!maskSensitiveAmounts);
+  }, [maskSensitiveAmounts]);
   const { data = [], isPending: advPending, isError: advError } =
     usePersonnelAdvancesAll(personnelId);
 
@@ -260,14 +267,14 @@ export function PersonnelAdvanceHistory({
           {t("personnel.costsSummaryTotalAdvancesLabel")}
         </span>{" "}
         <strong className="font-semibold text-zinc-900">
-          {advanceTotalsLabel}
+          {amountsRevealed ? advanceTotalsLabel : "***"}
         </strong>
         <span className="mx-1 text-zinc-300">·</span>
         <span className="text-zinc-500">
           {t("personnel.costsSummaryTotalExpensesLabel")}
         </span>{" "}
         <strong className="font-semibold text-zinc-900">
-          {expenseTotalsLabel}
+          {amountsRevealed ? expenseTotalsLabel : "***"}
         </strong>
       </p>
     ) : null;
@@ -294,6 +301,20 @@ export function PersonnelAdvanceHistory({
           )}
         </p>
         {totalsBlock}
+        {maskSensitiveAmounts ? (
+          <button
+            type="button"
+            className="mt-1 text-left text-xs font-semibold text-sky-700 underline decoration-sky-700/40 underline-offset-2 hover:text-sky-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+            onClick={() => setAmountsRevealed((v) => !v)}
+            aria-label={
+              amountsRevealed
+                ? t("personnel.salaryHideAria")
+                : t("personnel.salaryRevealAria")
+            }
+          >
+            {amountsRevealed ? t("personnel.costsSummaryHideDetail") : t("personnel.costsSummaryShowDetail")}
+          </button>
+        ) : null}
         <button
           type="button"
           className="mt-1.5 text-left text-xs font-semibold text-sky-700 underline decoration-sky-700/40 underline-offset-2 hover:text-sky-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
@@ -331,12 +352,14 @@ export function PersonnelAdvanceHistory({
                       </span>
                     </span>
                     <span className="font-mono text-zinc-800">
-                      {formatMoneyDash(
-                        row.advance.amount,
-                        dash,
-                        locale,
-                        row.advance.currencyCode,
-                      )}
+                      {amountsRevealed
+                        ? formatMoneyDash(
+                            row.advance.amount,
+                            dash,
+                            locale,
+                            row.advance.currencyCode,
+                          )
+                        : "***"}
                     </span>
                     <span className="w-full text-xs text-zinc-500 sm:w-auto">
                       {sourceAbbrev(t, row.advance.sourceType)} ·{" "}
@@ -368,12 +391,14 @@ export function PersonnelAdvanceHistory({
                       </span>
                     </span>
                     <span className="font-mono text-zinc-800">
-                      {formatMoneyDash(
-                        row.tx.amount,
-                        dash,
-                        locale,
-                        row.tx.currencyCode,
-                      )}
+                      {amountsRevealed
+                        ? formatMoneyDash(
+                            row.tx.amount,
+                            dash,
+                            locale,
+                            row.tx.currencyCode,
+                          )
+                        : "***"}
                     </span>
                     <span className="w-full text-xs text-zinc-500 sm:w-auto">
                       {txCategoryLine(row.tx.mainCategory, row.tx.category, t)}
@@ -453,12 +478,14 @@ export function PersonnelAdvanceHistory({
                       {formatLocaleDate(row.advance.advanceDate, locale, dash)}
                     </span>
                     <span className="font-mono text-zinc-900">
-                      {formatMoneyDash(
-                        row.advance.amount,
-                        dash,
-                        locale,
-                        row.advance.currencyCode,
-                      )}
+                      {amountsRevealed
+                        ? formatMoneyDash(
+                            row.advance.amount,
+                            dash,
+                            locale,
+                            row.advance.currencyCode,
+                          )
+                        : "***"}
                     </span>
                   </div>
                 </div>
@@ -506,12 +533,14 @@ export function PersonnelAdvanceHistory({
                       {formatLocaleDate(row.tx.transactionDate, locale, dash)}
                     </span>
                     <span className="font-mono text-zinc-900">
-                      {formatMoneyDash(
-                        row.tx.amount,
-                        dash,
-                        locale,
-                        row.tx.currencyCode,
-                      )}
+                      {amountsRevealed
+                        ? formatMoneyDash(
+                            row.tx.amount,
+                            dash,
+                            locale,
+                            row.tx.currencyCode,
+                          )
+                        : "***"}
                     </span>
                   </div>
                 </div>
