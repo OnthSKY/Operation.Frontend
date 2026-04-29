@@ -5,7 +5,6 @@ import {
   addOutboundInvoiceReceipt,
   fetchOutboundInvoices,
   fetchOutboundInvoiceReceipts,
-  type OutboundInvoiceReceiptResponse,
   type OutboundInvoiceResponse,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
 import {
@@ -83,9 +82,6 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     note: "",
   });
   const [selectedPdfInvoiceIds, setSelectedPdfInvoiceIds] = useState<Set<number>>(new Set());
-  const [promoDeductionByInvoiceId, setPromoDeductionByInvoiceId] = useState<Map<number, number>>(() => new Map());
-  const [advanceDeductionByInvoiceId, setAdvanceDeductionByInvoiceId] = useState<Map<number, number>>(() => new Map());
-  const [giftByInvoiceId, setGiftByInvoiceId] = useState<Map<number, number>>(() => new Map());
   const uploadBranchDocumentMut = useUploadBranchDocument(branchId);
 
   const invoicesQuery = useQuery({
@@ -153,63 +149,47 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     return Number.isFinite(n) && n > 0 ? n : 0;
   }, []);
 
-  const isPromoOrDiscountReceipt = useCallback((receipt: OutboundInvoiceReceiptResponse): boolean => {
-    if (receipt.receiptKind === "promo_discount") return true;
-    const note = String(receipt.notes ?? "").trim().toLowerCase();
-    if (!note) return false;
-    return note.includes("source=promo_discount") || note.includes("promosyon") || note.includes("iskonto") || note.includes("indirim");
-  }, []);
+  const promoDeductionByInvoiceId = useMemo(
+    () =>
+      new Map(
+        rows.map((invoice) => {
+          const promoAmount =
+            Number.isFinite(Number(invoice.promoAmount)) && Number(invoice.promoAmount) > 0
+              ? Number(invoice.promoAmount)
+              : parseNoteAmount(invoice.notes, "promoAmount");
+          return [invoice.id, promoAmount] as const;
+        })
+      ),
+    [parseNoteAmount, rows]
+  );
 
-  const isAdvanceReceipt = useCallback((receipt: OutboundInvoiceReceiptResponse): boolean => {
-    if (receipt.receiptKind === "advance_payment") return true;
-    const note = String(receipt.notes ?? "").trim().toLowerCase();
-    if (!note) return false;
-    return note.includes("source=advance_payment") || note.includes("ön ödeme") || note.includes("on odeme");
-  }, []);
+  const advanceDeductionByInvoiceId = useMemo(
+    () =>
+      new Map(
+        rows.map((invoice) => {
+          const advanceAmount =
+            Number.isFinite(Number(invoice.advanceAmount)) && Number(invoice.advanceAmount) > 0
+              ? Number(invoice.advanceAmount)
+              : parseNoteAmount(invoice.notes, "advanceAmount");
+          return [invoice.id, advanceAmount] as const;
+        })
+      ),
+    [parseNoteAmount, rows]
+  );
 
-  useEffect(() => {
-    let alive = true;
-    if (!active || rows.length === 0) {
-      setPromoDeductionByInvoiceId(new Map());
-      setAdvanceDeductionByInvoiceId(new Map());
-      setGiftByInvoiceId(new Map());
-      return;
-    }
-    void (async () => {
-      try {
-        const entries = await Promise.all(
-          rows.map(async (invoice) => {
-            const receipts = await fetchOutboundInvoiceReceipts(invoice.id);
-            const promoSum = receipts.reduce((sum, receipt) => {
-              if (!isPromoOrDiscountReceipt(receipt)) return sum;
-              return sum + Math.max(0, Number(receipt.amount) || 0);
-            }, 0);
-            const advanceSum = receipts.reduce((sum, receipt) => {
-              if (!isAdvanceReceipt(receipt)) return sum;
-              return sum + Math.max(0, Number(receipt.amount) || 0);
-            }, 0);
-            const giftAmount =
-              Number.isFinite(Number(invoice.giftAmount)) && Number(invoice.giftAmount) > 0
-                ? Number(invoice.giftAmount)
-                : parseNoteAmount(invoice.notes, "giftAmount");
-            return [invoice.id, { promoSum, advanceSum, giftAmount }] as const;
-          })
-        );
-        if (!alive) return;
-        setPromoDeductionByInvoiceId(new Map(entries.map(([id, x]) => [id, x.promoSum])));
-        setAdvanceDeductionByInvoiceId(new Map(entries.map(([id, x]) => [id, x.advanceSum])));
-        setGiftByInvoiceId(new Map(entries.map(([id, x]) => [id, x.giftAmount])));
-      } catch {
-        if (!alive) return;
-        setPromoDeductionByInvoiceId(new Map());
-        setAdvanceDeductionByInvoiceId(new Map());
-        setGiftByInvoiceId(new Map());
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [active, isAdvanceReceipt, isPromoOrDiscountReceipt, parseNoteAmount, rows]);
+  const giftByInvoiceId = useMemo(
+    () =>
+      new Map(
+        rows.map((invoice) => {
+          const giftAmount =
+            Number.isFinite(Number(invoice.giftAmount)) && Number(invoice.giftAmount) > 0
+              ? Number(invoice.giftAmount)
+              : parseNoteAmount(invoice.notes, "giftAmount");
+          return [invoice.id, giftAmount] as const;
+        })
+      ),
+    [parseNoteAmount, rows]
+  );
 
   const openPdf = async (invoiceId: number, mode: "view" | "download") => {
     const documentId = pdfDocByInvoiceId.get(invoiceId);
