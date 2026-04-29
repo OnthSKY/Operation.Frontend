@@ -200,8 +200,9 @@ export function BranchStockInboundPanel({ branchId }: Props) {
   } = useBranchStockReceiptsSummary(
     branchId,
     {
-      dateFrom: params.dateFrom,
-      dateTo: params.dateTo,
+      // Ozet kutusu tarih filtresinden bagimsiz, tum zaman stok girislerini baz alir.
+      dateFrom: undefined,
+      dateTo: undefined,
       categoryId: params.categoryId,
       parentProductId: params.parentProductId,
       productId: params.productId,

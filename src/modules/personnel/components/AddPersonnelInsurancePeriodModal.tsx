@@ -2,7 +2,10 @@
 
 import { useI18n } from "@/i18n/context";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
-import { useAddPersonnelInsurancePeriod } from "@/modules/personnel/hooks/usePersonnelQueries";
+import {
+  useAddPersonnelInsurancePeriod,
+  usePersonnelEmploymentTerms,
+} from "@/modules/personnel/hooks/usePersonnelQueries";
 import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
 import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { toErrorMessage } from "@/shared/lib/error-message";
@@ -59,6 +62,10 @@ export function AddPersonnelInsurancePeriodModal({
   const { t } = useI18n();
   const mut = useAddPersonnelInsurancePeriod();
   const { data: branches = [] } = useBranchesList();
+  const { data: employmentTerms = [] } = usePersonnelEmploymentTerms(
+    personnelId,
+    open && personnelId > 0
+  );
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [notes, setNotes] = useState("");
@@ -90,9 +97,15 @@ export function AddPersonnelInsurancePeriodModal({
     );
   }, [open, personnelId, defaultBranchId]);
 
-  const seasonArrivalMissing =
-    seasonArrivalDate == null ||
-    (typeof seasonArrivalDate === "string" && seasonArrivalDate.trim() === "");
+  const openTermArrivalDate =
+    employmentTerms.find((term) => term.isOpen)?.arrivalDate?.trim() ?? "";
+  const effectiveSeasonArrivalDate =
+    openTermArrivalDate !== ""
+      ? openTermArrivalDate
+      : typeof seasonArrivalDate === "string"
+        ? seasonArrivalDate.trim()
+        : "";
+  const seasonArrivalMissing = effectiveSeasonArrivalDate === "";
   const startIso = start.trim();
   const endIso = end.trim();
   const branchIdValue = parseInt(branchId.trim(), 10);

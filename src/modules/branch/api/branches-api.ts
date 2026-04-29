@@ -1090,7 +1090,7 @@ export async function fetchBranchStockReceiptsSummary(
   branchId: number,
   params: BranchStockSummaryParams
 ): Promise<BranchStockReceiptsSummary> {
-  const PAGE_SIZE = 200;
+  const PAGE_SIZE = 100;
   let page = 1;
   let filteredTotalQuantity = 0;
   const groups = new Map<number, { productId: number; productName: string; quantity: number }>();
