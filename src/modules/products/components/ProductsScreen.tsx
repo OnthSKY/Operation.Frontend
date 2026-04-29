@@ -109,6 +109,10 @@ function buildProductCatalogViewRows(
   return out;
 }
 
+function canDeleteProduct(r: ProductListItem): boolean {
+  return r.totalQuantity <= 0;
+}
+
 function ChevronDownExpandIcon({ expanded, className }: { expanded: boolean; className?: string }) {
   return (
     <svg
@@ -450,7 +454,7 @@ export function ProductsScreen() {
       id: `quick-delete-${r.id}`,
       label: t("products.quickDelete"),
       onSelect: () => onDelete(r.id, r.name),
-      disabled: del.isPending,
+      disabled: del.isPending || !canDeleteProduct(r),
     },
   ];
 
