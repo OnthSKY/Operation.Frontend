@@ -451,11 +451,11 @@
   expensePayLineCountAbbr: "satır",
   sectionExpensePayment: "Giderler — ödeme kaynağı",
   sectionExpensePaymentDesc:
-    "Kasa, patron veya personel cebi; kayıtta işaretlenen OUT gider satırları (muhasebe dışı notlar hariç).",
+    "Kasa, patron, personel cebi veya personelin cebindeki kasa parası; kayıtta işaretlenen OUT gider satırları (muhasebe dışı notlar hariç). Personelin cebindeki kasa parası şirket/şube parasıdır ve şube + sorumlu personel bazında takip edilir.",
   colExpensePayTag: "Kaynak",
   chartExpensePayBlockTitle: "Ödeme kaynağı özeti",
   chartExpensePayHint:
-    "Yeşil: şube kasası · mor: patron · kehribar: personel cebi · gri: kaynak seçilmemiş.",
+    "Yeşil: şube kasası · mor: patron · kehribar: personel cebi · mavi: personelin cebindeki kasa parası (şirket parası) · gri: kaynak seçilmemiş.",
   compareCaption: "Karşılaştırılan önceki pencere",
   financialEmptyTitle: "Bu dönem ve filtrede hareket yok",
   financialEmptyBody:

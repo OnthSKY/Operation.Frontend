@@ -450,11 +450,11 @@
   expensePayLineCountAbbr: "lines",
   sectionExpensePayment: "Expenses â€” payment source",
   sectionExpensePaymentDesc:
-    "Register, patron, or employee pocket as recorded on OUT lines (non-PnL memos excluded).",
+    "Register, patron, employee pocket, or held register cash with personnel as recorded on OUT lines (non-PnL memos excluded). Held register cash with personnel is still company/branch cash and is traceable by branch and responsible personnel.",
   colExpensePayTag: "Source",
   chartExpensePayBlockTitle: "Payment source snapshot",
   chartExpensePayHint:
-    "Green: branch register Â· violet: patron Â· amber: employee pocket Â· gray: source not set.",
+    "Green: branch register Â· violet: patron Â· amber: employee pocket Â· blue: held register cash with personnel (company cash) Â· gray: source not set.",
   compareCaption: "Prior window",
   financialEmptyTitle: "No movements for this period and filters",
   financialEmptyBody:

@@ -2,6 +2,8 @@ export type CreateAdvanceInput = {
   personnelId: number;
   /** CASH için zorunlu; PATRON için opsiyonel (personel şubesi veya şubesiz). */
   branchId?: number;
+  /** PERSONNEL_POCKET için kasası kullanılan personel. */
+  sourcePersonnelId?: number;
   sourceType?: string;
   amount: number;
   currencyCode?: string | null;

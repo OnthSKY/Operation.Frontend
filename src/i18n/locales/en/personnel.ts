@@ -658,7 +658,7 @@ export const personnel = {
   detailInsurancePrerequisiteNotes: "Insurance prerequisites / notes",
   advanceTitle: "Give advance",
   advanceHint:
-    "Pick the attributing branch. Branch cash register posts to branch ledger; owner-funded does not. If Personnel pocket is selected, it is not booked as owner money and no new drawer cash leaves the register; the amount is reduced from register/company cash already held under that staff member. Transaction date is the operational day; season year tags which tourism season the advance belongs to (same year number as the branch tourism season record).",
+    "Pick the attributing branch. Branch cash register posts to branch ledger; owner-funded does not. If Held register cash with personnel is selected, it is not booked as owner money; no new drawer cash leaves the register, and the amount is reduced from the staff-held register cash balance. Transaction date is the operational day; season year tags which tourism season the advance belongs to (same year number as the branch tourism season record).",
   advanceDate: "Transaction date",
   effectiveYear: "Season year",
   effectiveYearHint:
@@ -678,9 +678,12 @@ export const personnel = {
   sourcePatron: "From owner (not from branch register)",
   sourceBank: "Bank",
   sourcePersonnelPocket:
-    "Personnel pocket (register owes them; no cash movement until linked on expense)",
+    "Held register cash with personnel (no new drawer cash out)",
   advancePocketSelectBranchFirst:
     "Select a branch first (only personnel with register-owed pocket balance at that branch are listed).",
+  advancePocketSourcePersonLabel: "Personnel whose held register cash will be used",
+  advancePocketSourcePersonRequired:
+    "Select the personnel for held register cash source.",
   advancePocketNoEligiblePersonnel:
     "No personnel with register-owed pocket balance for this branch.",
   selectPerson: "Select person",

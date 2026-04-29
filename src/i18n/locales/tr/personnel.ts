@@ -668,7 +668,7 @@ export const personnel = {
   detailInsurancePrerequisiteNotes: "Sigorta için evrak / notlar",
   advanceTitle: "Avans ver",
   advanceHint:
-    "Şube listesinden mahsup şubeyi seçin. Şube kasasından ödeme seçilirse kasa hareketine yazılır; patrondan seçilirse şube kasasından düşmez. Personel cebi seçilirse patrona yazılmaz ve kasadan yeni nakit çıkmaz; tutar, personelin üzerinde kayıtlı şube/şirket kasası bakiyesinden düşer. İşlem tarihi operasyon gününü; sezon yılı avansın hangi turizm sezonuna yazılacağını belirler (şube turizm sezonu kaydıyla aynı yıl numarası).",
+    "Şube listesinden mahsup şubeyi seçin. Şube kasasından ödeme seçilirse kasa hareketine yazılır; patrondan seçilirse şube kasasından düşmez. Personelin cebindeki kasa parası seçilirse patrona yazılmaz; kasadan yeni nakit çıkmadan personelin cebindeki kasa bakiyesinden düşer. İşlem tarihi operasyon gününü; sezon yılı avansın hangi turizm sezonuna yazılacağını belirler (şube turizm sezonu kaydıyla aynı yıl numarası).",
   advanceDate: "İşlem tarihi",
   effectiveYear: "Sezon yılı",
   effectiveYearHint:
@@ -688,9 +688,12 @@ export const personnel = {
   sourcePatron: "Patrondan (şube kasasından düşmez)",
   sourceBank: "Bankadan",
   sourcePersonnelPocket:
-    "Personel cebi (kasa borçlu; kasa hareketi giderde avans bağlanınca)",
+    "Personelin cebindeki kasa parası (kasadan yeni nakit çıkmaz)",
   advancePocketSelectBranchFirst:
     "Önce şube seçin (yalnız bu şubede cebinde kasa parası olan personeller listelenir).",
+  advancePocketSourcePersonLabel: "Cebindeki kasa parası kullanılacak personel",
+  advancePocketSourcePersonRequired:
+    "Personel cebindeki kasa parası için personel seçin.",
   advancePocketNoEligiblePersonnel:
     "Bu şubede cebinde kasa parası bulunan personel yok.",
   selectPerson: "Kişi seçin",

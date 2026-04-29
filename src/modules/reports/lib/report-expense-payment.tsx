@@ -5,7 +5,13 @@ import type { FinancialExpensePaymentSourceRow } from "@/types/reports";
 import type { Locale } from "@/i18n/messages";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 
-const ORDER = ["REGISTER", "PATRON", "PERSONNEL_POCKET", "UNSET"] as const;
+const ORDER = [
+  "REGISTER",
+  "PATRON",
+  "PERSONNEL_POCKET",
+  "PERSONNEL_HELD_REGISTER_CASH",
+  "UNSET",
+] as const;
 
 function sortKey(code: string): number {
   const u = code.trim().toUpperCase();
@@ -30,6 +36,9 @@ export function expensePaymentSourceTagClass(code: string): string {
   if (u === "PERSONNEL_POCKET") {
     return "bg-amber-100 text-amber-950 ring-1 ring-amber-200/90";
   }
+  if (u === "PERSONNEL_HELD_REGISTER_CASH") {
+    return "bg-sky-100 text-sky-950 ring-1 ring-sky-200/90";
+  }
   return "bg-zinc-100 text-zinc-700 ring-1 ring-zinc-200/90";
 }
 
@@ -38,6 +47,7 @@ export function expensePaymentSourceBarClass(code: string): string {
   if (u === "REGISTER") return "bg-emerald-500";
   if (u === "PATRON") return "bg-violet-500";
   if (u === "PERSONNEL_POCKET") return "bg-amber-500";
+  if (u === "PERSONNEL_HELD_REGISTER_CASH") return "bg-sky-500";
   return "bg-zinc-400";
 }
 
@@ -126,6 +136,8 @@ export function ReportExpensePaymentMix({
                 ? t("branch.expensePayPatronShort")
                 : r.expensePaymentSource.trim().toUpperCase() === "PERSONNEL_POCKET"
                   ? t("branch.expensePayPersonnelPocketShort")
+                  : r.expensePaymentSource.trim().toUpperCase() === "PERSONNEL_HELD_REGISTER_CASH"
+                    ? t("branch.expensePayPersonnelHeldRegisterCashShort")
                   : t("branch.expensePaymentUnset");
           return (
             <li

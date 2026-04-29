@@ -30,6 +30,7 @@ import { useController, useForm, useWatch } from "react-hook-form";
 type FormValues = {
   personnelId: string;
   branchId: string;
+  sourcePersonnelId: string;
   sourceType: string;
   currencyCode: string;
   advanceDate: string;
@@ -75,6 +76,7 @@ export function AdvancePersonnelModal({
     defaultValues: {
       personnelId: "",
       branchId: "",
+      sourcePersonnelId: "",
       sourceType: "CASH",
       currencyCode: DEFAULT_CURRENCY,
       advanceDate: localIsoDateTime(),
@@ -135,6 +137,20 @@ export function AdvancePersonnelModal({
     rules: { required: t("common.required") },
   });
 
+  const { field: sourcePersonnelField } = useController({
+    name: "sourcePersonnelId",
+    control,
+    defaultValue: "",
+    rules: {
+      validate: (v) => {
+        if (!isPersonnelPocketSource) return true;
+        const n = Number(v);
+        if (!v || Number.isNaN(n) || n < 1) return t("personnel.advancePocketSourcePersonRequired");
+        return true;
+      },
+    },
+  });
+
   const { field: currencyField } = useController({
     name: "currencyCode",
     control,
@@ -159,6 +175,7 @@ export function AdvancePersonnelModal({
   const personnelId = useWatch({ control, name: "personnelId" });
   const sourceTypeWatch = useWatch({ control, name: "sourceType" });
   const branchIdWatch = useWatch({ control, name: "branchId" });
+  const sourcePersonnelIdWatch = useWatch({ control, name: "sourcePersonnelId" });
   const currencyCodeWatch = useWatch({ control, name: "currencyCode" });
   const selectedPersonnel = personnel.find((x) => String(x.id) === personnelId);
   const selectedBranchId = Number.parseInt(String(branchIdWatch ?? "").trim(), 10);
@@ -197,6 +214,7 @@ export function AdvancePersonnelModal({
   useEffect(() => {
     const base = {
       branchId: "",
+      sourcePersonnelId: "",
       sourceType: "CASH",
       currencyCode: DEFAULT_CURRENCY,
       advanceDate: localIsoDateTime(),
@@ -225,16 +243,18 @@ export function AdvancePersonnelModal({
     return () => window.clearTimeout(id);
   }, [open, initialPersonnelId, setFocus]);
 
-  const options: SelectOption[] = useMemo(() => {
-    if (!isPersonnelPocketSource) {
-      return [
-        { value: "", label: t("personnel.selectPerson") },
-        ...personnel.map((p) => ({
-          value: String(p.id),
-          label: personnelDisplayName(p),
-        })),
-      ];
-    }
+  const recipientOptions: SelectOption[] = useMemo(
+    () => [
+      { value: "", label: t("personnel.selectPerson") },
+      ...personnel.map((p) => ({
+        value: String(p.id),
+        label: personnelDisplayName(p),
+      })),
+    ],
+    [personnel, t]
+  );
+
+  const sourcePersonnelOptions: SelectOption[] = useMemo(() => {
     if (!Number.isFinite(selectedBranchId) || selectedBranchId <= 0) {
       return [{ value: "", label: t("personnel.advancePocketSelectBranchFirst") }];
     }
@@ -248,17 +268,22 @@ export function AdvancePersonnelModal({
         label: personnelDisplayName(p),
       })),
     ];
-  }, [isPersonnelPocketSource, t, personnel, selectedBranchId, eligiblePersonnelIdsForPocket]);
+  }, [t, personnel, selectedBranchId, eligiblePersonnelIdsForPocket]);
 
   useEffect(() => {
     if (!isPersonnelPocketSource) return;
-    const selected = String(personnelField.value ?? "").trim();
+    const selected = String(sourcePersonnelIdWatch ?? "").trim();
     if (!selected) return;
     const selectedId = Number.parseInt(selected, 10);
     if (!Number.isFinite(selectedId) || !eligiblePersonnelIdsForPocket.has(selectedId)) {
-      personnelField.onChange("");
+      sourcePersonnelField.onChange("");
     }
-  }, [isPersonnelPocketSource, personnelField, eligiblePersonnelIdsForPocket]);
+  }, [
+    isPersonnelPocketSource,
+    sourcePersonnelIdWatch,
+    sourcePersonnelField,
+    eligiblePersonnelIdsForPocket,
+  ]);
 
   const onSubmit = handleSubmit(async (values) => {
     const amount = parseLocaleAmount(values.amount, locale);
@@ -274,12 +299,21 @@ export function AdvancePersonnelModal({
       Number.isFinite(explicitBranch) && explicitBranch > 0;
 
     let branchIdForPayload: number | undefined;
+    let sourcePersonnelIdForPayload: number | undefined;
     if (st === "CASH" || st === "PERSONNEL_POCKET") {
       if (!hasExplicitBranch) {
         notify.error(t("personnel.advanceBranchInvalid"));
         return;
       }
       branchIdForPayload = explicitBranch;
+      if (st === "PERSONNEL_POCKET") {
+        const sourcePid = Number(values.sourcePersonnelId);
+        if (!Number.isFinite(sourcePid) || sourcePid <= 0) {
+          notify.error(t("personnel.advancePocketSourcePersonRequired"));
+          return;
+        }
+        sourcePersonnelIdForPayload = sourcePid;
+      }
     } else if (hasExplicitBranch) {
       branchIdForPayload = explicitBranch;
     }
@@ -293,6 +327,7 @@ export function AdvancePersonnelModal({
       await createAdvance.mutateAsync({
         personnelId: pid,
         ...(branchIdForPayload != null ? { branchId: branchIdForPayload } : {}),
+        ...(sourcePersonnelIdForPayload != null ? { sourcePersonnelId: sourcePersonnelIdForPayload } : {}),
         sourceType: values.sourceType || "CASH",
         amount,
         currencyCode:
@@ -305,6 +340,7 @@ export function AdvancePersonnelModal({
       reset({
         personnelId: "",
         branchId: "",
+        sourcePersonnelId: "",
         sourceType: "CASH",
         currencyCode: DEFAULT_CURRENCY,
         advanceDate: localIsoDateTime(),
@@ -321,6 +357,7 @@ export function AdvancePersonnelModal({
     reset({
       personnelId: "",
       branchId: "",
+      sourcePersonnelId: "",
       sourceType: "CASH",
       currencyCode: DEFAULT_CURRENCY,
       advanceDate: localIsoDateTime(),
@@ -356,7 +393,7 @@ export function AdvancePersonnelModal({
                 <Select
                   label={t("nav.personnel")}
                   labelRequired
-                  options={options}
+                  options={recipientOptions}
                   name={personnelField.name}
                   value={String(personnelField.value ?? "")}
                   onChange={(e) => personnelField.onChange(e.target.value)}
@@ -368,7 +405,7 @@ export function AdvancePersonnelModal({
                 Number.isFinite(selectedBranchId) &&
                 selectedBranchId > 0 &&
                 !heldRegisterCashByPerson.isPending &&
-                (options.length <= 1) ? (
+                (sourcePersonnelOptions.length <= 1) ? (
                   <p className="text-xs text-zinc-500">{t("personnel.advancePocketNoEligiblePersonnel")}</p>
                 ) : null}
                 <Select
@@ -393,6 +430,19 @@ export function AdvancePersonnelModal({
                   ref={branchField.ref}
                   error={errors.branchId?.message}
                 />
+                {isPersonnelPocketSource ? (
+                  <Select
+                    label={t("personnel.advancePocketSourcePersonLabel")}
+                    labelRequired
+                    options={sourcePersonnelOptions}
+                    name={sourcePersonnelField.name}
+                    value={String(sourcePersonnelField.value ?? "")}
+                    onChange={(e) => sourcePersonnelField.onChange(e.target.value)}
+                    onBlur={sourcePersonnelField.onBlur}
+                    ref={sourcePersonnelField.ref}
+                    error={errors.sourcePersonnelId?.message}
+                  />
+                ) : null}
                 {selectedPersonnel?.branchId != null && selectedPersonnel.branchId > 0 ? (
                   <p className="text-xs text-zinc-500">{t("personnel.advanceBranchPrefilledHint")}</p>
                 ) : null}

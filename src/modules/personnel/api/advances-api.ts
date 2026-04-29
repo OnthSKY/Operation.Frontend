@@ -87,6 +87,9 @@ export async function createAdvance(
   if (input.branchId != null && input.branchId > 0) {
     body.branchId = input.branchId;
   }
+  if (input.sourcePersonnelId != null && input.sourcePersonnelId > 0) {
+    body.sourcePersonnelId = input.sourcePersonnelId;
+  }
   return apiRequest<Advance>("/advances", {
     method: "POST",
     body: JSON.stringify(body),
