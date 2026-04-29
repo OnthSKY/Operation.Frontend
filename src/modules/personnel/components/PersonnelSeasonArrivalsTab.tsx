@@ -4,6 +4,7 @@ import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
 import {
   useCreatePersonnelEmploymentTerm,
+  useDeletePersonnelEmploymentTerm,
   useDeleteOpenPersonnelEmploymentTerm,
   usePersonnelEmploymentTerms,
   useUpdatePersonnelEmploymentTerm,
@@ -14,6 +15,7 @@ import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
+import { PencilIcon } from "@/shared/ui/EyeIcon";
 import { Input } from "@/shared/ui/Input";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import {
@@ -96,6 +98,7 @@ export function PersonnelSeasonArrivalsTab({
   const createMut = useCreatePersonnelEmploymentTerm(personnelId);
   const updateMut = useUpdatePersonnelEmploymentTerm(personnelId);
   const deleteOpenMut = useDeleteOpenPersonnelEmploymentTerm(personnelId);
+  const deleteMut = useDeletePersonnelEmploymentTerm(personnelId);
 
   const openTerm = useMemo(
     () => terms.find((r) => r.isOpen) ?? null,
@@ -110,6 +113,8 @@ export function PersonnelSeasonArrivalsTab({
 
   const [newValidFrom, setNewValidFrom] = useState("");
   const [newArrivalDate, setNewArrivalDate] = useState(() => localIsoDate());
+  const [editingTermId, setEditingTermId] = useState<number | null>(null);
+  const [editingArrivalDraft, setEditingArrivalDraft] = useState("");
 
   const arrivalDirty =
     openTerm != null &&
@@ -192,6 +197,56 @@ export function PersonnelSeasonArrivalsTab({
     });
   };
 
+  const onStartRowEdit = (row: PersonnelEmploymentTerm) => {
+    if (readOnly) return;
+    setEditingTermId(row.id);
+    setEditingArrivalDraft(row.arrivalDate.slice(0, 10));
+  };
+
+  const onCancelRowEdit = () => {
+    setEditingTermId(null);
+    setEditingArrivalDraft("");
+  };
+
+  const onSaveRowEdit = async (row: PersonnelEmploymentTerm) => {
+    if (readOnly) return;
+    const ad = editingArrivalDraft.trim().slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(ad)) {
+      notify.error(t("personnel.seasonArrivalsInvalidDate"));
+      return;
+    }
+    try {
+      await updateMut.mutateAsync({
+        termId: row.id,
+        body: buildUpdateBody(row, ad),
+      });
+      notify.success(t("personnel.seasonArrivalsSaveSuccess"));
+      onCancelRowEdit();
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    }
+  };
+
+  const onDeleteRow = (row: PersonnelEmploymentTerm) => {
+    if (readOnly) return;
+    notifyConfirmToast({
+      toastId: `personnel-season-arrival-delete-${personnelId}-${row.id}`,
+      title: t("personnel.seasonArrivalsDeleteConfirmTitle"),
+      message: t("personnel.seasonArrivalsDeleteConfirmMessage"),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("common.delete"),
+      onConfirm: async () => {
+        try {
+          await deleteMut.mutateAsync(row.id);
+          notify.success(t("personnel.seasonArrivalsDeleteSuccess"));
+          if (editingTermId === row.id) onCancelRowEdit();
+        } catch (e) {
+          notify.error(toErrorMessage(e));
+        }
+      },
+    });
+  };
+
   return (
     <div className="space-y-4 pb-2">
       <article className="rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm sm:p-5">
@@ -231,6 +286,7 @@ export function PersonnelSeasonArrivalsTab({
               <TableBody>
                 {sortedTerms.map((row) => {
                   const isOpen = row.isOpen;
+                  const rowEditing = editingTermId === row.id;
                   return (
                     <TableRow key={row.id}>
                       <TableCell
@@ -243,6 +299,14 @@ export function PersonnelSeasonArrivalsTab({
                             className="w-full max-w-[11rem] max-md:max-w-none"
                             value={arrivalDraft}
                             onChange={(e) => setArrivalDraft(e.target.value)}
+                            disabled={updateMut.isPending}
+                          />
+                        ) : rowEditing && !readOnly ? (
+                          <Input
+                            type="date"
+                            className="w-full max-w-[11rem] max-md:max-w-none"
+                            value={editingArrivalDraft}
+                            onChange={(e) => setEditingArrivalDraft(e.target.value)}
                             disabled={updateMut.isPending}
                           />
                         ) : (
@@ -282,46 +346,94 @@ export function PersonnelSeasonArrivalsTab({
                         dataLabel={t("personnel.seasonArrivalsColActions")}
                         className="text-right align-middle max-md:text-left"
                       >
-                        {isOpen && !readOnly ? (
+                        {!readOnly ? (
                           <div className="flex flex-wrap justify-end gap-1.5 max-md:w-full max-md:flex-col max-md:items-stretch">
                             <Button
                               type="button"
                               variant="secondary"
                               className="min-h-[44px] min-w-[44px] max-md:w-full"
-                              disabled={!arrivalDirty || updateMut.isPending}
-                              onClick={() => void onSaveOpenArrival()}
-                            >
-                              {t("personnel.seasonArrivalsSaveArrival")}
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="min-h-[44px] min-w-[44px] max-md:w-full"
                               disabled={
-                                updateMut.isPending ||
-                                arrivalDraft.slice(0, 10) === row.validFrom.slice(0, 10)
+                                isOpen
+                                  ? (!arrivalDirty || updateMut.isPending)
+                                  : (rowEditing
+                                      ? (editingArrivalDraft.slice(0, 10) === row.arrivalDate.slice(0, 10) ||
+                                        updateMut.isPending)
+                                      : updateMut.isPending || deleteMut.isPending || deleteOpenMut.isPending)
                               }
-                              onClick={() => void onClearOpenArrival()}
+                              onClick={() =>
+                                void (isOpen
+                                  ? onSaveOpenArrival()
+                                  : rowEditing
+                                    ? onSaveRowEdit(row)
+                                    : Promise.resolve(onStartRowEdit(row)))
+                              }
                             >
-                              {t("personnel.seasonArrivalsClearArrival")}
+                              {isOpen
+                                ? t("personnel.seasonArrivalsSaveArrival")
+                                : rowEditing
+                                  ? t("common.save")
+                                  : t("personnel.seasonArrivalsRowEdit")}
                             </Button>
+                            {isOpen ? (
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                className="min-h-[44px] min-w-[44px] max-md:w-full"
+                                disabled={
+                                  updateMut.isPending ||
+                                  arrivalDraft.slice(0, 10) === row.validFrom.slice(0, 10)
+                                }
+                                onClick={() => void onClearOpenArrival()}
+                              >
+                                {t("personnel.seasonArrivalsClearArrival")}
+                              </Button>
+                            ) : rowEditing ? (
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                className="min-h-[44px] min-w-[44px] max-md:w-full"
+                                disabled={updateMut.isPending}
+                                onClick={onCancelRowEdit}
+                              >
+                                {t("common.cancel")}
+                              </Button>
+                            ) : null}
                             <button
                               type="button"
                               className={`${trashIconActionButtonClass} max-md:w-full max-md:justify-center`}
                               disabled={
-                                !hasPredecessor ||
-                                deleteOpenMut.isPending
+                                isOpen
+                                  ? (!hasPredecessor || deleteOpenMut.isPending || deleteMut.isPending)
+                                  : (deleteMut.isPending || deleteOpenMut.isPending || updateMut.isPending)
                               }
                               title={
-                                !hasPredecessor
-                                  ? t("personnel.seasonArrivalsRevertBlockedSingleTerm")
-                                  : t("personnel.seasonArrivalsRevertTooltip")
+                                isOpen
+                                  ? (!hasPredecessor
+                                      ? t("personnel.seasonArrivalsRevertBlockedSingleTerm")
+                                      : t("personnel.seasonArrivalsRevertTooltip"))
+                                  : t("personnel.seasonArrivalsDeleteTooltip")
                               }
-                              aria-label={t("personnel.seasonArrivalsRevertTooltip")}
-                              onClick={onRevertOpenTerm}
+                              aria-label={
+                                isOpen
+                                  ? t("personnel.seasonArrivalsRevertTooltip")
+                                  : t("personnel.seasonArrivalsDeleteTooltip")
+                              }
+                              onClick={() => (isOpen ? onRevertOpenTerm() : onDeleteRow(row))}
                             >
                               <TrashIcon />
                             </button>
+                            {!isOpen && !rowEditing ? (
+                              <button
+                                type="button"
+                                className={`${trashIconActionButtonClass} border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50 max-md:w-full max-md:justify-center`}
+                                disabled={updateMut.isPending || deleteMut.isPending || deleteOpenMut.isPending}
+                                title={t("personnel.seasonArrivalsRowEdit")}
+                                aria-label={t("personnel.seasonArrivalsRowEdit")}
+                                onClick={() => onStartRowEdit(row)}
+                              >
+                                <PencilIcon className="h-4 w-4" />
+                              </button>
+                            ) : null}
                           </div>
                         ) : null}
                       </TableCell>

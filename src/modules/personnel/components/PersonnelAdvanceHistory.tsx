@@ -262,7 +262,8 @@ export function PersonnelAdvanceHistory({
     : null;
 
   const totalsBlock = showAttributedExpenses ? (
-      <p className="mt-1 text-xs leading-snug text-zinc-600 sm:text-xs">
+    <div className="mt-1 space-y-2 text-xs leading-snug text-zinc-600">
+      <p className="sm:text-xs">
         <span className="text-zinc-500">
           {t("personnel.costsSummaryTotalAdvancesLabel")}
         </span>{" "}
@@ -277,7 +278,25 @@ export function PersonnelAdvanceHistory({
           {amountsRevealed ? expenseTotalsLabel : "***"}
         </strong>
       </p>
-    ) : null;
+      {maskSensitiveAmounts ? (
+        <button
+          type="button"
+          className="min-h-10 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-left text-xs font-semibold text-sky-700 transition-colors hover:bg-sky-100 hover:text-sky-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+          onClick={() => setAmountsRevealed((v) => !v)}
+          aria-label={
+            amountsRevealed
+              ? t("personnel.salaryHideAria")
+              : t("personnel.salaryRevealAria")
+          }
+        >
+          {t("personnel.amount")} ·{" "}
+          {amountsRevealed
+            ? t("personnel.costsSummaryHideDetail")
+            : t("personnel.costsSummaryShowDetail")}
+        </button>
+      ) : null}
+    </div>
+  ) : null;
 
   if (variant === "inline") {
     return (
@@ -301,23 +320,9 @@ export function PersonnelAdvanceHistory({
           )}
         </p>
         {totalsBlock}
-        {maskSensitiveAmounts ? (
-          <button
-            type="button"
-            className="mt-1 text-left text-xs font-semibold text-sky-700 underline decoration-sky-700/40 underline-offset-2 hover:text-sky-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
-            onClick={() => setAmountsRevealed((v) => !v)}
-            aria-label={
-              amountsRevealed
-                ? t("personnel.salaryHideAria")
-                : t("personnel.salaryRevealAria")
-            }
-          >
-            {amountsRevealed ? t("personnel.costsSummaryHideDetail") : t("personnel.costsSummaryShowDetail")}
-          </button>
-        ) : null}
         <button
           type="button"
-          className="mt-1.5 text-left text-xs font-semibold text-sky-700 underline decoration-sky-700/40 underline-offset-2 hover:text-sky-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
+          className="mt-1.5 min-h-10 rounded-lg border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-left text-xs font-semibold text-sky-700 transition-colors hover:bg-sky-100 hover:text-sky-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-600"
           aria-expanded={inlineDetailsOpen}
           onClick={() => setInlineDetailsOpen((v) => !v)}
         >

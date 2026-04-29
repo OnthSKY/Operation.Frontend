@@ -105,6 +105,15 @@ export async function deleteOpenPersonnelEmploymentTerm(
   });
 }
 
+export async function deletePersonnelEmploymentTerm(
+  personnelId: number,
+  termId: number,
+): Promise<void> {
+  await apiRequest<unknown>(`/personnel/${personnelId}/salary-terms/${termId}`, {
+    method: "DELETE",
+  });
+}
+
 export async function fetchPersonnelAccountClosurePreview(
   personnelId: number,
   employmentTermId?: number

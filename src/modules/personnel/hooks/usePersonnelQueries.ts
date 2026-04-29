@@ -14,6 +14,7 @@ import { reportsKeys } from "@/modules/reports/query-keys";
 import {
   closePersonnelYearAccount,
   createPersonnelEmploymentTerm,
+  deletePersonnelEmploymentTerm,
   deleteOpenPersonnelEmploymentTerm,
   fetchPersonnelAccountClosurePreview,
   fetchPersonnelEmploymentTerms,
@@ -32,6 +33,7 @@ import {
 } from "@/modules/personnel/api/personnel-notes-api";
 import {
   addPersonnelInsurancePeriod,
+  deletePersonnelInsurancePeriod,
   updatePersonnelInsurancePeriod,
   createPersonnel,
   fetchPersonnelInsurancePeriods,
@@ -289,6 +291,23 @@ export function useUpdatePersonnelInsurancePeriod() {
         vars.periodId,
         vars.input
       ),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({
+        queryKey: personnelKeys.insurancePeriods(vars.personnelId),
+      });
+      void qc.invalidateQueries({ queryKey: personnelKeys.listRoot() });
+      void qc.invalidateQueries({
+        queryKey: personnelKeys.detail(vars.personnelId),
+      });
+    },
+  });
+}
+
+export function useDeletePersonnelInsurancePeriod() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { personnelId: number; periodId: number }) =>
+      deletePersonnelInsurancePeriod(vars.personnelId, vars.periodId),
     onSuccess: (_data, vars) => {
       void qc.invalidateQueries({
         queryKey: personnelKeys.insurancePeriods(vars.personnelId),
@@ -602,6 +621,16 @@ export function useDeleteOpenPersonnelEmploymentTerm(personnelId: number) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => deleteOpenPersonnelEmploymentTerm(personnelId),
+    onSuccess: () => {
+      invalidatePersonnelAfterEmploymentTermChange(qc, personnelId);
+    },
+  });
+}
+
+export function useDeletePersonnelEmploymentTerm(personnelId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (termId: number) => deletePersonnelEmploymentTerm(personnelId, termId),
     onSuccess: () => {
       invalidatePersonnelAfterEmploymentTermChange(qc, personnelId);
     },

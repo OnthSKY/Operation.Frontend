@@ -1,10 +1,14 @@
 "use client";
 
 import { useI18n } from "@/i18n/context";
-import { useUpdatePersonnelInsurancePeriod } from "@/modules/personnel/hooks/usePersonnelQueries";
+import {
+  useDeletePersonnelInsurancePeriod,
+  useUpdatePersonnelInsurancePeriod,
+} from "@/modules/personnel/hooks/usePersonnelQueries";
 import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
 import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
@@ -29,29 +33,34 @@ export function EditPersonnelInsurancePeriodModal({
 }: Props) {
   const { t } = useI18n();
   const mut = useUpdatePersonnelInsurancePeriod();
+  const delMut = useDeletePersonnelInsurancePeriod();
+  const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
     if (!open || !period) {
+      setStart("");
       setEnd("");
       setNotes("");
       return;
     }
+    const s = period.coverageStartDate?.trim() ?? "";
     const e = period.coverageEndDate?.trim() ?? "";
+    setStart(/^\d{4}-\d{2}-\d{2}$/.test(s) ? s : "");
     setEnd(/^\d{4}-\d{2}-\d{2}$/.test(e) ? e : "");
     setNotes(period.notes?.trim() ?? "");
   }, [open, period]);
 
   const submit = async () => {
     if (!period) return;
+    const s = start.trim();
     const e = end.trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(e)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s) || !/^\d{4}-\d{2}-\d{2}$/.test(e)) {
       notify.error(t("common.required"));
       return;
     }
-    const start = period.coverageStartDate.slice(0, 10);
-    if (e < start) {
+    if (e < s) {
       notify.error(t("personnel.insuranceDateOrderInvalid"));
       return;
     }
@@ -60,6 +69,7 @@ export function EditPersonnelInsurancePeriodModal({
         personnelId,
         periodId: period.id,
         input: {
+          coverageStartDate: s,
           coverageEndDate: e,
           notes: notes.trim() === "" ? null : notes.trim(),
         },
@@ -69,6 +79,26 @@ export function EditPersonnelInsurancePeriodModal({
     } catch (err) {
       notify.error(toErrorMessage(err));
     }
+  };
+
+  const askDelete = () => {
+    if (!period) return;
+    notifyConfirmToast({
+      toastId: `personnel-insurance-period-delete-${personnelId}-${period.id}`,
+      title: t("personnel.insurancePeriodDeleteTitle"),
+      message: t("personnel.insurancePeriodDeleteAsk"),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("common.delete"),
+      onConfirm: async () => {
+        try {
+          await delMut.mutateAsync({ personnelId, periodId: period.id });
+          notify.success(t("personnel.insurancePeriodDeleted"));
+          onClose();
+        } catch (err) {
+          notify.error(toErrorMessage(err));
+        }
+      },
+    });
   };
 
   const nameChip =
@@ -83,10 +113,10 @@ export function EditPersonnelInsurancePeriodModal({
   const title = isOpenPeriod
     ? t("personnel.insuranceClosePeriodTitle")
     : t("personnel.insuranceEditPeriodTitle");
-  const isDirty = end.trim() !== "" || notes.trim() !== "";
+  const isDirty = start.trim() !== "" || end.trim() !== "" || notes.trim() !== "";
   const requestClose = useDirtyGuard({
     isDirty,
-    isBlocked: mut.isPending,
+    isBlocked: mut.isPending || delMut.isPending,
     confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
     onClose,
   });
@@ -129,6 +159,13 @@ export function EditPersonnelInsurancePeriodModal({
               </FormSection>
               <FormSection>
                 <DateField
+                  label={t("personnel.insuranceAddPeriodStartLabel")}
+                  labelRequired
+                  required
+                  value={start}
+                  onChange={(ev) => setStart(ev.target.value)}
+                />
+                <DateField
                   label={t("personnel.insuranceEditPeriodEndLabel")}
                   labelRequired
                   required
@@ -155,10 +192,23 @@ export function EditPersonnelInsurancePeriodModal({
           }
           footer={
             <>
+              <Button
+                type="button"
+                variant="secondary"
+                className="border-red-200 text-red-700 hover:bg-red-50"
+                onClick={askDelete}
+                disabled={mut.isPending || delMut.isPending}
+              >
+                {delMut.isPending ? t("common.loading") : t("common.delete")}
+              </Button>
               <Button type="button" variant="secondary" onClick={requestClose}>
                 {t("common.cancel")}
               </Button>
-              <Button type="submit" variant="primary" disabled={mut.isPending}>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={mut.isPending || delMut.isPending}
+              >
                 {mut.isPending ? t("common.saving") : t("common.save")}
               </Button>
             </>

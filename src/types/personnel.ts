@@ -107,6 +107,7 @@ export type AddPersonnelInsurancePeriodInput = {
 
 /** Mevcut dönem satırında bitiş (çıkış) tarihi ve not güncellemesi. */
 export type UpdatePersonnelInsurancePeriodInput = {
+  coverageStartDate: string;
   coverageEndDate: string;
   notes?: string | null;
 };

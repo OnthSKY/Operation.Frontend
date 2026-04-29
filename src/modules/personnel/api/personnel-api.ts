@@ -447,8 +447,12 @@ export async function updatePersonnelInsurancePeriod(
   periodId: number,
   input: UpdatePersonnelInsurancePeriodInput
 ): Promise<PersonnelInsurancePeriod> {
+  const s = String(input.coverageStartDate).trim().slice(0, 10);
   const d = String(input.coverageEndDate).trim().slice(0, 10);
-  const body: Record<string, unknown> = { coverageEndDate: d };
+  const body: Record<string, unknown> = {
+    coverageStartDate: s,
+    coverageEndDate: d,
+  };
   body.notes =
     input.notes == null || String(input.notes).trim() === ""
       ? null
@@ -458,6 +462,16 @@ export async function updatePersonnelInsurancePeriod(
     { method: "PUT", body: JSON.stringify(body) }
   );
   return mapInsurancePeriod(row);
+}
+
+export async function deletePersonnelInsurancePeriod(
+  personnelId: number,
+  periodId: number,
+): Promise<void> {
+  await apiRequest<null>(
+    `/personnel/${personnelId}/insurance-periods/${periodId}`,
+    { method: "DELETE" },
+  );
 }
 
 function mapCashHandoverLine(r: Record<string, unknown>): PersonnelCashHandoverLine {

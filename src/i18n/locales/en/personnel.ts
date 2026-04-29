@@ -393,6 +393,12 @@ export const personnel = {
     "The current period will be deleted and the previous one reopened. If monthly salary snapshots exist for this period, the action is blocked. Continue?",
   seasonArrivalsRevertConfirm: "Yes, remove",
   seasonArrivalsRevertSuccess: "Latest period removed; previous period reopened.",
+  seasonArrivalsRowEdit: "Edit arrival",
+  seasonArrivalsDeleteTooltip: "Delete this term row",
+  seasonArrivalsDeleteConfirmTitle: "Delete term row",
+  seasonArrivalsDeleteConfirmMessage:
+    "Delete this season-arrival/employment-term row?",
+  seasonArrivalsDeleteSuccess: "Term row deleted.",
   fieldSalary: "Salary (optional)",
   fieldBranch: "Branch (optional)",
   branchNone: "No branch",
@@ -619,6 +625,9 @@ export const personnel = {
   insuranceEditPeriodNotesPlaceholder:
     "e.g. season ended, SGK exit notification reference…",
   insurancePeriodUpdated: "Insurance period updated",
+  insurancePeriodDeleteTitle: "Delete insurance period",
+  insurancePeriodDeleteAsk: "Delete this insurance period record?",
+  insurancePeriodDeleted: "Insurance period record deleted",
   insuranceAddPeriodTitle: "Add insurance period",
   insuranceAddPeriodHint:
     "Use past dates for history. Empty end date means coverage is still open.",

@@ -400,6 +400,12 @@ export const personnel = {
     "Güncel dönem silinir; bir önceki dönem yeniden açılır. Bu dönem için maaş ayı hesapları varsa işlem yapılamaz. Devam edilsin mi?",
   seasonArrivalsRevertConfirm: "Evet, kaldır",
   seasonArrivalsRevertSuccess: "Son dönem kaldırıldı; önceki dönem yeniden açıldı.",
+  seasonArrivalsRowEdit: "Gelişi düzenle",
+  seasonArrivalsDeleteTooltip: "Bu dönem satırını sil",
+  seasonArrivalsDeleteConfirmTitle: "Dönem satırını sil",
+  seasonArrivalsDeleteConfirmMessage:
+    "Bu sezon gelişi/dönem satırı silinsin mi?",
+  seasonArrivalsDeleteSuccess: "Dönem satırı silindi.",
   fieldSalary: "Maaş (isteğe bağlı)",
   fieldBranch: "Şube (isteğe bağlı)",
   branchNone: "Şube yok",
@@ -629,6 +635,9 @@ export const personnel = {
   insuranceEditPeriodNotesPlaceholder:
     "Örn. sezon sonu çıkış, SGK işten çıkış bildirimi…",
   insurancePeriodUpdated: "Sigorta dönemi güncellendi",
+  insurancePeriodDeleteTitle: "Sigorta dönemini sil",
+  insurancePeriodDeleteAsk: "Bu sigorta dönem kaydı silinsin mi?",
+  insurancePeriodDeleted: "Sigorta dönem kaydı silindi",
   insuranceAddPeriodTitle: "Sigorta dönemi ekle",
   insuranceAddPeriodHint:
     "Geçmiş için geçmişe dönük tarih girin. Bitiş boş = hâlâ sigortalı.",
