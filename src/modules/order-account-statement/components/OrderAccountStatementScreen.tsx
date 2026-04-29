@@ -3229,6 +3229,7 @@ export function OrderAccountStatementScreen() {
               receiptDate,
               amount: promoApply,
               currencyCode: "TRY",
+              receiptKind: "promo_discount",
               notes: "source=promo_discount · Sipariş hesap dökümü promosyon düşümü",
             });
             remainingOpen = Math.max(0, remainingOpen - promoApply);
@@ -3239,6 +3240,7 @@ export function OrderAccountStatementScreen() {
               receiptDate,
               amount: advanceApply,
               currencyCode: "TRY",
+              receiptKind: "advance_payment",
               notes: "source=advance_payment · Sipariş hesap dökümü ön ödeme düşümü",
             });
           }

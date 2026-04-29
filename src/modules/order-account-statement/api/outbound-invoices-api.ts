@@ -28,6 +28,9 @@ export type CreateOutboundInvoiceRequest = {
   shipmentLinkMode: "strict" | "partial";
   autoPostLedger: boolean;
   notes?: string | null;
+  giftAmount?: number;
+  promoAmount?: number;
+  advanceAmount?: number;
   paymentInfo?: OutboundInvoicePaymentInfoRequest | null;
   lines: OutboundInvoiceLineRequest[];
 };
@@ -51,6 +54,9 @@ export type OutboundInvoiceResponse = {
   paidTotal: number;
   openAmount: number;
   notes?: string | null;
+  giftAmount?: number;
+  promoAmount?: number;
+  advanceAmount?: number;
 };
 
 export type OutboundInvoiceReceiptRequest = {
@@ -58,6 +64,7 @@ export type OutboundInvoiceReceiptRequest = {
   amount: number;
   currencyCode: string;
   notes?: string | null;
+  receiptKind?: "cash" | "promo_discount" | "advance_payment" | "other";
 };
 
 export type OutboundInvoiceReceiptResponse = {
@@ -67,6 +74,7 @@ export type OutboundInvoiceReceiptResponse = {
   amount: number;
   currencyCode: string;
   notes?: string | null;
+  receiptKind?: "cash" | "promo_discount" | "advance_payment" | "other";
 };
 
 export type ShipmentInvoiceabilityLine = {

@@ -143,12 +143,14 @@ export function CounterpartySummaryReportScreen() {
   }, []);
 
   const isPromoReceipt = useCallback((receipt: OutboundInvoiceReceiptResponse): boolean => {
+    if (receipt.receiptKind === "promo_discount") return true;
     const note = String(receipt.notes ?? "").trim().toLowerCase();
     if (!note) return false;
     return note.includes("source=promo_discount") || note.includes("promosyon") || note.includes("iskonto") || note.includes("indirim");
   }, []);
 
   const isAdvanceReceipt = useCallback((receipt: OutboundInvoiceReceiptResponse): boolean => {
+    if (receipt.receiptKind === "advance_payment") return true;
     const note = String(receipt.notes ?? "").trim().toLowerCase();
     if (!note) return false;
     return note.includes("source=advance_payment") || note.includes("ön ödeme") || note.includes("on odeme");
@@ -173,7 +175,10 @@ export function CounterpartySummaryReportScreen() {
             if (!isAdvanceReceipt(receipt)) return sum;
             return sum + Math.max(0, Number(receipt.amount) || 0);
           }, 0);
-          const giftTotal = parseNoteAmount(invoice.notes, "giftAmount");
+          const giftTotal =
+            Number.isFinite(Number(invoice.giftAmount)) && Number(invoice.giftAmount) > 0
+              ? Number(invoice.giftAmount)
+              : parseNoteAmount(invoice.notes, "giftAmount");
           return [invoice.id, { promoTotal, advanceTotal, giftTotal }] as const;
         })
       );
@@ -598,6 +603,7 @@ export function CounterpartySummaryReportScreen() {
           receiptDate,
           amount: apply,
           currencyCode,
+          receiptKind: "cash",
           notes: receiptNote.trim() || null,
         });
         if (receiptTransferImage && receiptTarget.counterpartyType === "branch") {

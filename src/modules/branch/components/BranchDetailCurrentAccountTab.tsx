@@ -154,12 +154,14 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
   }, []);
 
   const isPromoOrDiscountReceipt = useCallback((receipt: OutboundInvoiceReceiptResponse): boolean => {
+    if (receipt.receiptKind === "promo_discount") return true;
     const note = String(receipt.notes ?? "").trim().toLowerCase();
     if (!note) return false;
     return note.includes("source=promo_discount") || note.includes("promosyon") || note.includes("iskonto") || note.includes("indirim");
   }, []);
 
   const isAdvanceReceipt = useCallback((receipt: OutboundInvoiceReceiptResponse): boolean => {
+    if (receipt.receiptKind === "advance_payment") return true;
     const note = String(receipt.notes ?? "").trim().toLowerCase();
     if (!note) return false;
     return note.includes("source=advance_payment") || note.includes("ön ödeme") || note.includes("on odeme");
@@ -186,7 +188,10 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
               if (!isAdvanceReceipt(receipt)) return sum;
               return sum + Math.max(0, Number(receipt.amount) || 0);
             }, 0);
-            const giftAmount = parseNoteAmount(invoice.notes, "giftAmount");
+            const giftAmount =
+              Number.isFinite(Number(invoice.giftAmount)) && Number(invoice.giftAmount) > 0
+                ? Number(invoice.giftAmount)
+                : parseNoteAmount(invoice.notes, "giftAmount");
             return [invoice.id, { promoSum, advanceSum, giftAmount }] as const;
           })
         );
@@ -282,6 +287,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
           receiptDate,
           amount: apply,
           currencyCode,
+          receiptKind: "cash",
           notes: receiptNote.trim() || null,
         });
         if (receiptTransferImage) {
