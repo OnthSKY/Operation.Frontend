@@ -8,6 +8,7 @@ import {
 } from "@/modules/branch/api/branch-documents-api";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import {
+  addOutboundInvoiceReceipt,
   deleteCustomerAccount,
   deleteOutboundInvoice,
   fetchOutboundInvoices,
@@ -28,6 +29,8 @@ import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { currencySelectOptions } from "@/shared/lib/currency-select-options";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
+import { parseLocaleAmount } from "@/shared/lib/locale-amount";
+import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { apiFetch } from "@/shared/api/client";
 import { FilterFunnelIcon } from "@/shared/components/FilterFunnelIcon";
 import { RightDrawer } from "@/shared/components/RightDrawer";
@@ -37,6 +40,7 @@ import { RichCombobox, type RichComboboxOption } from "@/shared/ui/RichCombobox"
 import { Button } from "@/shared/ui/Button";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { DateField } from "@/shared/ui/DateField";
+import { Modal } from "@/shared/ui/Modal";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -80,6 +84,11 @@ export function CounterpartySummaryReportScreen() {
   const [pdfBusyKey, setPdfBusyKey] = useState("");
   const [errorText, setErrorText] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [receiptTarget, setReceiptTarget] = useState<CounterpartySuggestionRow | null>(null);
+  const [receiptDate, setReceiptDate] = useState(localIsoDate());
+  const [receiptAmount, setReceiptAmount] = useState("");
+  const [receiptNote, setReceiptNote] = useState("");
+  const [receiptSaving, setReceiptSaving] = useState(false);
   const [selectedBranchId, setSelectedBranchId] = useState("");
   const [filters, setFilters] = useState<CounterpartySummaryFilters>({
     counterpartyType: "",
@@ -328,6 +337,88 @@ export function CounterpartySummaryReportScreen() {
     [filters, load, t]
   );
 
+  const openReceiptModal = useCallback((row: CounterpartySuggestionRow) => {
+    setReceiptTarget(row);
+    setReceiptDate(localIsoDate());
+    setReceiptAmount("");
+    setReceiptNote("");
+  }, []);
+
+  const submitReceipt = useCallback(async () => {
+    if (!receiptTarget) return;
+    const amount = parseLocaleAmount(receiptAmount, locale);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      notify.error(t("branch.currentAccountInvalidReceiptAmount"));
+      return;
+    }
+    const currencyCode = (receiptTarget.currencyCode || "TRY").trim().toUpperCase();
+    setReceiptSaving(true);
+    setErrorText("");
+    try {
+      const invoices = await fetchOutboundInvoices();
+      const openRows = invoices
+        .filter(
+          (r) =>
+            r.counterpartyType === receiptTarget.counterpartyType &&
+            r.counterpartyId === receiptTarget.counterpartyId &&
+            (r.currencyCode || "TRY").trim().toUpperCase() === currencyCode &&
+            Number.isFinite(Number(r.openAmount)) &&
+            Number(r.openAmount) > 0.009
+        )
+        .sort((a, b) => {
+          const d = a.issueDate.localeCompare(b.issueDate);
+          return d !== 0 ? d : a.id - b.id;
+        });
+      if (openRows.length === 0) {
+        notify.error(t("branch.currentAccountNoOpenInvoicesForAllocation"));
+        return;
+      }
+      const prioritized = [
+        ...openRows.filter((r) => r.documentNumber === receiptTarget.lastDocumentNumber),
+        ...openRows.filter((r) => r.documentNumber !== receiptTarget.lastDocumentNumber),
+      ];
+      let remaining = amount;
+      let appliedTotal = 0;
+      let appliedCount = 0;
+      for (const r of prioritized) {
+        if (remaining <= 0.009) break;
+        const open = Number(r.openAmount) || 0;
+        if (open <= 0.009) continue;
+        const apply = Math.min(remaining, open);
+        await addOutboundInvoiceReceipt(r.id, {
+          receiptDate,
+          amount: apply,
+          currencyCode,
+          notes: receiptNote.trim() || null,
+        });
+        appliedTotal += apply;
+        appliedCount += 1;
+        remaining -= apply;
+      }
+      await load(filters);
+      notify.success(
+        t("branch.currentAccountReceiptDistributedSaved")
+          .replace("{n}", String(appliedCount))
+          .replace("{amount}", formatLocaleAmount(appliedTotal, locale, currencyCode))
+      );
+      if (remaining > 0.009) {
+        notify.info(
+          t("branch.currentAccountReceiptUnappliedRemainder").replace(
+            "{amount}",
+            formatLocaleAmount(remaining, locale, currencyCode)
+          )
+        );
+      }
+      setReceiptTarget(null);
+    } catch (error) {
+      const msg = toErrorMessage(error);
+      setErrorText(msg);
+      notify.error(msg);
+    } finally {
+      setReceiptSaving(false);
+    }
+  }, [filters, load, locale, receiptAmount, receiptDate, receiptNote, receiptTarget, t]);
+
   const downloadSummaryPdf = useCallback(async () => {
     setExportBusy(true);
     setErrorText("");
@@ -568,6 +659,16 @@ export function CounterpartySummaryReportScreen() {
                 type="button"
                 variant="secondary"
                 className={detailOpenIconButtonClass}
+                aria-label={t("branch.currentAccountAddReceipt")}
+                disabled={Number(row.openAmount) <= 0}
+                onClick={() => openReceiptModal(row)}
+              >
+                +
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className={detailOpenIconButtonClass}
                 aria-label={t("reports.counterpartySummaryPdfPreview")}
                 disabled={
                   row.counterpartyType !== "branch" ||
@@ -656,6 +757,7 @@ export function CounterpartySummaryReportScreen() {
               <th className="px-3 py-2 text-right">{t("reports.counterpartySummaryColPaid")}</th>
               <th className="px-3 py-2 text-right">{t("reports.counterpartySummaryColOpen")}</th>
               <th className="px-3 py-2 text-left">{t("reports.counterpartySummaryColLastInvoice")}</th>
+              <th className="px-3 py-2 text-center">{t("branch.currentAccountAddReceipt")}</th>
               <th className="px-3 py-2 text-center">{t("reports.counterpartySummaryColPdf")}</th>
               <th className="px-3 py-2 text-center">{t("reports.counterpartySummaryDeleteInvoice")}</th>
             </tr>
@@ -683,6 +785,18 @@ export function CounterpartySummaryReportScreen() {
                 </td>
                 <td className="px-3 py-2 text-zinc-600">
                   {row.lastDocumentNumber ? `${row.lastDocumentNumber} · ${row.lastInvoiceDate ?? "—"}` : "—"}
+                </td>
+                <td className="px-3 py-2 text-center">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className={detailOpenIconButtonClass}
+                    aria-label={t("branch.currentAccountAddReceipt")}
+                    disabled={Number(row.openAmount) <= 0}
+                    onClick={() => openReceiptModal(row)}
+                  >
+                    +
+                  </Button>
                 </td>
                 <td className="px-3 py-2 text-center">
                   <div className="flex items-center justify-center gap-1">
@@ -766,7 +880,7 @@ export function CounterpartySummaryReportScreen() {
             ))}
             {reportItems.length === 0 && !busy ? (
               <tr>
-                <td className="px-3 py-4 text-center text-zinc-500" colSpan={8}>
+                <td className="px-3 py-4 text-center text-zinc-500" colSpan={9}>
                   {t("reports.counterpartySummaryEmpty")}
                 </td>
               </tr>
@@ -827,6 +941,50 @@ export function CounterpartySummaryReportScreen() {
           </label>
         </div>
       </RightDrawer>
+
+      <Modal
+        open={receiptTarget != null}
+        onClose={() => (receiptSaving ? undefined : setReceiptTarget(null))}
+        title={t("branch.currentAccountReceiptModalTitle")}
+        titleId="counterparty-summary-receipt-modal-title"
+      >
+        <div className="space-y-3">
+          <p className="text-xs text-zinc-600">
+            {receiptTarget?.counterpartyName} ·{" "}
+            {receiptTarget ? formatLocaleAmount(receiptTarget.openAmount, locale, receiptTarget.currencyCode || "TRY") : "—"}
+          </p>
+          <DateField
+            label={t("branch.currentAccountReceiptDate")}
+            value={receiptDate}
+            onChange={(e) => setReceiptDate(e.target.value)}
+          />
+          <label className="block">
+            <span className="text-sm text-zinc-700">{t("branch.currentAccountReceiptAmount")}</span>
+            <input
+              className="mt-1 h-10 w-full rounded-lg border border-zinc-300 px-3 text-sm tabular-nums outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
+              inputMode="decimal"
+              value={receiptAmount}
+              onChange={(e) => setReceiptAmount(e.target.value)}
+            />
+          </label>
+          <label className="block">
+            <span className="text-sm text-zinc-700">{t("branch.currentAccountReceiptNote")}</span>
+            <textarea
+              className="mt-1 min-h-[84px] w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
+              value={receiptNote}
+              onChange={(e) => setReceiptNote(e.target.value)}
+            />
+          </label>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="secondary" disabled={receiptSaving} onClick={() => setReceiptTarget(null)}>
+              {t("common.close")}
+            </Button>
+            <Button type="button" disabled={receiptSaving} onClick={() => void submitReceipt()}>
+              {receiptSaving ? t("common.loading") : t("branch.currentAccountSaveReceipt")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

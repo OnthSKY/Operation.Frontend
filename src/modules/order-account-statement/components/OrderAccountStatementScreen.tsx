@@ -25,6 +25,7 @@ import {
   createShipmentInvoice,
   createOutboundInvoice,
   fetchCounterpartySuggestions,
+  fetchOutboundInvoices,
   fetchSalesPriceHistory,
   fetchSalesPriceSuggestion,
   fetchShipmentInvoiceability,
@@ -58,7 +59,7 @@ import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
 import { RichCombobox, type RichComboboxOption } from "@/shared/ui/RichCombobox";
 import { createPortal } from "react-dom";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Fragment,
@@ -1839,6 +1840,7 @@ function OasTemplatePickers({
 export function OrderAccountStatementScreen() {
   const { t, locale } = useI18n();
   const { user } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const previewRef = useRef<HTMLDivElement>(null);
   const linesSectionRef = useRef<HTMLDivElement>(null);
@@ -2800,26 +2802,38 @@ export function OrderAccountStatementScreen() {
     for (const row of suggestions) {
       if (row.counterpartyType !== "branch") continue;
       if (!Number.isFinite(row.counterpartyId) || row.counterpartyId <= 0) continue;
-      map.set(row.counterpartyId, Math.max(0, Number(row.openAmount) || 0));
+      const prev = map.get(row.counterpartyId) ?? 0;
+      map.set(row.counterpartyId, prev + Math.max(0, Number(row.openAmount) || 0));
     }
     return map;
   }, [suggestions]);
-  const applySelectedBranchOpenBalance = useCallback(() => {
+  const applySelectedBranchOpenBalance = useCallback(async () => {
     const branchId = Number.parseInt(linkedBranchId.trim(), 10);
     if (!Number.isFinite(branchId) || branchId <= 0) {
       notify.error(t("reports.orderAccountStatementSystemBranchBalanceSelectFirst"));
       return;
     }
     setApplyBranchOpenBalanceBusy(true);
-    const amount = branchOpenAmountById.get(branchId);
-    if (amount == null || !Number.isFinite(amount)) {
-      notify.error(t("reports.orderAccountStatementSystemBranchBalanceMissing"));
+    try {
+      let amount = branchOpenAmountById.get(branchId);
+      if (amount == null || !Number.isFinite(amount)) {
+        // Fallback: öneri listesi boş/eksik geldiyse şubenin açık bakiyesini faturalardan yeniden topla.
+        const invoices = await fetchOutboundInvoices();
+        amount = invoices
+          .filter((x) => x.counterpartyType === "branch" && x.counterpartyId === branchId)
+          .reduce((sum, x) => sum + Math.max(0, Number(x.openAmount) || 0), 0);
+      }
+      if (!Number.isFinite(amount)) {
+        notify.error(t("reports.orderAccountStatementSystemBranchBalanceMissing"));
+        return;
+      }
+      setPreviousBalanceText(formatLocaleAmountInput(Math.max(0, amount), locale));
+      notify.success(t("reports.orderAccountStatementSystemBranchBalanceApplied"));
+    } catch (error) {
+      notify.error(toErrorMessage(error));
+    } finally {
       setApplyBranchOpenBalanceBusy(false);
-      return;
     }
-    setPreviousBalanceText(formatLocaleAmountInput(Math.max(0, amount), locale));
-    notify.success(t("reports.orderAccountStatementSystemBranchBalanceApplied"));
-    setApplyBranchOpenBalanceBusy(false);
   }, [branchOpenAmountById, linkedBranchId, locale, t]);
 
   const fillTekinSample = useCallback(() => {
@@ -3094,19 +3108,6 @@ export function OrderAccountStatementScreen() {
             manualReasonCode: l.lineSource === "shipment" ? null : (l.manualReasonCode ?? "OPS_OTHER"),
             sourceShipmentLineId: l.sourceShipmentLineId ?? null,
           }));
-        if (previousBalance > 0) {
-          payloadLines.push({
-            productId: null,
-            description: "Devreden cari bakiye",
-            quantity: 1,
-            unit: "adet",
-            unitPrice: Math.max(0, previousBalance),
-            lineAmount: Math.max(0, previousBalance),
-            lineSource: "manual",
-            manualReasonCode: "OPS_OTHER",
-            sourceShipmentLineId: null,
-          });
-        }
         parsedPaid
           .filter((l) => l.description.trim().length > 0 && Number.isFinite(l.amount) && l.amount > 0)
           .forEach((l) => {
@@ -3266,6 +3267,12 @@ export function OrderAccountStatementScreen() {
         }
       }
 
+      if (saveToSystem && Number.isFinite(parsedBranchId) && parsedBranchId > 0) {
+        router.push(`/branches?openBranch=${parsedBranchId}&branchTab=currentAccount`);
+      } else if (saveAsInvoice) {
+        router.push("/products/order-account-statement/summary");
+      }
+
     } catch (error) {
       if (showMultiActionProgress) setMultiActionError(toErrorMessage(error));
       notify.error(toErrorMessage(error));
@@ -3300,6 +3307,7 @@ export function OrderAccountStatementScreen() {
     hasMultipleActions,
     showPaymentOnPdf,
     statementDate,
+    router,
     t,
   ]);
 
