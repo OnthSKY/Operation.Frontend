@@ -50,6 +50,7 @@ export type OutboundInvoiceResponse = {
   linesTotal: number;
   paidTotal: number;
   openAmount: number;
+  notes?: string | null;
 };
 
 export type OutboundInvoiceReceiptRequest = {

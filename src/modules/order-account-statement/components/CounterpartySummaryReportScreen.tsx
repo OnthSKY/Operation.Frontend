@@ -5,6 +5,7 @@ import {
   deleteBranchDocument,
   fetchBranchDocumentBlob,
   fetchBranchDocuments,
+  uploadBranchDocument,
 } from "@/modules/branch/api/branch-documents-api";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import {
@@ -17,20 +18,24 @@ import {
   type CounterpartySummaryFilters,
   type CounterpartySummaryReport,
   type CounterpartySuggestionRow,
+  type OutboundInvoiceReceiptResponse,
+  type OutboundInvoiceResponse,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
 import {
   companyBrandingLogoUrl,
   fetchSystemBranding,
 } from "@/modules/admin/api/system-branding-api";
 import { downloadCounterpartyInvoiceStylePdf } from "@/modules/order-account-statement/lib/download-counterparty-invoice-style-pdf";
+import { CurrentAccountReceiptModal } from "@/modules/order-account-statement/components/CurrentAccountReceiptModal";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { currencySelectOptions } from "@/shared/lib/currency-select-options";
-import { formatLocaleAmount } from "@/shared/lib/locale-amount";
+import { formatAmountInputOnBlur, formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { parseLocaleAmount } from "@/shared/lib/locale-amount";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
+import { validateImageFileForUpload } from "@/shared/lib/validate-image-upload";
 import { apiFetch } from "@/shared/api/client";
 import { FilterFunnelIcon } from "@/shared/components/FilterFunnelIcon";
 import { RightDrawer } from "@/shared/components/RightDrawer";
@@ -40,7 +45,6 @@ import { RichCombobox, type RichComboboxOption } from "@/shared/ui/RichCombobox"
 import { Button } from "@/shared/ui/Button";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { DateField } from "@/shared/ui/DateField";
-import { Modal } from "@/shared/ui/Modal";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -55,6 +59,19 @@ const defaultReport: CounterpartySummaryReport = {
     counterpartyCount: 0,
     invoiceCount: 0,
   },
+};
+
+type TableRow = CounterpartySuggestionRow & {
+  invoiceId?: number;
+  promoTotal?: number;
+  giftTotal?: number;
+  advanceTotal?: number;
+};
+
+type BranchInvoiceArtifacts = {
+  invoice: OutboundInvoiceResponse | null;
+  pdfDocument: { id: number; notes?: string | null; contentType: string; createdAt?: string } | null;
+  receiptImageDocument: { id: number; notes?: string | null; contentType: string; createdAt?: string } | null;
 };
 
 function parseInvoiceIdFromNote(note: string | null | undefined): number | null {
@@ -75,6 +92,10 @@ function parseInvoiceNoFromNote(note: string | null | undefined): string | null 
   return value || null;
 }
 
+function isOpenBalance(openAmount: number): boolean {
+  return Number.isFinite(openAmount) && openAmount > 0.009;
+}
+
 export function CounterpartySummaryReportScreen() {
   const { t, locale } = useI18n();
   const { data: branches = [] } = useBranchesList();
@@ -82,12 +103,21 @@ export function CounterpartySummaryReportScreen() {
   const [busy, setBusy] = useState(false);
   const [exportBusy, setExportBusy] = useState(false);
   const [pdfBusyKey, setPdfBusyKey] = useState("");
+  const [invoiceRows, setInvoiceRows] = useState<OutboundInvoiceResponse[]>([]);
+  const [promoByInvoiceId, setPromoByInvoiceId] = useState<Map<number, number>>(() => new Map());
+  const [advanceByInvoiceId, setAdvanceByInvoiceId] = useState<Map<number, number>>(() => new Map());
+  const [giftByInvoiceId, setGiftByInvoiceId] = useState<Map<number, number>>(() => new Map());
+  const [promoByCounterparty, setPromoByCounterparty] = useState<Map<string, number>>(() => new Map());
+  const [advanceByCounterparty, setAdvanceByCounterparty] = useState<Map<string, number>>(() => new Map());
+  const [giftByCounterparty, setGiftByCounterparty] = useState<Map<string, number>>(() => new Map());
+  const [showInvoiceRows, setShowInvoiceRows] = useState(true);
   const [errorText, setErrorText] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [receiptTarget, setReceiptTarget] = useState<CounterpartySuggestionRow | null>(null);
   const [receiptDate, setReceiptDate] = useState(localIsoDate());
   const [receiptAmount, setReceiptAmount] = useState("");
   const [receiptNote, setReceiptNote] = useState("");
+  const [receiptTransferImage, setReceiptTransferImage] = useState<File | null>(null);
   const [receiptSaving, setReceiptSaving] = useState(false);
   const [selectedBranchId, setSelectedBranchId] = useState("");
   const [filters, setFilters] = useState<CounterpartySummaryFilters>({
@@ -98,19 +128,89 @@ export function CounterpartySummaryReportScreen() {
     limit: 100,
   });
 
+  const counterpartyKey = useCallback(
+    (counterpartyType: string, counterpartyId: number, currencyCode: string) =>
+      `${counterpartyType}:${counterpartyId}:${(currencyCode || "TRY").trim().toUpperCase()}`,
+    []
+  );
+
+  const parseNoteAmount = useCallback((note: string | null | undefined, key: string): number => {
+    const raw = String(note ?? "");
+    const m = raw.match(new RegExp(`(?:^|[;,\\s·])${key}=([0-9]+(?:\\.[0-9]+)?)`, "i"));
+    if (!m) return 0;
+    const n = Number(m[1]);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }, []);
+
+  const isPromoReceipt = useCallback((receipt: OutboundInvoiceReceiptResponse): boolean => {
+    const note = String(receipt.notes ?? "").trim().toLowerCase();
+    if (!note) return false;
+    return note.includes("source=promo_discount") || note.includes("promosyon") || note.includes("iskonto") || note.includes("indirim");
+  }, []);
+
+  const isAdvanceReceipt = useCallback((receipt: OutboundInvoiceReceiptResponse): boolean => {
+    const note = String(receipt.notes ?? "").trim().toLowerCase();
+    if (!note) return false;
+    return note.includes("source=advance_payment") || note.includes("ön ödeme") || note.includes("on odeme");
+  }, []);
+
   const load = useCallback(async (nextFilters: CounterpartySummaryFilters) => {
     setBusy(true);
     setErrorText("");
     try {
-      const data = await fetchCounterpartySummaryReport(nextFilters);
+      const [data, invoices] = await Promise.all([
+        fetchCounterpartySummaryReport(nextFilters),
+        fetchOutboundInvoices(),
+      ]);
+      const invoiceBreakdown = await Promise.all(
+        invoices.map(async (invoice) => {
+          const receipts = await fetchOutboundInvoiceReceipts(invoice.id);
+          const promoTotal = receipts.reduce((sum, receipt) => {
+            if (!isPromoReceipt(receipt)) return sum;
+            return sum + Math.max(0, Number(receipt.amount) || 0);
+          }, 0);
+          const advanceTotal = receipts.reduce((sum, receipt) => {
+            if (!isAdvanceReceipt(receipt)) return sum;
+            return sum + Math.max(0, Number(receipt.amount) || 0);
+          }, 0);
+          const giftTotal = parseNoteAmount(invoice.notes, "giftAmount");
+          return [invoice.id, { promoTotal, advanceTotal, giftTotal }] as const;
+        })
+      );
+      const nextPromoByInvoiceId = new Map<number, number>(invoiceBreakdown.map(([id, x]) => [id, x.promoTotal]));
+      const nextAdvanceByInvoiceId = new Map<number, number>(invoiceBreakdown.map(([id, x]) => [id, x.advanceTotal]));
+      const nextGiftByInvoiceId = new Map<number, number>(invoiceBreakdown.map(([id, x]) => [id, x.giftTotal]));
+      const nextPromoByCounterparty = new Map<string, number>();
+      const nextAdvanceByCounterparty = new Map<string, number>();
+      const nextGiftByCounterparty = new Map<string, number>();
+      for (const invoice of invoices) {
+        const k = counterpartyKey(invoice.counterpartyType, invoice.counterpartyId, invoice.currencyCode || "TRY");
+        nextPromoByCounterparty.set(k, (nextPromoByCounterparty.get(k) ?? 0) + (nextPromoByInvoiceId.get(invoice.id) ?? 0));
+        nextAdvanceByCounterparty.set(k, (nextAdvanceByCounterparty.get(k) ?? 0) + (nextAdvanceByInvoiceId.get(invoice.id) ?? 0));
+        nextGiftByCounterparty.set(k, (nextGiftByCounterparty.get(k) ?? 0) + (nextGiftByInvoiceId.get(invoice.id) ?? 0));
+      }
       setReport(data);
+      setInvoiceRows(invoices);
+      setPromoByInvoiceId(nextPromoByInvoiceId);
+      setAdvanceByInvoiceId(nextAdvanceByInvoiceId);
+      setGiftByInvoiceId(nextGiftByInvoiceId);
+      setPromoByCounterparty(nextPromoByCounterparty);
+      setAdvanceByCounterparty(nextAdvanceByCounterparty);
+      setGiftByCounterparty(nextGiftByCounterparty);
     } catch (error) {
       setErrorText(toErrorMessage(error));
       setReport(defaultReport);
+      setInvoiceRows([]);
+      setPromoByInvoiceId(new Map());
+      setAdvanceByInvoiceId(new Map());
+      setGiftByInvoiceId(new Map());
+      setPromoByCounterparty(new Map());
+      setAdvanceByCounterparty(new Map());
+      setGiftByCounterparty(new Map());
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [counterpartyKey, isAdvanceReceipt, isPromoReceipt, parseNoteAmount]);
 
   useEffect(() => {
     void load(filters);
@@ -154,13 +254,65 @@ export function CounterpartySummaryReportScreen() {
     [branches, t]
   );
 
-  const reportItems = useMemo(() => {
+  const reportItems = useMemo<TableRow[]>(() => {
     const branchId = Number.parseInt(selectedBranchId, 10);
-    if (!Number.isFinite(branchId) || branchId <= 0) return report.items;
-    return report.items.filter(
+    const rows = !Number.isFinite(branchId) || branchId <= 0
+      ? report.items
+      : report.items.filter(
       (row) => row.counterpartyType === "branch" && row.counterpartyId === branchId
     );
-  }, [report.items, selectedBranchId]);
+    return rows.map((row) => ({
+      ...row,
+      promoTotal: promoByCounterparty.get(counterpartyKey(row.counterpartyType, row.counterpartyId, row.currencyCode || "TRY")) ?? 0,
+      giftTotal: giftByCounterparty.get(counterpartyKey(row.counterpartyType, row.counterpartyId, row.currencyCode || "TRY")) ?? 0,
+      advanceTotal: advanceByCounterparty.get(counterpartyKey(row.counterpartyType, row.counterpartyId, row.currencyCode || "TRY")) ?? 0,
+    }));
+  }, [advanceByCounterparty, counterpartyKey, giftByCounterparty, promoByCounterparty, report.items, selectedBranchId]);
+
+  const invoiceItems = useMemo<TableRow[]>(() => {
+    const selectedBranchNumericId = Number.parseInt(selectedBranchId, 10);
+    const selectedCounterpartyType = (filters.counterpartyType ?? "").trim();
+    const selectedCurrency = (filters.currencyCode ?? "").trim().toUpperCase();
+    const selectedSearch = (filters.search ?? "").trim().toLowerCase();
+    return invoiceRows
+      .filter((invoice) => {
+        if (selectedCounterpartyType && invoice.counterpartyType !== selectedCounterpartyType) return false;
+        if (selectedCurrency && invoice.currencyCode.toUpperCase() !== selectedCurrency) return false;
+        if (filters.issueDateFrom && invoice.issueDate < filters.issueDateFrom) return false;
+        if (filters.issueDateTo && invoice.issueDate > filters.issueDateTo) return false;
+        if (
+          Number.isFinite(selectedBranchNumericId) &&
+          selectedBranchNumericId > 0 &&
+          invoice.counterpartyType === "branch" &&
+          invoice.counterpartyId !== selectedBranchNumericId
+        ) {
+          return false;
+        }
+        if (selectedSearch) {
+          const haystack = `${invoice.counterpartyName} ${invoice.documentNumber}`.toLowerCase();
+          if (!haystack.includes(selectedSearch)) return false;
+        }
+        if (filters.onlyWithOpenBalance && Number(invoice.openAmount) <= 0) return false;
+        return true;
+      })
+      .map((invoice) => ({
+        invoiceId: invoice.id,
+        counterpartyType: invoice.counterpartyType,
+        counterpartyId: invoice.counterpartyId,
+        counterpartyName: invoice.counterpartyName,
+        currencyCode: invoice.currencyCode,
+        invoicedTotal: invoice.linesTotal,
+        paidTotal: invoice.paidTotal,
+        promoTotal: promoByInvoiceId.get(invoice.id) ?? 0,
+        giftTotal: giftByInvoiceId.get(invoice.id) ?? 0,
+        advanceTotal: advanceByInvoiceId.get(invoice.id) ?? 0,
+        openAmount: invoice.openAmount,
+        lastInvoiceDate: invoice.issueDate,
+        lastDocumentNumber: invoice.documentNumber,
+      }));
+  }, [advanceByInvoiceId, filters, giftByInvoiceId, invoiceRows, promoByInvoiceId, selectedBranchId]);
+
+  const tableItems = showInvoiceRows ? invoiceItems : reportItems;
 
   const reportTotals = useMemo(
     () =>
@@ -186,7 +338,7 @@ export function CounterpartySummaryReportScreen() {
     [reportItems]
   );
 
-  const resolveBranchInvoiceArtifacts = useCallback(async (row: CounterpartySuggestionRow) => {
+  const resolveBranchInvoiceArtifacts = useCallback(async (row: CounterpartySuggestionRow): Promise<BranchInvoiceArtifacts> => {
     const invoices = await fetchOutboundInvoices();
     const invoice = invoices.find(
       (x) =>
@@ -197,7 +349,7 @@ export function CounterpartySummaryReportScreen() {
     const docs = await fetchBranchDocuments(row.counterpartyId);
     const preferredInvoiceId = invoice?.id ?? null;
     const normalizedInvoiceNo = String(row.lastDocumentNumber ?? "").trim();
-    const document =
+    const pdfDocument =
       docs.find((d) => {
         if (d.contentType !== "application/pdf") return false;
         const parsedInvoiceId = parseInvoiceIdFromNote(d.notes);
@@ -206,7 +358,18 @@ export function CounterpartySummaryReportScreen() {
         if (normalizedInvoiceNo && parsedInvoiceNo === normalizedInvoiceNo) return true;
         return false;
       }) ?? null;
-    return { invoice: invoice ?? null, document };
+    const receiptImageDocument =
+      docs
+        .filter((d) => d.contentType.startsWith("image/"))
+        .sort((a, b) => (Date.parse(b.createdAt ?? "") || 0) - (Date.parse(a.createdAt ?? "") || 0))
+        .find((d) => {
+          const parsedInvoiceId = parseInvoiceIdFromNote(d.notes);
+          const parsedInvoiceNo = parseInvoiceNoFromNote(d.notes);
+          if (preferredInvoiceId != null && parsedInvoiceId === preferredInvoiceId) return true;
+          if (normalizedInvoiceNo && parsedInvoiceNo === normalizedInvoiceNo) return true;
+          return false;
+        }) ?? null;
+    return { invoice: invoice ?? null, pdfDocument, receiptImageDocument };
   }, []);
 
   const openLastInvoicePdf = useCallback(
@@ -216,7 +379,7 @@ export function CounterpartySummaryReportScreen() {
       setPdfBusyKey(key);
       try {
         const normalizedInvoiceNo = String(row.lastDocumentNumber).trim();
-        const { document: target } = await resolveBranchInvoiceArtifacts(row);
+        const { pdfDocument: target } = await resolveBranchInvoiceArtifacts(row);
 
         if (!target) {
           setErrorText(t("reports.counterpartySummaryPdfNotFound"));
@@ -247,7 +410,7 @@ export function CounterpartySummaryReportScreen() {
       setPdfBusyKey(key);
       try {
         const normalizedInvoiceNo = String(row.lastDocumentNumber).trim();
-        const { document: target } = await resolveBranchInvoiceArtifacts(row);
+        const { pdfDocument: target } = await resolveBranchInvoiceArtifacts(row);
         if (!target) {
           setErrorText(t("reports.counterpartySummaryPdfNotFound"));
           return;
@@ -281,15 +444,15 @@ export function CounterpartySummaryReportScreen() {
           setPdfBusyKey(key);
           setErrorText("");
           try {
-            const { invoice, document } = await resolveBranchInvoiceArtifacts(row);
+            const { invoice, pdfDocument } = await resolveBranchInvoiceArtifacts(row);
             if (!invoice) {
               const msg = t("reports.counterpartySummaryDeleteInvoiceNotFound");
               setErrorText(msg);
               notify.error(msg);
               return;
             }
-            if (document) {
-              await deleteBranchDocument(row.counterpartyId, document.id);
+            if (pdfDocument) {
+              await deleteBranchDocument(row.counterpartyId, pdfDocument.id);
             }
             await deleteOutboundInvoice(invoice.id);
             await load(filters);
@@ -305,6 +468,40 @@ export function CounterpartySummaryReportScreen() {
       });
     },
     [filters, load, resolveBranchInvoiceArtifacts, t]
+  );
+
+  const openLastReceiptImage = useCallback(
+    async (row: CounterpartySuggestionRow, mode: "view" | "download") => {
+      if (row.counterpartyType !== "branch" || !row.lastDocumentNumber) return;
+      const key = `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}-receipt-${mode}`;
+      setPdfBusyKey(key);
+      try {
+        const { receiptImageDocument } = await resolveBranchInvoiceArtifacts(row);
+        if (!receiptImageDocument) {
+          notify.error(t("branch.currentAccountReceiptImageStatusMissing"));
+          return;
+        }
+        const { blob, contentType } = await fetchBranchDocumentBlob(row.counterpartyId, receiptImageDocument.id);
+        const url = URL.createObjectURL(blob);
+        if (mode === "view") {
+          window.open(url, "_blank", "noopener,noreferrer");
+          setTimeout(() => URL.revokeObjectURL(url), 30_000);
+          return;
+        }
+        const ext = (contentType.split("/")[1] || "img").replace(/[^a-z0-9]/gi, "").toLowerCase() || "img";
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `receipt-transfer-${row.lastDocumentNumber || row.counterpartyId}.${ext}`;
+        a.rel = "noopener";
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        notify.error(toErrorMessage(error));
+      } finally {
+        setPdfBusyKey("");
+      }
+    },
+    [resolveBranchInvoiceArtifacts, t]
   );
 
   const deleteCustomerCounterparty = useCallback(
@@ -342,6 +539,7 @@ export function CounterpartySummaryReportScreen() {
     setReceiptDate(localIsoDate());
     setReceiptAmount("");
     setReceiptNote("");
+    setReceiptTransferImage(null);
   }, []);
 
   const submitReceipt = useCallback(async () => {
@@ -350,6 +548,17 @@ export function CounterpartySummaryReportScreen() {
     if (!Number.isFinite(amount) || amount <= 0) {
       notify.error(t("branch.currentAccountInvalidReceiptAmount"));
       return;
+    }
+    if (receiptTransferImage) {
+      const v = await validateImageFileForUpload(receiptTransferImage);
+      if (!v.ok) {
+        notify.error(
+          v.reason === "size"
+            ? t("common.imageUploadTooLarge")
+            : t("common.imageUploadNotImage")
+        );
+        return;
+      }
     }
     const currencyCode = (receiptTarget.currencyCode || "TRY").trim().toUpperCase();
     setReceiptSaving(true);
@@ -391,6 +600,13 @@ export function CounterpartySummaryReportScreen() {
           currencyCode,
           notes: receiptNote.trim() || null,
         });
+        if (receiptTransferImage && receiptTarget.counterpartyType === "branch") {
+          await uploadBranchDocument(receiptTarget.counterpartyId, {
+            file: receiptTransferImage,
+            kind: "OTHER",
+            notes: `title=banka_dekontu · source=current_account_receipt · invoiceId=${r.id} · receiptDate=${receiptDate}`,
+          });
+        }
         appliedTotal += apply;
         appliedCount += 1;
         remaining -= apply;
@@ -410,6 +626,7 @@ export function CounterpartySummaryReportScreen() {
         );
       }
       setReceiptTarget(null);
+      setReceiptTransferImage(null);
     } catch (error) {
       const msg = toErrorMessage(error);
       setErrorText(msg);
@@ -417,7 +634,7 @@ export function CounterpartySummaryReportScreen() {
     } finally {
       setReceiptSaving(false);
     }
-  }, [filters, load, locale, receiptAmount, receiptDate, receiptNote, receiptTarget, t]);
+  }, [filters, load, locale, receiptAmount, receiptDate, receiptNote, receiptTarget, receiptTransferImage, t]);
 
   const downloadSummaryPdf = useCallback(async () => {
     setExportBusy(true);
@@ -553,6 +770,10 @@ export function CounterpartySummaryReportScreen() {
             />
           </div>
           <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-2">
+          <label className="inline-flex h-11 items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 text-xs text-zinc-700">
+            <Checkbox checked={showInvoiceRows} onCheckedChange={(v) => setShowInvoiceRows(v === true)} />
+            Fatura bazli liste
+          </label>
           <Tooltip content={t("common.filters")} delayMs={200}>
             <button
               type="button"
@@ -619,10 +840,14 @@ export function CounterpartySummaryReportScreen() {
       {busy ? <p className="text-sm text-zinc-500">{t("reports.loading")}</p> : null}
 
       <div className="space-y-3 md:hidden">
-        {reportItems.map((row) => (
+        {tableItems.map((row) => (
           <div
-            key={`${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`}
-            className="rounded-xl border border-zinc-200 bg-white p-3 sm:p-4"
+            key={`${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}-${row.lastDocumentNumber ?? "summary"}`}
+            className={`rounded-xl border p-3 sm:p-4 ${
+              isOpenBalance(Number(row.openAmount))
+                ? "border-amber-200 bg-amber-50/30"
+                : "border-emerald-200 bg-emerald-50/30"
+            }`}
           >
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
@@ -637,6 +862,19 @@ export function CounterpartySummaryReportScreen() {
                 {formatLocaleAmount(row.openAmount, locale, row.currencyCode || "TRY")}
               </p>
             </div>
+            <div className="mt-2">
+              <span
+                className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                  isOpenBalance(Number(row.openAmount))
+                    ? "border-amber-200 bg-amber-50 text-amber-700"
+                    : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                }`}
+              >
+                {isOpenBalance(Number(row.openAmount))
+                  ? t("reports.counterpartySummaryBalanceOpenBadge")
+                  : t("reports.counterpartySummaryBalanceClosedBadge")}
+              </span>
+            </div>
             <dl className="mt-3 grid grid-cols-2 gap-2 text-xs sm:text-sm">
               <div>
                 <dt className="text-zinc-500">{t("reports.counterpartySummaryColInvoiced")}</dt>
@@ -647,13 +885,51 @@ export function CounterpartySummaryReportScreen() {
               <div>
                 <dt className="text-zinc-500">{t("reports.counterpartySummaryColPaid")}</dt>
                 <dd className="font-medium tabular-nums text-zinc-900">
-                  {formatLocaleAmount(row.paidTotal, locale, row.currencyCode || "TRY")}
+                  {formatLocaleAmount(
+                    Math.max(
+                      0,
+                      (Number(row.paidTotal) || 0) -
+                        (Number(row.promoTotal) || 0) -
+                        (Number(row.advanceTotal) || 0)
+                    ),
+                    locale,
+                    row.currencyCode || "TRY"
+                  )}
                 </dd>
               </div>
+              <div>
+                <dt className="text-zinc-500">{t("reports.counterpartySummaryColPromo")}</dt>
+                <dd className="font-medium tabular-nums text-violet-700">
+                  {(Number(row.promoTotal) || 0) > 0
+                    ? formatLocaleAmount(Number(row.promoTotal) || 0, locale, row.currencyCode || "TRY")
+                    : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-zinc-500">{t("reports.counterpartySummaryColGiftAmount")}</dt>
+                <dd className="font-medium tabular-nums text-fuchsia-700">
+                  {(Number(row.giftTotal) || 0) > 0
+                    ? formatLocaleAmount(Number(row.giftTotal) || 0, locale, row.currencyCode || "TRY")
+                    : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-zinc-500">{t("reports.counterpartySummaryColAdvance")}</dt>
+                <dd className="font-medium tabular-nums text-sky-700">
+                  {(Number(row.advanceTotal) || 0) > 0
+                    ? formatLocaleAmount(Number(row.advanceTotal) || 0, locale, row.currencyCode || "TRY")
+                    : "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-zinc-500">{t("reports.counterpartySummaryColInvoiceRef")}</dt>
+                <dd className="font-medium tabular-nums text-zinc-900">{row.lastDocumentNumber || "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-zinc-500">{t("reports.counterpartySummaryColIssueDate")}</dt>
+                <dd className="font-medium tabular-nums text-zinc-900">{row.lastInvoiceDate || "—"}</dd>
+              </div>
             </dl>
-            <p className="mt-2 truncate text-xs text-zinc-600 sm:text-sm">
-              {row.lastDocumentNumber ? `${row.lastDocumentNumber} · ${row.lastInvoiceDate ?? "—"}` : "—"}
-            </p>
             <div className="mt-3 flex items-center gap-2">
               <Button
                 type="button"
@@ -740,7 +1016,7 @@ export function CounterpartySummaryReportScreen() {
             </div>
           </div>
         ))}
-        {reportItems.length === 0 && !busy ? (
+        {tableItems.length === 0 && !busy ? (
           <p className="rounded-xl border border-zinc-200 bg-white px-3 py-4 text-center text-sm text-zinc-500">
             {t("reports.counterpartySummaryEmpty")}
           </p>
@@ -751,23 +1027,42 @@ export function CounterpartySummaryReportScreen() {
         <table className="w-full min-w-0 lg:min-w-[780px] text-sm">
           <thead className="bg-zinc-50 text-zinc-700">
             <tr>
+              <th className="px-3 py-2 text-left">{t("reports.counterpartySummaryColInvoiceRef")}</th>
+              <th className="px-3 py-2 text-left">{t("reports.counterpartySummaryColIssueDate")}</th>
               <th className="px-3 py-2 text-left">{t("reports.counterpartySummaryColName")}</th>
               <th className="px-3 py-2 text-left">{t("reports.counterpartySummaryColType")}</th>
               <th className="px-3 py-2 text-right">{t("reports.counterpartySummaryColInvoiced")}</th>
               <th className="px-3 py-2 text-right">{t("reports.counterpartySummaryColPaid")}</th>
+              <th className="px-3 py-2 text-right">{t("reports.counterpartySummaryColPromo")}</th>
+              <th className="px-3 py-2 text-right">{t("reports.counterpartySummaryColGiftAmount")}</th>
+              <th className="px-3 py-2 text-right">{t("reports.counterpartySummaryColAdvance")}</th>
               <th className="px-3 py-2 text-right">{t("reports.counterpartySummaryColOpen")}</th>
-              <th className="px-3 py-2 text-left">{t("reports.counterpartySummaryColLastInvoice")}</th>
-              <th className="px-3 py-2 text-center">{t("branch.currentAccountAddReceipt")}</th>
-              <th className="px-3 py-2 text-center">{t("reports.counterpartySummaryColPdf")}</th>
-              <th className="px-3 py-2 text-center">{t("reports.counterpartySummaryDeleteInvoice")}</th>
+              <th className="px-3 py-2 text-center">{t("branch.currentAccountColPdfStatus")}</th>
+              <th className="px-3 py-2 text-center">{t("branch.currentAccountColReceiptImageStatus")}</th>
+              <th className="px-3 py-2 text-center">{t("branch.currentAccountColActions")}</th>
             </tr>
           </thead>
           <tbody>
-            {reportItems.map((row) => (
+            {tableItems.map((row) => (
               <tr
-                key={`${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`}
-                className="border-t border-zinc-100"
+                key={`${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}-${row.lastDocumentNumber ?? "summary"}`}
+                className={`border-t ${
+                  isOpenBalance(Number(row.openAmount))
+                    ? "border-amber-100 bg-amber-50/20"
+                    : "border-emerald-100 bg-emerald-50/20"
+                }`}
               >
+                {(() => {
+                  const hasPdfAsset =
+                    row.counterpartyType === "branch" && Boolean(row.lastDocumentNumber);
+                  const hasReceiptAsset =
+                    row.counterpartyType === "branch" &&
+                    Boolean(row.lastDocumentNumber) &&
+                    Number(row.paidTotal) > 0;
+                  return (
+                    <>
+                <td className="px-3 py-2 text-zinc-600">{row.lastDocumentNumber || "—"}</td>
+                <td className="px-3 py-2 text-zinc-600">{row.lastInvoiceDate || "—"}</td>
                 <td className="px-3 py-2 font-medium text-zinc-900">{row.counterpartyName}</td>
                 <td className="px-3 py-2 text-zinc-600">
                   {row.counterpartyType === "branch"
@@ -778,53 +1073,173 @@ export function CounterpartySummaryReportScreen() {
                   {formatLocaleAmount(row.invoicedTotal, locale, row.currencyCode || "TRY")}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums">
-                  {formatLocaleAmount(row.paidTotal, locale, row.currencyCode || "TRY")}
+                  {formatLocaleAmount(
+                    Math.max(
+                      0,
+                      (Number(row.paidTotal) || 0) -
+                        (Number(row.promoTotal) || 0) -
+                        (Number(row.advanceTotal) || 0)
+                    ),
+                    locale,
+                    row.currencyCode || "TRY"
+                  )}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums text-violet-700">
+                  {(Number(row.promoTotal) || 0) > 0
+                    ? formatLocaleAmount(Number(row.promoTotal) || 0, locale, row.currencyCode || "TRY")
+                    : "—"}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums text-fuchsia-700">
+                  {(Number(row.giftTotal) || 0) > 0
+                    ? formatLocaleAmount(Number(row.giftTotal) || 0, locale, row.currencyCode || "TRY")
+                    : "—"}
+                </td>
+                <td className="px-3 py-2 text-right tabular-nums text-sky-700">
+                  {(Number(row.advanceTotal) || 0) > 0
+                    ? formatLocaleAmount(Number(row.advanceTotal) || 0, locale, row.currencyCode || "TRY")
+                    : "—"}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums font-semibold text-violet-800">
-                  {formatLocaleAmount(row.openAmount, locale, row.currencyCode || "TRY")}
-                </td>
-                <td className="px-3 py-2 text-zinc-600">
-                  {row.lastDocumentNumber ? `${row.lastDocumentNumber} · ${row.lastInvoiceDate ?? "—"}` : "—"}
+                  <div>{formatLocaleAmount(row.openAmount, locale, row.currencyCode || "TRY")}</div>
+                  <div
+                    className={`mt-0.5 text-[11px] font-semibold ${
+                      isOpenBalance(Number(row.openAmount)) ? "text-amber-700" : "text-emerald-700"
+                    }`}
+                  >
+                    {isOpenBalance(Number(row.openAmount))
+                      ? t("reports.counterpartySummaryBalanceOpenBadge")
+                      : t("reports.counterpartySummaryBalanceClosedBadge")}
+                  </div>
                 </td>
                 <td className="px-3 py-2 text-center">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className={detailOpenIconButtonClass}
-                    aria-label={t("branch.currentAccountAddReceipt")}
-                    disabled={Number(row.openAmount) <= 0}
-                    onClick={() => openReceiptModal(row)}
-                  >
-                    +
-                  </Button>
+                  <div className="mb-1 text-xs text-zinc-500">
+                    {hasPdfAsset
+                      ? t("branch.currentAccountPdfStatusSaved")
+                      : t("branch.currentAccountPdfStatusMissing")}
+                  </div>
+                  {hasPdfAsset ? (
+                    <div className="flex items-center justify-center gap-1">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className={detailOpenIconButtonClass}
+                        aria-label={t("reports.counterpartySummaryPdfPreview")}
+                        title={t("reports.counterpartySummaryPdfPreview")}
+                        disabled={pdfBusyKey === `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`}
+                        onClick={() => void previewLastInvoicePdf(row)}
+                      >
+                        <EyeIcon className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className={detailOpenIconButtonClass}
+                        aria-label={t("reports.counterpartySummaryPdfDownload")}
+                        title={t("reports.counterpartySummaryPdfDownload")}
+                        disabled={pdfBusyKey === `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`}
+                        onClick={() => void openLastInvoicePdf(row)}
+                      >
+                        <svg
+                          aria-hidden
+                          className="h-4 w-4"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.75"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M12 3v12" />
+                          <path d="m7 10 5 5 5-5" />
+                          <path d="M5 21h14" />
+                        </svg>
+                      </Button>
+                    </div>
+                  ) : (
+                    <span className="inline-block text-xs text-zinc-400">—</span>
+                  )}
+                </td>
+                <td className="px-3 py-2 text-center">
+                  <div className="mb-1 text-xs text-zinc-500">
+                    {hasReceiptAsset
+                      ? t("branch.currentAccountReceiptImageStatusSaved")
+                      : t("branch.currentAccountReceiptImageStatusMissing")}
+                  </div>
+                  {hasReceiptAsset ? (
+                    <div className="flex items-center justify-center gap-1">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className={detailOpenIconButtonClass}
+                        aria-label={t("branch.currentAccountReceiptImageView")}
+                        title={t("branch.currentAccountReceiptImageView")}
+                        disabled={pdfBusyKey.startsWith(
+                          `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}-receipt-`
+                        )}
+                        onClick={() => void openLastReceiptImage(row, "view")}
+                      >
+                        <EyeIcon className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className={detailOpenIconButtonClass}
+                        aria-label={t("branch.currentAccountReceiptImageDownload")}
+                        title={t("branch.currentAccountReceiptImageDownload")}
+                        disabled={pdfBusyKey.startsWith(
+                          `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}-receipt-`
+                        )}
+                        onClick={() => void openLastReceiptImage(row, "download")}
+                      >
+                        <svg
+                          aria-hidden
+                          className="h-4 w-4"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.75"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M12 3v12" />
+                          <path d="m7 10 5 5 5-5" />
+                          <path d="M5 21h14" />
+                        </svg>
+                      </Button>
+                    </div>
+                  ) : (
+                    <span className="inline-block text-xs text-zinc-400">—</span>
+                  )}
                 </td>
                 <td className="px-3 py-2 text-center">
                   <div className="flex items-center justify-center gap-1">
                     <Button
                       type="button"
-                      variant="secondary"
-                      className={detailOpenIconButtonClass}
-                      aria-label={t("reports.counterpartySummaryPdfPreview")}
-                      disabled={
-                        row.counterpartyType !== "branch" ||
-                        !row.lastDocumentNumber ||
-                        pdfBusyKey === `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`
-                      }
-                      onClick={() => void previewLastInvoicePdf(row)}
+                      variant="primary"
+                      className="min-h-[44px] min-w-[44px] px-2 py-1 text-xs"
+                      aria-label={t("branch.currentAccountAddReceipt")}
+                      title={t("branch.currentAccountAddReceipt")}
+                      disabled={Number(row.openAmount) <= 0}
+                      onClick={() => openReceiptModal(row)}
                     >
-                      <EyeIcon className="h-4 w-4" />
+                      {t("branch.currentAccountAddReceipt")}
                     </Button>
                     <Button
                       type="button"
                       variant="secondary"
                       className={detailOpenIconButtonClass}
-                      aria-label={t("reports.counterpartySummaryPdfDownload")}
+                      aria-label={t("reports.counterpartySummaryDeleteInvoice")}
+                      title={t("reports.counterpartySummaryDeleteInvoice")}
                       disabled={
-                        row.counterpartyType !== "branch" ||
-                        !row.lastDocumentNumber ||
+                        (row.counterpartyType === "branch" && !row.lastDocumentNumber) ||
+                        (row.counterpartyType !== "branch" && row.counterpartyType !== "customer") ||
                         pdfBusyKey === `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`
                       }
-                      onClick={() => void openLastInvoicePdf(row)}
+                      onClick={() =>
+                        row.counterpartyType === "customer"
+                          ? void deleteCustomerCounterparty(row)
+                          : void deleteLastInvoiceWithPdf(row)
+                      }
                     >
                       <svg
                         aria-hidden
@@ -836,51 +1251,21 @@ export function CounterpartySummaryReportScreen() {
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       >
-                        <path d="M12 3v12" />
-                        <path d="m7 10 5 5 5-5" />
-                        <path d="M5 21h14" />
+                        <path d="M3 6h18" />
+                        <path d="M8 6V4h8v2" />
+                        <path d="M19 6l-1 14H6L5 6" />
                       </svg>
                     </Button>
                   </div>
                 </td>
-                <td className="px-3 py-2 text-center">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className={detailOpenIconButtonClass}
-                    aria-label={t("reports.counterpartySummaryDeleteInvoice")}
-                    disabled={
-                      (row.counterpartyType === "branch" && !row.lastDocumentNumber) ||
-                      (row.counterpartyType !== "branch" && row.counterpartyType !== "customer") ||
-                      pdfBusyKey === `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`
-                    }
-                    onClick={() =>
-                      row.counterpartyType === "customer"
-                        ? void deleteCustomerCounterparty(row)
-                        : void deleteLastInvoiceWithPdf(row)
-                    }
-                  >
-                    <svg
-                      aria-hidden
-                      className="h-4 w-4"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.75"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <path d="M3 6h18" />
-                      <path d="M8 6V4h8v2" />
-                      <path d="M19 6l-1 14H6L5 6" />
-                    </svg>
-                  </Button>
-                </td>
+                    </>
+                  );
+                })()}
               </tr>
             ))}
-            {reportItems.length === 0 && !busy ? (
+            {tableItems.length === 0 && !busy ? (
               <tr>
-                <td className="px-3 py-4 text-center text-zinc-500" colSpan={9}>
+                <td className="px-3 py-4 text-center text-zinc-500" colSpan={13}>
                   {t("reports.counterpartySummaryEmpty")}
                 </td>
               </tr>
@@ -942,49 +1327,50 @@ export function CounterpartySummaryReportScreen() {
         </div>
       </RightDrawer>
 
-      <Modal
+      <CurrentAccountReceiptModal
         open={receiptTarget != null}
-        onClose={() => (receiptSaving ? undefined : setReceiptTarget(null))}
-        title={t("branch.currentAccountReceiptModalTitle")}
+        onClose={() => setReceiptTarget(null)}
         titleId="counterparty-summary-receipt-modal-title"
-      >
-        <div className="space-y-3">
-          <p className="text-xs text-zinc-600">
-            {receiptTarget?.counterpartyName} ·{" "}
-            {receiptTarget ? formatLocaleAmount(receiptTarget.openAmount, locale, receiptTarget.currencyCode || "TRY") : "—"}
-          </p>
-          <DateField
-            label={t("branch.currentAccountReceiptDate")}
-            value={receiptDate}
-            onChange={(e) => setReceiptDate(e.target.value)}
-          />
-          <label className="block">
-            <span className="text-sm text-zinc-700">{t("branch.currentAccountReceiptAmount")}</span>
-            <input
-              className="mt-1 h-10 w-full rounded-lg border border-zinc-300 px-3 text-sm tabular-nums outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
-              inputMode="decimal"
-              value={receiptAmount}
-              onChange={(e) => setReceiptAmount(e.target.value)}
-            />
-          </label>
-          <label className="block">
-            <span className="text-sm text-zinc-700">{t("branch.currentAccountReceiptNote")}</span>
-            <textarea
-              className="mt-1 min-h-[84px] w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200"
-              value={receiptNote}
-              onChange={(e) => setReceiptNote(e.target.value)}
-            />
-          </label>
-          <div className="flex justify-end gap-2 pt-1">
-            <Button type="button" variant="secondary" disabled={receiptSaving} onClick={() => setReceiptTarget(null)}>
-              {t("common.close")}
-            </Button>
-            <Button type="button" disabled={receiptSaving} onClick={() => void submitReceipt()}>
-              {receiptSaving ? t("common.loading") : t("branch.currentAccountSaveReceipt")}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        title={t("branch.currentAccountReceiptModalTitle")}
+        closeButtonLabel={t("common.close")}
+        summaryText={
+          receiptTarget
+            ? `${receiptTarget.counterpartyName} · ${formatLocaleAmount(
+                receiptTarget.openAmount,
+                locale,
+                receiptTarget.currencyCode || "TRY"
+              )}`
+            : "—"
+        }
+        receiptDateLabel={t("branch.currentAccountReceiptDate")}
+        receiptDate={receiptDate}
+        onReceiptDateChange={setReceiptDate}
+        receiptAmountLabel={t("branch.currentAccountReceiptAmount")}
+        receiptAmount={receiptAmount}
+        onReceiptAmountChange={setReceiptAmount}
+        onReceiptAmountBlur={() => setReceiptAmount((x) => formatAmountInputOnBlur(x, locale))}
+        fillOpenAmountLabel={t("branch.currentAccountReceiptFillOpenAmount")}
+        onFillOpenAmount={
+          receiptTarget
+            ? () =>
+                setReceiptAmount(
+                  formatAmountInputOnBlur(String(receiptTarget.openAmount ?? ""), locale)
+                )
+            : undefined
+        }
+        receiptNoteLabel={t("branch.currentAccountReceiptNote")}
+        receiptNote={receiptNote}
+        onReceiptNoteChange={setReceiptNote}
+        showImageUpload={receiptTarget?.counterpartyType === "branch"}
+        receiptImageLabel={t("branch.currentAccountReceiptImage")}
+        receiptImageFile={receiptTransferImage}
+        onReceiptImageChange={setReceiptTransferImage}
+        cancelLabel={t("common.cancel")}
+        saveLabel={t("branch.currentAccountSaveReceipt")}
+        loadingLabel={t("common.loading")}
+        saving={receiptSaving}
+        onSubmit={() => void submitReceipt()}
+      />
     </div>
   );
 }

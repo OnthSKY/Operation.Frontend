@@ -5,6 +5,7 @@ import {
   addOutboundInvoiceReceipt,
   fetchOutboundInvoices,
   fetchOutboundInvoiceReceipts,
+  type OutboundInvoiceReceiptResponse,
   type OutboundInvoiceResponse,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
 import {
@@ -16,9 +17,9 @@ import {
   downloadCounterpartyInvoiceStylePdf,
 } from "@/modules/order-account-statement/lib/download-counterparty-invoice-style-pdf";
 import { useBranchDocuments, useUploadBranchDocument } from "@/modules/branch/hooks/useBranchQueries";
+import { CurrentAccountReceiptModal } from "@/modules/order-account-statement/components/CurrentAccountReceiptModal";
 import { useI18n } from "@/i18n/context";
 import { apiFetch } from "@/shared/api/client";
-import { LocalImageFileThumb } from "@/shared/components/LocalImageFileThumb";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatAmountInputOnBlur, formatLocaleAmount, parseLocaleAmount } from "@/shared/lib/locale-amount";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
@@ -30,7 +31,7 @@ import { Checkbox } from "@/shared/ui/Checkbox";
 import { Modal } from "@/shared/ui/Modal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CircleOff, Download, Eye } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Props = {
   branchId: number;
@@ -82,6 +83,9 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     note: "",
   });
   const [selectedPdfInvoiceIds, setSelectedPdfInvoiceIds] = useState<Set<number>>(new Set());
+  const [promoDeductionByInvoiceId, setPromoDeductionByInvoiceId] = useState<Map<number, number>>(() => new Map());
+  const [advanceDeductionByInvoiceId, setAdvanceDeductionByInvoiceId] = useState<Map<number, number>>(() => new Map());
+  const [giftByInvoiceId, setGiftByInvoiceId] = useState<Map<number, number>>(() => new Map());
   const uploadBranchDocumentMut = useUploadBranchDocument(branchId);
 
   const invoicesQuery = useQuery({
@@ -140,6 +144,67 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
       ),
     [rows]
   );
+
+  const parseNoteAmount = useCallback((note: string | null | undefined, key: string): number => {
+    const raw = String(note ?? "");
+    const m = raw.match(new RegExp(`(?:^|[;,\\s·])${key}=([0-9]+(?:\\.[0-9]+)?)`, "i"));
+    if (!m) return 0;
+    const n = Number(m[1]);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }, []);
+
+  const isPromoOrDiscountReceipt = useCallback((receipt: OutboundInvoiceReceiptResponse): boolean => {
+    const note = String(receipt.notes ?? "").trim().toLowerCase();
+    if (!note) return false;
+    return note.includes("source=promo_discount") || note.includes("promosyon") || note.includes("iskonto") || note.includes("indirim");
+  }, []);
+
+  const isAdvanceReceipt = useCallback((receipt: OutboundInvoiceReceiptResponse): boolean => {
+    const note = String(receipt.notes ?? "").trim().toLowerCase();
+    if (!note) return false;
+    return note.includes("source=advance_payment") || note.includes("ön ödeme") || note.includes("on odeme");
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    if (!active || rows.length === 0) {
+      setPromoDeductionByInvoiceId(new Map());
+      setAdvanceDeductionByInvoiceId(new Map());
+      setGiftByInvoiceId(new Map());
+      return;
+    }
+    void (async () => {
+      try {
+        const entries = await Promise.all(
+          rows.map(async (invoice) => {
+            const receipts = await fetchOutboundInvoiceReceipts(invoice.id);
+            const promoSum = receipts.reduce((sum, receipt) => {
+              if (!isPromoOrDiscountReceipt(receipt)) return sum;
+              return sum + Math.max(0, Number(receipt.amount) || 0);
+            }, 0);
+            const advanceSum = receipts.reduce((sum, receipt) => {
+              if (!isAdvanceReceipt(receipt)) return sum;
+              return sum + Math.max(0, Number(receipt.amount) || 0);
+            }, 0);
+            const giftAmount = parseNoteAmount(invoice.notes, "giftAmount");
+            return [invoice.id, { promoSum, advanceSum, giftAmount }] as const;
+          })
+        );
+        if (!alive) return;
+        setPromoDeductionByInvoiceId(new Map(entries.map(([id, x]) => [id, x.promoSum])));
+        setAdvanceDeductionByInvoiceId(new Map(entries.map(([id, x]) => [id, x.advanceSum])));
+        setGiftByInvoiceId(new Map(entries.map(([id, x]) => [id, x.giftAmount])));
+      } catch {
+        if (!alive) return;
+        setPromoDeductionByInvoiceId(new Map());
+        setAdvanceDeductionByInvoiceId(new Map());
+        setGiftByInvoiceId(new Map());
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [active, isAdvanceReceipt, isPromoOrDiscountReceipt, parseNoteAmount, rows]);
 
   const openPdf = async (invoiceId: number, mode: "view" | "download") => {
     const documentId = pdfDocByInvoiceId.get(invoiceId);
@@ -525,6 +590,9 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                 <th className="px-3 py-2 text-left">{t("branch.currentAccountColInvoiceNo")}</th>
                 <th className="px-3 py-2 text-right">{t("branch.currentAccountColInvoiceTotal")}</th>
                 <th className="px-3 py-2 text-right">{t("branch.currentAccountColPaid")}</th>
+                <th className="px-3 py-2 text-right">{t("branch.currentAccountColPromo")}</th>
+                <th className="px-3 py-2 text-right">{t("branch.currentAccountColGiftAmount")}</th>
+                <th className="px-3 py-2 text-right">{t("branch.currentAccountColAdvance")}</th>
                 <th className="px-3 py-2 text-right">{t("branch.currentAccountColOpen")}</th>
                 <th className="px-3 py-2 text-center">{t("branch.currentAccountColPdfStatus")}</th>
                 <th className="px-3 py-2 text-center">{t("branch.currentAccountColReceiptImageStatus")}</th>
@@ -535,6 +603,10 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
               {rows.map((r) => {
                 const hasPdf = pdfDocByInvoiceId.has(r.id);
                 const hasTransfer = transferDocByInvoiceId.has(r.id);
+                const promoDeduction = promoDeductionByInvoiceId.get(r.id) ?? 0;
+                const advanceDeduction = advanceDeductionByInvoiceId.get(r.id) ?? 0;
+                const giftAmount = giftByInvoiceId.get(r.id) ?? 0;
+                const cashCollected = Math.max(0, (Number(r.paidTotal) || 0) - promoDeduction - advanceDeduction);
                 const isCollected =
                   Number.isFinite(Number(r.paidTotal)) &&
                   Number.isFinite(Number(r.openAmount)) &&
@@ -555,7 +627,20 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                       {formatLocaleAmount(r.linesTotal, locale, r.currencyCode)}
                     </td>
                     <td className="px-3 py-2 text-right text-emerald-700">
-                      {formatLocaleAmount(r.paidTotal, locale, r.currencyCode)}
+                      <div>{formatLocaleAmount(cashCollected, locale, r.currencyCode)}</div>
+                    </td>
+                    <td className="px-3 py-2 text-right text-violet-700">
+                      {promoDeduction > 0
+                        ? formatLocaleAmount(promoDeduction, locale, r.currencyCode)
+                        : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-right text-fuchsia-700">
+                      {giftAmount > 0 ? formatLocaleAmount(giftAmount, locale, r.currencyCode) : "—"}
+                    </td>
+                    <td className="px-3 py-2 text-right text-sky-700">
+                      {advanceDeduction > 0
+                        ? formatLocaleAmount(advanceDeduction, locale, r.currencyCode)
+                        : "—"}
                     </td>
                     <td className="px-3 py-2 text-right text-amber-700">
                       {formatLocaleAmount(r.openAmount, locale, r.currencyCode)}
@@ -653,6 +738,10 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
           {rows.map((r) => {
             const hasPdf = pdfDocByInvoiceId.has(r.id);
             const hasTransfer = transferDocByInvoiceId.has(r.id);
+            const promoDeduction = promoDeductionByInvoiceId.get(r.id) ?? 0;
+            const advanceDeduction = advanceDeductionByInvoiceId.get(r.id) ?? 0;
+            const giftAmount = giftByInvoiceId.get(r.id) ?? 0;
+            const cashCollected = Math.max(0, (Number(r.paidTotal) || 0) - promoDeduction - advanceDeduction);
             const isCollected =
               Number.isFinite(Number(r.paidTotal)) &&
               Number.isFinite(Number(r.openAmount)) &&
@@ -683,6 +772,14 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
 
                 <div className="mt-3 grid grid-cols-1 gap-2 text-sm">
                   <div className="flex items-center justify-between gap-2">
+                    <span className="text-zinc-500">{t("branch.currentAccountColInvoiceNo")}</span>
+                    <span className="font-medium text-zinc-900">{r.documentNumber}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-zinc-500">{t("branch.currentAccountColDate")}</span>
+                    <span className="font-medium text-zinc-900">{formatLocaleDate(r.issueDate, locale)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
                     <span className="text-zinc-500">{t("branch.currentAccountColInvoiceTotal")}</span>
                     <span className="font-medium text-zinc-900">
                       {formatLocaleAmount(r.linesTotal, locale, r.currencyCode)}
@@ -691,7 +788,29 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-zinc-500">{t("branch.currentAccountColPaid")}</span>
                     <span className="font-medium text-emerald-700">
-                      {formatLocaleAmount(r.paidTotal, locale, r.currencyCode)}
+                      {formatLocaleAmount(cashCollected, locale, r.currencyCode)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-zinc-500">{t("branch.currentAccountColPromo")}</span>
+                    <span className="font-medium text-violet-700">
+                      {promoDeduction > 0
+                        ? formatLocaleAmount(promoDeduction, locale, r.currencyCode)
+                        : "—"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-zinc-500">{t("branch.currentAccountColGiftAmount")}</span>
+                    <span className="font-medium text-fuchsia-700">
+                      {giftAmount > 0 ? formatLocaleAmount(giftAmount, locale, r.currencyCode) : "—"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-zinc-500">{t("branch.currentAccountColAdvance")}</span>
+                    <span className="font-medium text-sky-700">
+                      {advanceDeduction > 0
+                        ? formatLocaleAmount(advanceDeduction, locale, r.currencyCode)
+                        : "—"}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2">
@@ -872,98 +991,50 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
         </div>
       </Modal>
 
-      <Modal
+      <CurrentAccountReceiptModal
         open={receiptInvoice != null}
         onClose={() => setReceiptInvoice(null)}
         titleId="branch-current-account-receipt-modal-title"
         title={t("branch.currentAccountReceiptModalTitle")}
         closeButtonLabel={t("common.close")}
-        className="max-w-md"
-      >
-        <div className="space-y-3">
-          <p className="text-sm text-zinc-600">
-            {receiptInvoice?.documentNumber} -{" "}
-            {receiptInvoice
-              ? formatLocaleAmount(receiptInvoice.openAmount, locale, receiptInvoice.currencyCode)
-              : ""}
-          </p>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-700">
-              {t("branch.currentAccountReceiptDate")}
-            </label>
-            <input
-              type="date"
-              className="h-10 w-full rounded-lg border border-zinc-300 px-3 text-sm"
-              value={receiptDate}
-              onChange={(e) => setReceiptDate(e.target.value)}
-            />
-          </div>
-          <div>
-            <div className="mb-1 flex items-center justify-between gap-2">
-              <label className="block text-sm font-medium text-zinc-700">
-                {t("branch.currentAccountReceiptAmount")}
-              </label>
-              {receiptInvoice ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="min-h-[44px] min-w-[44px] px-2 py-1 text-xs"
-                  onClick={() =>
-                    setReceiptAmount(
-                      formatAmountInputOnBlur(String(receiptInvoice.openAmount ?? ""), locale)
-                    )
-                  }
-                >
-                  {t("branch.currentAccountReceiptFillOpenAmount")}
-                </Button>
-              ) : null}
-            </div>
-            <input
-              className="h-10 w-full rounded-lg border border-zinc-300 px-3 text-sm"
-              inputMode="decimal"
-              value={receiptAmount}
-              onChange={(e) => setReceiptAmount(e.target.value)}
-              onBlur={() => setReceiptAmount((x) => formatAmountInputOnBlur(x, locale))}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-700">
-              {t("branch.currentAccountReceiptNote")}
-            </label>
-            <textarea
-              className="min-h-20 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
-              value={receiptNote}
-              onChange={(e) => setReceiptNote(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-700">
-              {t("branch.currentAccountReceiptImage")}
-            </label>
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/avif,.jpg,.jpeg,.png,.webp,.heic,.heif,.avif"
-              className="block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
-              onChange={(e) => setReceiptTransferImage(e.target.files?.[0] ?? null)}
-            />
-            <LocalImageFileThumb
-              file={receiptTransferImage}
-              className="h-20 max-h-20 max-w-[8rem] sm:h-24 sm:max-h-24 sm:max-w-[10rem]"
-            />
-            {receiptTransferImage ? (
-              <p className="mt-1 text-xs text-zinc-500">{receiptTransferImage.name}</p>
-            ) : null}
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={() => setReceiptInvoice(null)}>
-              {t("common.cancel")}
-            </Button>
-            <Button type="button" variant="primary" disabled={receiptSaving} onClick={() => void submitReceipt()}>
-              {receiptSaving ? t("common.loading") : t("branch.currentAccountSaveReceipt")}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        summaryText={
+          receiptInvoice
+            ? `${receiptInvoice.documentNumber} - ${formatLocaleAmount(
+                receiptInvoice.openAmount,
+                locale,
+                receiptInvoice.currencyCode
+              )}`
+            : ""
+        }
+        receiptDateLabel={t("branch.currentAccountReceiptDate")}
+        receiptDate={receiptDate}
+        onReceiptDateChange={setReceiptDate}
+        receiptAmountLabel={t("branch.currentAccountReceiptAmount")}
+        receiptAmount={receiptAmount}
+        onReceiptAmountChange={setReceiptAmount}
+        onReceiptAmountBlur={() => setReceiptAmount((x) => formatAmountInputOnBlur(x, locale))}
+        fillOpenAmountLabel={t("branch.currentAccountReceiptFillOpenAmount")}
+        onFillOpenAmount={
+          receiptInvoice
+            ? () =>
+                setReceiptAmount(
+                  formatAmountInputOnBlur(String(receiptInvoice.openAmount ?? ""), locale)
+                )
+            : undefined
+        }
+        receiptNoteLabel={t("branch.currentAccountReceiptNote")}
+        receiptNote={receiptNote}
+        onReceiptNoteChange={setReceiptNote}
+        showImageUpload
+        receiptImageLabel={t("branch.currentAccountReceiptImage")}
+        receiptImageFile={receiptTransferImage}
+        onReceiptImageChange={setReceiptTransferImage}
+        cancelLabel={t("common.cancel")}
+        saveLabel={t("branch.currentAccountSaveReceipt")}
+        loadingLabel={t("common.loading")}
+        saving={receiptSaving}
+        onSubmit={() => void submitReceipt()}
+      />
     </div>
   );
 }

@@ -22,6 +22,7 @@ export const common = {
   actions: "Actions",
   edit: "Edit",
   delete: "Delete",
+  deleted: "Deleted.",
   openDetails: "Details",
   openDetailsDialog: "Opens the detail dialog",
   dateDisplayHint:

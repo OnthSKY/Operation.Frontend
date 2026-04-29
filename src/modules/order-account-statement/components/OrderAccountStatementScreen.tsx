@@ -376,6 +376,14 @@ function IcDownload({ className }: { className?: string }) {
   );
 }
 
+function IcPlay({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+      <path d="M6 4.75a.75.75 0 0 1 1.13-.65l8 4.75a.75.75 0 0 1 0 1.3l-8 4.75A.75.75 0 0 1 6 14.25v-9.5Z" />
+    </svg>
+  );
+}
+
 function IcMaximize({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden>
@@ -623,6 +631,9 @@ function buildOrderAccountDocumentMetadata(input: {
   counterpartyLabel?: string | null;
   receivedAdvanceAmount?: number | null;
   receivedAdvancePostToLedger?: boolean | null;
+  giftAmount?: number | null;
+  promoAmount?: number | null;
+  advanceAmount?: number | null;
   shipmentWarehouseId?: number | null;
   shipmentPrimaryMovementId?: number | null;
   shipmentMovementIds?: number[] | null;
@@ -653,6 +664,15 @@ function buildOrderAccountDocumentMetadata(input: {
     if (input.receivedAdvancePostToLedger != null) {
       parts.push(`receivedAdvanceLedger=${input.receivedAdvancePostToLedger ? "yes" : "no"}`);
     }
+  }
+  if (Number.isFinite(input.giftAmount) && (input.giftAmount ?? 0) > 0) {
+    parts.push(`giftAmount=${input.giftAmount}`);
+  }
+  if (Number.isFinite(input.promoAmount) && (input.promoAmount ?? 0) > 0) {
+    parts.push(`promoAmount=${input.promoAmount}`);
+  }
+  if (Number.isFinite(input.advanceAmount) && (input.advanceAmount ?? 0) > 0) {
+    parts.push(`advanceAmount=${input.advanceAmount}`);
   }
   return parts.join(" · ");
 }
@@ -3136,6 +3156,12 @@ export function OrderAccountStatementScreen() {
         const hasManualLine = payloadLines.some((x) => x.lineSource === "manual");
         const effectiveShipmentLinkMode =
           creationMode === "shipmentBased" && hasManualLine ? "partial" : shipmentLinkMode;
+        const giftDeductionTotal = parsedLines.reduce(
+          (sum, row) => sum + (row.isGift ? Math.max(0, row.amount) : 0),
+          0
+        );
+        const promoDeductionTotal = parsedPromo.reduce((sum, row) => sum + Math.max(0, row.amount), 0);
+        const advanceLedgerDeduction = Math.max(0, advanceDeduction);
         const invoicePayload = {
           counterpartyType,
           counterpartyId,
@@ -3155,6 +3181,9 @@ export function OrderAccountStatementScreen() {
             receivedAdvanceAmount: advanceDeduction,
             receivedAdvancePostToLedger:
               advanceDeduction > 0 ? receivedAdvancePostToLedger : null,
+            giftAmount: giftDeductionTotal,
+            promoAmount: promoDeductionTotal,
+            advanceAmount: advanceLedgerDeduction,
           }),
           paymentInfo: {
             iban: paymentIban.trim() || null,
@@ -3184,19 +3213,26 @@ export function OrderAccountStatementScreen() {
         if (!createdInvoice) {
           throw new Error("Invoice creation returned no result.");
         }
-        const promoDeductionTotal = parsedPromo.reduce((sum, row) => sum + Math.max(0, row.amount), 0);
-        // Cari işleme tarafında PDF toplam mantığı birebir korunur:
-        // promosyon + ön ödeme her zaman açık bakiyeden düşülür.
-        const advanceLedgerDeduction = Math.max(0, advanceDeduction);
-        const deductionReceiptTotal = promoDeductionTotal + advanceLedgerDeduction;
-        if (deductionReceiptTotal > 0) {
-          const receiptAmount = Math.min(deductionReceiptTotal, Math.max(0, createdInvoice.openAmount));
-          if (receiptAmount > 0) {
+        if (promoDeductionTotal > 0 || advanceLedgerDeduction > 0) {
+          let remainingOpen = Math.max(0, createdInvoice.openAmount);
+          const receiptDate = isoDateOnly(statementDate);
+          if (promoDeductionTotal > 0 && remainingOpen > 0) {
+            const promoApply = Math.min(promoDeductionTotal, remainingOpen);
             createdInvoice = await addOutboundInvoiceReceipt(createdInvoice.id, {
-              receiptDate: isoDateOnly(statementDate),
-              amount: receiptAmount,
+              receiptDate,
+              amount: promoApply,
               currencyCode: "TRY",
-              notes: "Sipariş hesap dökümü promosyon/ön ödeme düşümü",
+              notes: "source=promo_discount · Sipariş hesap dökümü promosyon düşümü",
+            });
+            remainingOpen = Math.max(0, remainingOpen - promoApply);
+          }
+          if (advanceLedgerDeduction > 0 && remainingOpen > 0) {
+            const advanceApply = Math.min(advanceLedgerDeduction, remainingOpen);
+            createdInvoice = await addOutboundInvoiceReceipt(createdInvoice.id, {
+              receiptDate,
+              amount: advanceApply,
+              currencyCode: "TRY",
+              notes: "source=advance_payment · Sipariş hesap dökümü ön ödeme düşümü",
             });
           }
         }
@@ -3255,6 +3291,9 @@ export function OrderAccountStatementScreen() {
             receivedAdvanceAmount: advanceDeduction,
             receivedAdvancePostToLedger:
               advanceDeduction > 0 ? receivedAdvancePostToLedger : null,
+            giftAmount: totals.giftLinesSum,
+            promoAmount: totals.promoLinesSum,
+            advanceAmount: Math.max(0, advanceDeduction),
           });
           const saved = await uploadBranchDocument(branchId, {
             file: systemFile,
@@ -3307,6 +3346,7 @@ export function OrderAccountStatementScreen() {
     hasMultipleActions,
     showPaymentOnPdf,
     statementDate,
+    totals,
     router,
     t,
   ]);
@@ -4976,18 +5016,28 @@ export function OrderAccountStatementScreen() {
                       title={
                         busy
                           ? t("reports.orderAccountStatementGeneratingPdf")
-                          : t("reports.orderAccountStatementDownloadPdf")
+                          : hasMultipleActions
+                            ? t("reports.orderAccountStatementRunActions")
+                            : t("reports.orderAccountStatementDownloadPdf")
                       }
                       aria-label={
                         busy
                           ? t("reports.orderAccountStatementGeneratingPdf")
-                          : t("reports.orderAccountStatementDownloadPdf")
+                          : hasMultipleActions
+                            ? t("reports.orderAccountStatementRunActions")
+                            : t("reports.orderAccountStatementDownloadPdf")
                       }
                       onClick={onDownloadPdfClick}
                       disabled={busy}
                       className="!h-14 !min-h-14 !w-14 sm:!h-14 sm:!min-h-14 sm:!w-14"
                     >
-                      {busy ? <IcLoader className="h-7 w-7" /> : <IcDownload className="h-7 w-7" />}
+                      {busy ? (
+                        <IcLoader className="h-7 w-7" />
+                      ) : hasMultipleActions ? (
+                        <IcPlay className="h-7 w-7" />
+                      ) : (
+                        <IcDownload className="h-7 w-7" />
+                      )}
                     </OasIconButton>
                   </div>
                 </div>

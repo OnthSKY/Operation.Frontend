@@ -49,7 +49,7 @@ export function BranchDetailDocumentsTab({ branchId, active, readOnly = false }:
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [loadingDocAction, setLoadingDocAction] = useState<{
     id: number;
-    mode: "view" | "download";
+    mode: "view" | "start";
   } | null>(null);
 
   const selectedFileType = file?.type?.toLowerCase() ?? "";
@@ -133,8 +133,8 @@ export function BranchDetailDocumentsTab({ branchId, active, readOnly = false }:
     }
   };
 
-  const downloadFile = async (documentId: number) => {
-    setLoadingDocAction({ id: documentId, mode: "download" });
+  const startDocumentAction = async (documentId: number) => {
+    setLoadingDocAction({ id: documentId, mode: "start" });
     try {
       const { blob, contentType } = await fetchBranchDocumentBlob(branchId, documentId);
       const url = URL.createObjectURL(blob);
@@ -259,15 +259,15 @@ export function BranchDetailDocumentsTab({ branchId, active, readOnly = false }:
                     <EyeIcon />
                   </Button>
                 </Tooltip>
-                <Tooltip content={t("branch.documentsOpen")} delayMs={200}>
+                <Tooltip content={t("branch.documentsStartAction")} delayMs={200}>
                   <Button
                     type="button"
                     variant="secondary"
                     className={detailOpenIconButtonClass}
                     disabled={loadingDocAction?.id === row.id}
-                    aria-label={t("branch.documentsOpen")}
-                    title={t("branch.documentsOpen")}
-                    onClick={() => void downloadFile(row.id)}
+                    aria-label={t("branch.documentsStartAction")}
+                    title={t("branch.documentsStartAction")}
+                    onClick={() => void startDocumentAction(row.id)}
                   >
                     <DownloadIcon />
                   </Button>
