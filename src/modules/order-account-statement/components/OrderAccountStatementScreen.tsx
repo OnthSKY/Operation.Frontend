@@ -21,6 +21,7 @@ import { uploadBranchDocument } from "@/modules/branch/api/branch-documents-api"
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { computeSuggestedLineTotal } from "@/modules/order-account-statement/lib/suggested-line-total";
 import {
+  addOutboundInvoiceReceipt,
   createShipmentInvoice,
   createOutboundInvoice,
   fetchCounterpartySuggestions,
@@ -3075,7 +3076,13 @@ export function OrderAccountStatementScreen() {
           (l) => l.description.trim().length === 0 || !Number.isFinite(l.amount) || l.amount <= 0
         ).length;
         const payloadLines = lines
-          .filter((l) => l.description.trim().length > 0 && Number.isFinite(l.amount) && l.amount > 0)
+          .filter(
+            (l) =>
+              !l.isGift &&
+              l.description.trim().length > 0 &&
+              Number.isFinite(l.amount) &&
+              l.amount > 0
+          )
           .map((l) => ({
             productId: l.selectedProductId ?? null,
             description: l.description.trim(),
@@ -3087,6 +3094,34 @@ export function OrderAccountStatementScreen() {
             manualReasonCode: l.lineSource === "shipment" ? null : (l.manualReasonCode ?? "OPS_OTHER"),
             sourceShipmentLineId: l.sourceShipmentLineId ?? null,
           }));
+        if (previousBalance > 0) {
+          payloadLines.push({
+            productId: null,
+            description: "Devreden cari bakiye",
+            quantity: 1,
+            unit: "adet",
+            unitPrice: Math.max(0, previousBalance),
+            lineAmount: Math.max(0, previousBalance),
+            lineSource: "manual",
+            manualReasonCode: "OPS_OTHER",
+            sourceShipmentLineId: null,
+          });
+        }
+        parsedPaid
+          .filter((l) => l.description.trim().length > 0 && Number.isFinite(l.amount) && l.amount > 0)
+          .forEach((l) => {
+            payloadLines.push({
+              productId: null,
+              description: l.description.trim(),
+              quantity: 1,
+              unit: "adet",
+              unitPrice: Math.max(0, l.amount),
+              lineAmount: Math.max(0, l.amount),
+              lineSource: "manual",
+              manualReasonCode: "OPS_OTHER",
+              sourceShipmentLineId: null,
+            });
+          });
         if (payloadLines.length === 0) {
           notify.error(
             t("reports.orderAccountStatementInvoiceLinesRequiredDetailed").replace(
@@ -3147,6 +3182,22 @@ export function OrderAccountStatementScreen() {
           : await createOutboundInvoice(invoicePayload);
         if (!createdInvoice) {
           throw new Error("Invoice creation returned no result.");
+        }
+        const promoDeductionTotal = parsedPromo.reduce((sum, row) => sum + Math.max(0, row.amount), 0);
+        // Cari işleme tarafında PDF toplam mantığı birebir korunur:
+        // promosyon + ön ödeme her zaman açık bakiyeden düşülür.
+        const advanceLedgerDeduction = Math.max(0, advanceDeduction);
+        const deductionReceiptTotal = promoDeductionTotal + advanceLedgerDeduction;
+        if (deductionReceiptTotal > 0) {
+          const receiptAmount = Math.min(deductionReceiptTotal, Math.max(0, createdInvoice.openAmount));
+          if (receiptAmount > 0) {
+            createdInvoice = await addOutboundInvoiceReceipt(createdInvoice.id, {
+              receiptDate: isoDateOnly(statementDate),
+              amount: receiptAmount,
+              currencyCode: "TRY",
+              notes: "Sipariş hesap dökümü promosyon/ön ödeme düşümü",
+            });
+          }
         }
         const created = createdInvoice;
         setLastCreatedInvoiceNo(created.documentNumber);
@@ -3231,6 +3282,9 @@ export function OrderAccountStatementScreen() {
     linkedBranchId,
     locale,
     parsedLines,
+    parsedPaid,
+    parsedPromo,
+    previousBalance,
     advanceDeduction,
     paymentAccountHolder,
     paymentBankName,
