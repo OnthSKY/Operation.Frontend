@@ -682,7 +682,7 @@ export const branch = {
   expensePaymentLabel: "How was this paid?",
   expensePaymentUnset: "Not specified",
   expensePaymentHint:
-    "Mark whether cash left the register, the owner covered it, staff paid from pocket (register debt), or register cash already with a staff member (drawer cash is unchanged).",
+    "Mark whether cash left the register, the owner covered it, staff paid from pocket (register debt), or it was paid from register cash already held with a staff member. The \"held register cash\" option is not owner-funded; no new drawer cash leaves the register, and the amount is reduced from that staff-held register balance.",
   txPersonnelExpenseBranchLabel: "Branch (for register payment)",
   txPersonnelExpenseBranchPick: "Select branch…",
   txPersonnelExpenseBranchHint:

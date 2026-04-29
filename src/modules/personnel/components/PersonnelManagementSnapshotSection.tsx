@@ -346,33 +346,6 @@ export function PersonnelManagementSnapshotSection({
   const netTone =
     netAll > 0 ? ("positive" as const) : netAll < 0 ? ("negative" as const) : ("neutral" as const);
 
-  const storyNet = useMemo(() => {
-    if (!primary || !snap) return "";
-    const ccy = primary.currencyCode;
-    const netLabel = signedMoney(netAll, dash, locale, ccy);
-    if (netAll > 0) return t("personnel.detailMgmtNetPositive").replace("{net}", netLabel);
-    if (netAll < 0) return t("personnel.detailMgmtNetNegative").replace("{net}", netLabel);
-    return t("personnel.detailMgmtNetZero").replace("{ccy}", ccy);
-  }, [primary, snap, netAll, dash, locale, t]);
-
-  const ytdLine = useMemo(() => {
-    if (!primary || !snap) return "";
-    return t("personnel.detailMgmtYtdLine")
-      .replace("{year}", String(snap.currentCalendarYear))
-      .replace(
-        "{sal}",
-        formatMoneyDash(primary.totalSalaryYearToDate, dash, locale, primary.currencyCode)
-      )
-      .replace(
-        "{adv}",
-        formatMoneyDash(primary.totalAdvanceYearToDate, dash, locale, primary.currencyCode)
-      )
-      .replace(
-        "{net}",
-        signedMoney(primary.netSalaryMinusAdvanceYearToDate, dash, locale, primary.currencyCode)
-      );
-  }, [primary, snap, dash, locale, t]);
-
   const handoverHint = useMemo(() => {
     if (!handoverRow || !snap) return "";
     const ytd = formatMoneyDash(
@@ -491,6 +464,25 @@ export function PersonnelManagementSnapshotSection({
     [personnel.seasonArrivalDate]
   );
   const hireDateLabel = formatHireShort(snap?.hireDate ?? "", locale, dash);
+  const seasonArrivalDateLabel = formatHireShort(personnel.seasonArrivalDate ?? "", locale, dash);
+  const simpleSummary = useMemo(() => {
+    if (!primary) return "";
+    const sal = formatMoneyDash(primary.totalSalaryAllTime, dash, locale, primary.currencyCode);
+    const adv = formatMoneyDash(primary.totalAdvanceAllTime, dash, locale, primary.currencyCode);
+    if (netAll > 0) {
+      return t("personnel.detailMgmtSimpleSummaryPositive")
+        .replace("{sal}", sal)
+        .replace("{adv}", adv);
+    }
+    if (netAll < 0) {
+      return t("personnel.detailMgmtSimpleSummaryNegative")
+        .replace("{sal}", sal)
+        .replace("{adv}", adv);
+    }
+    return t("personnel.detailMgmtSimpleSummaryZero")
+      .replace("{sal}", sal)
+      .replace("{adv}", adv);
+  }, [primary, netAll, dash, locale, t]);
 
   if (!open) return null;
 
@@ -560,19 +552,24 @@ export function PersonnelManagementSnapshotSection({
                   netTone === "neutral" && "border-l-zinc-400 bg-zinc-50/90"
                 )}
               >
-                <p className="text-xs font-medium leading-relaxed text-zinc-900 sm:text-sm">
-                  {t("personnel.detailMgmtStoryP1")
-                    .replace("{name}", personnelDisplayName(personnel))
-                    .replace("{days}", String(snap.tenureDaysInclusive))
-                    .replace("{hire}", formatHireShort(snap.hireDate, locale, dash))}
-                </p>
-                <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-violet-300 bg-violet-100/80 px-2.5 py-1 text-xs font-semibold text-violet-950">
-                  <span>{t("personnel.tableCompanyHireDate")}:</span>
-                  <span className="font-mono text-sm tabular-nums">{hireDateLabel}</span>
+                <p className="text-sm font-semibold text-zinc-900">{personnelDisplayName(personnel)}</p>
+                <div className="mt-2 space-y-1 text-xs leading-relaxed text-zinc-800 sm:text-sm">
+                  <p>
+                    <span className="font-semibold">{t("personnel.tableCompanyHireDate")}:</span>{" "}
+                    <span className="font-mono tabular-nums">{hireDateLabel}</span>
+                  </p>
+                  <p>
+                    <span className="font-semibold">{t("personnel.seasonArrivalDate")}:</span>{" "}
+                    <span className="font-mono tabular-nums">{seasonArrivalDateLabel}</span>
+                  </p>
+                  <p>
+                    <span className="font-semibold">{t("personnel.detailMgmtSeasonWorkedDaysLabel")}:</span>{" "}
+                    <span className="font-mono tabular-nums">
+                      {tourismSeasonDays == null ? dash : String(tourismSeasonDays)}
+                    </span>
+                  </p>
                 </div>
-                <p className="mt-3 text-sm font-semibold leading-relaxed text-zinc-900">{storyNet}</p>
-                <p className="mt-2 text-xs leading-relaxed text-zinc-700 sm:text-sm">{ytdLine}</p>
-                <p className="mt-3 text-xs leading-relaxed text-zinc-500">{t("personnel.detailMgmtFootnote")}</p>
+                <p className="mt-3 text-sm leading-relaxed text-zinc-900">{simpleSummary}</p>
               </div>
 
               <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7">
@@ -683,87 +680,7 @@ export function PersonnelManagementSnapshotSection({
                 </div>
               ) : null}
 
-              {!personnel.isDeleted ? (
-                <div className="rounded-xl border border-amber-200/90 bg-amber-50/35 p-3 sm:p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold uppercase tracking-wide text-amber-950/90">
-                        {t("personnel.detailMgmtPocketSectionTitle")}
-                      </p>
-                      <p className="mt-1 text-xs leading-relaxed text-amber-900/85">
-                        {t("personnel.detailMgmtPocketSectionHint")}
-                      </p>
-                    </div>
-                    {onOpenCostsDetail && pocketMoneyByBranch.length > 0 ? (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="min-h-[44px] min-w-[44px] w-full shrink-0 sm:w-auto"
-                        onClick={onOpenCostsDetail}
-                      >
-                        {t("personnel.detailMgmtPocketOpenCosts")}
-                      </Button>
-                    ) : null}
-                  </div>
-                  {pocketMoneyPending ? (
-                    <p className="mt-3 text-sm text-zinc-600">{t("common.loading")}</p>
-                  ) : pocketMoneyByBranch.length === 0 ? (
-                    <p className="mt-3 text-sm text-zinc-600">{t("personnel.detailMgmtPocketEmpty")}</p>
-                  ) : (
-                    <ul className="mt-3 space-y-2">
-                      {pocketMoneyByBranch.map(({ branchId, row }) => {
-                        const cur = row.pocketCurrencyCode?.trim().toUpperCase() || "TRY";
-                        const bname = branchNameById?.get(branchId) ?? `#${branchId}`;
-                        return (
-                          <li
-                            key={branchId}
-                            className="rounded-lg border border-amber-200/70 bg-white/90 p-3 text-sm"
-                          >
-                            <div className="flex flex-col gap-1 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
-                              <span className="min-w-0 font-medium text-zinc-900">{bname}</span>
-                              <span className="shrink-0 font-mono text-sm font-semibold text-amber-950">
-                                {t("personnel.detailMgmtPocketOwesShort")}:{" "}
-                                {formatMoneyDash(row.netRegisterOwesPocket, dash, locale, cur)}
-                              </span>
-                            </div>
-                            <details className="mt-2 group">
-                              <summary className="cursor-pointer list-none text-xs font-semibold text-amber-900/90 underline decoration-amber-800/30 underline-offset-2 [&::-webkit-details-marker]:hidden">
-                                {t("personnel.detailMgmtPocketDetailToggle")}
-                              </summary>
-                              <dl className="mt-2 space-y-1.5 border-t border-amber-200/60 pt-2 text-xs text-zinc-700">
-                                <div className="flex flex-wrap justify-between gap-x-2 gap-y-0.5">
-                                  <dt>{t("personnel.detailMgmtPocketLineGross")}</dt>
-                                  <dd className="font-mono font-medium text-zinc-900">
-                                    {formatMoneyDash(row.grossPocketExpense, dash, locale, cur)}
-                                  </dd>
-                                </div>
-                                <div className="flex flex-wrap justify-between gap-x-2 gap-y-0.5">
-                                  <dt>{t("personnel.detailMgmtPocketLineRepaidRegister")}</dt>
-                                  <dd className="font-mono font-medium text-zinc-900">
-                                    {formatMoneyDash(row.pocketRepaidFromRegister, dash, locale, cur)}
-                                  </dd>
-                                </div>
-                                <div className="flex flex-wrap justify-between gap-x-2 gap-y-0.5">
-                                  <dt>{t("personnel.detailMgmtPocketLineRepaidPatron")}</dt>
-                                  <dd className="font-mono font-medium text-zinc-900">
-                                    {formatMoneyDash(row.pocketRepaidFromPatron, dash, locale, cur)}
-                                  </dd>
-                                </div>
-                                <div className="flex flex-wrap justify-between gap-x-2 gap-y-0.5">
-                                  <dt>{t("personnel.detailMgmtPocketLineClaimTransfer")}</dt>
-                                  <dd className="font-mono font-medium text-zinc-900">
-                                    {signedMoney(row.pocketClaimTransferNet, dash, locale, cur)}
-                                  </dd>
-                                </div>
-                              </dl>
-                            </details>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-              ) : null}
+              
             </>
           ) : (
             <div className="space-y-4">

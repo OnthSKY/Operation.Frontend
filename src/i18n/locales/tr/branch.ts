@@ -687,7 +687,7 @@ export const branch = {
   expensePaymentLabel: "Ödeme nasıl karşılandı?",
   expensePaymentUnset: "Belirtilmedi",
   expensePaymentHint:
-    "Kasadan çıkan, patronun karşıladığı, personelin kendi cebinden ödediği (kasa borçlanır) veya gelirde kasa sorumlusuna devredilmiş kasa nakdinden ödenen seçeneklerinden birini işaretleyin.",
+    "Kasadan çıkan, patronun karşıladığı, personelin kendi cebinden ödediği (kasa borçlanır) veya personelin cebindeki kasa parasından ödendiği seçeneklerinden birini işaretleyin. «Personelin cebindeki kasa parası» seçeneği patrondan ödeme sayılmaz; kasadan yeni nakit çıkmadan, personele kayıtlı kasa bakiyesinden düşer.",
   txPersonnelExpenseBranchLabel: "Şube (kasadan ödeme için)",
   txPersonnelExpenseBranchPick: "Şube seçin…",
   txPersonnelExpenseBranchHint:

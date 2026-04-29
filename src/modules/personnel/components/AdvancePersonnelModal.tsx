@@ -2,6 +2,7 @@
 
 import { useI18n } from "@/i18n/context";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
+import { useBranchHeldRegisterCashByPerson } from "@/modules/branch/hooks/useBranchQueries";
 import { useCreateAdvance } from "@/modules/personnel/hooks/usePersonnelQueries";
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
 import type { Personnel } from "@/types/personnel";
@@ -22,7 +23,7 @@ import {
   currencySelectOptions,
   DEFAULT_CURRENCY,
 } from "@/shared/lib/iso4217-currencies";
-import { localIsoDateTime } from "@/shared/lib/local-iso-date";
+import { localIsoDate, localIsoDateTime } from "@/shared/lib/local-iso-date";
 import { useEffect, useMemo } from "react";
 import { useController, useForm, useWatch } from "react-hook-form";
 
@@ -157,8 +158,27 @@ export function AdvancePersonnelModal({
 
   const personnelId = useWatch({ control, name: "personnelId" });
   const sourceTypeWatch = useWatch({ control, name: "sourceType" });
+  const branchIdWatch = useWatch({ control, name: "branchId" });
   const currencyCodeWatch = useWatch({ control, name: "currencyCode" });
   const selectedPersonnel = personnel.find((x) => String(x.id) === personnelId);
+  const selectedBranchId = Number.parseInt(String(branchIdWatch ?? "").trim(), 10);
+  const isPersonnelPocketSource = (sourceTypeWatch || "CASH").toUpperCase() === "PERSONNEL_POCKET";
+
+  const heldRegisterCashByPerson = useBranchHeldRegisterCashByPerson(
+    Number.isFinite(selectedBranchId) && selectedBranchId > 0 ? selectedBranchId : null,
+    localIsoDate(),
+    open && isPersonnelPocketSource
+  );
+
+  const eligiblePersonnelIdsForPocket = useMemo(() => {
+    const set = new Set<number>();
+    for (const row of heldRegisterCashByPerson.data ?? []) {
+      const amount = Number(row.amount) || 0;
+      if (row.personnelId == null) continue;
+      if (amount > 0.009) set.add(row.personnelId);
+    }
+    return set;
+  }, [heldRegisterCashByPerson.data]);
 
   useEffect(() => {
     void trigger("branchId");
@@ -205,13 +225,40 @@ export function AdvancePersonnelModal({
     return () => window.clearTimeout(id);
   }, [open, initialPersonnelId, setFocus]);
 
-  const options: SelectOption[] = [
-    { value: "", label: t("personnel.selectPerson") },
-    ...personnel.map((p) => ({
-      value: String(p.id),
-      label: personnelDisplayName(p),
-    })),
-  ];
+  const options: SelectOption[] = useMemo(() => {
+    if (!isPersonnelPocketSource) {
+      return [
+        { value: "", label: t("personnel.selectPerson") },
+        ...personnel.map((p) => ({
+          value: String(p.id),
+          label: personnelDisplayName(p),
+        })),
+      ];
+    }
+    if (!Number.isFinite(selectedBranchId) || selectedBranchId <= 0) {
+      return [{ value: "", label: t("personnel.advancePocketSelectBranchFirst") }];
+    }
+    const filtered = personnel.filter(
+      (p) => p.branchId === selectedBranchId && eligiblePersonnelIdsForPocket.has(p.id)
+    );
+    return [
+      { value: "", label: t("personnel.selectPerson") },
+      ...filtered.map((p) => ({
+        value: String(p.id),
+        label: personnelDisplayName(p),
+      })),
+    ];
+  }, [isPersonnelPocketSource, t, personnel, selectedBranchId, eligiblePersonnelIdsForPocket]);
+
+  useEffect(() => {
+    if (!isPersonnelPocketSource) return;
+    const selected = String(personnelField.value ?? "").trim();
+    if (!selected) return;
+    const selectedId = Number.parseInt(selected, 10);
+    if (!Number.isFinite(selectedId) || !eligiblePersonnelIdsForPocket.has(selectedId)) {
+      personnelField.onChange("");
+    }
+  }, [isPersonnelPocketSource, personnelField, eligiblePersonnelIdsForPocket]);
 
   const onSubmit = handleSubmit(async (values) => {
     const amount = parseLocaleAmount(values.amount, locale);
@@ -317,6 +364,13 @@ export function AdvancePersonnelModal({
                   ref={personnelField.ref}
                   error={errors.personnelId?.message}
                 />
+                {isPersonnelPocketSource &&
+                Number.isFinite(selectedBranchId) &&
+                selectedBranchId > 0 &&
+                !heldRegisterCashByPerson.isPending &&
+                (options.length <= 1) ? (
+                  <p className="text-xs text-zinc-500">{t("personnel.advancePocketNoEligiblePersonnel")}</p>
+                ) : null}
                 <Select
                   label={t("personnel.sourceType")}
                   labelRequired

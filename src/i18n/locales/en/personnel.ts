@@ -658,7 +658,7 @@ export const personnel = {
   detailInsurancePrerequisiteNotes: "Insurance prerequisites / notes",
   advanceTitle: "Give advance",
   advanceHint:
-    "Pick the attributing branch. Branch cash register posts to branch ledger; owner-funded does not. Transaction date is the operational day; season year tags which tourism season the advance belongs to (same year number as the branch tourism season record).",
+    "Pick the attributing branch. Branch cash register posts to branch ledger; owner-funded does not. If Personnel pocket is selected, it is not booked as owner money and no new drawer cash leaves the register; the amount is reduced from register/company cash already held under that staff member. Transaction date is the operational day; season year tags which tourism season the advance belongs to (same year number as the branch tourism season record).",
   advanceDate: "Transaction date",
   effectiveYear: "Season year",
   effectiveYearHint:
@@ -679,6 +679,10 @@ export const personnel = {
   sourceBank: "Bank",
   sourcePersonnelPocket:
     "Personnel pocket (register owes them; no cash movement until linked on expense)",
+  advancePocketSelectBranchFirst:
+    "Select a branch first (only personnel with register-owed pocket balance at that branch are listed).",
+  advancePocketNoEligiblePersonnel:
+    "No personnel with register-owed pocket balance for this branch.",
   selectPerson: "Select person",
   advanceCurrency: "Currency",
   amount: "Amount",
@@ -997,6 +1001,13 @@ export const personnel = {
   detailMgmtTileTenureHint: "Hire date → today (days)",
   detailMgmtTileTourismSeasonDays: "This season",
   detailMgmtTileTourismSeasonDaysHint: "Days since tourism season arrival (inclusive)",
+  detailMgmtSeasonWorkedDaysLabel: "Days worked in tourism season (until today)",
+  detailMgmtSimpleSummaryPositive:
+    "Summary: Total salary {sal}, total advances {adv}. Salary side is higher.",
+  detailMgmtSimpleSummaryNegative:
+    "Summary: Total salary {sal}, total advances {adv}. Advance side is higher.",
+  detailMgmtSimpleSummaryZero:
+    "Summary: Total salary {sal}, total advances {adv}. Records look balanced.",
   detailMgmtTileAdvanceTotal: "Total advances",
   detailMgmtTileSalaryTotal: "Total salary paid",
   detailMgmtTileNetAll: "Net position",

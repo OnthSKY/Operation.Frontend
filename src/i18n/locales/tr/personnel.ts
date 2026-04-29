@@ -668,7 +668,7 @@ export const personnel = {
   detailInsurancePrerequisiteNotes: "Sigorta için evrak / notlar",
   advanceTitle: "Avans ver",
   advanceHint:
-    "Şube listesinden mahsup şubeyi seçin. Şube kasasından ödeme seçilirse kasa hareketine yazılır; patrondan seçilirse şube kasasından düşmez. İşlem tarihi operasyon gününü; sezon yılı avansın hangi turizm sezonuna yazılacağını belirler (şube turizm sezonu kaydıyla aynı yıl numarası).",
+    "Şube listesinden mahsup şubeyi seçin. Şube kasasından ödeme seçilirse kasa hareketine yazılır; patrondan seçilirse şube kasasından düşmez. Personel cebi seçilirse patrona yazılmaz ve kasadan yeni nakit çıkmaz; tutar, personelin üzerinde kayıtlı şube/şirket kasası bakiyesinden düşer. İşlem tarihi operasyon gününü; sezon yılı avansın hangi turizm sezonuna yazılacağını belirler (şube turizm sezonu kaydıyla aynı yıl numarası).",
   advanceDate: "İşlem tarihi",
   effectiveYear: "Sezon yılı",
   effectiveYearHint:
@@ -689,6 +689,10 @@ export const personnel = {
   sourceBank: "Bankadan",
   sourcePersonnelPocket:
     "Personel cebi (kasa borçlu; kasa hareketi giderde avans bağlanınca)",
+  advancePocketSelectBranchFirst:
+    "Önce şube seçin (yalnız bu şubede cebinde kasa parası olan personeller listelenir).",
+  advancePocketNoEligiblePersonnel:
+    "Bu şubede cebinde kasa parası bulunan personel yok.",
   selectPerson: "Kişi seçin",
   advanceCurrency: "Para birimi",
   amount: "Tutar",
@@ -1009,6 +1013,13 @@ export const personnel = {
   detailMgmtTileTenureHint: "İşe girişten bugüne (gün)",
   detailMgmtTileTourismSeasonDays: "Bu sezon",
   detailMgmtTileTourismSeasonDaysHint: "Turizm sezonuna gelişten bugüne (gün)",
+  detailMgmtSeasonWorkedDaysLabel: "Turizm sezonda çalıştığı gün (bugüne kadar)",
+  detailMgmtSimpleSummaryPositive:
+    "Özet: Toplam maaş {sal}, toplam avans {adv}. Maaş tarafı daha yüksek görünüyor.",
+  detailMgmtSimpleSummaryNegative:
+    "Özet: Toplam maaş {sal}, toplam avans {adv}. Avans tarafı daha yüksek görünüyor.",
+  detailMgmtSimpleSummaryZero:
+    "Özet: Toplam maaş {sal}, toplam avans {adv}. Kayıtlar dengede görünüyor.",
   detailMgmtTileAdvanceTotal: "Toplam avans",
   detailMgmtTileSalaryTotal: "Toplam maaş",
   detailMgmtTileNetAll: "Net durum",
