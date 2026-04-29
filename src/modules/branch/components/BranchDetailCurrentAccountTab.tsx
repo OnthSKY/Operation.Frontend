@@ -5,6 +5,7 @@ import {
   addOutboundInvoiceReceipt,
   fetchOutboundInvoices,
   fetchOutboundInvoiceReceipts,
+  type OutboundInvoiceReceiptResponse,
   type OutboundInvoiceResponse,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
 import {
@@ -82,6 +83,8 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     note: "",
   });
   const [selectedPdfInvoiceIds, setSelectedPdfInvoiceIds] = useState<Set<number>>(new Set());
+  const [receiptPromoByInvoiceId, setReceiptPromoByInvoiceId] = useState<Map<number, number>>(() => new Map());
+  const [receiptAdvanceByInvoiceId, setReceiptAdvanceByInvoiceId] = useState<Map<number, number>>(() => new Map());
   const uploadBranchDocumentMut = useUploadBranchDocument(branchId);
 
   const invoicesQuery = useQuery({
@@ -149,6 +152,20 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     return Number.isFinite(n) && n > 0 ? n : 0;
   }, []);
 
+  const isPromoOrDiscountReceipt = useCallback((receipt: OutboundInvoiceReceiptResponse): boolean => {
+    if (receipt.receiptKind === "promo_discount") return true;
+    const note = String(receipt.notes ?? "").trim().toLowerCase();
+    if (!note) return false;
+    return note.includes("source=promo_discount") || note.includes("promosyon") || note.includes("iskonto") || note.includes("indirim");
+  }, []);
+
+  const isAdvanceReceipt = useCallback((receipt: OutboundInvoiceReceiptResponse): boolean => {
+    if (receipt.receiptKind === "advance_payment") return true;
+    const note = String(receipt.notes ?? "").trim().toLowerCase();
+    if (!note) return false;
+    return note.includes("source=advance_payment") || note.includes("ön ödeme") || note.includes("on odeme");
+  }, []);
+
   const promoDeductionByInvoiceId = useMemo(
     () =>
       new Map(
@@ -190,6 +207,58 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
       ),
     [parseNoteAmount, rows]
   );
+
+  useEffect(() => {
+    let alive = true;
+    const unresolved = rows.filter((invoice) => {
+      const promo = promoDeductionByInvoiceId.get(invoice.id) ?? 0;
+      const advance = advanceDeductionByInvoiceId.get(invoice.id) ?? 0;
+      return promo <= 0.009 && advance <= 0.009 && (Number(invoice.paidTotal) || 0) > 0.009;
+    });
+    if (!active || unresolved.length === 0) {
+      setReceiptPromoByInvoiceId(new Map());
+      setReceiptAdvanceByInvoiceId(new Map());
+      return;
+    }
+    void (async () => {
+      const promoMap = new Map<number, number>();
+      const advanceMap = new Map<number, number>();
+      try {
+        const concurrency = 6;
+        for (let i = 0; i < unresolved.length; i += concurrency) {
+          const chunk = unresolved.slice(i, i + concurrency);
+          const results = await Promise.all(
+            chunk.map(async (invoice) => {
+              const receipts = await fetchOutboundInvoiceReceipts(invoice.id);
+              const promo = receipts.reduce((sum, receipt) => {
+                if (!isPromoOrDiscountReceipt(receipt)) return sum;
+                return sum + Math.max(0, Number(receipt.amount) || 0);
+              }, 0);
+              const advance = receipts.reduce((sum, receipt) => {
+                if (!isAdvanceReceipt(receipt)) return sum;
+                return sum + Math.max(0, Number(receipt.amount) || 0);
+              }, 0);
+              return [invoice.id, { promo, advance }] as const;
+            })
+          );
+          for (const [invoiceId, x] of results) {
+            promoMap.set(invoiceId, x.promo);
+            advanceMap.set(invoiceId, x.advance);
+          }
+        }
+        if (!alive) return;
+        setReceiptPromoByInvoiceId(promoMap);
+        setReceiptAdvanceByInvoiceId(advanceMap);
+      } catch {
+        if (!alive) return;
+        setReceiptPromoByInvoiceId(new Map());
+        setReceiptAdvanceByInvoiceId(new Map());
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [active, advanceDeductionByInvoiceId, isAdvanceReceipt, isPromoOrDiscountReceipt, promoDeductionByInvoiceId, rows]);
 
   const openPdf = async (invoiceId: number, mode: "view" | "download") => {
     const documentId = pdfDocByInvoiceId.get(invoiceId);
@@ -589,8 +658,14 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
               {rows.map((r) => {
                 const hasPdf = pdfDocByInvoiceId.has(r.id);
                 const hasTransfer = transferDocByInvoiceId.has(r.id);
-                const promoDeduction = promoDeductionByInvoiceId.get(r.id) ?? 0;
-                const advanceDeduction = advanceDeductionByInvoiceId.get(r.id) ?? 0;
+                const promoDeduction = Math.max(
+                  promoDeductionByInvoiceId.get(r.id) ?? 0,
+                  receiptPromoByInvoiceId.get(r.id) ?? 0
+                );
+                const advanceDeduction = Math.max(
+                  advanceDeductionByInvoiceId.get(r.id) ?? 0,
+                  receiptAdvanceByInvoiceId.get(r.id) ?? 0
+                );
                 const giftAmount = giftByInvoiceId.get(r.id) ?? 0;
                 const cashCollected = Math.max(0, (Number(r.paidTotal) || 0) - promoDeduction - advanceDeduction);
                 const isCollected =
@@ -724,8 +799,14 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
           {rows.map((r) => {
             const hasPdf = pdfDocByInvoiceId.has(r.id);
             const hasTransfer = transferDocByInvoiceId.has(r.id);
-            const promoDeduction = promoDeductionByInvoiceId.get(r.id) ?? 0;
-            const advanceDeduction = advanceDeductionByInvoiceId.get(r.id) ?? 0;
+            const promoDeduction = Math.max(
+              promoDeductionByInvoiceId.get(r.id) ?? 0,
+              receiptPromoByInvoiceId.get(r.id) ?? 0
+            );
+            const advanceDeduction = Math.max(
+              advanceDeductionByInvoiceId.get(r.id) ?? 0,
+              receiptAdvanceByInvoiceId.get(r.id) ?? 0
+            );
             const giftAmount = giftByInvoiceId.get(r.id) ?? 0;
             const cashCollected = Math.max(0, (Number(r.paidTotal) || 0) - promoDeduction - advanceDeduction);
             const isCollected =

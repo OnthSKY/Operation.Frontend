@@ -18,6 +18,7 @@ import {
   type CounterpartySummaryFilters,
   type CounterpartySummaryReport,
   type CounterpartySuggestionRow,
+  type OutboundInvoiceReceiptResponse,
   type OutboundInvoiceResponse,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
 import {
@@ -141,6 +142,20 @@ export function CounterpartySummaryReportScreen() {
     return Number.isFinite(n) && n > 0 ? n : 0;
   }, []);
 
+  const isPromoReceipt = useCallback((receipt: OutboundInvoiceReceiptResponse): boolean => {
+    if (receipt.receiptKind === "promo_discount") return true;
+    const note = String(receipt.notes ?? "").trim().toLowerCase();
+    if (!note) return false;
+    return note.includes("source=promo_discount") || note.includes("promosyon") || note.includes("iskonto") || note.includes("indirim");
+  }, []);
+
+  const isAdvanceReceipt = useCallback((receipt: OutboundInvoiceReceiptResponse): boolean => {
+    if (receipt.receiptKind === "advance_payment") return true;
+    const note = String(receipt.notes ?? "").trim().toLowerCase();
+    if (!note) return false;
+    return note.includes("source=advance_payment") || note.includes("ön ödeme") || note.includes("on odeme");
+  }, []);
+
   const load = useCallback(async (nextFilters: CounterpartySummaryFilters) => {
     setBusy(true);
     setErrorText("");
@@ -164,6 +179,44 @@ export function CounterpartySummaryReportScreen() {
             : parseNoteAmount(invoice.notes, "giftAmount");
         return [invoice.id, { promoTotal, advanceTotal, giftTotal }] as const;
       });
+
+      const unresolved = invoices.filter((invoice) => {
+        const promo = invoiceBreakdown.find(([id]) => id === invoice.id)?.[1].promoTotal ?? 0;
+        const advance = invoiceBreakdown.find(([id]) => id === invoice.id)?.[1].advanceTotal ?? 0;
+        return promo <= 0.009 && advance <= 0.009 && (Number(invoice.paidTotal) || 0) > 0.009;
+      });
+
+      if (unresolved.length > 0) {
+        const receiptBreakdown = new Map<number, { promo: number; advance: number }>();
+        const concurrency = 6;
+        for (let i = 0; i < unresolved.length; i += concurrency) {
+          const chunk = unresolved.slice(i, i + concurrency);
+          const chunkResults = await Promise.all(
+            chunk.map(async (invoice) => {
+              const receipts = await fetchOutboundInvoiceReceipts(invoice.id);
+              const promo = receipts.reduce((sum, receipt) => {
+                if (!isPromoReceipt(receipt)) return sum;
+                return sum + Math.max(0, Number(receipt.amount) || 0);
+              }, 0);
+              const advance = receipts.reduce((sum, receipt) => {
+                if (!isAdvanceReceipt(receipt)) return sum;
+                return sum + Math.max(0, Number(receipt.amount) || 0);
+              }, 0);
+              return [invoice.id, { promo, advance }] as const;
+            })
+          );
+          for (const [invoiceId, values] of chunkResults) {
+            receiptBreakdown.set(invoiceId, values);
+          }
+        }
+
+        for (const item of invoiceBreakdown) {
+          const receiptValues = receiptBreakdown.get(item[0]);
+          if (!receiptValues) continue;
+          if (item[1].promoTotal <= 0.009) item[1].promoTotal = receiptValues.promo;
+          if (item[1].advanceTotal <= 0.009) item[1].advanceTotal = receiptValues.advance;
+        }
+      }
       const nextPromoByInvoiceId = new Map<number, number>(invoiceBreakdown.map(([id, x]) => [id, x.promoTotal]));
       const nextAdvanceByInvoiceId = new Map<number, number>(invoiceBreakdown.map(([id, x]) => [id, x.advanceTotal]));
       const nextGiftByInvoiceId = new Map<number, number>(invoiceBreakdown.map(([id, x]) => [id, x.giftTotal]));
@@ -197,7 +250,7 @@ export function CounterpartySummaryReportScreen() {
     } finally {
       setBusy(false);
     }
-  }, [counterpartyKey, parseNoteAmount]);
+  }, [counterpartyKey, isAdvanceReceipt, isPromoReceipt, parseNoteAmount]);
 
   useEffect(() => {
     void load(filters);
