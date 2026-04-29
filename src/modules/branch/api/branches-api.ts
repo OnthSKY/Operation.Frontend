@@ -18,6 +18,7 @@ import type {
   BranchSeasonStatus,
   BranchStockReceiptRow,
   BranchStockReceiptsPaged,
+  BranchStockReceiptsSummary,
   BranchTransactionsPaged,
   CreateBranchInput,
   IncomeCashBranchManagerPersonRow,
@@ -973,6 +974,8 @@ export type BranchStockPageParams = {
   productId?: number;
 };
 
+export type BranchStockSummaryParams = Omit<BranchStockPageParams, "page" | "pageSize">;
+
 function normalizeBranchStockReceiptRow(r: Record<string, unknown>): BranchStockReceiptRow {
   const id = Number(r.id);
   const pid = Number(r.productId);
@@ -1081,6 +1084,52 @@ export async function fetchBranchStockReceiptsPaged(
     pageSize: Number(raw.pageSize) || params.pageSize,
     filteredTotalQuantity: Number(raw.filteredTotalQuantity ?? 0) || 0,
   };
+}
+
+export async function fetchBranchStockReceiptsSummary(
+  branchId: number,
+  params: BranchStockSummaryParams
+): Promise<BranchStockReceiptsSummary> {
+  const PAGE_SIZE = 200;
+  let page = 1;
+  let filteredTotalQuantity = 0;
+  const groups = new Map<number, { productId: number; productName: string; quantity: number }>();
+
+  for (;;) {
+    const res = await fetchBranchStockReceiptsPaged(branchId, {
+      ...params,
+      page,
+      pageSize: PAGE_SIZE,
+    });
+    if (page === 1) {
+      filteredTotalQuantity = Number(res.filteredTotalQuantity ?? 0) || 0;
+    }
+    for (const row of res.items) {
+      const hasParent = row.parentProductId != null && row.parentProductId > 0;
+      const productId = hasParent ? row.parentProductId! : row.productId;
+      const productName = hasParent
+        ? row.parentProductName?.trim() || row.productName.trim()
+        : row.productName.trim();
+      const current = groups.get(productId);
+      if (current) {
+        current.quantity += row.quantity;
+      } else {
+        groups.set(productId, {
+          productId,
+          productName: productName.length > 0 ? productName : `#${productId}`,
+          quantity: row.quantity,
+        });
+      }
+    }
+    if (res.items.length === 0 || page * PAGE_SIZE >= res.totalCount) break;
+    page += 1;
+  }
+
+  const parentBreakdown = Array.from(groups.values()).sort((a, b) => {
+    if (b.quantity !== a.quantity) return b.quantity - a.quantity;
+    return a.productName.localeCompare(b.productName, undefined, { sensitivity: "base" });
+  });
+  return { filteredTotalQuantity, parentBreakdown };
 }
 
 export type ZReportAccountingMonthStatus = {

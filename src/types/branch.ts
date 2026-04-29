@@ -266,3 +266,12 @@ export type BranchStockReceiptsPaged = {
   pageSize: number;
   filteredTotalQuantity?: number;
 };
+
+export type BranchStockReceiptsSummary = {
+  filteredTotalQuantity: number;
+  parentBreakdown: Array<{
+    productId: number;
+    productName: string;
+    quantity: number;
+  }>;
+};

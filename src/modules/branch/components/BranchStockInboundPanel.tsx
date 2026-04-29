@@ -1,6 +1,9 @@
 "use client";
 
-import { useBranchStockReceiptsPaged } from "@/modules/branch/hooks/useBranchQueries";
+import {
+  useBranchStockReceiptsPaged,
+  useBranchStockReceiptsSummary,
+} from "@/modules/branch/hooks/useBranchQueries";
 import {
   WarehouseProductScopeFilters,
   type WarehouseScopeFiltersValue,
@@ -190,35 +193,27 @@ export function BranchStockInboundPanel({ branchId }: Props) {
     params,
     true
   );
+  const {
+    data: summaryData,
+    isPending: summaryPending,
+    isFetching: summaryFetching,
+  } = useBranchStockReceiptsSummary(
+    branchId,
+    {
+      dateFrom: params.dateFrom,
+      dateTo: params.dateTo,
+      categoryId: params.categoryId,
+      parentProductId: params.parentProductId,
+      productId: params.productId,
+    },
+    true
+  );
 
   const items = data?.items ?? [];
   const totalCount = data?.totalCount ?? 0;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const filteredTotalQty = Number(data?.filteredTotalQuantity ?? 0) || 0;
-  const mainProductBreakdown = useMemo(() => {
-    const groups = new Map<number, { productId: number; productName: string; quantity: number }>();
-    for (const row of items) {
-      const hasParent = row.parentProductId != null && row.parentProductId > 0;
-      const productId = hasParent ? row.parentProductId! : row.productId;
-      const productName = hasParent
-        ? row.parentProductName?.trim() || row.productName.trim()
-        : row.productName.trim();
-      const existing = groups.get(productId);
-      if (existing) {
-        existing.quantity += row.quantity;
-      } else {
-        groups.set(productId, {
-          productId,
-          productName: productName.length > 0 ? productName : `#${productId}`,
-          quantity: row.quantity,
-        });
-      }
-    }
-    return Array.from(groups.values()).sort((a, b) => {
-      if (b.quantity !== a.quantity) return b.quantity - a.quantity;
-      return a.productName.localeCompare(b.productName, undefined, { sensitivity: "base" });
-    });
-  }, [items]);
+  const filteredTotalQty = Number(summaryData?.filteredTotalQuantity ?? data?.filteredTotalQuantity ?? 0) || 0;
+  const mainProductBreakdown = summaryData?.parentBreakdown ?? [];
   const mainProductBreakdownTotal = useMemo(
     () => mainProductBreakdown.reduce((sum, g) => sum + g.quantity, 0),
     [mainProductBreakdown]
@@ -367,6 +362,9 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                   {formatLocaleAmount(filteredTotalQty, locale)}
                 </p>
               </div>
+              {summaryPending && !summaryData ? (
+                <p className="text-xs text-zinc-500">{t("common.loading")}</p>
+              ) : null}
               {mainProductBreakdown.length > 0 ? (
                 <div className="min-w-0 rounded-md border border-violet-200/80 bg-violet-50/60 px-3 py-2.5">
                   <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-violet-900">
@@ -388,17 +386,17 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                       formatLocaleAmount(mainProductBreakdownTotal, locale)
                     )}
                   </p>
-                  {totalCount > items.length ? (
-                    <p className="mt-1 text-[0.65rem] leading-snug text-violet-900/80 sm:text-xs">
-                      {t("branch.stockReceiptsParentBreakdownPageOnly")}
-                    </p>
-                  ) : null}
                 </div>
               ) : null}
             </div>
             <p className="mt-2 text-[0.65rem] leading-snug text-zinc-500 sm:text-xs">
               {t("branch.stockReceiptsTotalsHint")}
             </p>
+            {summaryFetching ? (
+              <p className="mt-1 text-[0.65rem] leading-snug text-zinc-500 sm:text-xs">
+                {t("common.loading")}
+              </p>
+            ) : null}
           </div>
 
           {items.length === 0 ? (

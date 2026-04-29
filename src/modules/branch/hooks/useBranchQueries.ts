@@ -32,10 +32,12 @@ import {
   fetchBranchRegisterSummary,
   fetchBranchIncomePeriodSummary,
   fetchBranchStockReceiptsPaged,
+  fetchBranchStockReceiptsSummary,
   fetchBranchTransactionsPaged,
   fetchBranchZReportAccountingYear,
   type BranchDashboardStockScope,
   type BranchStockPageParams,
+  type BranchStockSummaryParams,
   type BranchTxPageParams,
 } from "@/modules/branch/api/branches-api";
 import { fetchAllAdvances } from "@/modules/personnel/api/advances-api";
@@ -113,6 +115,17 @@ export const branchKeys = {
       branchId,
       p.page,
       p.pageSize,
+      p.dateFrom ?? "",
+      p.dateTo ?? "",
+      p.categoryId ?? 0,
+      p.parentProductId ?? 0,
+      p.productId ?? 0,
+    ] as const,
+  stockReceiptsSummary: (branchId: number, p: BranchStockSummaryParams) =>
+    [
+      ...branchKeys.all,
+      "stock-receipts-summary",
+      branchId,
       p.dateFrom ?? "",
       p.dateTo ?? "",
       p.categoryId ?? 0,
@@ -317,6 +330,18 @@ export function useBranchStockReceiptsPaged(
   return useQuery({
     queryKey: branchKeys.stockReceipts(branchId ?? 0, params),
     queryFn: () => fetchBranchStockReceiptsPaged(branchId!, params),
+    enabled: enabled && branchId != null && branchId > 0,
+  });
+}
+
+export function useBranchStockReceiptsSummary(
+  branchId: number | null,
+  params: BranchStockSummaryParams,
+  enabled: boolean
+) {
+  return useQuery({
+    queryKey: branchKeys.stockReceiptsSummary(branchId ?? 0, params),
+    queryFn: () => fetchBranchStockReceiptsSummary(branchId!, params),
     enabled: enabled && branchId != null && branchId > 0,
   });
 }
