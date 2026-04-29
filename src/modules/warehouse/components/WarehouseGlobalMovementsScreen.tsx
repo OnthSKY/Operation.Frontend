@@ -47,16 +47,20 @@ type ShipmentGroupSummary = {
 
 function shipmentOutboundBranchSummary(rows: WarehouseGlobalMovementRow[]): string | null {
   const names = Array.from(
-    new Set(
-      rows
-        .filter((r) => r.type === "OUT")
-        .map((r) => (r.outDestinationBranchName ?? "").trim())
-        .filter((name) => name.length > 0)
-    )
+    rows
+      .filter((r) => r.type === "OUT" && r.isDepotToBranchShipment)
+      .map((r) => (r.outDestinationBranchName ?? "").trim())
+      .filter((name) => name.length > 0)
+      .reduce((map, name) => {
+        const key = name.replace(/\s+/g, " ").toLocaleLowerCase("tr-TR");
+        if (!map.has(key)) map.set(key, name);
+        return map;
+      }, new Map<string, string>())
+      .values()
   );
   if (names.length === 0) return null;
-  if (names.length === 1) return names[0] ?? null;
-  return `${names[0]} +${names.length - 1}`;
+  // UX kuralı: bir sevkiyat grubunun hedefi tek şubedir; çakışan eski veride ilk hedefi göster.
+  return names[0] ?? null;
 }
 
 function parseShipmentMetadataFromNotes(notes: string | null | undefined): Record<string, string> {

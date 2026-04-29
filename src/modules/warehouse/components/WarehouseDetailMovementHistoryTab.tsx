@@ -88,17 +88,21 @@ function shipmentMainProductTotals(
 }
 
 function shipmentBranchSummary(movements: WarehouseMovementItem[]): string | null {
-  const names = [
-    ...new Set(
-      movements
-        .map((m) => m.outDestinationBranchName?.trim())
-        .filter((s): s is string => Boolean(s && s.length > 0))
-    ),
-  ];
+  const names = Array.from(
+    movements
+      .filter((m) => m.type === "OUT" && m.isDepotToBranchShipment)
+      .map((m) => m.outDestinationBranchName?.trim())
+      .filter((s): s is string => Boolean(s && s.length > 0))
+      .reduce((map, name) => {
+        const key = name.replace(/\s+/g, " ").toLocaleLowerCase("tr-TR");
+        if (!map.has(key)) map.set(key, name);
+        return map;
+      }, new Map<string, string>())
+      .values()
+  );
   if (names.length === 0) return null;
-  const first = names[0];
-  if (names.length === 1) return first ?? null;
-  return `${first ?? ""} +${names.length - 1}`;
+  // UX kuralı: bir sevkiyat grubunun hedefi tek şubedir; çakışan eski veride ilk hedefi göster.
+  return names[0] ?? null;
 }
 
 function compactPeopleList(values: Array<string | null | undefined>): string {
