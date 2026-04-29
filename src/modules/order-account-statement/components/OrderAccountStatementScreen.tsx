@@ -638,6 +638,7 @@ function buildOrderAccountDocumentMetadata(input: {
   shipmentPrimaryMovementId?: number | null;
   shipmentMovementIds?: number[] | null;
 }): string {
+  const MAX_NOTE_LEN = 480;
   const parts = [
     "Sipariş-hesap dökümü PDF",
     `orderKey=${input.orderDocumentKey}`,
@@ -657,7 +658,11 @@ function buildOrderAccountDocumentMetadata(input: {
   }
   if (Array.isArray(input.shipmentMovementIds) && input.shipmentMovementIds.length > 0) {
     const ids = input.shipmentMovementIds.filter((x) => Number.isFinite(x) && x > 0);
-    if (ids.length > 0) parts.push(`shipmentMovementIds=${ids.join(",")}`);
+    if (ids.length > 0) {
+      const preview = ids.slice(0, 12).join(",");
+      const suffix = ids.length > 12 ? `...(+${ids.length - 12})` : "";
+      parts.push(`shipmentMovementIds=${preview}${suffix}`);
+    }
   }
   if (Number.isFinite(input.receivedAdvanceAmount) && (input.receivedAdvanceAmount ?? 0) > 0) {
     parts.push(`receivedAdvance=${input.receivedAdvanceAmount}`);
@@ -674,7 +679,9 @@ function buildOrderAccountDocumentMetadata(input: {
   if (Number.isFinite(input.advanceAmount) && (input.advanceAmount ?? 0) > 0) {
     parts.push(`advanceAmount=${input.advanceAmount}`);
   }
-  return parts.join(" · ");
+  const full = parts.join(" · ");
+  if (full.length <= MAX_NOTE_LEN) return full;
+  return `${full.slice(0, MAX_NOTE_LEN - 3)}...`;
 }
 
 
