@@ -32,7 +32,7 @@ import type {
   PersonnelEmploymentTerm,
   UpdatePersonnelEmploymentTermBody,
 } from "@/types/personnel-account-closure";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 
 function buildUpdateBody(
   term: PersonnelEmploymentTerm,
@@ -93,6 +93,8 @@ export function PersonnelSeasonArrivalsTab({
   branchNameById,
 }: PersonnelSeasonArrivalsTabProps) {
   const { t, locale } = useI18n();
+  const addTermModalTitleId = useId();
+  const editTermModalTitleId = useId();
   const dash = t("personnel.dash");
   const { data: terms = [], isPending, isError, error, refetch } =
     usePersonnelEmploymentTerms(personnelId, active && personnelId > 0);
@@ -470,6 +472,7 @@ export function PersonnelSeasonArrivalsTab({
         <Modal
           open={addModalOpen}
           onClose={() => setAddModalOpen(false)}
+          titleId={addTermModalTitleId}
           title={t("personnel.seasonArrivalsAddSectionTitle")}
           closeButtonLabel={t("common.close")}
           className="w-full max-w-lg"
@@ -524,6 +527,7 @@ export function PersonnelSeasonArrivalsTab({
         <Modal
           open={editingTerm != null}
           onClose={onCancelRowEdit}
+          titleId={editTermModalTitleId}
           title={t("personnel.seasonArrivalsRowEdit")}
           closeButtonLabel={t("common.close")}
           className="w-full max-w-md"
