@@ -73,6 +73,16 @@ export const personnel = {
   costsBranchOutCardTitle: "Şubeden giden",
   costsBranchOutCardDesc:
     "Kasa veya banka avansları ile şube kasasından (REGISTER) ödenen giderler.",
+  costsSourceBreakdownTitle: "Kaynak dağılımı (adet + tutar)",
+  costsSourceBreakdownDesc:
+    "Patron cebi, personel cebi ve şube kasasından çıkan kayıt adedi ile tutar özeti.",
+  costsSourceBucketPatron: "Patron cebi",
+  costsSourceBucketPersonnelPocket: "Personel cebi / personeldeki kasa",
+  costsSourceBucketRegister: "Şube kasası",
+  costsSourceBucketCountLabel: "Kayıt adedi",
+  costsTopReceiver: "En çok alan kişi",
+  costsTopLineReceiver: "En çok kalemde alan kişi",
+  costsLowestReceiver: "En az alan kişi",
   costsFiltersFootnote:
     "Sezon yılı boşsa tüm yıllar; doluysa avanslarda kayıttaki sezon yılı, giderlerde işlem tarihi yılı uygulanır. Şube ve personel her ikisine uygulanır.",
   settlementPrintOpen: "Yazdır / PDF olarak kaydet",
@@ -803,6 +813,10 @@ export const personnel = {
   detailPocketActionClaimToStaffTooltip:
     "Üzerinize yazılı tutarı başka personele kayıtta devret; alıcıyı işlem formunda seçin.",
   detailCostsColDetail: "Detay",
+  detailCostsViewDetailAction: "Detay",
+  detailCostsDescriptionLabel: "Açıklama",
+  detailCostsDetailModalTitle: "Maliyet kalemi detayı",
+  detailCostsAllFieldsLabel: "Girilen tüm veriler",
   detailCostsMoneySourceLabel: "Para çıkış kaynağı",
   detailCostsCombinedEmpty:
     "Gösterilecek avans veya gider yok. Sezon yılı veya filtre simgesinden liste filtrelerini (şube, kaynak) değiştirin.",

@@ -73,6 +73,16 @@ export const personnel = {
   costsBranchOutCardTitle: "From branch",
   costsBranchOutCardDesc:
     "Cash or bank advances plus branch-register (REGISTER) paid expenses.",
+  costsSourceBreakdownTitle: "Source breakdown (count + amount)",
+  costsSourceBreakdownDesc:
+    "Record count and amount totals for owner pocket, personnel pocket, and branch register.",
+  costsSourceBucketPatron: "Owner pocket",
+  costsSourceBucketPersonnelPocket: "Personnel pocket / held register cash",
+  costsSourceBucketRegister: "Branch register",
+  costsSourceBucketCountLabel: "Record count",
+  costsTopReceiver: "Top receiver",
+  costsTopLineReceiver: "Most line items",
+  costsLowestReceiver: "Lowest receiver",
   costsFiltersFootnote:
     "Leave season year empty for all years. When set, advances use the stored season year and expenses use the transaction date year. Branch and person apply to both.",
   settlementPrintOpen: "Print / save as PDF",
@@ -793,6 +803,10 @@ export const personnel = {
   detailPocketActionClaimToStaffTooltip:
     "Reassign the register-owed amount to another staff member on the books; pick the recipient in the form.",
   detailCostsColDetail: "Details",
+  detailCostsViewDetailAction: "Details",
+  detailCostsDescriptionLabel: "Description",
+  detailCostsDetailModalTitle: "Cost item details",
+  detailCostsAllFieldsLabel: "All entered fields",
   detailCostsMoneySourceLabel: "Money out source",
   detailCostsCombinedEmpty:
     "No advances or expenses to show. Adjust season year or list filters (branch, source) via the filter icon.",

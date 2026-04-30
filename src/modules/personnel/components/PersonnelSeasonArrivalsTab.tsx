@@ -16,6 +16,7 @@ import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
+import { Modal } from "@/shared/ui/Modal";
 import { PencilIcon } from "@/shared/ui/EyeIcon";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import {
@@ -105,20 +106,11 @@ export function PersonnelSeasonArrivalsTab({
     [terms]
   );
   const hasPredecessor = terms.some((r) => !r.isOpen);
-
-  const [arrivalDraft, setArrivalDraft] = useState("");
-  useEffect(() => {
-    if (openTerm) setArrivalDraft(openTerm.arrivalDate.slice(0, 10));
-  }, [openTerm?.id, openTerm?.arrivalDate]);
-
+  const [addModalOpen, setAddModalOpen] = useState(false);
   const [newValidFrom, setNewValidFrom] = useState("");
   const [newArrivalDate, setNewArrivalDate] = useState(() => localIsoDate());
-  const [editingTermId, setEditingTermId] = useState<number | null>(null);
+  const [editingTerm, setEditingTerm] = useState<PersonnelEmploymentTerm | null>(null);
   const [editingArrivalDraft, setEditingArrivalDraft] = useState("");
-
-  const arrivalDirty =
-    openTerm != null &&
-    arrivalDraft.trim() !== openTerm.arrivalDate.slice(0, 10);
 
   const sortedTerms = useMemo(() => {
     return [...terms].sort((a, b) => {
@@ -128,24 +120,6 @@ export function PersonnelSeasonArrivalsTab({
       return b.id - a.id;
     });
   }, [terms]);
-
-  const onSaveOpenArrival = async () => {
-    if (readOnly || !openTerm) return;
-    const ad = arrivalDraft.trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(ad)) {
-      notify.error(t("personnel.seasonArrivalsInvalidDate"));
-      return;
-    }
-    try {
-      await updateMut.mutateAsync({
-        termId: openTerm.id,
-        body: buildUpdateBody(openTerm, ad),
-      });
-      notify.success(t("personnel.seasonArrivalsSaveSuccess"));
-    } catch (e) {
-      notify.error(toErrorMessage(e));
-    }
-  };
 
   const onClearOpenArrival = async () => {
     if (readOnly || !openTerm) return;
@@ -173,6 +147,7 @@ export function PersonnelSeasonArrivalsTab({
       notify.success(t("personnel.seasonArrivalsAddSuccess"));
       setNewValidFrom("");
       setNewArrivalDate(localIsoDate());
+      setAddModalOpen(false);
     } catch (e) {
       notify.error(toErrorMessage(e));
     }
@@ -199,17 +174,18 @@ export function PersonnelSeasonArrivalsTab({
 
   const onStartRowEdit = (row: PersonnelEmploymentTerm) => {
     if (readOnly) return;
-    setEditingTermId(row.id);
+    setEditingTerm(row);
     setEditingArrivalDraft(row.arrivalDate.slice(0, 10));
   };
 
   const onCancelRowEdit = () => {
-    setEditingTermId(null);
+    setEditingTerm(null);
     setEditingArrivalDraft("");
   };
 
-  const onSaveRowEdit = async (row: PersonnelEmploymentTerm) => {
+  const onSaveRowEdit = async () => {
     if (readOnly) return;
+    if (!editingTerm) return;
     const ad = editingArrivalDraft.trim().slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(ad)) {
       notify.error(t("personnel.seasonArrivalsInvalidDate"));
@@ -217,8 +193,8 @@ export function PersonnelSeasonArrivalsTab({
     }
     try {
       await updateMut.mutateAsync({
-        termId: row.id,
-        body: buildUpdateBody(row, ad),
+        termId: editingTerm.id,
+        body: buildUpdateBody(editingTerm, ad),
       });
       notify.success(t("personnel.seasonArrivalsSaveSuccess"));
       onCancelRowEdit();
@@ -239,7 +215,7 @@ export function PersonnelSeasonArrivalsTab({
         try {
           await deleteMut.mutateAsync(row.id);
           notify.success(t("personnel.seasonArrivalsDeleteSuccess"));
-          if (editingTermId === row.id) onCancelRowEdit();
+          if (editingTerm?.id === row.id) onCancelRowEdit();
         } catch (e) {
           notify.error(toErrorMessage(e));
         }
@@ -271,6 +247,106 @@ export function PersonnelSeasonArrivalsTab({
 
         {!isPending && !isError ? (
           <div className="mt-4 min-w-0">
+            {!readOnly && openTerm ? (
+              <div className="mb-3 flex justify-end">
+                <Button
+                  type="button"
+                  className="min-h-[44px] min-w-[44px]"
+                  onClick={() => {
+                    setNewValidFrom("");
+                    setNewArrivalDate(localIsoDate());
+                    setAddModalOpen(true);
+                  }}
+                >
+                  {t("personnel.seasonArrivalsAddSectionTitle")}
+                </Button>
+              </div>
+            ) : null}
+
+            <ul className="space-y-2 sm:hidden">
+              {sortedTerms.map((row) => {
+                const isOpen = row.isOpen;
+                return (
+                  <li key={row.id} className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-zinc-900">
+                        {t("personnel.seasonArrivalsColArrival")}: {formatIso(row.arrivalDate, locale, dash)}
+                      </p>
+                      <span
+                        className={
+                          isOpen
+                            ? "inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-900"
+                            : "inline-flex rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-700"
+                        }
+                      >
+                        {isOpen
+                          ? t("personnel.seasonArrivalsStatusOpen")
+                          : t("personnel.seasonArrivalsStatusClosed")}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-zinc-600">
+                      {t("personnel.seasonArrivalsColValidFrom")}: {formatIso(row.validFrom, locale, dash)}
+                    </p>
+                    <p className="mt-0.5 text-xs text-zinc-600">
+                      {t("personnel.seasonArrivalsColValidTo")}:{" "}
+                      {row.validTo
+                        ? formatIso(row.validTo, locale, dash)
+                        : t("personnel.seasonArrivalsOpenEnded")}
+                    </p>
+                    {!readOnly ? (
+                      <div className="mt-2 flex flex-col gap-1.5">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="min-h-[44px] min-w-[44px]"
+                          disabled={updateMut.isPending || deleteMut.isPending || deleteOpenMut.isPending}
+                          onClick={() => onStartRowEdit(row)}
+                        >
+                          {t("personnel.seasonArrivalsRowEdit")}
+                        </Button>
+                        {isOpen ? (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="min-h-[44px] min-w-[44px]"
+                            disabled={updateMut.isPending || row.arrivalDate.slice(0, 10) === row.validFrom.slice(0, 10)}
+                            onClick={() => void onClearOpenArrival()}
+                          >
+                            {t("personnel.seasonArrivalsClearArrival")}
+                          </Button>
+                        ) : null}
+                        <button
+                          type="button"
+                          className={`${trashIconActionButtonClass} w-full justify-center`}
+                          disabled={
+                            isOpen
+                              ? (!hasPredecessor || deleteOpenMut.isPending || deleteMut.isPending)
+                              : (deleteMut.isPending || deleteOpenMut.isPending || updateMut.isPending)
+                          }
+                          title={
+                            isOpen
+                              ? (!hasPredecessor
+                                  ? t("personnel.seasonArrivalsRevertBlockedSingleTerm")
+                                  : t("personnel.seasonArrivalsRevertTooltip"))
+                              : t("personnel.seasonArrivalsDeleteTooltip")
+                          }
+                          aria-label={
+                            isOpen
+                              ? t("personnel.seasonArrivalsRevertTooltip")
+                              : t("personnel.seasonArrivalsDeleteTooltip")
+                          }
+                          onClick={() => (isOpen ? onRevertOpenTerm() : onDeleteRow(row))}
+                        >
+                          <TrashIcon />
+                        </button>
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
+
+            <div className="hidden sm:block">
             <Table>
               <TableHead>
                 <TableRow>
@@ -286,34 +362,15 @@ export function PersonnelSeasonArrivalsTab({
               <TableBody>
                 {sortedTerms.map((row) => {
                   const isOpen = row.isOpen;
-                  const rowEditing = editingTermId === row.id;
                   return (
                     <TableRow key={row.id}>
                       <TableCell
                         dataLabel={t("personnel.seasonArrivalsColArrival")}
                         className="align-middle"
                       >
-                        {isOpen && !readOnly ? (
-                          <DateField
-                            mode="date"
-                            className="w-full max-w-[11rem] max-md:max-w-none"
-                            value={arrivalDraft}
-                            onChange={(e) => setArrivalDraft(e.target.value)}
-                            disabled={updateMut.isPending}
-                          />
-                        ) : rowEditing && !readOnly ? (
-                          <DateField
-                            mode="date"
-                            className="w-full max-w-[11rem] max-md:max-w-none"
-                            value={editingArrivalDraft}
-                            onChange={(e) => setEditingArrivalDraft(e.target.value)}
-                            disabled={updateMut.isPending}
-                          />
-                        ) : (
-                          <span className="font-medium tabular-nums text-zinc-900">
-                            {formatIso(row.arrivalDate, locale, dash)}
-                          </span>
-                        )}
+                        <span className="font-medium tabular-nums text-zinc-900">
+                          {formatIso(row.arrivalDate, locale, dash)}
+                        </span>
                       </TableCell>
                       <TableCell
                         dataLabel={t("personnel.seasonArrivalsColValidFrom")}
@@ -348,32 +405,16 @@ export function PersonnelSeasonArrivalsTab({
                       >
                         {!readOnly ? (
                           <div className="flex flex-wrap justify-end gap-1.5 max-md:w-full max-md:flex-col max-md:items-stretch">
-                            <Button
+                            <button
                               type="button"
-                              variant="secondary"
-                              className="min-h-[44px] min-w-[44px] max-md:w-full"
-                              disabled={
-                                isOpen
-                                  ? (!arrivalDirty || updateMut.isPending)
-                                  : (rowEditing
-                                      ? (editingArrivalDraft.slice(0, 10) === row.arrivalDate.slice(0, 10) ||
-                                        updateMut.isPending)
-                                      : updateMut.isPending || deleteMut.isPending || deleteOpenMut.isPending)
-                              }
-                              onClick={() =>
-                                void (isOpen
-                                  ? onSaveOpenArrival()
-                                  : rowEditing
-                                    ? onSaveRowEdit(row)
-                                    : Promise.resolve(onStartRowEdit(row)))
-                              }
+                              className={`${trashIconActionButtonClass} border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50 max-md:w-full max-md:justify-center`}
+                              disabled={updateMut.isPending || deleteMut.isPending || deleteOpenMut.isPending}
+                              title={t("personnel.seasonArrivalsRowEdit")}
+                              aria-label={t("personnel.seasonArrivalsRowEdit")}
+                              onClick={() => onStartRowEdit(row)}
                             >
-                              {isOpen
-                                ? t("personnel.seasonArrivalsSaveArrival")
-                                : rowEditing
-                                  ? t("common.save")
-                                  : t("personnel.seasonArrivalsRowEdit")}
-                            </Button>
+                              <PencilIcon className="h-4 w-4" />
+                            </button>
                             {isOpen ? (
                               <Button
                                 type="button"
@@ -381,21 +422,11 @@ export function PersonnelSeasonArrivalsTab({
                                 className="min-h-[44px] min-w-[44px] max-md:w-full"
                                 disabled={
                                   updateMut.isPending ||
-                                  arrivalDraft.slice(0, 10) === row.validFrom.slice(0, 10)
+                                  row.arrivalDate.slice(0, 10) === row.validFrom.slice(0, 10)
                                 }
                                 onClick={() => void onClearOpenArrival()}
                               >
                                 {t("personnel.seasonArrivalsClearArrival")}
-                              </Button>
-                            ) : rowEditing ? (
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                className="min-h-[44px] min-w-[44px] max-md:w-full"
-                                disabled={updateMut.isPending}
-                                onClick={onCancelRowEdit}
-                              >
-                                {t("common.cancel")}
                               </Button>
                             ) : null}
                             <button
@@ -422,18 +453,6 @@ export function PersonnelSeasonArrivalsTab({
                             >
                               <TrashIcon />
                             </button>
-                            {!isOpen && !rowEditing ? (
-                              <button
-                                type="button"
-                                className={`${trashIconActionButtonClass} border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-50 max-md:w-full max-md:justify-center`}
-                                disabled={updateMut.isPending || deleteMut.isPending || deleteOpenMut.isPending}
-                                title={t("personnel.seasonArrivalsRowEdit")}
-                                aria-label={t("personnel.seasonArrivalsRowEdit")}
-                                onClick={() => onStartRowEdit(row)}
-                              >
-                                <PencilIcon className="h-4 w-4" />
-                              </button>
-                            ) : null}
                           </div>
                         ) : null}
                       </TableCell>
@@ -442,62 +461,105 @@ export function PersonnelSeasonArrivalsTab({
                 })}
               </TableBody>
             </Table>
+            </div>
           </div>
         ) : null}
       </article>
 
       {!readOnly && openTerm ? (
-        <article className="rounded-2xl border border-sky-200/80 bg-sky-50/30 p-4 shadow-sm sm:p-5">
-          <h4 className="text-sm font-semibold text-zinc-900">
-            {t("personnel.seasonArrivalsAddSectionTitle")}
-          </h4>
-          <p className="mt-1 text-xs leading-relaxed text-zinc-600">
-            {t("personnel.seasonArrivalsAddHint").replace(
-              "{date}",
-              formatIso(openTerm.validFrom, locale, dash)
-            )}
-          </p>
-          <div className="mt-4 flex flex-wrap items-end gap-3 max-md:gap-2">
-            <div className="min-w-[10rem] flex-1">
-              <label className="mb-1 block text-xs font-medium text-zinc-600">
-                {t("personnel.seasonArrivalsNewValidFrom")}
-              </label>
-              <DateField
-                mode="date"
-                value={newValidFrom}
-                onChange={(e) => setNewValidFrom(e.target.value)}
-                disabled={createMut.isPending}
-              />
+        <Modal
+          open={addModalOpen}
+          onClose={() => setAddModalOpen(false)}
+          title={t("personnel.seasonArrivalsAddSectionTitle")}
+          closeButtonLabel={t("common.close")}
+          className="w-full max-w-lg"
+        >
+          <div className="space-y-3">
+            <p className="text-xs leading-relaxed text-zinc-600">
+              {t("personnel.seasonArrivalsAddHint").replace(
+                "{date}",
+                formatIso(openTerm.validFrom, locale, dash)
+              )}
+            </p>
+            <DateField
+              mode="date"
+              label={t("personnel.seasonArrivalsNewValidFrom")}
+              value={newValidFrom}
+              onChange={(e) => setNewValidFrom(e.target.value)}
+              disabled={createMut.isPending}
+            />
+            <DateField
+              mode="date"
+              label={t("personnel.seasonArrivalsNewArrival")}
+              value={newArrivalDate}
+              onChange={(e) => setNewArrivalDate(e.target.value)}
+              disabled={createMut.isPending}
+            />
+            <p className="text-[0.7rem] text-zinc-500">
+              {openTerm.branchId != null && openTerm.branchId > 0
+                ? t("personnel.seasonArrivalsSalaryCarryNoteWithBranch").replace(
+                    "{branch}",
+                    branchNameById.get(openTerm.branchId) ?? `#${openTerm.branchId}`
+                  )
+                : t("personnel.seasonArrivalsSalaryCarryNote")}
+            </p>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button type="button" variant="secondary" className="min-h-[44px] min-w-[44px]" onClick={() => setAddModalOpen(false)}>
+                {t("common.cancel")}
+              </Button>
+              <Button
+                type="button"
+                className="min-h-[44px] min-w-[44px]"
+                disabled={createMut.isPending || newValidFrom.trim() === ""}
+                onClick={() => void onAddTerm()}
+              >
+                {t("personnel.seasonArrivalsAddSubmit")}
+              </Button>
             </div>
-            <div className="min-w-[10rem] flex-1">
-              <label className="mb-1 block text-xs font-medium text-zinc-600">
-                {t("personnel.seasonArrivalsNewArrival")}
-              </label>
-              <DateField
-                mode="date"
-                value={newArrivalDate}
-                onChange={(e) => setNewArrivalDate(e.target.value)}
-                disabled={createMut.isPending}
-              />
-            </div>
-            <Button
-              type="button"
-              className="min-h-[44px] min-w-[44px] max-md:w-full"
-              disabled={createMut.isPending || newValidFrom.trim() === ""}
-              onClick={() => void onAddTerm()}
-            >
-              {t("personnel.seasonArrivalsAddSubmit")}
-            </Button>
           </div>
-          <p className="mt-2 text-[0.7rem] text-zinc-500">
-            {openTerm.branchId != null && openTerm.branchId > 0
-              ? t("personnel.seasonArrivalsSalaryCarryNoteWithBranch").replace(
-                  "{branch}",
-                  branchNameById.get(openTerm.branchId) ?? `#${openTerm.branchId}`
-                )
-              : t("personnel.seasonArrivalsSalaryCarryNote")}
-          </p>
-        </article>
+        </Modal>
+      ) : null}
+
+      {!readOnly && editingTerm ? (
+        <Modal
+          open={editingTerm != null}
+          onClose={onCancelRowEdit}
+          title={t("personnel.seasonArrivalsRowEdit")}
+          closeButtonLabel={t("common.close")}
+          className="w-full max-w-md"
+        >
+          <div className="space-y-3">
+            <DateField
+              mode="date"
+              label={t("personnel.seasonArrivalsColArrival")}
+              value={editingArrivalDraft}
+              onChange={(e) => setEditingArrivalDraft(e.target.value)}
+              disabled={updateMut.isPending}
+            />
+            <p className="text-xs text-zinc-600">
+              {t("personnel.seasonArrivalsColValidFrom")}: {formatIso(editingTerm.validFrom, locale, dash)}
+            </p>
+            <p className="text-xs text-zinc-600">
+              {t("personnel.seasonArrivalsColValidTo")}:{" "}
+              {editingTerm.validTo
+                ? formatIso(editingTerm.validTo, locale, dash)
+                : t("personnel.seasonArrivalsOpenEnded")}
+            </p>
+            <div className="flex justify-end gap-2 pt-1">
+              <Button type="button" variant="secondary" className="min-h-[44px] min-w-[44px]" disabled={updateMut.isPending} onClick={onCancelRowEdit}>
+                {t("common.cancel")}
+              </Button>
+              <Button
+                type="button"
+                className="min-h-[44px] min-w-[44px]"
+                disabled={updateMut.isPending || editingArrivalDraft.slice(0, 10) === editingTerm.arrivalDate.slice(0, 10)}
+                onClick={() => void onSaveRowEdit()}
+              >
+                {t("common.save")}
+              </Button>
+            </div>
+          </div>
+        </Modal>
       ) : null}
     </div>
   );

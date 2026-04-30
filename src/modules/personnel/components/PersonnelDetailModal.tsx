@@ -138,6 +138,9 @@ export type PersonnelDetailTabId =
   | "roles";
 
 type TabId = PersonnelDetailTabId;
+type CombinedCostsRow =
+  | { kind: "advance"; advance: Advance }
+  | { kind: "expense"; tx: BranchTransaction };
 
 function formatOptionalIso(
   iso: string | null | undefined,
@@ -514,8 +517,12 @@ export function PersonnelDetailModal({
   const [costsListSeasonDraft, setCostsListSeasonDraft] = useState("");
   const costsPdfModalTitleId = useId();
   const costsListSeasonModalTitleId = useId();
+  const costsDetailModalTitleId = useId();
   const [costsFiltersDrawerOpen, setCostsFiltersDrawerOpen] = useState(false);
   const [costsActionsDrawerOpen, setCostsActionsDrawerOpen] = useState(false);
+  const [costsDetailRow, setCostsDetailRow] = useState<CombinedCostsRow | null>(
+    null,
+  );
   const [accountClosureOpen, setAccountClosureOpen] = useState(false);
   /** true: «Kesilen hesaplar»dan açıldı — doğrudan yıl özeti (2. adım). */
   const [accountClosureYearSummary, setAccountClosureYearSummary] =
@@ -743,6 +750,7 @@ export function PersonnelDetailModal({
     setCostsListSeasonModalOpen(false);
     setCostsFiltersDrawerOpen(false);
     setCostsActionsDrawerOpen(false);
+    setCostsDetailRow(null);
   }, [open, personnel?.id, initialTab]);
 
   const seasonScopeSelectOptions = useMemo(
@@ -800,7 +808,7 @@ export function PersonnelDetailModal({
     return rows;
   }, [advancesRaw, costsListSeason, branchFilter, sourceFilter]);
 
-  const combinedCostsRows = useMemo(() => {
+  const combinedCostsRows = useMemo<CombinedCostsRow[]>(() => {
     const advPart = filteredAdvances.map((advance) => ({
       kind: "advance" as const,
       advance,
@@ -809,13 +817,11 @@ export function PersonnelDetailModal({
       kind: "expense" as const,
       tx,
     }));
-    const sortKey = (
-      r: (typeof advPart)[number] | (typeof expPart)[number],
-    ) =>
+    const sortKey = (r: CombinedCostsRow) =>
       r.kind === "advance"
         ? r.advance.advanceDate.slice(0, 10)
         : String(r.tx.transactionDate ?? "").slice(0, 10);
-    const rowId = (r: (typeof advPart)[number] | (typeof expPart)[number]) =>
+    const rowId = (r: CombinedCostsRow) =>
       r.kind === "advance" ? r.advance.id : r.tx.id;
     return [...advPart, ...expPart].sort((a, b) => {
       const ka = sortKey(a);
@@ -856,6 +862,14 @@ export function PersonnelDetailModal({
   );
   const costsCombinedTotal = costsAdvanceTotal + costsExpenseTotal;
   const costsSummaryCurrency = (personnel?.currencyCode ?? "TRY").trim() || "TRY";
+  const costsDetailPayload = useMemo(() => {
+    if (costsDetailRow == null) return "";
+    const payload =
+      costsDetailRow.kind === "advance"
+        ? { itemType: "advance", ...costsDetailRow.advance }
+        : { itemType: "expense", ...costsDetailRow.tx };
+    return JSON.stringify(payload, null, 2);
+  }, [costsDetailRow]);
 
   const warehouseAssignOptions = useMemo(
     () => [
@@ -2090,6 +2104,15 @@ export function PersonnelDetailModal({
                                         `#${row.advance.branchId}`)
                                       : dash}
                                   </p>
+                                  <div className="mt-2 flex justify-end">
+                                    <button
+                                      type="button"
+                                      className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+                                      onClick={() => setCostsDetailRow(row)}
+                                    >
+                                      {t("personnel.detailCostsViewDetailAction")}
+                                    </button>
+                                  </div>
                                   {!personnel.isDeleted ? (
                                     <div className="mt-2 flex justify-end border-t border-zinc-100 pt-2">
                                       <button
@@ -2140,23 +2163,49 @@ export function PersonnelDetailModal({
                                       {row.tx.currencyCode}
                                     </span>
                                   </p>
-                                  <p className="mt-1 text-sm text-zinc-800">
-                                    {txCategoryLine(
-                                      row.tx.mainCategory,
-                                      row.tx.category,
-                                      t,
-                                    )}
-                                  </p>
-                                  <p className="mt-1 text-xs text-zinc-600">
-                                    {t("personnel.detailCostsMoneySourceLabel")}:{" "}
-                                    {expenseSourceLabel(t, row.tx.expensePaymentSource, dash)}
-                                  </p>
+                                  <div className="mt-2 space-y-1.5 rounded-lg border border-zinc-200 bg-zinc-50 p-2">
+                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                                      {t("personnel.detailExpenseColCategory")}
+                                    </p>
+                                    <p className="text-sm text-zinc-800">
+                                      {txCategoryLine(
+                                        row.tx.mainCategory,
+                                        row.tx.category,
+                                        t,
+                                      )}
+                                    </p>
+                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                                      {t("personnel.detailCostsMoneySourceLabel")}
+                                    </p>
+                                    <p className="text-xs text-zinc-700">
+                                      {expenseSourceLabel(
+                                        t,
+                                        row.tx.expensePaymentSource,
+                                        dash,
+                                      )}
+                                    </p>
+                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                                      {t("personnel.detailCostsDescriptionLabel")}
+                                    </p>
+                                    <p className="text-xs text-zinc-700">
+                                      {row.tx.description?.trim() || dash}
+                                    </p>
+                                  </div>
                                   <p className="mt-1 text-xs text-zinc-500">
                                     {row.tx.branchId != null && row.tx.branchId > 0
                                       ? (branchNameById.get(row.tx.branchId) ??
                                         `#${row.tx.branchId}`)
                                       : t("personnel.detailExpenseBranchNone")}
                                   </p>
+                                  <div className="mt-2 flex justify-end">
+                                    <button
+                                      type="button"
+                                      className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+                                      onClick={() => setCostsDetailRow(row)}
+                                    >
+                                      {t("personnel.detailCostsViewDetailAction")}
+                                    </button>
+                                  </div>
                                   {!personnel.isDeleted ? (
                                     <div className="mt-2 flex justify-end border-t border-zinc-100 pt-2">
                                       <button
@@ -2243,6 +2292,13 @@ export function PersonnelDetailModal({
                                             {row.advance.description.trim()}
                                           </span>
                                         ) : null}
+                                        <button
+                                          type="button"
+                                          className="mt-1 inline-flex rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+                                          onClick={() => setCostsDetailRow(row)}
+                                        >
+                                          {t("personnel.detailCostsViewDetailAction")}
+                                        </button>
                                       </TableCell>
                                       <TableCell>
                                         {row.advance.branchId != null &&
@@ -2301,22 +2357,42 @@ export function PersonnelDetailModal({
                                           locale,
                                         )}
                                       </TableCell>
-                                      <TableCell className="max-w-[18rem] text-sm">
-                                        <span className="text-zinc-700">
-                                          {txCategoryLine(
-                                            row.tx.mainCategory,
-                                            row.tx.category,
-                                            t,
-                                          )}
-                                        </span>
-                                        <span className="mt-0.5 block text-xs text-zinc-500">
-                                          {t("personnel.detailCostsMoneySourceLabel")}:{" "}
-                                          {expenseSourceLabel(
-                                            t,
-                                            row.tx.expensePaymentSource,
-                                            dash,
-                                          )}
-                                        </span>
+                                      <TableCell className="max-w-[20rem] text-sm">
+                                        <div className="space-y-1">
+                                          <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                                            {t("personnel.detailExpenseColCategory")}
+                                          </p>
+                                          <p className="text-zinc-700">
+                                            {txCategoryLine(
+                                              row.tx.mainCategory,
+                                              row.tx.category,
+                                              t,
+                                            )}
+                                          </p>
+                                          <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                                            {t("personnel.detailCostsMoneySourceLabel")}
+                                          </p>
+                                          <p className="text-xs text-zinc-600">
+                                            {expenseSourceLabel(
+                                              t,
+                                              row.tx.expensePaymentSource,
+                                              dash,
+                                            )}
+                                          </p>
+                                          <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                                            {t("personnel.detailCostsDescriptionLabel")}
+                                          </p>
+                                          <p className="text-xs text-zinc-600">
+                                            {row.tx.description?.trim() || dash}
+                                          </p>
+                                        </div>
+                                        <button
+                                          type="button"
+                                          className="mt-1 inline-flex rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+                                          onClick={() => setCostsDetailRow(row)}
+                                        >
+                                          {t("personnel.detailCostsViewDetailAction")}
+                                        </button>
                                       </TableCell>
                                       <TableCell className="text-zinc-600">
                                         {row.tx.branchId != null &&
@@ -3260,6 +3336,37 @@ export function PersonnelDetailModal({
             >
               {t("personnel.detailCostsListSeasonApply")}
             </Button>
+          </div>
+        </div>
+      </Modal>
+      <Modal
+        nested
+        open={costsDetailRow != null}
+        onClose={() => setCostsDetailRow(null)}
+        titleId={costsDetailModalTitleId}
+        title={t("personnel.detailCostsDetailModalTitle")}
+        closeButtonLabel={t("common.close")}
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700">
+            <p className="font-semibold text-zinc-900">
+              {costsDetailRow?.kind === "advance"
+                ? t("personnel.detailExpenseBadgeAdvance")
+                : t("personnel.detailExpenseBadgeExpense")}
+            </p>
+            <p className="mt-1 break-words">
+              {costsDetailRow?.kind === "advance"
+                ? `${t("personnel.advanceDate")}: ${formatAdvanceDay(costsDetailRow.advance.advanceDate, locale, dash)}`
+                : `${t("personnel.detailExpenseColDate")}: ${formatLocaleDate(costsDetailRow?.tx.transactionDate ?? "", locale, dash)}`}
+            </p>
+          </div>
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-zinc-900">
+              {t("personnel.detailCostsAllFieldsLabel")}
+            </p>
+            <pre className="max-h-[24rem] overflow-auto rounded-lg border border-zinc-200 bg-zinc-950 p-3 text-xs leading-relaxed text-zinc-100">
+              {costsDetailPayload}
+            </pre>
           </div>
         </div>
       </Modal>

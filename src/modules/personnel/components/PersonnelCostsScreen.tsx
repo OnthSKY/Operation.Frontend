@@ -108,6 +108,17 @@ function splitPaymentSourceTotalsBody(
 }
 
 type PatronBranchBucket = { key: string; label: string; totals: Map<string, number> };
+type SourceBucketKey = "PATRON" | "PERSONNEL_POCKET" | "REGISTER";
+type SourceBucketSummary = {
+  key: SourceBucketKey;
+  count: number;
+  totals: Map<string, number>;
+};
+type PersonnelAmountStat = {
+  name: string;
+  totalTry: number;
+  lineCount: number;
+};
 
 function bumpCurrencyMap(
   m: Map<string, number>,
@@ -200,6 +211,23 @@ function patronByBranchTotalsBody(
       ))}
     </div>
   );
+}
+
+function normalizeAdvancePaymentSource(code: string | null | undefined): SourceBucketKey | null {
+  const u = String(code ?? "").trim().toUpperCase();
+  if (u === "PATRON") return "PATRON";
+  if (u === "PERSONNEL_POCKET") return "PERSONNEL_POCKET";
+  if (u === "CASH" || u === "BANK" || u === "") return "REGISTER";
+  return null;
+}
+
+function normalizeExpensePaymentSource(code: string | null | undefined): SourceBucketKey | null {
+  const u = String(code ?? "").trim().toUpperCase();
+  if (u === "PATRON") return "PATRON";
+  if (u === "PERSONNEL_POCKET" || u === "PERSONNEL_HELD_REGISTER_CASH")
+    return "PERSONNEL_POCKET";
+  if (u === "REGISTER") return "REGISTER";
+  return null;
 }
 
 function CostsIconAdvance({ className }: { className?: string }) {
@@ -442,22 +470,44 @@ export function PersonnelCostsScreen() {
 
   const paymentSourceSplit = useMemo(() => {
     const branch = new Map<string, number>();
-    const bump = (m: Map<string, number>, ccy: string | null | undefined, amt: unknown) => {
-      const c = String(ccy ?? "TRY").trim().toUpperCase() || "TRY";
-      const n = Number(amt);
-      if (!Number.isFinite(n)) return;
-      m.set(c, (m.get(c) ?? 0) + n);
+    const sourceBuckets: Record<SourceBucketKey, SourceBucketSummary> = {
+      PATRON: { key: "PATRON", count: 0, totals: new Map<string, number>() },
+      PERSONNEL_POCKET: {
+        key: "PERSONNEL_POCKET",
+        count: 0,
+        totals: new Map<string, number>(),
+      },
+      REGISTER: { key: "REGISTER", count: 0, totals: new Map<string, number>() },
     };
+
+    const addBucket = (
+      bucket: SourceBucketKey | null,
+      ccy: string | null | undefined,
+      amt: unknown
+    ) => {
+      if (!bucket) return;
+      sourceBuckets[bucket].count += 1;
+      bumpCurrencyMap(sourceBuckets[bucket].totals, ccy, amt);
+    };
+
     for (const a of advancesData) {
-      const st = String(a.sourceType ?? "").trim().toUpperCase();
-      if (st === "CASH" || st === "" || st === "BANK")
-        bump(branch, a.currencyCode, a.amount);
+      const bucket = normalizeAdvancePaymentSource(a.sourceType);
+      addBucket(bucket, a.currencyCode, a.amount);
+      if (bucket === "REGISTER") bumpCurrencyMap(branch, a.currencyCode, a.amount);
     }
     for (const r of expensesScopedOnly) {
-      const src = String(r.expensePaymentSource ?? "").trim().toUpperCase();
-      if (src === "REGISTER") bump(branch, r.currencyCode, r.amount);
+      const bucket = normalizeExpensePaymentSource(r.expensePaymentSource);
+      addBucket(bucket, r.currencyCode, r.amount);
+      if (bucket === "REGISTER") bumpCurrencyMap(branch, r.currencyCode, r.amount);
     }
-    return { branch };
+    return {
+      branch,
+      sourceBuckets: [
+        sourceBuckets.PATRON,
+        sourceBuckets.PERSONNEL_POCKET,
+        sourceBuckets.REGISTER,
+      ],
+    };
   }, [advancesData, expensesScopedOnly]);
 
   const paymentFromNorm = paymentFromValue.trim().toUpperCase();
@@ -601,6 +651,51 @@ export function PersonnelCostsScreen() {
     return displayRows.filter((r) => r.kind === k);
   }, [displayRows, costsRowKindFilter]);
 
+  const personnelAmountStats = useMemo(() => {
+    const dash = t("personnel.dash");
+    const stats = new Map<string, PersonnelAmountStat>();
+    const touch = (rawName: string | null | undefined, amount: number, ccy: string) => {
+      const name = rawName?.trim() || dash;
+      const item = stats.get(name) ?? { name, totalTry: 0, lineCount: 0 };
+      item.lineCount += 1;
+      if (String(ccy ?? "TRY").trim().toUpperCase() === "TRY") item.totalTry += amount;
+      stats.set(name, item);
+    };
+
+    for (const row of displayRowsFiltered) {
+      if (row.kind === "advance") {
+        touch(
+          row.advance.personnelFullName,
+          Number(row.advance.amount),
+          row.advance.currencyCode
+        );
+        continue;
+      }
+      touch(
+        row.expense.linkedPersonnelFullName ??
+          row.expense.expensePocketPersonnelFullName ??
+          row.expense.linkedAdvancePersonnelFullName,
+        Number(row.expense.amount),
+        row.expense.currencyCode
+      );
+    }
+
+    const arr = [...stats.values()];
+    const byAmountDesc = arr
+      .slice()
+      .sort((a, b) => b.totalTry - a.totalTry || b.lineCount - a.lineCount);
+    const byAmountAsc = arr
+      .slice()
+      .sort((a, b) => a.totalTry - b.totalTry || a.lineCount - b.lineCount);
+    const byLineDesc = arr.slice().sort((a, b) => b.lineCount - a.lineCount || b.totalTry - a.totalTry);
+
+    return {
+      topByAmount: byAmountDesc[0] ?? null,
+      topByLines: byLineDesc[0] ?? null,
+      lowByAmount: byAmountAsc[0] ?? null,
+    };
+  }, [displayRowsFiltered, t]);
+
   const costColumns = useMemo(
     () => createPersonnelCostColumns(t, locale, branchNameById),
     [t, locale, branchNameById]
@@ -706,6 +801,42 @@ export function PersonnelCostsScreen() {
                 )}
               </Card>
             </div>
+            <Card
+              title={t("personnel.costsSourceBreakdownTitle")}
+              description={t("personnel.costsSourceBreakdownDesc")}
+            >
+              {advancesPending || expensesQuery.isPending ? (
+                <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+              ) : (
+                <div className="space-y-3">
+                  {paymentSourceSplit.sourceBuckets.map((bucket) => (
+                    <div
+                      key={bucket.key}
+                      className="rounded-lg border border-zinc-100 bg-zinc-50/60 p-3"
+                    >
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                          {bucket.key === "PATRON"
+                            ? t("personnel.costsSourceBucketPatron")
+                            : bucket.key === "PERSONNEL_POCKET"
+                              ? t("personnel.costsSourceBucketPersonnelPocket")
+                              : t("personnel.costsSourceBucketRegister")}
+                        </p>
+                        <p className="text-xs font-medium text-zinc-500">
+                          {t("personnel.costsSourceBucketCountLabel")}: {bucket.count}
+                        </p>
+                      </div>
+                      {splitPaymentSourceTotalsBody(
+                        bucket.totals,
+                        t("personnel.dash"),
+                        locale,
+                        t("personnel.costsSummaryEmpty")
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
           </div>
           <Card className="mt-4" title={t("personnel.costsSummaryTitle")}>
             {advancesPending || expensesQuery.isPending ? (
@@ -754,6 +885,32 @@ export function PersonnelCostsScreen() {
                 {sortedCurrencyKeys(advSums, expSums).length === 0 && (
                   <p className="text-zinc-600">{t("personnel.costsSummaryEmpty")}</p>
                 )}
+                <div className="grid gap-2 rounded-lg border border-violet-100 bg-violet-50/40 p-3 sm:grid-cols-3">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
+                      {t("personnel.costsTopReceiver")}
+                    </p>
+                    <p className="mt-0.5 text-sm font-semibold text-violet-950">
+                      {personnelAmountStats.topByAmount?.name ?? t("personnel.dash")}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
+                      {t("personnel.costsTopLineReceiver")}
+                    </p>
+                    <p className="mt-0.5 text-sm font-semibold text-violet-950">
+                      {personnelAmountStats.topByLines?.name ?? t("personnel.dash")}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
+                      {t("personnel.costsLowestReceiver")}
+                    </p>
+                    <p className="mt-0.5 text-sm font-semibold text-violet-950">
+                      {personnelAmountStats.lowByAmount?.name ?? t("personnel.dash")}
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
           </Card>
