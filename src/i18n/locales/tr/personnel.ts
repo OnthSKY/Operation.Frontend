@@ -803,6 +803,7 @@ export const personnel = {
   detailPocketActionClaimToStaffTooltip:
     "Üzerinize yazılı tutarı başka personele kayıtta devret; alıcıyı işlem formunda seçin.",
   detailCostsColDetail: "Detay",
+  detailCostsMoneySourceLabel: "Para çıkış kaynağı",
   detailCostsCombinedEmpty:
     "Gösterilecek avans veya gider yok. Sezon yılı veya filtre simgesinden liste filtrelerini (şube, kaynak) değiştirin.",
   detailTabYearClosures: "Kesilen hesaplar",

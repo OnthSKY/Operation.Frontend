@@ -13,7 +13,10 @@ import {
   fetchBranchPersonnelMoneySummaries,
 } from "@/modules/branch/api/branches-api";
 import { fetchPersonnelAttributedExpenses } from "@/modules/branch/api/branch-transactions-api";
-import { txCategoryLine } from "@/modules/branch/lib/branch-transaction-options";
+import {
+  expensePaymentSourceLabelShort,
+  txCategoryLine,
+} from "@/modules/branch/lib/branch-transaction-options";
 import { UI_POCKET_CLAIM_TRANSFER_ENABLED } from "@/modules/branch/lib/product-ui-flags";
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
 import { AddPersonnelInsurancePeriodModal } from "@/modules/personnel/components/AddPersonnelInsurancePeriodModal";
@@ -285,6 +288,11 @@ function sourceAbbrev(t: (k: string) => string, st: string): string {
   if (u === "PERSONNEL_POCKET")
     return t("personnel.advanceSourceAbbrPersonnelPocket");
   return t("personnel.advanceSourceAbbrCash");
+}
+
+function expenseSourceLabel(t: (k: string) => string, source: string | null | undefined, dash: string): string {
+  const label = expensePaymentSourceLabelShort(source, t);
+  return label || dash;
 }
 
 function nationalIdFileExt(mime: string): string {
@@ -2139,6 +2147,10 @@ export function PersonnelDetailModal({
                                       t,
                                     )}
                                   </p>
+                                  <p className="mt-1 text-xs text-zinc-600">
+                                    {t("personnel.detailCostsMoneySourceLabel")}:{" "}
+                                    {expenseSourceLabel(t, row.tx.expensePaymentSource, dash)}
+                                  </p>
                                   <p className="mt-1 text-xs text-zinc-500">
                                     {row.tx.branchId != null && row.tx.branchId > 0
                                       ? (branchNameById.get(row.tx.branchId) ??
@@ -2290,11 +2302,21 @@ export function PersonnelDetailModal({
                                         )}
                                       </TableCell>
                                       <TableCell className="max-w-[18rem] text-sm">
-                                        {txCategoryLine(
-                                          row.tx.mainCategory,
-                                          row.tx.category,
-                                          t,
-                                        )}
+                                        <span className="text-zinc-700">
+                                          {txCategoryLine(
+                                            row.tx.mainCategory,
+                                            row.tx.category,
+                                            t,
+                                          )}
+                                        </span>
+                                        <span className="mt-0.5 block text-xs text-zinc-500">
+                                          {t("personnel.detailCostsMoneySourceLabel")}:{" "}
+                                          {expenseSourceLabel(
+                                            t,
+                                            row.tx.expensePaymentSource,
+                                            dash,
+                                          )}
+                                        </span>
                                       </TableCell>
                                       <TableCell className="text-zinc-600">
                                         {row.tx.branchId != null &&

@@ -793,6 +793,7 @@ export const personnel = {
   detailPocketActionClaimToStaffTooltip:
     "Reassign the register-owed amount to another staff member on the books; pick the recipient in the form.",
   detailCostsColDetail: "Details",
+  detailCostsMoneySourceLabel: "Money out source",
   detailCostsCombinedEmpty:
     "No advances or expenses to show. Adjust season year or list filters (branch, source) via the filter icon.",
   detailTabYearClosures: "Closed accounts",

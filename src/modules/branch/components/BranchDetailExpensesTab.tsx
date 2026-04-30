@@ -29,7 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/Table";
-import type { Dispatch, SetStateAction } from "react";
+import { useMemo, type Dispatch, type SetStateAction } from "react";
 import type { UseMutationResult } from "@tanstack/react-query";
 import {
   BranchTxDeleteRow,
@@ -197,6 +197,14 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
     (hasExpDateFilters ? 1 : 0) +
     (hasExpMainFilter ? 1 : 0) +
     (hasExpPayFilter ? 1 : 0);
+  const visibleExpenseItems = useMemo(
+    () =>
+      (expData?.items ?? []).filter((row) => {
+        const src = String(row.expensePaymentSource ?? "").trim().toUpperCase();
+        return src !== "PERSONNEL_HELD_REGISTER_CASH";
+      }),
+    [expData?.items]
+  );
 
   return (
           <div className="flex flex-col gap-4">
@@ -604,12 +612,12 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
             {expErr && <p className="text-sm text-red-600">{toErrorMessage(expError)}</p>}
             {expLoading ? (
               <p className="text-sm text-zinc-500">{t("common.loading")}</p>
-            ) : !expData?.items.length ? (
+            ) : !visibleExpenseItems.length ? (
               <p className="text-sm text-zinc-600">{t("branch.noExpenses")}</p>
             ) : (
               <>
                 <ul className="space-y-2 sm:hidden">
-                  {expData.items.map((row) => {
+                  {visibleExpenseItems.map((row) => {
                     const expenseLinkLine = branchTxLinkedExpenseLine(row, t);
                     const supplierLine = branchTxLinkedSupplierInvoiceLine(row, t);
                     const vehicleLinkLine = branchTxLinkedVehicleLine(row, t);
@@ -724,7 +732,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {expData.items.map((row) => {
+                      {visibleExpenseItems.map((row) => {
                         const expenseLinkLine = branchTxLinkedExpenseLine(row, t);
                         const supplierLine = branchTxLinkedSupplierInvoiceLine(row, t);
                         const vehicleLinkLine = branchTxLinkedVehicleLine(row, t);
