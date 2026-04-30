@@ -1,7 +1,7 @@
 "use client";
 
 import { useI18n } from "@/i18n/context";
-import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
+import { branchKeys, useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { fetchBranchHeldRegisterCashByPerson } from "@/modules/branch/api/branches-api";
 import { useCreateAdvance } from "@/modules/personnel/hooks/usePersonnelQueries";
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
@@ -177,14 +177,19 @@ export function AdvancePersonnelModal({
   const sourceTypeWatch = useWatch({ control, name: "sourceType" });
   const sourcePersonnelIdWatch = useWatch({ control, name: "sourcePersonnelId" });
   const currencyCodeWatch = useWatch({ control, name: "currencyCode" });
+  const advanceDateWatch = useWatch({ control, name: "advanceDate" });
   const selectedPersonnel = personnel.find((x) => String(x.id) === personnelId);
   const isPersonnelPocketSource = (sourceTypeWatch || "CASH").toUpperCase() === "PERSONNEL_POCKET";
-  const asOfDate = localIsoDate();
+  /** Held-register bakiyesi işlem gününe kadar; `datetime-local` → YYYY-MM-DD */
+  const heldRegisterAsOfYmd = useMemo(() => {
+    const raw = String(advanceDateWatch ?? "").trim().slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : localIsoDate();
+  }, [advanceDateWatch]);
 
   const heldRegisterCashByBranchQueries = useQueries({
     queries: branches.map((branch) => ({
-      queryKey: ["branches", "held-register-cash-by-person", branch.id, asOfDate],
-      queryFn: () => fetchBranchHeldRegisterCashByPerson(branch.id, asOfDate),
+      queryKey: branchKeys.heldRegisterCashByPerson(branch.id, heldRegisterAsOfYmd),
+      queryFn: () => fetchBranchHeldRegisterCashByPerson(branch.id, heldRegisterAsOfYmd),
       enabled: open && isPersonnelPocketSource && branch.id > 0,
       staleTime: 30_000,
     })),

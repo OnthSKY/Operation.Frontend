@@ -4,10 +4,12 @@ import { useI18n } from "@/i18n/context";
 import {
   fetchBranchExpenseLinkAdvances,
   fetchBranchExpenseLinkSalaryPayments,
+  fetchBranchHeldRegisterCashByPerson,
   fetchPersonnelOrgExpenseLinkAdvances,
   fetchPersonnelOrgExpenseLinkSalaryPayments,
 } from "@/modules/branch/api/branches-api";
 import {
+  branchKeys,
   useBranchHeldRegisterCashByPerson,
   useBranchesList,
   useCreateBranchTransaction,
@@ -74,7 +76,7 @@ import {
   resolveLocalizedApiError,
   userCanManageTourismSeasonClosedPolicy,
 } from "@/shared/lib/resolve-localized-api-error";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useController, useForm, useWatch } from "react-hook-form";
@@ -1249,25 +1251,106 @@ export function AddBranchTransactionModal({
     return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : "";
   }, [transactionDateWatch]);
 
+  const expensePaySourceUpper = String(expensePayWatch ?? "").trim().toUpperCase();
+  const heldRegisterPaySourceActive =
+    expensePaySourceUpper === "PERSONNEL_HELD_REGISTER_CASH";
+  const personnelPocketPaySourceActive = expensePaySourceUpper === "PERSONNEL_POCKET";
+  /** İşlem tarihi geçerliyse personel üzerindeki kasa parası: tüm şubeler toplamı. */
+  const heldBalancesAcrossBranchesEnabled =
+    open &&
+    asOfDateYmd.length === 10 &&
+    (heldRegisterPaySourceActive || personnelPocketPaySourceActive);
   const heldRegisterPickerEnabled =
     open &&
-    resolvedBranchId != null &&
-    resolvedBranchId > 0 &&
-    String(expensePayWatch ?? "").trim().toUpperCase() === "PERSONNEL_HELD_REGISTER_CASH";
+    heldRegisterPaySourceActive &&
+    (heldBalancesAcrossBranchesEnabled ||
+      (resolvedBranchId != null && resolvedBranchId > 0));
 
   const { data: heldRegisterCashData, isPending: heldRegisterCashLoading } =
     useBranchHeldRegisterCashByPerson(
       resolvedBranchId,
       asOfDateYmd,
-      heldRegisterPickerEnabled
+      heldRegisterPickerEnabled && !heldBalancesAcrossBranchesEnabled
     );
   const heldRegisterCashRows = heldRegisterCashData ?? EMPTY_HELD_REGISTER_ROWS;
+  const heldRegisterCashByBranchQueries = useQueries({
+    queries: branchesForPersonnelExpense.map((b) => ({
+      queryKey: branchKeys.heldRegisterCashByPerson(b.id, asOfDateYmd),
+      queryFn: () => fetchBranchHeldRegisterCashByPerson(b.id, asOfDateYmd),
+      enabled: heldBalancesAcrossBranchesEnabled,
+    })),
+  });
+  const heldRegisterCashRowsAggregated = useMemo(() => {
+    if (!heldBalancesAcrossBranchesEnabled) return EMPTY_HELD_REGISTER_ROWS;
+    const byPersonnel = new Map<number, { personnelId: number; fullName: string; amount: number }>();
+    for (const q of heldRegisterCashByBranchQueries) {
+      const rows = q.data ?? EMPTY_HELD_REGISTER_ROWS;
+      for (const r of rows) {
+        const pid = r.personnelId;
+        if (pid == null || pid <= 0) continue;
+        const amount = Number(r.amount ?? 0);
+        if (!Number.isFinite(amount) || amount <= 0) continue;
+        const curr = byPersonnel.get(pid);
+        if (curr) {
+          curr.amount += amount;
+          if (!curr.fullName && r.fullName) curr.fullName = r.fullName;
+        } else {
+          byPersonnel.set(pid, {
+            personnelId: pid,
+            fullName: r.fullName ?? "",
+            amount,
+          });
+        }
+      }
+    }
+    return [...byPersonnel.values()];
+  }, [heldBalancesAcrossBranchesEnabled, heldRegisterCashByBranchQueries]);
+  const heldRegisterRowsForPicker = heldBalancesAcrossBranchesEnabled
+    ? heldRegisterCashRowsAggregated
+    : heldRegisterCashRows;
+  const heldRegisterPickerLoading = heldBalancesAcrossBranchesEnabled
+    ? heldRegisterCashByBranchQueries.some((q) => q.isPending)
+    : heldRegisterCashLoading;
+
+  /** PERSONNEL_POCKET: aynı held-register toplamı (tüm şubeler); tarih yoksa sadece isim listesi. */
+  const pocketExpensePersonOptions = useMemo(() => {
+    if (!personnelPocketPaySourceActive) return cashSettlementResponsibleOptions;
+    if (!heldBalancesAcrossBranchesEnabled) return cashSettlementResponsibleOptions;
+    const empty = { value: "", label: t("branch.cashSettlementResponsiblePick") };
+    const loc = locale === "tr" ? "tr" : "en";
+    const rows = heldRegisterCashRowsAggregated.filter(
+      (r) => r.personnelId != null && r.personnelId > 0 && r.amount > 0.005
+    );
+    const opts = [...rows]
+      .sort((a, b) => (a.fullName || "").localeCompare(b.fullName || "", loc))
+      .map((r) => {
+        const pid = r.personnelId as number;
+        const p = allPersonnel.find((x) => x.id === pid);
+        const namePart = p
+          ? `${personnelDisplayName(p)} · ${t(`personnel.jobTitles.${p.jobTitle}`)}`
+          : r.fullName || `#${pid}`;
+        const amt = formatLocaleAmount(r.amount, locale);
+        return {
+          value: String(pid),
+          label: `${namePart} — ${t("branch.heldRegisterCashDropdownAmountLabel")}: ${amt}`,
+        };
+      });
+    return [empty, ...opts];
+  }, [
+    personnelPocketPaySourceActive,
+    heldBalancesAcrossBranchesEnabled,
+    heldRegisterCashRowsAggregated,
+    cashSettlementResponsibleOptions,
+    allPersonnel,
+    locale,
+    t,
+  ]);
 
   /** Cebinde net kasa parası &gt; 0 olanlar; etikette tutar (işlem tarihine kadar). */
   const heldRegisterPersonOptions = useMemo(() => {
     const empty = { value: "", label: t("branch.cashSettlementResponsiblePick") };
     const loc = locale === "tr" ? "tr" : "en";
-    const rows = heldRegisterCashRows.filter(
+    const rows = heldRegisterRowsForPicker.filter(
       (r) => r.personnelId != null && r.personnelId > 0 && r.amount > 0.005
     );
     const opts = [...rows]
@@ -1287,25 +1370,45 @@ export function AddBranchTransactionModal({
         };
       });
     return [empty, ...opts];
-  }, [heldRegisterCashRows, allPersonnel, locale, t]);
+  }, [heldRegisterRowsForPicker, allPersonnel, locale, t]);
+
+  const expensePocketPickerUsesHeldTotals =
+    heldBalancesAcrossBranchesEnabled &&
+    (heldRegisterPaySourceActive || personnelPocketPaySourceActive);
 
   useEffect(() => {
-    if (!heldRegisterPickerEnabled) return;
+    if (!expensePocketPickerUsesHeldTotals && !heldRegisterPickerEnabled) return;
     const sel = String(expensePocketPersonnelWatch ?? "").trim();
     if (!sel) return;
-    const inList = heldRegisterCashRows.some(
+    const rows = expensePocketPickerUsesHeldTotals
+      ? heldRegisterCashRowsAggregated
+      : heldRegisterRowsForPicker;
+    const inList = rows.some(
       (r) =>
         r.personnelId != null &&
         String(r.personnelId) === sel &&
         r.amount > 0.005
     );
     if (!inList) setValue("expensePocketPersonnelId", "");
-  }, [heldRegisterPickerEnabled, heldRegisterCashRows, expensePocketPersonnelWatch, setValue]);
+  }, [
+    expensePocketPickerUsesHeldTotals,
+    heldRegisterPickerEnabled,
+    heldRegisterCashRowsAggregated,
+    heldRegisterRowsForPicker,
+    expensePocketPersonnelWatch,
+    setValue,
+  ]);
 
   useEffect(() => {
-    if (!heldRegisterPickerEnabled) return;
+    if (!expensePocketPickerUsesHeldTotals && !heldRegisterPickerEnabled) return;
     void trigger("expensePocketPersonnelId");
-  }, [heldRegisterPickerEnabled, heldRegisterCashRows, trigger]);
+  }, [
+    expensePocketPickerUsesHeldTotals,
+    heldRegisterPickerEnabled,
+    heldRegisterCashRowsAggregated,
+    heldRegisterRowsForPicker,
+    trigger,
+  ]);
 
   const expenseLinkStaffOptions = useMemo(() => {
     const list = allPersonnel.filter(
@@ -2933,18 +3036,27 @@ export function AddBranchTransactionModal({
                       <Select
                         label={t("branch.expensePocketPersonLabel")}
                         labelRequired
-                        options={cashSettlementResponsibleOptions}
+                        options={pocketExpensePersonOptions}
                         name={expensePocketPersonnelField.name}
                         value={String(expensePocketPersonnelField.value ?? "")}
                         onChange={(e) => expensePocketPersonnelField.onChange(e.target.value)}
                         onBlur={expensePocketPersonnelField.onBlur}
                         ref={expensePocketPersonnelField.ref}
                         error={errors.expensePocketPersonnelId?.message}
+                        disabled={
+                          heldBalancesAcrossBranchesEnabled && heldRegisterPickerLoading
+                        }
                       />
                     </div>
-                    {cashSettlementResponsibleOptions.length <= 1 ? (
+                    {heldBalancesAcrossBranchesEnabled && heldRegisterPickerLoading ? (
+                      <p className="text-xs leading-relaxed text-zinc-500 lg:col-span-2">
+                        {t("branch.expenseHeldRegisterPersonPickerLoading")}
+                      </p>
+                    ) : pocketExpensePersonOptions.length <= 1 ? (
                       <p className="text-xs leading-relaxed text-amber-900 lg:col-span-2">
-                        {t("branch.cashSettlementResponsibleEmpty")}
+                        {heldBalancesAcrossBranchesEnabled
+                          ? t("branch.expenseHeldRegisterPersonPickerEmpty")
+                          : t("branch.cashSettlementResponsibleEmpty")}
                       </p>
                     ) : null}
                   </>
@@ -2961,10 +3073,10 @@ export function AddBranchTransactionModal({
                         onBlur={expensePocketPersonnelField.onBlur}
                         ref={expensePocketPersonnelField.ref}
                         error={errors.expensePocketPersonnelId?.message}
-                        disabled={heldRegisterCashLoading}
+                        disabled={heldRegisterPickerLoading}
                       />
                     </div>
-                    {heldRegisterCashLoading ? (
+                    {heldRegisterPickerLoading ? (
                       <p className="text-xs leading-relaxed text-zinc-500 lg:col-span-2">
                         {t("branch.expenseHeldRegisterPersonPickerLoading")}
                       </p>
