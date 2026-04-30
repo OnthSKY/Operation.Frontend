@@ -190,26 +190,32 @@ export function AdvancePersonnelModal({
     })),
   });
 
-  const pocketAmountByPersonnelId = useMemo(() => {
-    const byPersonnelId = new Map<number, number>();
+  const pocketSourceRows = useMemo(() => {
+    const byPersonnelId = new Map<number, { amount: number; fullName: string }>();
     for (const q of heldRegisterCashByBranchQueries) {
       for (const row of q.data ?? []) {
         if (row.personnelId == null) continue;
         const amount = Number(row.amount) || 0;
         if (amount <= 0.009) continue;
-        byPersonnelId.set(row.personnelId, (byPersonnelId.get(row.personnelId) ?? 0) + amount);
+        const current = byPersonnelId.get(row.personnelId) ?? { amount: 0, fullName: "" };
+        byPersonnelId.set(row.personnelId, {
+          amount: current.amount + amount,
+          fullName: current.fullName || String(row.fullName ?? "").trim(),
+        });
       }
     }
-    return byPersonnelId;
+    return [...byPersonnelId.entries()]
+      .map(([personnelId, v]) => ({ personnelId, amount: v.amount, fullName: v.fullName }))
+      .filter((x) => x.amount > 0.009);
   }, [heldRegisterCashByBranchQueries]);
 
   const eligiblePersonnelIdsForPocket = useMemo(() => {
     const set = new Set<number>();
-    for (const [personnelId, amount] of pocketAmountByPersonnelId) {
-      if (amount > 0.009) set.add(personnelId);
+    for (const row of pocketSourceRows) {
+      set.add(row.personnelId);
     }
     return set;
-  }, [pocketAmountByPersonnelId]);
+  }, [pocketSourceRows]);
 
   const isPocketSourceLoading = useMemo(
     () => heldRegisterCashByBranchQueries.some((q) => q.isPending),
@@ -274,20 +280,31 @@ export function AdvancePersonnelModal({
   );
 
   const sourcePersonnelOptions: SelectOption[] = useMemo(() => {
-    const filtered = personnel.filter((p) => eligiblePersonnelIdsForPocket.has(p.id));
+    const loc = locale === "tr" ? "tr" : "en";
     const currencyCode =
       String(currencyCodeWatch ?? DEFAULT_CURRENCY).trim().toUpperCase() || DEFAULT_CURRENCY;
     return [
       { value: "", label: t("personnel.selectPerson") },
-      ...filtered.map((p) => {
-        const amount = pocketAmountByPersonnelId.get(p.id) ?? 0;
+      ...[...pocketSourceRows]
+      .sort((a, b) => {
+        const pA = personnel.find((p) => p.id === a.personnelId);
+        const pB = personnel.find((p) => p.id === b.personnelId);
+        const nameA = pA ? personnelDisplayName(pA) : (a.fullName || `#${a.personnelId}`);
+        const nameB = pB ? personnelDisplayName(pB) : (b.fullName || `#${b.personnelId}`);
+        return nameA.localeCompare(nameB, loc);
+      })
+      .map((row) => {
+        const p = personnel.find((x) => x.id === row.personnelId);
+        const displayName = p
+          ? personnelDisplayName(p)
+          : (row.fullName || `#${row.personnelId}`);
         return {
-          value: String(p.id),
-          label: `${personnelDisplayName(p)} (${formatLocaleAmount(amount, locale, currencyCode)})`,
+          value: String(row.personnelId),
+          label: `${displayName} (${formatLocaleAmount(row.amount, locale, currencyCode)})`,
         };
       }),
     ];
-  }, [t, personnel, eligiblePersonnelIdsForPocket, pocketAmountByPersonnelId, currencyCodeWatch, locale]);
+  }, [t, personnel, pocketSourceRows, currencyCodeWatch, locale]);
 
   useEffect(() => {
     if (!isPersonnelPocketSource) return;
