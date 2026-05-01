@@ -771,6 +771,13 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   orderAccountStatementSuggestedCostShort: "Önerilen maliyet",
   orderAccountStatementCostIncVatShort: "KDV dahil",
   orderAccountStatementCostSuggestionMissing: "Bu ürün için kayıtlı maliyet bulunamadı.",
+  orderAccountStatementPricingInfoTitle: "Maliyet ve satış özeti",
+  orderAccountStatementPricingInfoAria: "Bu ürün için kayıtlı birim maliyet ve önerilen satış birim fiyatını göster",
+  orderAccountStatementSalesSuggestShort: "Önerilen satış (birim)",
+  orderAccountStatementPricingInfoNoCounterparty:
+    "Satış birim fiyatı önerisi için üst bölümde şube veya müşteri carisini bağlayın.",
+  orderAccountStatementPricingInfoSalesPending:
+    "Satış önerisi yükleniyor veya henüz yok. Gerekirse satırdaki «Satış önerisi çek» ile yenileyin.",
   orderAccountStatementAdjustments: "İndirim ve ön ödeme",
   orderAccountStatementPromoDiscount: "Hediye / promosyon indirimi (toplamdan düşülecek)",
   orderAccountStatementAdvance: "Ön ödeme (toplamdan düşülecek)",

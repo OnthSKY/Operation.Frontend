@@ -321,6 +321,8 @@ export const warehouse = {
   movementHeaderInfoHint: "Check date, warehouse, and responsible people first; then review summary and details.",
   movementHeaderEditTitle: "Edit movement header details",
   movementHeaderEditSaved: "Movement header details updated ({{count}} lines).",
+  movementHeaderEditBranchUnresolved:
+    "Destination branch could not be matched to a branch record. Refresh the list or edit a single line.",
   movementDetailTypeInbound: "Inbound shipment",
   movementDetailTypeOutbound: "Outbound shipment",
   movementSystemEntryLabel: "System entry id",

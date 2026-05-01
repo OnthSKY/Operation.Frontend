@@ -767,6 +767,13 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   orderAccountStatementSuggestedCostShort: "Suggested cost",
   orderAccountStatementCostIncVatShort: "Incl. VAT",
   orderAccountStatementCostSuggestionMissing: "No saved cost found for this product.",
+  orderAccountStatementPricingInfoTitle: "Cost & sale reference",
+  orderAccountStatementPricingInfoAria: "Show saved unit cost and suggested sale unit price for this product",
+  orderAccountStatementSalesSuggestShort: "Suggested sale (unit)",
+  orderAccountStatementPricingInfoNoCounterparty:
+    "Link a branch or customer in the header to load a suggested sale unit price for this counterparty.",
+  orderAccountStatementPricingInfoSalesPending:
+    "Suggested sale: loading or not available yet. Use “Refresh sale suggestion” under the line if needed.",
   orderAccountStatementAdjustments: "Discounts & prepayment",
   orderAccountStatementPromoDiscount: "Gift / promotion deduction (subtracted from gross)",
   orderAccountStatementAdvance: "Prepayment (subtracted from gross)",

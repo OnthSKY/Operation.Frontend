@@ -57,6 +57,7 @@ import { Select, type SelectOption } from "@/shared/ui/Select";
 import { TrashIcon } from "@/shared/ui/TrashIcon";
 import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
+import { Tooltip } from "@/shared/ui/Tooltip";
 import { RichCombobox, type RichComboboxOption } from "@/shared/ui/RichCombobox";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -1087,6 +1088,84 @@ export type StatementLayoutVariant =
 
 export type OrderAccountContentPreset = "custom" | "tekin" | "cafe" | "bakery" | "catering";
 
+type OasCostSnapshot = {
+  unitCostExcludingVat: number;
+  unitCostIncludingVat: number;
+  currencyCode: string;
+};
+
+function OasProductPricingInfoButton({
+  cost,
+  sales,
+  hasCounterparty,
+  locale,
+  t,
+}: {
+  cost: OasCostSnapshot | undefined;
+  sales: SalesPriceSuggestion | undefined;
+  hasCounterparty: boolean;
+  locale: Locale;
+  t: (key: string) => string;
+}) {
+  const costBlock = cost ? (
+    <>
+      <span className="text-zinc-500">{t("reports.orderAccountStatementSuggestedCostShort")}: </span>
+      <span className="font-medium text-zinc-900">
+        {formatLocaleAmount(Number(cost.unitCostExcludingVat || 0), locale, cost.currencyCode)}
+      </span>
+      <span className="text-zinc-400"> · </span>
+      <span className="text-zinc-500">{t("reports.orderAccountStatementCostIncVatShort")}: </span>
+      <span className="font-medium text-zinc-900">
+        {formatLocaleAmount(Number(cost.unitCostIncludingVat || 0), locale, cost.currencyCode)}
+      </span>
+    </>
+  ) : (
+    <span className="text-amber-900/90">{t("reports.orderAccountStatementCostSuggestionMissing")}</span>
+  );
+
+  const salesBlock = !hasCounterparty ? (
+    <span className="text-zinc-600">{t("reports.orderAccountStatementPricingInfoNoCounterparty")}</span>
+  ) : sales ? (
+    <>
+      <span className="text-zinc-500">{t("reports.orderAccountStatementSalesSuggestShort")}: </span>
+      <span className="font-medium text-zinc-900">
+        {formatLocaleAmount(Number(sales.suggestedUnitPrice || 0), locale, sales.currencyCode)}
+      </span>
+      <span className="text-zinc-400 text-[10px]"> (n={sales.sampleCount})</span>
+    </>
+  ) : (
+    <span className="text-zinc-600">{t("reports.orderAccountStatementPricingInfoSalesPending")}</span>
+  );
+
+  return (
+    <Tooltip
+      content={
+        <div className="max-w-[14rem] space-y-2 text-left text-[11px] leading-relaxed">
+          <p className="border-b border-zinc-200 pb-1 font-semibold text-zinc-900">
+            {t("reports.orderAccountStatementPricingInfoTitle")}
+          </p>
+          <p>{costBlock}</p>
+          <p>{salesBlock}</p>
+        </div>
+      }
+      side="bottom"
+      delayMs={120}
+      panelClassName="max-w-[16rem]"
+    >
+      <button
+        type="button"
+        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 shadow-sm hover:border-violet-200 hover:bg-violet-50 hover:text-violet-800"
+        aria-label={t("reports.orderAccountStatementPricingInfoAria")}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 16v-4M12 8h.01" strokeLinecap="round" />
+        </svg>
+      </button>
+    </Tooltip>
+  );
+}
+
 function LineCalcBlock({
   line,
   locale,
@@ -1914,6 +1993,8 @@ export function OrderAccountStatementScreen() {
   const [defaultCompanyName, setDefaultCompanyName] = useState("");
   const [showDocumentTagline, setShowDocumentTagline] = useState(true);
   const [lines, setLines] = useState<LineDraft[]>(() => [emptyLine()]);
+  const linesRef = useRef(lines);
+  linesRef.current = lines;
   const [paidLines, setPaidLines] = useState<PaidDraft[]>(() => []);
   const [promoLines, setPromoLines] = useState<PromoDraft[]>(() => []);
   const [advanceText, setAdvanceText] = useState("");
@@ -2621,6 +2702,16 @@ export function OrderAccountStatementScreen() {
     },
     [activeCounterparty, t]
   );
+
+  useEffect(() => {
+    if (!activeCounterparty) return;
+    for (const line of linesRef.current) {
+      const pid = line.selectedProductId ?? 0;
+      if (pid <= 0) continue;
+      void loadSalesSuggestionForLine(line.id, pid, false);
+    }
+  }, [activeCounterparty, loadSalesSuggestionForLine]);
+
   const applyCatalogProductToLine = useCallback(
     (lineId: string, productIdRaw: string) => {
       if (!productIdRaw) return;
@@ -2652,8 +2743,11 @@ export function OrderAccountStatementScreen() {
         })
       );
       setLinePriceSuggestionByLineId((prev) => ({ ...prev, [lineId]: undefined }));
+      if (activeCounterparty) {
+        void loadSalesSuggestionForLine(lineId, productId, true);
+      }
     },
-    [catalog, latestCostByProductId, locale]
+    [activeCounterparty, catalog, latestCostByProductId, loadSalesSuggestionForLine, locale]
   );
   const collapseLinesToParentProduct = useCallback(() => {
     const productById = new Map(catalog.map((p) => [p.id, p] as const));
@@ -3874,46 +3968,57 @@ export function OrderAccountStatementScreen() {
                   >
                     {t("reports.orderAccountStatementColProduct")}
                     <RequiredMark />
-                    <input
-                      className={cn(
-                        "mt-1 w-full rounded-md border border-zinc-200 bg-white",
-                        lineDense
-                          ? "px-1.5 py-1 text-[11px]"
-                          : lineCompact
-                            ? "px-1.5 py-1.5 text-xs"
-                            : "px-2 py-2 text-sm"
-                      )}
-                      data-line-desc-id={line.id}
-                      data-line-id={line.id}
-                      data-line-field="description"
-                      value={line.description}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setLines((prev) =>
-                          prev.map((x) =>
-                            x.id === line.id
-                              ? {
-                                  ...x,
-                                  description: v,
-                                  selectedProductId: null,
-                                  parentProductId: null,
-                                  parentProductName: null,
-                                  lineSource:
-                                    creationMode === "shipmentBased" && shipmentLinkMode === "strict"
-                                      ? "shipment"
-                                      : "manual",
-                                  manualReasonCode:
-                                    creationMode === "shipmentBased" && shipmentLinkMode === "strict"
-                                      ? null
-                                      : "OPS_OTHER",
-                                }
-                              : x
-                          )
-                        );
-                      }}
-                      onKeyDown={(e) => handleMobileLineEnter(e, line.id, "description")}
-                      placeholder={t("reports.orderAccountStatementLinePlaceholder")}
-                    />
+                    <div className="mt-1 flex items-center gap-1.5">
+                      <input
+                        className={cn(
+                          "min-w-0 flex-1 rounded-md border border-zinc-200 bg-white",
+                          lineDense
+                            ? "px-1.5 py-1 text-[11px]"
+                            : lineCompact
+                              ? "px-1.5 py-1.5 text-xs"
+                              : "px-2 py-2 text-sm"
+                        )}
+                        data-line-desc-id={line.id}
+                        data-line-id={line.id}
+                        data-line-field="description"
+                        value={line.description}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setLines((prev) =>
+                            prev.map((x) =>
+                              x.id === line.id
+                                ? {
+                                    ...x,
+                                    description: v,
+                                    selectedProductId: null,
+                                    parentProductId: null,
+                                    parentProductName: null,
+                                    lineSource:
+                                      creationMode === "shipmentBased" && shipmentLinkMode === "strict"
+                                        ? "shipment"
+                                        : "manual",
+                                    manualReasonCode:
+                                      creationMode === "shipmentBased" && shipmentLinkMode === "strict"
+                                        ? null
+                                        : "OPS_OTHER",
+                                  }
+                                : x
+                            )
+                          );
+                        }}
+                        onKeyDown={(e) => handleMobileLineEnter(e, line.id, "description")}
+                        placeholder={t("reports.orderAccountStatementLinePlaceholder")}
+                      />
+                      {line.selectedProductId ? (
+                        <OasProductPricingInfoButton
+                          cost={latestCostByProductId.get(line.selectedProductId)}
+                          sales={linePriceSuggestionByLineId[line.id]}
+                          hasCounterparty={activeCounterparty != null}
+                          locale={locale}
+                          t={t}
+                        />
+                      ) : null}
+                    </div>
                   </label>
                   {showQuantityColumn && mobileAdvancedOpen ? (
                     <>
@@ -4358,39 +4463,50 @@ export function OrderAccountStatementScreen() {
                       <td
                         className={cn("align-top px-2", lineDense ? "py-1" : lineCompact ? "py-1.5" : "py-2")}
                       >
-                        <input
-                          className={cn(
-                            "w-full min-w-0 rounded-md border border-zinc-200",
-                            lineDense ? "px-1 py-0.5" : lineCompact ? "px-1.5 py-1" : "px-2 py-1.5"
-                          )}
-                          data-line-desc-id={line.id}
-                          value={line.description}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setLines((prev) =>
-                              prev.map((x) =>
-                                x.id === line.id
-                                  ? {
-                                      ...x,
-                                      description: v,
-                                      selectedProductId: null,
-                                      parentProductId: null,
-                                      parentProductName: null,
-                                      lineSource:
-                                        creationMode === "shipmentBased" && shipmentLinkMode === "strict"
-                                          ? "shipment"
-                                          : "manual",
-                                      manualReasonCode:
-                                        creationMode === "shipmentBased" && shipmentLinkMode === "strict"
-                                          ? null
-                                          : "OPS_OTHER",
-                                    }
-                                  : x
-                              )
-                            );
-                          }}
-                          placeholder={t("reports.orderAccountStatementLinePlaceholder")}
-                        />
+                        <div className="flex items-start gap-1">
+                          <input
+                            className={cn(
+                              "min-w-0 flex-1 rounded-md border border-zinc-200",
+                              lineDense ? "px-1 py-0.5" : lineCompact ? "px-1.5 py-1" : "px-2 py-1.5"
+                            )}
+                            data-line-desc-id={line.id}
+                            value={line.description}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setLines((prev) =>
+                                prev.map((x) =>
+                                  x.id === line.id
+                                    ? {
+                                        ...x,
+                                        description: v,
+                                        selectedProductId: null,
+                                        parentProductId: null,
+                                        parentProductName: null,
+                                        lineSource:
+                                          creationMode === "shipmentBased" && shipmentLinkMode === "strict"
+                                            ? "shipment"
+                                            : "manual",
+                                        manualReasonCode:
+                                          creationMode === "shipmentBased" && shipmentLinkMode === "strict"
+                                            ? null
+                                            : "OPS_OTHER",
+                                      }
+                                    : x
+                                )
+                              );
+                            }}
+                            placeholder={t("reports.orderAccountStatementLinePlaceholder")}
+                          />
+                          {line.selectedProductId ? (
+                            <OasProductPricingInfoButton
+                              cost={latestCostByProductId.get(line.selectedProductId)}
+                              sales={linePriceSuggestionByLineId[line.id]}
+                              hasCounterparty={activeCounterparty != null}
+                              locale={locale}
+                              t={t}
+                            />
+                          ) : null}
+                        </div>
                         {canPickProducts && desktopLineDetailsOpen ? (
                           <ModernSelect
                             className={cn(

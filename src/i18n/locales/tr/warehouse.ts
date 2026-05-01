@@ -322,6 +322,8 @@ export const warehouse = {
   movementHeaderInfoHint: "Önce tarih, depo ve sorumlu kişileri kontrol edin; sonra özet ve detaylara inin.",
   movementHeaderEditTitle: "Hareket üst bilgilerini düzenle",
   movementHeaderEditSaved: "Hareket üst bilgileri güncellendi ({{count}} satır).",
+  movementHeaderEditBranchUnresolved:
+    "Hedef şube kayıtlarıyla eşleştirilemedi. Listeyi yenileyin veya tek satırdan düzenleyin.",
   movementDetailTypeInbound: "Giriş sevkiyatı",
   movementDetailTypeOutbound: "Çıkış sevkiyatı",
   movementSystemEntryLabel: "Sisteme giriş no",

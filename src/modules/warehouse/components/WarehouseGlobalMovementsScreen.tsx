@@ -420,11 +420,32 @@ export function WarehouseGlobalMovementsScreen() {
             <>
               {items.map((m: WarehouseGlobalMovementRow) => {
                 const batchCell = formatWarehouseShipmentDisplay(m.inBatchGroupId, m.id);
+                const isOut = m.type === "OUT";
                 return (
                   <div key={`m-card-${m.warehouseId}-${m.id}`} className="rounded-lg border border-zinc-200 bg-white p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-zinc-900">{formatLocaleDate(m.movementDate, locale)}</p>
-                      <span className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", m.type === "IN" ? "bg-emerald-100 text-emerald-900" : "bg-red-100 text-red-900")}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">{t("products.mColDate")}</p>
+                        <p
+                          className={cn(
+                            "mt-0.5 tabular-nums text-zinc-900",
+                            isOut ? "text-lg font-bold tracking-tight sm:text-xl" : "text-sm font-semibold"
+                          )}
+                        >
+                          {formatLocaleDate(m.movementDate, locale)}
+                        </p>
+                        {isOut ? (
+                          <div className="mt-2 rounded-lg border border-rose-200 bg-rose-50/90 px-2.5 py-2">
+                            <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-rose-800">
+                              {t("warehouse.movementOutBranch")}
+                            </p>
+                            <p className="mt-0.5 text-base font-bold leading-snug text-rose-950 sm:text-lg">
+                              {m.outDestinationBranchName?.trim() || "—"}
+                            </p>
+                          </div>
+                        ) : null}
+                      </div>
+                      <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold", m.type === "IN" ? "bg-emerald-100 text-emerald-900" : "bg-red-100 text-red-900")}>
                         {m.type === "IN" ? t("products.typeIn") : t("products.typeOut")}
                       </span>
                     </div>
@@ -437,7 +458,17 @@ export function WarehouseGlobalMovementsScreen() {
                     </button>
                     <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                       <div><p className="text-zinc-500">{t("products.colWarehouse")}</p><p className="font-medium text-zinc-800">{m.warehouseName}</p></div>
-                      <div><p className="text-zinc-500">{t("warehouse.movementOutBranch")}</p><p className="font-medium text-zinc-800">{m.outDestinationBranchName || "—"}</p></div>
+                      <div>
+                        <p className="text-zinc-500">{t("warehouse.movementOutBranch")}</p>
+                        <p
+                          className={cn(
+                            "text-zinc-800",
+                            isOut ? "text-xs font-normal text-zinc-500" : "font-medium"
+                          )}
+                        >
+                          {m.outDestinationBranchName || "—"}
+                        </p>
+                      </div>
                       <div><p className="text-zinc-500">{t("warehouse.movementBatchGroup")}</p><p className="font-mono text-xs text-zinc-700" title={batchCell.title}>{batchCell.text}</p></div>
                       <div><p className="text-zinc-500">{t("products.colQty")}</p><p className="font-semibold tabular-nums text-zinc-900">{m.quantity}</p></div>
                     </div>
@@ -477,9 +508,24 @@ export function WarehouseGlobalMovementsScreen() {
               <tbody>
                 {items.map((m: WarehouseGlobalMovementRow) => {
                   const batchCell = formatWarehouseShipmentDisplay(m.inBatchGroupId, m.id);
+                  const isOut = m.type === "OUT";
+                  const branchLabel = m.outDestinationBranchName?.trim() ?? "";
                   return (
-                    <tr key={`${m.warehouseId}-${m.id}`} className="border-b border-zinc-100 last:border-0">
-                      <td className="px-3 py-2">{formatLocaleDate(m.movementDate, locale)}</td>
+                    <tr
+                      key={`${m.warehouseId}-${m.id}`}
+                      className={cn(
+                        "border-b border-zinc-100 last:border-0",
+                        isOut && "border-l-[3px] border-l-rose-400 bg-rose-50/40"
+                      )}
+                    >
+                      <td
+                        className={cn(
+                          "px-3 py-2 tabular-nums",
+                          isOut ? "text-base font-bold text-zinc-900" : "text-sm text-zinc-800"
+                        )}
+                      >
+                        {formatLocaleDate(m.movementDate, locale)}
+                      </td>
                       <td className="px-3 py-2">{m.warehouseName}</td>
                       <td className="px-3 py-2">
                         <button
@@ -496,7 +542,16 @@ export function WarehouseGlobalMovementsScreen() {
                       <td className="px-3 py-2 font-mono text-xs" title={batchCell.title}>
                         {batchCell.text}
                       </td>
-                      <td className="px-3 py-2">{m.outDestinationBranchName || "—"}</td>
+                      <td
+                        className={cn(
+                          "px-3 py-2",
+                          isOut && branchLabel.length > 0
+                            ? "text-sm font-bold text-rose-950"
+                            : "text-sm text-zinc-800"
+                        )}
+                      >
+                        {branchLabel || "—"}
+                      </td>
                       <td className="px-3 py-2 text-right tabular-nums">{m.quantity}</td>
                       <td className="max-w-[20rem] truncate px-3 py-2 text-zinc-600">{m.description || "—"}</td>
                       <td className="px-3 py-2">
@@ -538,19 +593,38 @@ export function WarehouseGlobalMovementsScreen() {
               return (
                 <details key={group.key} className="rounded-lg border border-zinc-200 bg-white p-3">
                   <summary className="cursor-pointer list-none">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-semibold text-zinc-900">
-                          {formatLocaleDate(row.movementDate, locale)} · {row.warehouseName}
-                        </p>
-                        <p className="text-xs text-zinc-600">
-                          {t("warehouse.movementBatchGroup")}: {batchCell.text} · {t("warehouse.globalShipmentLineCount").replace("{count}", String(group.lineCount))}
-                        </p>
-                        {row.type === "OUT" ? (
-                          <p className="text-xs text-zinc-600">
-                            {t("warehouse.movementOutBranch")}: {outboundBranchSummary || "—"}
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1 space-y-2">
+                        <div>
+                          <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                            {t("products.mColDate")}
                           </p>
+                          <p
+                            className={cn(
+                              "mt-0.5 tabular-nums text-zinc-900",
+                              row.type === "OUT"
+                                ? "text-xl font-bold tracking-tight sm:text-2xl"
+                                : "text-lg font-bold sm:text-xl"
+                            )}
+                          >
+                            {formatLocaleDate(row.movementDate, locale)}
+                          </p>
+                          <p className="mt-1 text-sm font-medium text-zinc-600">{row.warehouseName}</p>
+                        </div>
+                        {row.type === "OUT" ? (
+                          <div className="rounded-lg border border-rose-200 bg-gradient-to-br from-rose-50 to-rose-50/30 px-3 py-2.5 shadow-sm ring-1 ring-rose-950/[0.04]">
+                            <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-rose-800">
+                              {t("warehouse.movementOutBranch")}
+                            </p>
+                            <p className="mt-1 text-base font-bold leading-snug text-rose-950 sm:text-lg">
+                              {outboundBranchSummary || "—"}
+                            </p>
+                          </div>
                         ) : null}
+                        <p className="text-xs text-zinc-500">
+                          {t("warehouse.movementBatchGroup")}: {batchCell.text} ·{" "}
+                          {t("warehouse.globalShipmentLineCount").replace("{count}", String(group.lineCount))}
+                        </p>
                       </div>
                       <span
                         className={cn(
@@ -614,7 +688,14 @@ export function WarehouseGlobalMovementsScreen() {
                         <div key={`g-row-${group.key}-${x.id}`} className="flex items-center justify-between gap-2 rounded border border-zinc-200 bg-white px-2 py-1.5">
                           <div className="min-w-0">
                             <p className="truncate font-medium text-zinc-800">{x.productName}</p>
-                            <p className="truncate text-[11px] text-zinc-500">
+                            <p
+                              className={cn(
+                                "truncate text-[11px]",
+                                x.type === "OUT" && (x.outDestinationBranchName?.trim().length ?? 0) > 0
+                                  ? "font-semibold text-rose-900"
+                                  : "text-zinc-500"
+                              )}
+                            >
                               {x.outDestinationBranchName || "—"} · {x.type === "IN" ? t("products.typeIn") : t("products.typeOut")}
                             </p>
                           </div>

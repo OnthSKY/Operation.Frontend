@@ -21,6 +21,7 @@ import {
   useSoftDeleteWarehouseInboundMovement,
   useSoftDeleteWarehouseOutboundShipmentMovement,
   useUpdateWarehouseInboundMovement,
+  useUpdateWarehouseOutboundShipmentMovement,
   useWarehousePeopleOptions,
 } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import { useI18n } from "@/i18n/context";
@@ -250,6 +251,7 @@ export function WarehouseDetailMovementHistoryTab({
   const appendInboundLineM = useAppendWarehouseInboundLine();
   const appendOutboundLineM = useAppendWarehouseOutboundShipmentLine();
   const updateInboundM = useUpdateWarehouseInboundMovement();
+  const updateOutboundM = useUpdateWarehouseOutboundShipmentMovement();
   const { data: peopleRaw = [] } = useWarehousePeopleOptions(enabled);
   const [appendLineOpen, setAppendLineOpen] = useState(false);
   const [appendInboundLineOpen, setAppendInboundLineOpen] = useState(false);
@@ -669,8 +671,8 @@ export function WarehouseDetailMovementHistoryTab({
     return found?.id != null && found.id > 0 ? found.id : null;
   }, [branches, selectedOutboundBranchName]);
   const canEditHeaderInfo = useMemo(
-    () => selectedDetailGroup != null && selectedDetailGroup.movements.every((m) => m.type === "IN"),
-    [selectedDetailGroup]
+    () => canManageWholeInboundShipment || canManageWholeOutboundShipment,
+    [canManageWholeInboundShipment, canManageWholeOutboundShipment]
   );
   const personnelSelectOptions = useMemo<SelectOption[]>(
     () => [
@@ -707,25 +709,55 @@ export function WarehouseDetailMovementHistoryTab({
       notify.error(t("warehouse.personnelVerifierRequired"));
       return;
     }
+    const dateForApi =
+      headerEditLegacyDate.length === 10 ? headerEditLegacyDate : headerEditBusinessDate;
+    const desc = headerEditDescription.trim() ? headerEditDescription.trim() : null;
     try {
       let updated = 0;
-      for (const m of selectedDetailGroup.movements) {
-        if (m.type !== "IN") continue;
-        await updateInboundM.mutateAsync({
-          warehouseId,
-          movementId: m.id,
-          body: {
-            productId: m.productId,
-            quantity: Number(m.quantity),
-            businessDate: headerEditBusinessDate,
-            date: headerEditLegacyDate.length === 10 ? headerEditLegacyDate : headerEditBusinessDate,
-            description: headerEditDescription.trim() ? headerEditDescription.trim() : null,
-            checkedByPersonnelId: checkedById,
-            approvedByPersonnelId: approvedById,
-            clearInvoicePhoto: false,
-          },
-        });
-        updated += 1;
+      if (canManageWholeInboundShipment) {
+        for (const m of selectedDetailGroup.movements) {
+          if (m.type !== "IN") continue;
+          await updateInboundM.mutateAsync({
+            warehouseId,
+            movementId: m.id,
+            body: {
+              productId: m.productId,
+              quantity: Number(m.quantity),
+              businessDate: headerEditBusinessDate,
+              date: dateForApi,
+              description: desc,
+              checkedByPersonnelId: checkedById,
+              approvedByPersonnelId: approvedById,
+              clearInvoicePhoto: false,
+            },
+          });
+          updated += 1;
+        }
+      } else if (canManageWholeOutboundShipment) {
+        const branchId = selectedOutboundBranchId;
+        if (branchId == null || branchId <= 0) {
+          notify.error(t("warehouse.movementHeaderEditBranchUnresolved"));
+          return;
+        }
+        for (const m of selectedDetailGroup.movements) {
+          if (m.type !== "OUT" || !m.isDepotToBranchShipment) continue;
+          await updateOutboundM.mutateAsync({
+            warehouseId,
+            movementId: m.id,
+            body: {
+              branchId,
+              productId: m.productId,
+              quantity: Number(m.quantity),
+              businessDate: headerEditBusinessDate,
+              date: dateForApi,
+              description: desc,
+              checkedByPersonnelId: checkedById,
+              approvedByPersonnelId: approvedById,
+              clearInvoicePhoto: false,
+            },
+          });
+          updated += 1;
+        }
       }
       notify.success(t("warehouse.movementHeaderEditSaved").replace("{{count}}", String(updated)));
       setHeaderEditOpen(false);
@@ -735,12 +767,16 @@ export function WarehouseDetailMovementHistoryTab({
   }, [
     selectedDetailGroup,
     canEditHeaderInfo,
+    canManageWholeInboundShipment,
+    canManageWholeOutboundShipment,
+    selectedOutboundBranchId,
     headerEditBusinessDate,
     headerEditLegacyDate,
     headerEditDescription,
     headerEditCheckedBy,
     headerEditApprovedBy,
     updateInboundM,
+    updateOutboundM,
     warehouseId,
     t,
   ]);
@@ -1416,20 +1452,20 @@ export function WarehouseDetailMovementHistoryTab({
             required
             value={headerEditBusinessDate}
             onChange={(e) => setHeaderEditBusinessDate(e.target.value)}
-            disabled={updateInboundM.isPending}
+            disabled={updateInboundM.isPending || updateOutboundM.isPending}
           />
           <DateField
             label={t("warehouse.editInboundLegacyDate")}
             value={headerEditLegacyDate}
             onChange={(e) => setHeaderEditLegacyDate(e.target.value)}
-            disabled={updateInboundM.isPending}
+            disabled={updateInboundM.isPending || updateOutboundM.isPending}
           />
           <Input
             label={t("warehouse.movementNote")}
             type="text"
             value={headerEditDescription}
             onChange={(e) => setHeaderEditDescription(e.target.value)}
-            disabled={updateInboundM.isPending}
+            disabled={updateInboundM.isPending || updateOutboundM.isPending}
           />
           <Select
             label={t("warehouse.checkedByPersonnel")}
@@ -1439,7 +1475,7 @@ export function WarehouseDetailMovementHistoryTab({
             value={headerEditCheckedBy}
             onChange={(e) => setHeaderEditCheckedBy(e.target.value)}
             onBlur={() => {}}
-            disabled={updateInboundM.isPending}
+            disabled={updateInboundM.isPending || updateOutboundM.isPending}
           />
           <Select
             label={t("warehouse.approvedByPersonnel")}
@@ -1449,7 +1485,7 @@ export function WarehouseDetailMovementHistoryTab({
             value={headerEditApprovedBy}
             onChange={(e) => setHeaderEditApprovedBy(e.target.value)}
             onBlur={() => {}}
-            disabled={updateInboundM.isPending}
+            disabled={updateInboundM.isPending || updateOutboundM.isPending}
           />
           <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="secondary" className="min-h-11 w-full sm:w-auto" onClick={() => setHeaderEditOpen(false)}>
@@ -1458,7 +1494,7 @@ export function WarehouseDetailMovementHistoryTab({
             <Button
               type="button"
               className="min-h-11 w-full sm:w-auto"
-              disabled={updateInboundM.isPending}
+              disabled={updateInboundM.isPending || updateOutboundM.isPending}
               onClick={() => void submitHeaderEdit()}
             >
               {t("warehouse.editInboundSave")}
