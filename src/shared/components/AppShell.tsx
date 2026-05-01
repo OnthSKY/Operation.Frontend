@@ -1121,6 +1121,23 @@ export function AppShell({ children }: { children: ReactNode }) {
                     </div>
                     <div className={navItemRow}>
                       <Link
+                        href="/products/sales-price-history"
+                        onClick={() => setMobileNavOpen(false)}
+                        className={`${navLinkBase} min-w-0 py-2 pl-4 pr-2 ${
+                          pathname.startsWith("/products/sales-price-history")
+                            ? navLinkActive
+                            : navLinkIdle
+                        }`}
+                      >
+                        <NavGlyph name="reportTable" />
+                        <span className="min-w-0">{t("nav.productSalesPriceHistory")}</span>
+                      </Link>
+                      <div className={navHintCol}>
+                        <NavMenuHint hintKey="nav.tooltip.productSalesPriceHistory" />
+                      </div>
+                    </div>
+                    <div className={navItemRow}>
+                      <Link
                         href="/products/order-account-statement"
                         onClick={() => setMobileNavOpen(false)}
                         className={`${navLinkBase} min-w-0 py-2 pl-4 pr-2 ${

@@ -22,6 +22,7 @@ export const search = {
   subProducts: "Product list by warehouse",
   subProductCategories: "Main and sub product categories",
   subProductCostHistory: "Manage product costs by date with VAT excl./incl.",
+  subProductSalesPriceHistory: "Browse outbound invoice unit prices by branch or all counterparties.",
   subSuppliers: "Vendors, purchase invoices, AP balance, payments",
   subSupplierInvoices: "Purchase invoice list, filters, pay from open balance",
   subGeneralOverhead:

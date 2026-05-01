@@ -3129,6 +3129,7 @@ export function PersonnelDetailModal({
             ? orgBranchTx.branchId
             : (personnel?.branchId ?? null)
         }
+        heldRegisterAggregateBranchIds={branchIdsForPocketMoney}
         defaultLinkedPersonnelId={
           orgBranchTx?.kind === "handover-pool-expense-register"
             ? undefined

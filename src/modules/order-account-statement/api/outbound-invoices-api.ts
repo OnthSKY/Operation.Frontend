@@ -152,6 +152,11 @@ export type SalesPriceHistoryRow = {
   createdAt: string;
 };
 
+export type SalesPriceHistoryPage = {
+  items: SalesPriceHistoryRow[];
+  totalCount: number;
+};
+
 export async function createOutboundInvoice(input: CreateOutboundInvoiceRequest): Promise<OutboundInvoiceResponse> {
   return apiRequest<OutboundInvoiceResponse>("/outbound-invoices", {
     method: "POST",
@@ -256,7 +261,8 @@ export async function fetchSalesPriceHistory(params: {
   dateFrom?: string;
   dateTo?: string;
   limit?: number;
-}): Promise<SalesPriceHistoryRow[]> {
+  offset?: number;
+}): Promise<SalesPriceHistoryPage> {
   const q = new URLSearchParams();
   if (params.productId != null && params.productId > 0) q.set("productId", String(params.productId));
   if (params.counterpartyType === "branch" || params.counterpartyType === "customer") {
@@ -269,5 +275,6 @@ export async function fetchSalesPriceHistory(params: {
   if ((params.dateFrom ?? "").length === 10) q.set("dateFrom", params.dateFrom!);
   if ((params.dateTo ?? "").length === 10) q.set("dateTo", params.dateTo!);
   q.set("limit", String(Math.max(1, Math.min(1000, params.limit ?? 200))));
-  return apiRequest<SalesPriceHistoryRow[]>(`/outbound-invoices/price-history?${q.toString()}`);
+  q.set("offset", String(Math.max(0, params.offset ?? 0)));
+  return apiRequest<SalesPriceHistoryPage>(`/outbound-invoices/price-history?${q.toString()}`);
 }

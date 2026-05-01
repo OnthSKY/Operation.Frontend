@@ -50,6 +50,7 @@ export const nav = {
   products: "Products",
   productCategories: "Categories",
   productCostHistory: "Product cost history",
+  productSalesPriceHistory: "Sales unit price history",
   suppliers: "Suppliers",
   supplierInvoices: "Supplier invoices",
   vehicles: "Vehicles",
@@ -141,6 +142,8 @@ export const nav = {
       "Group products for cleaner lists and analysis under consistent headings.",
     productCostHistory:
       "Record product purchase/cost values by date with VAT-included and VAT-excluded amounts to track historical cost changes.",
+    productSalesPriceHistory:
+      "Outbound invoice unit prices by product and counterparty: browse all counterparties, branches only, one branch, or customers only—with filters and paging.",
     productsOrderAccountStatement:
       "Order & account statement: fill lines from the product catalog, amounts, gifts and promotions, prepayment, paid-but-not-received items, and net due. A4 preview and PDF.",
     suppliers:

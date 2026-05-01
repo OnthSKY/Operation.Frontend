@@ -166,6 +166,11 @@ type Props = {
    * (şube gider ana kategorileri listelenmez).
    */
   personnelDirectExpenseEntry?: boolean;
+  /**
+   * PERSONNEL_HELD_REGISTER_CASH / PERSONNEL_POCKET tutarları bu şubelerde toplanır.
+   * Verilmezse yalnızca `branchId` ve formda seçilen hedef şube sorgulanır (tüm şube listesine istek atılmaz).
+   */
+  heldRegisterAggregateBranchIds?: number[];
 };
 
 const TITLE_ID = "branch-tx-title";
@@ -220,6 +225,7 @@ export function AddBranchTransactionModal({
   defaultHandoverPoolTotalOnly,
   defaultEffectiveYear,
   personnelDirectExpenseEntry,
+  heldRegisterAggregateBranchIds,
 }: Props) {
   const { t, locale } = useI18n();
   const { user } = useAuth();
@@ -1255,11 +1261,24 @@ export function AddBranchTransactionModal({
   const heldRegisterPaySourceActive =
     expensePaySourceUpper === "PERSONNEL_HELD_REGISTER_CASH";
   const personnelPocketPaySourceActive = expensePaySourceUpper === "PERSONNEL_POCKET";
-  /** İşlem tarihi geçerliyse personel üzerindeki kasa parası: tüm şubeler toplamı. */
+
+  const heldRegisterQueryBranchIds = useMemo(() => {
+    const fromProp = (heldRegisterAggregateBranchIds ?? []).filter(
+      (id) => typeof id === "number" && Number.isFinite(id) && id > 0,
+    );
+    if (fromProp.length > 0) return [...new Set(fromProp)].sort((a, b) => a - b);
+    const ids = new Set<number>();
+    if (resolvedBranchId != null && resolvedBranchId > 0) ids.add(resolvedBranchId);
+    if (propBranchId != null && propBranchId > 0) ids.add(propBranchId);
+    return [...ids].sort((a, b) => a - b);
+  }, [heldRegisterAggregateBranchIds, resolvedBranchId, propBranchId]);
+
+  /** İşlem tarihi + en az bir şube: çoklu istek yalnızca bu id listesiyle (tüm şube listesi yok). */
   const heldBalancesAcrossBranchesEnabled =
     open &&
     asOfDateYmd.length === 10 &&
-    (heldRegisterPaySourceActive || personnelPocketPaySourceActive);
+    (heldRegisterPaySourceActive || personnelPocketPaySourceActive) &&
+    heldRegisterQueryBranchIds.length > 0;
   const heldRegisterPickerEnabled =
     open &&
     heldRegisterPaySourceActive &&
@@ -1274,12 +1293,19 @@ export function AddBranchTransactionModal({
     );
   const heldRegisterCashRows = heldRegisterCashData ?? EMPTY_HELD_REGISTER_ROWS;
   const heldRegisterCashByBranchQueries = useQueries({
-    queries: branchesForPersonnelExpense.map((b) => ({
-      queryKey: branchKeys.heldRegisterCashByPerson(b.id, asOfDateYmd),
-      queryFn: () => fetchBranchHeldRegisterCashByPerson(b.id, asOfDateYmd),
+    queries: heldRegisterQueryBranchIds.map((branchId) => ({
+      queryKey: branchKeys.heldRegisterCashByPerson(branchId, asOfDateYmd),
+      queryFn: () => fetchBranchHeldRegisterCashByPerson(branchId, asOfDateYmd),
       enabled: heldBalancesAcrossBranchesEnabled,
     })),
   });
+  const heldRegisterAggregationFingerprint = useMemo(() => {
+    if (!heldBalancesAcrossBranchesEnabled) return "";
+    return heldRegisterCashByBranchQueries
+      .map((q) => `${q.fetchStatus}:${q.status}:${q.dataUpdatedAt}`)
+      .join(";");
+  }, [heldBalancesAcrossBranchesEnabled, heldRegisterCashByBranchQueries]);
+
   const heldRegisterCashRowsAggregated = useMemo(() => {
     if (!heldBalancesAcrossBranchesEnabled) return EMPTY_HELD_REGISTER_ROWS;
     const byPersonnel = new Map<number, { personnelId: number; fullName: string; amount: number }>();
@@ -1304,7 +1330,7 @@ export function AddBranchTransactionModal({
       }
     }
     return [...byPersonnel.values()];
-  }, [heldBalancesAcrossBranchesEnabled, heldRegisterCashByBranchQueries]);
+  }, [heldBalancesAcrossBranchesEnabled, heldRegisterAggregationFingerprint]);
   const heldRegisterRowsForPicker = heldBalancesAcrossBranchesEnabled
     ? heldRegisterCashRowsAggregated
     : heldRegisterCashRows;
@@ -1339,6 +1365,7 @@ export function AddBranchTransactionModal({
   }, [
     personnelPocketPaySourceActive,
     heldBalancesAcrossBranchesEnabled,
+    heldRegisterAggregationFingerprint,
     heldRegisterCashRowsAggregated,
     cashSettlementResponsibleOptions,
     allPersonnel,
@@ -1393,7 +1420,7 @@ export function AddBranchTransactionModal({
   }, [
     expensePocketPickerUsesHeldTotals,
     heldRegisterPickerEnabled,
-    heldRegisterCashRowsAggregated,
+    heldRegisterAggregationFingerprint,
     heldRegisterRowsForPicker,
     expensePocketPersonnelWatch,
     setValue,
@@ -1405,7 +1432,7 @@ export function AddBranchTransactionModal({
   }, [
     expensePocketPickerUsesHeldTotals,
     heldRegisterPickerEnabled,
-    heldRegisterCashRowsAggregated,
+    heldRegisterAggregationFingerprint,
     heldRegisterRowsForPicker,
     trigger,
   ]);

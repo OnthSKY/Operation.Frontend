@@ -2605,14 +2605,14 @@ export function OrderAccountStatementScreen() {
       setPriceHistoryRows([]);
       setPriceHistoryTitle(line.description?.trim() || t("reports.orderAccountStatementPickProduct"));
       try {
-        const rows = await fetchSalesPriceHistory({
+        const page = await fetchSalesPriceHistory({
           productId,
           counterpartyType: activeCounterparty.counterpartyType,
           counterpartyId: activeCounterparty.counterpartyId,
           currencyCode: "TRY",
           limit: 50,
         });
-        setPriceHistoryRows(rows);
+        setPriceHistoryRows(page.items);
       } catch (e) {
         notify.error(toErrorMessage(e));
       } finally {

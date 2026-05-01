@@ -48,6 +48,7 @@ export const nav = {
   products: "Ürünler",
   productCategories: "Kategoriler",
   productCostHistory: "Ürün maliyet geçmişi",
+  productSalesPriceHistory: "Satış birim fiyat geçmişi",
   suppliers: "Tedarikçiler",
   supplierInvoices: "Tedarikçi faturaları",
   vehicles: "Araçlar",
@@ -140,6 +141,8 @@ export const nav = {
       "Ürünleri gruplayın; listelerde ve analizde aynı başlık altında toplanmasını kolaylaştırır.",
     productCostHistory:
       "Ürünlerin tarih bazlı alış/maliyet değerlerini KDV dahil ve hariç olarak kaydedin; maliyet değişimlerini geçmişte izleyin.",
+    productSalesPriceHistory:
+      "Çıkış faturalarında kaydedilen birim fiyatlar: tüm cariler, yalnız şubeler, tek şube veya yalnız müşteriler; filtre ve sayfalama ile.",
     productsOrderAccountStatement:
       "Sipariş ve hesap dökümü: ürün kataloğundan satır doldurma, kalem tutarları, hediye ve promosyon, ön ödeme, stoğa gelmeyen ödemeler ve net. A4 önizleme ve PDF.",
     suppliers:

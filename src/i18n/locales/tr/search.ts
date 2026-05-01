@@ -22,6 +22,7 @@ export const search = {
   subProducts: "Depolara göre ürün listesi",
   subProductCategories: "Ana ve alt ürün kategorileri",
   subProductCostHistory: "Ürün maliyetlerini tarih, KDV dahil/hariç olarak yönet",
+  subProductSalesPriceHistory: "Çıkış faturası birim fiyatlarını şube veya tüm carilerde inceleyin.",
   subSuppliers: "Tedarikçi, alım faturası, açık borç, ödemeler",
   subSupplierInvoices: "Alım faturaları listesi, filtreler, açık bakiyeden ödeme",
   subGeneralOverhead:

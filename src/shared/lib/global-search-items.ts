@@ -167,6 +167,14 @@ export const GLOBAL_SEARCH_ITEMS: GlobalSearchItemDef[] = [
       "ürün maliyet cost history kdv vat dahil hariç purchase satın alma alış fiyat date tarih değişim",
   },
   {
+    id: "product-sales-price-history",
+    href: "/products/sales-price-history",
+    titleKey: "nav.productSalesPriceHistory",
+    subtitleKey: "search.subProductSalesPriceHistory",
+    match:
+      "satış birim fiyat sales unit price çıkış faturası outbound invoice şube branch müşteri customer cari karşılaştır compare geçmiş history",
+  },
+  {
     id: "suppliers",
     href: "/suppliers",
     titleKey: "nav.suppliers",
