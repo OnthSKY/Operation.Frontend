@@ -57,7 +57,6 @@ import { Select, type SelectOption } from "@/shared/ui/Select";
 import { TrashIcon } from "@/shared/ui/TrashIcon";
 import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
-import { Tooltip } from "@/shared/ui/Tooltip";
 import { RichCombobox, type RichComboboxOption } from "@/shared/ui/RichCombobox";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -98,6 +97,9 @@ type LineDraft = OrderAccountLine & {
 };
 type PaidDraft = PaidOnBehalfLine & { amountText: string };
 type PromoDraft = PromoDeductionLine & { amountText: string };
+
+type ProductPricingTab = "summary" | "salesHistory" | "costHistory";
+
 type ShipmentOption = {
   key: string;
   warehouseId: number;
@@ -1094,75 +1096,30 @@ type OasCostSnapshot = {
   currencyCode: string;
 };
 
-function OasProductPricingInfoButton({
-  cost,
-  sales,
-  hasCounterparty,
-  locale,
-  t,
+function OrderAccountProductPricingIconButton({
+  onClick,
+  ariaLabel,
+  disabled,
 }: {
-  cost: OasCostSnapshot | undefined;
-  sales: SalesPriceSuggestion | undefined;
-  hasCounterparty: boolean;
-  locale: Locale;
-  t: (key: string) => string;
+  onClick: () => void;
+  ariaLabel: string;
+  disabled?: boolean;
 }) {
-  const costBlock = cost ? (
-    <>
-      <span className="text-zinc-500">{t("reports.orderAccountStatementSuggestedCostShort")}: </span>
-      <span className="font-medium text-zinc-900">
-        {formatLocaleAmount(Number(cost.unitCostExcludingVat || 0), locale, cost.currencyCode)}
-      </span>
-      <span className="text-zinc-400"> · </span>
-      <span className="text-zinc-500">{t("reports.orderAccountStatementCostIncVatShort")}: </span>
-      <span className="font-medium text-zinc-900">
-        {formatLocaleAmount(Number(cost.unitCostIncludingVat || 0), locale, cost.currencyCode)}
-      </span>
-    </>
-  ) : (
-    <span className="text-amber-900/90">{t("reports.orderAccountStatementCostSuggestionMissing")}</span>
-  );
-
-  const salesBlock = !hasCounterparty ? (
-    <span className="text-zinc-600">{t("reports.orderAccountStatementPricingInfoNoCounterparty")}</span>
-  ) : sales ? (
-    <>
-      <span className="text-zinc-500">{t("reports.orderAccountStatementSalesSuggestShort")}: </span>
-      <span className="font-medium text-zinc-900">
-        {formatLocaleAmount(Number(sales.suggestedUnitPrice || 0), locale, sales.currencyCode)}
-      </span>
-      <span className="text-zinc-400 text-[10px]"> (n={sales.sampleCount})</span>
-    </>
-  ) : (
-    <span className="text-zinc-600">{t("reports.orderAccountStatementPricingInfoSalesPending")}</span>
-  );
-
   return (
-    <Tooltip
-      content={
-        <div className="max-w-[14rem] space-y-2 text-left text-[11px] leading-relaxed">
-          <p className="border-b border-zinc-200 pb-1 font-semibold text-zinc-900">
-            {t("reports.orderAccountStatementPricingInfoTitle")}
-          </p>
-          <p>{costBlock}</p>
-          <p>{salesBlock}</p>
-        </div>
-      }
-      side="bottom"
-      delayMs={120}
-      panelClassName="max-w-[16rem]"
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 shadow-sm hover:border-violet-200 hover:bg-violet-50 hover:text-violet-800 disabled:pointer-events-none disabled:opacity-40"
+      )}
+      aria-label={ariaLabel}
     >
-      <button
-        type="button"
-        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 shadow-sm hover:border-violet-200 hover:bg-violet-50 hover:text-violet-800"
-        aria-label={t("reports.orderAccountStatementPricingInfoAria")}
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-          <circle cx="12" cy="12" r="10" />
-          <path d="M12 16v-4M12 8h.01" strokeLinecap="round" />
-        </svg>
-      </button>
-    </Tooltip>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 16v-4M12 8h.01" strokeLinecap="round" />
+      </svg>
+    </button>
   );
 }
 
@@ -1982,10 +1939,13 @@ export function OrderAccountStatementScreen() {
   const [linePriceSuggestionByLineId, setLinePriceSuggestionByLineId] = useState<
     Record<string, SalesPriceSuggestion | undefined>
   >({});
-  const [priceHistoryOpen, setPriceHistoryOpen] = useState(false);
+  const [productPricingOpen, setProductPricingOpen] = useState(false);
+  const [productPricingLineId, setProductPricingLineId] = useState<string | null>(null);
+  const [productPricingProductId, setProductPricingProductId] = useState(0);
+  const [productPricingTitle, setProductPricingTitle] = useState("");
+  const [productPricingTab, setProductPricingTab] = useState<ProductPricingTab>("summary");
   const [priceHistoryRows, setPriceHistoryRows] = useState<SalesPriceHistoryRow[]>([]);
   const [priceHistoryBusy, setPriceHistoryBusy] = useState(false);
-  const [priceHistoryTitle, setPriceHistoryTitle] = useState("");
   const [applyBranchOpenBalanceBusy, setApplyBranchOpenBalanceBusy] = useState(false);
   const [emblemDataUrl, setEmblemDataUrl] = useState("");
   const [defaultEmblemDataUrl, setDefaultEmblemDataUrl] = useState("");
@@ -2003,8 +1963,7 @@ export function OrderAccountStatementScreen() {
   const [statementDate] = useState(() => new Date());
   const [layoutVariant, setLayoutVariant] = useState<StatementLayoutVariant>("corporate");
   const [contentPreset, setContentPreset] = useState<OrderAccountContentPreset>("custom");
-  const [showQuantityColumn, setShowQuantityColumn] = useState(false);
-  const [mobileAdvancedOpen, setMobileAdvancedOpen] = useState(false);
+  const [showQuantityColumn, setShowQuantityColumn] = useState(true);
   const [desktopLineDetailsOpen, setDesktopLineDetailsOpen] = useState(false);
   const [draggingLineId, setDraggingLineId] = useState<string | null>(null);
   const [dragOverLineId, setDragOverLineId] = useState<string | null>(null);
@@ -2191,6 +2150,17 @@ export function OrderAccountStatementScreen() {
   useEffect(() => {
     setPortalMounted(true);
   }, []);
+
+  /** Hesaplayıcıdan veya sevkiyattan adet/birim/birim fiyatı geldiğinde PDF ile form aynı kalsın. */
+  useEffect(() => {
+    const has = lines.some(
+      (l) =>
+        String(l.quantityText ?? "").trim() !== "" ||
+        String(l.unitText ?? "").trim() !== "" ||
+        String(l.unitPriceText ?? "").trim() !== ""
+    );
+    if (has) setShowQuantityColumn(true);
+  }, [lines]);
 
   useEffect(() => {
     if (!previewModalOpen) return;
@@ -2618,6 +2588,13 @@ export function OrderAccountStatementScreen() {
     }
     return map;
   }, [costHistoryRows]);
+  const productPricingCostRows = useMemo(() => {
+    if (productPricingProductId <= 0) return [];
+    return costHistoryRows
+      .filter((r) => r.productId === productPricingProductId)
+      .slice()
+      .sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate));
+  }, [costHistoryRows, productPricingProductId]);
   const catalogOptionsWithCost = useMemo(() => {
     return catalogOptions.map((p) => {
       const unit = p.unit?.trim() || "—";
@@ -2677,31 +2654,53 @@ export function OrderAccountStatementScreen() {
     },
     [activeCounterparty, locale]
   );
-  const openPriceHistoryForLine = useCallback(
-    async (line: LineDraft) => {
+  const closeProductPricingPanel = useCallback(() => {
+    setProductPricingOpen(false);
+    setProductPricingTab("summary");
+    setProductPricingLineId(null);
+    setProductPricingProductId(0);
+    setPriceHistoryRows([]);
+  }, []);
+
+  const openProductPricingPanel = useCallback(
+    (line: LineDraft, tab: ProductPricingTab = "summary") => {
       const productId = line.selectedProductId ?? 0;
-      if (productId <= 0 || !activeCounterparty) return;
-      setPriceHistoryOpen(true);
-      setPriceHistoryBusy(true);
+      if (productId <= 0) return;
+      setProductPricingLineId(line.id);
+      setProductPricingProductId(productId);
+      setProductPricingTitle(line.description?.trim() || t("reports.orderAccountStatementPickProduct"));
+      setProductPricingTab(tab);
       setPriceHistoryRows([]);
-      setPriceHistoryTitle(line.description?.trim() || t("reports.orderAccountStatementPickProduct"));
-      try {
-        const page = await fetchSalesPriceHistory({
-          productId,
-          counterpartyType: activeCounterparty.counterpartyType,
-          counterpartyId: activeCounterparty.counterpartyId,
-          currencyCode: "TRY",
-          limit: 50,
-        });
-        setPriceHistoryRows(page.items);
-      } catch (e) {
-        notify.error(toErrorMessage(e));
-      } finally {
-        setPriceHistoryBusy(false);
-      }
+      setProductPricingOpen(true);
     },
-    [activeCounterparty, t]
+    [t]
   );
+
+  useEffect(() => {
+    if (!productPricingOpen || productPricingTab !== "salesHistory") return;
+    if (!activeCounterparty || productPricingProductId <= 0) return;
+    let cancelled = false;
+    setPriceHistoryBusy(true);
+    void fetchSalesPriceHistory({
+      productId: productPricingProductId,
+      counterpartyType: activeCounterparty.counterpartyType,
+      counterpartyId: activeCounterparty.counterpartyId,
+      currencyCode: "TRY",
+      limit: 50,
+    })
+      .then((page) => {
+        if (!cancelled) setPriceHistoryRows(page.items);
+      })
+      .catch((e) => {
+        if (!cancelled) notify.error(toErrorMessage(e));
+      })
+      .finally(() => {
+        if (!cancelled) setPriceHistoryBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [productPricingOpen, productPricingTab, productPricingProductId, activeCounterparty]);
 
   useEffect(() => {
     if (!activeCounterparty) return;
@@ -3113,6 +3112,7 @@ export function OrderAccountStatementScreen() {
     setSelectedShipmentSource(null);
     setSelectedShipmentProductKind("unknown");
     setShipmentInvoiceability([]);
+    setShowQuantityColumn(true);
   }, [defaultCompanyName, defaultEmblemDataUrl, shipmentPrefillParams]);
 
   const onEmblemFileChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
@@ -3890,15 +3890,6 @@ export function OrderAccountStatementScreen() {
                 </span>
               </label>
             </div>
-            <div className="mb-2 lg:hidden">
-              <button
-                type="button"
-                className="inline-flex min-h-9 items-center rounded-md border border-zinc-200 bg-white px-3 text-xs font-medium text-zinc-700"
-                onClick={() => setMobileAdvancedOpen((v) => !v)}
-              >
-                {mobileAdvancedOpen ? "Hizli giris modu" : "Gelismis alanlari goster"}
-              </button>
-            </div>
 
             <ul
               className={cn(
@@ -4010,17 +4001,14 @@ export function OrderAccountStatementScreen() {
                         placeholder={t("reports.orderAccountStatementLinePlaceholder")}
                       />
                       {line.selectedProductId ? (
-                        <OasProductPricingInfoButton
-                          cost={latestCostByProductId.get(line.selectedProductId)}
-                          sales={linePriceSuggestionByLineId[line.id]}
-                          hasCounterparty={activeCounterparty != null}
-                          locale={locale}
-                          t={t}
+                        <OrderAccountProductPricingIconButton
+                          ariaLabel={t("reports.orderAccountStatementPricingInfoAria")}
+                          onClick={() => openProductPricingPanel(line)}
                         />
                       ) : null}
                     </div>
                   </label>
-                  {showQuantityColumn && mobileAdvancedOpen ? (
+                  {showQuantityColumn ? (
                     <>
                     <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-3">
                       <label
@@ -4144,96 +4132,17 @@ export function OrderAccountStatementScreen() {
                     </ModernSelect>
                   ) : null}
                   {line.selectedProductId ? (
-                    (() => {
-                      const cost = latestCostByProductId.get(line.selectedProductId);
-                      const priceSuggestion = linePriceSuggestionByLineId[line.id];
-                      if (!cost) {
-                        return (
-                          <div className="mt-1 flex flex-col gap-1">
-                            <p className="text-[11px] text-zinc-500">
-                              {t("reports.orderAccountStatementCostSuggestionMissing")}
-                            </p>
-                            {priceSuggestion ? (
-                              <p className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] text-blue-800">
-                                Satış önerisi:{" "}
-                                {formatLocaleAmount(
-                                  Number(priceSuggestion.suggestedUnitPrice || 0),
-                                  locale,
-                                  priceSuggestion.currencyCode
-                                )}{" "}
-                                ({priceSuggestion.basis}, n={priceSuggestion.sampleCount})
-                              </p>
-                            ) : null}
-                            <div>
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                className="mr-1 min-h-8 px-2 py-1 text-[11px]"
-                                onClick={() =>
-                                  line.selectedProductId
-                                    ? void loadSalesSuggestionForLine(line.id, line.selectedProductId, true)
-                                    : undefined
-                                }
-                              >
-                                Satış önerisi çek
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                className="min-h-8 px-2 py-1 text-[11px]"
-                                onClick={() => void openPriceHistoryForLine(line)}
-                              >
-                                Fiyat geçmişi
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      }
-                      return (
-                        <div className="mt-1 flex flex-col gap-1">
-                          <p className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] text-emerald-800">
-                            {t("reports.orderAccountStatementSuggestedCostShort")}:{" "}
-                            {formatLocaleAmount(Number(cost.unitCostExcludingVat || 0), locale, cost.currencyCode)}
-                            {" · "}
-                            {t("reports.orderAccountStatementCostIncVatShort")}:{" "}
-                            {formatLocaleAmount(Number(cost.unitCostIncludingVat || 0), locale, cost.currencyCode)}
-                          </p>
-                          {priceSuggestion ? (
-                            <p className="rounded-md border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] text-blue-800">
-                              Satış önerisi:{" "}
-                              {formatLocaleAmount(
-                                Number(priceSuggestion.suggestedUnitPrice || 0),
-                                locale,
-                                priceSuggestion.currencyCode
-                              )}{" "}
-                              ({priceSuggestion.basis}, n={priceSuggestion.sampleCount})
-                            </p>
-                          ) : null}
-                          <div>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="mr-1 min-h-8 px-2 py-1 text-[11px]"
-                              onClick={() =>
-                                line.selectedProductId
-                                  ? void loadSalesSuggestionForLine(line.id, line.selectedProductId, true)
-                                  : undefined
-                              }
-                            >
-                              Satış önerisi çek
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="min-h-8 px-2 py-1 text-[11px]"
-                              onClick={() => void openPriceHistoryForLine(line)}
-                            >
-                              Fiyat geçmişi
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })()
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className={cn(
+                        "mt-1.5 w-full gap-1.5 text-xs font-medium sm:w-auto",
+                        lineDense ? "min-h-8" : "min-h-9"
+                      )}
+                      onClick={() => openProductPricingPanel(line)}
+                    >
+                      Maliyet, satış önerisi ve geçmiş
+                    </Button>
                   ) : null}
                   <LineCalcBlock
                     line={line}
@@ -4498,12 +4407,9 @@ export function OrderAccountStatementScreen() {
                             placeholder={t("reports.orderAccountStatementLinePlaceholder")}
                           />
                           {line.selectedProductId ? (
-                            <OasProductPricingInfoButton
-                              cost={latestCostByProductId.get(line.selectedProductId)}
-                              sales={linePriceSuggestionByLineId[line.id]}
-                              hasCounterparty={activeCounterparty != null}
-                              locale={locale}
-                              t={t}
+                            <OrderAccountProductPricingIconButton
+                              ariaLabel={t("reports.orderAccountStatementPricingInfoAria")}
+                              onClick={() => openProductPricingPanel(line)}
                             />
                           ) : null}
                         </div>
@@ -4538,19 +4444,39 @@ export function OrderAccountStatementScreen() {
                             const cost = latestCostByProductId.get(line.selectedProductId);
                             if (!cost) {
                               return (
-                                <p className="mt-1 text-[11px] text-zinc-500">
-                                  {t("reports.orderAccountStatementCostSuggestionMissing")}
-                                </p>
+                                <div className="mt-1 space-y-1">
+                                  <p className="text-[11px] text-zinc-500">
+                                    {t("reports.orderAccountStatementCostSuggestionMissing")}
+                                  </p>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    className="h-auto min-h-0 px-0 py-0 text-[11px] font-medium text-violet-700 hover:bg-transparent hover:underline"
+                                    onClick={() => openProductPricingPanel(line)}
+                                  >
+                                    Maliyet, satış önerisi ve geçmiş
+                                  </Button>
+                                </div>
                               );
                             }
                             return (
-                              <p className="mt-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] text-emerald-800">
-                                {t("reports.orderAccountStatementSuggestedCostShort")}:{" "}
-                                {formatLocaleAmount(Number(cost.unitCostExcludingVat || 0), locale, cost.currencyCode)}
-                                {" · "}
-                                {t("reports.orderAccountStatementCostIncVatShort")}:{" "}
-                                {formatLocaleAmount(Number(cost.unitCostIncludingVat || 0), locale, cost.currencyCode)}
-                              </p>
+                              <div className="mt-1 space-y-1">
+                                <p className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] text-emerald-800">
+                                  {t("reports.orderAccountStatementSuggestedCostShort")}:{" "}
+                                  {formatLocaleAmount(Number(cost.unitCostExcludingVat || 0), locale, cost.currencyCode)}
+                                  {" · "}
+                                  {t("reports.orderAccountStatementCostIncVatShort")}:{" "}
+                                  {formatLocaleAmount(Number(cost.unitCostIncludingVat || 0), locale, cost.currencyCode)}
+                                </p>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  className="h-auto min-h-0 px-0 py-0 text-[11px] font-medium text-violet-700 hover:bg-transparent hover:underline"
+                                  onClick={() => openProductPricingPanel(line)}
+                                >
+                                  Maliyet, satış önerisi ve geçmiş
+                                </Button>
+                              </div>
                             );
                           })()
                         ) : null}
@@ -5116,17 +5042,17 @@ export function OrderAccountStatementScreen() {
                 role="dialog"
                 aria-modal="true"
                 aria-labelledby="order-account-preview-dialog-title"
-                className="flex min-h-0 w-full max-w-[min(100rem,calc(100vw-0px))] flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-zinc-200 sm:max-h-[min(100dvh,100dvh-1.5rem)]"
+                className="flex h-[100dvh] max-h-[100dvh] min-h-0 w-full max-w-[min(100rem,calc(100vw-0px))] flex-1 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-zinc-200 sm:h-auto sm:max-h-[min(100dvh,100dvh-1.5rem)]"
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-zinc-50 px-4 py-3 sm:px-5">
-                  <div className="min-w-0">
-                    <h2 id="order-account-preview-dialog-title" className="text-base font-bold tracking-tight text-zinc-950">
+                <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-zinc-200 bg-zinc-50 px-3 py-2.5 sm:gap-3 sm:px-5 sm:py-3">
+                  <div className="min-w-0 pr-1">
+                    <h2 id="order-account-preview-dialog-title" className="text-sm font-bold tracking-tight text-zinc-950 sm:text-base">
                       {t("reports.orderAccountStatementPreviewTitle")}
                     </h2>
-                    <p className="text-xs text-zinc-600">{t("reports.orderAccountStatementPreviewHint")}</p>
+                    <p className="hidden text-xs text-zinc-600 sm:block">{t("reports.orderAccountStatementPreviewHint")}</p>
                   </div>
-                  <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:gap-2">
                     <OasIconButton
                       variant="secondary"
                       title={t("common.close")}
@@ -5166,7 +5092,7 @@ export function OrderAccountStatementScreen() {
                     </OasIconButton>
                   </div>
                 </div>
-                <div className="shrink-0 border-b border-zinc-200 bg-white px-4 py-3 sm:px-5">
+                <div className="max-h-[min(38vh,320px)] shrink-0 overflow-y-auto overscroll-contain border-b border-zinc-200 bg-white px-3 py-2.5 sm:max-h-none sm:overflow-visible sm:px-5 sm:py-3">
                   <p className="mb-2 text-[11px] leading-snug text-zinc-500">
                     {t("reports.orderAccountStatementPreviewTemplateHint")}
                   </p>
@@ -5206,8 +5132,8 @@ export function OrderAccountStatementScreen() {
                     setShowPaymentOnPdf={setShowPaymentOnPdf}
                   />
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-zinc-100/90 p-3 sm:p-5">
-                  <div className="w-full min-w-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+                <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-zinc-100/90 p-2 sm:p-5">
+                  <div className="mx-auto w-full min-w-0 max-w-[210mm] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                     <StatementPaper
                       ref={previewRef}
                       layoutVariant={layoutVariant}
@@ -5348,48 +5274,201 @@ export function OrderAccountStatementScreen() {
         </div>
       </Modal>
       <Modal
-        open={priceHistoryOpen}
-        onClose={() => setPriceHistoryOpen(false)}
-        titleId="order-account-price-history-title"
-        title={`Fiyat geçmişi · ${priceHistoryTitle || "Ürün"}`}
+        open={productPricingOpen}
+        onClose={closeProductPricingPanel}
+        titleId="order-account-product-pricing-title"
+        title={`Ürün · ${productPricingTitle || "—"}`}
         closeButtonLabel={t("common.close")}
-        className="w-full max-w-3xl"
+        className="w-full max-w-2xl"
       >
-        <div className="mt-2">
-          {priceHistoryBusy ? (
-            <p className="text-sm text-zinc-600">{t("common.loading")}</p>
-          ) : priceHistoryRows.length === 0 ? (
-            <p className="text-sm text-zinc-500">Kayıt bulunamadı.</p>
-          ) : (
-            <div className="max-h-[60vh] overflow-auto rounded-md border border-zinc-200">
-              <table className="w-full min-w-[680px] border-collapse text-xs">
-                <thead>
-                  <tr className="border-b border-zinc-200 bg-zinc-50 text-zinc-700">
-                    <th className="px-2 py-2 text-left">Tarih</th>
-                    <th className="px-2 py-2 text-left">Cari</th>
-                    <th className="px-2 py-2 text-right">Birim fiyat</th>
-                    <th className="px-2 py-2 text-left">Birim</th>
-                    <th className="px-2 py-2 text-left">Kaynak fatura</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {priceHistoryRows.map((row) => (
-                    <tr key={row.id} className="border-b border-zinc-100 text-zinc-800 last:border-0">
-                      <td className="px-2 py-1.5">{row.issueDate}</td>
-                      <td className="px-2 py-1.5">{row.counterpartyName}</td>
-                      <td className="px-2 py-1.5 text-right tabular-nums">
-                        {formatLocaleAmount(Number(row.unitPrice || 0), locale, row.currencyCode)}
-                      </td>
-                      <td className="px-2 py-1.5">{row.unit || "—"}</td>
-                      <td className="px-2 py-1.5">
-                        {row.sourceOutboundInvoiceId ? `#${row.sourceOutboundInvoiceId}` : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        <div className="mt-1">
+          <div className="flex gap-1 rounded-lg bg-zinc-100 p-1">
+            {(
+              [
+                { id: "summary" as const, label: "Özet" },
+                { id: "salesHistory" as const, label: "Fiyat geçmişi" },
+                { id: "costHistory" as const, label: "Maliyet geçmişi" },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                className={cn(
+                  "min-h-9 flex-1 rounded-md px-1.5 py-1.5 text-[11px] font-semibold transition-colors sm:px-2 sm:text-xs",
+                  productPricingTab === tab.id ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-600 hover:text-zinc-900"
+                )}
+                onClick={() => setProductPricingTab(tab.id)}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {productPricingTab === "summary" ? (
+            <div className="mt-4 space-y-3 text-sm text-zinc-800">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                {t("reports.orderAccountStatementPricingInfoTitle")}
+              </p>
+              {(() => {
+                const cost =
+                  productPricingProductId > 0 ? latestCostByProductId.get(productPricingProductId) : undefined;
+                const sales =
+                  productPricingLineId != null ? linePriceSuggestionByLineId[productPricingLineId] : undefined;
+                return (
+                  <>
+                    <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 px-3 py-2.5">
+                      <p className="text-xs font-semibold text-zinc-600">
+                        {t("reports.orderAccountStatementSuggestedCostShort")}
+                      </p>
+                      {cost ? (
+                        <p className="mt-1 text-sm">
+                          <span className="tabular-nums font-medium text-zinc-950">
+                            {formatLocaleAmount(Number(cost.unitCostExcludingVat || 0), locale, cost.currencyCode)}
+                          </span>
+                          <span className="text-zinc-400"> · </span>
+                          <span className="text-xs text-zinc-600">
+                            {t("reports.orderAccountStatementCostIncVatShort")}{" "}
+                          </span>
+                          <span className="tabular-nums font-medium text-zinc-950">
+                            {formatLocaleAmount(Number(cost.unitCostIncludingVat || 0), locale, cost.currencyCode)}
+                          </span>
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-sm text-amber-800">
+                          {t("reports.orderAccountStatementCostSuggestionMissing")}
+                        </p>
+                      )}
+                    </div>
+                    <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 px-3 py-2.5">
+                      <p className="text-xs font-semibold text-zinc-600">
+                        {t("reports.orderAccountStatementSalesSuggestShort")}
+                      </p>
+                      {!activeCounterparty ? (
+                        <p className="mt-1 text-sm text-zinc-600">
+                          {t("reports.orderAccountStatementPricingInfoNoCounterparty")}
+                        </p>
+                      ) : sales ? (
+                        <p className="mt-1 text-sm">
+                          <span className="tabular-nums font-medium text-zinc-950">
+                            {formatLocaleAmount(Number(sales.suggestedUnitPrice || 0), locale, sales.currencyCode)}
+                          </span>
+                          <span className="text-xs text-zinc-500">
+                            {" "}
+                            ({sales.basis}, n={sales.sampleCount})
+                          </span>
+                        </p>
+                      ) : (
+                        <p className="mt-1 text-sm text-zinc-600">
+                          {t("reports.orderAccountStatementPricingInfoSalesPending")}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="min-h-9 text-xs"
+                        disabled={!activeCounterparty || !productPricingLineId || productPricingProductId <= 0}
+                        onClick={() => {
+                          if (productPricingLineId) {
+                            void loadSalesSuggestionForLine(
+                              productPricingLineId,
+                              productPricingProductId,
+                              true
+                            );
+                          }
+                        }}
+                      >
+                        Satış önerisini yenile
+                      </Button>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
-          )}
+          ) : null}
+
+          {productPricingTab === "salesHistory" ? (
+            <div className="mt-4">
+              {!activeCounterparty ? (
+                <p className="text-sm text-zinc-600">
+                  {t("reports.orderAccountStatementPricingInfoNoCounterparty")}
+                </p>
+              ) : priceHistoryBusy ? (
+                <p className="text-sm text-zinc-600">{t("common.loading")}</p>
+              ) : priceHistoryRows.length === 0 ? (
+                <p className="text-sm text-zinc-500">Kayıt bulunamadı.</p>
+              ) : (
+                <div className="max-h-[55vh] overflow-auto rounded-md border border-zinc-200">
+                  <table className="w-full min-w-[640px] border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-zinc-200 bg-zinc-50 text-zinc-700">
+                        <th className="px-2 py-2 text-left">Tarih</th>
+                        <th className="px-2 py-2 text-left">Cari</th>
+                        <th className="px-2 py-2 text-right">Birim fiyat</th>
+                        <th className="px-2 py-2 text-left">Birim</th>
+                        <th className="px-2 py-2 text-left">Kaynak fatura</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {priceHistoryRows.map((row) => (
+                        <tr key={row.id} className="border-b border-zinc-100 text-zinc-800 last:border-0">
+                          <td className="px-2 py-1.5">{row.issueDate}</td>
+                          <td className="px-2 py-1.5">{row.counterpartyName}</td>
+                          <td className="px-2 py-1.5 text-right tabular-nums">
+                            {formatLocaleAmount(Number(row.unitPrice || 0), locale, row.currencyCode)}
+                          </td>
+                          <td className="px-2 py-1.5">{row.unit || "—"}</td>
+                          <td className="px-2 py-1.5">
+                            {row.sourceOutboundInvoiceId ? `#${row.sourceOutboundInvoiceId}` : "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : null}
+
+          {productPricingTab === "costHistory" ? (
+            <div className="mt-4">
+              {productPricingCostRows.length === 0 ? (
+                <p className="text-sm text-zinc-500">Maliyet kaydı bulunamadı.</p>
+              ) : (
+                <div className="max-h-[55vh] overflow-auto rounded-md border border-zinc-200">
+                  <table className="w-full min-w-[520px] border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-zinc-200 bg-zinc-50 text-zinc-700">
+                        <th className="px-2 py-2 text-left">Geçerlilik</th>
+                        <th className="px-2 py-2 text-left">Birim</th>
+                        <th className="px-2 py-2 text-right">KDV hariç</th>
+                        <th className="px-2 py-2 text-right">KDV dahil</th>
+                        <th className="px-2 py-2 text-left">Not</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {productPricingCostRows.map((row) => (
+                        <tr key={row.id} className="border-b border-zinc-100 text-zinc-800 last:border-0">
+                          <td className="px-2 py-1.5">{row.effectiveDate}</td>
+                          <td className="px-2 py-1.5">{row.unit || "—"}</td>
+                          <td className="px-2 py-1.5 text-right tabular-nums">
+                            {formatLocaleAmount(Number(row.unitCostExcludingVat || 0), locale, row.currencyCode)}
+                          </td>
+                          <td className="px-2 py-1.5 text-right tabular-nums">
+                            {formatLocaleAmount(Number(row.unitCostIncludingVat || 0), locale, row.currencyCode)}
+                          </td>
+                          <td className="max-w-[10rem] truncate px-2 py-1.5 text-zinc-600" title={row.note ?? ""}>
+                            {(row.note ?? "").trim() || "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ) : null}
         </div>
       </Modal>
     </div>

@@ -461,32 +461,34 @@ export function ProductsScreen() {
   return (
     <>
       <PageScreenScaffold
-        className="w-full p-4 pb-6 sm:pb-4"
+        className="w-full min-w-0 p-4 pb-6 sm:pb-4"
+        top={
+          <div className="min-w-0">
+            <h1 className="text-xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-2xl sm:leading-snug">
+              {t("products.title")}
+            </h1>
+            <p className="mt-1 break-words text-sm leading-relaxed text-zinc-500">
+              {t("products.subtitle")}
+            </p>
+          </div>
+        }
         intro={
-          <>
-            <div>
-              <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
-                {t("products.title")}
-              </h1>
-              <p className="text-sm text-zinc-500">{t("products.subtitle")}</p>
-            </div>
-            <PageWhenToUseGuide
-              guideTab="products"
-              className="mt-1"
-              title={t("common.pageWhenToUseTitle")}
-              description={t("pageHelp.products.intro")}
-              listVariant="ordered"
-              items={[
-                { text: t("pageHelp.products.step1") },
-                { text: t("pageHelp.products.step2") },
-                {
-                  text: t("pageHelp.products.step3"),
-                  link: { href: "/products/categories", label: t("pageHelp.products.step3Link") },
-                },
-                { text: t("pageHelp.products.step4") },
-              ]}
-            />
-          </>
+          <PageWhenToUseGuide
+            guideTab="products"
+            className="mt-0"
+            title={t("common.pageWhenToUseTitle")}
+            description={t("pageHelp.products.intro")}
+            listVariant="ordered"
+            items={[
+              { text: t("pageHelp.products.step1") },
+              { text: t("pageHelp.products.step2") },
+              {
+                text: t("pageHelp.products.step3"),
+                link: { href: "/products/categories", label: t("pageHelp.products.step3Link") },
+              },
+              { text: t("pageHelp.products.step4") },
+            ]}
+          />
         }
         main={
           <>

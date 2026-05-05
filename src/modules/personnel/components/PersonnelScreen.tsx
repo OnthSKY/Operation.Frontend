@@ -1120,6 +1120,19 @@ export function PersonnelScreen() {
             </>
           }
         >
+          <div className="min-w-0 space-y-4">
+          <div className="min-w-0">
+            <Input
+              name="personnelFilterName"
+              type="search"
+              placeholder={t("personnel.filterNameSearch")}
+              autoComplete="off"
+              value={filterName}
+              onChange={(e) => setFilterName(e.target.value)}
+              aria-label={t("personnel.filterNameSearch")}
+              className="min-w-0"
+            />
+          </div>
           {isPending && (
             <p className="text-sm text-zinc-500">{t("common.loading")}</p>
           )}
@@ -1634,6 +1647,7 @@ export function PersonnelScreen() {
               ) : null}
             </>
           )}
+          </div>
         </Card>
 
             <RightDrawer
@@ -1648,15 +1662,6 @@ export function PersonnelScreen() {
                   {t("personnel.listFiltersDrawerHint")}
                 </p>
                 <div className="grid gap-4 sm:grid-cols-1">
-                  <Input
-                    name="personnelFilterName"
-                    label={t("personnel.filterNameSearch")}
-                    type="search"
-                    autoComplete="off"
-                    value={filterName}
-                    onChange={(e) => setFilterName(e.target.value)}
-                    className="min-w-0"
-                  />
                   <Select
                     name="personnelFilterBranch"
                     label={t("personnel.tableBranch")}

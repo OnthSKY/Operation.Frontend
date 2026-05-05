@@ -37,8 +37,8 @@ import { cn } from "@/lib/cn";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import type { WarehouseListItem } from "@/types/warehouse";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 function warehouseLocationLine(w: WarehouseListItem): string | null {
   const city = w.city?.trim();
@@ -54,20 +54,25 @@ function warehouseResponsiblesLine(w: WarehouseListItem): string | null {
   return m || u || null;
 }
 
+const WAREHOUSE_DEEP_LINK_KEYS = ["openWarehouse", "openWarehouseTab", "openMovementId"] as const;
+
 export function WarehouseScreen() {
   const { t, locale } = useI18n();
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [whModal, setWhModal] = useState(false);
   const [detailWarehouseId, setDetailWarehouseId] = useState<number | null>(null);
+  /** URL’den bir kez okunan sekme / hareket niyeti; adres çubuğu temizlendikten sonra modal için saklanır. */
+  const [detailLinkIntent, setDetailLinkIntent] = useState<{
+    tab: "history" | null;
+    movementId: number | null;
+  }>({ tab: null, movementId: null });
   const [quickDepoTarget, setQuickDepoTarget] = useState<{ id: number; name: string } | null>(null);
   const [quickTransferTarget, setQuickTransferTarget] = useState<{ id: number; name: string } | null>(
     null
   );
   const [listSearch, setListSearch] = useState("");
-  const movementTabIntentRaw = searchParams.get("openWarehouseTab");
-  const movementTabIntent = movementTabIntentRaw === "history" ? "history" : null;
-  const openMovementIdRaw = searchParams.get("openMovementId");
-  const openMovementIdIntent = openMovementIdRaw ? Number.parseInt(openMovementIdRaw, 10) : null;
 
   const { data: warehouses = [], isPending: whLoading, isError: whError, error: whErr } =
     useWarehousesList();
@@ -92,19 +97,62 @@ export function WarehouseScreen() {
 
   useEffect(() => {
     if (detailWarehouseId == null) return;
-    if (!warehouses.some((w) => w.id === detailWarehouseId)) setDetailWarehouseId(null);
+    if (!warehouses.some((w) => w.id === detailWarehouseId)) {
+      setDetailWarehouseId(null);
+      setDetailLinkIntent({ tab: null, movementId: null });
+    }
   }, [warehouses, detailWarehouseId]);
+
+  const stripWarehouseDeepLinkFromUrl = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    let changed = false;
+    for (const key of WAREHOUSE_DEEP_LINK_KEYS) {
+      if (params.has(key)) {
+        params.delete(key);
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }, [pathname, router, searchParams]);
 
   useEffect(() => {
     const raw = searchParams.get("openWarehouse");
     if (!raw) return;
     const id = Number.parseInt(raw, 10);
-    if (!Number.isFinite(id) || id <= 0) return;
-    if (!warehouses.some((w) => w.id === id)) return;
+    if (!Number.isFinite(id) || id <= 0) {
+      stripWarehouseDeepLinkFromUrl();
+      return;
+    }
+    if (warehouses.length === 0) return;
+    if (!warehouses.some((w) => w.id === id)) {
+      stripWarehouseDeepLinkFromUrl();
+      return;
+    }
+    const tabRaw = searchParams.get("openWarehouseTab");
+    const tab: "history" | null = tabRaw === "history" ? "history" : null;
+    const movRaw = searchParams.get("openMovementId");
+    let movementId: number | null = null;
+    if (movRaw) {
+      const parsed = Number.parseInt(movRaw, 10);
+      if (Number.isFinite(parsed) && parsed > 0) movementId = parsed;
+    }
     setDetailWarehouseId(id);
-  }, [searchParams, warehouses]);
+    setDetailLinkIntent({ tab, movementId });
+    stripWarehouseDeepLinkFromUrl();
+  }, [searchParams, warehouses, stripWarehouseDeepLinkFromUrl]);
 
-  const openDetail = (id: number) => setDetailWarehouseId(id);
+  const closeWarehouseDetail = useCallback(() => {
+    setDetailWarehouseId(null);
+    setDetailLinkIntent({ tab: null, movementId: null });
+    stripWarehouseDeepLinkFromUrl();
+  }, [stripWarehouseDeepLinkFromUrl]);
+
+  const openDetail = useCallback((id: number) => {
+    setDetailLinkIntent({ tab: null, movementId: null });
+    setDetailWarehouseId(id);
+  }, []);
 
   const onDeleteWarehouseRow = (w: WarehouseListItem) => {
     notifyWarehouseDeleteConfirm({
@@ -118,7 +166,7 @@ export function WarehouseScreen() {
         try {
           await delWh.mutateAsync(w.id);
           notify.success(t("toast.warehouseDeleted"));
-          if (detailWarehouseId === w.id) setDetailWarehouseId(null);
+          if (detailWarehouseId === w.id) closeWarehouseDetail();
         } catch (e) {
           notify.error(toErrorMessage(e));
         }
@@ -502,9 +550,9 @@ export function WarehouseScreen() {
         <WarehouseDetailModal
           open
           warehouseId={detailWarehouseId}
-          initialTabIntent={movementTabIntent}
-          openMovementIdIntent={openMovementIdIntent != null && Number.isFinite(openMovementIdIntent) && openMovementIdIntent > 0 ? openMovementIdIntent : null}
-          onClose={() => setDetailWarehouseId(null)}
+          initialTabIntent={detailLinkIntent.tab}
+          openMovementIdIntent={detailLinkIntent.movementId}
+          onClose={closeWarehouseDetail}
         />
       ) : null}
     </>

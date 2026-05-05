@@ -20,6 +20,11 @@ export const warehouse = {
   globalFilterWarehouseAll: "All warehouses",
   globalInboundShipmentCount: "Total inbound shipment count",
   globalOutboundShipmentCount: "Total outbound shipment count",
+  globalOutboundByMainProductTitle: "Outbound shipments by main product group",
+  globalOutboundByMainProductHint:
+    "Counts show how many distinct outbound shipment groups in the filtered list include each main product.",
+  globalOutboundByMainProductColGroup: "Main product group",
+  globalOutboundByMainProductColShipments: "Outbound shipments",
   globalViewMovements: "Movements",
   globalViewShipments: "Shipment groups",
   globalShipmentGroupsEmpty: "No shipment groups match these filters.",
@@ -32,6 +37,12 @@ export const warehouse = {
   globalShipmentSystemPdfExists: "PDF exists in system",
   globalShipmentSystemPdfMissing: "No PDF found in system",
   globalShipmentMoreRows: "more lines",
+  globalMovementDetailViewHint: "Choose how to read this shipment’s lines.",
+  globalMovementDetailViewAria: "Movement detail view",
+  globalMovementDetailViewLines: "Line by line",
+  globalMovementDetailViewMainProduct: "By main product",
+  globalMovementDetailMainProductFootnote:
+    "Sub-products under the same parent roll into one row. If both inbound and outbound appear in the group, quantity is a signed net (+ in, − out).",
   addWarehouse: "Add warehouse",
   addWarehouseTitle: "New warehouse",
   addWarehouseHint:
@@ -171,6 +182,9 @@ export const warehouse = {
   summaryKpiOpenInboundMovements: "Receipts only",
   deleteWarehouseIconAria: "Delete warehouse",
   movementsFilterApplyClose: "Apply and close",
+  movementsFilterClear: "Clear",
+  movementsFilterBranchDisabledForIn:
+    "Inbound movements are warehouse-only; the branch filter does not apply for this type.",
   movementsIntegratedStockTitle: "Stock operations",
   movementsIntegratedStockHint:
     "Receive stock into the warehouse and issue to branches from here. Below: filtered movement history with invoice attachments when present.",

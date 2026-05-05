@@ -307,6 +307,11 @@
   sectionTotals: "Totals by currency",
   sectionTotalsFinancialKpiNote:
     "Income = operating income (excludes owner cash-in to the register and internal register hand-over INs). Expense = operating outflows (personnel pocket repayments and owner debt repayments from the register are excluded). Matches the financial summary and branch comparison.",
+  sectionTotalsExpenseSourceHint:
+    "Under the expense amount, the report shows how operating expenses were paid (branch register, owner, staff pocket, held register cash with staff, or unset) — aligned with the payment source chosen on each expense line.",
+  sectionByBranchExpenseSourceHint:
+    "Under each branch’s expense total, the split comes from that branch’s OUT lines and their recorded payment source.",
+  expensePaySourceSublineAria: "Expense payment source breakdown",
   sectionByBranch: "By branch",
   sectionByCategory: "By category (top lines)",
   sectionAdvances: "Advances in period",
@@ -466,7 +471,8 @@
   stockEmptyCtaWarehouse: "Warehouses â†’ record movement",
   chartIncomeVsExpense: "Income vs expense",
   chartExpenseMix: "Expense mix by category",
-  chartExpenseMixCaption: "How it was paid, then by category",
+  chartExpenseMixCaption:
+    "Top: operating expenses by payment source (register, owner, staff pocket, held register cash). Bottom: expense main categories.",
   chartBranchNet: "Branch net â€” this period",
   chartBranchDelta: "Branch net change vs prior period",
   chartIncome: "Income",

@@ -12,8 +12,10 @@ type Props = {
   onClose: () => void;
   title: string;
   children: ReactNode;
-  /** Alt kısımda kapat (mobil için) */
+  /** Alt barda kapat düğmesi (başlıktaki × ve backdrop her zaman). */
   closeLabel: string;
+  /** false: alt barda tekrar Kapat gösterilmez; içerikte özel aksiyonlar kullanılır. */
+  showFooterCloseButton?: boolean;
   className?: string;
   /** Portal kökü (ör. iç içe modal üstü için z-index). */
   rootClassName?: string;
@@ -27,6 +29,7 @@ export function RightDrawer({
   title,
   children,
   closeLabel,
+  showFooterCloseButton = true,
   className,
   rootClassName,
   backdropCloseRequiresConfirm = true,
@@ -107,11 +110,13 @@ export function RightDrawer({
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-4 py-4 sm:px-5 sm:py-5">
           {children}
         </div>
-        <div className="shrink-0 border-t border-zinc-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] sm:px-5">
-          <Button type="button" variant="secondary" className="w-full min-h-11" onClick={onClose}>
-            {closeLabel}
-          </Button>
-        </div>
+        {showFooterCloseButton ? (
+          <div className="shrink-0 border-t border-zinc-100 p-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] sm:px-5">
+            <Button type="button" variant="secondary" className="w-full min-h-11" onClick={onClose}>
+              {closeLabel}
+            </Button>
+          </div>
+        ) : null}
       </div>
       <BackdropCloseConfirm
         open={backdropConfirmOpen}

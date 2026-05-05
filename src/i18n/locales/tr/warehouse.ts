@@ -20,6 +20,11 @@ export const warehouse = {
   globalFilterWarehouseAll: "Tüm depolar",
   globalInboundShipmentCount: "Toplam giriş sevkiyat sayısı",
   globalOutboundShipmentCount: "Toplam çıkış sevkiyat sayısı",
+  globalOutboundByMainProductTitle: "Ana ürün grubuna göre çıkış sevkiyatı",
+  globalOutboundByMainProductHint:
+    "Sayılar, seçili filtrelere göre gelen listede her ana ürün için kaç ayrı çıkış sevkiyatı (grup) olduğunu gösterir.",
+  globalOutboundByMainProductColGroup: "Ana ürün grubu",
+  globalOutboundByMainProductColShipments: "Çıkış sevkiyatı",
   globalViewMovements: "Hareketler",
   globalViewShipments: "Sevkiyat grupları",
   globalShipmentGroupsEmpty: "Bu filtrelerle eşleşen sevkiyat grubu yok.",
@@ -32,6 +37,12 @@ export const warehouse = {
   globalShipmentSystemPdfExists: "Sistemde PDF var",
   globalShipmentSystemPdfMissing: "Sistemde PDF bulunamadı",
   globalShipmentMoreRows: "satır daha",
+  globalMovementDetailViewHint: "Detay listesini nasıl görmek istediğinizi seçin.",
+  globalMovementDetailViewAria: "Hareket detayı görünümü",
+  globalMovementDetailViewLines: "Kalem kalem",
+  globalMovementDetailViewMainProduct: "Ana ürün bazlı",
+  globalMovementDetailMainProductFootnote:
+    "Aynı ana ürün altındaki alt ürünler tek satırda birleşir. Giriş (+) ve çıkış (−) aynı grupta ise miktar işaretli netlenir.",
   addWarehouse: "Depo ekle",
   addWarehouseTitle: "Yeni depo",
   addWarehouseHint:
@@ -171,6 +182,9 @@ export const warehouse = {
   summaryKpiOpenInboundMovements: "Sadece depo girişleri",
   deleteWarehouseIconAria: "Depoyu sil",
   movementsFilterApplyClose: "Uygula ve kapat",
+  movementsFilterClear: "Temizle",
+  movementsFilterBranchDisabledForIn:
+    "Stok girişi yalnızca depoya yapılır; şube filtresi bu hareket tipinde kullanılmaz.",
   movementsIntegratedStockTitle: "Stok işlemleri",
   movementsIntegratedStockHint:
     "Depo girişi ve şubeye çıkış buradan yapılır. Aşağıda filtreli hareket listesi ve varsa fatura ekleri görünür.",

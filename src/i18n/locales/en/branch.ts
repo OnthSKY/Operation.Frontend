@@ -4,6 +4,8 @@ export const branch = {
   listTitle: "Branches",
   listDesc:
     "Season and headcount use the server date (today). «Not started» means assigned staff with a future hire date.",
+  listSearchPlaceholder: "Search by name, id, address, managers…",
+  listSearchNoResults: "No branches match your search.",
   openedFromReportBanner:
     "You opened this branch from a report; the detail sheet below shows that branch and its daily movements.",
   add: "Add branch",

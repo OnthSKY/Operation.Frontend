@@ -61,6 +61,21 @@ export function expensePaymentSourceReportLabel(
   return full || code;
 }
 
+/** Kısa rozet metni (tablo / hikâye kartı); REGISTER, PATRON, cep, cebdeki kasa, UNSET. */
+export function expensePaymentSourceShortReportLabel(
+  code: string,
+  t: (key: string) => string
+): string {
+  const u = code.trim().toUpperCase();
+  if (u === "REGISTER") return t("branch.expensePayRegisterShort");
+  if (u === "PATRON") return t("branch.expensePayPatronShort");
+  if (u === "PERSONNEL_POCKET") return t("branch.expensePayPersonnelPocketShort");
+  if (u === "PERSONNEL_HELD_REGISTER_CASH")
+    return t("branch.expensePayPersonnelHeldRegisterCashShort");
+  if (u === "UNSET") return t("branch.expensePaymentUnset");
+  return t("branch.expensePaymentUnset");
+}
+
 export function ExpensePaymentSourceTag({
   code,
   label,
@@ -129,16 +144,7 @@ export function ReportExpensePaymentMix({
       <ul className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3 sm:gap-y-2">
         {ordered.map((r) => {
           const pct = Math.round((r.totalAmount / total) * 100);
-          const short =
-            r.expensePaymentSource.trim().toUpperCase() === "REGISTER"
-              ? t("branch.expensePayRegisterShort")
-              : r.expensePaymentSource.trim().toUpperCase() === "PATRON"
-                ? t("branch.expensePayPatronShort")
-                : r.expensePaymentSource.trim().toUpperCase() === "PERSONNEL_POCKET"
-                  ? t("branch.expensePayPersonnelPocketShort")
-                  : r.expensePaymentSource.trim().toUpperCase() === "PERSONNEL_HELD_REGISTER_CASH"
-                    ? t("branch.expensePayPersonnelHeldRegisterCashShort")
-                  : t("branch.expensePaymentUnset");
+          const short = expensePaymentSourceShortReportLabel(r.expensePaymentSource, t);
           return (
             <li
               key={r.expensePaymentSource}

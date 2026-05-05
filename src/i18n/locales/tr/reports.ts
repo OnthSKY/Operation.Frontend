@@ -308,6 +308,11 @@
   sectionTotals: "Para birimine göre özet",
   sectionTotalsFinancialKpiNote:
     "Gelir = faaliyet geliri (kasaya patron nakdi ve iç kasa devri IN’leri hariç). Gider = operasyonel OUT (kasadan cebi ve patron borcu kapatma satırları hariç). Finans özeti ve şube karşılaştırma ile aynıdır.",
+  sectionTotalsExpenseSourceHint:
+    "Gider tutarının altında, bu dönem ve filtrelerdeki operasyonel giderlerin ödeme kaynağı dağılımı gösterilir (şube kasası, patron, personel cebi, cebdeki kasa, belirtilmemiş) — şube hareketlerinde seçilen kaynakla uyumlu.",
+  sectionByBranchExpenseSourceHint:
+    "Şube satırında giderin altındaki kırılım, o şubedeki OUT kayıtlarının ödeme kaynağı alanından hesaplanır.",
+  expensePaySourceSublineAria: "Gider ödeme kaynağı dağılımı",
   sectionByBranch: "Şubeye göre",
   sectionByCategory: "Kırılım (kategori)",
   sectionAdvances: "Dönem avansları",
@@ -467,7 +472,8 @@
   stockEmptyCtaWarehouse: "Depolar → hareket gir",
   chartIncomeVsExpense: "Gelir ve gider",
   chartExpenseMix: "Gider dağılımı (kategori)",
-  chartExpenseMixCaption: "Önce nasıl ödendi, sonra hangi kalem",
+  chartExpenseMixCaption:
+    "Üstte: operasyonel giderlerin ödeme kaynağı (kasa / patron / personel cebi / cebdeki kasa). Altta: gider ana kategorileri.",
   chartBranchNet: "Şube neti — bu dönem",
   chartBranchDelta: "Önceki döneme göre net değişim",
   chartIncome: "Gelir",

@@ -29,16 +29,39 @@ export async function downloadHtmlNodeAsSinglePagePdf(node: HTMLElement, fileNam
   pdf.save(fileName.endsWith(".pdf") ? fileName : `${fileName}.pdf`);
 }
 
+/** ~A4 genişliği @96dpi; mobilde dar DOM ile yakalama yapılırsa PDF okunaksız kalıyordu. */
+const PDF_CAPTURE_MIN_WIDTH_PX = 794;
+
 async function buildHtmlNodeSinglePagePdf(node: HTMLElement): Promise<jsPDF> {
   await document.fonts.ready.catch(() => {});
   await settleLayout();
 
-  const dataUrl = await toPng(node, {
-    pixelRatio: 2,
-    backgroundColor: "#ffffff",
-    cacheBust: true,
-    style: { transform: "none" },
-  });
+  const prevWidth = node.style.width;
+  const prevMaxWidth = node.style.maxWidth;
+  const prevBoxSizing = node.style.boxSizing;
+
+  let dataUrl: string;
+  try {
+    node.style.boxSizing = "border-box";
+    const current = Math.ceil(node.getBoundingClientRect().width);
+    if (current > 0 && current < PDF_CAPTURE_MIN_WIDTH_PX) {
+      node.style.width = `${PDF_CAPTURE_MIN_WIDTH_PX}px`;
+      node.style.maxWidth = "none";
+      await settleLayout();
+    }
+
+    dataUrl = await toPng(node, {
+      pixelRatio: 2,
+      backgroundColor: "#ffffff",
+      cacheBust: true,
+      style: { transform: "none" },
+    });
+  } finally {
+    node.style.width = prevWidth;
+    node.style.maxWidth = prevMaxWidth;
+    node.style.boxSizing = prevBoxSizing;
+    await settleLayout();
+  }
 
   const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4" });
   const pageW = pdf.internal.pageSize.getWidth();

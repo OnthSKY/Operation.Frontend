@@ -177,10 +177,11 @@ export function useBranchHeldRegisterCashByPerson(
   });
 }
 
-export function useBranchesList() {
+export function useBranchesList(enabled: boolean = true) {
   return useQuery({
     queryKey: branchKeys.list(),
     queryFn: fetchBranches,
+    enabled,
   });
 }
 

@@ -18,20 +18,31 @@ import { cn } from "@/lib/cn";
 import { FilterFunnelIcon } from "@/shared/components/FilterFunnelIcon";
 import { RightDrawer } from "@/shared/components/RightDrawer";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatWarehouseShipmentDisplay } from "@/shared/lib/in-batch-group-label";
 import { OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
 import { EyeIcon, detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
+import { Modal } from "@/shared/ui/Modal";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ResponsiveTableFrame } from "@/shared/tables/ResponsiveTableFrame";
+
+type MovementDetailListMode = "lines" | "mainProduct";
 
 const PAGE_SIZE = 25;
 const DRAWER_SELECT_Z = 280;
+
+const EMPTY_SCOPE: WarehouseScopeFiltersValue = {
+  mainCategoryId: null,
+  subCategoryId: null,
+  parentProductId: null,
+  productId: null,
+};
 
 function shipmentGroupKeyForRow(row: WarehouseGlobalMovementRow): string {
   return row.inBatchGroupId?.trim() ? `batch:${row.inBatchGroupId.trim()}` : `single:${row.id}`;
@@ -63,6 +74,75 @@ function shipmentOutboundBranchSummary(rows: WarehouseGlobalMovementRow[]): stri
   return names[0] ?? null;
 }
 
+function movementSignedQuantity(m: WarehouseGlobalMovementRow): number {
+  return m.type === "IN" ? Number(m.quantity) : -Number(m.quantity);
+}
+
+function movementMainProductKey(m: WarehouseGlobalMovementRow): string {
+  if (m.parentProductId != null && m.parentProductId > 0) return `parent:${m.parentProductId}`;
+  return `product:${m.productId}`;
+}
+
+function movementMainProductName(m: WarehouseGlobalMovementRow): string {
+  return m.parentProductName?.trim() || m.productName;
+}
+
+function shipmentMainProductTotals(
+  movements: WarehouseGlobalMovementRow[]
+): Array<{ key: string; name: string; quantity: number; unit: string | null; lineCount: number }> {
+  const map = new Map<
+    string,
+    { key: string; name: string; quantity: number; unit: string | null; lineCount: number }
+  >();
+  for (const m of movements) {
+    const key = movementMainProductKey(m);
+    const signed = movementSignedQuantity(m);
+    const prev = map.get(key);
+    if (prev) {
+      prev.quantity += signed;
+      prev.lineCount += 1;
+      if (!prev.unit && m.unit?.trim()) prev.unit = m.unit.trim();
+      continue;
+    }
+    map.set(key, {
+      key,
+      name: movementMainProductName(m),
+      quantity: signed,
+      unit: m.unit?.trim() || null,
+      lineCount: 1,
+    });
+  }
+  return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function compactPeopleList(values: Array<string | null | undefined>): string {
+  const uniq = Array.from(new Set(values.map((v) => v?.trim() ?? "").filter((v) => v.length > 0)));
+  if (uniq.length === 0) return "—";
+  if (uniq.length <= 2) return uniq.join(", ");
+  return `${uniq.slice(0, 2).join(", ")} +${uniq.length - 2}`;
+}
+
+function buildShipmentGroupSummary(
+  key: string,
+  rows: WarehouseGlobalMovementRow[]
+): ShipmentGroupSummary {
+  const first = rows[0];
+  if (!first) {
+    throw new Error("buildShipmentGroupSummary: empty rows");
+  }
+  const representative =
+    rows.find((r) => r.type === "OUT" && r.isDepotToBranchShipment) ??
+    rows.find((r) => r.type === "OUT") ??
+    first;
+  return {
+    key,
+    representative,
+    rows: rows.slice().sort((a, b) => b.id - a.id),
+    lineCount: rows.length,
+    totalQuantity: rows.reduce((sum, x) => sum + (Number(x.quantity) || 0), 0),
+  };
+}
+
 function parseShipmentMetadataFromNotes(notes: string | null | undefined): Record<string, string> {
   const text = String(notes ?? "");
   const parts = text
@@ -81,28 +161,198 @@ function parseShipmentMetadataFromNotes(notes: string | null | undefined): Recor
   return map;
 }
 
+/** Sevkiyat kartı `<details>` içi: modal ile aynı «kalem / ana ürün» görünümü. */
+function ShipmentGroupExpandedLineBlock({ group }: { group: ShipmentGroupSummary }) {
+  const { t, locale } = useI18n();
+  const [listMode, setListMode] = useState<MovementDetailListMode>("lines");
+  const mainTotals = useMemo(() => shipmentMainProductTotals(group.rows), [group.rows]);
+
+  return (
+    <div className="space-y-2">
+      <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-2.5">
+        <p className="text-xs font-semibold text-zinc-700">{t("warehouse.globalMovementDetailViewHint")}</p>
+        <div
+          className="mt-2 inline-flex rounded-lg border border-zinc-200 bg-white p-1"
+          role="tablist"
+          aria-label={t("warehouse.globalMovementDetailViewAria")}
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={listMode === "lines"}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-xs font-medium",
+              listMode === "lines" ? "bg-zinc-900 text-white" : "text-zinc-700 hover:bg-zinc-100"
+            )}
+            onClick={() => setListMode("lines")}
+          >
+            {t("warehouse.globalMovementDetailViewLines")}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={listMode === "mainProduct"}
+            className={cn(
+              "rounded-md px-3 py-1.5 text-xs font-medium",
+              listMode === "mainProduct" ? "bg-zinc-900 text-white" : "text-zinc-700 hover:bg-zinc-100"
+            )}
+            onClick={() => setListMode("mainProduct")}
+          >
+            {t("warehouse.globalMovementDetailViewMainProduct")}
+          </button>
+        </div>
+      </div>
+      {listMode === "mainProduct" ? (
+        <div className="rounded-md bg-zinc-50 p-2 text-xs text-zinc-600">
+          <p className="mb-2 text-[11px] leading-relaxed text-zinc-500">
+            {t("warehouse.globalMovementDetailMainProductFootnote")}
+          </p>
+          <div className="grid gap-1">
+            {mainTotals.map((row) => (
+              <div
+                key={`ship-main-${group.key}-${row.key}`}
+                className="flex items-center justify-between gap-2 rounded border border-zinc-200 bg-white px-2 py-1.5"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium text-zinc-800">{row.name}</p>
+                  <p className="truncate text-[11px] text-zinc-500">
+                    {row.lineCount} {t("warehouse.shipmentLineCountSuffix")}
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    "shrink-0 tabular-nums font-semibold",
+                    row.quantity >= 0 ? "text-emerald-700" : "text-red-700"
+                  )}
+                >
+                  {row.quantity >= 0 ? "+" : ""}
+                  {formatLocaleAmount(row.quantity, locale)}
+                  {row.unit ? ` ${row.unit}` : ""}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-1 rounded-md bg-zinc-50 p-2 text-xs text-zinc-600">
+          {group.rows.map((x) => (
+            <div
+              key={`g-row-${group.key}-${x.id}`}
+              className="flex items-center justify-between gap-2 rounded border border-zinc-200 bg-white px-2 py-1.5"
+            >
+              <div className="min-w-0">
+                <p className="truncate font-medium text-zinc-800">{x.productName}</p>
+                <p
+                  className={cn(
+                    "truncate text-[11px]",
+                    x.type === "OUT" && (x.outDestinationBranchName?.trim().length ?? 0) > 0
+                      ? "font-semibold text-rose-900"
+                      : "text-zinc-500"
+                  )}
+                >
+                  {x.outDestinationBranchName || "—"} · {x.type === "IN" ? t("products.typeIn") : t("products.typeOut")}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="tabular-nums">{x.quantity}</span>
+                {x.type === "IN" && x.hasInvoicePhoto ? (
+                  <a
+                    href={warehouseMovementInvoicePhotoUrl(x.id)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={detailOpenIconButtonClass}
+                    aria-label={t("warehouse.openInvoicePhoto")}
+                    title={t("warehouse.openInvoicePhoto")}
+                  >
+                    <EyeIcon className="h-4 w-4" />
+                  </a>
+                ) : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function WarehouseGlobalMovementsScreen() {
   const { t, locale } = useI18n();
   const router = useRouter();
   const { data: warehouses = [] } = useWarehousesList();
   const { data: branches = [] } = useBranchesList();
-  const [scope, setScope] = useState<WarehouseScopeFiltersValue>({
-    mainCategoryId: null,
-    subCategoryId: null,
-    parentProductId: null,
-    productId: null,
-  });
+  const [scope, setScope] = useState<WarehouseScopeFiltersValue>(() => ({ ...EMPTY_SCOPE }));
   const [warehouseId, setWarehouseId] = useState("");
   const [type, setType] = useState("");
   const [branchId, setBranchId] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [draftScope, setDraftScope] = useState<WarehouseScopeFiltersValue>(() => ({ ...EMPTY_SCOPE }));
+  const [draftWarehouseId, setDraftWarehouseId] = useState("");
+  const [draftType, setDraftType] = useState("");
+  const [draftBranchId, setDraftBranchId] = useState("");
+  const [draftDateFrom, setDraftDateFrom] = useState("");
+  const [draftDateTo, setDraftDateTo] = useState("");
   const [page, setPage] = useState(1);
   const [viewMode, setViewMode] = useState<"movements" | "shipments">("shipments");
   const [filtersDrawerOpen, setFiltersDrawerOpen] = useState(false);
+  const [detailSummaryGroup, setDetailSummaryGroup] = useState<ShipmentGroupSummary | null>(null);
+  const [movementDetailListMode, setMovementDetailListMode] =
+    useState<MovementDetailListMode>("lines");
 
   useEffect(() => {
-    setPage(1);
+    const k = detailSummaryGroup?.key;
+    if (k) setMovementDetailListMode("lines");
+  }, [detailSummaryGroup?.key]);
+
+  const openFiltersDrawer = useCallback(() => {
+    setDraftScope({
+      mainCategoryId: scope.mainCategoryId,
+      subCategoryId: scope.subCategoryId,
+      parentProductId: scope.parentProductId,
+      productId: scope.productId,
+    });
+    setDraftWarehouseId(warehouseId);
+    setDraftType(type);
+    setDraftBranchId(type === "IN" ? "" : branchId);
+    setDraftDateFrom(dateFrom);
+    setDraftDateTo(dateTo);
+    setFiltersDrawerOpen(true);
+  }, [scope, warehouseId, type, branchId, dateFrom, dateTo]);
+
+  const clearDraftFilters = useCallback(() => {
+    setDraftScope({ ...EMPTY_SCOPE });
+    setDraftWarehouseId("");
+    setDraftType("");
+    setDraftBranchId("");
+    setDraftDateFrom("");
+    setDraftDateTo("");
+  }, []);
+
+  const applyDraftFiltersAndClose = useCallback(() => {
+    setScope({
+      mainCategoryId: draftScope.mainCategoryId,
+      subCategoryId: draftScope.subCategoryId,
+      parentProductId: draftScope.parentProductId,
+      productId: draftScope.productId,
+    });
+    setWarehouseId(draftWarehouseId);
+    setType(draftType);
+    setBranchId(draftType === "IN" ? "" : draftBranchId);
+    setDateFrom(draftDateFrom);
+    setDateTo(draftDateTo);
+    setFiltersDrawerOpen(false);
+  }, [draftScope, draftWarehouseId, draftType, draftBranchId, draftDateFrom, draftDateTo]);
+
+  const closeFiltersDrawer = useCallback(() => {
+    setFiltersDrawerOpen(false);
+  }, []);
+
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      setPage(1);
+    }, 0);
+    return () => window.clearTimeout(id);
   }, [
     scope.mainCategoryId,
     scope.subCategoryId,
@@ -115,20 +365,29 @@ export function WarehouseGlobalMovementsScreen() {
     dateTo,
   ]);
 
+  useEffect(() => {
+    if (type !== "IN") return;
+    const id = window.setTimeout(() => {
+      setBranchId((prev) => (prev !== "" ? "" : prev));
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [type]);
+
   const filters = useMemo<WarehouseGlobalMovementsFilters>(
     () => ({
       scope,
       warehouseId:
         warehouseId !== "" && Number(warehouseId) > 0 ? Math.trunc(Number(warehouseId)) : undefined,
       type: type === "IN" || type === "OUT" ? type : "",
-      branchId: branchId !== "" && Number(branchId) > 0 ? Math.trunc(Number(branchId)) : undefined,
+      branchId:
+        type !== "IN" && branchId !== "" && Number(branchId) > 0 ? Math.trunc(Number(branchId)) : undefined,
       dateFrom: dateFrom.length === 10 ? dateFrom : undefined,
       dateTo: dateTo.length === 10 ? dateTo : undefined,
     }),
     [scope, warehouseId, type, branchId, dateFrom, dateTo]
   );
 
-  const { data = [], isPending, isError, error, refetch, isFetching } = useQuery({
+  const { data = [], isPending, isError, error, isFetching } = useQuery({
     queryKey: ["warehouse-global-movements", filters] as const,
     queryFn: () => fetchWarehouseGlobalMovements(filters),
     placeholderData: (prev) => prev,
@@ -168,21 +427,45 @@ export function WarehouseGlobalMovementsScreen() {
     () => new Set(data.filter((x) => x.type === "OUT").map((x) => shipmentGroupKeyForRow(x))).size,
     [data]
   );
+  /** Çıkış satırlarındaki sevkiyat anahtarı (batch/tekil) başına; ana ürün grubu → kaç ayrı çıkış sevkiyatı. */
+  const outboundShipmentCountByMainProduct = useMemo(() => {
+    const outRows = data.filter((r) => r.type === "OUT");
+    const mainKeyToShipments = new Map<string, Set<string>>();
+    const mainKeyToLabel = new Map<string, string>();
+    for (const r of outRows) {
+      const sk = shipmentGroupKeyForRow(r);
+      const mk = movementMainProductKey(r);
+      if (!mainKeyToShipments.has(mk)) {
+        mainKeyToShipments.set(mk, new Set());
+        mainKeyToLabel.set(mk, movementMainProductName(r));
+      }
+      mainKeyToShipments.get(mk)!.add(sk);
+    }
+    return Array.from(mainKeyToShipments.entries())
+      .map(([key, shSet]) => ({
+        key,
+        name: mainKeyToLabel.get(key) ?? key,
+        outboundShipmentCount: shSet.size,
+      }))
+      .sort(
+        (a, b) =>
+          b.outboundShipmentCount - a.outboundShipmentCount ||
+          a.name.localeCompare(b.name, locale, { sensitivity: "base" })
+      );
+  }, [data, locale]);
   const movementFiltersActive = useMemo(() => {
     if (scope.mainCategoryId != null || scope.subCategoryId != null || scope.parentProductId != null || scope.productId != null) return true;
     if (warehouseId !== "" && Number(warehouseId) > 0) return true;
     if (type === "IN" || type === "OUT") return true;
-    if (branchId !== "" && Number(branchId) > 0) return true;
+    if (type !== "IN" && branchId !== "" && Number(branchId) > 0) return true;
     if (dateFrom.length === 10 || dateTo.length === 10) return true;
     return false;
   }, [scope, warehouseId, type, branchId, dateFrom, dateTo]);
-  const openMovementDetail = (row: WarehouseGlobalMovementRow) => {
-    const params = new URLSearchParams({
-      openWarehouse: String(row.warehouseId),
-      openWarehouseTab: "history",
-      openMovementId: String(row.id),
-    });
-    router.push(`/warehouses?${params.toString()}`);
+  const openMovementGroupDetailDialog = (row: WarehouseGlobalMovementRow) => {
+    const key = shipmentGroupKeyForRow(row);
+    const rows = data.filter((r) => shipmentGroupKeyForRow(r) === key);
+    if (rows.length === 0) return;
+    setDetailSummaryGroup(buildShipmentGroupSummary(key, rows));
   };
   const openOrderAccountStatement = (group: ShipmentGroupSummary) => {
     const row = group.representative;
@@ -206,19 +489,7 @@ export function WarehouseGlobalMovementsScreen() {
       grouped.set(key, list);
     }
     return Array.from(grouped.entries())
-      .map(([key, rows]) => {
-        const representative =
-          rows.find((r) => r.type === "OUT" && r.isDepotToBranchShipment) ??
-          rows.find((r) => r.type === "OUT") ??
-          rows[0];
-        return {
-          key,
-          representative,
-          rows: rows.slice().sort((a, b) => b.id - a.id),
-          lineCount: rows.length,
-          totalQuantity: rows.reduce((sum, x) => sum + (Number(x.quantity) || 0), 0),
-        };
-      })
+      .map(([key, rows]) => buildShipmentGroupSummary(key, rows))
       .sort(
         (a, b) =>
           b.representative.movementDate.localeCompare(a.representative.movementDate) ||
@@ -279,6 +550,246 @@ export function WarehouseGlobalMovementsScreen() {
   const pageStart = (safePage - 1) * PAGE_SIZE;
   const items = data.slice(pageStart, pageStart + PAGE_SIZE);
 
+  const movementDetailModalContent = useMemo(() => {
+    if (!detailSummaryGroup) return null;
+    const g = detailSummaryGroup;
+    const rep = g.representative;
+    const batchCell = formatWarehouseShipmentDisplay(rep.inBatchGroupId, rep.id);
+    const destBranch = shipmentOutboundBranchSummary(g.rows);
+    const detailType = rep.type;
+    const typeLabel = detailType === "IN" ? t("products.typeIn") : t("products.typeOut");
+    const mainTotals = shipmentMainProductTotals(g.rows);
+    return (
+      <div className="mt-3 min-h-0 flex-1 overflow-y-auto px-3 pb-3 pr-2 sm:mt-4 sm:px-4 sm:pb-4 sm:pr-3">
+        <div className="space-y-3">
+          <div className="rounded-lg border border-zinc-200 bg-white p-3 shadow-sm">
+            <div className="rounded-md border border-zinc-200 bg-zinc-50/60">
+              <div className="border-b border-zinc-200 px-3 py-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                      {t("warehouse.quickMovementDate")}
+                    </p>
+                    <p className="mt-1 text-base font-semibold text-zinc-900">
+                      {formatLocaleDate(rep.movementDate, locale)}
+                    </p>
+                  </div>
+                  <span className="inline-flex min-h-[44px] min-w-[44px] items-center rounded-full border border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-800">
+                    {typeLabel}
+                  </span>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2">
+                <div className="border-b border-zinc-200 px-3 py-2 md:border-r">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    {detailType === "OUT"
+                      ? t("warehouse.movementSourceWarehouseLabel")
+                      : t("warehouse.movementWarehouseLabel")}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-zinc-900">{rep.warehouseName?.trim() || "—"}</p>
+                </div>
+                {detailType === "OUT" ? (
+                  <div className="border-b border-zinc-200 px-3 py-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                      {t("warehouse.movementOutBranch")}
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-zinc-900">{destBranch || "—"}</p>
+                  </div>
+                ) : null}
+                <div className="border-b border-zinc-200 px-3 py-2 md:col-span-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    {t("warehouse.movementBatchGroup")}
+                  </p>
+                  <p className="mt-1 font-mono text-xs text-zinc-800" title={batchCell.title}>
+                    {batchCell.text}
+                  </p>
+                </div>
+                <div className="border-b border-zinc-200 px-3 py-2 md:col-span-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    {t("warehouse.movementNote")}
+                  </p>
+                  <p className="mt-1 text-sm font-medium text-zinc-900">
+                    {g.rows[0]?.description?.trim() || "—"}
+                  </p>
+                </div>
+                <div className="border-b border-zinc-200 px-3 py-2 md:border-r">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    {t("warehouse.movementCheckedBy")}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-zinc-900">
+                    {compactPeopleList(g.rows.map((m) => m.checkedByPersonnelName))}
+                  </p>
+                </div>
+                <div className="border-b border-zinc-200 px-3 py-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                    {t("warehouse.movementApprovedBy")}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-zinc-900">
+                    {compactPeopleList(g.rows.map((m) => m.approvedByPersonnelName))}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-2.5">
+            <p className="text-xs font-semibold text-zinc-700">{t("warehouse.globalMovementDetailViewHint")}</p>
+            <div
+              className="mt-2 inline-flex rounded-lg border border-zinc-200 bg-white p-1"
+              role="tablist"
+              aria-label={t("warehouse.globalMovementDetailViewAria")}
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={movementDetailListMode === "lines"}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-xs font-medium",
+                  movementDetailListMode === "lines"
+                    ? "bg-zinc-900 text-white"
+                    : "text-zinc-700 hover:bg-zinc-100"
+                )}
+                onClick={() => setMovementDetailListMode("lines")}
+              >
+                {t("warehouse.globalMovementDetailViewLines")}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={movementDetailListMode === "mainProduct"}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-xs font-medium",
+                  movementDetailListMode === "mainProduct"
+                    ? "bg-zinc-900 text-white"
+                    : "text-zinc-700 hover:bg-zinc-100"
+                )}
+                onClick={() => setMovementDetailListMode("mainProduct")}
+              >
+                {t("warehouse.globalMovementDetailViewMainProduct")}
+              </button>
+            </div>
+          </div>
+          {movementDetailListMode === "mainProduct" ? (
+            <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-2.5">
+              <p className="text-xs font-semibold text-zinc-800">
+                {t("warehouse.movementMainTotalsDialogTitle")} ({mainTotals.length})
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
+                {t("warehouse.globalMovementDetailMainProductFootnote")}
+              </p>
+              <div className="mt-2 md:hidden">
+                <div className="space-y-2">
+                  {mainTotals.map((row) => (
+                    <div
+                      key={`dlg-main-m-${row.key}`}
+                      className="rounded-md border border-zinc-200 bg-white px-2 py-2"
+                    >
+                      <p className="text-xs font-medium text-zinc-900">{row.name}</p>
+                      <p className="mt-1 text-[11px] text-zinc-500">
+                        {row.lineCount}{" "}
+                        {t("warehouse.shipmentLineCountSuffix")}
+                      </p>
+                      <p
+                        className={cn(
+                          "mt-1 text-sm font-semibold tabular-nums",
+                          row.quantity >= 0 ? "text-emerald-700" : "text-red-700"
+                        )}
+                      >
+                        {row.quantity >= 0 ? "+" : ""}
+                        {formatLocaleAmount(row.quantity, locale)}
+                        {row.unit ? ` ${row.unit}` : ""}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-2 hidden overflow-x-auto md:block">
+                <table className="w-full min-w-[320px] border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-200 bg-white">
+                      <th className="px-2 py-2 text-xs font-semibold text-zinc-700">
+                        {t("warehouse.movementMainBalancesProduct")}
+                      </th>
+                      <th className="px-2 py-2 text-xs font-semibold text-zinc-700">
+                        {t("warehouse.movementsOutboundByBranchColLines")}
+                      </th>
+                      <th className="px-2 py-2 text-right text-xs font-semibold text-zinc-700">
+                        {t("warehouse.movementQuantity")}
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {mainTotals.map((row) => (
+                      <tr key={`dlg-main-d-${row.key}`} className="border-b border-zinc-100 bg-white last:border-0">
+                        <td className="max-w-[14rem] truncate px-2 py-2 text-xs font-medium text-zinc-900">
+                          {row.name}
+                        </td>
+                        <td className="px-2 py-2 tabular-nums text-xs text-zinc-600">{row.lineCount}</td>
+                        <td
+                          className={cn(
+                            "px-2 py-2 text-right text-xs font-semibold tabular-nums",
+                            row.quantity >= 0 ? "text-emerald-700" : "text-red-700"
+                          )}
+                        >
+                          {row.quantity >= 0 ? "+" : ""}
+                          {formatLocaleAmount(row.quantity, locale)}
+                          {row.unit ? ` ${row.unit}` : ""}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-2.5">
+              <p className="text-xs font-semibold text-zinc-800">
+                {t("warehouse.movementLinesDialogTitle")} ({g.rows.length})
+              </p>
+              <div className="mt-2 space-y-2">
+                {g.rows.map((x) => (
+                  <div
+                    key={`dlg-line-${g.key}-${x.id}`}
+                    className="flex items-center justify-between gap-2 rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-zinc-800">{x.productName}</p>
+                      <p
+                        className={cn(
+                          "truncate text-[11px]",
+                          x.type === "OUT" && (x.outDestinationBranchName?.trim().length ?? 0) > 0
+                            ? "font-semibold text-rose-900"
+                            : "text-zinc-500"
+                        )}
+                      >
+                        {x.warehouseName} · {x.outDestinationBranchName || "—"} ·{" "}
+                        {x.type === "IN" ? t("products.typeIn") : t("products.typeOut")}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="tabular-nums font-semibold text-zinc-900">{x.quantity}</span>
+                      {x.type === "IN" && x.hasInvoicePhoto ? (
+                        <a
+                          href={warehouseMovementInvoicePhotoUrl(x.id)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={detailOpenIconButtonClass}
+                          aria-label={t("warehouse.openInvoicePhoto")}
+                          title={t("warehouse.openInvoicePhoto")}
+                        >
+                          <EyeIcon className="h-4 w-4" />
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }, [detailSummaryGroup, locale, movementDetailListMode, t]);
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 p-3 pb-6 sm:p-4 sm:pb-10">
       <div>
@@ -316,7 +827,7 @@ export function WarehouseGlobalMovementsScreen() {
           aria-expanded={filtersDrawerOpen}
           aria-haspopup="dialog"
           aria-label={t("warehouse.movementsFilterIconAria")}
-          onClick={() => setFiltersDrawerOpen(true)}
+          onClick={openFiltersDrawer}
         >
           <FilterFunnelIcon className="h-5 w-5" />
           {movementFiltersActive ? (
@@ -327,9 +838,10 @@ export function WarehouseGlobalMovementsScreen() {
 
       <RightDrawer
         open={filtersDrawerOpen}
-        onClose={() => setFiltersDrawerOpen(false)}
+        onClose={closeFiltersDrawer}
         title={t("warehouse.movementsFiltersTitle")}
         closeLabel={t("common.close")}
+        showFooterCloseButton={false}
         backdropCloseRequiresConfirm={false}
         className="max-w-lg"
         rootClassName={OVERLAY_Z_TW.modalNested}
@@ -338,53 +850,98 @@ export function WarehouseGlobalMovementsScreen() {
           <Select
             label={t("warehouse.globalFilterWarehouse")}
             options={warehouseOptions}
-            value={warehouseId}
-            onChange={(e) => setWarehouseId(e.target.value)}
+            value={draftWarehouseId}
+            onChange={(e) => setDraftWarehouseId(e.target.value)}
             onBlur={() => {}}
             name="global-wh-mv-warehouse"
           />
           <Select
             label={t("products.filterType")}
             options={typeOptions}
-            value={type}
-            onChange={(e) => setType(e.target.value)}
+            value={draftType}
+            onChange={(e) => {
+              const v = e.target.value;
+              setDraftType(v);
+              if (v === "IN") setDraftBranchId("");
+            }}
             onBlur={() => {}}
             name="global-wh-mv-type"
           />
-          <Select
-            label={t("warehouse.filterMovementBranch")}
-            options={branchOptions}
-            value={branchId}
-            onChange={(e) => setBranchId(e.target.value)}
-            onBlur={() => {}}
-            name="global-wh-mv-branch"
-          />
+          <div className={cn(draftType === "IN" && "opacity-90")}>
+            <Select
+              label={t("warehouse.filterMovementBranch")}
+              options={branchOptions}
+              value={draftType === "IN" ? "" : draftBranchId}
+              onChange={(e) => setDraftBranchId(e.target.value)}
+              onBlur={() => {}}
+              name="global-wh-mv-branch"
+              disabled={draftType === "IN"}
+            />
+            {draftType === "IN" ? (
+              <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{t("warehouse.movementsFilterBranchDisabledForIn")}</p>
+            ) : null}
+          </div>
           <DateField
             label={t("products.filterDateFrom")}
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
+            value={draftDateFrom}
+            onChange={(e) => setDraftDateFrom(e.target.value)}
           />
           <DateField
             label={t("products.filterDateTo")}
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
+            value={draftDateTo}
+            onChange={(e) => setDraftDateTo(e.target.value)}
           />
-          <WarehouseProductScopeFilters value={scope} onChange={setScope} menuZIndex={DRAWER_SELECT_Z} />
-          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11 w-full sm:w-auto"
-              onClick={() => {
-                void refetch();
-                setFiltersDrawerOpen(false);
-              }}
-            >
+          <WarehouseProductScopeFilters value={draftScope} onChange={setDraftScope} menuZIndex={DRAWER_SELECT_Z} />
+          <div className="flex flex-col gap-2 border-t border-zinc-100 pt-4 sm:flex-row sm:flex-wrap sm:justify-end">
+            <Button type="button" variant="secondary" className="min-h-11 w-full sm:w-auto" onClick={closeFiltersDrawer}>
+              {t("common.close")}
+            </Button>
+            <Button type="button" variant="secondary" className="min-h-11 w-full sm:w-auto" onClick={clearDraftFilters}>
+              {t("warehouse.movementsFilterClear")}
+            </Button>
+            <Button type="button" className="min-h-11 w-full sm:w-auto" onClick={applyDraftFiltersAndClose}>
               {t("warehouse.movementsFilterApplyClose")}
             </Button>
           </div>
         </div>
       </RightDrawer>
+
+      {outboundShipmentCountByMainProduct.length > 0 ? (
+        <div className="rounded-lg border border-rose-200 bg-gradient-to-br from-rose-50/90 to-white px-3 py-3 shadow-sm ring-1 ring-rose-950/[0.04] sm:px-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-rose-900">
+            {t("warehouse.globalOutboundByMainProductTitle")}
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-rose-800/90">{t("warehouse.globalOutboundByMainProductHint")}</p>
+          <div className="mt-3 max-h-52 overflow-auto rounded-md border border-rose-100 bg-white">
+            <table className="w-full min-w-[260px] border-collapse text-left text-sm">
+              <thead>
+                <tr className="border-b border-rose-100 bg-rose-50/80">
+                  <th className="px-3 py-2 text-xs font-semibold text-rose-950">
+                    {t("warehouse.globalOutboundByMainProductColGroup")}
+                  </th>
+                  <th className="whitespace-nowrap px-3 py-2 text-right text-xs font-semibold text-rose-950">
+                    {t("warehouse.globalOutboundByMainProductColShipments")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {outboundShipmentCountByMainProduct.map((row) => (
+                  <tr key={row.key} className="border-b border-rose-50 last:border-0">
+                    <td className="max-w-[min(100vw-8rem,28rem)] px-3 py-2">
+                      <span className="line-clamp-2 font-medium text-zinc-900" title={row.name}>
+                        {row.name}
+                      </span>
+                    </td>
+                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-base font-semibold text-rose-950">
+                      {formatLocaleAmount(row.outboundShipmentCount, locale)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2">
@@ -452,7 +1009,7 @@ export function WarehouseGlobalMovementsScreen() {
                     <button
                       type="button"
                       className="mt-2 text-left text-sm font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-700"
-                      onClick={() => openMovementDetail(m)}
+                      onClick={() => openMovementGroupDetailDialog(m)}
                     >
                       {m.productName}
                     </button>
@@ -531,7 +1088,7 @@ export function WarehouseGlobalMovementsScreen() {
                         <button
                           type="button"
                           className="text-left font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-700"
-                          onClick={() => openMovementDetail(m)}
+                          onClick={() => openMovementGroupDetailDialog(m)}
                         >
                           {m.productName}
                         </button>
@@ -661,7 +1218,7 @@ export function WarehouseGlobalMovementsScreen() {
                         .replace("{lines}", String(group.lineCount))}
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      <Button type="button" variant="secondary" className="min-h-9 text-xs" onClick={() => openMovementDetail(row)}>
+                      <Button type="button" variant="secondary" className="min-h-9 text-xs" onClick={() => setDetailSummaryGroup(group)}>
                         {t("warehouse.globalShipmentOpenDetail")}
                       </Button>
                       {hasPdfActions ? (
@@ -683,40 +1240,7 @@ export function WarehouseGlobalMovementsScreen() {
                         </>
                       ) : null}
                     </div>
-                    <div className="grid gap-1 rounded-md bg-zinc-50 p-2 text-xs text-zinc-600">
-                      {group.rows.map((x) => (
-                        <div key={`g-row-${group.key}-${x.id}`} className="flex items-center justify-between gap-2 rounded border border-zinc-200 bg-white px-2 py-1.5">
-                          <div className="min-w-0">
-                            <p className="truncate font-medium text-zinc-800">{x.productName}</p>
-                            <p
-                              className={cn(
-                                "truncate text-[11px]",
-                                x.type === "OUT" && (x.outDestinationBranchName?.trim().length ?? 0) > 0
-                                  ? "font-semibold text-rose-900"
-                                  : "text-zinc-500"
-                              )}
-                            >
-                              {x.outDestinationBranchName || "—"} · {x.type === "IN" ? t("products.typeIn") : t("products.typeOut")}
-                            </p>
-                          </div>
-                          <div className="flex shrink-0 items-center gap-2">
-                            <span className="tabular-nums">{x.quantity}</span>
-                            {x.type === "IN" && x.hasInvoicePhoto ? (
-                              <a
-                                href={warehouseMovementInvoicePhotoUrl(x.id)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={detailOpenIconButtonClass}
-                                aria-label={t("warehouse.openInvoicePhoto")}
-                                title={t("warehouse.openInvoicePhoto")}
-                              >
-                                <EyeIcon className="h-4 w-4" />
-                              </a>
-                            ) : null}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <ShipmentGroupExpandedLineBlock group={group} />
                   </div>
                 </details>
               );
@@ -760,6 +1284,19 @@ export function WarehouseGlobalMovementsScreen() {
           </div>
         </div>
       ) : null}
+
+      <Modal
+        open={detailSummaryGroup != null}
+        onClose={() => setDetailSummaryGroup(null)}
+        titleId="warehouse-global-movement-detail-title"
+        title={t("warehouse.movementHeaderInfoTitle")}
+        closeButtonLabel={t("common.close")}
+        wide
+        wideExpanded
+        wideFixedHeight
+      >
+        {movementDetailModalContent}
+      </Modal>
     </div>
   );
 }

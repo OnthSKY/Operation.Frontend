@@ -56,6 +56,15 @@ const DEPO_RECEIPT_SUMMARY_ID = "wh-list-depo-receipt-summary";
 const TRANSFER_TITLE_ID = "wh-list-transfer-title";
 const MANUAL_RECEIVER_PREFIX = "Manual receiver:";
 
+/** Depo giriş + şube sevkiyatı: şube detay sheet’i gibi mobilde alttan tam sayfa, masaüstünde ortalı modal. */
+const WH_QUICK_SHEET_BACKDROP =
+  "flex flex-col justify-end bg-zinc-950/50 p-0 pt-[env(safe-area-inset-top,0px)] sm:flex-row sm:items-center sm:justify-center sm:bg-zinc-950/50 sm:p-5 lg:px-10 lg:py-7 xl:px-14 xl:py-8";
+const whQuickSheetPanelClass = (wideSm: string) =>
+  cn(
+    "flex h-[min(100dvh,100svh)] max-h-[100dvh] w-full !max-w-none flex-col overflow-hidden rounded-t-2xl border border-zinc-200 bg-white p-3 shadow-2xl sm:h-auto sm:max-h-[95dvh] sm:rounded-2xl sm:border-zinc-200/90 sm:p-6",
+    wideSm
+  );
+
 function mergeDescriptionWithManualReceiver(base: string, manualReceiver: string): string | null {
   const cleanBase = base.trim();
   const receiver = manualReceiver.trim();
@@ -137,6 +146,13 @@ export function WarehouseListDepoInModal({
   const [inMovementNote, setInMovementNote] = useState("");
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [pending, setPending] = useState(false);
+  const depoProductRefs = useRef<Record<string, HTMLInputElement | null>>({});
+
+  const focusDepoProduct = useCallback((lineKey: string) => {
+    requestAnimationFrame(() => {
+      depoProductRefs.current[lineKey]?.focus();
+    });
+  }, []);
 
   const addDepoLine = useCallback(() => {
     setLines((ls) => [...ls, { key: newDraftLineKey(), productId: "", qty: "1" }]);
@@ -283,15 +299,19 @@ export function WarehouseListDepoInModal({
       title={t("warehouse.actionDepoProductIn")}
       description={desc}
       closeButtonLabel={t("common.close")}
-      className={cn("w-full", lines.length >= 3 ? "max-w-5xl" : "max-w-4xl")}
+      backdropClassName={WH_QUICK_SHEET_BACKDROP}
+      className={whQuickSheetPanelClass(
+        lines.length >= 3 ? "sm:max-w-[min(100vw-4rem,96rem)]" : "sm:max-w-[min(100vw-4rem,82rem)]"
+      )}
     >
       {stockLoading ? (
-        <p className="mt-4 text-sm text-zinc-500">{t("common.loading")}</p>
+        <p className="mt-4 min-h-0 flex-1 text-sm text-zinc-500">{t("common.loading")}</p>
       ) : (
         <form
-          className="mt-3 flex max-h-[min(82dvh,34rem)] flex-col gap-3 overflow-y-auto [-webkit-overflow-scrolling:touch] sm:mt-4 sm:max-h-[min(78dvh,40rem)] sm:overflow-visible"
+          className="mt-3 flex min-h-0 flex-1 flex-col sm:mt-4"
           onSubmit={(e) => void onSubmit(e)}
         >
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto [-webkit-overflow-scrolling:touch] pr-1">
           <DateField
             label={t("warehouse.quickMovementDate")}
             labelRequired
@@ -324,76 +344,97 @@ export function WarehouseListDepoInModal({
                     compact ? "px-1.5 py-1 sm:px-2" : "p-2 sm:p-2.5"
                   )}
                 >
-                  <div className="flex min-w-0 flex-nowrap items-end gap-1.5 sm:gap-2">
-                    <span
-                      className={cn(
-                        "flex shrink-0 select-none items-center justify-center rounded-md bg-zinc-100 font-bold tabular-nums text-zinc-500",
-                        compact
-                          ? "h-9 w-6 text-[0.6rem] sm:h-10 sm:w-7 sm:text-[0.65rem]"
-                          : "h-9 w-7 text-[0.65rem] sm:h-10 sm:w-8 sm:text-xs"
-                      )}
-                      aria-hidden
-                    >
-                      {idx + 1}
-                    </span>
-                    <div
-                      className="min-w-0 flex-1 basis-0"
-                      title={
-                        selectedRow?.unit
-                          ? `${t("warehouse.productUnit")}: ${selectedRow.unit}`
-                          : undefined
-                      }
-                    >
-                      <Select
-                        label={idx === 0 ? t("warehouse.movementProduct") : undefined}
-                        ariaLabel={
-                          idx > 0
-                            ? `${t("warehouse.movementProduct")} (${idx + 1})`
+                  <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end sm:gap-2">
+                    <div className="flex min-w-0 items-end gap-1.5 sm:flex-1">
+                      <span
+                        className={cn(
+                          "flex shrink-0 select-none items-center justify-center rounded-md bg-zinc-100 font-bold tabular-nums text-zinc-500",
+                          compact
+                            ? "h-9 w-6 text-[0.6rem] sm:h-10 sm:w-7 sm:text-[0.65rem]"
+                            : "h-9 w-7 text-[0.65rem] sm:h-10 sm:w-8 sm:text-xs"
+                        )}
+                        aria-hidden
+                      >
+                        {idx + 1}
+                      </span>
+                      <div
+                        className="min-w-0 flex-1 basis-0"
+                        title={
+                          selectedRow?.unit
+                            ? `${t("warehouse.productUnit")}: ${selectedRow.unit}`
                             : undefined
                         }
-                        labelRequired={idx === 0}
-                        name={`wh-list-depo-product-${line.key}`}
-                        options={productOptions}
-                        value={line.productId}
-                        onChange={(e) => updateDepoLine(line.key, { productId: e.target.value })}
-                        onBlur={() => {}}
-                        disabled={disabled}
-                        className={cn("min-w-0", compact && "min-h-11 py-2 text-sm")}
-                      />
+                      >
+                        <Select
+                          ref={(node) => {
+                            depoProductRefs.current[line.key] = node;
+                          }}
+                          label={idx === 0 ? t("warehouse.movementProduct") : undefined}
+                          ariaLabel={
+                            idx > 0
+                              ? `${t("warehouse.movementProduct")} (${idx + 1})`
+                              : undefined
+                          }
+                          labelRequired={idx === 0}
+                          name={`wh-list-depo-product-${line.key}`}
+                          options={productOptions}
+                          value={line.productId}
+                          onChange={(e) => updateDepoLine(line.key, { productId: e.target.value })}
+                          onBlur={() => {}}
+                          disabled={disabled}
+                          className={cn("min-w-0", compact && "min-h-11 py-2 text-sm")}
+                        />
+                      </div>
                     </div>
-                    <div className={cn("shrink-0", compact ? "w-[4.25rem] sm:w-24" : "w-24 sm:w-28")}>
-                      <Input
-                        type="text"
-                        inputMode="decimal"
-                        autoComplete="off"
-                        label={idx === 0 ? t("warehouse.qtyLabelDepoIn") : undefined}
-                        labelRequired={idx === 0}
-                        aria-label={idx > 0 ? t("warehouse.qtyLabelDepoIn") : undefined}
-                        value={line.qty}
-                        onChange={(e) => updateDepoLine(line.key, { qty: e.target.value })}
-                        disabled={disabled}
+                    <div className="grid grid-cols-[minmax(0,1fr)_2.25rem] items-end gap-2 sm:flex sm:items-end sm:gap-1.5">
+                      <div className={cn("min-w-0", compact ? "sm:w-24" : "sm:w-28")}>
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          autoComplete="off"
+                          label={idx === 0 ? t("warehouse.qtyLabelDepoIn") : undefined}
+                          labelRequired={idx === 0}
+                          aria-label={idx > 0 ? t("warehouse.qtyLabelDepoIn") : undefined}
+                          value={line.qty}
+                          onChange={(e) => updateDepoLine(line.key, { qty: e.target.value })}
+                          onKeyDown={(e) => {
+                            if (e.key !== "Enter") return;
+                            e.preventDefault();
+                            const currentIdx = lines.findIndex((l) => l.key === line.key);
+                            if (currentIdx < 0) return;
+                            const nextLine = lines[currentIdx + 1];
+                            if (nextLine) {
+                              focusDepoProduct(nextLine.key);
+                              return;
+                            }
+                            const nextKey = newDraftLineKey();
+                            setLines((ls) => [...ls, { key: nextKey, productId: "", qty: "1" }]);
+                            focusDepoProduct(nextKey);
+                          }}
+                          disabled={disabled}
+                          className={cn(
+                            "min-w-0 text-center tabular-nums",
+                            compact && "min-h-11 py-2 text-sm"
+                          )}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
                         className={cn(
-                          "min-w-0 text-center tabular-nums",
-                          compact && "min-h-11 py-2 text-sm"
+                          "!h-9 !w-9 !min-h-9 shrink-0 self-end rounded-lg border-zinc-200 p-0 leading-none text-zinc-600 hover:border-red-200 hover:bg-red-50 hover:text-red-700",
+                          compact
+                            ? "mb-0.5 text-sm sm:!h-10 sm:!w-10 sm:text-base"
+                            : "mb-0.5 text-lg"
                         )}
-                      />
+                        disabled={disabled || lines.length <= 1}
+                        onClick={() => removeDepoLine(line.key)}
+                        aria-label={t("warehouse.depoInRemoveLine")}
+                        title={t("warehouse.depoInRemoveLine")}
+                      >
+                        <TrashIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      </Button>
                     </div>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className={cn(
-                        "shrink-0 self-end rounded-lg border-zinc-200 p-0 leading-none text-zinc-600 hover:border-red-200 hover:bg-red-50 hover:text-red-700",
-                        compact
-                          ? "mb-0.5 h-9 w-9 text-base sm:h-10 sm:w-10 sm:text-lg"
-                          : "mb-0.5 h-10 w-10 text-lg"
-                      )}
-                      disabled={disabled || lines.length <= 1}
-                      onClick={() => removeDepoLine(line.key)}
-                      aria-label={t("warehouse.depoInRemoveLine")}
-                      title={t("warehouse.depoInRemoveLine")}
-                    >
-                      <TrashIcon className="h-4 w-4 sm:h-[1.1rem] sm:w-[1.1rem]" />
-                    </Button>
                   </div>
                 </div>
               );
@@ -401,7 +442,7 @@ export function WarehouseListDepoInModal({
             <Button
               type="button"
               variant="secondary"
-              className="min-h-[44px] min-w-[44px] w-full touch-manipulation text-sm sm:min-h-11 sm:w-auto"
+              className="min-h-10 min-w-[44px] w-auto touch-manipulation px-3 text-sm sm:min-h-11"
               disabled={disabled}
               onClick={addDepoLine}
             >
@@ -523,8 +564,9 @@ export function WarehouseListDepoInModal({
               </ul>
             </section>
           ) : null}
+          </div>
 
-          <div className="sticky bottom-0 -mx-1 flex flex-col gap-2 border-t border-zinc-200/80 bg-white/95 px-1 pt-2 pb-0.5 backdrop-blur-sm sm:mx-0 sm:flex-row sm:flex-wrap sm:justify-end sm:px-0 sm:pt-1">
+          <div className="z-20 -mx-1 flex shrink-0 flex-col gap-2 border-t border-zinc-200/80 bg-white/95 px-1 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] backdrop-blur-sm sm:mx-0 sm:flex-row sm:flex-wrap sm:justify-end sm:px-0 sm:pt-1 sm:pb-0.5">
             <Button
               type="button"
               variant="secondary"
@@ -986,9 +1028,8 @@ export function WarehouseListTransferModal({
         title={t("warehouse.transferRowTitle")}
         description={desc}
         closeButtonLabel={t("common.close")}
-        backdropClassName="p-0 pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)] sm:p-5 lg:px-10 lg:py-7 xl:px-14 xl:py-8"
-        className={cn(
-          "flex w-full !max-w-none h-[100dvh] max-h-[100dvh] flex-col rounded-none border-0 p-3 overflow-hidden sm:h-auto sm:max-h-[95dvh] sm:rounded-2xl sm:border sm:border-zinc-200/90 sm:p-6",
+        backdropClassName={WH_QUICK_SHEET_BACKDROP}
+        className={whQuickSheetPanelClass(
           lines.length >= 3
             ? "sm:max-w-[min(100vw-4rem,96rem)]"
             : "sm:max-w-[min(100vw-4rem,82rem)]"

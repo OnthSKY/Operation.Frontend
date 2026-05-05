@@ -5,6 +5,7 @@ import { financialBreakdownCategoryLabel } from "@/modules/reports/lib/financial
 import { reportBranchLabel } from "@/modules/reports/lib/report-branch-label";
 import {
   ReportExpensePaymentMix,
+  expensePaymentSourceShortReportLabel,
   sortExpensePaymentRows,
 } from "@/modules/reports/lib/report-expense-payment";
 import { ReportFinancialTimeSeriesCharts } from "@/modules/reports/components/ReportFinancialTimeSeriesCharts";
@@ -362,15 +363,7 @@ export function ReportFinancialStoryCharts({
       payMix = {
         items: ordered.map((r) => {
           const pct = Math.round((r.totalAmount / payTotal) * 100);
-          const label =
-            r.expensePaymentSource.trim().toUpperCase() === "REGISTER"
-              ? t("branch.expensePayRegisterShort")
-              : r.expensePaymentSource.trim().toUpperCase() === "PATRON"
-                ? t("branch.expensePayPatronShort")
-                : r.expensePaymentSource.trim().toUpperCase() ===
-                    "PERSONNEL_POCKET"
-                  ? t("branch.expensePayPersonnelPocketShort")
-                  : t("branch.expensePaymentUnset");
+          const label = expensePaymentSourceShortReportLabel(r.expensePaymentSource, t);
           return { label, pct, amount: r.totalAmount };
         }),
       };
@@ -1046,14 +1039,10 @@ export function ReportFinancialStoryCharts({
                   <div className="mt-2 space-y-1 border-t border-red-100/90 pt-2">
                     {expensePayBreakdownForCcy.map((r) => {
                       const src = r.expensePaymentSource.trim().toUpperCase();
-                      const label =
-                        src === "REGISTER"
-                          ? t("branch.expensePayRegisterShort")
-                          : src === "PATRON"
-                            ? t("branch.expensePayPatronShort")
-                            : src === "PERSONNEL_POCKET"
-                              ? t("branch.expensePayPersonnelPocketShort")
-                              : t("branch.expensePaymentUnset");
+                      const label = expensePaymentSourceShortReportLabel(
+                        r.expensePaymentSource,
+                        t
+                      );
                       return (
                         <div
                           key={src}

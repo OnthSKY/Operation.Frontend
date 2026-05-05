@@ -13,6 +13,10 @@ import {
   addDaysFromIso,
   startOfMonthIso,
 } from "@/modules/reports/lib/report-period-helpers";
+import {
+  FinancialExpensePaySourceSubline,
+  expenseBucketsFromBranchRow,
+} from "@/modules/reports/lib/financial-expense-pay-source-inline";
 import { reportBranchLabel } from "@/modules/reports/lib/report-branch-label";
 import { PageWhenToUseInfoButton } from "@/shared/components/PageWhenToUseInfoButton";
 import { toErrorMessage } from "@/shared/lib/error-message";
@@ -454,9 +458,20 @@ export function BranchComparisonReportScreen() {
                             </TableCell>
                             <TableCell
                               dataLabel={t("reports.colExpense")}
-                              className="whitespace-nowrap text-right tabular-nums text-red-800/90 max-md:items-center"
+                              className="text-right tabular-nums text-red-800/90 max-md:items-center align-top"
                             >
-                              {formatLocaleAmount(row.totalExpense, locale, ccy)}
+                              <div className="inline-flex flex-col items-end gap-0">
+                                <span className="whitespace-nowrap font-medium">
+                                  {formatLocaleAmount(row.totalExpense, locale, ccy)}
+                                </span>
+                                <FinancialExpensePaySourceSubline
+                                  buckets={expenseBucketsFromBranchRow(row)}
+                                  currencyCode={(ccy ?? row.currencyCode).trim() || "TRY"}
+                                  locale={locale}
+                                  t={t}
+                                  align="end"
+                                />
+                              </div>
                             </TableCell>
                             <TableCell
                               dataLabel={t("reports.colSupplierRegisterPaid")}

@@ -7,8 +7,14 @@ import {
 } from "@/modules/reports/lib/financial-breakdown-labels";
 import { reportBranchLabel } from "@/modules/reports/lib/report-branch-label";
 import {
+  FinancialExpensePaySourceSubline,
+  expenseBucketsFromBranchRow,
+  expenseBucketsFromPaySourceRows,
+} from "@/modules/reports/lib/financial-expense-pay-source-inline";
+import {
   ExpensePaymentSourceTag,
   expensePaymentSourceReportLabel,
+  expensePaymentSourceShortReportLabel,
   sortExpensePaymentRows,
 } from "@/modules/reports/lib/report-expense-payment";
 import { ReportInteractiveRows } from "@/modules/reports/components/ReportInteractiveRows";
@@ -112,7 +118,7 @@ export function FinancialReportDetailTables({
       {show("totals") ? (
       <Card
         title={t("reports.sectionTotals")}
-        description={t("reports.sectionTotalsFinancialKpiNote")}
+        description={`${t("reports.sectionTotalsFinancialKpiNote")} ${t("reports.sectionTotalsExpenseSourceHint")}`}
       >
         <ReportInteractiveRows
           interactive={interactive}
@@ -182,11 +188,23 @@ export function FinancialReportDetailTables({
                           label={t("reports.colExpense")}
                           valueClassName="tabular-nums"
                         >
-                          {formatLocaleAmount(
-                            r.totalExpense,
-                            locale,
-                            r.currencyCode
-                          )}
+                          <div>
+                            {formatLocaleAmount(
+                              r.totalExpense,
+                              locale,
+                              r.currencyCode
+                            )}
+                            <FinancialExpensePaySourceSubline
+                              buckets={expenseBucketsFromPaySourceRows(
+                                (data.byExpensePaymentSource ?? []).filter(
+                                  (x) => x.currencyCode === r.currencyCode
+                                )
+                              )}
+                              currencyCode={r.currencyCode}
+                              locale={locale}
+                              t={t}
+                            />
+                          </div>
                         </MobileKv>
                         <MobileKv
                           label={t("reports.colSupplierRegisterPaid")}
@@ -248,12 +266,25 @@ export function FinancialReportDetailTables({
                                 r.currencyCode
                               )}
                             </td>
-                            <td className={`${td} tabular-nums`}>
-                              {formatLocaleAmount(
-                                r.totalExpense,
-                                locale,
-                                r.currencyCode
-                              )}
+                            <td className={`${td} align-top tabular-nums`}>
+                              <div>
+                                {formatLocaleAmount(
+                                  r.totalExpense,
+                                  locale,
+                                  r.currencyCode
+                                )}
+                                <FinancialExpensePaySourceSubline
+                                  buckets={expenseBucketsFromPaySourceRows(
+                                    (data.byExpensePaymentSource ?? []).filter(
+                                      (x) => x.currencyCode === r.currencyCode
+                                    )
+                                  )}
+                                  currencyCode={r.currencyCode}
+                                  locale={locale}
+                                  t={t}
+                                  align="end"
+                                />
+                              </div>
                             </td>
                             <td className={`${td} tabular-nums`}>
                               {formatLocaleAmount(
@@ -294,7 +325,7 @@ export function FinancialReportDetailTables({
       {show("branches") ? (
       <Card
         title={t("reports.sectionByBranch")}
-        description={t("reports.sectionTotalsFinancialKpiNote")}
+        description={`${t("reports.sectionTotalsFinancialKpiNote")} ${t("reports.sectionByBranchExpenseSourceHint")}`}
       >
         <ReportInteractiveRows
           interactive={interactive}
@@ -381,11 +412,19 @@ export function FinancialReportDetailTables({
                             label={t("reports.colExpense")}
                             valueClassName="tabular-nums"
                           >
-                            {formatLocaleAmount(
-                              r.totalExpense,
-                              locale,
-                              r.currencyCode
-                            )}
+                            <div>
+                              {formatLocaleAmount(
+                                r.totalExpense,
+                                locale,
+                                r.currencyCode
+                              )}
+                              <FinancialExpensePaySourceSubline
+                                buckets={expenseBucketsFromBranchRow(r)}
+                                currencyCode={r.currencyCode}
+                                locale={locale}
+                                t={t}
+                              />
+                            </div>
                           </MobileKv>
                           <MobileKv
                             label={t("reports.colSupplierRegisterPaid")}
@@ -470,12 +509,21 @@ export function FinancialReportDetailTables({
                                 r.currencyCode
                               )}
                             </td>
-                            <td className={`${td} tabular-nums`}>
-                              {formatLocaleAmount(
-                                r.totalExpense,
-                                locale,
-                                r.currencyCode
-                              )}
+                            <td className={`${td} align-top tabular-nums`}>
+                              <div>
+                                {formatLocaleAmount(
+                                  r.totalExpense,
+                                  locale,
+                                  r.currencyCode
+                                )}
+                                <FinancialExpensePaySourceSubline
+                                  buckets={expenseBucketsFromBranchRow(r)}
+                                  currencyCode={r.currencyCode}
+                                  locale={locale}
+                                  t={t}
+                                  align="end"
+                                />
+                              </div>
                             </td>
                             <td className={`${td} tabular-nums`}>
                               {formatLocaleAmount(
@@ -594,17 +642,10 @@ export function FinancialReportDetailTables({
                 <>
                   <div className={mobileCardStack}>
                     {displayRows.map((r) => {
-                      const short =
-                        r.expensePaymentSource.trim().toUpperCase() ===
-                        "REGISTER"
-                          ? t("branch.expensePayRegisterShort")
-                          : r.expensePaymentSource.trim().toUpperCase() ===
-                              "PATRON"
-                            ? t("branch.expensePayPatronShort")
-                            : r.expensePaymentSource.trim().toUpperCase() ===
-                                "PERSONNEL_POCKET"
-                              ? t("branch.expensePayPersonnelPocketShort")
-                              : t("branch.expensePaymentUnset");
+                      const short = expensePaymentSourceShortReportLabel(
+                        r.expensePaymentSource,
+                        t
+                      );
                       return (
                         <MobileListCard
                           key={`${r.currencyCode}-${r.expensePaymentSource}`}
@@ -663,17 +704,10 @@ export function FinancialReportDetailTables({
                       </thead>
                       <tbody>
                         {displayRows.map((r) => {
-                          const short =
-                            r.expensePaymentSource.trim().toUpperCase() ===
-                            "REGISTER"
-                              ? t("branch.expensePayRegisterShort")
-                              : r.expensePaymentSource.trim().toUpperCase() ===
-                                  "PATRON"
-                                ? t("branch.expensePayPatronShort")
-                                : r.expensePaymentSource.trim().toUpperCase() ===
-                                    "PERSONNEL_POCKET"
-                                  ? t("branch.expensePayPersonnelPocketShort")
-                                  : t("branch.expensePaymentUnset");
+                          const short = expensePaymentSourceShortReportLabel(
+                            r.expensePaymentSource,
+                            t
+                          );
                           return (
                             <tr
                               key={`${r.currencyCode}-${r.expensePaymentSource}`}

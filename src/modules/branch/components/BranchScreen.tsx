@@ -5,6 +5,7 @@ import { isPersonnelPortalRole } from "@/lib/auth/roles";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { fetchBranches } from "@/modules/branch/api/branches-api";
 import {
+  useBranchesList,
   useBranchesListPaged,
   useDeleteBranch,
 } from "@/modules/branch/hooks/useBranchQueries";
@@ -21,6 +22,7 @@ import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
+import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import {
@@ -247,6 +249,55 @@ const BRANCH_LIST_PAGE_SIZE = 25;
 
 const NOOP_BLUR = () => {};
 
+function branchMatchesListSearch(b: Branch, qLower: string): boolean {
+  if (!qLower) return true;
+  if (b.name.toLowerCase().includes(qLower)) return true;
+  const addr = (b.address ?? "").toLowerCase();
+  if (addr.includes(qLower)) return true;
+  if (String(b.id).includes(qLower)) return true;
+  for (const r of b.responsibles ?? []) {
+    if (r.fullName.toLowerCase().includes(qLower)) return true;
+  }
+  return false;
+}
+
+function sortBranchesClient(rows: Branch[], sort: BranchListSort, locale: string): Branch[] {
+  const out = [...rows];
+  const collator = new Intl.Collator(locale, { sensitivity: "base" });
+  switch (sort) {
+    case "nameDesc":
+      out.sort((a, b) => {
+        const c = collator.compare(a.name, b.name);
+        if (c !== 0) return -c;
+        return b.id - a.id;
+      });
+      break;
+    case "idAsc":
+      out.sort((a, b) => a.id - b.id);
+      break;
+    case "idDesc":
+      out.sort((a, b) => b.id - a.id);
+      break;
+    case "staffDesc":
+      out.sort((a, b) => {
+        const d = b.personnelAssignedCount - a.personnelAssignedCount;
+        if (d !== 0) return d;
+        const n = collator.compare(a.name, b.name);
+        if (n !== 0) return n;
+        return a.id - b.id;
+      });
+      break;
+    case "nameAsc":
+    default:
+      out.sort((a, b) => {
+        const c = collator.compare(a.name, b.name);
+        if (c !== 0) return c;
+        return a.id - b.id;
+      });
+  }
+  return out;
+}
+
 const BRANCH_DELETE_CONFIRM_TITLE_ID = "branch-soft-delete-confirm-title";
 
 export function BranchScreen() {
@@ -255,16 +306,49 @@ export function BranchScreen() {
   const searchParams = useSearchParams();
   const personnelPortal = isPersonnelPortalRole(user?.role);
   const [listPage, setListPage] = useState(1);
+  const [listSearch, setListSearch] = useState("");
   const [sortBy, setSortBy] = useState<BranchListSort>("nameAsc");
   const [deepLinkedBranch, setDeepLinkedBranch] = useState<Branch | null>(null);
-  const { data, isPending, isError, error, refetch } = useBranchesListPaged(
+  const listSearchTrimmed = listSearch.trim();
+  const listSearchActive = listSearchTrimmed.length > 0;
+  const listSearchLower = listSearchTrimmed.toLowerCase();
+
+  const pagedQuery = useBranchesListPaged(
     listPage,
     BRANCH_LIST_PAGE_SIZE,
     sortBy,
-    true
+    !listSearchActive
   );
-  const list = data?.items ?? [];
-  const totalCount = data?.totalCount ?? 0;
+  const fullListQuery = useBranchesList(listSearchActive);
+
+  const fullBranchesForSearch = fullListQuery.data ?? [];
+  const filteredSortedBranches = useMemo(() => {
+    if (!listSearchActive) return null;
+    const filtered = fullBranchesForSearch.filter((b) => branchMatchesListSearch(b, listSearchLower));
+    return sortBranchesClient(filtered, sortBy, locale);
+  }, [listSearchActive, fullBranchesForSearch, listSearchLower, sortBy, locale]);
+
+  const list = useMemo(() => {
+    if (listSearchActive) {
+      const rows = filteredSortedBranches ?? [];
+      const start = (listPage - 1) * BRANCH_LIST_PAGE_SIZE;
+      return rows.slice(start, start + BRANCH_LIST_PAGE_SIZE);
+    }
+    return pagedQuery.data?.items ?? [];
+  }, [listSearchActive, filteredSortedBranches, listPage, pagedQuery.data?.items]);
+
+  const totalCount = useMemo(() => {
+    if (listSearchActive) return filteredSortedBranches?.length ?? 0;
+    return pagedQuery.data?.totalCount ?? 0;
+  }, [listSearchActive, filteredSortedBranches, pagedQuery.data?.totalCount]);
+
+  const isPending = listSearchActive ? fullListQuery.isPending : pagedQuery.isPending;
+  const isError = listSearchActive ? fullListQuery.isError : pagedQuery.isError;
+  const error = listSearchActive ? fullListQuery.error : pagedQuery.error;
+  const refetch = useCallback(() => {
+    void pagedQuery.refetch();
+    void fullListQuery.refetch();
+  }, [pagedQuery, fullListQuery]);
   const { data: personnelListResult } = usePersonnelList(
     defaultPersonnelListFilters,
     !personnelPortal
@@ -272,7 +356,7 @@ export function BranchScreen() {
 
   useEffect(() => {
     setListPage(1);
-  }, [sortBy]);
+  }, [sortBy, listSearch]);
 
   const listPageTotal = useMemo(
     () => Math.max(1, Math.ceil(totalCount / BRANCH_LIST_PAGE_SIZE)),
@@ -600,18 +684,30 @@ export function BranchScreen() {
               ) : undefined
             }
           >
-        {!isPending && !isError && totalCount > 0 ? (
-          <div className="mb-3 w-full max-w-full md:max-w-sm">
-            <Select
-              name="branchListSort"
-              label={t("branch.listSortLabel")}
-              value={sortBy}
-              options={sortOptions}
-              onChange={(event) => setSortBy(event.target.value as BranchListSort)}
-              onBlur={NOOP_BLUR}
+        <div className="mb-3 min-w-0 space-y-3">
+          <div className="min-w-0 w-full">
+            <Input
+              name="branch-list-search"
+              placeholder={t("branch.listSearchPlaceholder")}
+              value={listSearch}
+              onChange={(e) => setListSearch(e.target.value)}
+              autoComplete="off"
+              aria-label={t("branch.listSearchPlaceholder")}
             />
           </div>
-        ) : null}
+          {!isPending && !isError && totalCount > 0 ? (
+            <div className="w-full max-w-full md:max-w-sm">
+              <Select
+                name="branchListSort"
+                label={t("branch.listSortLabel")}
+                value={sortBy}
+                options={sortOptions}
+                onChange={(event) => setSortBy(event.target.value as BranchListSort)}
+                onBlur={NOOP_BLUR}
+              />
+            </div>
+          ) : null}
+        </div>
         {isPending && (
           <p className="text-sm text-zinc-500">{t("common.loading")}</p>
         )}
@@ -625,7 +721,9 @@ export function BranchScreen() {
           </div>
         )}
         {!isPending && !isError && totalCount === 0 && (
-          <p className="text-sm text-zinc-500">{t("branch.noData")}</p>
+          <p className="text-sm text-zinc-500">
+            {listSearchActive ? t("branch.listSearchNoResults") : t("branch.noData")}
+          </p>
         )}
         {!isPending && !isError && totalCount > 0 && (
           <>

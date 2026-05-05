@@ -121,6 +121,10 @@ export function FinancialReportAdvancedFilters({
         value: "PERSONNEL_POCKET",
         label: expensePaymentSourceLabel("PERSONNEL_POCKET", t),
       },
+      {
+        value: "PERSONNEL_HELD_REGISTER_CASH",
+        label: expensePaymentSourceLabel("PERSONNEL_HELD_REGISTER_CASH", t),
+      },
       { value: "UNSET", label: t("branch.expensePaymentUnset") },
     ],
     [t]

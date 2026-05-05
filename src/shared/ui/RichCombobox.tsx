@@ -19,6 +19,11 @@ type RichComboboxProps = {
   emptyText: string;
   query?: string;
   onQueryChange?: (value: string) => void;
+  /** Sunucu zaten aramayı uyguladıysa yerel filtreleme yapılmaz. */
+  serverSideFilter?: boolean;
+  /** Açılışta arama kutusunu sıfırla (varsayılan true). Sunucu aramasında false verin. */
+  clearQueryOnOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onReachEnd?: () => void;
@@ -36,6 +41,9 @@ export function RichCombobox({
   emptyText,
   query,
   onQueryChange,
+  serverSideFilter = false,
+  clearQueryOnOpen = true,
+  onOpenChange,
   hasMore = false,
   isLoadingMore = false,
   onReachEnd,
@@ -54,39 +62,46 @@ export function RichCombobox({
     }
     setInternalQuery(value);
   };
+  const patchOpen = (next: boolean) => {
+    setOpen(next);
+    onOpenChange?.(next);
+  };
   const filtered = useMemo(() => {
+    if (serverSideFilter) return options;
     const q = resolvedQuery.trim().toLocaleLowerCase("tr-TR");
     if (!q) return options;
     return options.filter((opt) =>
       `${opt.title} ${opt.description ?? ""} ${opt.detail ?? ""}`.toLocaleLowerCase("tr-TR").includes(q)
     );
-  }, [options, resolvedQuery]);
+  }, [options, resolvedQuery, serverSideFilter]);
   const selected = useMemo(() => options.find((x) => x.value === value) ?? null, [options, value]);
   const closeAndReset = () => {
-    setOpen(false);
+    patchOpen(false);
     setResolvedQuery("");
   };
 
   useEffect(() => {
     if (!open) return;
-    setResolvedQuery("");
+    if (clearQueryOnOpen) {
+      setResolvedQuery("");
+    }
     const timer = window.setTimeout(() => {
       searchInputRef.current?.focus();
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [open]);
+  }, [open, clearQueryOnOpen]);
 
   return (
     <div className={cn("relative", className)}>
       <button
         type="button"
-        onClick={() => setOpen((p) => !p)}
+        onClick={() => patchOpen(!open)}
         onKeyDown={(e) => {
           if (disabled || open) return;
           const printable = e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey;
           if (!printable) return;
           e.preventDefault();
-          setOpen(true);
+          patchOpen(true);
           setResolvedQuery(e.key);
         }}
         disabled={disabled}

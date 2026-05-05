@@ -4,6 +4,8 @@ export const branch = {
   listTitle: "Şubeler",
   listDesc:
     "Turizm sezonu ve çalışan sayıları sunucu tarihine (bugün) göre; «başlamadı» = işe giriş tarihi henüz gelmemiş kayıtlı personel.",
+  listSearchPlaceholder: "Ad, no, adres, sorumlular ile ara…",
+  listSearchNoResults: "Aramanızla eşleşen şube yok.",
   openedFromReportBanner:
     "Raporlardan bu şubeye yönlendirildiniz; aşağıda seçili şubenin detayı ve günlük hareketler açılır.",
   add: "Şube ekle",

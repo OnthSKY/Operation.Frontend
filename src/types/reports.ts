@@ -72,7 +72,7 @@ export type FinancialAdvanceSummaryRow = {
   recordCount: number;
 };
 
-/** OUT gider ödeme kaynağı: REGISTER | PATRON | PERSONNEL_POCKET | UNSET */
+/** OUT gider ödeme kaynağı: REGISTER | PATRON | PERSONNEL_POCKET | PERSONNEL_HELD_REGISTER_CASH | UNSET */
 export type FinancialExpensePaymentSourceRow = {
   expensePaymentSource: string;
   currencyCode: string;

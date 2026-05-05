@@ -33,6 +33,10 @@ function normalizeProductListItem(r: Record<string, unknown>): ProductListItem {
       r.parentProductId != null || r.ParentProductId != null
         ? Number(r.parentProductId ?? r.ParentProductId) || null
         : null,
+    parentProductName:
+      r.parentProductName != null || r.ParentProductName != null
+        ? String(r.parentProductName ?? r.ParentProductName ?? "").trim() || null
+        : null,
     categoryId:
       r.categoryId != null || r.CategoryId != null
         ? Number(r.categoryId ?? r.CategoryId) || null
