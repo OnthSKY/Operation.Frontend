@@ -13,6 +13,7 @@ import { StaffHeaderNotifications } from "@/shared/components/StaffHeaderNotific
 import { AppGlobalSearch } from "@/shared/components/AppGlobalSearch";
 import { accountRoleLabel } from "@/modules/account/lib/role-label";
 import { useIsMobile } from "@/shared/lib/use-is-mobile";
+import { LocaleSegmentControl } from "@/shared/components/LocaleSegmentControl";
 
 type TopNavbarProps = {
   onOpenMenu: () => void;
@@ -101,6 +102,9 @@ export function TopNavbar({ onOpenMenu, breadcrumbs }: TopNavbarProps) {
             </span>
           ) : null}
           <div className="h-6 w-px bg-zinc-200" aria-hidden />
+          <div className={user ? "hidden md:block" : undefined}>
+            <LocaleSegmentControl />
+          </div>
           {user ? <UserAccountMenu triggerLabel={user.fullName?.trim() || user.username} /> : null}
         </div>
       </div>

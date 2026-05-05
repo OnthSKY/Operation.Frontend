@@ -2,6 +2,11 @@
 
 import { notifyDefaults } from "@/shared/lib/notify";
 import { NotifyTimerBadge } from "@/shared/lib/notify-timed-message";
+import {
+  toastCardPaddingRadiusShadow,
+  toastCardWidth,
+  toastSurfaceDanger,
+} from "@/shared/lib/toast-theme";
 import { toast } from "react-toastify";
 
 const TOAST_ID = "notify-error-with-action";
@@ -17,14 +22,14 @@ export function notifyErrorWithAction(opts: {
   const ms = opts.autoCloseMs ?? 10_000;
   toast(
     ({ closeToast, isPaused }) => (
-      <div className="flex w-full min-w-0 flex-col gap-2.5 text-left">
-        <div className="flex items-start justify-between gap-3">
-          <p className="min-w-0 flex-1 text-sm leading-snug text-zinc-900">{opts.message}</p>
-          <NotifyTimerBadge isPaused={isPaused} autoCloseMs={ms} className="shrink-0" />
+      <div className="flex w-full min-w-0 flex-col gap-3 text-left">
+        <div className="flex items-start gap-3">
+          <p className="min-w-0 flex-1 text-sm leading-relaxed text-zinc-800">{opts.message}</p>
+          <NotifyTimerBadge isPaused={isPaused} autoCloseMs={ms} surface="light" className="shrink-0 pt-0.5" />
         </div>
         <button
           type="button"
-          className="self-start rounded-lg border border-red-300/90 bg-red-50 px-3 py-2 text-sm font-semibold text-red-950 shadow-sm transition-colors hover:bg-red-100 active:bg-red-200/80"
+          className="min-h-10 self-start rounded-xl border border-red-300/90 bg-red-50 px-3 py-2 text-sm font-semibold text-red-950 shadow-sm transition-colors hover:bg-red-100 active:bg-red-200/80"
           onClick={() => {
             opts.onAction();
             closeToast?.();
@@ -41,8 +46,7 @@ export function notifyErrorWithAction(opts: {
       icon: false,
       autoClose: ms,
       closeOnClick: false,
-      className:
-        "!w-[min(100vw-1.5rem,22rem)] !max-w-[min(100vw-1.5rem,22rem)] !rounded-2xl !border !border-red-200/90 !bg-white !p-3 !text-zinc-900 !shadow-xl sm:!w-auto sm:!max-w-md sm:!p-4",
+      className: [toastCardWidth, toastCardPaddingRadiusShadow, toastSurfaceDanger].join(" "),
     }
   );
 }

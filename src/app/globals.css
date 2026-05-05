@@ -39,15 +39,107 @@
   --toastify-color-progress-success: #ffffff;
   --toastify-color-progress-error: #ffffff;
   --toastify-color-progress-info: #ffffff;
+  --toastify-toast-min-height: 48px;
+  --toastify-toast-bd-radius: 1rem;
+  --toastify-toast-padding: 12px;
+  --toastify-toast-shadow:
+    0 10px 15px -3px color-mix(in srgb, var(--foreground) 8%, transparent),
+    0 4px 6px -4px color-mix(in srgb, var(--foreground) 6%, transparent);
 }
 
-/* Süre göstergesi: alt çizgi biraz daha görünür */
+/* Süre göstergesi: dairesel gösterge kullanıldığı için varsayılan çubuk gizli (hideProgressBar). */
 .Toastify__progress-bar--wrp {
-  height: 6px;
+  height: 4px;
 }
 
 .Toastify__progress-bar {
   opacity: 0.95;
+}
+
+.Toastify__toast-body {
+  padding: 0;
+}
+
+.Toastify__toast-icon {
+  margin-inline-end: 10px;
+  flex-shrink: 0;
+}
+
+/* Toastify — mobil ve çentikli ekranlar */
+.Toastify__toast-container {
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+}
+
+@media (max-width: 639px) {
+  .Toastify__toast-container.Toastify__toast-container--top-center,
+  .Toastify__toast-container.Toastify__toast-container--bottom-center {
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(100vw - 1rem, 28rem);
+    max-width: min(100vw - 1rem, 28rem);
+    padding-left: max(0.25rem, env(safe-area-inset-left));
+    padding-right: max(0.25rem, env(safe-area-inset-right));
+    box-sizing: border-box;
+  }
+
+  .Toastify__toast-container.Toastify__toast-container--bottom-center {
+    padding-top: 0;
+    padding-bottom: max(0.25rem, env(safe-area-inset-bottom));
+  }
+
+  .Toastify__toast-container.Toastify__toast-container--top-center .Toastify__toast,
+  .Toastify__toast-container.Toastify__toast-container--bottom-center .Toastify__toast {
+    width: 100%;
+    margin-bottom: 0.5rem;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .Toastify__close-button {
+    align-self: flex-start;
+    padding: 0.375rem;
+    opacity: 0.85;
+  }
+
+  .Toastify__close-button:focus-visible {
+    opacity: 1;
+    outline: 2px solid color-mix(in srgb, currentColor 45%, transparent);
+    outline-offset: 2px;
+  }
+}
+
+/* Kütüphanenin ≤480px tam genişlik / köşesiz düzenini projedeki kart stiline çek */
+@media only screen and (max-width: 480px) {
+  .Toastify__toast-container.Toastify__toast-container--top-center,
+  .Toastify__toast-container.Toastify__toast-container--bottom-center {
+    width: min(100vw - 1rem, 28rem) !important;
+    max-width: min(100vw - 1rem, 28rem) !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: max(0.25rem, env(safe-area-inset-left)) !important;
+    padding-right: max(0.25rem, env(safe-area-inset-right)) !important;
+    box-sizing: border-box !important;
+  }
+
+  .Toastify__toast-container.Toastify__toast-container--bottom-center {
+    bottom: max(0.25rem, env(safe-area-inset-bottom)) !important;
+  }
+
+  .Toastify__toast-container.Toastify__toast-container--top-center {
+    top: max(0.5rem, env(safe-area-inset-top)) !important;
+  }
+
+  .Toastify__toast-container.Toastify__toast-container--top-center .Toastify__toast,
+  .Toastify__toast-container.Toastify__toast-container--bottom-center .Toastify__toast {
+    --toastify-toast-width: 100%;
+    width: 100% !important;
+    border-radius: 1rem !important;
+    margin-bottom: 0.5rem !important;
+    min-height: 0 !important;
+  }
 }
 
 @theme inline {

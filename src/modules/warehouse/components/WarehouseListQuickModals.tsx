@@ -31,7 +31,7 @@ import { PlusIcon } from "@/shared/ui/EyeIcon";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
-import { TrashIcon } from "@/shared/ui/TrashIcon";
+import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import type { WarehouseProductStockRow } from "@/types/product";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
@@ -386,7 +386,7 @@ export function WarehouseListDepoInModal({
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-[minmax(0,1fr)_2.25rem] items-end gap-2 sm:flex sm:items-end sm:gap-1.5">
+                    <div className="grid grid-cols-[minmax(0,1fr)_2.75rem] items-end gap-2 sm:flex sm:items-end sm:gap-1.5">
                       <div className={cn("min-w-0", compact ? "sm:w-24" : "sm:w-28")}>
                         <Input
                           type="text"
@@ -418,22 +418,20 @@ export function WarehouseListDepoInModal({
                           )}
                         />
                       </div>
-                      <Button
+                      <button
                         type="button"
-                        variant="secondary"
                         className={cn(
-                          "!h-9 !w-9 !min-h-9 shrink-0 self-end rounded-lg border-zinc-200 p-0 leading-none text-zinc-600 hover:border-red-200 hover:bg-red-50 hover:text-red-700",
-                          compact
-                            ? "mb-0.5 text-sm sm:!h-10 sm:!w-10 sm:text-base"
-                            : "mb-0.5 text-lg"
+                          trashIconActionButtonClass,
+                          "mb-0.5 self-end rounded-lg border border-zinc-200 bg-white shadow-sm hover:border-red-200 hover:bg-red-50 hover:text-red-700",
+                          "!h-9 !w-9 !min-h-9 sm:!h-10 sm:!w-10 sm:!min-h-10"
                         )}
                         disabled={disabled || lines.length <= 1}
                         onClick={() => removeDepoLine(line.key)}
                         aria-label={t("warehouse.depoInRemoveLine")}
                         title={t("warehouse.depoInRemoveLine")}
                       >
-                        <TrashIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                      </Button>
+                        <TrashIcon className="h-4 w-4 shrink-0 sm:h-[1.125rem] sm:w-[1.125rem]" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -568,17 +566,8 @@ export function WarehouseListDepoInModal({
 
           <div className="z-20 -mx-1 flex shrink-0 flex-col gap-2 border-t border-zinc-200/80 bg-white/95 px-1 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] backdrop-blur-sm sm:mx-0 sm:flex-row sm:flex-wrap sm:justify-end sm:px-0 sm:pt-1 sm:pb-0.5">
             <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11 w-full touch-manipulation sm:w-auto sm:min-w-[7rem]"
-              disabled={disabled}
-              onClick={requestDepoInClose}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
               type="submit"
-              className="min-h-11 w-full touch-manipulation sm:min-w-[10rem] sm:flex-1"
+              className="min-h-11 w-full touch-manipulation sm:w-auto sm:min-w-[10rem]"
               disabled={disabled}
             >
               {t("warehouse.depoInSubmit")}
@@ -1110,7 +1099,7 @@ export function WarehouseListTransferModal({
                       />
                       </div>
                     </div>
-                    <div className="grid grid-cols-[minmax(0,1fr)_2.25rem] items-end gap-2 sm:flex sm:items-end sm:gap-1.5">
+                    <div className="grid grid-cols-[minmax(0,1fr)_2.75rem] items-end gap-2 sm:flex sm:items-end sm:gap-1.5">
                       <div className={cn("min-w-0", compact ? "sm:w-24" : "sm:w-28")}>
                       <Input
                         type="text"
@@ -1139,22 +1128,20 @@ export function WarehouseListTransferModal({
                         className={cn("text-center tabular-nums", compact && "min-h-11 py-2 text-sm")}
                       />
                       </div>
-                      <Button
+                      <button
                         type="button"
-                        variant="secondary"
                         className={cn(
-                          "!h-9 !w-9 !min-h-9 shrink-0 self-end rounded-lg border-zinc-200 p-0 leading-none text-zinc-600 hover:border-red-200 hover:bg-red-50 hover:text-red-700",
-                          compact
-                            ? "mb-0.5 text-sm sm:!h-10 sm:!w-10 sm:text-base"
-                            : "mb-0.5 text-lg"
+                          trashIconActionButtonClass,
+                          "mb-0.5 self-end rounded-lg border border-zinc-200 bg-white shadow-sm hover:border-red-200 hover:bg-red-50 hover:text-red-700",
+                          "!h-9 !w-9 !min-h-9 sm:!h-10 sm:!w-10 sm:!min-h-10"
                         )}
                         disabled={disabled || lines.length <= 1}
                         onClick={() => removeLine(line.key)}
                         aria-label={t("warehouse.transferRemoveLine")}
                         title={t("warehouse.transferRemoveLine")}
                       >
-                        <TrashIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                      </Button>
+                        <TrashIcon className="h-4 w-4 shrink-0 sm:h-[1.125rem] sm:w-[1.125rem]" />
+                      </button>
                     </div>
                   </div>
                   {selectedRow ? (
@@ -1281,16 +1268,7 @@ export function WarehouseListTransferModal({
           ) : null}
           </div>
           <div className="z-20 -mx-1 flex shrink-0 flex-col gap-2 border-t border-zinc-200/80 bg-white/95 px-1 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] backdrop-blur-sm sm:mx-0 sm:flex-row sm:flex-wrap sm:justify-end sm:px-0 sm:pt-1 sm:pb-0.5">
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11 w-full touch-manipulation sm:w-auto sm:min-w-[7rem]"
-              disabled={disabled}
-              onClick={requestTransferClose}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button type="submit" className="min-h-11 w-full touch-manipulation sm:min-w-[10rem] sm:flex-1" disabled={disabled}>
+            <Button type="submit" className="min-h-11 w-full touch-manipulation sm:w-auto sm:min-w-[10rem]" disabled={disabled}>
               {previewToken ? t("warehouse.transferSubmit") : t("warehouse.transferPreviewButton")}
             </Button>
           </div>
@@ -1327,16 +1305,7 @@ export function WarehouseListTransferModal({
           <div className="flex flex-col gap-2 border-t border-zinc-200 pt-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
-              variant="secondary"
-              className="min-h-11 w-full sm:w-auto sm:min-w-[7rem]"
-              disabled={disabled}
-              onClick={() => setPreviewOpen(false)}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              type="button"
-              className="min-h-11 w-full sm:min-w-[10rem]"
+              className="min-h-11 w-full sm:w-auto sm:min-w-[10rem]"
               disabled={disabled || !previewToken}
               onClick={() => void onConfirmPreview()}
             >

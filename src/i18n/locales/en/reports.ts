@@ -160,6 +160,8 @@
   hubFilterEffectsStock1:
     "Charts and the period narrative: selected date range plus warehouse, branch, and product scope filters.",
   hubFilterEffectsStock2: "â€œTablesâ€ tab: line detail with the same filters.",
+  hubScopeHelpInFiltersDrawer:
+    "Open filters (funnel) for a short note on where your selections apply.",
   filtersSectionTitle: "Period & filters",
   finAdvancedFilters: "More financial filters",
   finAdvancedFiltersHint:
@@ -794,6 +796,8 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   orderAccountStatementNet: "NET DUE",
   orderAccountStatementPreviewTitle: "Preview (A4)",
   orderAccountStatementPreviewHint: "Single-page A4 PDF; long content is scaled down to fit.",
+  orderAccountStatementPreviewCollapseTools: "Full-screen preview",
+  orderAccountStatementPreviewExpandTools: "Show settings",
   orderAccountStatementOpenFullscreenPreview: "Preview & download",
   orderAccountStatementPreviewIntro:
     "Open the preview in a full-screen dialog to review the layout without scrolling the page; download the PDF from there.",

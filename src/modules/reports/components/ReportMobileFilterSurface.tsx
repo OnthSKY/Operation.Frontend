@@ -13,6 +13,7 @@ import { Tooltip } from "@/shared/ui/Tooltip";
 import { useEffect, useState, type ReactNode } from "react";
 
 const SM_PX = 640;
+const MD_PX = 768;
 const LG_PX = 1024;
 
 export type ReportMobileFilterSurfaceProps = {
@@ -64,9 +65,13 @@ export function ReportMobileFilterSurface({
 }: ReportMobileFilterSurfaceProps) {
   const { t } = useI18n();
   const isSmUp = useMediaMinWidth(SM_PX);
+  const isMdUp = useMediaMinWidth(MD_PX);
   const isLgUp = useMediaMinWidth(LG_PX);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const drawerOnly = variant === "drawerOnly";
+
+  /** Dar ekranda sürekli görünen uzun açıklamayı kaldırır; kullanıcı filtreyi açınca görür. */
+  const drawerOnlyScopeInDrawer = Boolean(drawerOnly && belowToolbar && !isMdUp);
 
   const scopeInDrawer =
     Boolean(belowToolbar) && belowToolbarInDrawer && !drawerOnly && main != null;
@@ -187,6 +192,9 @@ export function ReportMobileFilterSurface({
           {scopeInDrawer && belowToolbar ? (
             <div className="border-t border-zinc-200 pt-4">{belowToolbar}</div>
           ) : null}
+          {drawerOnlyScopeInDrawer && belowToolbar ? (
+            <div className="border-t border-zinc-200 pt-4">{belowToolbar}</div>
+          ) : null}
         </div>
       </RightDrawer>
     </>
@@ -198,10 +206,15 @@ export function ReportMobileFilterSurface({
         <>
           {aboveToolbar ? <div className="mb-2 min-w-0 sm:mb-3">{aboveToolbar}</div> : null}
           {toolbarAndDrawer}
-          {belowToolbar ? (
+          {belowToolbar && !drawerOnlyScopeInDrawer ? (
             <div className="mb-3 min-w-0 rounded-xl border border-zinc-200/80 bg-zinc-50/70 px-3 py-2.5 sm:mb-4 sm:px-4 sm:py-3">
               {belowToolbar}
             </div>
+          ) : null}
+          {drawerOnlyScopeInDrawer ? (
+            <p className="mb-2 text-[0.7rem] leading-snug text-zinc-500 md:hidden">
+              {t("reports.hubScopeHelpInFiltersDrawer")}
+            </p>
           ) : null}
           <div className="min-w-0 space-y-4">{main}</div>
         </>

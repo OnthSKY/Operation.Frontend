@@ -1,5 +1,12 @@
 "use client";
 
+import {
+  toastCardPaddingRadiusShadow,
+  toastCardWidth,
+  toastSafeBottomMobile,
+  toastSurfaceNeutral,
+  toastSurfaceWarning,
+} from "@/shared/lib/toast-theme";
 import { toast } from "react-toastify";
 import type { ReactNode } from "react";
 
@@ -24,12 +31,15 @@ export function notifyConfirmToast(opts: {
 
   const narrow = isNarrowScreen();
   const tone = opts.tone ?? "neutral";
-  const toastBox =
-    "!w-[min(100vw-1.5rem,22rem)] !max-w-[min(100vw-1.5rem,22rem)] !rounded-2xl !p-3 !shadow-xl sm:!w-auto sm:!max-w-md sm:!p-4" +
-    (narrow ? " !mb-[max(0.75rem,env(safe-area-inset-bottom,0px))]" : "") +
-    (tone === "neutral"
-      ? " !bg-white !text-zinc-900 !border !border-zinc-200/90 !shadow-zinc-900/10"
-      : "");
+  const surface = tone === "neutral" ? toastSurfaceNeutral : toastSurfaceWarning;
+  const toastBox = [
+    toastCardWidth,
+    toastCardPaddingRadiusShadow,
+    surface,
+    narrow ? toastSafeBottomMobile : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   toast(
     ({ closeToast }) => (
@@ -47,14 +57,14 @@ export function notifyConfirmToast(opts: {
         <div className="mt-1 flex w-full flex-col gap-2 border-t border-zinc-100 pt-3 sm:flex-row sm:flex-wrap sm:justify-end">
           <button
             type="button"
-            className="min-h-11 w-full rounded-lg border border-slate-300/90 bg-slate-100 px-3 text-sm font-medium text-slate-800 shadow-sm transition-colors hover:border-slate-400 hover:bg-slate-200 active:bg-slate-300 sm:order-1 sm:w-auto sm:min-w-[6.5rem]"
+            className="min-h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-900 shadow-sm shadow-zinc-900/5 transition-colors hover:border-zinc-400 hover:bg-zinc-50 active:bg-zinc-100 sm:order-1 sm:w-auto sm:min-w-[6.5rem]"
             onClick={() => closeToast()}
           >
             {opts.cancelLabel}
           </button>
           <button
             type="button"
-            className="min-h-11 w-full rounded-lg border border-red-700/80 bg-red-600 px-3 text-sm font-semibold text-white shadow-sm transition-colors hover:border-red-800 hover:bg-red-700 active:bg-red-800 sm:order-2 sm:w-auto sm:min-w-[6.5rem]"
+            className="min-h-11 w-full rounded-xl border border-red-700/85 bg-red-600 px-3 text-sm font-semibold text-white shadow-sm shadow-red-900/15 transition-colors hover:border-red-800 hover:bg-red-700 active:bg-red-800 sm:order-2 sm:w-auto sm:min-w-[6.5rem]"
             onClick={() => {
               closeToast();
               void opts.onConfirm();
@@ -67,8 +77,8 @@ export function notifyConfirmToast(opts: {
     ),
     {
       toastId: opts.toastId,
-      type: tone === "warning" ? "warning" : "default",
-      icon: tone === "neutral" ? false : undefined,
+      type: "default",
+      icon: false,
       autoClose: false,
       closeOnClick: false,
       draggable: false,

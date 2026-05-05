@@ -1,6 +1,7 @@
 "use client";
 
 import { useI18n } from "@/i18n/context";
+import { LocaleSegmentControl } from "@/shared/components/LocaleSegmentControl";
 
 type Props = {
   roleLabel: string;
@@ -51,6 +52,15 @@ export function AccountMenuPopover({
         <MenuSettingsGlyph />
         {t("profile.menuSettings")}
       </button>
+      <div className="md:hidden border-t border-zinc-100/90 px-3 py-3" role="none">
+        <div className="mb-2.5 flex items-center gap-2 px-0.5">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500/15 to-violet-500/10 ring-1 ring-indigo-200/40">
+            <MenuGlobeGlyph />
+          </span>
+          <span className="text-xs font-semibold text-zinc-500">{t("lang.label")}</span>
+        </div>
+        <LocaleSegmentControl density="comfortable" />
+      </div>
       <div className="my-1 border-t border-zinc-100" role="separator" />
       <button
         type="button"
@@ -62,6 +72,24 @@ export function AccountMenuPopover({
         {t("auth.logout")}
       </button>
     </div>
+  );
+}
+
+function MenuGlobeGlyph() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      className="text-indigo-600"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+    </svg>
   );
 }
 

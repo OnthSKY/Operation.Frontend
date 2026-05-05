@@ -41,6 +41,7 @@ import {
   startOfMonthIso,
 } from "@/modules/reports/lib/report-period-helpers";
 import type { ReportsHubTab } from "@/modules/reports/lib/reports-hub-paths";
+import { cn } from "@/lib/cn";
 import Link from "next/link";
 import { useMemo, useEffect, useState } from "react";
 
@@ -326,15 +327,20 @@ export function ReportsHubScreen({ routeTab }: { routeTab: ReportsHubTab }) {
           <>
             <div className="flex items-start gap-2">
               <div className="min-w-0 flex-1">
-                <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
+                <h1 className="hidden text-xl font-semibold leading-tight tracking-tight text-zinc-900 md:block md:text-2xl">
                   {t("reports.title")}
                 </h1>
-                <p className="mt-0.5 break-words text-xs leading-relaxed text-zinc-500 sm:text-sm">
+                <p
+                  className={cn(
+                    "break-words leading-snug text-zinc-600",
+                    "text-[0.8125rem] md:mt-0.5 md:text-sm md:text-zinc-500 md:leading-relaxed"
+                  )}
+                >
                   {t("reports.subtitle")}
                 </p>
               </div>
               <PageWhenToUseInfoButton
-                className="shrink-0 self-start"
+                className="shrink-0 self-start pt-0.5"
                 ariaLabel={t("common.pageHelpHintLabel")}
                 guideTab="reports"
                 description={reportsHubIntroDescription}
@@ -366,11 +372,13 @@ export function ReportsHubScreen({ routeTab }: { routeTab: ReportsHubTab }) {
         main={
           <>
       <div className="flex items-start gap-2">
-        <div className="min-w-0 flex-1 space-y-1">
-          <p className="text-sm font-semibold text-zinc-900">
+        <div className="min-w-0 flex-1 space-y-0.5 sm:space-y-1">
+          <p className="text-sm font-semibold leading-snug text-zinc-900">
             {tab === "cash" ? t("reports.tabCashPosition") : t("reports.tabStock")}
           </p>
-          <p className="text-sm leading-snug text-zinc-600">{tabOneLiner}</p>
+          <p className="text-xs leading-snug text-zinc-600 max-md:[overflow-wrap:anywhere] sm:text-sm">
+            {tabOneLiner}
+          </p>
         </div>
         <ReportsPatronStoryInfoButton tab={tab} />
       </div>

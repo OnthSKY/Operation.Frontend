@@ -1,6 +1,7 @@
 "use client";
 
 import { notifyDefaults } from "@/shared/lib/notify";
+import { toastColoredToastClassName } from "@/shared/lib/toast-theme";
 import { Slide, ToastContainer } from "react-toastify";
 
 import "react-toastify/dist/ReactToastify.css";
@@ -19,7 +20,7 @@ export function AppToastify() {
       pauseOnHover
       draggable
       theme="light"
-      toastClassName="!rounded-xl !shadow-lg !text-sm !font-sans"
+      toastClassName={toastColoredToastClassName}
     />
   );
 }

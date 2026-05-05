@@ -13,6 +13,8 @@ export type VehicleListItem = {
   assignedBranchName: string | null;
   createdAt: string;
   hasPhoto: boolean;
+  /** Liste endpoint’i güncel API ile döner; eski sürümlerde eksik olabilir. */
+  odometerKm?: number | null;
   insuranceBadge: VehicleInsuranceBadge;
   nextInsuranceEndDate: string | null;
 };
@@ -69,7 +71,6 @@ export type VehicleMaintenance = {
 };
 
 export type VehicleDetail = VehicleListItem & {
-  odometerKm: number | null;
   inspectionValidUntil: string | null;
   notes: string | null;
   driverSrcValidUntil: string | null;

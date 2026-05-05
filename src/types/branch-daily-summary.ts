@@ -9,6 +9,12 @@ export type BranchDailySummary = {
   /** IN lines: card/POS portion. */
   incomeCard?: number;
   totalExpense: number;
+  /** Aynı totalExpense OUT filtresi; satır tutarı expense_payment_source ile (raporlarla uyumlu). */
+  expenseOperationalRegister?: number;
+  expenseOperationalPatron?: number;
+  expenseOperationalPersonnelPocket?: number;
+  expenseOperationalHeldRegisterCash?: number;
+  expenseOperationalUnset?: number;
   netCash: number;
   /** Same-day OUT paid from personnel pocket (register debt). */
   registerOwesPersonnelToday?: number;

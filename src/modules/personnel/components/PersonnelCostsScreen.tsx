@@ -286,6 +286,194 @@ function CostsIconPrint({ className }: { className?: string }) {
   );
 }
 
+type PaymentSourceSplitSummary = {
+  branch: Map<string, number>;
+  sourceBuckets: SourceBucketSummary[];
+};
+
+type PersonnelCostsSummaryPanelsProps = {
+  t: (key: string) => string;
+  locale: Locale;
+  advancesPending: boolean;
+  expensesPending: boolean;
+  patronByBranchRows: PatronBranchBucket[];
+  paymentSourceSplit: PaymentSourceSplitSummary;
+  advSums: Map<string, number>;
+  expSums: Map<string, number>;
+  personnelAmountStats: {
+    topByAmount: PersonnelAmountStat | null;
+    topByLines: PersonnelAmountStat | null;
+    lowByAmount: PersonnelAmountStat | null;
+  };
+};
+
+function PersonnelCostsSummaryPanels({
+  t,
+  locale,
+  advancesPending,
+  expensesPending,
+  patronByBranchRows,
+  paymentSourceSplit,
+  advSums,
+  expSums,
+  personnelAmountStats,
+}: PersonnelCostsSummaryPanelsProps) {
+  const pending = advancesPending || expensesPending;
+  return (
+    <>
+      <div className="flex flex-col gap-3">
+        <p className="text-xs leading-relaxed text-zinc-600">
+          {t("personnel.costsPaymentSourceSplitHint")}
+        </p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:gap-4">
+          <Card
+            title={t("personnel.costsPatronOutCardTitle")}
+            description={t("personnel.costsPatronOutCardDesc")}
+          >
+            {pending ? (
+              <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+            ) : (
+              patronByBranchTotalsBody(
+                patronByBranchRows,
+                t("personnel.dash"),
+                locale,
+                t("personnel.costsSummaryEmpty")
+              )
+            )}
+          </Card>
+          <Card
+            title={t("personnel.costsBranchOutCardTitle")}
+            description={t("personnel.costsBranchOutCardDesc")}
+          >
+            {pending ? (
+              <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+            ) : (
+              splitPaymentSourceTotalsBody(
+                paymentSourceSplit.branch,
+                t("personnel.dash"),
+                locale,
+                t("personnel.costsSummaryEmpty")
+              )
+            )}
+          </Card>
+        </div>
+        <Card
+          title={t("personnel.costsSourceBreakdownTitle")}
+          description={t("personnel.costsSourceBreakdownDesc")}
+        >
+          {pending ? (
+            <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+          ) : (
+            <div className="space-y-3">
+              {paymentSourceSplit.sourceBuckets.map((bucket) => (
+                <div
+                  key={bucket.key}
+                  className="rounded-lg border border-zinc-100 bg-zinc-50/60 p-3"
+                >
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
+                      {bucket.key === "PATRON"
+                        ? t("personnel.costsSourceBucketPatron")
+                        : bucket.key === "PERSONNEL_POCKET"
+                          ? t("personnel.costsSourceBucketPersonnelPocket")
+                          : t("personnel.costsSourceBucketRegister")}
+                    </p>
+                    <p className="text-xs font-medium text-zinc-500">
+                      {t("personnel.costsSourceBucketCountLabel")}: {bucket.count}
+                    </p>
+                  </div>
+                  {splitPaymentSourceTotalsBody(
+                    bucket.totals,
+                    t("personnel.dash"),
+                    locale,
+                    t("personnel.costsSummaryEmpty")
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+      <Card className="mt-4" title={t("personnel.costsSummaryTitle")}>
+        {pending ? (
+          <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+        ) : (
+          <div className="space-y-4 text-sm">
+            <p className="text-xs leading-relaxed text-zinc-600">
+              {t("personnel.costsSummaryHint")}
+            </p>
+            {sortedCurrencyKeys(advSums, expSums).map((ccy) => {
+              const a = advSums.get(ccy) ?? 0;
+              const e = expSums.get(ccy) ?? 0;
+              const dash = t("personnel.dash");
+              return (
+                <div
+                  key={ccy}
+                  className="grid gap-2 rounded-lg border border-zinc-100 bg-white/80 p-3 sm:grid-cols-3"
+                >
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                      {t("personnel.costsSummaryAdvances")} ({ccy})
+                    </p>
+                    <p className="mt-0.5 font-semibold tabular-nums text-zinc-900">
+                      {formatMoneyDash(a, dash, locale, ccy)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+                      {t("personnel.costsSummaryRegisterExpenses")} ({ccy})
+                    </p>
+                    <p className="mt-0.5 font-semibold tabular-nums text-zinc-900">
+                      {formatMoneyDash(e, dash, locale, ccy)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
+                      {t("personnel.costsSummaryCombined")} ({ccy})
+                    </p>
+                    <p className="mt-0.5 font-semibold tabular-nums text-violet-950">
+                      {formatMoneyDash(a + e, dash, locale, ccy)}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+            {sortedCurrencyKeys(advSums, expSums).length === 0 && (
+              <p className="text-zinc-600">{t("personnel.costsSummaryEmpty")}</p>
+            )}
+            <div className="grid gap-2 rounded-lg border border-violet-100 bg-violet-50/40 p-3 sm:grid-cols-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
+                  {t("personnel.costsTopReceiver")}
+                </p>
+                <p className="mt-0.5 text-sm font-semibold text-violet-950">
+                  {personnelAmountStats.topByAmount?.name ?? t("personnel.dash")}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
+                  {t("personnel.costsTopLineReceiver")}
+                </p>
+                <p className="mt-0.5 text-sm font-semibold text-violet-950">
+                  {personnelAmountStats.topByLines?.name ?? t("personnel.dash")}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
+                  {t("personnel.costsLowestReceiver")}
+                </p>
+                <p className="mt-0.5 text-sm font-semibold text-violet-950">
+                  {personnelAmountStats.lowByAmount?.name ?? t("personnel.dash")}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </Card>
+    </>
+  );
+}
+
 export function PersonnelCostsScreen() {
   const { t, locale } = useI18n();
   const { user } = useAuth();
@@ -729,7 +917,7 @@ export function PersonnelCostsScreen() {
   }, [personnelPortal, searchParams, router]);
 
   return (
-    <div className="flex w-full min-w-0 max-w-full flex-col gap-6 px-4 pb-8 pt-4 sm:px-6 lg:px-8">
+    <div className="flex w-full min-w-0 max-w-full flex-col gap-4 px-4 pb-8 pt-4 sm:gap-6 sm:px-6 lg:px-8">
       <PageContentSection
         variant="intro"
         eyebrow={t("common.pageSectionIntro")}
@@ -765,167 +953,65 @@ export function PersonnelCostsScreen() {
           eyebrow={t("common.pageSectionSummary")}
           sectionLabelId="personnel-costs-section-summary"
         >
-          <div className="flex flex-col gap-3">
-            <p className="text-xs leading-relaxed text-zinc-600">
-              {t("personnel.costsPaymentSourceSplitHint")}
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2 lg:gap-4">
-              <Card
-                title={t("personnel.costsPatronOutCardTitle")}
-                description={t("personnel.costsPatronOutCardDesc")}
-              >
-                {advancesPending || expensesQuery.isPending ? (
-                  <p className="text-sm text-zinc-500">{t("common.loading")}</p>
-                ) : (
-                  patronByBranchTotalsBody(
-                    patronByBranchRows,
-                    t("personnel.dash"),
-                    locale,
-                    t("personnel.costsSummaryEmpty")
-                  )
-                )}
-              </Card>
-              <Card
-                title={t("personnel.costsBranchOutCardTitle")}
-                description={t("personnel.costsBranchOutCardDesc")}
-              >
-                {advancesPending || expensesQuery.isPending ? (
-                  <p className="text-sm text-zinc-500">{t("common.loading")}</p>
-                ) : (
-                  splitPaymentSourceTotalsBody(
-                    paymentSourceSplit.branch,
-                    t("personnel.dash"),
-                    locale,
-                    t("personnel.costsSummaryEmpty")
-                  )
-                )}
-              </Card>
-            </div>
-            <Card
-              title={t("personnel.costsSourceBreakdownTitle")}
-              description={t("personnel.costsSourceBreakdownDesc")}
-            >
-              {advancesPending || expensesQuery.isPending ? (
-                <p className="text-sm text-zinc-500">{t("common.loading")}</p>
-              ) : (
-                <div className="space-y-3">
-                  {paymentSourceSplit.sourceBuckets.map((bucket) => (
-                    <div
-                      key={bucket.key}
-                      className="rounded-lg border border-zinc-100 bg-zinc-50/60 p-3"
-                    >
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
-                          {bucket.key === "PATRON"
-                            ? t("personnel.costsSourceBucketPatron")
-                            : bucket.key === "PERSONNEL_POCKET"
-                              ? t("personnel.costsSourceBucketPersonnelPocket")
-                              : t("personnel.costsSourceBucketRegister")}
-                        </p>
-                        <p className="text-xs font-medium text-zinc-500">
-                          {t("personnel.costsSourceBucketCountLabel")}: {bucket.count}
-                        </p>
-                      </div>
-                      {splitPaymentSourceTotalsBody(
-                        bucket.totals,
-                        t("personnel.dash"),
-                        locale,
-                        t("personnel.costsSummaryEmpty")
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </Card>
-          </div>
-          <Card className="mt-4" title={t("personnel.costsSummaryTitle")}>
-            {advancesPending || expensesQuery.isPending ? (
-              <p className="text-sm text-zinc-500">{t("common.loading")}</p>
-            ) : (
-              <div className="space-y-4 text-sm">
-                <p className="text-xs leading-relaxed text-zinc-600">
-                  {t("personnel.costsSummaryHint")}
-                </p>
-                {sortedCurrencyKeys(advSums, expSums).map((ccy) => {
-                  const a = advSums.get(ccy) ?? 0;
-                  const e = expSums.get(ccy) ?? 0;
-                  const dash = t("personnel.dash");
-                  return (
-                    <div
-                      key={ccy}
-                      className="grid gap-2 rounded-lg border border-zinc-100 bg-white/80 p-3 sm:grid-cols-3"
-                    >
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                          {t("personnel.costsSummaryAdvances")} ({ccy})
-                        </p>
-                        <p className="mt-0.5 font-semibold tabular-nums text-zinc-900">
-                          {formatMoneyDash(a, dash, locale, ccy)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                          {t("personnel.costsSummaryRegisterExpenses")} ({ccy})
-                        </p>
-                        <p className="mt-0.5 font-semibold tabular-nums text-zinc-900">
-                          {formatMoneyDash(e, dash, locale, ccy)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
-                          {t("personnel.costsSummaryCombined")} ({ccy})
-                        </p>
-                        <p className="mt-0.5 font-semibold tabular-nums text-violet-950">
-                          {formatMoneyDash(a + e, dash, locale, ccy)}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-                {sortedCurrencyKeys(advSums, expSums).length === 0 && (
-                  <p className="text-zinc-600">{t("personnel.costsSummaryEmpty")}</p>
-                )}
-                <div className="grid gap-2 rounded-lg border border-violet-100 bg-violet-50/40 p-3 sm:grid-cols-3">
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
-                      {t("personnel.costsTopReceiver")}
-                    </p>
-                    <p className="mt-0.5 text-sm font-semibold text-violet-950">
-                      {personnelAmountStats.topByAmount?.name ?? t("personnel.dash")}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
-                      {t("personnel.costsTopLineReceiver")}
-                    </p>
-                    <p className="mt-0.5 text-sm font-semibold text-violet-950">
-                      {personnelAmountStats.topByLines?.name ?? t("personnel.dash")}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
-                      {t("personnel.costsLowestReceiver")}
-                    </p>
-                    <p className="mt-0.5 text-sm font-semibold text-violet-950">
-                      {personnelAmountStats.lowByAmount?.name ?? t("personnel.dash")}
-                    </p>
-                  </div>
-                </div>
+          <div className="md:hidden">
+            <details className="group rounded-xl border border-zinc-200/90 bg-white/85 shadow-sm">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-3 text-sm font-semibold text-zinc-900 [&::-webkit-details-marker]:hidden">
+                <span className="min-w-0 leading-snug">{t("personnel.costsMobileSummaryToggle")}</span>
+                <svg
+                  className="h-4 w-4 shrink-0 text-zinc-400 transition-transform duration-200 group-open:rotate-180"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden
+                >
+                  <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </summary>
+              <div className="border-t border-zinc-100 px-3 pb-4 pt-3">
+                <PersonnelCostsSummaryPanels
+                  t={t}
+                  locale={locale}
+                  advancesPending={advancesPending}
+                  expensesPending={expensesQuery.isPending}
+                  patronByBranchRows={patronByBranchRows}
+                  paymentSourceSplit={paymentSourceSplit}
+                  advSums={advSums}
+                  expSums={expSums}
+                  personnelAmountStats={personnelAmountStats}
+                />
               </div>
-            )}
-          </Card>
+            </details>
+          </div>
+          <div className="hidden md:block">
+            <PersonnelCostsSummaryPanels
+              t={t}
+              locale={locale}
+              advancesPending={advancesPending}
+              expensesPending={expensesQuery.isPending}
+              patronByBranchRows={patronByBranchRows}
+              paymentSourceSplit={paymentSourceSplit}
+              advSums={advSums}
+              expSums={expSums}
+              personnelAmountStats={personnelAmountStats}
+            />
+          </div>
         </PageContentSection>
       ) : null}
 
       <PageContentSection
         variant="plain"
-        eyebrow={t("common.pageSectionMain")}
+        sectionAriaLabel={t("common.pageSectionMain")}
         sectionLabelId="personnel-costs-section-main"
+        mobileFrame="flush"
       >
         <div className="min-w-0 bg-white" aria-labelledby="personnel-costs-table-title">
           {!personnelPortal ? (
             <div
-              className="flex flex-wrap gap-2 border-b border-zinc-100 bg-zinc-50/80 px-2 py-2 sm:px-3"
+              className={cn(
+                "flex flex-wrap gap-2 border-b border-zinc-100 bg-zinc-50/80 px-2 py-2 sm:px-3",
+                "max-sm:sticky max-sm:top-0 max-sm:z-10 max-sm:bg-zinc-50/95 max-sm:backdrop-blur-sm supports-[backdrop-filter]:max-sm:bg-zinc-50/90"
+              )}
               role="tablist"
               aria-label={t("personnel.costsTabsAria")}
             >

@@ -21,6 +21,9 @@ export const products = {
     modalAddSubHint: "Will appear under the selected main category.",
     modalEditTitle: "Category name",
     modalEditHint: "Update the name without colliding with another category at the same level.",
+    listToolbarEyebrow: "List",
+    listToolbarSummary: "{{count}} main categories.",
+    listToolbarSummaryOne: "{{count}} main category.",
   },
   title: "Products",
   subtitle: "Global catalog. Stock is derived from warehouse movements.",
@@ -55,6 +58,10 @@ export const products = {
     "This product has sub-products: it must stay a main product. Remove or reassign sub-products first to change the parent.",
   catalogSearchPlaceholder: "Search by name, category, unit…",
   catalogSearchNoResults: "No products match your search.",
+  mobileCatalogCardGroupTotalCaption:
+    "{{count}} variants included — quantity is the warehouse total for the main product plus all variants.",
+  mobileCatalogCardVariantLineCaption: "This row is the warehouse total for this variant only.",
+  mobileCatalogCardUnderParent: "Parent group: {{name}}",
   addCategoryModalTitle: "New category",
   addCategoryModalHint: "Create a category to pick from the catalog.",
   addCategoryParentLabel: "Parent category",
@@ -194,5 +201,10 @@ export const products = {
     colCurrency: "Currency",
     colUnitPrice: "Unit price",
     pageOf: "Page {{current}} / {{total}}",
+    filtersDrawerHint:
+      "Set counterparty scope, product, currency, and dates here. Press “Refresh” to reload the list.",
+    tableSearchPlaceholder: "Search product or counterparty…",
+    tableSearchFilteredEmpty: "No rows match your search on this page.",
+    filterIconAria: "Open filters",
   },
 } as const;

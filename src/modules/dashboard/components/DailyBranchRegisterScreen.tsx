@@ -16,6 +16,11 @@ import {
   REPORT_YEAR_QUICK_PLACEHOLDER,
   reportYearQuickSelectTopYear,
 } from "@/modules/reports/lib/report-period-helpers";
+import {
+  FinancialExpensePaySourceSubline,
+  expenseBucketsFromDailyRegisterRow,
+  type ExpensePayFiveBucket,
+} from "@/modules/reports/lib/financial-expense-pay-source-inline";
 import { cn } from "@/lib/cn";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
@@ -41,6 +46,20 @@ type RegisterScopeMode = "day" | "season_single" | "season_range" | "date_range"
 
 const BRANCH_FILTER_ALL = "__all__";
 
+function emptyExpenseBuckets(): ExpensePayFiveBucket {
+  return { register: 0, patron: 0, personnelPocket: 0, heldRegister: 0, unset: 0 };
+}
+
+function addExpenseBuckets(a: ExpensePayFiveBucket, b: ExpensePayFiveBucket): ExpensePayFiveBucket {
+  return {
+    register: a.register + b.register,
+    patron: a.patron + b.patron,
+    personnelPocket: a.personnelPocket + b.personnelPocket,
+    heldRegister: a.heldRegister + b.heldRegister,
+    unset: a.unset + b.unset,
+  };
+}
+
 function sumBranchRegisterRows(rows: BranchTodayRow[]): {
   income: number;
   cash: number;
@@ -48,6 +67,7 @@ function sumBranchRegisterRows(rows: BranchTodayRow[]): {
   expenseOut: number;
   expenseFromRegister: number;
   net: number;
+  expensePayBuckets: ExpensePayFiveBucket;
 } | null {
   let income = 0;
   let cash = 0;
@@ -55,6 +75,7 @@ function sumBranchRegisterRows(rows: BranchTodayRow[]): {
   let expenseOut = 0;
   let expenseFromRegister = 0;
   let net = 0;
+  let expensePayBuckets = emptyExpenseBuckets();
   let has = false;
   for (const r of rows) {
     if (r.financialHidden) continue;
@@ -65,13 +86,17 @@ function sumBranchRegisterRows(rows: BranchTodayRow[]): {
     expenseOut += r.totalExpenseOut;
     expenseFromRegister += r.expenseFromRegister;
     net += r.netCash;
+    expensePayBuckets = addExpenseBuckets(
+      expensePayBuckets,
+      expenseBucketsFromDailyRegisterRow(r)
+    );
   }
   if (!has) return null;
   if (income > 0.005 && cash + card < 0.005) {
     cash = income;
     card = 0;
   }
-  return { income, cash, card, expenseOut, expenseFromRegister, net };
+  return { income, cash, card, expenseOut, expenseFromRegister, net, expensePayBuckets };
 }
 
 function splitIncomeDisplay(row: BranchTodayRow): { cash: number; card: number } {
@@ -652,6 +677,15 @@ export function DailyBranchRegisterScreen() {
                 <p className="mt-1 text-sm font-semibold tabular-nums text-orange-950">
                   {formatLocaleAmount(totalsStrip.expenseOut, locale)}
                 </p>
+                <p className="mt-2 text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                  {t("dashboard.dailyRegisterExpenseByPaymentSource")}
+                </p>
+                <FinancialExpensePaySourceSubline
+                  buckets={totalsStrip.expensePayBuckets}
+                  currencyCode=""
+                  locale={locale}
+                  t={t}
+                />
                 <DailyRegisterExpenseSplit
                   totalOut={totalsStrip.expenseOut}
                   fromRegister={totalsStrip.expenseFromRegister}
@@ -718,6 +752,15 @@ export function DailyBranchRegisterScreen() {
                                 {formatLocaleAmount(row.totalExpenseOut, locale)}
                               </dd>
                             </div>
+                            <p className="mt-1.5 text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                              {t("dashboard.dailyRegisterExpenseByPaymentSource")}
+                            </p>
+                            <FinancialExpensePaySourceSubline
+                              buckets={expenseBucketsFromDailyRegisterRow(row)}
+                              currencyCode=""
+                              locale={locale}
+                              t={t}
+                            />
                             <DailyRegisterExpenseSplit
                               totalOut={row.totalExpenseOut}
                               fromRegister={row.expenseFromRegister}
@@ -725,7 +768,7 @@ export function DailyBranchRegisterScreen() {
                               labelRegister={t("dashboard.dailyRegisterExpenseShareRegister")}
                               labelOutside={t("dashboard.dailyRegisterExpenseShareOutside")}
                               labelNoOutHint={t("dashboard.dailyRegisterExpenseNoOutHint")}
-                              className="pl-0.5"
+                              className="mt-1.5 pl-0.5"
                             />
                             <p className="text-[0.65rem] leading-snug text-zinc-400">
                               {t("dashboard.dailyRegisterCardExpenseFootnote")}

@@ -309,8 +309,9 @@ export const dashboard = {
   dailyRegisterCardPos: "Card / POS",
   dailyRegisterCardIncomeTotal: "Income (total)",
   dailyRegisterCardExpenseHeadline: "Expense (OUT total)",
+  dailyRegisterExpenseByPaymentSource: "Payment source (as booked)",
   dailyRegisterCardExpenseFootnote:
-    "Percentages are of OUT total: register share uses income − net; the remainder is patron/staff-pocket OUT.",
+    "The lines above match each expense line’s «payment source» (register / owner / staff pocket / held register cash / unset). Below, percentages of OUT total: register share uses income − net; the remainder is owner/staff-pocket OUT.",
   dailyRegisterCardExpenseOutTotal: "Expense total (OUT)",
   dailyRegisterCardRegisterOut: "Paid from register",
   dailyRegisterCardRegisterOutHint: "Income minus net cash for the scope (subset of OUT economics).",

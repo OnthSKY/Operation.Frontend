@@ -9,6 +9,11 @@ function normalizeDailySummary(r: BranchDailySummary): BranchDailySummary {
   };
   return {
     ...r,
+    expenseOperationalRegister: Number(r.expenseOperationalRegister ?? 0) || 0,
+    expenseOperationalPatron: Number(r.expenseOperationalPatron ?? 0) || 0,
+    expenseOperationalPersonnelPocket: Number(r.expenseOperationalPersonnelPocket ?? 0) || 0,
+    expenseOperationalHeldRegisterCash: Number(r.expenseOperationalHeldRegisterCash ?? 0) || 0,
+    expenseOperationalUnset: Number(r.expenseOperationalUnset ?? 0) || 0,
     incomeCash: Number(row.incomeCash ?? row.IncomeCash ?? 0) || 0,
     incomeCard: Number(row.incomeCard ?? row.IncomeCard ?? 0) || 0,
     registerOwesPersonnelToday: Number(r.registerOwesPersonnelToday ?? 0) || 0,

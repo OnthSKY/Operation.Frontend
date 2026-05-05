@@ -10,10 +10,6 @@ import {
 import { useI18n } from "@/i18n/context";
 import { Card } from "@/shared/components/Card";
 import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
-import {
-  TABLE_TOOLBAR_ICON_BTN,
-  TableToolbarRow,
-} from "@/shared/components/TableToolbar";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
@@ -24,9 +20,22 @@ import { Modal } from "@/shared/ui/Modal";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import { ToolbarGlyphPackage } from "@/shared/ui/ToolbarGlyph";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
+import { cn } from "@/lib/cn";
 import { useMemo, useState } from "react";
 
 type TreeNode = ProductCategory & { children: ProductCategory[] };
+
+function categoriesListToolbarSummary(
+  t: (key: string) => string,
+  rootCount: number,
+  locale: string
+) {
+  const key =
+    locale === "en" && rootCount === 1
+      ? "products.categoriesPage.listToolbarSummaryOne"
+      : "products.categoriesPage.listToolbarSummary";
+  return t(key).replace("{{count}}", String(rootCount));
+}
 
 function buildTree(flat: ProductCategory[]): TreeNode[] {
   const roots = flat.filter((c) => c.parentCategoryId == null);
@@ -40,7 +49,7 @@ function buildTree(flat: ProductCategory[]): TreeNode[] {
 }
 
 export function ProductCategoriesScreen() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { data: flat = [], isPending, isError, error } = useProductCategories();
   const createCat = useCreateProductCategory();
   const updateCat = useUpdateProductCategory();
@@ -128,18 +137,18 @@ export function ProductCategoriesScreen() {
   return (
     <>
       <PageScreenScaffold
-        className="w-full p-4 pb-6 sm:pb-4"
+        className="min-w-0"
         intro={
           <>
-            <div>
-              <h1 className="text-2xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-xl">
+            <div className="min-w-0">
+              <h1 className="text-xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-2xl">
                 {t("products.categoriesPage.title")}
               </h1>
-              <p className="text-sm text-zinc-500">{t("products.categoriesPage.subtitle")}</p>
+              <p className="mt-1 text-sm leading-snug text-zinc-500">{t("products.categoriesPage.subtitle")}</p>
             </div>
             <PageWhenToUseGuide
               guideTab="products"
-              className="mt-1"
+              className="mt-3 min-w-0 sm:mt-1"
               title={t("common.pageWhenToUseTitle")}
               description={t("pageHelp.productCategories.intro")}
               listVariant="ordered"
@@ -162,50 +171,75 @@ export function ProductCategoriesScreen() {
               <p className="text-sm text-zinc-500">{t("common.loading")}</p>
             ) : tree.length === 0 ? (
               <Card title={t("products.categoriesPage.title")}>
-                <TableToolbarRow className="mb-4">
-                  <Tooltip content={t("products.categoriesPage.addRoot")} delayMs={200}>
-                    <Button
-                      type="button"
-                      className={TABLE_TOOLBAR_ICON_BTN}
-                      onClick={openAddRoot}
-                      aria-label={t("products.categoriesPage.addRoot")}
-                    >
-                      <ToolbarGlyphPackage className="h-5 w-5" />
-                    </Button>
-                  </Tooltip>
-                </TableToolbarRow>
+                <div className="mb-4 flex min-w-0 flex-col gap-3 rounded-xl border border-zinc-200/90 bg-gradient-to-r from-violet-50/40 via-zinc-50/60 to-white px-3 py-3 shadow-sm ring-1 ring-zinc-950/[0.03] sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-4 sm:py-3.5">
+                  <div className="min-w-0">
+                    <p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-zinc-500">
+                      {t("products.categoriesPage.listToolbarEyebrow")}
+                    </p>
+                    <p className="mt-1 text-sm font-medium leading-snug text-zinc-800">
+                      {categoriesListToolbarSummary(t, 0, locale)}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="min-h-11 w-full shrink-0 px-4 touch-manipulation sm:w-auto sm:min-w-[12rem]"
+                    onClick={openAddRoot}
+                    aria-label={t("products.categoriesPage.addRoot")}
+                    title={t("products.categoriesPage.addRoot")}
+                  >
+                    <ToolbarGlyphPackage className="mr-2 h-5 w-5 shrink-0 opacity-90" aria-hidden />
+                    <span className="truncate">{t("products.categoriesPage.addRoot")}</span>
+                  </Button>
+                </div>
                 <p className="text-sm text-zinc-600">{t("products.categoriesPage.empty")}</p>
               </Card>
             ) : (
               <>
-                <TableToolbarRow className="mb-4">
+                <div className="mb-3 flex min-w-0 flex-col gap-3 rounded-xl border border-zinc-200/90 bg-gradient-to-r from-violet-50/40 via-zinc-50/60 to-white px-3 py-3 shadow-sm ring-1 ring-zinc-950/[0.03] sm:mb-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-4 sm:py-3.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-zinc-500">
+                      {t("products.categoriesPage.listToolbarEyebrow")}
+                    </p>
+                    <p className="mt-1 text-sm font-medium leading-snug text-zinc-800">
+                      {categoriesListToolbarSummary(t, tree.length, locale)}
+                    </p>
+                  </div>
                   <Tooltip content={t("products.categoriesPage.addRoot")} delayMs={200}>
                     <Button
                       type="button"
-                      className={TABLE_TOOLBAR_ICON_BTN}
+                      variant="secondary"
+                      className="min-h-11 w-full shrink-0 px-4 touch-manipulation sm:w-auto sm:min-w-[12rem]"
                       onClick={openAddRoot}
                       aria-label={t("products.categoriesPage.addRoot")}
+                      title={t("products.categoriesPage.addRoot")}
                     >
-                      <ToolbarGlyphPackage className="h-5 w-5" />
+                      <ToolbarGlyphPackage className="mr-2 h-5 w-5 shrink-0 opacity-90" aria-hidden />
+                      <span className="truncate">{t("products.categoriesPage.addRoot")}</span>
                     </Button>
                   </Tooltip>
-                </TableToolbarRow>
-              <ul className="flex flex-col gap-3">
+                </div>
+              <ul className="flex min-w-0 w-full flex-col gap-3">
           {tree.map((root) => (
-            <li key={root.id}>
+            <li key={root.id} className="min-w-0">
               <Card className="overflow-hidden p-0 shadow-sm shadow-zinc-900/5 ring-1 ring-zinc-200/80">
-                <div className="flex flex-col gap-3 border-b border-zinc-100 bg-gradient-to-r from-violet-50/50 to-white p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="min-w-0">
+                <div className="flex flex-col gap-3 border-b border-zinc-100 bg-gradient-to-r from-violet-50/50 to-white px-3 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:px-4 sm:py-4">
+                  <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold uppercase tracking-wide text-violet-700/90">
                       {t("products.categoriesPage.badgeRoot")}
                     </p>
-                    <p className="mt-1 truncate text-lg font-semibold text-zinc-900">{root.name}</p>
+                    <p className="mt-1 break-words text-lg font-semibold leading-snug text-zinc-900">{root.name}</p>
                     <p className="mt-1 text-xs text-zinc-500">
                       {root.productCount} {t("products.categoriesPage.productsWord")} · {root.childCount}{" "}
                       {t("products.categoriesPage.subsWord")}
                     </p>
                   </div>
-                  <div className="inline-flex flex-wrap items-center gap-1">
+                  <div
+                    className={cn(
+                      "flex min-w-0 flex-wrap items-center gap-1.5",
+                      "w-full max-sm:pt-0.5 sm:w-auto sm:shrink-0 sm:justify-end"
+                    )}
+                  >
                     <Tooltip content={t("products.categoriesPage.addSub")} delayMs={200}>
                       <Button
                         type="button"
@@ -250,24 +284,29 @@ export function ProductCategoriesScreen() {
                   </div>
                 </div>
                 {root.children.length === 0 ? (
-                  <p className="px-4 py-3 text-sm text-zinc-500">{t("products.categoriesPage.noSubs")}</p>
+                  <p className="px-3 py-3 text-sm leading-snug text-zinc-500 sm:px-4">{t("products.categoriesPage.noSubs")}</p>
                 ) : (
                   <ul className="divide-y divide-zinc-100">
                     {root.children.map((ch) => (
                       <li
                         key={ch.id}
-                        className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                        className="flex flex-col gap-2 px-3 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:px-4 sm:py-3.5"
                       >
-                        <div className="min-w-0 border-l-2 border-violet-200 pl-3">
+                        <div className="min-w-0 flex-1 border-s-2 border-violet-200 ps-3">
                           <p className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
                             {t("products.categoriesPage.badgeSub")}
                           </p>
-                          <p className="mt-0.5 font-medium text-zinc-900">{ch.name}</p>
+                          <p className="mt-0.5 break-words font-medium leading-snug text-zinc-900">{ch.name}</p>
                           <p className="mt-0.5 text-xs text-zinc-500">
                             {ch.productCount} {t("products.categoriesPage.productsWord")}
                           </p>
                         </div>
-                        <div className="inline-flex flex-wrap items-center gap-1 sm:shrink-0">
+                        <div
+                          className={cn(
+                            "flex flex-wrap items-center gap-1.5",
+                            "w-full max-sm:ps-[calc(0.75rem+2px)] sm:w-auto sm:shrink-0 sm:justify-end sm:ps-0"
+                          )}
+                        >
                           <Tooltip content={t("products.categoriesPage.edit")} delayMs={200}>
                             <Button
                               type="button"

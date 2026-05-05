@@ -309,8 +309,9 @@ export const dashboard = {
   dailyRegisterCardPos: "Kart / POS",
   dailyRegisterCardIncomeTotal: "Tahsilat (toplam)",
   dailyRegisterCardExpenseHeadline: "Gider (OUT toplamı)",
+  dailyRegisterExpenseByPaymentSource: "Ödeme kaynağı (işlemde seçilen)",
   dailyRegisterCardExpenseFootnote:
-    "Yüzdeler, OUT toplamına göre: kasa tarafı tahsilat − net ile; kalan OUT tutarı patron/personel cebi vb. ödemeler.",
+    "Üstteki satırlar şube gider satırlarındaki «Ödeme kaynağı» ile aynıdır (kasa / patron / personel cebi / cebdeki kasa / belirtilmemiş). Alttaki yüzdeler OUT toplamına göre: kasa tarafı tahsilat − net; kalan OUT patron/personel cebi vb.",
   dailyRegisterCardExpenseOutTotal: "Gider toplamı (OUT)",
   dailyRegisterCardRegisterOut: "Kasadan ödenen",
   dailyRegisterCardRegisterOutHint: "Seçilen kapsamda tahsilat eksi net nakit (OUT ekonomisinin bir parçası).",

@@ -166,7 +166,7 @@ export function OrderAccountLineProductPicker({
       clearQueryOnOpen={false}
       onOpenChange={handleOpenChange}
       hasMore={hasMore}
-      isLoadingMore={isFetching && page > 1}
+      isLoadingMore={Boolean(isFetching && page > 1)}
       onReachEnd={onReachEnd}
       loadingText={t("common.loading")}
       disabled={!enabled}

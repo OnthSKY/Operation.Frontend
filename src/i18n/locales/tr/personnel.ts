@@ -65,6 +65,8 @@ export const personnel = {
   costsSummaryRegisterExpenses: "Giderler",
   costsSummaryCombined: "Toplam",
   costsSummaryEmpty: "Filtrelere uyan satır yok.",
+  costsMobileSummaryToggle:
+    "Özet: patron, şube, kaynaklar ve toplamlar — göster / gizle",
   costsPaymentSourceSplitHint:
     "Yıl, şube ve personel filtreleri uygulanır. Aşağıdaki «Kasadan / patrondan» liste filtresi bu özet kartlarını değiştirmez. Personel cebi (gider) ve kasa dışı kalemler bu iki kartta yok.",
   costsPatronOutCardTitle: "Patrondan giden",

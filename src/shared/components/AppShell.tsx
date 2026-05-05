@@ -10,8 +10,8 @@ import {
 } from "@/lib/auth/permissions";
 import { isDriverPortalRole, isPersonnelPortalRole } from "@/lib/auth/roles";
 import { useI18n } from "@/i18n/context";
-import type { Locale } from "@/i18n/messages";
 import { AppGlobalSearch } from "@/shared/components/AppGlobalSearch";
+import { LocaleSegmentControl } from "@/shared/components/LocaleSegmentControl";
 import { DateDisplayFormatHint } from "@/shared/components/DateDisplayFormatHint";
 import { MobileNavDock } from "@/shared/components/MobileNavDock";
 import { UserAccountMenu } from "@/modules/account/UserAccountMenu";
@@ -584,32 +584,6 @@ function ReportsNavSubgroup({
           })}
         </div>
       </NavCollapsiblePanel>
-    </div>
-  );
-}
-
-function LocaleToggle() {
-  const { t, locale, setLocale } = useI18n();
-  return (
-    <div
-      className="inline-flex shrink-0 rounded-full bg-zinc-100/90 p-0.5 shadow-inner ring-1 ring-zinc-200/70"
-      role="group"
-      aria-label={t("lang.label")}
-    >
-      {(["tr", "en"] as Locale[]).map((code) => (
-        <button
-          key={code}
-          type="button"
-          onClick={() => setLocale(code)}
-          className={`min-h-11 min-w-11 rounded-full px-2.5 text-xs font-bold tracking-wide transition-colors sm:min-h-8 sm:min-w-9 ${
-            locale === code
-              ? "bg-zinc-900 text-white shadow-sm"
-              : "text-zinc-500 hover:text-zinc-800"
-          }`}
-        >
-          {t(`lang.${code}`)}
-        </button>
-      ))}
     </div>
   );
 }
@@ -1481,7 +1455,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             {user ? (
               <UserAccountMenu triggerLabel={displayName} />
             ) : null}
-            <LocaleToggle />
+            <span className={user ? "hidden md:inline-flex md:items-center" : "inline-flex items-center"}>
+              <LocaleSegmentControl />
+            </span>
           </div>
         </header>
         <main className="relative flex min-h-0 flex-1 flex-col overflow-hidden max-md:overflow-hidden md:min-h-0">

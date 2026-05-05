@@ -29,9 +29,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/Table";
-import { useMemo, type Dispatch, type SetStateAction } from "react";
+import { Wallet } from "lucide-react";
+import { useMediaMinWidth } from "@/shared/lib/use-media-min-width";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import type { UseMutationResult } from "@tanstack/react-query";
 import {
+  BranchSectionTitleWithInfo,
   BranchTxDeleteRow,
   EMPTY_EXPENSE_TAB_BREAKDOWN,
   ExpenseOverviewDetailModal,
@@ -44,6 +47,7 @@ import {
 } from "./BranchDetailTabs.shared";
 import { BranchRegisterTourismSeasonStrip } from "@/modules/branch/components/BranchRegisterTourismSeasonStrip";
 import { branchTourismSeasonDeepLink } from "@/modules/branch/lib/branch-tourism-season-nav";
+import { BranchMobileInsightJumpRail } from "@/modules/branch/components/BranchMobileInsightJumpRail";
 import { CollapsibleInsightSection } from "@/modules/branch/components/CollapsibleInsightSection";
 import type { ExpenseTabPeriodBreakdown } from "@/types/branch";
 
@@ -206,114 +210,178 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
     [expData?.items]
   );
 
+  /** Mobilde gider özet kartları kapalı başlar; sm+ açık (gelir sekmesiyle aynı mantık). */
+  const expenseInsightSmUp = useMediaMinWidth(640);
+  const [expenseInsightLayoutReady, setExpenseInsightLayoutReady] = useState(false);
+  useEffect(() => setExpenseInsightLayoutReady(true), []);
+  const expenseCumulativeInsightOpen =
+    expenseInsightLayoutReady && expenseInsightSmUp;
+  const expenseCumulativeInsightKey = expenseInsightLayoutReady
+    ? expenseInsightSmUp
+      ? "wide"
+      : "narrow"
+    : "pending";
+
+  const unifiedExpenseFilters = useMemo(
+    () => ({
+      from: expFrom,
+      to: expTo,
+      main: expFilterMain,
+      pay: expFilterPay,
+    }),
+    [expFrom, expTo, expFilterMain, expFilterPay]
+  );
+  const applyUnifiedExpenseFilters = (
+    next: Partial<typeof unifiedExpenseFilters>
+  ) => {
+    const merged = { ...unifiedExpenseFilters, ...next };
+    setExpFrom(merged.from);
+    setExpTo(merged.to);
+    setExpFilterMain(merged.main);
+    setExpFilterPay(merged.pay);
+    setExpPage(1);
+  };
+
+  const expenseJumpItems = useMemo(() => {
+    const items: { id: string; label: string }[] = [];
+    if (!employeeSelfService) {
+      items.push({ id: "branch-expense-summary", label: t("branch.mobileJumpExpenseSummary") });
+      items.push({ id: "branch-expense-list-dates", label: t("branch.mobileJumpExpenseListDates") });
+    }
+    items.push({ id: "branch-expense-lines", label: t("branch.mobileJumpExpenseLines") });
+    return items;
+  }, [employeeSelfService, t]);
+
   return (
           <div className="flex flex-col gap-4">
             <p className="text-sm text-zinc-600">{t("branch.expensesHint")}</p>
+            <BranchMobileInsightJumpRail
+              ariaLabel={t("branch.mobileJumpExpenseNavAria")}
+              items={expenseJumpItems}
+            />
 
             {!employeeSelfService ? (
               <>
-                <section className="rounded-xl border border-rose-100 bg-rose-50/50 p-3 sm:p-4">
-                  <h3 className="text-sm font-semibold text-zinc-900">
-                    {t("branch.expensesSummarySectionTitle")}
-                  </h3>
-                  <p className="mt-1 max-w-2xl text-xs leading-relaxed text-zinc-600">
-                    {t("branch.expensesSummaryCardsLead")}
-                  </p>
+                <section
+                  id="branch-expense-summary"
+                  className="scroll-mt-[5.5rem] rounded-xl border border-rose-100 bg-rose-50/50 p-3 sm:p-4 sm:scroll-mt-0"
+                >
+                  <BranchSectionTitleWithInfo
+                    title={t("branch.expensesSummarySectionTitle")}
+                    body={t("branch.expensesSummaryCardsLead")}
+                    t={t}
+                  />
                   {expSummaryShowErr && expSummaryErrFirst ? (
                     <p className="mt-2 text-sm text-red-600">{toErrorMessage(expSummaryErrFirst)}</p>
                   ) : null}
                   {expSummaryShowSkeleton ? (
                     <p className="mt-2 text-sm text-zinc-500">{t("common.loading")}</p>
                   ) : expThroughToday && !expThroughToday.hideFinancialTotals ? (
-                    <div className="mt-3 flex flex-col gap-6">
-                      <CollapsibleInsightSection
-                        sectionClassName="rounded-lg border border-rose-200/70 bg-white/50 p-2 shadow-sm sm:p-3"
-                        title={t("branch.expensesSummaryLifetimeBlockTitle")}
-                        lead={
-                          <>
-                            <p>{t("branch.expensesSummaryLifetimeBlockLead")}</p>
-                            <p className="mt-2 max-w-2xl rounded-md border border-zinc-200/80 bg-white/60 px-2 py-1.5 text-xs leading-snug text-zinc-600">
-                              {t("branch.expensesSummaryCardsOrthogonalNote")}
-                            </p>
-                          </>
-                        }
-                      >
-                        {expenseTabPeriodOverviewBlock({
-                          breakdown:
-                            expThroughToday.expenseOverviewLifetimeThroughAsOf ?? EMPTY_EXPENSE_TAB_BREAKDOWN,
-                          t,
-                          locale,
-                          onOpenCard: (card) =>
-                            setExpenseOverviewDetail({
-                              periodTitle: t("branch.expensesSummaryLifetimeBlockTitle"),
-                              breakdown:
-                                expThroughToday.expenseOverviewLifetimeThroughAsOf ??
-                                EMPTY_EXPENSE_TAB_BREAKDOWN,
-                              card,
-                            }),
-                        })}
-                      </CollapsibleInsightSection>
-                      {!expThroughToday.hasActiveTourismSeasonForAsOf ? (
-                        <BranchRegisterTourismSeasonStrip
-                          t={t}
-                          locale={locale}
-                          summary={expThroughToday}
-                          missingHintKey="branch.expensesSeasonMissingForToday"
-                          tourismSeasonHref={tourismSeasonHref}
-                        />
-                      ) : null}
-                      {(() => {
-                        const seasonBreakdown = expThroughToday.expenseOverviewSeasonThroughAsOf;
-                        if (!expThroughToday.hasActiveTourismSeasonForAsOf || seasonBreakdown == null) {
-                          return null;
-                        }
-                        return (
-                          <div className="border-t border-rose-200/80 pt-4">
+                    (() => {
+                      const seasonBreakdown = expThroughToday.expenseOverviewSeasonThroughAsOf;
+                      const showSeasonColumn =
+                        expThroughToday.hasActiveTourismSeasonForAsOf && seasonBreakdown != null;
+                      return (
+                        <div
+                          className={
+                            showSeasonColumn
+                              ? "mt-3 grid gap-3 lg:grid-cols-2"
+                              : "mt-3 flex flex-col gap-3"
+                          }
+                        >
+                          <div className="flex min-w-0 flex-col gap-3">
                             <CollapsibleInsightSection
-                              sectionClassName="rounded-lg border border-rose-200/70 bg-white/50 p-2 shadow-sm sm:p-3"
-                              title={t("branch.expensesSummarySeasonBlockTitle")}
+                              key={`exp-cum-lifetime-${expenseCumulativeInsightKey}`}
+                              sectionClassName="rounded-xl border border-rose-200/70 bg-white/50 p-2 shadow-sm ring-1 ring-rose-950/[0.04] sm:p-3"
+                              title={t("branch.expensesSummaryLifetimeBlockTitle")}
                               lead={
                                 <>
-                                  <p>{t("branch.expensesSummarySeasonBlockLead")}</p>
+                                  <p>{t("branch.expensesSummaryLifetimeBlockLead")}</p>
                                   <p className="mt-2 max-w-2xl rounded-md border border-zinc-200/80 bg-white/60 px-2 py-1.5 text-xs leading-snug text-zinc-600">
                                     {t("branch.expensesSummaryCardsOrthogonalNote")}
                                   </p>
                                 </>
                               }
+                              defaultOpen={expenseCumulativeInsightOpen}
                             >
-                              <BranchRegisterTourismSeasonStrip
-                                t={t}
-                                locale={locale}
-                                summary={expThroughToday}
-                                tourismSeasonHref={tourismSeasonHref}
-                                className="mb-2 sm:mb-3"
-                              />
                               {expenseTabPeriodOverviewBlock({
-                                breakdown: seasonBreakdown,
+                                breakdown:
+                                  expThroughToday.expenseOverviewLifetimeThroughAsOf ??
+                                  EMPTY_EXPENSE_TAB_BREAKDOWN,
                                 t,
                                 locale,
                                 onOpenCard: (card) =>
                                   setExpenseOverviewDetail({
-                                    periodTitle: t("branch.expensesSummarySeasonBlockTitle"),
-                                    breakdown: seasonBreakdown,
+                                    periodTitle: t("branch.expensesSummaryLifetimeBlockTitle"),
+                                    breakdown:
+                                      expThroughToday.expenseOverviewLifetimeThroughAsOf ??
+                                      EMPTY_EXPENSE_TAB_BREAKDOWN,
                                     card,
                                   }),
                               })}
                             </CollapsibleInsightSection>
+                            {!expThroughToday.hasActiveTourismSeasonForAsOf ? (
+                              <BranchRegisterTourismSeasonStrip
+                                t={t}
+                                locale={locale}
+                                summary={expThroughToday}
+                                missingHintKey="branch.expensesSeasonMissingForToday"
+                                tourismSeasonHref={tourismSeasonHref}
+                              />
+                            ) : null}
                           </div>
-                        );
-                      })()}
-                    </div>
+                          {showSeasonColumn ? (
+                            <div className="flex min-w-0 flex-col gap-3">
+                              <CollapsibleInsightSection
+                                key={`exp-cum-season-${expenseCumulativeInsightKey}`}
+                                sectionClassName="rounded-xl border border-rose-200/80 bg-white/50 p-2 shadow-sm ring-1 ring-rose-950/[0.06] sm:p-3"
+                                title={t("branch.expensesSummarySeasonBlockTitle")}
+                                lead={
+                                  <>
+                                    <p>{t("branch.expensesSummarySeasonBlockLead")}</p>
+                                    <p className="mt-2 max-w-2xl rounded-md border border-zinc-200/80 bg-white/60 px-2 py-1.5 text-xs leading-snug text-zinc-600">
+                                      {t("branch.expensesSummaryCardsOrthogonalNote")}
+                                    </p>
+                                  </>
+                                }
+                                defaultOpen={expenseCumulativeInsightOpen}
+                              >
+                                <BranchRegisterTourismSeasonStrip
+                                  t={t}
+                                  locale={locale}
+                                  summary={expThroughToday}
+                                  tourismSeasonHref={tourismSeasonHref}
+                                  className="mb-2 sm:mb-3"
+                                />
+                                {expenseTabPeriodOverviewBlock({
+                                  breakdown: seasonBreakdown,
+                                  t,
+                                  locale,
+                                  onOpenCard: (card) =>
+                                    setExpenseOverviewDetail({
+                                      periodTitle: t("branch.expensesSummarySeasonBlockTitle"),
+                                      breakdown: seasonBreakdown,
+                                      card,
+                                    }),
+                                })}
+                              </CollapsibleInsightSection>
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })()
                   ) : null}
                 </section>
 
-                <section className="rounded-xl border border-slate-200 bg-slate-50/70 p-3 sm:p-4">
-                  <h3 className="text-sm font-semibold text-zinc-900">
-                    {t("branch.expensesListDatesSummaryTitle")}
-                  </h3>
-                  <p className="mt-1 max-w-2xl text-xs leading-relaxed text-zinc-600">
-                    {t("branch.expensesListDatesSummaryLead")}
-                  </p>
+                <section
+                  id="branch-expense-list-dates"
+                  className="scroll-mt-[5.5rem] rounded-xl border border-slate-200 bg-slate-50/70 p-3 sm:p-4 sm:scroll-mt-0"
+                >
+                  <BranchSectionTitleWithInfo
+                    title={t("branch.expensesListDatesSummaryTitle")}
+                    body={t("branch.expensesListDatesSummaryLead")}
+                    t={t}
+                  />
                   {expListSummaryShowErr && expListSummaryErrFirst ? (
                     <p className="mt-2 text-sm text-red-600">
                       {toErrorMessage(expListSummaryErrFirst)}
@@ -329,7 +397,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                           {formatLocaleDate(expFrom, locale)} — {formatLocaleDate(expTo, locale)}
                         </span>
                       </p>
-                      <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                      <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                         <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
                           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                             {t("branch.expensesListFilteredTotal")}
@@ -359,7 +427,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                             {t("branch.patronFlowExpenseHint")}
                           </p>
                         </div>
-                        <div className="rounded-lg border border-slate-200 bg-slate-100/80 p-2.5 shadow-sm sm:p-3">
+                        <div className="rounded-lg border border-slate-200 bg-slate-100/80 p-2.5 shadow-sm sm:col-span-2 sm:p-3 lg:col-span-1">
                           <p className="text-xs font-medium uppercase tracking-wide text-zinc-600">
                             {t("branch.expensesListPeriodRowCount")}
                           </p>
@@ -419,7 +487,10 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
               />
             ) : null}
 
-            <div className="flex flex-col gap-4">
+            <div
+              id="branch-expense-lines"
+              className="scroll-mt-[5.5rem] flex flex-col gap-4 sm:scroll-mt-0"
+            >
               <section
                 className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm sm:p-4"
                 aria-label={t("branch.expensesActionsTitle")}
@@ -448,9 +519,50 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                   <div className="flex flex-col gap-1">
                     <h3 className="text-sm font-semibold text-zinc-900">{t("branch.expensesListSection")}</h3>
                     <p className="text-xs leading-relaxed text-zinc-600">
-                      {t("branch.expensesListSection")} · {t("branch.incomeFilterDrawerHint")}
+                      {t("branch.expensesListSection")} · {t("branch.expenseFilterDrawerHint")}
                     </p>
                   </div>
+
+                  <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-2.5 shadow-sm">
+                    <p className="text-xs font-semibold text-zinc-700">{t("branch.expenseQuickFiltersLead")}</p>
+                    <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                      <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:contents">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="min-h-11 w-full touch-manipulation sm:min-w-[9rem] sm:flex-1"
+                          onClick={() => {
+                            const d = localIsoDate();
+                            applyUnifiedExpenseFilters({ from: d, to: d });
+                          }}
+                        >
+                          {t("branch.filterToday")}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="min-h-11 w-full touch-manipulation sm:min-w-[9rem] sm:flex-1"
+                          onClick={() =>
+                            applyUnifiedExpenseFilters({ from: "", to: "", main: "", pay: "" })
+                          }
+                        >
+                          {t("branch.filterAllDates")}
+                        </Button>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="min-h-11 w-full touch-manipulation sm:ml-auto sm:w-auto sm:min-w-[8.5rem]"
+                        onClick={() => {
+                          void refetchExp();
+                          refetchExpenseSummaryBlocks();
+                        }}
+                      >
+                        {t("branch.filterApplyRefresh")}
+                      </Button>
+                    </div>
+                  </div>
+
                   <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-2.5">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-xs font-semibold text-zinc-700">
@@ -488,10 +600,11 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                       <Button
                         type="button"
                         variant="secondary"
-                        className="relative min-h-11 w-full"
+                        className="relative min-h-11 w-full touch-manipulation"
+                        aria-label={`${t("branch.incomeFilterOpenButton")} (${expActiveFilterCount})`}
                         onClick={() => setExpenseFiltersOpen(true)}
                       >
-                        {t("branch.incomeFilterOpenButton")}
+                        {`${t("branch.incomeFilterOpenButton")} (${expActiveFilterCount})`}
                         {expFiltersActive ? (
                           <span
                             className="absolute right-2 top-2 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white"
@@ -501,52 +614,6 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                       </Button>
                     </div>
                   </div>
-                  <div className="mt-2 rounded-lg border border-zinc-200 bg-white p-2.5">
-                    <p className="text-xs font-semibold text-zinc-700">{t("branch.filterApplyRefresh")}</p>
-                    <p className="mt-0.5 text-xs text-zinc-500">
-                      {t("branch.filterToday")} / {t("branch.filterAllDates")}
-                    </p>
-                    <div className="mt-2 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-11 w-full"
-                      onClick={() => {
-                        const d = localIsoDate();
-                        setExpFrom(d);
-                        setExpTo(d);
-                        setExpPage(1);
-                      }}
-                    >
-                      {t("branch.filterToday")}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-11 w-full"
-                      onClick={() => {
-                        setExpFrom("");
-                        setExpTo("");
-                        setExpFilterMain("");
-                        setExpFilterPay("");
-                        setExpPage(1);
-                      }}
-                    >
-                      {t("branch.filterAllDates")}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-11 w-full"
-                      onClick={() => {
-                        void refetchExp();
-                        refetchExpenseSummaryBlocks();
-                      }}
-                    >
-                      {t("branch.filterApplyRefresh")}
-                    </Button>
-                  </div>
-                </div>
                 </div>
                 <RightDrawer
                   open={expenseFiltersOpen}
@@ -608,12 +675,39 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                   </div>
                 </RightDrawer>
               </div>
-            </div>
             {expErr && <p className="text-sm text-red-600">{toErrorMessage(expError)}</p>}
             {expLoading ? (
               <p className="text-sm text-zinc-500">{t("common.loading")}</p>
             ) : !visibleExpenseItems.length ? (
-              <p className="text-sm text-zinc-600">{t("branch.noExpenses")}</p>
+              <div
+                role="status"
+                className="rounded-2xl border border-dashed border-zinc-300/90 bg-gradient-to-b from-zinc-50 via-white to-zinc-50/80 px-4 py-10 text-center shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6)] sm:py-12"
+              >
+                <div className="mx-auto flex max-w-md flex-col items-center gap-3">
+                  <span
+                    className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-600/90 ring-1 ring-red-200/80"
+                    aria-hidden
+                  >
+                    <Wallet className="h-7 w-7 stroke-[1.5]" />
+                  </span>
+                  <p className="text-base font-semibold leading-snug text-zinc-900">{t("branch.noExpensesTitle")}</p>
+                  <p className="text-sm leading-relaxed text-zinc-600">{t("branch.noExpensesHint")}</p>
+                  {expActiveFilterCount > 0 ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="mt-1 min-h-11 w-full max-w-xs touch-manipulation"
+                      onClick={() => {
+                        applyUnifiedExpenseFilters({ from: "", to: "", main: "", pay: "" });
+                        void refetchExp();
+                        refetchExpenseSummaryBlocks();
+                      }}
+                    >
+                      {t("branch.noExpensesClearFilters")}
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
             ) : (
               <>
                 <ul className="space-y-2 sm:hidden">
@@ -869,6 +963,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                 </div>
               </>
             )}
+            </div>
           </div>
   );
 }

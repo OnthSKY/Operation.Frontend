@@ -21,6 +21,8 @@ export const products = {
     modalAddSubHint: "Seçilen ana kategori altında listelenecek.",
     modalEditTitle: "Kategori adı",
     modalEditHint: "Aynı seviyede başka bir kategori ile çakışmayacak şekilde adı güncelleyin.",
+    listToolbarEyebrow: "Liste",
+    listToolbarSummary: "Toplam {{count}} ana kategori.",
   },
   title: "Ürünler",
   subtitle: "Genel ürün kataloğu. Stok depo hareketlerinden hesaplanır.",
@@ -55,6 +57,11 @@ export const products = {
     "Bu ürünün alt ürünleri var; ana ürün olarak kalmalı. Üst ürünü değiştirmek için önce alt ürünleri kaldırın veya taşıyın.",
   catalogSearchPlaceholder: "Ad, kategori, birim ile ara…",
   catalogSearchNoResults: "Aramanızla eşleşen ürün yok.",
+  /** Mobil katalog kartı: ana ürün + alt ürün sayısı ve grup stoku */
+  mobileCatalogCardGroupTotalCaption:
+    "{{count}} alt ürün dahil — gösterilen miktar ana ürün ve tüm alt ürünlerin depo toplamıdır.",
+  mobileCatalogCardVariantLineCaption: "Bu satır yalnızca bu alt ürünün depo toplamıdır.",
+  mobileCatalogCardUnderParent: "Üst grup: {{name}}",
   addCategoryModalTitle: "Yeni kategori",
   addCategoryModalHint: "Katalogda seçilebilir bir kategori oluşturun.",
   addCategoryParentLabel: "Üst kategori",
@@ -195,5 +202,10 @@ export const products = {
     colCurrency: "Döviz",
     colUnitPrice: "Birim fiyat",
     pageOf: "Sayfa {{current}} / {{total}}",
+    filtersDrawerHint:
+      "Cari kapsamı, ürün, döviz ve tarih aralığını buradan ayarlayın. Listeyi güncellemek için «Yenile»ye basın.",
+    tableSearchPlaceholder: "Ürün veya cari ara…",
+    tableSearchFilteredEmpty: "Aramanızla eşleşen satır yok (bu sayfadaki kayıtlar içinde).",
+    filterIconAria: "Filtreleri aç",
   },
 } as const;

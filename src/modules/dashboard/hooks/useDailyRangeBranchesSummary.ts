@@ -31,6 +31,11 @@ function buildStateFromSummaries(
     incomeCard: number;
     net: number;
     expenseAllOut: number;
+    expenseOperationalRegister: number;
+    expenseOperationalPatron: number;
+    expenseOperationalPersonnelPocket: number;
+    expenseOperationalHeldRegisterCash: number;
+    expenseOperationalUnset: number;
     registerOwesPatronToday: number;
     personnelPocketRepaidFromPatronToday: number;
     registerOwesPersonnelToday: number;
@@ -48,6 +53,11 @@ function buildStateFromSummaries(
       incomeCard: 0,
       net: 0,
       expenseAllOut: 0,
+      expenseOperationalRegister: 0,
+      expenseOperationalPatron: 0,
+      expenseOperationalPersonnelPocket: 0,
+      expenseOperationalHeldRegisterCash: 0,
+      expenseOperationalUnset: 0,
       registerOwesPatronToday: 0,
       personnelPocketRepaidFromPatronToday: 0,
       registerOwesPersonnelToday: 0,
@@ -72,6 +82,11 @@ function buildStateFromSummaries(
       acc.incomeCard += Number(d.incomeCard ?? 0);
       acc.net += Number(d.netCash);
       acc.expenseAllOut += Number(d.totalExpense);
+      acc.expenseOperationalRegister += Number(d.expenseOperationalRegister ?? 0) || 0;
+      acc.expenseOperationalPatron += Number(d.expenseOperationalPatron ?? 0) || 0;
+      acc.expenseOperationalPersonnelPocket += Number(d.expenseOperationalPersonnelPocket ?? 0) || 0;
+      acc.expenseOperationalHeldRegisterCash += Number(d.expenseOperationalHeldRegisterCash ?? 0) || 0;
+      acc.expenseOperationalUnset += Number(d.expenseOperationalUnset ?? 0) || 0;
       acc.registerOwesPatronToday += Number(d.registerOwesPatronToday ?? 0);
       acc.personnelPocketRepaidFromPatronToday += Number(
         d.personnelPocketRepaidFromPatronToday ?? 0
@@ -107,6 +122,11 @@ function buildStateFromSummaries(
         incomeCard: 0,
         totalExpenseOut: 0,
         expenseFromRegister: 0,
+        expenseOperationalRegister: 0,
+        expenseOperationalPatron: 0,
+        expenseOperationalPersonnelPocket: 0,
+        expenseOperationalHeldRegisterCash: 0,
+        expenseOperationalUnset: 0,
         netCash: 0,
         financialHidden: true,
         registerOwesPatronToday: 0,
@@ -138,6 +158,11 @@ function buildStateFromSummaries(
       incomeCard: acc.incomeCard,
       totalExpenseOut,
       expenseFromRegister,
+      expenseOperationalRegister: acc.expenseOperationalRegister,
+      expenseOperationalPatron: acc.expenseOperationalPatron,
+      expenseOperationalPersonnelPocket: acc.expenseOperationalPersonnelPocket,
+      expenseOperationalHeldRegisterCash: acc.expenseOperationalHeldRegisterCash,
+      expenseOperationalUnset: acc.expenseOperationalUnset,
       netCash: net,
       financialHidden: false,
       registerOwesPatronToday: acc.registerOwesPatronToday,

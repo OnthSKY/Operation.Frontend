@@ -41,6 +41,7 @@ import { notifyBranchIncomeDeleteConfirm } from "@/shared/lib/notify-branch-inco
 import { notify } from "@/shared/lib/notify";
 import { OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
 import { Button } from "@/shared/ui/Button";
+import { Modal } from "@/shared/ui/Modal";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { DateField } from "@/shared/ui/DateField";
 import { Input } from "@/shared/ui/Input";
@@ -53,11 +54,64 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/Table";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   WarehouseProductScopeFilters,
 } from "@/modules/warehouse/components/WarehouseProductScopeFilters";
+
+/** Şube gelir/gider özetleri: uzun açıklamayı mobilde kaydırmayı azaltmak için başlık + bilgi modalı. */
+export function BranchSectionTitleWithInfo({
+  title,
+  body,
+  t,
+}: {
+  title: string;
+  body: string;
+  t: (key: string) => string;
+}) {
+  const [open, setOpen] = useState(false);
+  const uid = useId().replace(/:/g, "");
+  const modalTitleId = `branch-section-info-${uid}`;
+  const ariaLabel = `${title} — ${t("common.sectionInfoExplainButton")}`;
+
+  return (
+    <>
+      <div className="mb-2 flex items-start gap-2">
+        <h3 className="min-w-0 flex-1 text-sm font-semibold leading-snug text-zinc-900">{title}</h3>
+        <button
+          type="button"
+          className="inline-flex h-9 w-9 shrink-0 touch-manipulation items-center justify-center rounded-full border border-zinc-200/90 bg-white text-zinc-500 shadow-sm transition hover:bg-zinc-50 hover:text-zinc-800 focus-visible:outline focus-visible:ring-2 focus-visible:ring-violet-400"
+          aria-label={ariaLabel}
+          aria-expanded={open}
+          aria-haspopup="dialog"
+          onClick={() => setOpen(true)}
+        >
+          <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+            <path
+              fillRule="evenodd"
+              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </button>
+      </div>
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        titleId={modalTitleId}
+        title={title}
+        closeButtonLabel={t("common.close")}
+        narrow
+        nested
+      >
+        <div className="max-h-[min(70dvh,28rem)] overflow-y-auto px-4 pb-4 pt-1 text-sm leading-relaxed text-zinc-700 sm:px-5">
+          {body}
+        </div>
+      </Modal>
+    </>
+  );
+}
 
 export function registerCashSettlementLabel(
   row: BranchTransaction,
@@ -1030,7 +1084,7 @@ export function expenseTabPeriodOverviewBlock(opts: {
         )}
       </div>
       {expenseGeneralOverheadOverlapCallout(breakdown, t, locale)}
-      <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <button
           type="button"
           className="rounded-lg border border-white bg-white p-2.5 text-left shadow-sm transition hover:bg-zinc-50/90 hover:ring-2 hover:ring-zinc-300/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400 sm:p-3"

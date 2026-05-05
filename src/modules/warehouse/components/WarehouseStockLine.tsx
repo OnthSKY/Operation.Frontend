@@ -645,16 +645,7 @@ export function WarehouseStockLine({
           <LocalImageFileThumb file={invoiceFile} />
         </div>
         <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:flex-wrap sm:justify-end">
-          <Button
-            type="button"
-            variant="secondary"
-            className="min-h-11 w-full sm:w-auto sm:min-w-[7rem]"
-            disabled={off}
-            onClick={requestDepoInClose}
-          >
-            {t("common.cancel")}
-          </Button>
-          <Button type="submit" className="min-h-11 w-full sm:min-w-[10rem] sm:flex-1" disabled={off}>
+          <Button type="submit" className="min-h-11 w-full sm:w-auto sm:min-w-[10rem]" disabled={off}>
             {t("warehouse.depoInSubmit")}
           </Button>
         </div>
@@ -826,16 +817,7 @@ export function WarehouseStockLine({
           </div>
         ) : null}
         <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:flex-wrap sm:justify-end">
-          <Button
-            type="button"
-            variant="secondary"
-            className="min-h-11 w-full sm:w-auto sm:min-w-[7rem]"
-            disabled={off}
-            onClick={requestTransferClose}
-          >
-            {t("common.cancel")}
-          </Button>
-          <Button type="submit" className="min-h-11 w-full sm:min-w-[10rem] sm:flex-1" disabled={off}>
+          <Button type="submit" className="min-h-11 w-full sm:w-auto sm:min-w-[10rem]" disabled={off}>
             {t("warehouse.transferSubmit")}
           </Button>
         </div>

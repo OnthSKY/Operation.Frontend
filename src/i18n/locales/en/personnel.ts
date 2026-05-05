@@ -65,6 +65,8 @@ export const personnel = {
   costsSummaryRegisterExpenses: "Expenses",
   costsSummaryCombined: "Combined",
   costsSummaryEmpty: "No rows match the filters for a total.",
+  costsMobileSummaryToggle:
+    "Summary: owner, branch, sources & totals — show / hide",
   costsPaymentSourceSplitHint:
     "Year, branch, and person filters apply. The register vs owner list filter below does not change these cards. Employee-pocket expenses and other sources are not included here.",
   costsPatronOutCardTitle: "Paid by owner",

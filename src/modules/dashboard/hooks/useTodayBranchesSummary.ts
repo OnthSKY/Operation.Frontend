@@ -25,6 +25,11 @@ export type BranchTodayRow = {
   /** All OUT lines total (API totalExpense). */
   totalExpenseOut: number;
   expenseFromRegister: number;
+  expenseOperationalRegister: number;
+  expenseOperationalPatron: number;
+  expenseOperationalPersonnelPocket: number;
+  expenseOperationalHeldRegisterCash: number;
+  expenseOperationalUnset: number;
   netCash: number;
   financialHidden: boolean;
   registerOwesPatronToday: number;
@@ -134,6 +139,11 @@ export function useTodayBranchesSummary(
           incomeCard: 0,
           totalExpenseOut: 0,
           expenseFromRegister: 0,
+          expenseOperationalRegister: 0,
+          expenseOperationalPatron: 0,
+          expenseOperationalPersonnelPocket: 0,
+          expenseOperationalHeldRegisterCash: 0,
+          expenseOperationalUnset: 0,
           netCash: 0,
           financialHidden: true,
           registerOwesPatronToday: 0,
@@ -158,6 +168,11 @@ export function useTodayBranchesSummary(
         d.personnelPocketRepaidFromRegisterToday ?? 0
       );
       const patronDebtRepaidFromRegisterToday = Number(d.patronDebtRepaidFromRegisterToday ?? 0);
+      const expenseOperationalRegister = Number(d.expenseOperationalRegister ?? 0) || 0;
+      const expenseOperationalPatron = Number(d.expenseOperationalPatron ?? 0) || 0;
+      const expenseOperationalPersonnelPocket = Number(d.expenseOperationalPersonnelPocket ?? 0) || 0;
+      const expenseOperationalHeldRegisterCash = Number(d.expenseOperationalHeldRegisterCash ?? 0) || 0;
+      const expenseOperationalUnset = Number(d.expenseOperationalUnset ?? 0) || 0;
       totalIncome += income;
       totalIncomeCash += Number(d.incomeCash ?? 0);
       totalIncomeCard += Number(d.incomeCard ?? 0);
@@ -174,6 +189,11 @@ export function useTodayBranchesSummary(
         incomeCard: Number(d.incomeCard ?? 0),
         totalExpenseOut,
         expenseFromRegister,
+        expenseOperationalRegister,
+        expenseOperationalPatron,
+        expenseOperationalPersonnelPocket,
+        expenseOperationalHeldRegisterCash,
+        expenseOperationalUnset,
         netCash: net,
         financialHidden: false,
         registerOwesPatronToday,

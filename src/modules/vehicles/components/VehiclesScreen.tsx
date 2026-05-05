@@ -9,6 +9,7 @@ import { fetchPersonnelList } from "@/modules/personnel/api/personnel-api";
 import { vehiclePhotoUrl } from "@/modules/vehicles/api/vehicles-api";
 import { fetchVehicleDocumentBlob } from "@/modules/vehicles/api/vehicle-documents-api";
 import { VehicleDetailAuditTab } from "@/modules/vehicles/components/VehicleDetailAuditTab";
+import { VehicleFleetCard } from "@/modules/vehicles/components/VehicleFleetCard";
 import {
   useCreateVehicle,
   useCreateVehicleExpense,
@@ -291,6 +292,7 @@ export function VehiclesScreen() {
         r.brand.toLowerCase().includes(q) ||
         r.model.toLowerCase().includes(q) ||
         (r.year != null && String(r.year).includes(q)) ||
+        (r.odometerKm != null && String(r.odometerKm).includes(q)) ||
         personnel.includes(q) ||
         branch.includes(q) ||
         status.includes(q)
@@ -1379,7 +1381,7 @@ export function VehiclesScreen() {
           <p className="mt-3 text-sm text-zinc-500">{t("common.loading")}</p>
         ) : (
           <>
-            <ul className="mt-4 flex flex-col gap-4 lg:hidden">
+            <ul className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
               {filtered.map((r) => {
                 const extrasSections = buildVehicleRowMenuSections({
                   canEdit,
@@ -1397,227 +1399,33 @@ export function VehiclesScreen() {
                   onAddInsurance: () => openAddInsuranceForVehicle(r.id),
                   menuMode: "extras",
                 });
+                const assignmentShown =
+                  r.assignedPersonnelName ?? r.assignedBranchName ?? t("vehicles.idle");
                 return (
-                  <MobileListCard
-                    as="li"
+                  <VehicleFleetCard
                     key={r.id}
-                    className="flex flex-col gap-3 bg-zinc-50/40"
-                  >
-                    <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1 overflow-hidden">
-                        <p className="truncate font-mono text-lg font-bold tracking-wide text-zinc-900">
-                          {r.plateNumber}
-                        </p>
-                        <p className="mt-0.5 text-pretty text-sm text-zinc-700">
-                          {r.brand} {r.model}
-                          {r.year != null ? (
-                            <span className="text-zinc-500"> · {r.year}</span>
-                          ) : null}
-                        </p>
-                        <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
-                          <StatusBadge tone={vehicleListStatusTone(r.status)}>
-                            {vehicleStatusLabel(t, r.status)}
-                          </StatusBadge>
-                          <span className="break-words text-zinc-600">
-                            {r.assignedPersonnelName ?? r.assignedBranchName ?? t("vehicles.idle")}
-                          </span>
-                        </p>
-                      </div>
-                      <span
-                        className={cn(
-                          "shrink-0 self-start rounded-full px-2 py-1 text-[0.6rem] font-bold uppercase leading-tight ring-1",
-                          badgeClasses(r.insuranceBadge)
-                        )}
-                      >
-                        {insuranceBadgeLabel(r.insuranceBadge)}
-                      </span>
-                    </div>
-                    <Button
-                      type="button"
-                      className="mt-3 inline-flex w-full !min-h-12 touch-manipulation items-center justify-center gap-2 text-base font-semibold sm:text-sm"
-                      onClick={() => {
-                        setDetailId(r.id);
-                        setDetailTab("overview");
-                      }}
-                    >
-                      <EyeIcon className="shrink-0 opacity-90" />
-                      {t("common.openDetails")}
-                    </Button>
-                    {canEdit ? (
-                      <div className="mt-2 flex items-stretch gap-2">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="inline-flex min-h-12 flex-1 touch-manipulation items-center justify-center gap-2 text-base font-medium sm:min-h-11 sm:text-sm"
-                          onClick={() => openEdit(r)}
-                        >
-                          <PencilIcon className="shrink-0 opacity-90" />
-                          {t("common.edit")}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="inline-flex min-h-12 shrink-0 touch-manipulation items-center justify-center px-3 text-base font-medium text-red-700 sm:min-h-11 sm:text-sm"
-                          disabled={deleteV.isPending}
-                          onClick={() => confirmDeleteVehicle(r.id)}
-                        >
-                          {t("vehicles.delete")}
-                        </Button>
-                        {extrasSections.length > 0 ? (
-                          <div className="flex shrink-0 items-stretch">
-                            <BranchQuickActionsMenu
-                              menuId={`vehicle-row-${r.id}`}
-                              triggerLabel={t("vehicles.rowMenuExtras")}
-                              compact
-                              sections={extrasSections}
-                            />
-                          </div>
-                        ) : null}
-                      </div>
-                    ) : null}
-                  </MobileListCard>
+                    vehicle={r}
+                    locale={locale}
+                    canEdit={canEdit}
+                    deletePending={deleteV.isPending}
+                    extrasSections={extrasSections}
+                    statusDescription={vehicleStatusLabel(t, r.status)}
+                    insuranceDescription={insuranceBadgeLabel(r.insuranceBadge)}
+                    assignmentDescription={assignmentShown}
+                    onOpenDetail={() => {
+                      setDetailId(r.id);
+                      setDetailTab("overview");
+                    }}
+                    onEdit={() => openEdit(r)}
+                    onDelete={() => confirmDeleteVehicle(r.id)}
+                    openDetailsLabel={t("common.openDetails")}
+                    editLabel={t("common.edit")}
+                    deleteLabel={t("vehicles.deleteVehicle")}
+                    menuExtrasLabel={t("vehicles.rowMenuExtras")}
+                  />
                 );
               })}
             </ul>
-
-            <div className="mt-4 hidden w-full min-w-0 overflow-x-auto overscroll-x-contain lg:block">
-              <div className="w-max min-w-full">
-                <Table className="w-full min-w-0 xl:min-w-[52rem] [&_thead_th]:whitespace-nowrap">
-                  <TableHead>
-                    <TableRow>
-                      <TableHeader>{t("vehicles.plate")}</TableHeader>
-                      <TableHeader>{t("vehicles.brand")}</TableHeader>
-                      <TableHeader>{t("vehicles.model")}</TableHeader>
-                      <TableHeader className="hidden lg:table-cell">{t("vehicles.year")}</TableHeader>
-                      <TableHeader>{t("vehicles.status")}</TableHeader>
-                      <TableHeader className="hidden xl:table-cell">{t("vehicles.assignment")}</TableHeader>
-                      <TableHeader>{t("vehicles.insuranceBadge")}</TableHeader>
-                      <TableHeader className="w-[1%] whitespace-nowrap text-right">
-                        {t("vehicles.rowActions")}
-                      </TableHeader>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {filtered.map((r) => {
-                      const tableExtrasSections = buildVehicleRowMenuSections({
-                        canEdit,
-                        t,
-                        onView: () => {
-                          setDetailId(r.id);
-                          setDetailTab("overview");
-                        },
-                        onEdit: () => openEdit(r),
-                        onDelete: () => confirmDeleteVehicle(r.id),
-                        onAddMaintenance: () => openAddMaintenanceForVehicle(r.id),
-                        onEditKm: () => openKmModal(r.id),
-                        onChangeAssignment: () => openAssignmentFromListRow(r),
-                        onAddExpense: () => openAddExpenseForVehicle(r.id),
-                        onAddInsurance: () => openAddInsuranceForVehicle(r.id),
-                        menuMode: "extras",
-                      });
-                      return (
-                        <TableRow key={r.id}>
-                          <TableCell className="font-semibold">{r.plateNumber}</TableCell>
-                          <TableCell>{r.brand}</TableCell>
-                          <TableCell>{r.model}</TableCell>
-                          <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 md:hidden lg:table-cell">
-                            {r.year ?? "—"}
-                          </TableCell>
-                          <TableCell>
-                            <StatusBadge tone={vehicleListStatusTone(r.status)}>
-                              {vehicleStatusLabel(t, r.status)}
-                            </StatusBadge>
-                          </TableCell>
-                          <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 max-w-[12rem] truncate md:hidden xl:table-cell">
-                            {r.assignedPersonnelName ?? r.assignedBranchName ?? t("vehicles.idle")}
-                          </TableCell>
-                          <TableCell>
-                            <span
-                              className={cn(
-                                "inline-flex rounded-full px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide ring-1",
-                                badgeClasses(r.insuranceBadge)
-                              )}
-                            >
-                              {insuranceBadgeLabel(r.insuranceBadge)}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right align-middle">
-                            <div className="inline-flex flex-nowrap items-center justify-end gap-1">
-                              <Tooltip content={t("common.openDetails")} delayMs={200}>
-                                <Button
-                                  type="button"
-                                  variant="secondary"
-                                  className={detailOpenIconButtonClass}
-                                  aria-label={t("common.openDetails")}
-                                  title={t("common.openDetails")}
-                                  onClick={() => {
-                                    setDetailId(r.id);
-                                    setDetailTab("overview");
-                                  }}
-                                >
-                                  <EyeIcon />
-                                </Button>
-                              </Tooltip>
-                              {canEdit ? (
-                                <Tooltip content={t("common.edit")} delayMs={200}>
-                                  <Button
-                                    type="button"
-                                    variant="secondary"
-                                    className={detailOpenIconButtonClass}
-                                    aria-label={t("common.edit")}
-                                    title={t("common.edit")}
-                                    onClick={() => openEdit(r)}
-                                  >
-                                    <PencilIcon />
-                                  </Button>
-                                </Tooltip>
-                              ) : null}
-                              {canEdit ? (
-                                <Tooltip content={t("vehicles.deleteVehicle")} delayMs={200}>
-                                  <Button
-                                    type="button"
-                                    variant="secondary"
-                                    className={cn(detailOpenIconButtonClass, "text-red-700")}
-                                    aria-label={t("vehicles.deleteVehicle")}
-                                    title={t("vehicles.deleteVehicle")}
-                                    disabled={deleteV.isPending}
-                                    onClick={() => confirmDeleteVehicle(r.id)}
-                                  >
-                                    <svg
-                                      viewBox="0 0 24 24"
-                                      width={15}
-                                      height={15}
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      aria-hidden
-                                    >
-                                      <path d="M3 6h18" />
-                                      <path d="M8 6V4h8v2" />
-                                      <path d="M19 6l-1 14H6L5 6" />
-                                      <path d="M10 11v6M14 11v6" />
-                                    </svg>
-                                  </Button>
-                                </Tooltip>
-                              ) : null}
-                              {tableExtrasSections.length > 0 ? (
-                                <BranchQuickActionsMenu
-                                  menuId={`vehicle-table-${r.id}`}
-                                  triggerLabel={t("vehicles.rowMenuExtras")}
-                                  sections={tableExtrasSections}
-                                />
-                              ) : null}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
           </>
         )}
           </Card>

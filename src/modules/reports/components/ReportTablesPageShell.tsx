@@ -52,8 +52,9 @@ export function ReportTablesPageShell({
       </PageContentSection>
       <PageContentSection
         variant="plain"
-        eyebrow={t("common.pageSectionMain")}
+        sectionAriaLabel={t("common.pageSectionMain")}
         sectionLabelId={`report-main-${rid}`}
+        mobileFrame="flush"
       >
         {children}
       </PageContentSection>

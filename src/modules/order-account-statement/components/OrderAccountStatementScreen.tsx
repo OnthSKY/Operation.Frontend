@@ -52,12 +52,13 @@ import { formatLocaleAmount, formatLocaleAmountInput, parseLocaleAmount } from "
 import { notify } from "@/shared/lib/notify";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { detailOpenIconButtonClass, PlusIcon } from "@/shared/ui/EyeIcon";
-import { ModernSelect } from "@/shared/ui/ModernSelect";
+import { OrderAccountLineProductPicker } from "@/modules/order-account-statement/components/OrderAccountLineProductPicker";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import { TrashIcon } from "@/shared/ui/TrashIcon";
 import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
 import { RichCombobox, type RichComboboxOption } from "@/shared/ui/RichCombobox";
+import type { ProductListItem } from "@/types/product";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -1432,6 +1433,8 @@ type StatementPaperProps = {
     generationLabel: string;
   };
   emptyHint: string;
+  /** Mobil önizleme: tablo sütunları dar ekrana göre oranlanır, taşma azaltılır. */
+  previewFit?: boolean;
 };
 
 const StatementPaper = forwardRef<HTMLDivElement, StatementPaperProps>(function StatementPaper(
@@ -1456,6 +1459,7 @@ const StatementPaper = forwardRef<HTMLDivElement, StatementPaperProps>(function 
     paymentLabels,
     documentMeta,
     emptyHint,
+    previewFit = false,
   },
   ref
 ) {
@@ -1463,6 +1467,20 @@ const StatementPaper = forwardRef<HTMLDivElement, StatementPaperProps>(function 
   const dense = layoutVariant === "compact";
   const minimal = layoutVariant === "minimal";
   const hasQty = showQuantityColumn;
+  const qtyGridCols =
+    previewFit && hasQty
+      ? "grid-cols-[minmax(0,1fr)_minmax(1.75rem,3.25rem)_minmax(1.75rem,3.25rem)_minmax(2rem,4.25rem)_minmax(2.25rem,4.75rem)] gap-x-1 sm:gap-x-2"
+      : hasQty
+        ? "grid-cols-[minmax(0,1fr)_3.75rem_4.25rem_5.5rem_6.5rem] gap-x-2 sm:gap-x-3"
+        : "grid-cols-[minmax(0,1fr)_auto] gap-x-3";
+  const qtyHeadPadding = dense
+    ? "px-2.5 py-2 text-[8px]"
+    : previewFit
+      ? "px-2 py-2 text-[8px] leading-snug sm:px-4 sm:py-2.5 sm:text-[9px]"
+      : "px-3 py-2.5 text-[9px] sm:px-5 sm:py-3 sm:text-[10px]";
+  const paymentRowGridClass = previewFit
+    ? "grid grid-cols-1 gap-1 border-t border-zinc-200 py-1 sm:grid-cols-[8.5rem_minmax(0,1fr)] sm:gap-3"
+    : "grid grid-cols-[8.5rem_minmax(0,1fr)] gap-3 border-t border-zinc-200 py-1";
   const invoiceLike = layoutVariant === "invoiceClassic" || layoutVariant === "eInvoice";
   const hasDeductions = totals.giftLinesSum > 0 || promoLines.length > 0 || advanceDeduction > 0;
   const showSubtotalRow = hasDeductions || totals.subtotal !== totals.grossTotal;
@@ -1558,9 +1576,12 @@ const StatementPaper = forwardRef<HTMLDivElement, StatementPaperProps>(function 
       className={cn(
         "box-border w-full border bg-white text-zinc-900 antialiased",
         paperThemeClass,
+        previewFit && "max-w-full",
         dense
           ? "px-5 py-5 text-[10px] leading-tight sm:px-6 sm:py-6"
-          : "px-5 py-6 text-[11px] leading-normal sm:px-8 sm:py-8 sm:text-xs md:px-10 md:py-10"
+          : previewFit
+            ? "px-3 py-4 text-[10px] leading-normal sm:px-6 sm:py-6 sm:text-[11px]"
+            : "px-5 py-6 text-[11px] leading-normal sm:px-8 sm:py-8 sm:text-xs md:px-10 md:py-10"
       )}
     >
       <header
@@ -1578,7 +1599,7 @@ const StatementPaper = forwardRef<HTMLDivElement, StatementPaperProps>(function 
                 alt=""
                 className={cn(
                   "rounded-lg border border-zinc-200 bg-white object-contain p-1 shadow-sm",
-                  dense ? "h-20 w-20" : "h-28 w-28 sm:h-32 sm:w-32"
+                  dense ? "h-20 w-20" : previewFit ? "h-14 w-14 sm:h-24 sm:w-24" : "h-28 w-28 sm:h-32 sm:w-32"
                 )}
               />
             ) : null}
@@ -1614,7 +1635,7 @@ const StatementPaper = forwardRef<HTMLDivElement, StatementPaperProps>(function 
             <p
               className={cn(
                 "font-black uppercase tracking-tight text-zinc-950",
-                dense ? "text-sm leading-tight" : "text-lg leading-tight sm:text-2xl"
+                dense ? "text-sm leading-tight" : previewFit ? "text-base leading-tight sm:text-xl" : "text-lg leading-tight sm:text-2xl"
               )}
             >
               {companyName.trim() || "—"}
@@ -1652,22 +1673,19 @@ const StatementPaper = forwardRef<HTMLDivElement, StatementPaperProps>(function 
       </header>
 
       <div className="mt-5">
-        <div
-          className={cn(
-            tableHeadClass,
-            hasQty
-              ? "grid-cols-[minmax(0,1fr)_3.75rem_4.25rem_5.5rem_6.5rem] gap-x-2 sm:gap-x-3"
-              : "grid-cols-[minmax(0,1fr)_auto] gap-x-3",
-            dense ? "px-2.5 py-2 text-[8px]" : "px-3 py-2.5 text-[9px] sm:px-5 sm:py-3 sm:text-[10px]"
-          )}
-        >
+        <div className={cn(tableHeadClass, qtyGridCols, qtyHeadPadding)}>
           <span className="min-w-0">{labels.productCol}</span>
           {hasQty ? <span className="whitespace-nowrap text-right tabular-nums text-zinc-200">{labels.unitCol}</span> : null}
           {hasQty ? <span className="whitespace-nowrap text-right tabular-nums text-zinc-200">{labels.qtyCol}</span> : null}
           {hasQty ? <span className="whitespace-nowrap text-right tabular-nums text-zinc-200">{labels.unitPriceCol}</span> : null}
           <span className="whitespace-nowrap text-right tabular-nums text-zinc-100">{labels.amountCol}</span>
         </div>
-        <ul className="divide-y divide-zinc-200 rounded-b-lg border border-t-0 border-zinc-200 px-3 sm:px-5">
+        <ul
+          className={cn(
+            "divide-y divide-zinc-200 rounded-b-lg border border-t-0 border-zinc-200",
+            previewFit ? "px-2 sm:px-4" : "px-3 sm:px-5"
+          )}
+        >
           {lines.length === 0 ? (
             <li className="px-1 py-6 text-center italic text-zinc-400">{emptyHint}</li>
           ) : (
@@ -1679,15 +1697,17 @@ const StatementPaper = forwardRef<HTMLDivElement, StatementPaperProps>(function 
                 <li
                   key={l.id}
                   className={cn(
-                    "grid gap-x-2 py-2 sm:gap-x-3",
-                    hasQty
-                      ? "grid-cols-[minmax(0,1fr)_3.75rem_4.25rem_5.5rem_6.5rem] items-baseline"
-                      : "grid-cols-[minmax(0,1fr)_auto]",
-                    i % 2 === 1 && "bg-zinc-50/90",
-                    dense ? "py-2" : "py-2.5 sm:py-3"
+                    "grid items-baseline",
+                    qtyGridCols,
+                    previewFit && hasQty
+                      ? "py-1.5 text-[8px] leading-snug sm:py-2 sm:text-[9px]"
+                      : dense
+                        ? "py-2"
+                        : "py-2.5 sm:py-3",
+                    i % 2 === 1 && "bg-zinc-50/90"
                   )}
                 >
-                  <span className="min-w-0 truncate text-zinc-800">{rowLabel(l)}</span>
+                  <span className={cn("min-w-0 text-zinc-800", previewFit ? "break-words" : "truncate")}>{rowLabel(l)}</span>
                   {hasQty ? (
                     <span
                       className={cn(
@@ -1812,25 +1832,25 @@ const StatementPaper = forwardRef<HTMLDivElement, StatementPaperProps>(function 
               {paymentLabels.section}
             </p>
             {paymentIban ? (
-              <div className="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-3 border-t border-zinc-200 py-1">
+              <div className={paymentRowGridClass}>
                 <span className="font-semibold text-zinc-700">{paymentLabels.iban}</span>
-                <span className="tabular-nums text-right">{paymentIban}</span>
+                <span className="break-all text-right tabular-nums">{paymentIban}</span>
               </div>
             ) : null}
             {paymentAccountHolder ? (
-              <div className="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-3 border-t border-zinc-200 py-1">
+              <div className={paymentRowGridClass}>
                 <span className="font-semibold text-zinc-700">{paymentLabels.accountHolder}</span>
                 <span className="text-right">{paymentAccountHolder}</span>
               </div>
             ) : null}
             {paymentBankName ? (
-              <div className="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-3 border-t border-zinc-200 py-1">
+              <div className={paymentRowGridClass}>
                 <span className="font-semibold text-zinc-700">{paymentLabels.bankName}</span>
                 <span className="text-right">{paymentBankName}</span>
               </div>
             ) : null}
             {paymentNote ? (
-              <div className="grid grid-cols-[8.5rem_minmax(0,1fr)] gap-3 border-t border-zinc-200 py-1">
+              <div className={paymentRowGridClass}>
                 <span className="font-semibold text-zinc-700">{paymentLabels.paymentNote}</span>
                 <span className="text-right">{paymentNote}</span>
               </div>
@@ -1968,6 +1988,7 @@ export function OrderAccountStatementScreen() {
   const [draggingLineId, setDraggingLineId] = useState<string | null>(null);
   const [dragOverLineId, setDragOverLineId] = useState<string | null>(null);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [previewToolsCollapsed, setPreviewToolsCollapsed] = useState(false);
   const [confirmMultiActionOpen, setConfirmMultiActionOpen] = useState(false);
   const [multiActionSteps, setMultiActionSteps] = useState<MultiActionStep[]>([]);
   const [multiActionRunning, setMultiActionRunning] = useState(false);
@@ -2163,7 +2184,10 @@ export function OrderAccountStatementScreen() {
   }, [lines]);
 
   useEffect(() => {
-    if (!previewModalOpen) return;
+    if (!previewModalOpen) {
+      setPreviewToolsCollapsed(false);
+      return;
+    }
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -2578,9 +2602,6 @@ export function OrderAccountStatementScreen() {
     return () => window.removeEventListener("keydown", onKey);
   }, [previewModalOpen]);
 
-  const catalogOptions = useMemo(() => {
-    return [...catalog].sort((a, b) => a.name.localeCompare(b.name, locale === "tr" ? "tr" : "en"));
-  }, [catalog, locale]);
   const latestCostByProductId = useMemo(() => {
     const map = new Map<number, (typeof costHistoryRows)[number]>();
     for (const row of costHistoryRows) {
@@ -2595,19 +2616,6 @@ export function OrderAccountStatementScreen() {
       .slice()
       .sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate));
   }, [costHistoryRows, productPricingProductId]);
-  const catalogOptionsWithCost = useMemo(() => {
-    return catalogOptions.map((p) => {
-      const unit = p.unit?.trim() || "—";
-      const cost = latestCostByProductId.get(p.id);
-      const costPart = cost
-        ? `${formatLocaleAmount(Number(cost.unitCostExcludingVat || 0), locale, cost.currencyCode)}`
-        : t("reports.orderAccountStatementCostSuggestionMissing");
-      return {
-        ...p,
-        optionLabel: `${p.name} (#${p.id}) - ${t("reports.orderAccountStatementUnit")}: ${unit} - ${t("reports.orderAccountStatementSuggestedCostShort")}: ${costPart}`,
-      };
-    });
-  }, [catalogOptions, latestCostByProductId, locale, t]);
   const activeCounterparty = useMemo(() => {
     const branchId = Number.parseInt(linkedBranchId, 10);
     if (Number.isFinite(branchId) && branchId > 0) {
@@ -2711,14 +2719,10 @@ export function OrderAccountStatementScreen() {
     }
   }, [activeCounterparty, loadSalesSuggestionForLine]);
 
-  const applyCatalogProductToLine = useCallback(
-    (lineId: string, productIdRaw: string) => {
-      if (!productIdRaw) return;
-      const productId = Number.parseInt(productIdRaw, 10);
-      if (!Number.isFinite(productId) || productId <= 0) return;
-      const p = catalog.find((x) => x.id === productId);
-      if (!p) return;
-      const suggestion = latestCostByProductId.get(productId);
+  const applyProductListItemToLine = useCallback(
+    (lineId: string, p: ProductListItem) => {
+      if (!Number.isFinite(p.id) || p.id <= 0) return;
+      const suggestion = latestCostByProductId.get(p.id);
       setLines((prev) =>
         prev.map((x) => {
           if (x.id !== lineId) return x;
@@ -2743,10 +2747,10 @@ export function OrderAccountStatementScreen() {
       );
       setLinePriceSuggestionByLineId((prev) => ({ ...prev, [lineId]: undefined }));
       if (activeCounterparty) {
-        void loadSalesSuggestionForLine(lineId, productId, true);
+        void loadSalesSuggestionForLine(lineId, p.id, true);
       }
     },
-    [activeCounterparty, catalog, latestCostByProductId, loadSalesSuggestionForLine, locale]
+    [activeCounterparty, latestCostByProductId, loadSalesSuggestionForLine, locale]
   );
   const collapseLinesToParentProduct = useCallback(() => {
     const productById = new Map(catalog.map((p) => [p.id, p] as const));
@@ -2781,6 +2785,10 @@ export function OrderAccountStatementScreen() {
         continue;
       }
       changed = true;
+      const parentCostSuggestion = latestCostByProductId.get(parentId);
+      const suggestedFromCost = parentCostSuggestion
+        ? formatLocaleAmountInput(Math.max(0, Number(parentCostSuggestion.unitCostExcludingVat) || 0), locale)
+        : "";
       const key = `${parentId}:${(line.unitText ?? "").trim().toLowerCase()}`;
       const qty = Math.max(0, parseLocaleAmount((line.quantityText ?? "").trim(), locale) || 0);
       const amount = Number.isFinite(line.amount) ? line.amount : parseLocaleAmount(line.amountText, locale) || 0;
@@ -2796,6 +2804,9 @@ export function OrderAccountStatementScreen() {
           selectedProductId: parentId,
           parentProductId: null,
           parentProductName: null,
+          unitPriceText: suggestedFromCost || line.unitPriceText || "",
+          tryPerKgText:
+            line.priceCalcMode === "kg" && suggestedFromCost ? suggestedFromCost : line.tryPerKgText,
           lineSource: "manual",
           manualReasonCode: "OPS_PARENT_MERGE",
           sourceShipmentLineId: null,
@@ -2821,7 +2832,15 @@ export function OrderAccountStatementScreen() {
     }
     setLines(merged);
     notify.success(t("reports.orderAccountStatementParentMergeApplied"));
-  }, [catalog, lines, locale, t]);
+    if (activeCounterparty) {
+      window.setTimeout(() => {
+        for (const l of merged) {
+          const pid = l.selectedProductId ?? 0;
+          if (pid > 0) void loadSalesSuggestionForLine(l.id, pid, false);
+        }
+      }, 0);
+    }
+  }, [activeCounterparty, catalog, latestCostByProductId, lines, loadSalesSuggestionForLine, locale, t]);
   const lineCompact = lines.length > 1;
   /** 4+ satır: liste ve tabloda ek sıkılaştırma */
   const lineDense = lines.length > 3;
@@ -4106,30 +4125,21 @@ export function OrderAccountStatementScreen() {
                     </>
                   ) : null}
                   {canPickProducts ? (
-                    <ModernSelect
-                      className={cn(
-                        "border-dashed",
-                        lineDense
-                          ? "mt-1 py-1.5 pl-2 pr-8 text-[9px]"
-                          : lineCompact
-                            ? "mt-1.5 py-1.5 pl-2.5 pr-8 text-[10px]"
-                            : "mt-2 py-2 pl-3 pr-8 text-xs"
-                      )}
-                      aria-label={t("reports.orderAccountStatementPickProduct")}
-                      value=""
-                      onChange={(e) => {
-                        const id = e.target.value;
-                        e.target.value = "";
-                        applyCatalogProductToLine(line.id, id);
-                      }}
-                    >
-                      <option value="">{t("reports.orderAccountStatementCatalogNone")}</option>
-                      {catalogOptionsWithCost.map((p) => (
-                        <option key={p.id} value={String(p.id)}>
-                          {p.optionLabel}
-                        </option>
-                      ))}
-                    </ModernSelect>
+                    <OrderAccountLineProductPicker
+                      key={line.id}
+                      lineId={line.id}
+                      selectedProductId={line.selectedProductId}
+                      description={line.description}
+                      parentProductName={line.parentProductName}
+                      onSelectProduct={(p) => applyProductListItemToLine(line.id, p)}
+                      latestCostByProductId={latestCostByProductId}
+                      locale={locale}
+                      t={t}
+                      emptyResultsText={t("products.catalogSearchNoResults")}
+                      loadingListText={t("common.loading")}
+                      enabled={canPickProducts}
+                      className={cn(lineDense ? "mt-1" : lineCompact ? "mt-1.5" : "mt-2")}
+                    />
                   ) : null}
                   {line.selectedProductId ? (
                     <Button
@@ -4414,30 +4424,24 @@ export function OrderAccountStatementScreen() {
                           ) : null}
                         </div>
                         {canPickProducts && desktopLineDetailsOpen ? (
-                          <ModernSelect
+                          <OrderAccountLineProductPicker
+                            key={`${line.id}-desktop`}
+                            lineId={line.id}
+                            selectedProductId={line.selectedProductId}
+                            description={line.description}
+                            parentProductName={line.parentProductName}
+                            onSelectProduct={(p) => applyProductListItemToLine(line.id, p)}
+                            latestCostByProductId={latestCostByProductId}
+                            locale={locale}
+                            t={t}
+                            emptyResultsText={t("products.catalogSearchNoResults")}
+                            loadingListText={t("common.loading")}
+                            enabled={canPickProducts}
                             className={cn(
-                              "border-dashed bg-zinc-50/80",
-                              lineDense
-                                ? "mt-0.5 py-1.5 pl-1.5 pr-8 text-[9px]"
-                                : lineCompact
-                                  ? "mt-1 py-1.5 pl-2 pr-8 text-[10px]"
-                                  : "mt-1.5 py-2 pl-2.5 pr-8 text-xs"
+                              "border-dashed border-zinc-200 bg-zinc-50/80",
+                              lineDense ? "mt-0.5" : lineCompact ? "mt-1" : "mt-1.5"
                             )}
-                            aria-label={t("reports.orderAccountStatementPickProduct")}
-                            value=""
-                            onChange={(e) => {
-                              const id = e.target.value;
-                              e.target.value = "";
-                              applyCatalogProductToLine(line.id, id);
-                            }}
-                          >
-                            <option value="">{t("reports.orderAccountStatementCatalogNone")}</option>
-                            {catalogOptionsWithCost.map((p) => (
-                              <option key={p.id} value={String(p.id)}>
-                                {p.optionLabel}
-                              </option>
-                            ))}
-                          </ModernSelect>
+                          />
                         ) : null}
                         {line.selectedProductId && desktopLineDetailsOpen ? (
                           (() => {
@@ -5046,11 +5050,23 @@ export function OrderAccountStatementScreen() {
                 onClick={(e) => e.stopPropagation()}
               >
                 <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-zinc-200 bg-zinc-50 px-3 py-2.5 sm:gap-3 sm:px-5 sm:py-3">
-                  <div className="min-w-0 pr-1">
+                  <div className="min-w-0 flex-1 pr-1">
                     <h2 id="order-account-preview-dialog-title" className="text-sm font-bold tracking-tight text-zinc-950 sm:text-base">
                       {t("reports.orderAccountStatementPreviewTitle")}
                     </h2>
-                    <p className="hidden text-xs text-zinc-600 sm:block">{t("reports.orderAccountStatementPreviewHint")}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="!h-auto !min-h-0 !px-0 !py-0 text-xs font-semibold text-zinc-700 underline-offset-2 hover:underline"
+                        onClick={() => setPreviewToolsCollapsed((c) => !c)}
+                      >
+                        {previewToolsCollapsed
+                          ? t("reports.orderAccountStatementPreviewExpandTools")
+                          : t("reports.orderAccountStatementPreviewCollapseTools")}
+                      </Button>
+                      <p className="hidden text-xs text-zinc-600 lg:inline">{t("reports.orderAccountStatementPreviewHint")}</p>
+                    </div>
                   </div>
                   <div className="flex shrink-0 flex-wrap items-center gap-1.5 sm:gap-2">
                     <OasIconButton
@@ -5092,46 +5108,48 @@ export function OrderAccountStatementScreen() {
                     </OasIconButton>
                   </div>
                 </div>
-                <div className="max-h-[min(38vh,320px)] shrink-0 overflow-y-auto overscroll-contain border-b border-zinc-200 bg-white px-3 py-2.5 sm:max-h-none sm:overflow-visible sm:px-5 sm:py-3">
-                  <p className="mb-2 text-[11px] leading-snug text-zinc-500">
-                    {t("reports.orderAccountStatementPreviewTemplateHint")}
-                  </p>
-                  <OasTemplatePickers
-                    layoutVariant={layoutVariant}
-                    onLayoutChange={setLayoutVariant}
-                    contentPreset={contentPreset}
-                    onContentPresetChange={applyContentPreset}
-                    layoutOptions={layoutSelectOptions}
-                    contentOptions={contentSelectOptions}
-                    nameSuffix="preview"
-                    menuZIndex={OVERLAY_Z_INDEX.modalNested + 20}
-                    hideContentPicker
-                  />
-                  <OrderAccountStatementPreviewSettings
-                    t={t}
-                    saveAsInvoice={saveAsInvoice}
-                    setSaveAsInvoice={setSaveAsInvoice}
-                    saveToSystem={saveToSystem}
-                    setSaveToSystem={setSaveToSystem}
-                    invoiceAutoPost={invoiceAutoPost}
-                    setInvoiceAutoPost={setInvoiceAutoPost}
-                    customerAccountIdText={customerAccountIdText}
-                    setCustomerAccountIdText={setCustomerAccountIdText}
-                    linkedBranchId={linkedBranchId}
-                    invoicePaymentDetailsOpen={invoicePaymentDetailsOpen}
-                    setInvoicePaymentDetailsOpen={setInvoicePaymentDetailsOpen}
-                    paymentIban={paymentIban}
-                    setPaymentIban={setPaymentIban}
-                    paymentAccountHolder={paymentAccountHolder}
-                    setPaymentAccountHolder={setPaymentAccountHolder}
-                    paymentBankName={paymentBankName}
-                    setPaymentBankName={setPaymentBankName}
-                    paymentNote={paymentNote}
-                    setPaymentNote={setPaymentNote}
-                    showPaymentOnPdf={showPaymentOnPdf}
-                    setShowPaymentOnPdf={setShowPaymentOnPdf}
-                  />
-                </div>
+                {!previewToolsCollapsed ? (
+                  <div className="max-h-[min(38vh,320px)] shrink-0 overflow-y-auto overscroll-contain border-b border-zinc-200 bg-white px-3 py-2.5 sm:max-h-none sm:overflow-visible sm:px-5 sm:py-3">
+                    <p className="mb-2 text-[11px] leading-snug text-zinc-500">
+                      {t("reports.orderAccountStatementPreviewTemplateHint")}
+                    </p>
+                    <OasTemplatePickers
+                      layoutVariant={layoutVariant}
+                      onLayoutChange={setLayoutVariant}
+                      contentPreset={contentPreset}
+                      onContentPresetChange={applyContentPreset}
+                      layoutOptions={layoutSelectOptions}
+                      contentOptions={contentSelectOptions}
+                      nameSuffix="preview"
+                      menuZIndex={OVERLAY_Z_INDEX.modalNested + 20}
+                      hideContentPicker
+                    />
+                    <OrderAccountStatementPreviewSettings
+                      t={t}
+                      saveAsInvoice={saveAsInvoice}
+                      setSaveAsInvoice={setSaveAsInvoice}
+                      saveToSystem={saveToSystem}
+                      setSaveToSystem={setSaveToSystem}
+                      invoiceAutoPost={invoiceAutoPost}
+                      setInvoiceAutoPost={setInvoiceAutoPost}
+                      customerAccountIdText={customerAccountIdText}
+                      setCustomerAccountIdText={setCustomerAccountIdText}
+                      linkedBranchId={linkedBranchId}
+                      invoicePaymentDetailsOpen={invoicePaymentDetailsOpen}
+                      setInvoicePaymentDetailsOpen={setInvoicePaymentDetailsOpen}
+                      paymentIban={paymentIban}
+                      setPaymentIban={setPaymentIban}
+                      paymentAccountHolder={paymentAccountHolder}
+                      setPaymentAccountHolder={setPaymentAccountHolder}
+                      paymentBankName={paymentBankName}
+                      setPaymentBankName={setPaymentBankName}
+                      paymentNote={paymentNote}
+                      setPaymentNote={setPaymentNote}
+                      showPaymentOnPdf={showPaymentOnPdf}
+                      setShowPaymentOnPdf={setShowPaymentOnPdf}
+                    />
+                  </div>
+                ) : null}
                 <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden bg-zinc-100/90 p-2 sm:p-5">
                   <div className="mx-auto w-full min-w-0 max-w-[210mm] pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                     <StatementPaper
@@ -5172,6 +5190,7 @@ export function OrderAccountStatementScreen() {
                       }}
                       labels={labels}
                       emptyHint={t("reports.orderAccountStatementPreviewEmpty")}
+                      previewFit
                     />
                   </div>
                 </div>

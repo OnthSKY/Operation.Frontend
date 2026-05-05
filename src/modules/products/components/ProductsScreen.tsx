@@ -41,7 +41,7 @@ import type { ProductListItem } from "@/types/product";
 import { ToolbarGlyphPackage, ToolbarGlyphReceipt } from "@/shared/ui/ToolbarGlyph";
 import { cn } from "@/lib/cn";
 import { useRouter, useSearchParams } from "next/navigation";
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type CatalogViewRow =
   | {
@@ -130,15 +130,6 @@ function ChevronDownExpandIcon({ expanded, className }: { expanded: boolean; cla
   );
 }
 
-function productKv(label: string, value: ReactNode) {
-  return (
-    <div className="min-w-0">
-      <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">{label}</p>
-      <div className="mt-0.5 break-words text-sm text-zinc-900">{value}</div>
-    </div>
-  );
-}
-
 function renderCategoryValue(r: ProductListItem, t: (key: string) => string) {
   const category = r.categoryName?.trim() ? r.categoryName : "—";
   if (r.parentProductId == null) {
@@ -190,6 +181,53 @@ function renderCategoryHierarchy(
     <span className="inline-flex max-w-full items-center rounded-full bg-zinc-100/90 px-2 py-0.5 text-xs font-semibold text-zinc-700 ring-1 ring-zinc-200">
       <span className="truncate">{hierarchy.full}</span>
     </span>
+  );
+}
+
+function MobileCatalogCategoryBlock({
+  row,
+  categoryById,
+  t,
+}: {
+  row: ProductListItem;
+  categoryById: Map<number, ProductCategory>;
+  t: (key: string) => string;
+}) {
+  const hierarchy = getCategoryHierarchyLabel(row, categoryById);
+  if (hierarchy?.sub) {
+    return (
+      <div className="overflow-hidden rounded-xl border border-zinc-200/80 bg-gradient-to-b from-zinc-50/95 to-white shadow-sm">
+        <div className="flex gap-2.5 px-3 py-2.5">
+          <span className="mt-0.5 shrink-0 self-start rounded-md bg-white px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide text-zinc-600 ring-1 ring-zinc-200/90">
+            {t("products.categoriesPage.badgeRoot")}
+          </span>
+          <p className="min-w-0 flex-1 break-words text-sm font-semibold leading-snug text-zinc-900 [overflow-wrap:anywhere]">
+            {hierarchy.root}
+          </p>
+        </div>
+        <div className="flex gap-2.5 border-t border-zinc-100 bg-violet-50/30 px-3 py-2.5">
+          <span className="mt-0.5 shrink-0 self-start rounded-md bg-violet-100/90 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-wide text-violet-800 ring-1 ring-violet-200/80">
+            {t("products.categoriesPage.badgeSub")}
+          </span>
+          <p className="min-w-0 flex-1 break-words text-sm font-semibold leading-snug text-violet-950 [overflow-wrap:anywhere]">
+            {hierarchy.sub}
+          </p>
+        </div>
+      </div>
+    );
+  }
+  const label =
+    hierarchy?.root?.trim() ||
+    row.categoryName?.trim() ||
+    null;
+  if (!label) {
+    return <p className="text-sm text-zinc-400">—</p>;
+  }
+  return (
+    <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/40 px-3 py-2.5">
+      <p className="text-[0.6rem] font-semibold uppercase tracking-wide text-zinc-500">{t("products.colCategory")}</p>
+      <p className="mt-1 break-words text-sm font-semibold text-zinc-900 [overflow-wrap:anywhere]">{label}</p>
+    </div>
   );
 }
 
@@ -291,11 +329,6 @@ export function ProductsScreen() {
         onSelect: () => router.push("/products/categories"),
       },
       {
-        id: "costHistory",
-        label: t("nav.productCostHistory"),
-        onSelect: () => router.push("/products/cost-history"),
-      },
-      {
         id: "addCategory",
         label: t("products.addCategory"),
         onSelect: () => setAddCategoryOpen(true),
@@ -307,17 +340,22 @@ export function ProductsScreen() {
   const productCardHeaderActions = (
     <>
       <TableToolbarMoreMenu menuId="products-toolbar-more" items={productsMoreItems} />
-      <Button
-        type="button"
-        variant="secondary"
-        className="hidden sm:inline-flex"
-        onClick={() => router.push("/products/cost-history")}
-      >
-        <span className="mr-2 inline-flex items-center">
-          <ToolbarGlyphReceipt className="h-4 w-4" />
-        </span>
-        {t("nav.productCostHistory")}
-      </Button>
+      <Tooltip content={t("nav.productCostHistory")} delayMs={200}>
+        <Button
+          type="button"
+          variant="secondary"
+          className={cn(
+            "min-h-11 min-w-0 touch-manipulation sm:min-h-9",
+            "max-sm:!h-11 max-sm:!w-11 max-sm:!min-h-11 max-sm:!min-w-11 max-sm:!max-w-[2.75rem] max-sm:!px-0 max-sm:!py-0"
+          )}
+          onClick={() => router.push("/products/cost-history")}
+          aria-label={t("nav.productCostHistory")}
+          title={t("nav.productCostHistory")}
+        >
+          <ToolbarGlyphReceipt className="h-[1.15rem] w-[1.15rem] shrink-0 sm:mr-2 sm:h-4 sm:w-4" aria-hidden />
+          <span className="hidden min-w-0 truncate sm:inline">{t("nav.productCostHistory")}</span>
+        </Button>
+      </Tooltip>
       <Tooltip content={t("products.addProduct")} delayMs={200}>
         <Button
           type="button"
@@ -461,34 +499,30 @@ export function ProductsScreen() {
   return (
     <>
       <PageScreenScaffold
-        className="w-full min-w-0 p-4 pb-6 sm:pb-4"
-        top={
-          <div className="min-w-0">
-            <h1 className="text-xl font-semibold leading-tight tracking-tight text-zinc-900 sm:text-2xl sm:leading-snug">
-              {t("products.title")}
-            </h1>
-            <p className="mt-1 break-words text-sm leading-relaxed text-zinc-500">
+        className="min-w-0"
+        mainSectionAriaLabel={t("products.title")}
+        intro={
+          <>
+            <p className="text-sm leading-relaxed text-zinc-600 max-sm:text-[0.9375rem]">
               {t("products.subtitle")}
             </p>
-          </div>
-        }
-        intro={
-          <PageWhenToUseGuide
-            guideTab="products"
-            className="mt-0"
-            title={t("common.pageWhenToUseTitle")}
-            description={t("pageHelp.products.intro")}
-            listVariant="ordered"
-            items={[
-              { text: t("pageHelp.products.step1") },
-              { text: t("pageHelp.products.step2") },
-              {
-                text: t("pageHelp.products.step3"),
-                link: { href: "/products/categories", label: t("pageHelp.products.step3Link") },
-              },
-              { text: t("pageHelp.products.step4") },
-            ]}
-          />
+            <PageWhenToUseGuide
+              guideTab="products"
+              className="mt-3 sm:mt-2"
+              title={t("common.pageWhenToUseTitle")}
+              description={t("pageHelp.products.intro")}
+              listVariant="ordered"
+              items={[
+                { text: t("pageHelp.products.step1") },
+                { text: t("pageHelp.products.step2") },
+                {
+                  text: t("pageHelp.products.step3"),
+                  link: { href: "/products/categories", label: t("pageHelp.products.step3Link") },
+                },
+                { text: t("pageHelp.products.step4") },
+              ]}
+            />
+          </>
         }
         main={
           <>
@@ -497,7 +531,7 @@ export function ProductsScreen() {
             ) : isPending && !catalogPage ? (
               <p className="text-sm text-zinc-500">{t("common.loading")}</p>
             ) : (
-              <Card title={t("common.pageSectionMain")} headerActions={productCardHeaderActions}>
+              <Card title={t("products.title")} headerActions={productCardHeaderActions}>
           <div className="min-w-0 space-y-4">
           <div className="min-w-0">
             <Input
@@ -528,73 +562,101 @@ export function ProductsScreen() {
                 key={r.id}
                 as="div"
                 className={cn(
-                  "touch-manipulation flex w-full min-w-0 max-w-full flex-col gap-3 shadow-zinc-900/5 sm:gap-4",
+                  "touch-manipulation flex w-full min-w-0 max-w-full flex-col gap-3 shadow-zinc-900/5 sm:gap-3.5",
                   isChild &&
-                    "ml-1 border-l-[3px] border-violet-300/90 bg-violet-50/40 pl-2.5 sm:ml-3 sm:border-l-4 sm:pl-3"
+                    "ml-1 border-l-[3px] border-violet-400/90 bg-violet-50/35 pl-2.5 sm:ml-3 sm:border-l-4 sm:pl-3"
                 )}
               >
-                <div className="flex min-w-0 items-stretch gap-2 sm:items-start sm:gap-2.5">
+                <div className="flex min-w-0 gap-2.5">
                   {!isChild && subCount > 0 ? (
                     <button
                       type="button"
                       className={cn(
                         "touch-manipulation select-none",
-                        "inline-flex shrink-0 items-center justify-center gap-1 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-zinc-700 shadow-sm outline-none",
-                        "min-h-11 active:bg-zinc-100",
+                        "flex shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-zinc-200 bg-white px-2 py-2 text-zinc-700 shadow-sm outline-none",
+                        "min-h-[4.25rem] min-w-[3.25rem] active:bg-zinc-100 sm:min-h-16 sm:min-w-[3.5rem]",
                         "hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-violet-400"
                       )}
                       onClick={() => toggleParentExpanded(r.id)}
                       aria-expanded={subProductsVisible}
-                      aria-label={t("products.toggleSubProductsAria").replace(
-                        "{count}",
-                        String(subCount)
-                      )}
+                      aria-label={t("products.toggleSubProductsAria").replace("{count}", String(subCount))}
                     >
                       <ChevronDownExpandIcon expanded={subProductsVisible} className="h-4 w-4 text-zinc-500" />
-                      <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-600">
+                      <span className="text-[0.6rem] font-bold tabular-nums text-violet-700">{subCount}</span>
+                      <span className="max-w-[3rem] text-center text-[0.55rem] font-semibold uppercase leading-tight tracking-wide text-zinc-500">
                         {t("products.badgeVariant")}
-                      </span>
-                      <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[0.75rem] font-bold leading-none tabular-nums text-violet-700 ring-1 ring-violet-200/80">
-                        {subCount}
                       </span>
                     </button>
                   ) : null}
-                  <div className="min-w-0 flex-1 self-center sm:self-start">
-                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
-                  <span className="inline-flex items-center rounded-md bg-zinc-100 px-1.5 py-0.5 text-[0.65rem] font-semibold tabular-nums text-zinc-600 ring-1 ring-zinc-200">
-                    #{r.id}
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                      <span className="inline-flex items-center rounded-md bg-zinc-900/[0.06] px-1.5 py-0.5 text-[0.65rem] font-semibold tabular-nums text-zinc-600 ring-1 ring-zinc-200/80">
+                        #{r.id}
+                      </span>
+                      {isChild ? (
+                        <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-violet-900 ring-1 ring-violet-200/90">
+                          {t("products.badgeVariant")}
+                        </span>
+                      ) : r.hasChildren || subCount > 0 ? (
+                        <>
+                          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-emerald-900 ring-1 ring-emerald-200/80">
+                            {t("products.mainProductLabel")}
+                          </span>
+                          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-700 ring-1 ring-zinc-200/90">
+                            {t("products.badgeGroup")}
+                          </span>
+                          {subCount > 0 ? (
+                            <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[0.65rem] font-bold tabular-nums text-violet-800 ring-1 ring-violet-200/80">
+                              {subCount} {t("products.badgeVariant")}
+                            </span>
+                          ) : null}
+                        </>
+                      ) : (
+                        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-600 ring-1 ring-zinc-200/80">
+                          {t("products.mainProductLabel")}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-[1.05rem] font-bold leading-snug tracking-tight text-zinc-950 [overflow-wrap:anywhere] sm:text-lg">
+                      {r.name}
+                    </h3>
+                    {isChild && (r.parentProductName?.trim() ?? "").length > 0 ? (
+                      <p className="text-xs leading-snug text-zinc-600">
+                        {t("products.mobileCatalogCardUnderParent").replace(
+                          "{{name}}",
+                          r.parentProductName!.trim()
+                        )}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+
+                <MobileCatalogCategoryBlock row={r} categoryById={categoryById} t={t} />
+
+                <div className="flex min-w-0 items-baseline justify-between gap-3 rounded-xl bg-zinc-50/60 px-3 py-2 ring-1 ring-zinc-100">
+                  <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                    {t("products.colUnit")}
                   </span>
-                  <p className="min-w-0 max-w-full break-words text-base font-semibold leading-snug text-zinc-900 [overflow-wrap:anywhere]">
-                    {r.name}
+                  <span className="text-sm font-semibold text-zinc-900">{r.unit?.trim() ? r.unit : "—"}</span>
+                </div>
+
+                <div className="overflow-hidden rounded-xl bg-gradient-to-br from-zinc-900/[0.03] via-white to-violet-50/40 p-3 ring-1 ring-zinc-200/70">
+                  <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                    {t("products.colTotal")}
                   </p>
-                  {r.hasChildren ? (
-                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-600">
-                      {t("products.badgeGroup")}
-                    </span>
-                  ) : null}
-                  {r.parentProductId != null ? (
-                    <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide text-violet-800">
-                      {t("products.badgeVariant")}
-                    </span>
-                  ) : null}
-                </div>
-                  </div>
-                </div>
-                <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
-                  {productKv(
-                    t("products.colCategory"),
-                    renderCategoryHierarchy(r, categoryById, t)
-                  )}
-                  {productKv(t("products.colUnit"), r.unit?.trim() ? r.unit : "—")}
-                  <div className="min-w-0 sm:col-span-2">
-                    <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
-                      {t("products.colTotal")}
+                  <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-zinc-950">{r.totalQuantity}</p>
+                  {!isChild && subCount > 0 ? (
+                    <p className="mt-2 text-xs leading-relaxed text-zinc-600">
+                      {t("products.mobileCatalogCardGroupTotalCaption").replace("{{count}}", String(subCount))}
                     </p>
-                    <p className="mt-0.5 text-xl font-bold tabular-nums text-zinc-900">
-                      {r.totalQuantity}
+                  ) : null}
+                  {isChild ? (
+                    <p className="mt-2 text-xs leading-relaxed text-zinc-600">
+                      {t("products.mobileCatalogCardVariantLineCaption")}
                     </p>
-                  </div>
+                  ) : null}
                 </div>
+
                 <div className="min-w-0">
                   <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
                     {t("products.colInWarehouses")}
@@ -603,26 +665,26 @@ export function ProductsScreen() {
                     <ProductWarehouseChips r={r} t={t} />
                   </div>
                 </div>
-                <div className="flex min-w-0 flex-col gap-2 border-t border-zinc-100 pt-3 sm:flex-row sm:items-center sm:justify-end sm:gap-2">
+
+                <div className="grid min-w-0 grid-cols-2 gap-2 border-t border-zinc-100 pt-3">
                   <Button
                     type="button"
                     variant="secondary"
-                    className="min-h-11 w-full touch-manipulation sm:min-h-9 sm:w-auto"
+                    className="flex min-h-11 w-full touch-manipulation items-center justify-center px-0"
                     aria-haspopup="dialog"
                     aria-expanded={detailId === r.id}
                     aria-label={t("products.quickView")}
                     title={t("products.quickView")}
                     onClick={() => openDetail(r.id, r.name)}
                   >
-                    <span className="inline-flex items-center gap-1.5">
-                      <EyeIcon />
-                      <span>{t("products.quickView")}</span>
-                    </span>
+                    <EyeIcon className="h-5 w-5" />
                   </Button>
                   <TableToolbarMoreMenu
                     menuId={`product-mobile-quick-actions-${r.id}`}
                     items={quickActionsForRow(r)}
                     disabled={del.isPending}
+                    wrapperClassName="flex w-full min-w-0"
+                    triggerClassName="!flex !w-full !min-w-0 !max-w-none min-h-11 items-center justify-center"
                   />
                 </div>
               </MobileListCard>
@@ -735,17 +797,14 @@ export function ProductsScreen() {
                         <Button
                           type="button"
                           variant="secondary"
-                          className="min-h-9 px-2.5 text-xs"
+                          className="min-h-9 px-2.5"
                           aria-haspopup="dialog"
                           aria-expanded={detailId === r.id}
                           aria-label={t("products.quickView")}
                           title={t("products.quickView")}
                           onClick={() => openDetail(r.id, r.name)}
                         >
-                          <span className="inline-flex items-center gap-1">
-                            <EyeIcon />
-                            <span>{t("products.quickView")}</span>
-                          </span>
+                          <EyeIcon className="h-5 w-5" />
                         </Button>
                         <TableToolbarMoreMenu
                           menuId={`product-row-quick-actions-${r.id}`}

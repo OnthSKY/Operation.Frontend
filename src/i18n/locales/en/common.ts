@@ -67,4 +67,6 @@ export const common = {
   /** Expandable mobile card (shared `MobileCard` primitive). */
   mobileCardDetailsShow: "Show details",
   mobileCardDetailsHide: "Hide details",
+  /** Info button next to a section title; combine with section title for `aria-label`. */
+  sectionInfoExplainButton: "Explanation",
 } as const;

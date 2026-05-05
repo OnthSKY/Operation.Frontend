@@ -247,7 +247,7 @@ export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
                     <p className="mt-1 text-sm font-medium text-zinc-800">
                       {t("branch.registerTotalsSectionLead")}
                     </p>
-                    <div className="mt-2 grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 xl:grid-cols-4">
+                    <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
                       <DashCard
                         badge={t("branch.registerSummaryBadgePriority")}
                         label={t("branch.registerTotalCashInDrawer")}

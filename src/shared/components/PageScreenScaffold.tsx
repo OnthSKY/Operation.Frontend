@@ -21,6 +21,8 @@ type Props = {
   /** Bölümlerin üstünde (örn. geri linki) */
   top?: ReactNode;
   variant?: "dashboard" | "report" | "form";
+  /** Ana içerik bölgesinin `aria-label` metni (varsayılan: «Kayıtlar» / Records). */
+  mainSectionAriaLabel?: string;
 };
 
 /**
@@ -34,6 +36,7 @@ export function PageScreenScaffold({
   className,
   top,
   variant = "report",
+  mainSectionAriaLabel,
 }: Props) {
   const { t } = useI18n();
   const rid = useId().replace(/:/g, "");
@@ -73,11 +76,12 @@ export function PageScreenScaffold({
       <MobileIntroSummaryCollapse intro={introSection} summary={summarySection} />
       <PageContentSection
         variant="plain"
-        eyebrow={t("common.pageSectionMain")}
+        sectionAriaLabel={mainSectionAriaLabel ?? t("common.pageSectionMain")}
         sectionLabelId={`page-main-${rid}`}
+        mobileFrame="flush"
       >
         {mobileToolbar != null ? (
-          <div className="mobile-toolbar-sticky -mx-4 border-b border-zinc-200/70 bg-white/95 px-4 py-2.5 sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
+          <div className="mobile-toolbar-sticky max-sm:mx-0 border-b border-zinc-200/70 bg-white/95 py-2.5 max-sm:px-0 sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0">
             {mobileToolbar}
           </div>
         ) : null}

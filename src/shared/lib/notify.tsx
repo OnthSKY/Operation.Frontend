@@ -12,7 +12,7 @@ export const notifyDefaults: ToastOptions = {
   closeOnClick: true,
   pauseOnHover: true,
   draggable: true,
-  hideProgressBar: false,
+  hideProgressBar: true,
 };
 
 /** Ek seçenekler: `toastId`, farklı `autoClose`, `onClose` vb. */

@@ -30,6 +30,25 @@ export function expenseBucketsFromBranchRow(row: FinancialBranchBreakdownRow): E
   };
 }
 
+/** Günlük şube kasası / dashboard özet API satırı. */
+export type DailyRegisterExpenseBucketsInput = {
+  expenseOperationalRegister?: number | null;
+  expenseOperationalPatron?: number | null;
+  expenseOperationalPersonnelPocket?: number | null;
+  expenseOperationalHeldRegisterCash?: number | null;
+  expenseOperationalUnset?: number | null;
+};
+
+export function expenseBucketsFromDailyRegisterRow(row: DailyRegisterExpenseBucketsInput): ExpensePayFiveBucket {
+  return {
+    register: Number(row.expenseOperationalRegister ?? 0) || 0,
+    patron: Number(row.expenseOperationalPatron ?? 0) || 0,
+    personnelPocket: Number(row.expenseOperationalPersonnelPocket ?? 0) || 0,
+    heldRegister: Number(row.expenseOperationalHeldRegisterCash ?? 0) || 0,
+    unset: Number(row.expenseOperationalUnset ?? 0) || 0,
+  };
+}
+
 export function expenseBucketsFromPaySourceRows(
   rows: FinancialExpensePaymentSourceRow[]
 ): ExpensePayFiveBucket {

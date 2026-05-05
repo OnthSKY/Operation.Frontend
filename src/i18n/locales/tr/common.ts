@@ -68,4 +68,6 @@ export const common = {
   /** Genişletilebilir mobil kart (`MobileCard` bileşeni). */
   mobileCardDetailsShow: "Detayları göster",
   mobileCardDetailsHide: "Detayları gizle",
+  /** Bölüm başlığı yanındaki bilgi düğmesi; `aria-label` için başlık ile birlikte kullanılır. */
+  sectionInfoExplainButton: "Açıklama",
 } as const;

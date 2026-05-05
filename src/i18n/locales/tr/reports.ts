@@ -161,6 +161,8 @@
   hubFilterEffectsStock1:
     "Grafikler ve dönem özeti: seçilen tarih aralığı ile depo, şube ve ürün kapsamı filtreleri.",
   hubFilterEffectsStock2: "«Tablolar» sekmesi: aynı filtrelerle satır detayı.",
+  hubScopeHelpInFiltersDrawer:
+    "Seçimlerin nerelerde geçerli olduğunun özeti filtre panelinin altında.",
   filtersSectionTitle: "Dönem ve filtre",
   finAdvancedFilters: "Ek finans filtreleri",
   finAdvancedFiltersHint:
@@ -798,6 +800,8 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   orderAccountStatementNet: "NET ÖDENECEK TUTAR",
   orderAccountStatementPreviewTitle: "Önizleme (A4)",
   orderAccountStatementPreviewHint: "Tek sayfa A4 PDF; uzun içerik otomatik küçültülerek sığar.",
+  orderAccountStatementPreviewCollapseTools: "Tam ekran önizleme",
+  orderAccountStatementPreviewExpandTools: "Ayarları göster",
   orderAccountStatementOpenFullscreenPreview: "Önizle ve indir",
   orderAccountStatementPreviewIntro:
     "Önizlemeyi açmadan sayfa uzamaz; A4 düzenini tam ekranda inceleyebilir ve PDF'i oradan indirebilirsiniz.",

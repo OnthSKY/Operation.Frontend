@@ -4,9 +4,11 @@ import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { fetchSalesPriceHistory, type SalesPriceHistoryRow } from "@/modules/order-account-statement/api/outbound-invoices-api";
 import { useProductsCatalog } from "@/modules/products/hooks/useProductQueries";
 import { Card } from "@/shared/components/Card";
+import { FilterFunnelIcon } from "@/shared/components/FilterFunnelIcon";
 import { MobileListCard } from "@/shared/components/MobileListCard";
 import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
-import { TABLE_TOOLBAR_ICON_LINK } from "@/shared/components/TableToolbar";
+import { RightDrawer } from "@/shared/components/RightDrawer";
+import { TABLE_TOOLBAR_ICON_BTN, TABLE_TOOLBAR_ICON_LINK, TableToolbarSplit } from "@/shared/components/TableToolbar";
 import { useI18n } from "@/i18n/context";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
@@ -14,6 +16,7 @@ import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
+import { Input } from "@/shared/ui/Input";
 import { Select } from "@/shared/ui/Select";
 import {
   Table,
@@ -25,10 +28,32 @@ import {
 } from "@/shared/ui/Table";
 import { ToolbarGlyphArrowLeft } from "@/shared/ui/ToolbarGlyph";
 import { Tooltip } from "@/shared/ui/Tooltip";
+import { cn } from "@/lib/cn";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type CounterpartyScope = "all" | "branches_all" | "branch_one" | "customers_all";
+
+const DRAWER_SELECT_Z = 280;
+
+function rowMatchesTableSearch(
+  r: SalesPriceHistoryRow,
+  qLower: string,
+  typeBranchLabel: string,
+  typeCustomerLabel: string
+): boolean {
+  if (!qLower) return true;
+  const blob = [
+    r.productName,
+    r.counterpartyName,
+    r.currencyCode,
+    (r.unit ?? "").trim(),
+    r.counterpartyType === "branch" ? typeBranchLabel : typeCustomerLabel,
+  ]
+    .join(" ")
+    .toLowerCase();
+  return blob.includes(qLower);
+}
 
 export function ProductSalesPriceHistoryScreen() {
   const { t, locale } = useI18n();
@@ -43,6 +68,8 @@ export function ProductSalesPriceHistoryScreen() {
   const [dateTo, setDateTo] = useState("");
   const [pageSize, setPageSize] = useState(50);
   const [pageIndex, setPageIndex] = useState(0);
+  const [filtersDrawerOpen, setFiltersDrawerOpen] = useState(false);
+  const [tableSearch, setTableSearch] = useState("");
 
   const [rows, setRows] = useState<SalesPriceHistoryRow[]>([]);
   const [totalCount, setTotalCount] = useState(0);
@@ -163,6 +190,27 @@ export function ProductSalesPriceHistoryScreen() {
   const counterpartyTypeLabel = (type: string) =>
     type === "branch" ? t("products.salesPriceHistory.typeBranch") : t("products.salesPriceHistory.typeCustomer");
 
+  const typeBranchLabel = t("products.salesPriceHistory.typeBranch");
+  const typeCustomerLabel = t("products.salesPriceHistory.typeCustomer");
+
+  const filtersActive = useMemo(() => {
+    return (
+      counterpartyScope !== "all" ||
+      branchId > 0 ||
+      productId > 0 ||
+      currencyCode.trim() !== "" ||
+      dateFrom.trim() !== "" ||
+      dateTo.trim() !== "" ||
+      pageSize !== 50
+    );
+  }, [branchId, counterpartyScope, currencyCode, dateFrom, dateTo, pageSize, productId]);
+
+  const displayRows = useMemo(() => {
+    const q = tableSearch.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter((r) => rowMatchesTableSearch(r, q, typeBranchLabel, typeCustomerLabel));
+  }, [rows, tableSearch, typeBranchLabel, typeCustomerLabel]);
+
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize) || 1);
   const pageNumShown = totalCount === 0 ? 0 : Math.min(pageIndex + 1, totalPages);
 
@@ -179,144 +227,68 @@ export function ProductSalesPriceHistoryScreen() {
       }
       main={
         <div className="flex flex-col gap-4">
-          <Card title={t("products.salesPriceHistory.filtersTitle")}>
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-              <div className="min-w-[200px] flex-1">
-                <Select
-                  name="salesPhScope"
-                  label={t("products.salesPriceHistory.counterpartyScope")}
-                  value={counterpartyScope}
-                  options={scopeOptions}
-                  onBlur={() => undefined}
-                  onChange={(e) => onScopeChange(e.target.value)}
-                />
-              </div>
-              {counterpartyScope === "branch_one" ? (
-                <div className="min-w-[220px] flex-1">
-                  <Select
-                    name="salesPhBranch"
-                    label={t("products.salesPriceHistory.branchLabel")}
-                    value={branchId > 0 ? String(branchId) : "0"}
-                    options={branchOptions}
-                    onBlur={() => undefined}
-                    onChange={(e) => {
-                      setBranchId(Number.parseInt(e.target.value, 10) || 0);
-                      setPageIndex(0);
-                    }}
-                  />
-                </div>
-              ) : null}
-              <div className="min-w-[220px] flex-1">
-                <Select
-                  name="salesPhProduct"
-                  label={t("products.salesPriceHistory.productLabel")}
-                  value={productId > 0 ? String(productId) : "0"}
-                  options={productOptions}
-                  disabled={catalogPending}
-                  onBlur={() => undefined}
-                  onChange={(e) => {
-                    setProductId(Number.parseInt(e.target.value, 10) || 0);
-                    setPageIndex(0);
-                  }}
-                />
-              </div>
-              <div className="min-w-[120px]">
-                <Select
-                  name="salesPhCurrency"
-                  label={t("products.salesPriceHistory.currencyLabel")}
-                  value={currencyCode}
-                  options={currencyOptions}
-                  onBlur={() => undefined}
-                  onChange={(e) => {
-                    setCurrencyCode(e.target.value);
-                    setPageIndex(0);
-                  }}
-                />
-              </div>
-              <div className="min-w-[140px]">
-                <DateField
-                  name="salesPhDateFrom"
-                  label={t("products.salesPriceHistory.dateFromLabel")}
-                  value={dateFrom}
-                  onChange={(e) => {
-                    setDateFrom(e.target.value);
-                    setPageIndex(0);
-                  }}
-                />
-              </div>
-              <div className="min-w-[140px]">
-                <DateField
-                  name="salesPhDateTo"
-                  label={t("products.salesPriceHistory.dateToLabel")}
-                  value={dateTo}
-                  onChange={(e) => {
-                    setDateTo(e.target.value);
-                    setPageIndex(0);
-                  }}
-                />
-              </div>
-              <div className="min-w-[100px]">
-                <Select
-                  name="salesPhPageSize"
-                  label={t("products.salesPriceHistory.pageSizeLabel")}
-                  value={String(pageSize)}
-                  options={pageSizeOptions}
-                  onBlur={() => undefined}
-                  onChange={(e) => {
-                    setPageSize(Number.parseInt(e.target.value, 10) || 50);
-                    setPageIndex(0);
-                  }}
-                />
-              </div>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => {
-                  setCounterpartyScope("all");
-                  setBranchId(0);
-                  setProductId(0);
-                  setCurrencyCode("");
-                  setDateFrom("");
-                  setDateTo("");
-                  setPageIndex(0);
-                }}
-              >
-                {t("products.salesPriceHistory.clearFilters")}
-              </Button>
-              <Button type="button" onClick={() => void load()} disabled={busy}>
-                {t("products.salesPriceHistory.refresh")}
-              </Button>
-            </div>
-            {counterpartyScope === "branch_one" && branchId <= 0 ? (
-              <p className="mt-3 text-sm text-amber-700">{t("products.salesPriceHistory.pickBranchHint")}</p>
-            ) : null}
-          </Card>
-
-          <Card title={t("products.salesPriceHistory.tableTitle")}>
-            <div className="mb-4 flex items-center justify-between gap-2">
-              <Tooltip content={t("products.categoriesPage.backToProducts")} delayMs={200}>
-                <Link
-                  href="/products"
-                  className={TABLE_TOOLBAR_ICON_LINK}
-                  aria-label={t("products.categoriesPage.backToProducts")}
+          <Card
+            title={t("products.salesPriceHistory.tableTitle")}
+            headerActions={
+              <Tooltip content={t("products.salesPriceHistory.filtersTitle")} delayMs={200}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className={cn(TABLE_TOOLBAR_ICON_BTN, "relative")}
+                  onClick={() => setFiltersDrawerOpen(true)}
+                  aria-label={t("products.salesPriceHistory.filterIconAria")}
                 >
-                  <ToolbarGlyphArrowLeft className="h-5 w-5" />
-                </Link>
+                  <FilterFunnelIcon className="h-5 w-5" />
+                  {filtersActive ? (
+                    <span
+                      className="absolute right-1 top-1 h-2 w-2 rounded-full bg-violet-500 ring-2 ring-white"
+                      aria-hidden
+                    />
+                  ) : null}
+                </Button>
               </Tooltip>
-              <p className="text-sm text-zinc-600">
-                {t("products.pagingTotal")}{" "}
-                <span className="font-medium text-zinc-900">{totalCount}</span>
-                {totalCount > 0 ? (
-                  <span className="text-zinc-500">
-                    {" "}
-                    ·{" "}
-                    {t("products.salesPriceHistory.pageOf")
-                      .replace("{{current}}", String(pageNumShown))
-                      .replace("{{total}}", String(totalPages))}
-                  </span>
-                ) : null}
-              </p>
-            </div>
+            }
+          >
+            <TableToolbarSplit
+              lead={
+                <Input
+                  name="salesPhTableSearch"
+                  type="search"
+                  placeholder={t("products.salesPriceHistory.tableSearchPlaceholder")}
+                  autoComplete="off"
+                  value={tableSearch}
+                  onChange={(e) => setTableSearch(e.target.value)}
+                  aria-label={t("products.salesPriceHistory.tableSearchPlaceholder")}
+                  className="min-w-0"
+                />
+              }
+              trailing={
+                <>
+                  <Tooltip content={t("products.categoriesPage.backToProducts")} delayMs={200}>
+                    <Link
+                      href="/products"
+                      className={TABLE_TOOLBAR_ICON_LINK}
+                      aria-label={t("products.categoriesPage.backToProducts")}
+                    >
+                      <ToolbarGlyphArrowLeft className="h-5 w-5" />
+                    </Link>
+                  </Tooltip>
+                  <p className="text-sm text-zinc-600">
+                    {t("products.pagingTotal")}{" "}
+                    <span className="font-medium text-zinc-900">{totalCount}</span>
+                    {totalCount > 0 ? (
+                      <span className="text-zinc-500">
+                        {" "}
+                        ·{" "}
+                        {t("products.salesPriceHistory.pageOf")
+                          .replace("{{current}}", String(pageNumShown))
+                          .replace("{{total}}", String(totalPages))}
+                      </span>
+                    ) : null}
+                  </p>
+                </>
+              }
+            />
 
             {busy ? (
               <p className="text-sm text-zinc-500">{t("common.loading")}</p>
@@ -324,10 +296,12 @@ export function ProductSalesPriceHistoryScreen() {
               <p className="text-sm text-zinc-600">{t("products.salesPriceHistory.emptyNoBranch")}</p>
             ) : rows.length === 0 ? (
               <p className="text-sm text-zinc-600">{t("products.salesPriceHistory.empty")}</p>
+            ) : displayRows.length === 0 ? (
+              <p className="text-sm text-zinc-600">{t("products.salesPriceHistory.tableSearchFilteredEmpty")}</p>
             ) : (
               <>
                 <div className="flex flex-col gap-4 md:hidden">
-                  {rows.map((r) => (
+                  {displayRows.map((r) => (
                     <MobileListCard key={r.id} as="div" className="flex flex-col gap-1 shadow-zinc-900/5">
                       <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                         {formatLocaleDate(r.issueDate, locale)}
@@ -358,7 +332,7 @@ export function ProductSalesPriceHistoryScreen() {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {rows.map((r) => (
+                      {displayRows.map((r) => (
                         <TableRow key={r.id}>
                           <TableCell>{formatLocaleDate(r.issueDate, locale)}</TableCell>
                           <TableCell>{r.productName}</TableCell>
@@ -396,6 +370,131 @@ export function ProductSalesPriceHistoryScreen() {
               </>
             )}
           </Card>
+
+          <RightDrawer
+            open={filtersDrawerOpen}
+            onClose={() => setFiltersDrawerOpen(false)}
+            title={t("products.salesPriceHistory.filtersTitle")}
+            closeLabel={t("common.close")}
+            backdropCloseRequiresConfirm={false}
+            className="max-w-lg"
+          >
+            <div className="flex flex-col gap-4">
+              <p className="text-xs leading-relaxed text-zinc-500">{t("products.salesPriceHistory.filtersDrawerHint")}</p>
+              <Select
+                name="salesPhScope"
+                label={t("products.salesPriceHistory.counterpartyScope")}
+                value={counterpartyScope}
+                options={scopeOptions}
+                onBlur={() => undefined}
+                onChange={(e) => onScopeChange(e.target.value)}
+                menuZIndex={DRAWER_SELECT_Z}
+                className="min-w-0 max-w-full"
+              />
+              {counterpartyScope === "branch_one" ? (
+                <Select
+                  name="salesPhBranch"
+                  label={t("products.salesPriceHistory.branchLabel")}
+                  value={branchId > 0 ? String(branchId) : "0"}
+                  options={branchOptions}
+                  onBlur={() => undefined}
+                  onChange={(e) => {
+                    setBranchId(Number.parseInt(e.target.value, 10) || 0);
+                    setPageIndex(0);
+                  }}
+                  menuZIndex={DRAWER_SELECT_Z}
+                  className="min-w-0 max-w-full"
+                />
+              ) : null}
+              <Select
+                name="salesPhProduct"
+                label={t("products.salesPriceHistory.productLabel")}
+                value={productId > 0 ? String(productId) : "0"}
+                options={productOptions}
+                disabled={catalogPending}
+                onBlur={() => undefined}
+                onChange={(e) => {
+                  setProductId(Number.parseInt(e.target.value, 10) || 0);
+                  setPageIndex(0);
+                }}
+                menuZIndex={DRAWER_SELECT_Z}
+                className="min-w-0 max-w-full"
+              />
+              <Select
+                name="salesPhCurrency"
+                label={t("products.salesPriceHistory.currencyLabel")}
+                value={currencyCode}
+                options={currencyOptions}
+                onBlur={() => undefined}
+                onChange={(e) => {
+                  setCurrencyCode(e.target.value);
+                  setPageIndex(0);
+                }}
+                menuZIndex={DRAWER_SELECT_Z}
+                className="min-w-0 max-w-full"
+              />
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+                <DateField
+                  name="salesPhDateFrom"
+                  label={t("products.salesPriceHistory.dateFromLabel")}
+                  value={dateFrom}
+                  onChange={(e) => {
+                    setDateFrom(e.target.value);
+                    setPageIndex(0);
+                  }}
+                  className="min-w-0 max-w-full"
+                />
+                <DateField
+                  name="salesPhDateTo"
+                  label={t("products.salesPriceHistory.dateToLabel")}
+                  value={dateTo}
+                  onChange={(e) => {
+                    setDateTo(e.target.value);
+                    setPageIndex(0);
+                  }}
+                  className="min-w-0 max-w-full"
+                />
+              </div>
+              <Select
+                name="salesPhPageSize"
+                label={t("products.salesPriceHistory.pageSizeLabel")}
+                value={String(pageSize)}
+                options={pageSizeOptions}
+                onBlur={() => undefined}
+                onChange={(e) => {
+                  setPageSize(Number.parseInt(e.target.value, 10) || 50);
+                  setPageIndex(0);
+                }}
+                menuZIndex={DRAWER_SELECT_Z}
+                className="min-w-0 max-w-full"
+              />
+              {counterpartyScope === "branch_one" && branchId <= 0 ? (
+                <p className="text-sm text-amber-700">{t("products.salesPriceHistory.pickBranchHint")}</p>
+              ) : null}
+              <div className="flex flex-col gap-2 border-t border-zinc-200 pt-4 sm:flex-row">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="min-h-11 w-full sm:flex-1"
+                  onClick={() => {
+                    setCounterpartyScope("all");
+                    setBranchId(0);
+                    setProductId(0);
+                    setCurrencyCode("");
+                    setDateFrom("");
+                    setDateTo("");
+                    setPageSize(50);
+                    setPageIndex(0);
+                  }}
+                >
+                  {t("products.salesPriceHistory.clearFilters")}
+                </Button>
+                <Button type="button" className="min-h-11 w-full sm:flex-1" onClick={() => void load()} disabled={busy}>
+                  {t("products.salesPriceHistory.refresh")}
+                </Button>
+              </div>
+            </div>
+          </RightDrawer>
         </div>
       }
     />

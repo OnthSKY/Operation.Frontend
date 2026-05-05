@@ -26,9 +26,19 @@ type Props = {
   menuId: string;
   items: TableToolbarMoreMenuItem[];
   disabled?: boolean;
+  /** Tetikleyici sarmalayıcı (örn. `flex w-full` ile kartta iki sütun) */
+  wrapperClassName?: string;
+  /** Tetikleyici düğmesi (örn. tam genişlik mobil kart) */
+  triggerClassName?: string;
 };
 
-export function TableToolbarMoreMenu({ menuId, items, disabled }: Props) {
+export function TableToolbarMoreMenu({
+  menuId,
+  items,
+  disabled,
+  wrapperClassName,
+  triggerClassName,
+}: Props) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLDivElement>(null);
@@ -177,12 +187,16 @@ export function TableToolbarMoreMenu({ menuId, items, disabled }: Props) {
 
   return (
     <>
-      <div ref={anchorRef} className="inline-flex">
+      <div ref={anchorRef} className={cn("inline-flex", wrapperClassName)}>
         <Button
           type="button"
           variant="secondary"
           disabled={disabled}
-          className={cn(TABLE_TOOLBAR_ICON_BTN, "border-zinc-200 bg-zinc-50/90 text-zinc-800 hover:bg-zinc-100")}
+          className={cn(
+            TABLE_TOOLBAR_ICON_BTN,
+            "border-zinc-200 bg-zinc-50/90 text-zinc-800 hover:bg-zinc-100",
+            triggerClassName
+          )}
           aria-label={aria}
           aria-expanded={open}
           aria-haspopup="menu"

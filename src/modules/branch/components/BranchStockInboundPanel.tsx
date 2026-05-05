@@ -20,14 +20,26 @@ import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { MobileListCard } from "@/shared/components/MobileListCard";
+import { RightDrawer } from "@/shared/components/RightDrawer";
 import { Button } from "@/shared/ui/Button";
-import { CollapsibleMobileFilters } from "@/shared/components/CollapsibleMobileFilters";
 import { DateField } from "@/shared/ui/DateField";
 import { Modal } from "@/shared/ui/Modal";
 import type { BranchStockReceiptRow } from "@/types/branch";
+import { Package } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 const PAGE_SIZE = 20;
+
+const EMPTY_SCOPE: WarehouseScopeFiltersValue = {
+  mainCategoryId: null,
+  subCategoryId: null,
+  parentProductId: null,
+  productId: null,
+};
+
+function sumReceiptQty(rows: BranchStockReceiptRow[]): number {
+  return rows.reduce((s, r) => s + (Number(r.quantity) || 0), 0);
+}
 
 function kv(label: string, value: ReactNode) {
   return (
@@ -114,39 +126,56 @@ function BranchReceiptLineCard({
   );
 }
 
+type StockListViewMode = "shipment" | "mainProduct";
+
+type StockListBlock =
+  | {
+      mode: "shipment";
+      key: string;
+      movements: BranchStockReceiptRow[];
+      batchCell: ReturnType<typeof formatWarehouseShipmentDisplay>;
+      sample: BranchStockReceiptRow;
+      preview: string;
+    }
+  | {
+      mode: "mainProduct";
+      key: string;
+      movements: BranchStockReceiptRow[];
+      label: string;
+      sample: BranchStockReceiptRow;
+      totalQty: number;
+      preview: string;
+    };
+
 type Props = {
   branchId: number;
 };
 
 export function BranchStockInboundPanel({ branchId }: Props) {
   const { t, locale } = useI18n();
-  const [scope, setScope] = useState<WarehouseScopeFiltersValue>({
-    mainCategoryId: null,
-    subCategoryId: null,
-    parentProductId: null,
-    productId: null,
-  });
+  const [scope, setScope] = useState<WarehouseScopeFiltersValue>({ ...EMPTY_SCOPE });
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
-  const [expandedShipmentKeys, setExpandedShipmentKeys] = useState<ReadonlySet<string>>(
-    () => new Set()
-  );
-  const [activeShipmentKey, setActiveShipmentKey] = useState<string | null>(null);
+  const [listViewMode, setListViewMode] = useState<StockListViewMode>("shipment");
+  const [expandedGroupKeys, setExpandedGroupKeys] = useState<ReadonlySet<string>>(() => new Set());
+  const [detailModal, setDetailModal] = useState<null | {
+    movements: BranchStockReceiptRow[];
+    title: string;
+    description?: string;
+  }>(null);
+  const [stockFiltersDrawerOpen, setStockFiltersDrawerOpen] = useState(false);
 
   useEffect(() => {
     const today = localIsoDate();
-    setScope({
-      mainCategoryId: null,
-      subCategoryId: null,
-      parentProductId: null,
-      productId: null,
-    });
+    setScope({ ...EMPTY_SCOPE });
     setDateFrom(today);
     setDateTo(today);
     setPage(1);
-    setExpandedShipmentKeys(new Set());
-    setActiveShipmentKey(null);
+    setListViewMode("shipment");
+    setExpandedGroupKeys(new Set());
+    setDetailModal(null);
+    setStockFiltersDrawerOpen(false);
   }, [branchId]);
 
   useEffect(() => {
@@ -159,6 +188,10 @@ export function BranchStockInboundPanel({ branchId }: Props) {
     dateFrom,
     dateTo,
   ]);
+
+  useEffect(() => {
+    setExpandedGroupKeys(new Set());
+  }, [listViewMode]);
 
   const params = useMemo(() => {
     const categoryId = warehouseScopeEffectiveCategoryId(scope) ?? undefined;
@@ -200,7 +233,6 @@ export function BranchStockInboundPanel({ branchId }: Props) {
   } = useBranchStockReceiptsSummary(
     branchId,
     {
-      // Ozet kutusu tarih filtresinden bagimsiz, tum zaman stok girislerini baz alir.
       dateFrom: undefined,
       dateTo: undefined,
       categoryId: params.categoryId,
@@ -247,18 +279,71 @@ export function BranchStockInboundPanel({ branchId }: Props) {
       });
   }, [items]);
 
+  const mainProductGroups = useMemo(() => {
+    const map = new Map<string, BranchStockReceiptRow[]>();
+    for (const m of items) {
+      const hasParent = m.parentProductId != null && m.parentProductId > 0;
+      const key = hasParent ? `p:${m.parentProductId}` : `leaf:${m.productId}`;
+      const g = map.get(key) ?? [];
+      g.push(m);
+      map.set(key, g);
+    }
+    for (const g of map.values()) {
+      g.sort((a, b) => {
+        const c = b.movementDate.localeCompare(a.movementDate);
+        if (c !== 0) return c;
+        return b.id - a.id;
+      });
+    }
+    return Array.from(map.entries())
+      .map(([key, movements]) => {
+        const head = movements[0];
+        const label =
+          head.parentProductName?.trim() ||
+          head.productName ||
+          t("branch.stockColProduct");
+        return { key, movements, label };
+      })
+      .sort((a, b) => {
+        const d = b.movements[0].movementDate.localeCompare(a.movements[0].movementDate);
+        if (d !== 0) return d;
+        return b.movements[0].id - a.movements[0].id;
+      });
+  }, [items, t]);
+
+  const listBlocks = useMemo((): StockListBlock[] => {
+    if (listViewMode === "shipment") {
+      return shipmentGroups.map(({ key, movements }) => {
+        const sample = movements[0];
+        const batchCell = formatWarehouseShipmentDisplay(
+          sample.inBatchGroupId ?? null,
+          sample.warehouseMovementId ?? sample.id
+        );
+        return {
+          mode: "shipment",
+          key,
+          movements,
+          batchCell,
+          sample,
+          preview: receiptPreviewLines(movements),
+        };
+      });
+    }
+    return mainProductGroups.map(({ key, movements, label }) => {
+      const sample = movements[0];
+      return {
+        mode: "mainProduct",
+        key,
+        movements,
+        label,
+        sample,
+        totalQty: sumReceiptQty(movements),
+        preview: receiptPreviewLines(movements),
+      };
+    });
+  }, [listViewMode, shipmentGroups, mainProductGroups]);
+
   const fmtDate = (iso: string) => formatLocaleDate(iso, locale);
-  const activeShipment = useMemo(() => {
-    if (!activeShipmentKey) return null;
-    return shipmentGroups.find((g) => g.key === activeShipmentKey) ?? null;
-  }, [activeShipmentKey, shipmentGroups]);
-  const activeShipmentSample = activeShipment?.movements[0] ?? null;
-  const activeShipmentBatchCell = activeShipmentSample
-    ? formatWarehouseShipmentDisplay(
-        activeShipmentSample.inBatchGroupId ?? null,
-        activeShipmentSample.warehouseMovementId ?? activeShipmentSample.id
-      )
-    : null;
 
   const today = localIsoDate();
   const filtersActive = useMemo(() => {
@@ -272,69 +357,318 @@ export function BranchStockInboundPanel({ branchId }: Props) {
     );
   }, [scope, dateFrom, dateTo, today]);
 
+  const stockDrawerFilterCount = useMemo(() => {
+    const scopeNarrowed = Boolean(
+      warehouseScopeEffectiveCategoryId(scope) != null ||
+        (scope.parentProductId != null && scope.parentProductId > 0) ||
+        (scope.productId != null && scope.productId > 0)
+    );
+    const datesNonDefault =
+      dateFrom !== today || dateTo !== today || (dateFrom === "" && dateTo === "");
+    return (scopeNarrowed ? 1 : 0) + (datesNonDefault ? 1 : 0);
+  }, [scope, dateFrom, dateTo, today]);
+
+  const stockFiltersSummaryLine = useMemo(() => {
+    const dateLine =
+      dateFrom.length === 10 || dateTo.length === 10
+        ? `${dateFrom.length === 10 ? formatLocaleDate(dateFrom, locale) : "—"} — ${
+            dateTo.length === 10 ? formatLocaleDate(dateTo, locale) : "—"
+          }`
+        : t("branch.filterAllDates");
+    const scopeShort =
+      warehouseScopeEffectiveCategoryId(scope) != null ||
+      (scope.parentProductId != null && scope.parentProductId > 0) ||
+      (scope.productId != null && scope.productId > 0)
+        ? t("branch.stockFiltersScopeActiveShort")
+        : t("branch.stockFiltersScopeAnyShort");
+    return `${dateLine} · ${scopeShort}`;
+  }, [scope, dateFrom, dateTo, locale, t]);
+
+  const clearAllFilters = () => {
+    setDateFrom("");
+    setDateTo("");
+    setScope({ ...EMPTY_SCOPE });
+    setPage(1);
+    void refetch();
+  };
+
+  const renderExpandedRowsMobile = (block: StockListBlock) => (
+    <div className="flex flex-col gap-4 border-t border-zinc-100 bg-zinc-50/60 px-2 py-2">
+      {block.movements.map((row) => (
+        <BranchReceiptLineCard
+          key={row.id}
+          row={row}
+          fmtDate={fmtDate}
+          t={t}
+          hideShipmentGroup={block.mode === "shipment"}
+        />
+      ))}
+    </div>
+  );
+
+  const renderExpandedTableDesktop = (block: StockListBlock, safeKey: string) => {
+    const movements = block.movements;
+    const headerId = `br-grp-h-${safeKey}`;
+    const regionId = `br-grp-${safeKey}`;
+    return (
+      <div
+        className="border-t border-zinc-100 bg-zinc-50/60 px-3 py-3"
+        id={regionId}
+        role="region"
+        aria-labelledby={headerId}
+      >
+        <div className="overflow-x-auto rounded-md border border-zinc-200 bg-white">
+          <table className="min-w-full text-sm">
+            <thead className="border-b border-zinc-200 bg-zinc-50 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              <tr>
+                <th className="px-3 py-2">{t("branch.stockColDate")}</th>
+                <th className="px-3 py-2">{t("branch.stockColProduct")}</th>
+                <th className="px-3 py-2 text-right">{t("branch.stockColQty")}</th>
+                <th className="hidden px-3 py-2 md:table-cell">{t("branch.stockColWarehouse")}</th>
+                {block.mode === "mainProduct" ? (
+                  <th className="hidden px-3 py-2 lg:table-cell">{t("warehouse.movementBatchGroup")}</th>
+                ) : null}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-100">
+              {movements.map((row) => {
+                const batchCell = formatWarehouseShipmentDisplay(
+                  row.inBatchGroupId ?? null,
+                  row.warehouseMovementId ?? row.id
+                );
+                return (
+                  <tr key={row.id}>
+                    <td className="whitespace-nowrap px-3 py-2 text-zinc-700">{fmtDate(row.movementDate)}</td>
+                    <td className="px-3 py-2 font-medium text-zinc-900">
+                      {row.parentProductName?.trim() ? (
+                        <span className="mb-0.5 block text-[0.65rem] font-semibold uppercase tracking-wide text-violet-800">
+                          {row.parentProductName}
+                        </span>
+                      ) : null}
+                      {row.productName}
+                      {row.unit ? (
+                        <span className="font-normal text-zinc-500"> ({row.unit})</span>
+                      ) : null}
+                    </td>
+                    <td className="px-3 py-2 text-right tabular-nums">{row.quantity}</td>
+                    <td className="hidden px-3 py-2 text-zinc-600 md:table-cell">
+                      {row.warehouseName?.trim() ?? "—"}
+                    </td>
+                    {block.mode === "mainProduct" ? (
+                      <td className="hidden px-3 py-2 lg:table-cell">
+                        <span className="font-mono text-xs text-zinc-600" title={batchCell.title}>
+                          {batchCell.text}
+                        </span>
+                      </td>
+                    ) : null}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  const openDetailModal = (block: StockListBlock) => {
+    if (block.mode === "shipment") {
+      const batchCell = block.batchCell;
+      setDetailModal({
+        movements: block.movements,
+        title: t("branch.stockShipmentModalTitle"),
+        description: t("branch.stockShipmentModalHint").replace("{{shipment}}", batchCell.text),
+      });
+      return;
+    }
+    setDetailModal({
+      movements: block.movements,
+      title: t("branch.stockDetailModalTitleMainProduct"),
+      description: t("branch.stockDetailModalHintMainProduct").replace("{{name}}", block.label),
+    });
+  };
+
+  const toggleExpanded = (key: string) => {
+    setExpandedGroupKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm text-zinc-600">{t("branch.stockHint")}</p>
-
-      <WarehouseProductScopeFilters value={scope} onChange={setScope} />
-
-      <CollapsibleMobileFilters
-        title={t("common.filters")}
-        toggleAriaLabel={t("common.filters")}
-        active={filtersActive}
-        resetKey={`${branchId}-stock`}
-        expandLabel={t("common.filtersShow")}
-        collapseLabel={t("common.filtersHide")}
-      >
-        <div className="grid gap-3 sm:grid-cols-2">
-          <DateField
-            label={t("branch.filterDateFrom")}
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="min-w-0"
-          />
-          <DateField
-            label={t("branch.filterDateTo")}
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="min-w-0"
-          />
+      <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 sm:p-4">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-sm font-semibold text-zinc-900">{t("branch.stockInboundSectionTitle")}</h2>
+          <p className="text-xs leading-relaxed text-zinc-600">{t("branch.stockHint")}</p>
         </div>
-      </CollapsibleMobileFilters>
 
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          variant="secondary"
-          className="min-h-11"
-          onClick={() => {
-            const d = localIsoDate();
-            setDateFrom(d);
-            setDateTo(d);
-            setPage(1);
-          }}
-        >
-          {t("branch.filterToday")}
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          className="min-h-11"
-          onClick={() => {
-            setDateFrom("");
-            setDateTo("");
-            setPage(1);
-          }}
-        >
-          {t("branch.filterAllDates")}
-        </Button>
-        <Button type="button" variant="secondary" className="min-h-11" onClick={() => void refetch()}>
-          {t("branch.filterApplyRefresh")}
-        </Button>
+        <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-2.5 shadow-sm">
+          <p className="text-xs font-semibold text-zinc-700">{t("branch.stockQuickFiltersLead")}</p>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:contents">
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-11 w-full touch-manipulation sm:min-w-[9rem] sm:flex-1"
+                onClick={() => {
+                  const d = localIsoDate();
+                  setDateFrom(d);
+                  setDateTo(d);
+                  setPage(1);
+                }}
+              >
+                {t("branch.filterToday")}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-11 w-full touch-manipulation sm:min-w-[9rem] sm:flex-1"
+                onClick={() => {
+                  setDateFrom("");
+                  setDateTo("");
+                  setPage(1);
+                }}
+              >
+                {t("branch.filterAllDates")}
+              </Button>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-11 w-full touch-manipulation sm:ml-auto sm:w-auto sm:min-w-[8.5rem]"
+              onClick={() => void refetch()}
+            >
+              {t("branch.filterApplyRefresh")}
+            </Button>
+          </div>
+        </div>
+
+        <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-2.5 shadow-sm">
+          <p className="text-xs font-semibold text-zinc-700">{t("branch.stockListViewModeHint")}</p>
+          <div
+            className="mt-2 inline-flex w-full max-w-md rounded-lg border border-zinc-200 bg-zinc-50/80 p-1 sm:w-auto"
+            role="tablist"
+            aria-label={t("branch.stockListViewModeAria")}
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={listViewMode === "shipment"}
+              className={cn(
+                "min-h-11 flex-1 rounded-md px-3 py-2 text-xs font-semibold touch-manipulation sm:min-h-0 sm:flex-none sm:py-1.5",
+                listViewMode === "shipment"
+                  ? "bg-zinc-900 text-white"
+                  : "text-zinc-700 hover:bg-white"
+              )}
+              onClick={() => setListViewMode("shipment")}
+            >
+              {t("branch.stockListViewShipment")}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={listViewMode === "mainProduct"}
+              className={cn(
+                "min-h-11 flex-1 rounded-md px-3 py-2 text-xs font-semibold touch-manipulation sm:min-h-0 sm:flex-none sm:py-1.5",
+                listViewMode === "mainProduct"
+                  ? "bg-zinc-900 text-white"
+                  : "text-zinc-700 hover:bg-white"
+              )}
+              onClick={() => setListViewMode("mainProduct")}
+            >
+              {t("branch.stockListViewMainProduct")}
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-2.5 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold text-zinc-700">{t("branch.stockFiltersSummaryLead")}</p>
+              <p className="mt-1 break-words text-xs leading-relaxed text-zinc-600">{stockFiltersSummaryLine}</p>
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              className="relative min-h-11 w-full shrink-0 touch-manipulation sm:mt-0 sm:w-auto sm:min-w-[11rem]"
+              aria-label={`${t("branch.stockFiltersDrawerOpenButton")} (${stockDrawerFilterCount})`}
+              onClick={() => setStockFiltersDrawerOpen(true)}
+            >
+              {`${t("branch.stockFiltersDrawerOpenButton")} (${stockDrawerFilterCount})`}
+              {filtersActive ? (
+                <span
+                  className="absolute right-2 top-2 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white"
+                  aria-hidden
+                />
+              ) : null}
+            </Button>
+          </div>
+        </div>
       </div>
 
+      <RightDrawer
+        open={stockFiltersDrawerOpen}
+        onClose={() => setStockFiltersDrawerOpen(false)}
+        title={t("branch.stockFiltersDrawerTitle")}
+        closeLabel={t("common.close")}
+        showFooterCloseButton={false}
+        backdropCloseRequiresConfirm={false}
+        className="max-w-lg"
+      >
+        <div className="space-y-5">
+          <p className="text-xs leading-relaxed text-zinc-600">{t("branch.stockFiltersDrawerHint")}</p>
+          <div>
+            <p className="mb-2 text-xs font-semibold text-zinc-800">{t("branch.stockScopeFiltersLead")}</p>
+            <WarehouseProductScopeFilters value={scope} onChange={setScope} menuZIndex={340} />
+          </div>
+          <div>
+            <p className="mb-2 text-xs font-semibold text-zinc-800">{t("branch.stockDateFiltersLead")}</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <DateField
+                label={t("branch.filterDateFrom")}
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="min-w-0"
+              />
+              <DateField
+                label={t("branch.filterDateTo")}
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="min-w-0"
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 border-t border-zinc-100 pt-4">
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-11 w-full touch-manipulation"
+              onClick={() => {
+                clearAllFilters();
+                setStockFiltersDrawerOpen(false);
+              }}
+            >
+              {t("branch.stockFiltersResetInDrawer")}
+            </Button>
+            <Button
+              type="button"
+              className="min-h-11 w-full touch-manipulation"
+              onClick={() => {
+                void refetch();
+                setStockFiltersDrawerOpen(false);
+              }}
+            >
+              {t("branch.stockFiltersApplyClose")}
+            </Button>
+          </div>
+        </div>
+      </RightDrawer>
+
       {dateFrom.length === 10 && dateFrom === dateTo ? (
-        <p className="rounded-lg border border-emerald-100 bg-emerald-50/60 px-3 py-2 text-sm text-emerald-950">
+        <p className="rounded-xl border border-emerald-100 bg-emerald-50/60 px-3 py-2.5 text-sm text-emerald-950">
           {t("branch.stockSingleDayBanner").replace("{date}", dateFrom)}
         </p>
       ) : null}
@@ -347,15 +681,15 @@ export function BranchStockInboundPanel({ branchId }: Props) {
         <>
           <div
             className={cn(
-              "rounded-lg border border-zinc-200 bg-white p-3 shadow-sm sm:p-4",
+              "rounded-xl border border-zinc-200 bg-white p-3 shadow-sm sm:p-4",
               isFetching && "opacity-70"
             )}
           >
             <p className="text-xs font-semibold text-zinc-800 sm:text-sm">
               {t("branch.stockReceiptsTotalsTitle")}
             </p>
-            <div className="mt-2 grid min-w-0 grid-cols-1 gap-2 sm:gap-3">
-              <div className="min-w-0 rounded-md border border-emerald-200/80 bg-emerald-50/90 px-3 py-2.5">
+            <div className="mt-2 grid min-w-0 grid-cols-1 gap-2 sm:gap-3 lg:grid-cols-2">
+              <div className="min-w-0 rounded-lg border border-emerald-200/80 bg-emerald-50/90 px-3 py-2.5">
                 <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-emerald-900">
                   {t("branch.stockReceiptsFilteredTotalQty")}
                 </p>
@@ -364,10 +698,10 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                 </p>
               </div>
               {summaryPending && !summaryData ? (
-                <p className="text-xs text-zinc-500">{t("common.loading")}</p>
+                <p className="text-xs text-zinc-500 lg:col-span-2">{t("common.loading")}</p>
               ) : null}
               {mainProductBreakdown.length > 0 ? (
-                <div className="min-w-0 rounded-md border border-violet-200/80 bg-violet-50/60 px-3 py-2.5">
+                <div className="min-w-0 rounded-lg border border-violet-200/80 bg-violet-50/60 px-3 py-2.5 lg:col-span-2">
                   <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-violet-900">
                     {t("branch.stockReceiptsParentBreakdownTitle")}
                   </p>
@@ -394,46 +728,66 @@ export function BranchStockInboundPanel({ branchId }: Props) {
               {t("branch.stockReceiptsTotalsHint")}
             </p>
             {summaryFetching ? (
-              <p className="mt-1 text-[0.65rem] leading-snug text-zinc-500 sm:text-xs">
-                {t("common.loading")}
-              </p>
+              <p className="mt-1 text-[0.65rem] leading-snug text-zinc-500 sm:text-xs">{t("common.loading")}</p>
             ) : null}
           </div>
 
           {items.length === 0 ? (
-            <p className="text-sm text-zinc-600">{t("branch.noStockReceipts")}</p>
+            <div
+              role="status"
+              className="rounded-2xl border border-dashed border-zinc-300/90 bg-gradient-to-b from-zinc-50 via-white to-zinc-50/80 px-4 py-10 text-center shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6)] sm:py-12"
+            >
+              <div className="mx-auto flex max-w-md flex-col items-center gap-3">
+                <span
+                  className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/80"
+                  aria-hidden
+                >
+                  <Package className="h-7 w-7 stroke-[1.5]" />
+                </span>
+                <p className="text-base font-semibold leading-snug text-zinc-900">{t("branch.stockEmptyTitle")}</p>
+                <p className="text-sm leading-relaxed text-zinc-600">{t("branch.stockEmptyHint")}</p>
+                {filtersActive ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="mt-1 min-h-11 w-full max-w-xs touch-manipulation"
+                    onClick={clearAllFilters}
+                  >
+                    {t("branch.stockEmptyClearFilters")}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
           ) : (
             <>
-              <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700 sm:text-sm">
-                {t("branch.stockReceiptsPageShipmentSummary")
-                  .replace("{{shipments}}", String(shipmentGroups.length))
-                  .replace("{{lines}}", String(items.length))}
+              <p className="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700 sm:text-sm">
+                {listViewMode === "shipment"
+                  ? t("branch.stockReceiptsPageShipmentSummary")
+                      .replace("{{shipments}}", String(listBlocks.length))
+                      .replace("{{lines}}", String(items.length))
+                  : t("branch.stockReceiptsPageMainProductSummary")
+                      .replace("{{groups}}", String(listBlocks.length))
+                      .replace("{{lines}}", String(items.length))}
               </p>
-              <div className="flex min-h-0 min-w-0 flex-col divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white sm:hidden">
-                {shipmentGroups.map(({ key, movements }) => {
-                  const open = expandedShipmentKeys.has(key);
-                  const sample = movements[0];
-                  const batchCell = formatWarehouseShipmentDisplay(
-                    sample.inBatchGroupId ?? null,
-                    sample.warehouseMovementId ?? sample.id
-                  );
-                  const safeKey = key.replace(/[^a-zA-Z0-9_-]/g, "_");
-                  const preview = receiptPreviewLines(movements);
+              <p className="text-[0.65rem] leading-snug text-zinc-500 sm:text-xs">
+                {t("branch.stockReceiptsParentBreakdownPageOnly")}
+              </p>
+
+              <div className="flex min-h-0 min-w-0 flex-col divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white sm:hidden">
+                {listBlocks.map((block) => {
+                  const open = expandedGroupKeys.has(block.key);
                   return (
-                    <div key={key} className="min-w-0 bg-white first:rounded-t-lg last:rounded-b-lg">
+                    <div key={block.key} className="min-w-0 bg-white first:rounded-t-xl last:rounded-b-xl">
                       <button
                         type="button"
                         className="flex w-full touch-manipulation flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2.5 text-left text-sm transition-colors hover:bg-zinc-50 sm:gap-x-3 sm:py-2"
                         aria-expanded={open}
-                        aria-label={t("warehouse.shipmentGroupToggleAria")}
-                        onClick={() =>
-                          setExpandedShipmentKeys((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(key)) next.delete(key);
-                            else next.add(key);
-                            return next;
-                          })
+                        aria-label={
+                          block.mode === "shipment"
+                            ? t("warehouse.shipmentGroupToggleAria")
+                            : t("branch.stockListViewMainProduct")
                         }
+                        onClick={() => toggleExpanded(block.key)}
                       >
                         <span
                           className={cn(
@@ -450,20 +804,34 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                             />
                           </svg>
                         </span>
-                        <span
-                          className="shrink-0 font-mono text-[0.7rem] text-zinc-600 sm:text-xs"
-                          title={batchCell.title ?? batchCell.text}
-                        >
-                          {batchCell.text}
-                        </span>
+                        {block.mode === "shipment" ? (
+                          <span
+                            className="shrink-0 font-mono text-[0.7rem] text-zinc-600 sm:text-xs"
+                            title={block.batchCell.title ?? block.batchCell.text}
+                          >
+                            {block.batchCell.text}
+                          </span>
+                        ) : (
+                          <span className="min-w-0 max-w-[14rem] truncate text-sm font-semibold text-violet-950">
+                            {block.label}
+                          </span>
+                        )}
                         <span className="shrink-0 whitespace-nowrap text-xs text-zinc-500 sm:text-sm">
-                          {fmtDate(sample.movementDate)}
+                          {fmtDate(block.sample.movementDate)}
+                        </span>
+                        <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[0.65rem] font-semibold tracking-tight text-emerald-900 ring-1 ring-emerald-200/80 sm:text-xs">
+                          {t("products.typeIn")}
                         </span>
                         <span className="shrink-0 tabular-nums text-xs text-zinc-500">
-                          {movements.length}×
+                          {block.movements.length}×
                         </span>
+                        {block.mode === "mainProduct" ? (
+                          <span className="shrink-0 text-xs font-semibold tabular-nums text-zinc-800">
+                            Σ {formatLocaleAmount(block.totalQty, locale)}
+                          </span>
+                        ) : null}
                         <span className="min-w-0 flex-1 basis-[min(100%,12rem)] truncate text-xs text-zinc-600 sm:text-sm">
-                          {preview}
+                          {block.preview}
                         </span>
                         <Button
                           type="button"
@@ -471,57 +839,37 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                           className="min-h-9 shrink-0 px-2.5 text-xs"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setActiveShipmentKey(key);
+                            openDetailModal(block);
                           }}
                         >
                           {t("branch.stockShipmentQuickOpen")}
                         </Button>
                       </button>
-                      {open ? (
-                        <div className="flex flex-col gap-4 border-t border-zinc-100 bg-zinc-50/60 px-2 py-2">
-                          {movements.map((row) => (
-                            <BranchReceiptLineCard
-                              key={row.id}
-                              row={row}
-                              fmtDate={fmtDate}
-                              t={t}
-                              hideShipmentGroup
-                            />
-                          ))}
-                        </div>
-                      ) : null}
+                      {open ? renderExpandedRowsMobile(block) : null}
                     </div>
                   );
                 })}
               </div>
 
-              <div className="hidden min-h-0 min-w-0 flex-1 flex-col divide-y divide-zinc-200 rounded-lg border border-zinc-200 bg-white sm:flex">
-                {shipmentGroups.map(({ key, movements }) => {
-                  const open = expandedShipmentKeys.has(key);
-                  const sample = movements[0];
-                  const batchCell = formatWarehouseShipmentDisplay(
-                    sample.inBatchGroupId ?? null,
-                    sample.warehouseMovementId ?? sample.id
-                  );
-                  const safeKey = key.replace(/[^a-zA-Z0-9_-]/g, "_");
-                  const preview = receiptPreviewLines(movements);
+              <div className="hidden min-h-0 min-w-0 flex-1 flex-col divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white sm:flex">
+                {listBlocks.map((block) => {
+                  const open = expandedGroupKeys.has(block.key);
+                  const safeKey = block.key.replace(/[^a-zA-Z0-9_-]/g, "_");
+                  const headerId = `br-grp-h-${safeKey}`;
                   return (
-                    <div key={key} className="min-w-0 bg-white first:rounded-t-lg last:rounded-b-lg">
+                    <div key={block.key} className="min-w-0 bg-white first:rounded-t-xl last:rounded-b-xl">
                       <button
                         type="button"
                         className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2.5 text-left text-sm transition-colors hover:bg-zinc-50 sm:gap-x-3 sm:py-2"
                         aria-expanded={open}
-                        aria-label={t("warehouse.shipmentGroupToggleAria")}
-                        aria-controls={`br-shipment-${safeKey}`}
-                        id={`br-shipment-h-${safeKey}`}
-                        onClick={() =>
-                          setExpandedShipmentKeys((prev) => {
-                            const next = new Set(prev);
-                            if (next.has(key)) next.delete(key);
-                            else next.add(key);
-                            return next;
-                          })
+                        aria-label={
+                          block.mode === "shipment"
+                            ? t("warehouse.shipmentGroupToggleAria")
+                            : t("branch.stockListViewMainProduct")
                         }
+                        aria-controls={`br-grp-${safeKey}`}
+                        id={headerId}
+                        onClick={() => toggleExpanded(block.key)}
                       >
                         <span
                           className={cn(
@@ -530,7 +878,7 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                           )}
                           aria-hidden
                         >
-                          <svg className="h-4 w-4 sm:h-4 sm:w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                             <path
                               fillRule="evenodd"
                               d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
@@ -538,23 +886,34 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                             />
                           </svg>
                         </span>
-                        <span
-                          className="shrink-0 font-mono text-[0.7rem] text-zinc-600 sm:text-xs"
-                          title={batchCell.title ?? batchCell.text}
-                        >
-                          {batchCell.text}
-                        </span>
+                        {block.mode === "shipment" ? (
+                          <span
+                            className="shrink-0 font-mono text-[0.7rem] text-zinc-600 sm:text-xs"
+                            title={block.batchCell.title ?? block.batchCell.text}
+                          >
+                            {block.batchCell.text}
+                          </span>
+                        ) : (
+                          <span className="min-w-0 max-w-[18rem] truncate text-sm font-semibold text-violet-950">
+                            {block.label}
+                          </span>
+                        )}
                         <span className="shrink-0 whitespace-nowrap text-xs text-zinc-500 sm:text-sm">
-                          {fmtDate(sample.movementDate)}
+                          {fmtDate(block.sample.movementDate)}
                         </span>
                         <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[0.65rem] font-semibold tracking-tight text-emerald-900 ring-1 ring-emerald-200/80 sm:text-xs">
                           {t("products.typeIn")}
                         </span>
                         <span className="shrink-0 tabular-nums text-xs text-zinc-500">
-                          {movements.length}×
+                          {block.movements.length}×
                         </span>
+                        {block.mode === "mainProduct" ? (
+                          <span className="shrink-0 text-xs font-semibold tabular-nums text-zinc-800">
+                            Σ {formatLocaleAmount(block.totalQty, locale)}
+                          </span>
+                        ) : null}
                         <span className="min-w-0 flex-1 basis-[min(100%,12rem)] truncate text-xs text-zinc-600 sm:text-sm">
-                          {preview}
+                          {block.preview}
                         </span>
                         <Button
                           type="button"
@@ -562,88 +921,42 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                           className="min-h-9 shrink-0 px-2.5 text-xs"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setActiveShipmentKey(key);
+                            openDetailModal(block);
                           }}
                         >
                           {t("branch.stockShipmentQuickOpen")}
                         </Button>
                       </button>
-                      {open ? (
-                        <div
-                          className="border-t border-zinc-100 bg-zinc-50/60 px-3 py-3"
-                          id={`br-shipment-${safeKey}`}
-                          role="region"
-                          aria-labelledby={`br-shipment-h-${safeKey}`}
-                        >
-                          <div className="overflow-x-auto rounded-md border border-zinc-200 bg-white">
-                            <table className="min-w-full text-sm">
-                              <thead className="border-b border-zinc-200 bg-zinc-50 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                                <tr>
-                                  <th className="px-3 py-2">{t("branch.stockColDate")}</th>
-                                  <th className="px-3 py-2">{t("branch.stockColProduct")}</th>
-                                  <th className="px-3 py-2 text-right">{t("branch.stockColQty")}</th>
-                                  <th className="hidden px-3 py-2 md:table-cell">
-                                    {t("branch.stockColWarehouse")}
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-zinc-100">
-                                {movements.map((row) => (
-                                  <tr key={row.id}>
-                                    <td className="whitespace-nowrap px-3 py-2 text-zinc-700">
-                                      {fmtDate(row.movementDate)}
-                                    </td>
-                                    <td className="px-3 py-2 font-medium text-zinc-900">
-                                      {row.parentProductName?.trim() ? (
-                                        <span className="mb-0.5 block text-[0.65rem] font-semibold uppercase tracking-wide text-violet-800">
-                                          {row.parentProductName}
-                                        </span>
-                                      ) : null}
-                                      {row.productName}
-                                      {row.unit ? (
-                                        <span className="font-normal text-zinc-500"> ({row.unit})</span>
-                                      ) : null}
-                                    </td>
-                                    <td className="px-3 py-2 text-right tabular-nums">{row.quantity}</td>
-                                    <td className="hidden px-3 py-2 text-zinc-600 md:table-cell">
-                                      {row.warehouseName?.trim() ?? "—"}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      ) : null}
+                      {open ? renderExpandedTableDesktop(block, safeKey) : null}
                     </div>
                   );
                 })}
               </div>
 
               {totalCount > 0 ? (
-                <div className="flex min-w-0 flex-col gap-3 border-t border-zinc-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 flex-col gap-3 rounded-xl border border-zinc-100 bg-zinc-50/50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                   <p className="min-w-0 text-sm text-zinc-600">
                     {(page - 1) * PAGE_SIZE + 1}
                     {"–"}
                     {Math.min(page * PAGE_SIZE, totalCount)} · {t("branch.pagingTotal")} {totalCount}
                   </p>
-                  <div className="flex min-w-0 flex-wrap items-stretch gap-2 sm:items-center sm:justify-end">
+                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
                     <Button
                       type="button"
                       variant="secondary"
-                      className="min-h-11 min-w-0 flex-1 touch-manipulation sm:flex-none"
+                      className="min-h-11 w-full touch-manipulation sm:w-auto"
                       disabled={page <= 1}
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
                     >
                       {t("branch.pagingPrev")}
                     </Button>
-                    <span className="flex min-w-[4.5rem] shrink-0 items-center justify-center text-sm tabular-nums text-zinc-700">
+                    <span className="col-span-2 flex min-h-11 items-center justify-center rounded-lg border border-zinc-200 bg-white text-sm tabular-nums text-zinc-700 sm:col-span-1 sm:min-h-0 sm:rounded-none sm:border-0 sm:bg-transparent">
                       {page} / {totalPages}
                     </span>
                     <Button
                       type="button"
                       variant="secondary"
-                      className="min-h-11 min-w-0 flex-1 touch-manipulation sm:flex-none"
+                      className="min-h-11 w-full touch-manipulation sm:w-auto"
                       disabled={page >= totalPages}
                       onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                     >
@@ -654,19 +967,16 @@ export function BranchStockInboundPanel({ branchId }: Props) {
               ) : null}
             </>
           )}
+
           <Modal
-            open={activeShipment != null}
-            onClose={() => setActiveShipmentKey(null)}
-            titleId="branch-stock-shipment-modal-title"
-            title={t("branch.stockShipmentModalTitle")}
-            description={
-              activeShipmentBatchCell
-                ? t("branch.stockShipmentModalHint").replace("{{shipment}}", activeShipmentBatchCell.text)
-                : undefined
-            }
+            open={detailModal != null}
+            onClose={() => setDetailModal(null)}
+            titleId="branch-stock-detail-modal-title"
+            title={detailModal?.title ?? ""}
+            description={detailModal?.description}
             closeButtonLabel={t("common.close")}
           >
-            {activeShipment ? (
+            {detailModal ? (
               <div className="mt-4 max-h-[min(75dvh,38rem)] overflow-y-auto">
                 <div className="overflow-x-auto rounded-md border border-zinc-200 bg-white">
                   <table className="min-w-full text-sm">
@@ -676,27 +986,41 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                         <th className="px-3 py-2">{t("branch.stockColProduct")}</th>
                         <th className="px-3 py-2 text-right">{t("branch.stockColQty")}</th>
                         <th className="hidden px-3 py-2 md:table-cell">{t("branch.stockColWarehouse")}</th>
+                        <th className="hidden px-3 py-2 lg:table-cell">{t("warehouse.movementBatchGroup")}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-100">
-                      {activeShipment.movements.map((row) => (
-                        <tr key={row.id}>
-                          <td className="whitespace-nowrap px-3 py-2 text-zinc-700">{fmtDate(row.movementDate)}</td>
-                          <td className="px-3 py-2 font-medium text-zinc-900">
-                            {row.parentProductName?.trim() ? (
-                              <span className="mb-0.5 block text-[0.65rem] font-semibold uppercase tracking-wide text-violet-800">
-                                {row.parentProductName}
+                      {detailModal.movements.map((row) => {
+                        const batchCell = formatWarehouseShipmentDisplay(
+                          row.inBatchGroupId ?? null,
+                          row.warehouseMovementId ?? row.id
+                        );
+                        return (
+                          <tr key={row.id}>
+                            <td className="whitespace-nowrap px-3 py-2 text-zinc-700">{fmtDate(row.movementDate)}</td>
+                            <td className="px-3 py-2 font-medium text-zinc-900">
+                              {row.parentProductName?.trim() ? (
+                                <span className="mb-0.5 block text-[0.65rem] font-semibold uppercase tracking-wide text-violet-800">
+                                  {row.parentProductName}
+                                </span>
+                              ) : null}
+                              {row.productName}
+                              {row.unit ? (
+                                <span className="font-normal text-zinc-500"> ({row.unit})</span>
+                              ) : null}
+                            </td>
+                            <td className="px-3 py-2 text-right tabular-nums">{row.quantity}</td>
+                            <td className="hidden px-3 py-2 text-zinc-600 md:table-cell">
+                              {row.warehouseName?.trim() ?? "—"}
+                            </td>
+                            <td className="hidden px-3 py-2 lg:table-cell">
+                              <span className="font-mono text-xs text-zinc-600" title={batchCell.title}>
+                                {batchCell.text}
                               </span>
-                            ) : null}
-                            {row.productName}
-                            {row.unit ? <span className="font-normal text-zinc-500"> ({row.unit})</span> : null}
-                          </td>
-                          <td className="px-3 py-2 text-right tabular-nums">{row.quantity}</td>
-                          <td className="hidden px-3 py-2 text-zinc-600 md:table-cell">
-                            {row.warehouseName?.trim() ?? "—"}
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
