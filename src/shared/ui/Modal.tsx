@@ -20,6 +20,11 @@ type ModalProps = {
   backdropClassName?: string;
   /** Dar kart — OTP, kısa formlar; mobilde üst köşe radius. */
   narrow?: boolean;
+  /**
+   * Mobil (max-sm): tam yükseklik alt sheet — şube detay paneline benzer.
+   * İçerik kaydırılabilir alanda; yalnızca `narrow` ile birlikte kullanın.
+   */
+  sheetMobile?: boolean;
   /** Ürün detayı gibi geniş, dikey kaydırmalı düzen. */
   wide?: boolean;
   /** wide: viewport sınırına kadar sabit yükseklik (tab geçişinde panel zıplamasını önler). */
@@ -44,6 +49,7 @@ export function Modal({
   className,
   backdropClassName,
   narrow = false,
+  sheetMobile = false,
   wide = false,
   wideFixedHeight = false,
   wideExpanded = false,
@@ -102,6 +108,8 @@ export function Modal({
     : wideFixedHeight
       ? "h-[min(92dvh,60rem)] sm:h-[min(92dvh,64rem)] lg:h-[min(93dvh,72rem)] xl:h-[min(94dvh,80rem)] 2xl:h-[min(94dvh,84rem)]"
       : "max-h-[min(92dvh,60rem)] sm:max-h-[min(92dvh,64rem)] lg:max-h-[min(93dvh,72rem)] xl:max-h-[min(94dvh,80rem)] 2xl:max-h-[min(94dvh,84rem)]";
+  const sheetMobileActive = Boolean(sheetMobile && narrow);
+
   const panelClass = wide
     ? cn(
         wideExpanded
@@ -110,11 +118,19 @@ export function Modal({
         wideHeight
       )
     : narrow
-      ? dialogTheme.narrowPanel
+      ? cn(
+          dialogTheme.narrowPanel,
+          sheetMobileActive &&
+            "max-sm:flex max-sm:h-[min(100dvh,100svh)] max-sm:max-h-[100dvh] max-sm:flex-col max-sm:overflow-hidden max-sm:rounded-b-none max-sm:border-x-0 max-sm:border-t max-sm:border-zinc-200/90 max-sm:!px-0 max-sm:!pt-0 max-sm:!pb-[env(safe-area-inset-bottom,0px)] max-sm:shadow-2xl max-sm:!ring-0"
+        )
       : dialogTheme.panel;
   const headerClass = wide
     ? cn(dialogTheme.headerRow, "shrink-0 border-b border-zinc-100 px-4 py-3 sm:px-6 sm:py-4")
-    : dialogTheme.headerRow;
+    : cn(
+        dialogTheme.headerRow,
+        sheetMobileActive &&
+          "max-sm:shrink-0 max-sm:border-b max-sm:border-zinc-100 max-sm:px-4 max-sm:pb-3 max-sm:pt-[max(0.5rem,env(safe-area-inset-top,0px))]"
+      );
 
   const requestBackdropClose = () => {
     if (backdropCloseRequiresConfirm) setBackdropConfirmOpen(true);
@@ -126,6 +142,8 @@ export function Modal({
       className={cn(
         dialogTheme.backdrop,
         backdropClassName,
+        sheetMobileActive &&
+          "max-sm:items-end max-sm:justify-center max-sm:!bg-zinc-950/50 max-sm:!p-0 max-sm:!pt-0 max-sm:!pb-0",
         nested && OVERLAY_Z_TW.modalNested
       )}
       role="presentation"
@@ -142,7 +160,11 @@ export function Modal({
           <div className={cn(dialogTheme.headerText, narrow && "sm:pr-1")}>
             <h2
               id={titleId}
-              className={cn(dialogTheme.title, narrow && "text-balance text-center sm:text-left")}
+              className={cn(
+                dialogTheme.title,
+                narrow && "text-balance text-center sm:text-left",
+                sheetMobileActive && "max-sm:text-left"
+              )}
             >
               {title}
             </h2>
@@ -150,7 +172,8 @@ export function Modal({
               <p
                 className={cn(
                   dialogTheme.description,
-                  narrow && "text-balance text-center text-[15px] leading-snug sm:text-left sm:text-sm lg:text-base"
+                  narrow && "text-balance text-center text-[15px] leading-snug sm:text-left sm:text-sm lg:text-base",
+                  sheetMobileActive && "max-sm:text-left"
                 )}
               >
                 {description}
@@ -170,7 +193,13 @@ export function Modal({
             </Tooltip>
           ) : null}
         </div>
-        {children}
+        {sheetMobileActive ? (
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom,0.75rem))] pt-1 [-webkit-overflow-scrolling:touch]">
+            {children}
+          </div>
+        ) : (
+          children
+        )}
       </div>
       <BackdropCloseConfirm
         open={backdropConfirmOpen}

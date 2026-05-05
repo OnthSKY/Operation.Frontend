@@ -791,20 +791,23 @@ export function CounterpartySummaryReportScreen() {
   }, [branches, filters, locale, selectedBranchId, t]);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <div>
+    <div className="min-w-0 w-full space-y-4 pb-1">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        <div className="min-w-0">
           <h1 className="text-lg font-semibold text-zinc-900">{t("reports.counterpartySummaryTitle")}</h1>
-          <p className="text-sm text-zinc-600">{t("reports.counterpartySummarySubtitle")}</p>
+          <p className="mt-0.5 text-sm leading-relaxed text-zinc-600">{t("reports.counterpartySummarySubtitle")}</p>
         </div>
-        <Link href="/products/order-account-statement" className="text-sm font-medium text-violet-700 underline">
+        <Link
+          href="/products/order-account-statement"
+          className="shrink-0 text-sm font-medium text-violet-700 underline decoration-violet-700/40 underline-offset-2 transition hover:decoration-violet-700 sm:pt-0.5 sm:text-right"
+        >
           {t("reports.counterpartySummaryBackToStatement")}
         </Link>
       </div>
 
-      <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3">
-        <div className="flex min-w-0 shrink-0 flex-wrap items-end justify-between gap-3">
-          <div className="min-w-[15rem] max-w-full flex-1 sm:max-w-sm">
+      <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 sm:p-4">
+        <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end lg:justify-between">
+          <div className="min-w-0 w-full lg:max-w-md lg:flex-1">
             <label className="mb-1 block text-xs font-medium text-zinc-600">
               {t("reports.counterpartySummaryBranchFilterLabel")}
             </label>
@@ -817,66 +820,68 @@ export function CounterpartySummaryReportScreen() {
               emptyText={t("reports.counterpartySummaryBranchFilterEmpty")}
             />
           </div>
-          <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-2">
-          <label className="inline-flex h-11 items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 text-xs text-zinc-700">
-            <Checkbox checked={showInvoiceRows} onCheckedChange={(v) => setShowInvoiceRows(v === true)} />
-            Fatura bazli liste
-          </label>
-          <Tooltip content={t("common.filters")} delayMs={200}>
-            <button
-              type="button"
-              className="relative flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50/90 text-zinc-700 shadow-sm transition hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70"
-              aria-label={t("common.filters")}
-              aria-expanded={filtersOpen}
-              onClick={() => setFiltersOpen(true)}
-            >
-              <FilterFunnelIcon className="h-5 w-5" />
-              {filtersActive ? (
-                <span
-                  className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-violet-500 ring-2 ring-white"
-                  aria-hidden
-                />
-              ) : null}
-            </button>
-          </Tooltip>
-          <Tooltip content={t("reports.counterpartySummaryRefresh")} delayMs={200}>
-            <Button
-              type="button"
-              variant="secondary"
-              className={TABLE_TOOLBAR_ICON_BTN}
-              onClick={() => void load(filters)}
-              disabled={busy}
-              aria-label={t("reports.counterpartySummaryRefresh")}
-            >
-              <svg
-                aria-hidden
-                className="h-5 w-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
+          <div className="flex min-w-0 w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-end lg:w-auto lg:max-w-none lg:flex-initial">
+            <label className="inline-flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs leading-snug text-zinc-700 sm:w-auto sm:max-w-[min(100%,20rem)] sm:self-center sm:py-0">
+              <Checkbox checked={showInvoiceRows} onCheckedChange={(v) => setShowInvoiceRows(v === true)} />
+              <span className="min-w-0">Fatura bazli liste</span>
+            </label>
+            <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
+              <Tooltip content={t("common.filters")} delayMs={200}>
+                <button
+                  type="button"
+                  className="relative flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50/90 text-zinc-700 shadow-sm transition hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70"
+                  aria-label={t("common.filters")}
+                  aria-expanded={filtersOpen}
+                  onClick={() => setFiltersOpen(true)}
+                >
+                  <FilterFunnelIcon className="h-5 w-5" />
+                  {filtersActive ? (
+                    <span
+                      className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-violet-500 ring-2 ring-white"
+                      aria-hidden
+                    />
+                  ) : null}
+                </button>
+              </Tooltip>
+              <Tooltip content={t("reports.counterpartySummaryRefresh")} delayMs={200}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className={TABLE_TOOLBAR_ICON_BTN}
+                  onClick={() => void load(filters)}
+                  disabled={busy}
+                  aria-label={t("reports.counterpartySummaryRefresh")}
+                >
+                  <svg
+                    aria-hidden
+                    className="h-5 w-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M20 11a8 8 0 1 0 2.3 5.7" />
+                    <path d="M20 4v7h-7" />
+                  </svg>
+                </Button>
+              </Tooltip>
+              <Button
+                type="button"
+                variant="secondary"
+                className="h-11 min-h-[44px] flex-1 px-3 sm:flex-initial sm:min-w-[9rem]"
+                onClick={() => void downloadSummaryPdf()}
+                disabled={busy || exportBusy}
               >
-                <path d="M20 11a8 8 0 1 0 2.3 5.7" />
-                <path d="M20 4v7h-7" />
-              </svg>
-            </Button>
-          </Tooltip>
-          <Button
-            type="button"
-            variant="secondary"
-            className="h-11 px-3"
-            onClick={() => void downloadSummaryPdf()}
-            disabled={busy || exportBusy}
-          >
-            {exportBusy ? t("common.loading") : t("reports.counterpartySummaryExportPdf")}
-          </Button>
-        </div>
+                {exportBusy ? t("common.loading") : t("reports.counterpartySummaryExportPdf")}
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <SummaryCard title={t("reports.counterpartySummaryInvoicedTotal")} value={formatLocaleAmount(reportTotals.invoicedTotal, locale, filters.currencyCode || "TRY")} />
         <SummaryCard title={t("reports.counterpartySummaryPaidTotal")} value={formatLocaleAmount(reportTotals.paidTotal, locale, filters.currencyCode || "TRY")} />
         <SummaryCard title={t("reports.counterpartySummaryOpenTotal")} value={formatLocaleAmount(reportTotals.openAmountTotal, locale, filters.currencyCode || "TRY")} />
@@ -887,26 +892,26 @@ export function CounterpartySummaryReportScreen() {
       {errorText ? <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{errorText}</p> : null}
       {busy ? <p className="text-sm text-zinc-500">{t("reports.loading")}</p> : null}
 
-      <div className="space-y-3 md:hidden">
+      <div className="space-y-3 lg:hidden">
         {tableItems.map((row) => (
           <div
             key={`${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}-${row.lastDocumentNumber ?? "summary"}`}
-            className={`rounded-xl border p-3 sm:p-4 ${
+            className={`min-w-0 rounded-xl border p-3 sm:p-4 ${
               isOpenBalance(Number(row.openAmount))
                 ? "border-amber-200 bg-amber-50/30"
                 : "border-emerald-200 bg-emerald-50/30"
             }`}
           >
             <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-zinc-900">{row.counterpartyName}</p>
+              <div className="min-w-0 flex-1">
+                <p className="break-words text-sm font-semibold text-zinc-900">{row.counterpartyName}</p>
                 <p className="text-xs text-zinc-600">
                   {row.counterpartyType === "branch"
                     ? t("reports.counterpartySummaryTypeBranch")
                     : t("reports.counterpartySummaryTypeCustomer")}
                 </p>
               </div>
-              <p className="text-sm font-semibold tabular-nums text-violet-800">
+              <p className="shrink-0 text-right text-sm font-semibold tabular-nums text-violet-800">
                 {formatLocaleAmount(row.openAmount, locale, row.currencyCode || "TRY")}
               </p>
             </div>
@@ -923,7 +928,7 @@ export function CounterpartySummaryReportScreen() {
                   : t("reports.counterpartySummaryBalanceClosedBadge")}
               </span>
             </div>
-            <dl className="mt-3 grid grid-cols-2 gap-2 text-xs sm:text-sm">
+            <dl className="mt-3 grid grid-cols-1 gap-2 text-xs min-[400px]:grid-cols-2 sm:text-sm">
               <div>
                 <dt className="text-zinc-500">{t("reports.counterpartySummaryColInvoiced")}</dt>
                 <dd className="font-medium tabular-nums text-zinc-900">
@@ -971,14 +976,14 @@ export function CounterpartySummaryReportScreen() {
               </div>
               <div>
                 <dt className="text-zinc-500">{t("reports.counterpartySummaryColInvoiceRef")}</dt>
-                <dd className="font-medium tabular-nums text-zinc-900">{row.lastDocumentNumber || "—"}</dd>
+                <dd className="break-all font-medium tabular-nums text-zinc-900">{row.lastDocumentNumber || "—"}</dd>
               </div>
               <div>
                 <dt className="text-zinc-500">{t("reports.counterpartySummaryColIssueDate")}</dt>
                 <dd className="font-medium tabular-nums text-zinc-900">{row.lastInvoiceDate || "—"}</dd>
               </div>
             </dl>
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               <Button
                 type="button"
                 variant="secondary"
@@ -1071,8 +1076,8 @@ export function CounterpartySummaryReportScreen() {
         ) : null}
       </div>
 
-      <div className="hidden overflow-x-auto rounded-xl border border-zinc-200 bg-white md:block">
-        <table className="w-full min-w-0 lg:min-w-[780px] text-sm">
+      <div className="hidden overflow-x-auto rounded-xl border border-zinc-200 bg-white lg:block">
+        <table className="w-full min-w-[780px] text-sm">
           <thead className="bg-zinc-50 text-zinc-700">
             <tr>
               <th className="px-3 py-2 text-left">{t("reports.counterpartySummaryColInvoiceRef")}</th>
@@ -1425,9 +1430,9 @@ export function CounterpartySummaryReportScreen() {
 
 function SummaryCard({ title, value }: { title: string; value: string }) {
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2">
-      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{title}</p>
-      <p className="mt-1 text-lg font-semibold tabular-nums text-zinc-900">{value}</p>
+    <div className="min-w-0 rounded-lg border border-zinc-200 bg-white px-3 py-2">
+      <p className="text-[10px] font-medium uppercase leading-tight tracking-wide text-zinc-500 sm:text-xs">{title}</p>
+      <p className="mt-1 break-words text-base font-semibold tabular-nums text-zinc-900 sm:text-lg">{value}</p>
     </div>
   );
 }

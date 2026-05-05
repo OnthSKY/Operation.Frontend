@@ -5,7 +5,7 @@ export const generalOverhead = {
   newPool: "Add expense",
   addExpense: "Add expense",
   listTitle: "General expense records",
-  storyRailHint: "Swipe sideways for summary chips.",
+  storyRailHint: "The figures below reflect the selected status filter.",
   storyStatTotal: "In list (filter)",
   storyStatOpen: "Open",
   storyStatAllocated: "Allocated",

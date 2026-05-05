@@ -940,17 +940,48 @@ export function GeneralOverheadScreen() {
     return { total: rows.length, open, allocated };
   }, [poolsQ.data]);
 
+  const statusFilterSelect = (
+    <Select
+      name="gohStatusFilter"
+      label={t("generalOverhead.filterStatus")}
+      value={statusFilter}
+      onChange={(e) => setStatusFilter(e.target.value)}
+      onBlur={() => {}}
+      options={[
+        { value: "", label: t("generalOverhead.filterAll") },
+        { value: "OPEN", label: t("generalOverhead.statusOpen") },
+        { value: "ALLOCATED", label: t("generalOverhead.statusAllocated") },
+      ]}
+    />
+  );
+
+  const addExpenseButton = (
+    <Tooltip content={t("generalOverhead.addExpense")} delayMs={200}>
+      <Button
+        type="button"
+        variant="primary"
+        className={cn(TABLE_TOOLBAR_ICON_BTN, "touch-manipulation")}
+        onClick={openCreate}
+        aria-label={t("generalOverhead.addExpense")}
+      >
+        <ToolbarGlyphCoinExpense className="h-5 w-5" />
+      </Button>
+    </Tooltip>
+  );
+
   return (
     <>
       <PageScreenScaffold
-        className="w-full app-page-max px-3 py-6 md:px-4"
+        className="w-full app-page-max gap-4 px-3 py-5 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] sm:gap-6 sm:px-6 md:px-4 md:py-6"
         intro={
           <>
             <div>
               <h1 className="text-xl font-bold tracking-tight text-zinc-900 md:text-2xl">
                 {t("generalOverhead.title")}
               </h1>
-              <p className="mt-1 max-w-2xl text-sm text-zinc-600">{t("generalOverhead.intro")}</p>
+              <p className="mt-1 max-w-2xl text-pretty text-sm text-zinc-600 line-clamp-4 md:line-clamp-none">
+                {t("generalOverhead.intro")}
+              </p>
             </div>
 
             <PageWhenToUseGuide
@@ -977,64 +1008,51 @@ export function GeneralOverheadScreen() {
         main={
           <Card
             title={t("generalOverhead.listTitle")}
-            headerActions={
-              <Tooltip content={t("generalOverhead.addExpense")} delayMs={200}>
-                <Button
-                  type="button"
-                  variant="primary"
-                  className={TABLE_TOOLBAR_ICON_BTN}
-                  onClick={openCreate}
-                  aria-label={t("generalOverhead.addExpense")}
-                >
-                  <ToolbarGlyphCoinExpense className="h-5 w-5" />
-                </Button>
-              </Tooltip>
-            }
+            headerActions={<span className="max-md:hidden">{addExpenseButton}</span>}
           >
         {!poolsQ.isPending && !poolsQ.isError ? (
-          <div className="mb-4 md:mb-5">
-            <p className="mb-2 text-xs text-zinc-500 md:hidden">{t("generalOverhead.storyRailHint")}</p>
-            <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain px-1 pb-2 [-webkit-overflow-scrolling:touch] md:mx-0 md:grid md:grid-cols-3 md:gap-3 md:overflow-visible md:pb-0 md:snap-none">
-              <div className="w-full max-md:w-[min(82vw,16.5rem)] max-md:shrink-0 max-md:snap-start rounded-2xl border border-zinc-200/90 bg-gradient-to-br from-violet-50/70 to-white p-4 shadow-sm ring-1 ring-violet-100/40">
+          <div className="mb-3 md:mb-5">
+            <p className="mb-2 text-xs leading-snug text-zinc-500">{t("generalOverhead.storyRailHint")}</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+              <div className="min-w-0 rounded-2xl border border-zinc-200/90 bg-gradient-to-br from-violet-50/70 to-white p-3 shadow-sm ring-1 ring-violet-100/40 sm:p-4">
                 <p className="text-[0.65rem] font-bold uppercase tracking-wide text-violet-900/80">
                   {t("generalOverhead.storyStatTotal")}
                 </p>
-                <p className="mt-1.5 text-2xl font-bold tabular-nums tracking-tight text-zinc-950">
+                <p className="mt-1 text-xl font-bold tabular-nums tracking-tight text-zinc-950 sm:mt-1.5 sm:text-2xl">
                   {poolStats.total}
                 </p>
               </div>
-              <div className="w-full max-md:w-[min(82vw,16.5rem)] max-md:shrink-0 max-md:snap-start rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/80 to-white p-4 shadow-sm ring-1 ring-emerald-100/50">
+              <div className="min-w-0 rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/80 to-white p-3 shadow-sm ring-1 ring-emerald-100/50 sm:p-4">
                 <p className="text-[0.65rem] font-bold uppercase tracking-wide text-emerald-900/85">
                   {t("generalOverhead.storyStatOpen")}
                 </p>
-                <p className="mt-1.5 text-2xl font-bold tabular-nums tracking-tight text-zinc-950">
+                <p className="mt-1 text-xl font-bold tabular-nums tracking-tight text-zinc-950 sm:mt-1.5 sm:text-2xl">
                   {poolStats.open}
                 </p>
               </div>
-              <div className="w-full max-md:w-[min(82vw,16.5rem)] max-md:shrink-0 max-md:snap-start rounded-2xl border border-zinc-200/90 bg-gradient-to-br from-zinc-50 to-white p-4 shadow-sm">
+              <div className="min-w-0 rounded-2xl border border-zinc-200/90 bg-gradient-to-br from-zinc-50 to-white p-3 shadow-sm sm:p-4">
                 <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-600">
                   {t("generalOverhead.storyStatAllocated")}
                 </p>
-                <p className="mt-1.5 text-2xl font-bold tabular-nums tracking-tight text-zinc-950">
+                <p className="mt-1 text-xl font-bold tabular-nums tracking-tight text-zinc-950 sm:mt-1.5 sm:text-2xl">
                   {poolStats.allocated}
                 </p>
               </div>
             </div>
           </div>
         ) : null}
-        <div className="mb-4 w-full max-w-xs">
-          <Select
-            name="gohStatusFilter"
-            label={t("generalOverhead.filterStatus")}
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            onBlur={() => {}}
-            options={[
-              { value: "", label: t("generalOverhead.filterAll") },
-              { value: "OPEN", label: t("generalOverhead.statusOpen") },
-              { value: "ALLOCATED", label: t("generalOverhead.statusAllocated") },
-            ]}
-          />
+        <div
+          className={cn(
+            "mb-4 border-b border-zinc-100 pb-3",
+            "sticky top-0 z-10 -mx-3 bg-white/95 px-3 pt-0.5 backdrop-blur-sm supports-[backdrop-filter]:bg-white/90",
+            "sm:-mx-4 sm:px-4",
+            "md:static md:z-0 md:mx-0 md:border-0 md:bg-transparent md:px-0 md:pb-0 md:pt-0 md:backdrop-blur-none"
+          )}
+        >
+          <div className="flex min-w-0 items-end gap-2 md:block md:max-w-xs">
+            <div className="min-w-0 flex-1">{statusFilterSelect}</div>
+            <div className="flex shrink-0 pb-0.5 md:hidden">{addExpenseButton}</div>
+          </div>
         </div>
         {poolsQ.isPending ? (
           <p className="text-sm text-zinc-500">{t("common.loading")}</p>
@@ -1043,7 +1061,7 @@ export function GeneralOverheadScreen() {
         ) : (poolsQ.data ?? []).length === 0 ? (
           <p className="text-sm text-zinc-500">{t("generalOverhead.empty")}</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="min-w-0">
             <Table>
               <TableHead>
                 <TableRow>
@@ -1152,8 +1170,9 @@ export function GeneralOverheadScreen() {
         titleId="goh-create"
         title={t("generalOverhead.modalCreateTitle")}
         narrow
+        sheetMobile
         closeButtonLabel={t("common.close")}
-        className="!max-w-[min(100vw-1rem,36rem)] sm:!max-w-xl md:!max-w-2xl"
+        className="sm:!max-w-xl md:!max-w-2xl lg:!max-w-[min(52rem,calc(100vw-3rem))]"
       >
         <div className="flex flex-col gap-3 sm:gap-4">
             <Input
@@ -1317,22 +1336,27 @@ export function GeneralOverheadScreen() {
                       aria-label={t("generalOverhead.allocBranchPaidLabel")}
                     />
                   </label>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-2">
                     <Button
                       type="button"
                       variant="secondary"
-                      className="min-h-10 flex-1 text-xs sm:flex-none"
+                      className="min-h-11 w-full justify-center px-3 text-sm font-medium leading-snug whitespace-normal sm:min-h-10 sm:w-auto sm:flex-none sm:text-xs"
                       onClick={addCreateAllocRow}
                     >
                       {t("generalOverhead.addBranchRow")}
                     </Button>
-                    <Button type="button" variant="secondary" className="min-h-10 flex-1 text-xs sm:flex-none" onClick={equalSplitCreate}>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="min-h-11 w-full justify-center px-3 text-sm font-medium leading-snug whitespace-normal sm:min-h-10 sm:w-auto sm:flex-none sm:text-xs"
+                      onClick={equalSplitCreate}
+                    >
                       {t("generalOverhead.equalSplit")}
                     </Button>
                     <Button
                       type="button"
                       variant="secondary"
-                      className="min-h-10 flex-1 text-xs sm:flex-none"
+                      className="min-h-11 w-full justify-center px-3 text-sm font-medium leading-snug whitespace-normal sm:min-h-10 sm:w-auto sm:flex-none sm:text-xs"
                       disabled={branchesQ.isPending}
                       onClick={equalSplitAllBranchesCreate}
                     >
@@ -1410,7 +1434,7 @@ export function GeneralOverheadScreen() {
             </div>
           </div>
 
-        <div className="mt-4 flex flex-col-reverse gap-2 border-t border-zinc-100 pt-4 sm:flex-row sm:justify-end">
+        <div className="mt-5 flex flex-col-reverse gap-3 border-t border-zinc-200/90 pt-5 sm:mt-4 sm:flex-row sm:justify-end sm:gap-2 sm:border-zinc-100 sm:pt-4">
           <Button type="button" variant="ghost" className="min-h-11 w-full sm:min-h-10 sm:w-auto" onClick={() => setCreateOpen(false)}>
             {t("common.cancel")}
           </Button>
@@ -1440,9 +1464,10 @@ export function GeneralOverheadScreen() {
         title={t("generalOverhead.modalAllocateTitle")}
         wide
         closeButtonLabel={t("common.close")}
+        className="!max-w-[min(100vw-0.5rem,88rem)]"
       >
         {allocPool ? (
-          <div className="flex flex-col gap-4 px-4 pb-4 sm:px-6 sm:pb-6">
+          <div className="flex flex-col gap-4 px-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] pt-0 sm:px-6 sm:pb-6 sm:pt-0">
             <p className="text-sm text-zinc-700">
               <span className="font-semibold">{allocPool.title}</span>
               <span className="mx-1">—</span>
@@ -1605,7 +1630,7 @@ export function GeneralOverheadScreen() {
               })}
             </div>
             <p className="text-xs text-zinc-500">{t("generalOverhead.allocateSumHint")}</p>
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <div className="mt-1 flex flex-col-reverse gap-2 border-t border-zinc-100 pt-4 sm:flex-row sm:justify-end">
               <Button type="button" variant="ghost" className="min-h-11 w-full sm:min-h-10 sm:w-auto" onClick={() => setAllocPool(null)}>
                 {t("common.cancel")}
               </Button>
@@ -1750,7 +1775,7 @@ export function GeneralOverheadScreen() {
         closeButtonLabel={t("common.close")}
       >
         {reversePoolId != null ? (
-          <div className="flex flex-col gap-4 px-4 pb-4 sm:px-6 sm:pb-6">
+          <div className="flex flex-col gap-4 px-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:pb-6">
             {reversePreviewQ.isPending ? (
               <p className="text-sm text-zinc-500">{t("common.loading")}</p>
             ) : reversePreviewQ.isError ? (
@@ -1781,11 +1806,16 @@ export function GeneralOverheadScreen() {
                     <TableBody>
                       {reversePreviewQ.data.lines.map((row) => (
                         <TableRow key={`${row.branchId}-${row.currencyCode}-${row.branchTransactionId}`}>
-                          <TableCell className="text-sm">{row.branchName}</TableCell>
-                          <TableCell className="text-end text-sm tabular-nums">
+                          <TableCell className="text-sm" dataLabel={t("generalOverhead.reverseColBranch")}>
+                            {row.branchName}
+                          </TableCell>
+                          <TableCell
+                            className="text-end text-sm tabular-nums"
+                            dataLabel={t("generalOverhead.reverseColAmount")}
+                          >
                             {formatLocaleAmount(row.amount, locale, row.currencyCode)}
                           </TableCell>
-                          <TableCell className="text-sm">
+                          <TableCell className="text-sm" dataLabel={t("generalOverhead.reverseColSeason")}>
                             {row.branchTransactionAlreadyRemoved ? (
                               <span className="text-zinc-500">{t("generalOverhead.reverseRowRemoved")}</span>
                             ) : row.hasOpenTourismSeasonOnExpenseDate ? (
@@ -1794,7 +1824,7 @@ export function GeneralOverheadScreen() {
                               <span className="text-amber-900">{t("generalOverhead.reverseSeasonClosed")}</span>
                             )}
                           </TableCell>
-                          <TableCell className="text-sm">
+                          <TableCell className="text-sm" dataLabel={t("generalOverhead.reverseColPayment")}>
                             {row.branchTransactionAlreadyRemoved
                               ? "—"
                               : expensePaySourceLabel(row.expensePaymentSource, t)}
@@ -1822,7 +1852,7 @@ export function GeneralOverheadScreen() {
                   <Button
                     type="button"
                     variant="ghost"
-                    className="w-full sm:w-auto"
+                    className="min-h-11 w-full touch-manipulation sm:min-h-10 sm:w-auto"
                     disabled={reverseMut.isPending}
                     onClick={() => setReversePoolId(null)}
                   >
@@ -1831,7 +1861,7 @@ export function GeneralOverheadScreen() {
                   <Button
                     type="button"
                     variant="primary"
-                    className="inline-flex w-full items-center justify-center gap-2 sm:w-auto"
+                    className="inline-flex min-h-11 w-full touch-manipulation items-center justify-center gap-2 sm:min-h-10 sm:w-auto"
                     disabled={reverseMut.isPending || reversePreviewQ.isPending}
                     onClick={() => void submitReverseAllocation()}
                   >

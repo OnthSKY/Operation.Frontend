@@ -1,10 +1,7 @@
 "use client";
 
 import { fetchBranches } from "@/modules/branch/api/branches-api";
-import {
-  BranchQuickActionsMenu,
-  type QuickActionsMenuSection,
-} from "@/modules/branch/components/BranchQuickActionsMenu";
+import type { QuickActionsMenuSection } from "@/modules/branch/components/BranchQuickActionsMenu";
 import { fetchPersonnelList } from "@/modules/personnel/api/personnel-api";
 import { vehiclePhotoUrl } from "@/modules/vehicles/api/vehicles-api";
 import { fetchVehicleDocumentBlob } from "@/modules/vehicles/api/vehicle-documents-api";
@@ -43,7 +40,6 @@ import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import {
   vehicleHeaderStatusTone,
-  vehicleListStatusTone,
   vehicleStatusLabel,
 } from "@/modules/vehicles/lib/vehicle-status-display";
 import {
@@ -75,7 +71,7 @@ import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
-import { detailOpenIconButtonClass, EyeIcon, PencilIcon, PlusIcon } from "@/shared/ui/EyeIcon";
+import { PlusIcon } from "@/shared/ui/EyeIcon";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select, type SelectOption } from "@/shared/ui/Select";
@@ -3415,6 +3411,7 @@ export function VehiclesScreen() {
             {docFile ? (
               <div className="mt-2 rounded-xl border border-zinc-200 bg-white p-2">
                 {vehicleDocPreviewMode === "image" && vehicleDocPreviewUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- local blob URL from file input
                   <img src={vehicleDocPreviewUrl} alt={docFile.name} className="h-40 w-full rounded-lg object-cover" />
                 ) : vehicleDocPreviewMode === "pdf" && vehicleDocPreviewUrl ? (
                   <iframe src={vehicleDocPreviewUrl} title={docFile.name} className="h-48 w-full rounded-lg border border-zinc-200" />

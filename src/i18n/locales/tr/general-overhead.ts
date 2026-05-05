@@ -5,7 +5,7 @@ export const generalOverhead = {
   newPool: "Gider ekle",
   addExpense: "Gider ekle",
   listTitle: "Genel gider kayıtları",
-  storyRailHint: "Özet kartları için yana kaydırın.",
+  storyRailHint: "Aşağıdaki sayılar seçili durum filtresine göredir.",
   storyStatTotal: "Listede (filtre)",
   storyStatOpen: "Açık",
   storyStatAllocated: "Paylaştırıldı",
