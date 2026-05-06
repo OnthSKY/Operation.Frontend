@@ -3,6 +3,7 @@
 import {
   useBranchAdvancesList,
   useBranchDashboard,
+  useBranchHeldRegisterCashByPerson,
   useBranchPersonnelMoneySummaries,
   useBranchIncomePeriodSummary,
   useBranchRegisterSummary,
@@ -370,6 +371,11 @@ export function BranchDetailTabs({
     dashboardMonth,
     tab === "dashboard" && !employeeSelfService,
     dashboardStockScope
+  );
+  const { data: heldRegisterCashByPerson = [] } = useBranchHeldRegisterCashByPerson(
+    branch.id,
+    txDay,
+    tab === "dashboard" && !employeeSelfService
   );
 
   const {
@@ -747,10 +753,9 @@ export function BranchDetailTabs({
             dash={dash}
             dashboardMonth={dashboardMonth}
             setDashboardMonth={setDashboardMonth}
-            dashboardStockScope={dashboardStockScope}
-            setDashboardStockScope={setDashboardStockScope}
             refetchDash={refetchDash}
-            onOpenStockDetailTab={() => setTab("stock")}
+            staff={staff}
+            heldRegisterCashByPerson={heldRegisterCashByPerson}
           />
         )}
 

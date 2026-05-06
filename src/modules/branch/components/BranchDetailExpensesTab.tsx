@@ -299,6 +299,79 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
               ariaLabel={t("branch.mobileJumpExpenseNavAria")}
               items={expenseJumpItems}
             />
+            <section
+              className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm sm:p-4"
+              aria-label={t("branch.expensesActionsTitle")}
+            >
+              <h3 className="mb-2 text-sm font-semibold text-zinc-900">
+                {t("branch.expensesActionsTitle")}
+              </h3>
+              <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+                <Button
+                  type="button"
+                  className="min-h-11 w-full sm:w-auto"
+                  onClick={() => {
+                    const d = expFrom.length === 10 && expFrom === expTo ? expFrom : localIsoDate();
+                    setTxModalLaunch({ defaultType: "OUT", defaultTransactionDate: d });
+                    setTxModalOpen(true);
+                  }}
+                >
+                  {t("branch.addExpenseTx")}
+                </Button>
+              </div>
+              <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50/70 p-3">
+                <p className="text-xs font-semibold text-zinc-700">{t("branch.expenseQuickFiltersLead")}</p>
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                  <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:contents">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="min-h-11 w-full touch-manipulation sm:min-w-[9rem] sm:flex-1"
+                      onClick={() => {
+                        const d = localIsoDate();
+                        applyUnifiedExpenseFilters({ from: d, to: d });
+                      }}
+                    >
+                      {t("branch.filterToday")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="min-h-11 w-full touch-manipulation sm:min-w-[9rem] sm:flex-1"
+                      onClick={() => applyUnifiedExpenseFilters({ from: "", to: "", main: "", pay: "" })}
+                    >
+                      {t("branch.filterAllTime")}
+                    </Button>
+                    {expenseSeasonQuickRange ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="col-span-2 min-h-11 w-full touch-manipulation sm:col-span-1 sm:min-w-[9rem] sm:flex-1"
+                        onClick={() =>
+                          applyUnifiedExpenseFilters({
+                            from: expenseSeasonQuickRange.from,
+                            to: expenseSeasonQuickRange.to,
+                          })
+                        }
+                      >
+                        {t("branch.filterThisSeason")}
+                      </Button>
+                    ) : null}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="min-h-11 w-full touch-manipulation sm:ml-auto sm:w-auto sm:min-w-[8.5rem]"
+                    onClick={() => {
+                      void refetchExp();
+                      refetchExpenseSummaryBlocks();
+                    }}
+                  >
+                    {t("branch.filterApplyRefresh")}
+                  </Button>
+                </div>
+              </div>
+            </section>
 
             {!employeeSelfService ? (
               <>
@@ -455,29 +528,6 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
               id="branch-expense-lines"
               className="scroll-mt-[5.5rem] flex flex-col gap-4 sm:scroll-mt-0"
             >
-              <section
-                className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm sm:p-4"
-                aria-label={t("branch.expensesActionsTitle")}
-              >
-                <h3 className="mb-2 text-sm font-semibold text-zinc-900">
-                  {t("branch.expensesActionsTitle")}
-                </h3>
-                <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
-                  <Button
-                    type="button"
-                    className="min-h-11 w-full sm:w-auto"
-                    onClick={() => {
-                      const d =
-                        expFrom.length === 10 && expFrom === expTo ? expFrom : localIsoDate();
-                      setTxModalLaunch({ defaultType: "OUT", defaultTransactionDate: d });
-                      setTxModalOpen(true);
-                    }}
-                  >
-                    {t("branch.addExpenseTx")}
-                  </Button>
-                </div>
-              </section>
-
               <div className="flex flex-col gap-3">
                 <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3">
                   <div className="flex flex-col gap-1">
@@ -485,61 +535,6 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                     <p className="text-xs leading-relaxed text-zinc-600">
                       {t("branch.expensesListSection")} · {t("branch.expenseFilterDrawerHint")}
                     </p>
-                  </div>
-
-                  <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-2.5 shadow-sm">
-                    <p className="text-xs font-semibold text-zinc-700">{t("branch.expenseQuickFiltersLead")}</p>
-                    <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                      <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:contents">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="min-h-11 w-full touch-manipulation sm:min-w-[9rem] sm:flex-1"
-                          onClick={() => {
-                            const d = localIsoDate();
-                            applyUnifiedExpenseFilters({ from: d, to: d });
-                          }}
-                        >
-                          {t("branch.filterToday")}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="min-h-11 w-full touch-manipulation sm:min-w-[9rem] sm:flex-1"
-                          onClick={() =>
-                            applyUnifiedExpenseFilters({ from: "", to: "", main: "", pay: "" })
-                          }
-                        >
-                          {t("branch.filterAllTime")}
-                        </Button>
-                        {expenseSeasonQuickRange ? (
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className="col-span-2 min-h-11 w-full touch-manipulation sm:col-span-1 sm:min-w-[9rem] sm:flex-1"
-                            onClick={() =>
-                              applyUnifiedExpenseFilters({
-                                from: expenseSeasonQuickRange.from,
-                                to: expenseSeasonQuickRange.to,
-                              })
-                            }
-                          >
-                            {t("branch.filterThisSeason")}
-                          </Button>
-                        ) : null}
-                      </div>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="min-h-11 w-full touch-manipulation sm:ml-auto sm:w-auto sm:min-w-[8.5rem]"
-                        onClick={() => {
-                          void refetchExp();
-                          refetchExpenseSummaryBlocks();
-                        }}
-                      >
-                        {t("branch.filterApplyRefresh")}
-                      </Button>
-                    </div>
                   </div>
 
                   <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-2.5">

@@ -625,7 +625,7 @@ export function PersonnelScreen() {
   const [filterCompanyHireTo, setFilterCompanyHireTo] = useState("");
   const [filterJobTitle, setFilterJobTitle] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | "active" | "passive">(
-    "all"
+    "active"
   );
   const [filterInsuranceStatus, setFilterInsuranceStatus] = useState<
     "all" | "started" | "not_started"
@@ -771,7 +771,7 @@ export function PersonnelScreen() {
       filterCompanyHireFrom !== "" ||
       filterCompanyHireTo !== "" ||
       filterJobTitle !== "" ||
-      filterStatus !== "all" ||
+      filterStatus !== "active" ||
       filterInsuranceStatus !== "all" ||
       filterName.trim() !== ""
     );

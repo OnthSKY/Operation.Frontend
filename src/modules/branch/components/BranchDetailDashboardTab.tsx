@@ -1,10 +1,6 @@
 "use client";
 
 import type { Locale } from "@/i18n/messages";
-import {
-  branchDashboardScopeActive,
-  type BranchDashboardStockScope,
-} from "@/modules/branch/api/branches-api";
 import { branchTransactionReceiptPhotoUrl } from "@/modules/branch/api/branch-transactions-api";
 import {
   branchTxLinkedExpenseLine,
@@ -13,9 +9,14 @@ import {
   txCategoryLine,
   txCodeLabel,
 } from "@/modules/branch/lib/branch-transaction-options";
-import type { BranchDashboard, BranchRegisterSummary } from "@/types/branch";
+import type {
+  BranchDashboard,
+  BranchRegisterSummary,
+  IncomeCashBranchManagerPersonRow,
+} from "@/types/branch";
 import type { BranchTransaction } from "@/types/branch-transaction";
-import { formatLocaleAmount, formatMoneyDash } from "@/shared/lib/locale-amount";
+import type { Personnel } from "@/types/personnel";
+import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
@@ -28,9 +29,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/Table";
-import {
-  WarehouseProductScopeFilters,
-} from "@/modules/warehouse/components/WarehouseProductScopeFilters";
 import { cn } from "@/lib/cn";
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 import {
@@ -73,11 +71,9 @@ export type BranchDetailDashboardTabProps = {
   dash: BranchDashboard | null | undefined;
   dashboardMonth: string;
   setDashboardMonth: (v: string) => void;
-  dashboardStockScope: BranchDashboardStockScope;
-  setDashboardStockScope: Dispatch<SetStateAction<BranchDashboardStockScope>>;
   refetchDash: () => unknown;
-  /** Mobil ve dar ekranda satır satır stok listesi için şube «Stok» sekmesine geçer. */
-  onOpenStockDetailTab?: () => void;
+  staff: Personnel[];
+  heldRegisterCashByPerson: IncomeCashBranchManagerPersonRow[];
 };
 
 export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
@@ -104,16 +100,32 @@ export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
     dash,
     dashboardMonth,
     setDashboardMonth,
-    dashboardStockScope,
-    setDashboardStockScope,
     refetchDash,
-    onOpenStockDetailTab,
+    staff,
+    heldRegisterCashByPerson,
   } = props;
 
   const incomeDayRows = useMemo(
     () => transactions.filter((row) => row.type.toUpperCase() === "IN"),
     [transactions]
   );
+  const outDayRows = useMemo(
+    () => transactions.filter((row) => row.type.toUpperCase() === "OUT"),
+    [transactions]
+  );
+  const insuredPersonnelCount = useMemo(
+    () => staff.filter((p) => p.insuranceStarted).length,
+    [staff]
+  );
+  const heldRegisterCashTotal = useMemo(
+    () => heldRegisterCashByPerson.reduce((sum, row) => sum + Number(row.amount || 0), 0),
+    [heldRegisterCashByPerson]
+  );
+  const heldRegisterCashTopHolder = useMemo(() => {
+    if (!heldRegisterCashByPerson.length) return null;
+    const sorted = [...heldRegisterCashByPerson].sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0));
+    return sorted[0] ?? null;
+  }, [heldRegisterCashByPerson]);
 
   return (
           <div className="flex flex-col gap-6">
@@ -165,6 +177,123 @@ export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
                 <p className="mt-3 text-sm text-zinc-500">{t("common.loading")}</p>
               ) : regSum ? (
                 <div className="mt-4 flex flex-col gap-6">
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                      {t("branch.dashOpsOverviewTitle")}
+                    </h4>
+                    <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
+                      <DashCard
+                        label={t("branch.dashAllIncome")}
+                        value={formatMoneyDash(dash?.allTimeIncomeTotal ?? 0, t("personnel.dash"), locale, "TRY")}
+                        valueClass="text-emerald-800"
+                        compact
+                      />
+                      <DashCard
+                        label={t("branch.dashAllExpense")}
+                        value={formatMoneyDash(dash?.allTimeExpenseTotal ?? 0, t("personnel.dash"), locale, "TRY")}
+                        valueClass="text-red-800"
+                        compact
+                      />
+                      <DashCard
+                        label={t("branch.dashPersonnel")}
+                        value={String(staff.length)}
+                        compact
+                      />
+                      <DashCard
+                        label={t("branch.dashInsuredPersonnel")}
+                        value={String(insuredPersonnelCount)}
+                        hint={t("branch.dashInsuredPersonnelHint")}
+                        compact
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                      {t("branch.dashExpenseSourceBreakdownTitle")}
+                    </h4>
+                    <p className="mt-1 text-xs text-zinc-600">{t("branch.dashExpenseSourceBreakdownHint")}</p>
+                    <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-4">
+                      <DashCard
+                        label={t("branch.expensePayPatronShort")}
+                        value={formatMoneyDash(
+                          regSum.expenseOverviewOnAsOfDay?.outPaidFromPatron ?? 0,
+                          t("personnel.dash"),
+                          locale,
+                          "TRY"
+                        )}
+                        valueClass="text-violet-900"
+                        compact
+                      />
+                      <DashCard
+                        label={t("branch.expensePayRegisterShort")}
+                        value={formatMoneyDash(
+                          regSum.expenseOverviewOnAsOfDay?.outPaidFromRegister ?? 0,
+                          t("personnel.dash"),
+                          locale,
+                          "TRY"
+                        )}
+                        compact
+                      />
+                      <DashCard
+                        label={t("branch.expensePayPersonnelPocketShort")}
+                        value={formatMoneyDash(
+                          regSum.expenseOverviewOnAsOfDay?.outPaidFromPersonnelPocket ?? 0,
+                          t("personnel.dash"),
+                          locale,
+                          "TRY"
+                        )}
+                        valueClass="text-amber-900"
+                        compact
+                      />
+                      <DashCard
+                        label={t("branch.dashSelectedDayExpenseTotal")}
+                        value={formatMoneyDash(
+                          regSum.dayTotalOutExpense ?? regSum.dayAccountingExpense,
+                          t("personnel.dash"),
+                          locale,
+                          "TRY"
+                        )}
+                        valueClass="text-red-800"
+                        compact
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                      {t("branch.dashHeldRegisterCashTitle")}
+                    </h4>
+                    <div className="mt-2 grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+                      <DashCard
+                        label={t("branch.dashHeldRegisterCashTotal")}
+                        value={formatMoneyDash(heldRegisterCashTotal, t("personnel.dash"), locale, "TRY")}
+                        hint={t("branch.dashHeldRegisterCashTotalHint")}
+                        compact
+                      />
+                      <DashCard
+                        label={t("branch.dashHeldRegisterCashTopHolder")}
+                        value={
+                          heldRegisterCashTopHolder
+                            ? `${heldRegisterCashTopHolder.fullName} · ${formatMoneyDash(
+                                heldRegisterCashTopHolder.amount,
+                                t("personnel.dash"),
+                                locale,
+                                "TRY"
+                              )}`
+                            : t("personnel.dash")
+                        }
+                        compact
+                      />
+                      <DashCard
+                        label={t("branch.dashEntryDayCount")}
+                        value={`${new Set(transactions.map((x) => x.transactionDate)).size}`}
+                        hint={t("branch.dashEntryDayCountHint")}
+                        compact
+                      />
+                    </div>
+                  </div>
+
                   <div
                     className="rounded-xl border border-violet-200/80 bg-violet-50/50 p-3 sm:p-4"
                     role="note"
@@ -237,6 +366,18 @@ export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
                           compact
                         />
                       </div>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2 md:hidden">
+                      <DashCard
+                        label={t("branch.dashSelectedDayInCount")}
+                        value={String(incomeDayRows.length)}
+                        compact
+                      />
+                      <DashCard
+                        label={t("branch.dashSelectedDayOutCount")}
+                        value={String(outDayRows.length)}
+                        compact
+                      />
                     </div>
                   </div>
 
@@ -583,55 +724,6 @@ export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
                     />
                   </div>
                 </>
-              ) : null}
-            </section>
-
-            <section className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm sm:p-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                <div className="min-w-0">
-                  <h3 className="text-sm font-semibold text-zinc-900">
-                    {t("branch.dashStockInboundSection")}
-                  </h3>
-                  <p className="mt-0.5 text-xs text-zinc-500">
-                    {t("branch.dashStockInboundSectionHint")}
-                  </p>
-                </div>
-                {onOpenStockDetailTab ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="min-h-11 w-full shrink-0 sm:min-h-[44px] sm:w-auto md:hidden"
-                    onClick={onOpenStockDetailTab}
-                  >
-                    {t("branch.dashStockOpenDetailTab")}
-                  </Button>
-                ) : null}
-              </div>
-              <div className="mt-3">
-                <WarehouseProductScopeFilters
-                  value={dashboardStockScope}
-                  onChange={setDashboardStockScope}
-                />
-              </div>
-              {dashLoading ? (
-                <p className="mt-3 text-sm text-zinc-500">{t("common.loading")}</p>
-              ) : dash && !dashErr ? (
-                branchDashboardScopeActive(dashboardStockScope) ? (
-                  <div className="mt-3">
-                    <DashCard
-                      label={t("branch.dashStockInboundTotal")}
-                      value={formatLocaleAmount(
-                        dash.stockInboundScopeTotal ?? 0,
-                        locale
-                      )}
-                      hint={t("branch.dashStockInboundTotalHint")}
-                    />
-                  </div>
-                ) : (
-                  <p className="mt-3 text-sm text-zinc-500">
-                    {t("branch.dashStockInboundPickScope")}
-                  </p>
-                )
               ) : null}
             </section>
 
