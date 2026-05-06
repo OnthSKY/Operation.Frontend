@@ -37,7 +37,6 @@ import { RegisterIncomeCashSettlementDialog } from "@/modules/branch/components/
 import {
   BranchSectionTitleWithInfo,
   BranchTxIncomeDeleteRow,
-  incomeCashTotalAndParties,
   listSummaryPatronCardLine,
   listSummaryPatronCashLine,
   listSummaryPatronTotalLine,
@@ -107,6 +106,8 @@ export type BranchDetailIncomeTabProps = {
         items: BranchTransaction[];
         totalCount: number;
         filteredAmountTotal?: number;
+        filteredCashTotal?: number;
+        filteredCardTotal?: number;
         patronIncomeToPatron?: PatronIncomePin | null;
       }
     | null
@@ -224,6 +225,19 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
     setIncPage(1);
   };
   const pctLine = (amount: number, total: number) => `%${(total > 0 ? (amount / total) * 100 : 0).toFixed(1)}`;
+  const incomeListTotals = useMemo(() => {
+    const rows = incData?.items ?? [];
+    const total = Number(
+      incData?.filteredAmountTotal ?? rows.reduce((s, r) => s + Number(r.amount || 0), 0)
+    );
+    const cash = Number(
+      incData?.filteredCashTotal ?? rows.reduce((s, r) => s + Number(r.cashAmount ?? 0), 0)
+    );
+    const card = Number(
+      incData?.filteredCardTotal ?? rows.reduce((s, r) => s + Number(r.cardAmount ?? 0), 0)
+    );
+    return { total, cash, card };
+  }, [incData?.filteredAmountTotal, incData?.filteredCashTotal, incData?.filteredCardTotal, incData?.items]);
   const seasonQuickRange = useMemo(() => {
     const from = String(incThroughToday?.activeTourismSeasonOpenedOn ?? "");
     const toRaw = String(incThroughToday?.activeTourismSeasonClosedOn ?? "");
@@ -359,14 +373,11 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                   ) : null}
                   {incListSummaryPending ? (
                     <p className="mt-2 text-sm text-zinc-500">{t("common.loading")}</p>
-                  ) : incListDetailRangeActive && incListPeriod && !incListPeriod.hideFinancialTotals ? (
+                  ) : incData ? (
                     <>
                       <p className="mt-3 text-xs font-medium text-zinc-600">
-                        {t("branch.incomePeriodForRangePrefix")}{" "}
-                        <span className="tabular-nums">
-                          {formatLocaleDate(incListPeriod.from, locale)} —{" "}
-                          {formatLocaleDate(incListPeriod.to, locale)}
-                        </span>
+                        {incListDetailRangeActive ? t("branch.incomePeriodForRangePrefix") : t("branch.incomeDayForDatePrefix")}{" "}
+                        <span className="tabular-nums">{formatLocaleDate(incFrom, locale)} — {formatLocaleDate(incTo, locale)}</span>
                       </p>
                       <div
                         className="mt-1 rounded-xl border border-emerald-200/80 bg-white p-2 shadow-sm sm:p-3"
@@ -384,7 +395,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                           </div>
                           <p className="mt-1 text-base font-semibold tabular-nums tracking-tight text-emerald-900 sm:text-lg">
                             {formatMoneyDash(
-                              Number(incData?.filteredAmountTotal ?? incListPeriod.totalIncome),
+                              Number(incomeListTotals.total),
                               t("personnel.dash"),
                               locale,
                               "TRY"
@@ -395,8 +406,8 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                           </p>
                           <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                             {[
-                              { key: "cash", label: t("branch.incomePeriodCash"), amount: incListPeriod.incomeCash },
-                              { key: "card", label: t("branch.incomePeriodCard"), amount: incListPeriod.incomeCard },
+                              { key: "cash", label: t("branch.incomePeriodCash"), amount: incomeListTotals.cash },
+                              { key: "card", label: t("branch.incomePeriodCard"), amount: incomeListTotals.card },
                               {
                                 key: "patron",
                                 label: t("branch.incomeListPatronTransferredTotal"),
@@ -413,78 +424,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                                 <p className="text-[11px] tabular-nums text-zinc-600">
                                   {pctLine(
                                     row.amount,
-                                    Number(incData?.filteredAmountTotal ?? incListPeriod.totalIncome)
-                                  )}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="mt-2 space-y-1">
-                            {listSummaryPosPatronHint(t)}
-                            {listSummaryPatronCashLine(incListPatronOverlay, t, locale)}
-                            {listSummaryPatronCardLine(incListPatronOverlay, t, locale)}
-                            {listSummaryPatronTotalLine(incListPatronOverlay, t, locale)}
-                          </div>
-                        </div>
-                        {listSummaryPatronUnspecifiedNote(incListPatronOverlay, t, locale)}
-                      </div>
-                    </>
-                  ) : incListDetailSingleDay != null &&
-                    incListDayRegister &&
-                    !incListDayRegister.hideFinancialTotals ? (
-                    <>
-                      <p className="mt-3 text-xs font-medium text-zinc-600">
-                        {t("branch.incomeDayForDatePrefix")}{" "}
-                        <span className="tabular-nums">
-                          {formatLocaleDate(incListDetailSingleDay, locale)}
-                        </span>
-                      </p>
-                      <div
-                        className="mt-1 rounded-xl border border-emerald-200/80 bg-white p-2 shadow-sm sm:p-3"
-                        role="group"
-                        aria-label={t("branch.incomeCloseTitle")}
-                      >
-                        <div className="rounded-lg border border-emerald-200/70 bg-emerald-50/40 p-2.5 sm:p-3">
-                          <div className="flex flex-wrap items-start justify-between gap-2">
-                            <p className="text-xs font-medium uppercase tracking-wide text-zinc-600">
-                              {t("branch.incomeCloseTotal")}
-                            </p>
-                            <span className="rounded-full border border-emerald-200 bg-white px-2 py-0.5 text-[11px] font-medium text-emerald-700">
-                              {t("branch.incomeListFilterScopeHint")}
-                            </span>
-                          </div>
-                          <p className="mt-1 text-base font-semibold tabular-nums tracking-tight text-emerald-900 sm:text-lg">
-                            {formatMoneyDash(
-                              Number(incData?.filteredAmountTotal ?? incListDayRegister.dayTotalIncome),
-                              t("personnel.dash"),
-                              locale,
-                              "TRY"
-                            )}
-                          </p>
-                          <p className="mt-1 text-xs leading-snug text-zinc-600">
-                            {t("branch.incomeListUnifiedBreakdownHint")}
-                          </p>
-                          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            {[
-                              { key: "cash", label: t("branch.incomeCloseCash"), amount: incListDayRegister.dayIncomeCash },
-                              { key: "card", label: t("branch.incomeCloseCard"), amount: incListDayRegister.dayIncomeCard },
-                              {
-                                key: "patron",
-                                label: t("branch.incomeListPatronTransferredTotal"),
-                                amount: incListPatronOverlay?.total ?? 0,
-                              },
-                            ].map((row) => (
-                              <div key={row.key} className="rounded-md border border-zinc-200 bg-white px-2 py-1.5">
-                                <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                                  {row.label}
-                                </p>
-                                <p className="mt-0.5 text-sm font-semibold tabular-nums text-zinc-900">
-                                  {formatMoneyDash(row.amount, t("personnel.dash"), locale, "TRY")}
-                                </p>
-                                <p className="text-[11px] tabular-nums text-zinc-600">
-                                  {pctLine(
-                                    row.amount,
-                                    Number(incData?.filteredAmountTotal ?? incListDayRegister.dayTotalIncome)
+                                    Number(incomeListTotals.total)
                                   )}
                                 </p>
                               </div>

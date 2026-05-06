@@ -234,8 +234,20 @@ export type BranchTransactionsPaged = {
   pageSize: number;
   /** Liste filtreleriyle eşleşen satırların tutar toplamı (IN veya OUT). */
   filteredAmountTotal?: number;
+  /** IN listesi + filtreler: cash_amount toplamı (tüm sayfalar). */
+  filteredCashTotal?: number;
+  /** IN listesi + filtreler: card_amount toplamı (tüm sayfalar). */
+  filteredCardTotal?: number;
+  /** IN listesi + filtreler: amount - cash - card (negatif olmaz). */
+  filteredUnspecifiedTotal?: number;
   /** OUT listesi + filtreler: ödeme kaynağı PATRON gider toplamı */
   patronExpenseTotal?: number;
+  /** OUT listesi + filtreler: ödeme kaynağı REGISTER gider toplamı */
+  registerExpenseTotal?: number;
+  /** OUT listesi + filtreler: ödeme kaynağı PERSONNEL_POCKET gider toplamı */
+  personnelPocketExpenseTotal?: number;
+  /** OUT listesi + filtreler: ödeme kaynağı PERSONNEL_HELD_REGISTER_CASH gider toplamı */
+  personnelHeldRegisterCashExpenseTotal?: number;
   /** IN listesi: kasa tahsilatında «Patron» seçilen gelirler */
   patronIncomeToPatron?: BranchPatronIncomeSummary | null;
 };

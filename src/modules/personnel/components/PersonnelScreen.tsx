@@ -852,6 +852,7 @@ export function PersonnelScreen() {
   const [expensePersonnel, setExpensePersonnel] = useState<Personnel | null>(
     null
   );
+  const [quickExpenseOpen, setQuickExpenseOpen] = useState(false);
   const [pocketClaimUi, setPocketClaimUi] = useState<
     null | { mode: "patron" | "staff"; personnel: Personnel }
   >(null);
@@ -982,6 +983,11 @@ export function PersonnelScreen() {
         label: t("personnel.advance"),
         onSelect: () => openAdvance(),
         disabled: activeCount === 0,
+      },
+      {
+        id: "addExpense",
+        label: t("personnel.cardQuickAddPersonnelExpense"),
+        onSelect: () => setQuickExpenseOpen(true),
       },
       {
         id: "costs",
@@ -1768,11 +1774,11 @@ export function PersonnelScreen() {
             ? `personnel-row-expense-${expensePersonnel.id}`
             : "personnel-row-expense-closed"
         }
-        open={
-          expensePersonnel != null &&
-          !expensePersonnel.isDeleted
-        }
-        onClose={() => setExpensePersonnel(null)}
+        open={quickExpenseOpen || (expensePersonnel != null && !expensePersonnel.isDeleted)}
+        onClose={() => {
+          setQuickExpenseOpen(false);
+          setExpensePersonnel(null);
+        }}
         defaultLinkedPersonnelId={expensePersonnel?.id}
       />
       {UI_POCKET_CLAIM_TRANSFER_ENABLED ? (

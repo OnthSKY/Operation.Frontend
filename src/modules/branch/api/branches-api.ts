@@ -904,7 +904,13 @@ export async function fetchBranchTransactionsPaged(
   if (params.excludeDebtClosureOuts === true) q.set("excludeDebtClosureOuts", "true");
   const raw = await apiRequest<{
     filteredAmountTotal?: number;
+    filteredCashTotal?: number;
+    filteredCardTotal?: number;
+    filteredUnspecifiedTotal?: number;
     patronExpenseTotal?: number;
+    registerExpenseTotal?: number;
+    personnelPocketExpenseTotal?: number;
+    personnelHeldRegisterCashExpenseTotal?: number;
     patronIncomeToPatron?: {
       total?: number;
       cash?: number;
@@ -947,9 +953,35 @@ export async function fetchBranchTransactionsPaged(
       typeof raw.filteredAmountTotal === "number" && Number.isFinite(raw.filteredAmountTotal)
         ? raw.filteredAmountTotal
         : 0,
+    filteredCashTotal:
+      typeof raw.filteredCashTotal === "number" && Number.isFinite(raw.filteredCashTotal)
+        ? raw.filteredCashTotal
+        : 0,
+    filteredCardTotal:
+      typeof raw.filteredCardTotal === "number" && Number.isFinite(raw.filteredCardTotal)
+        ? raw.filteredCardTotal
+        : 0,
+    filteredUnspecifiedTotal:
+      typeof raw.filteredUnspecifiedTotal === "number" && Number.isFinite(raw.filteredUnspecifiedTotal)
+        ? raw.filteredUnspecifiedTotal
+        : 0,
     patronExpenseTotal:
       typeof raw.patronExpenseTotal === "number" && Number.isFinite(raw.patronExpenseTotal)
         ? raw.patronExpenseTotal
+        : 0,
+    registerExpenseTotal:
+      typeof raw.registerExpenseTotal === "number" && Number.isFinite(raw.registerExpenseTotal)
+        ? raw.registerExpenseTotal
+        : 0,
+    personnelPocketExpenseTotal:
+      typeof raw.personnelPocketExpenseTotal === "number" &&
+      Number.isFinite(raw.personnelPocketExpenseTotal)
+        ? raw.personnelPocketExpenseTotal
+        : 0,
+    personnelHeldRegisterCashExpenseTotal:
+      typeof raw.personnelHeldRegisterCashExpenseTotal === "number" &&
+      Number.isFinite(raw.personnelHeldRegisterCashExpenseTotal)
+        ? raw.personnelHeldRegisterCashExpenseTotal
         : 0,
     patronIncomeToPatron:
       pin != null

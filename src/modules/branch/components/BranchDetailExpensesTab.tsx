@@ -82,6 +82,9 @@ export type BranchDetailExpensesTabProps = {
         totalCount: number;
         filteredAmountTotal?: number;
         patronExpenseTotal?: number;
+        registerExpenseTotal?: number;
+        personnelPocketExpenseTotal?: number;
+        personnelHeldRegisterCashExpenseTotal?: number;
       }
     | null
     | undefined;
@@ -207,29 +210,11 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
   const expenseListFilteredTotal = Number(expData?.filteredAmountTotal ?? 0);
   const expenseListPatronTotal = Number(expData?.patronExpenseTotal ?? 0);
   const expenseListSourceTotals = useMemo(() => {
-    const data = (expData ?? null) as
-      | (typeof expData & {
-          registerExpenseTotal?: number;
-          expenseRegisterTotal?: number;
-          personnelPocketExpenseTotal?: number;
-          expensePersonnelPocketTotal?: number;
-          personnelHeldRegisterCashExpenseTotal?: number;
-          expensePersonnelHeldRegisterCashTotal?: number;
-        })
-      | null;
     const total = Number.isFinite(expenseListFilteredTotal) ? Math.max(0, expenseListFilteredTotal) : 0;
     const patron = Number.isFinite(expenseListPatronTotal) ? Math.max(0, expenseListPatronTotal) : 0;
-    const registerRaw = Number(
-      data?.registerExpenseTotal ?? data?.expenseRegisterTotal ?? Number.NaN
-    );
-    const pocketRaw = Number(
-      data?.personnelPocketExpenseTotal ?? data?.expensePersonnelPocketTotal ?? Number.NaN
-    );
-    const heldRaw = Number(
-      data?.personnelHeldRegisterCashExpenseTotal ??
-        data?.expensePersonnelHeldRegisterCashTotal ??
-        Number.NaN
-    );
+    const registerRaw = Number(expData?.registerExpenseTotal ?? Number.NaN);
+    const pocketRaw = Number(expData?.personnelPocketExpenseTotal ?? Number.NaN);
+    const heldRaw = Number(expData?.personnelHeldRegisterCashExpenseTotal ?? Number.NaN);
     const registerKnown = Number.isFinite(registerRaw);
     const pocketKnown = Number.isFinite(pocketRaw);
     const heldKnown = Number.isFinite(heldRaw);
@@ -253,7 +238,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
       pocketPct: pct(pocket),
       heldPct: pct(held),
     };
-  }, [expData, expenseListFilteredTotal, expenseListPatronTotal]);
+  }, [expData?.registerExpenseTotal, expData?.personnelPocketExpenseTotal, expData?.personnelHeldRegisterCashExpenseTotal, expenseListFilteredTotal, expenseListPatronTotal]);
 
   const expenseSeasonQuickRange = useMemo(() => {
     const from = String(expThroughToday?.activeTourismSeasonOpenedOn ?? "");
@@ -391,10 +376,10 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                   ) : null}
                   {expListSummaryPending ? (
                     <p className="mt-2 text-sm text-zinc-500">{t("common.loading")}</p>
-                  ) : expListDetailRangeActive && expData ? (
+                  ) : expData ? (
                     <>
                       <p className="mt-3 text-xs font-medium text-zinc-600">
-                        {t("branch.incomePeriodForRangePrefix")}{" "}
+                        {expListDetailRangeActive ? t("branch.incomePeriodForRangePrefix") : t("branch.expensesListDayForPrefix")}{" "}
                         <span className="tabular-nums">
                           {formatLocaleDate(expFrom, locale)} — {formatLocaleDate(expTo, locale)}
                         </span>
@@ -472,38 +457,6 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                             {expData.totalCount}
                           </p>
                         </div>
-                      </div>
-                    </>
-                  ) : expListDetailSingleDay != null &&
-                    expListDayRegister &&
-                    !expListDayRegister.hideFinancialTotals ? (
-                    <>
-                      <p className="mt-3 text-xs font-medium text-zinc-600">
-                        {t("branch.expensesListDayForPrefix")}{" "}
-                        <span className="tabular-nums">
-                          {formatLocaleDate(expListDetailSingleDay, locale)}
-                        </span>
-                      </p>
-                      <p className="mt-2 max-w-2xl rounded-md border border-slate-200/90 bg-slate-100/50 px-2 py-1.5 text-xs leading-snug text-zinc-600">
-                        {t("branch.expensesSummaryCardsOrthogonalNote")}
-                      </p>
-                      <div className="mt-1 rounded-xl border border-slate-200 bg-white p-2 shadow-sm sm:p-3">
-                        {expenseTabPeriodOverviewBlock({
-                          breakdown:
-                            expListDayRegister.expenseOverviewOnAsOfDay ?? EMPTY_EXPENSE_TAB_BREAKDOWN,
-                          t,
-                          locale,
-                          onOpenCard: (card) =>
-                            setExpenseOverviewDetail({
-                              periodTitle: `${t("branch.expensesListDayForPrefix")} ${formatLocaleDate(
-                                expListDetailSingleDay,
-                                locale
-                              )}`,
-                              breakdown:
-                                expListDayRegister.expenseOverviewOnAsOfDay ?? EMPTY_EXPENSE_TAB_BREAKDOWN,
-                              card,
-                            }),
-                        })}
                       </div>
                     </>
                   ) : expListDatesRangeInvalid ? (
