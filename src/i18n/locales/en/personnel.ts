@@ -331,8 +331,6 @@ export const personnel = {
   filterStatusPassive: "Inactive only",
   filterNameSearch: "Search by name",
   listFilteredEmpty: "No personnel match the current filters.",
-  mobileCardShowDetails: "Show details",
-  mobileCardHideDetails: "Hide details",
   tableName: "Name",
   tableJobTitle: "Job title",
   tableCompanyHireDate: "Company hire date",

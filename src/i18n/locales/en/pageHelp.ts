@@ -76,6 +76,8 @@ export const pageHelp = {
       "Use Deactivate / Activate to block or allow sign-in; changes are recorded in the audit log.",
     step3: "Prefer the Authorization matrix for fine-grained permission review.",
     step3Link: "Authorization matrix",
+    step5:
+      "Branch manager: Branches → edit branch → Managers (only staff assigned to that branch). If that person’s login is linked to that personnel row, Manage scopes shows implied personnel coverage for the whole branch automatically.",
   },
   reportsHub: {
     intro: "Entry point to analytical reports: financial periods (operating-income KPIs), cash snapshots, stock, branches, patron flow.",
@@ -175,6 +177,8 @@ export const pageHelp = {
     step1: "Toggle checkboxes for the permissions you want on that role, then save that role.",
     step2: "Attach roles to people when you create or edit user accounts.",
     step2Link: "Users",
+    step3:
+      "Open one role at a time: permissions are grouped (system, menus, branch, personnel, warehouse, …) with plain-language hints; save that role when done.",
   },
   settingsTourismSeason: {
     intro: "Policy for operations when a tourism season is marked closed (branch behaviour).",

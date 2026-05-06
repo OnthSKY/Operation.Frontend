@@ -41,6 +41,7 @@ export const profile = {
   roleViewer: "Salt okunur (özet ve raporlar)",
   roleFinance: "Muhasebe ve finans",
   roleProcurement: "Satınalma ve depo",
+  roleBranchDayRegister: "Şube gün sonu kasiyeri (yalnız bugün + atanmış avans)",
   roleUnknown: "Tanımsız rol",
   sectionActivity: "Hareketleriniz",
   auditEmpty: "Hesabınız için henüz kayıt yok.",

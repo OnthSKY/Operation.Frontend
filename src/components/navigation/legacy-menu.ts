@@ -1,6 +1,13 @@
 "use client";
 
-import { PERM, canSeeDailyBranchRegister, canSeeUiModule, hasPermissionCode } from "@/lib/auth/permissions";
+import {
+  PERM,
+  canOpenBranchesWorkspace,
+  canSeeDailyBranchRegister,
+  canSeeFinancialReports,
+  canSeeUiModule,
+  hasPermissionCode,
+} from "@/lib/auth/permissions";
 import { isDriverPortalRole, isPersonnelPortalRole } from "@/lib/auth/roles";
 import type { AuthUser } from "@/lib/auth/types";
 
@@ -23,11 +30,15 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
 
   const showHome = canSeeUiModule(user, PERM.uiDashboard);
   const showReports = canSeeUiModule(user, PERM.uiReports);
+  const showFinancialReports = canSeeFinancialReports(user);
   const showDailyBranchRegister = canSeeDailyBranchRegister(user);
+  const reportsGroupLanding =
+    showFinancialReports ? "/reports/financial" : showReports ? "/reports/position" : "/daily-branch-register";
   const showPersonnelFull = !personnelPortal && canSeeUiModule(user, PERM.uiPersonnel);
   const showPersonnelAdvancesOnly = personnelPortal && canSeeUiModule(user, PERM.uiMyAdvances);
-  const showBranches = canSeeUiModule(user, PERM.uiBranches);
-  const showDocuments = showBranches;
+  const showBranchesNav = canOpenBranchesWorkspace(user);
+  const showBranchesFull = canSeeUiModule(user, PERM.uiBranches);
+  const showDocuments = showBranchesFull;
   const showGeneralOverhead =
     !personnelPortal && !driverPortal && canSeeUiModule(user, PERM.uiGeneralOverhead);
   const showInsurances = !personnelPortal && !driverPortal && canSeeUiModule(user, PERM.uiInsurances);
@@ -56,14 +67,23 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
       id: "finance-reporting",
       labelKey: "nav.groupFinanceReporting",
       dockLabelKey: "nav.dockFinanceShort",
-      route: "/reports/financial",
+      route: reportsGroupLanding,
       icon: "reports",
       mobileVisible: true,
       badgeKey: "notifications",
       children: [
         ...(showReports
           ? [
-              { id: "reports-financial", labelKey: "reports.sidebarFinances", route: "/reports/financial", icon: "reports" },
+              ...(showFinancialReports
+                ? [
+                    {
+                      id: "reports-financial",
+                      labelKey: "reports.sidebarFinances",
+                      route: "/reports/financial",
+                      icon: "reports",
+                    },
+                  ]
+                : []),
               { id: "reports-position", labelKey: "reports.tabCashPosition", route: "/reports/position", icon: "reports" },
               { id: "reports-patron-flow", labelKey: "reports.finNavCashFlow", route: "/reports/patron-flow", icon: "reports" },
               { id: "reports-branches", labelKey: "reports.navBranchComparison", route: "/reports/branches", icon: "reports" },
@@ -112,7 +132,7 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
   }
 
   const operationsChildren: LegacyMenuItem[] = [];
-  if (showBranches) {
+  if (showBranchesNav) {
     operationsChildren.push({ id: "branch-home", labelKey: "nav.branch", route: "/branches", icon: "branch" });
   }
   if (showGeneralOverhead) {

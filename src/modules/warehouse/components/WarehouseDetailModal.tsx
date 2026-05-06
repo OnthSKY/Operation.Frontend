@@ -165,14 +165,15 @@ export function WarehouseDetailModal({ open, warehouseId, initialTabIntent = nul
         onClose={onClose}
         titleId={TITLE_ID}
         title={detail?.name ?? (detailLoading ? t("common.loading") : t("warehouse.title"))}
-        description={undefined}
+        description={t("warehouse.detailModalDescription")}
         closeButtonLabel={t("common.close")}
         wide
         wideFixedHeight
         wideExpanded
+        wideFullScreenMobile
         className="!p-0"
       >
-        <div className="mt-4 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-3 pb-3 sm:px-6 sm:pb-4">
+        <div className="mt-3 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-3 pb-3 max-sm:pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] sm:mt-4 sm:px-6 sm:pb-4">
           {isError ? (
             <p className="text-sm text-red-600">{toErrorMessage(error)}</p>
           ) : detailLoading && !detail ? (

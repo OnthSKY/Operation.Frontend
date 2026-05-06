@@ -12,16 +12,24 @@ export const settings = {
   authzPageDescription:
     "Check permissions per role and save each row. ADMIN always keeps system.admin.",
   authzMatrixHint:
-    "Wide layout: each permission column shows the code; hover, focus, or tap the header for the full description. Saved permissions apply on the next request.",
+    "Permissions are grouped by area (system, menus, branch, personnel, warehouse, …). Each card shows the in-app meaning in your language plus the technical code. Saving updates the role baseline for every user with that role on their next request.",
+  authzUsersLink: "User permission overrides",
   authzLoadError: "Could not load authorization matrix.",
   authzRole: "Role",
   authzActions: "Actions",
   authzSaveRow: "Save row",
-  authzSaved: "Permissions updated",
+  authzSaved:
+    "Role permissions saved. Other users with that role must sign in again (remember-me sessions ended; you stay signed in).",
   authzMobileRolePerms: "Permissions",
   authzUnsaved: "Unsaved",
   authzDesktopScrollHint:
     "Below 1280px width this page uses cards per role. On wide screens, scroll horizontally if needed; role and Actions columns stay pinned.",
+  authzRoleAccordionHint:
+    "Tap a role to open a full-height panel with its permissions (easier to scroll on phones). Each card explains the permission in your language. Save applies only that role.",
+  authzRoleModalDescription:
+    "Toggle permissions and save. This updates only the selected role; users with that role pick up changes on their next request.",
+  authzRolePermissionCount: "{current} of {total} permissions",
+  authzExpandRoleAria: "Edit permissions for {role}",
   notificationsCardTitle: "Notifications",
   notificationsCardDesc:
     "Turn operational reminders on or off for the whole organization (bell, API, daily toast).",

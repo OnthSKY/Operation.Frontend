@@ -78,6 +78,8 @@ export const pageHelp = {
       "«Pasif yap» / «Aktif yap» ile girişi kapatıp açın; değişiklikler denetim kaydına yazılır.",
     step3: "İzin anahtarlarının özet görünümü için Yetkilendirme matrisine bakın.",
     step3Link: "Yetkilendirme matrisi",
+    step5:
+      "Şube sorumlusu: Şubeler → şubeyi düzenle → Sorumlular (yalnız o şubeye atanmış personel). Bu kişinin kullanıcısı o personel ile bağlıysa, Kapsam düzenle ekranında o şube için personel verisi otomatik eklenir.",
   },
   reportsHub: {
     intro: "Analitik raporlara giriş: finans (faaliyet geliri KPI’ları), kasa anlık görünümü, stok, şube kıyası, patron akışı.",
@@ -177,6 +179,8 @@ export const pageHelp = {
     step1: "İlgili rol için kutucukları işaretleyin veya kaldırın, ardından o rolü kaydedin.",
     step2: "Hesap oluştururken veya düzenlerken kişilere rolleri buradan bağımsız olarak atarsınız.",
     step2Link: "Kullanıcılar",
+    step3:
+      "Rolleri tek tek açın: izinler gruplu listelenir; her kutuda uygulama dilinde kısa açıklama ve kod vardır. İşiniz bitince o rolü kaydedin.",
   },
   settingsTourismSeason: {
     intro: "Turizm sezonu kapalı işaretlendiğinde şube davranışına ilişkin kurallar.",

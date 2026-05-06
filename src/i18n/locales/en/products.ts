@@ -35,7 +35,7 @@ export const products = {
   colTotal: "Total stock",
   colInWarehouses: "In warehouses",
   notInAnyWarehouse: "Not in any warehouse",
-  emptyCatalog: "No products yet.",
+  emptyCatalog: "No products in the catalog yet. Add products under Products, then try again.",
   noWarehouses: "Create at least one warehouse first.",
   addProduct: "Add product",
   addSubProduct: "Add variant",
@@ -57,7 +57,8 @@ export const products = {
   editParentLockedHint:
     "This product has sub-products: it must stay a main product. Remove or reassign sub-products first to change the parent.",
   catalogSearchPlaceholder: "Search by name, category, unit…",
-  catalogSearchNoResults: "No products match your search.",
+  catalogSearchNoResults:
+    "No products match this search. Try another name, category, or unit—or clear the search to browse the catalog.",
   mobileCatalogCardGroupTotalCaption:
     "{{count}} variants included — quantity is the warehouse total for the main product plus all variants.",
   mobileCatalogCardVariantLineCaption: "This row is the warehouse total for this variant only.",

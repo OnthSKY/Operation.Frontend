@@ -60,6 +60,7 @@ import { Modal } from "@/shared/ui/Modal";
 import { RichCombobox, type RichComboboxOption } from "@/shared/ui/RichCombobox";
 import type { ProductListItem } from "@/types/product";
 import { createPortal } from "react-dom";
+import { useBranchDetailOverlay } from "@/shared/branch-detail";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -1924,6 +1925,7 @@ export function OrderAccountStatementScreen() {
   const { t, locale } = useI18n();
   const { user } = useAuth();
   const router = useRouter();
+  const { openBranchDetail } = useBranchDetailOverlay();
   const searchParams = useSearchParams();
   const previewRef = useRef<HTMLDivElement>(null);
   const linesSectionRef = useRef<HTMLDivElement>(null);
@@ -3429,7 +3431,7 @@ export function OrderAccountStatementScreen() {
       }
 
       if (saveToSystem && Number.isFinite(parsedBranchId) && parsedBranchId > 0) {
-        router.push(`/branches?openBranch=${parsedBranchId}&branchTab=currentAccount`);
+        openBranchDetail(parsedBranchId, { initialTab: "currentAccount" });
       } else if (saveAsInvoice) {
         router.push("/products/order-account-statement/summary");
       }
@@ -3469,6 +3471,7 @@ export function OrderAccountStatementScreen() {
     showPaymentOnPdf,
     statementDate,
     totals,
+    openBranchDetail,
     router,
     t,
   ]);

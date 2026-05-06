@@ -9,6 +9,8 @@ export const warehouse = {
   listActionDeleteWarehouse: "Depoyu sil",
   listQuickPickProduct: "— Ürün seçin —",
   listQuickPickProductError: "Ürün seçin.",
+  appendLineProductStockPrefix: "Bu depodaki stok",
+  appendLineProductUnknownTitle: "Ürün #{{id}}",
   listQuickTransferNoStock: "Bu depoda pozitif stokta ürün yok; önce depo girişi yapın.",
   subtitle:
     "Depolarda ürün girişi ve şubeye ürün çıkışı; hareketler ve stok aşağıda. Ürünler genel katalogdadır.",
@@ -282,17 +284,23 @@ export const warehouse = {
     "Kategori miktarları satırların toplamıdır; ürünlerin birimleri farklı olabilir.",
   overviewTopByQuantity: "Stok miktarına göre ilk SKU’lar",
   overviewTopByQuantityEmpty: "Sıralanacak pozitif stok yok.",
+  detailModalDescription: "Stok işlemleri, hareket geçmişi ve depo ayarları.",
   detailGeneralTitle: "Genel bilgiler",
   detailFieldEmpty: "—",
   detailWarehouseId: "Depo no",
   detailProductCountWithStock: "Pozitif stoklu SKU sayısı",
   detailTotalOnHandQuantity: "Toplam stok miktarı (özet)",
   stockHint:
-    "Tüm katalog ürünleri; «Depo ürün girişi» ve «Şubeye sevkiyat» (pencereler) ile stok hareketi. Ortak hareket tarihi üstte.",
+    "Tüm katalog ürünleri; «Depo ürün girişi» ve «Şubeye sevkiyat» ile stok hareketi. Kayıt tarihi işlem gününe göre otomatik atanır.",
   stockOpsFiltersTitle: "Stok listesi filtreleri",
   stockOpsFiltersToggle: "Stok filtrelerini aç",
   stockOpsFiltersDrawerHint:
-    "Kategori ve ürün kapsamı sunucuya gider; arama, miktar, stok durumu ve birim aşağıdaki listede anında uygulanır. Gruplama yalnızca görünümü değiştirir.",
+    "Önce ana / alt ürün veya kategori ile daraltın. Arama, miktar, stok durumu ve birim yalnızca aşağıdaki listeyi anında süzer; gruplama sadece görünümü değiştirir.",
+  stockOpsFilterProductPickTitle: "Ana ve alt ürün",
+  stockOpsFilterCategoryScopeTitle: "Kategori (isteğe bağlı)",
+  stockOpsFilterSectionView: "Liste görünümü",
+  stockOpsFilterSectionSearch: "Hızlı arama",
+  stockOpsFilterSectionQuantity: "Miktar ve birim",
   stockOpsFilterSearchLabel: "Ürün veya ana ürün adında ara",
   stockOpsFilterSearchPlaceholder: "ör. sünger, boya…",
   stockOpsFilterMinQty: "En az miktar",
@@ -311,6 +319,19 @@ export const warehouse = {
   quickMovementDate: "Hareket tarihi",
   quickActionsCol: "İşlemler",
   productName: "Ürün adı",
+  /** Stok işlemleri satırı: hangi SKU’ya işlem yapılacağını netleştirir. */
+  stockLineSkuEyebrow: "Bu satırdaki ürün",
+  /** Ana ürün satırı (grupta üstte): ana kod üzerindeki stok. */
+  stockLineGroupMainEyebrow: "Ana ürün SKU’su",
+  stockLineParentRowInGroupHint:
+    "Bu satırdaki miktar ana ürün koduna yazılır. Alt ürünler aşağıdaki satırlarda ayrı SKU olarak listelenir; giriş ve sevkiyatı ilgili satırdan yapın.",
+  stockGroupHeaderChildRowsHint:
+    "Aşağıdaki satırlar alt ürün SKU’larıdır; ana satırdaki miktar yalnızca ana ürün koduna aittir.",
+  stockOpsMainVsVariantsIntro:
+    "Ana ürüne ve alt ürüne stok ayrı yazılır: önce ana SKU satırı, ardından varyant satırları gelir.",
+  stockOpsPaginationPrev: "Önceki",
+  stockOpsPaginationNext: "Sonraki",
+  stockOpsPaginationPage: "Sayfa {{page}} / {{pages}}",
   productUnit: "Birim",
   movementTitle: "Stok hareketi",
   movementHintGlobal: "Genel katalogdan ürün seçin; hareket yalnızca seçili depoya yazılır.",

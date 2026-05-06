@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/Table";
-import Link from "next/link";
+import { BranchDetailHrefLink } from "@/shared/branch-detail";
 import { useMemo, useState } from "react";
 import type { CashPositionBranchRow } from "@/types/reports";
 
@@ -235,12 +235,14 @@ export function CashReportScreen() {
                                   {t("reports.colBranch")}
                                 </dt>
                                 <dd className="text-sm font-medium text-zinc-900">
-                                  <Link
-                                    href={`/branches?openBranch=${row.branchId}&branchTab=dashboard&registerDay=${encodeURIComponent(cash.data.asOfDate)}`}
+                                  <BranchDetailHrefLink
+                                    branchId={row.branchId}
+                                    initialTab="dashboard"
+                                    initialRegisterDay={cash.data.asOfDate}
                                     className="text-violet-800 underline decoration-violet-200 underline-offset-2 hover:text-violet-950"
                                   >
                                     {row.branchName}
-                                  </Link>
+                                  </BranchDetailHrefLink>
                                 </dd>
                               </div>
                               <div className="flex flex-col gap-0.5 border-b border-zinc-100 pb-2">
@@ -323,12 +325,14 @@ export function CashReportScreen() {
                             {displayRows.map((row) => (
                               <TableRow key={row.branchId}>
                                 <TableCell className="font-medium text-zinc-900">
-                                  <Link
-                                    href={`/branches?openBranch=${row.branchId}&branchTab=dashboard&registerDay=${encodeURIComponent(cash.data.asOfDate)}`}
+                                  <BranchDetailHrefLink
+                                    branchId={row.branchId}
+                                    initialTab="dashboard"
+                                    initialRegisterDay={cash.data.asOfDate}
                                     className="text-violet-800 underline decoration-violet-200 underline-offset-2 hover:text-violet-950"
                                   >
                                     {row.branchName}
-                                  </Link>
+                                  </BranchDetailHrefLink>
                                 </TableCell>
                                 <TableCell className="text-zinc-600">
                                   {seasonStatusLabel(t, row.seasonStatus)}

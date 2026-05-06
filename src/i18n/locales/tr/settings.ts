@@ -12,16 +12,24 @@ export const settings = {
   authzPageDescription:
     "Her rol için izinleri işaretleyip satır bazında kaydedin. ADMIN rolünde system.admin her zaman kalır.",
   authzMatrixHint:
-    "Geniş görünümde sütunlarda teknik kod görünür; başlığın üzerine gelin, odaklayın veya dokunun — tam açıklama balonunda. Kayıt sonrası izinler bir sonraki istekte geçerlidir.",
+    "İzinler grupludur (sistem, menüler, şube, personel, depo, …). Her kutuda uygulamadaki karşılığı seçtiğiniz dilde ve teknik kod ayrı satırdadır. Kayıt, o role sahip tüm kullanıcılar için bir sonraki istekte geçerli paketi günceller.",
+  authzUsersLink: "Kullanıcı izin geçersiz kılmaları",
   authzLoadError: "Yetkilendirme matrisi yüklenemedi.",
   authzRole: "Rol",
   authzActions: "İşlemler",
   authzSaveRow: "Satırı kaydet",
-  authzSaved: "İzinler güncellendi",
+  authzSaved:
+    "Rol izinleri kaydedildi. Aynı role sahip diğer kullanıcılar tekrar giriş yapmalıdır («beni hatırla» oturumları sonlandı; siz oturumda kalırsınız).",
   authzMobileRolePerms: "İzinler",
   authzUnsaved: "Kaydedilmedi",
   authzDesktopScrollHint:
     "1280px genişliğin altında her rol için kart görünümü kullanılır. Geniş ekranda gerekirse yatay kaydırın; Rol ve İşlemler sütunları sabit kalır.",
+  authzRoleAccordionHint:
+    "Bir role dokunun; izinler tam ekran panele açılır (mobilde daha rahat kaydırma). Kutular iznin uygulamadaki karşılığını seçtiğiniz dilde gösterir. Kaydet yalnız o rolü günceller.",
+  authzRoleModalDescription:
+    "Kutuları işaretleyip kaydedin. Kayıt yalnız bu rol için geçerlidir; aynı role sahip kullanıcılar bir sonraki istekte güncellenmiş paketi alır.",
+  authzRolePermissionCount: "{current} / {total} izin",
+  authzExpandRoleAria: "{role} rolü için izinleri düzenle",
   notificationsCardTitle: "Bildirimler",
   notificationsCardDesc:
     "Kurum genelinde operasyon hatırlatıcılarını (zil, API, günlük toast) açıp kapatabilirsiniz.",

@@ -27,7 +27,7 @@ import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { useI18n } from "@/i18n/context";
-import { useQueries } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TX_MAIN_IN, TX_MAIN_OUT } from "@/modules/branch/lib/branch-transaction-options";
 import { AddBranchTransactionModal } from "./AddBranchTransactionModal";
@@ -38,9 +38,11 @@ import { BranchZReportAccountingTab } from "./BranchZReportAccountingTab";
 import { BranchNotesTab } from "./BranchNotesTab";
 import { BranchDetailDocumentsTab } from "./BranchDetailDocumentsTab";
 import {
+  BRANCH_DAY_CLERK_HIDDEN_TABS,
   resolveBranchDetailTabOnBranchChange,
   type BranchDetailTabId,
 } from "@/modules/branch/lib/branch-detail-tab";
+import { fetchAdvanceDelegateTargets, advanceDelegateTargetsToPersonnelStubs } from "@/modules/personnel/api/advances-api";
 import { parseRegisterDaySearchParam } from "@/modules/branch/lib/register-day-search-param";
 import type { BranchDashboardStockScope } from "@/modules/branch/api/branches-api";
 import {
@@ -65,6 +67,8 @@ type Props = {
   branch: Branch;
   staff: Personnel[];
   employeeSelfService?: boolean;
+  /** Gün sonu kasiyeri: sınırlı sekmeler + delegeli avans listesi. */
+  branchDayClerkMode?: boolean;
   initialTab?: BranchDetailTabId | null;
   initialRegisterDay?: string | null;
 };
@@ -76,14 +80,18 @@ export function BranchDetailTabs({
   branch,
   staff,
   employeeSelfService = false,
+  branchDayClerkMode = false,
   initialTab = null,
   initialRegisterDay = null,
 }: Props) {
   const { t, locale } = useI18n();
+  const showStaffOnlyFeatures = !employeeSelfService && !branchDayClerkMode;
   const deleteTxMut = useDeleteBranchTransaction();
+  const [advanceOpen, setAdvanceOpen] = useState(false);
+  const [advanceInitialPersonId, setAdvanceInitialPersonId] = useState<number | null>(null);
   const { data: personnelListResult } = usePersonnelList(
     defaultPersonnelListFilters,
-    !employeeSelfService
+    showStaffOnlyFeatures
   );
   const personnelData = personnelListResult?.items ?? [];
   const activePersonnel = useMemo(
@@ -91,8 +99,19 @@ export function BranchDetailTabs({
     [personnelData]
   );
 
+  const { data: delegateTargets = [] } = useQuery({
+    queryKey: ["advances", "delegate-targets", branch.id],
+    queryFn: () => fetchAdvanceDelegateTargets(branch.id),
+    enabled: branchDayClerkMode && advanceOpen,
+  });
+  const advancePersonnelList = useMemo(() => {
+    if (branchDayClerkMode)
+      return advanceDelegateTargetsToPersonnelStubs(delegateTargets, branch.id);
+    return activePersonnel;
+  }, [branchDayClerkMode, delegateTargets, branch.id, activePersonnel]);
+
   const [tab, setTab] = useState<BranchDetailTabId>(() =>
-    resolveBranchDetailTabOnBranchChange(initialTab, employeeSelfService)
+    resolveBranchDetailTabOnBranchChange(initialTab, employeeSelfService, branchDayClerkMode)
   );
 
   const [dashboardMonth, setDashboardMonth] = useState(() => isoMonthLocal(new Date()));
@@ -115,12 +134,10 @@ export function BranchDetailTabs({
   }>({});
   const [txDeletePendingId, setTxDeletePendingId] = useState<number | null>(null);
   const [invoiceSettleRow, setInvoiceSettleRow] = useState<BranchTransaction | null>(null);
-  const [advanceOpen, setAdvanceOpen] = useState(false);
-  const [advanceInitialPersonId, setAdvanceInitialPersonId] = useState<number | null>(null);
   const [personnelSubTab, setPersonnelSubTab] = useState<PersonnelSubTabId>("people");
   const [assignPersonnelOpen, setAssignPersonnelOpen] = useState(false);
 
-  const personnelMoneyEnabled = tab === "personnel" && !employeeSelfService;
+  const personnelMoneyEnabled = tab === "personnel" && showStaffOnlyFeatures;
   const { data: personnelMoneyRows = [], isPending: personnelMoneyPending } =
     useBranchPersonnelMoneySummaries(branch.id, personnelMoneyEnabled);
 
@@ -159,7 +176,7 @@ export function BranchDetailTabs({
   useEffect(() => {
     const today = localIsoDate();
     const regDay = registerDayInitial;
-    setTab(resolveBranchDetailTabOnBranchChange(initialTab, employeeSelfService));
+    setTab(resolveBranchDetailTabOnBranchChange(initialTab, employeeSelfService, branchDayClerkMode));
     setDashboardMonth(isoMonthLocal(new Date()));
     const day = regDay ?? today;
     setTxDay(day);
@@ -185,7 +202,7 @@ export function BranchDetailTabs({
     setExpenseOverviewDetail(null);
     setPersonnelSubTab("people");
     setTxDeletePendingId(null);
-  }, [branch.id, employeeSelfService, initialTab, registerDayInitial]);
+  }, [branch.id, employeeSelfService, branchDayClerkMode, initialTab, registerDayInitial]);
 
   useEffect(() => {
     if (!employeeSelfService) return;
@@ -200,6 +217,11 @@ export function BranchDetailTabs({
       setTab("income");
     }
   }, [employeeSelfService, tab]);
+
+  useEffect(() => {
+    if (!branchDayClerkMode) return;
+    if (BRANCH_DAY_CLERK_HIDDEN_TABS.has(tab)) setTab("expenses");
+  }, [branchDayClerkMode, tab]);
 
   useEffect(() => {
     setTxDeletePendingId(null);
@@ -261,7 +283,7 @@ export function BranchDetailTabs({
     return Number.isFinite(y) && y >= 1900 ? y : new Date().getFullYear();
   }, [txDay]);
 
-  const personnelAdvancesActive = tab === "personnel" && !employeeSelfService;
+  const personnelAdvancesActive = tab === "personnel" && showStaffOnlyFeatures;
 
   const advanceQueries = useQueries({
     queries: staff.map((p) => ({
@@ -314,7 +336,7 @@ export function BranchDetailTabs({
 
   const advancesLoading = advanceQueries.some((q) => q.isPending);
 
-  const canDeleteBranchTx = !employeeSelfService;
+  const canDeleteBranchTx = showStaffOnlyFeatures;
 
   const confirmDeleteBranchTx = async (id: number) => {
     try {
@@ -369,13 +391,13 @@ export function BranchDetailTabs({
   } = useBranchDashboard(
     branch.id,
     dashboardMonth,
-    tab === "dashboard" && !employeeSelfService,
+    tab === "dashboard" && showStaffOnlyFeatures,
     dashboardStockScope
   );
   const { data: heldRegisterCashByPerson = [] } = useBranchHeldRegisterCashByPerson(
     branch.id,
     txDay,
-    tab === "dashboard" && !employeeSelfService
+    tab === "dashboard" && showStaffOnlyFeatures
   );
 
   const {
@@ -387,7 +409,7 @@ export function BranchDetailTabs({
   } = useBranchTransactions(
     branch.id,
     txDay,
-    tab === "dashboard" && !employeeSelfService
+    tab === "dashboard" && showStaffOnlyFeatures
   );
 
   const {
@@ -397,7 +419,7 @@ export function BranchDetailTabs({
     error: regSumErr,
     refetch: refetchRegSum,
   } = useBranchRegisterSummary(
-    tab === "dashboard" && !employeeSelfService ? branch.id : null,
+    tab === "dashboard" && showStaffOnlyFeatures ? branch.id : null,
     txDay
   );
 
@@ -635,7 +657,7 @@ export function BranchDetailTabs({
     refetch: refetchBranchAdv,
   } = useBranchAdvancesList(
     personnelAdvancesActive ? branch.id : null,
-    !employeeSelfService
+    showStaffOnlyFeatures
   );
 
   const openAdvance = (personnelId?: number) => {
@@ -683,16 +705,19 @@ export function BranchDetailTabs({
       { id: "documents", label: t("branch.tabDocuments") },
       { id: "notes", label: t("branch.tabNotes") },
     ];
-    if (!employeeSelfService) return all;
-    return all.filter(
-      (x) =>
-        x.id !== "personnel" &&
-        x.id !== "tourismSeason" &&
-        x.id !== "zReportAccounting" &&
-        x.id !== "dashboard" &&
-        x.id !== "documents"
-    );
-  }, [t, employeeSelfService]);
+    if (!employeeSelfService && !branchDayClerkMode) return all;
+    if (employeeSelfService) {
+      return all.filter(
+        (x) =>
+          x.id !== "personnel" &&
+          x.id !== "tourismSeason" &&
+          x.id !== "zReportAccounting" &&
+          x.id !== "dashboard" &&
+          x.id !== "documents"
+      );
+    }
+    return all.filter((x) => !BRANCH_DAY_CLERK_HIDDEN_TABS.has(x.id));
+  }, [t, employeeSelfService, branchDayClerkMode]);
 
   return (
     <div className="flex h-full min-h-0 flex-1 flex-col">
@@ -729,7 +754,7 @@ export function BranchDetailTabs({
         className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-y-contain px-2 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 [-webkit-overflow-scrolling:touch] sm:px-5 sm:py-5"
       >
 
-        {tab === "dashboard" && (
+        {tab === "dashboard" && showStaffOnlyFeatures ? (
           <BranchDetailDashboardTab
             t={t}
             locale={locale as Locale}
@@ -757,9 +782,9 @@ export function BranchDetailTabs({
             staff={staff}
             heldRegisterCashByPerson={heldRegisterCashByPerson}
           />
-        )}
+        ) : null}
 
-        {tab === "personnel" && (
+        {tab === "personnel" && showStaffOnlyFeatures ? (
           <BranchDetailPersonnelTab
             t={t}
             locale={locale as Locale}
@@ -784,9 +809,9 @@ export function BranchDetailTabs({
             openPocketRepayExpense={openPocketRepayExpense}
             personnelAdvanceFiscalYear={advanceYear}
           />
-        )}
+        ) : null}
 
-        {tab === "currentAccount" && !employeeSelfService ? (
+        {tab === "currentAccount" && showStaffOnlyFeatures ? (
           <BranchDetailCurrentAccountTab branchId={branch.id} active={tab === "currentAccount"} />
         ) : null}
 
@@ -902,17 +927,17 @@ export function BranchDetailTabs({
           />
         )}
 
-        {tab === "stock" && <BranchDetailStockTab branchId={branch.id} />}
+        {tab === "stock" && showStaffOnlyFeatures ? <BranchDetailStockTab branchId={branch.id} /> : null}
 
-        {tab === "tourismSeason" && !employeeSelfService ? (
+        {tab === "tourismSeason" && showStaffOnlyFeatures ? (
           <BranchTourismSeasonTab branchId={branch.id} active={tab === "tourismSeason"} />
         ) : null}
 
-        {tab === "zReportAccounting" && !employeeSelfService ? (
+        {tab === "zReportAccounting" && showStaffOnlyFeatures ? (
           <BranchZReportAccountingTab branchId={branch.id} active={tab === "zReportAccounting"} />
         ) : null}
 
-        {tab === "documents" && !employeeSelfService ? (
+        {tab === "documents" && showStaffOnlyFeatures ? (
           <BranchDetailDocumentsTab
             branchId={branch.id}
             active={tab === "documents"}
@@ -955,12 +980,13 @@ export function BranchDetailTabs({
         <AdvancePersonnelModal
           open={advanceOpen}
           onClose={closeAdvance}
-          personnel={activePersonnel}
+          personnel={advancePersonnelList}
           initialPersonnelId={advanceInitialPersonId}
+          allowPersonnelPocketAdvance={!branchDayClerkMode}
         />
       ) : null}
 
-      {!employeeSelfService ? (
+      {showStaffOnlyFeatures ? (
         <AssignPersonnelToBranchModal
           open={assignPersonnelOpen}
           onClose={() => setAssignPersonnelOpen(false)}

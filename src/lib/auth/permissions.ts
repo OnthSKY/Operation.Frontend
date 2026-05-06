@@ -3,11 +3,17 @@ import type { AuthUser } from "@/lib/auth/types";
 /** Sunucu `permissions` tablosu ile aynı kodlar (matris). */
 export const PERM = {
   systemAdmin: "system.admin",
+  adminUserPermissionOverrides: "admin.users.permission_overrides",
+  adminUserDataScopes: "admin.users.data_scopes",
   operationsStaff: "operations.staff",
   warehouseDriver: "warehouse.driver",
   uiDashboard: "ui.dashboard",
   uiReports: "ui.reports",
+  /** Finans analiz hubı (`/reports/financial`) ve ilgili API; `ui.reports` stok/kasa özeti vb. için ayrı kalır. */
+  uiReportsFinancial: "ui.reports.financial",
   uiDailyBranchRegister: "ui.daily_branch_register",
+  /** Şube gün sonu kasiyeri: atanmış şubelerde bugünkü kasa + delegeli avans; tam `ui.branches` değil. */
+  uiBranchDayClerk: "ui.branch_day_clerk",
   uiPersonnel: "ui.personnel",
   uiMyAdvances: "ui.my_advances",
   uiBranches: "ui.branches",
@@ -31,6 +37,40 @@ export function hasPermissionCode(
   const codes = user?.permissionCodes;
   if (!codes?.length) return false;
   return codes.some((c) => norm(c) === want);
+}
+
+/** Kullanıcılar → kullanıcıya özel izin satırları modalı. */
+export function canManageUserPermissionOverrides(
+  user: Pick<AuthUser, "permissionCodes" | "role"> | null | undefined
+): boolean {
+  return (
+    hasPermissionCode(user, PERM.systemAdmin) ||
+    hasPermissionCode(user, PERM.adminUserPermissionOverrides)
+  );
+}
+
+/**
+ * Kullanıcılar → veri kapsamları.
+ * Önce kullanıcı izin override yetkisi gerekir; ayrıca `admin.users.data_scopes` açıkça verilmelidir.
+ */
+export function canManageUserDataScopes(
+  user: Pick<AuthUser, "permissionCodes" | "role"> | null | undefined
+): boolean {
+  return (
+    canManageUserPermissionOverrides(user) &&
+    hasPermissionCode(user, PERM.adminUserDataScopes)
+  );
+}
+
+/** Kapsam düğmesi tooltip / toast için hangi engel geçerli. */
+export type UserDataScopesBlockReason = "none" | "need_permission_overrides" | "need_data_scopes";
+
+export function getUserDataScopesBlockReason(
+  user: Pick<AuthUser, "permissionCodes" | "role"> | null | undefined
+): UserDataScopesBlockReason {
+  if (!canManageUserPermissionOverrides(user)) return "need_permission_overrides";
+  if (!hasPermissionCode(user, PERM.adminUserDataScopes)) return "need_data_scopes";
+  return "none";
 }
 
 /**
@@ -74,6 +114,8 @@ export function canSeeUiModule(user: AuthUser | null | undefined, uiCode: string
         uiCode === PERM.uiProducts ||
         uiCode === PERM.uiSuppliers
       );
+    if (r === "BRANCH_DAY_REGISTER")
+      return uiCode === PERM.uiBranchDayClerk || uiCode === PERM.uiDailyBranchRegister;
     return false;
   }
   if (
@@ -89,6 +131,35 @@ export function canSeeDailyBranchRegister(user: AuthUser | null | undefined): bo
   return (
     canSeeUiModule(user, PERM.uiDailyBranchRegister) || canSeeUiModule(user, PERM.uiBranches)
   );
+}
+
+/** Şube kartı / kasa ekranı: tam şube modülü veya gün sonu kasiyeri modu. */
+export function canOpenBranchesWorkspace(user: AuthUser | null | undefined): boolean {
+  if (!user) return false;
+  return (
+    canSeeUiModule(user, PERM.uiBranches) || hasPermissionCode(user, PERM.uiBranchDayClerk)
+  );
+}
+
+/**
+ * Gelir/gider KPI, finans tabloları ve finans özeti API’leri (`/reports/financial`).
+ * Matriste ayrı izin; `operations.staff` jokeri (hiç `ui.*` yokken) tam erişim sayılır.
+ */
+export function canSeeFinancialReports(user: AuthUser | null | undefined): boolean {
+  if (!user) return false;
+  if (hasPermissionCode(user, PERM.systemAdmin)) return true;
+  const codes = user.permissionCodes ?? [];
+  if (codes.length === 0) {
+    const r = String(user.role ?? "").toUpperCase();
+    return r === "ADMIN" || r === "STAFF" || r === "FINANCE";
+  }
+  if (
+    hasPermissionCode(user, PERM.operationsStaff) &&
+    !codes.some((c) => String(c).startsWith("ui."))
+  ) {
+    return true;
+  }
+  return hasPermissionCode(user, PERM.uiReportsFinancial);
 }
 
 export function hasStaffOperationsNotifications(user: AuthUser | null | undefined): boolean {

@@ -32,11 +32,9 @@ import {
 } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import { useI18n } from "@/i18n/context";
 import { toErrorMessage } from "@/shared/lib/error-message";
-import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { notify } from "@/shared/lib/notify";
 import { notifyWarehouseDeleteConfirm } from "@/shared/lib/notify-warehouse-delete";
 import { Button } from "@/shared/ui/Button";
-import { DateField } from "@/shared/ui/DateField";
 import { Input } from "@/shared/ui/Input";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import { Tooltip } from "@/shared/ui/Tooltip";
@@ -52,6 +50,10 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 
 const STOCK_UNIT_NONE = "__none__";
 const DRAWER_SELECT_Z = 280;
+/** Tek bölümde (ana ürün / ürün görünümü) blok sayısı. */
+const STOCK_OPS_BLOCKS_PAGE_SIZE = 12;
+/** Kategori / alt kategori görünümünde bölüm sayısı. */
+const STOCK_OPS_SECTIONS_PAGE_SIZE = 4;
 
 function parseOptionalQty(s: string): number | null {
   const t = s.trim();
@@ -117,7 +119,6 @@ export function WarehouseOperationsTab({
   showDeleteWarehouseButton = true,
 }: Props) {
   const { t } = useI18n();
-  const [movementDate, setMovementDate] = useState(() => localIsoDate());
   const [filtersDrawerOpen, setFiltersDrawerOpen] = useState(false);
   const [scope, setScope] = useState<WarehouseScopeFiltersValue>({
     mainCategoryId: null,
@@ -131,6 +132,7 @@ export function WarehouseOperationsTab({
   const [stockMaxQty, setStockMaxQty] = useState("");
   const [stockLevel, setStockLevel] = useState<"all" | "positive" | "zero">("all");
   const [stockUnit, setStockUnit] = useState("");
+  const [stockListPage, setStockListPage] = useState(1);
 
   const stockFilters = useMemo(
     () => ({
@@ -158,10 +160,6 @@ export function WarehouseOperationsTab({
   );
 
   useEffect(() => {
-    if (active) setMovementDate(localIsoDate());
-  }, [active, warehouseId]);
-
-  useEffect(() => {
     setScope({
       mainCategoryId: null,
       subCategoryId: null,
@@ -174,6 +172,7 @@ export function WarehouseOperationsTab({
     setStockMaxQty("");
     setStockLevel("all");
     setStockUnit("");
+    setStockListPage(1);
   }, [warehouseId]);
 
   useEffect(() => {
@@ -243,6 +242,7 @@ export function WarehouseOperationsTab({
     setStockLevel("all");
     setStockUnit("");
     setFiltersDrawerOpen(false);
+    setStockListPage(1);
   };
 
   useEffect(() => {
@@ -271,6 +271,53 @@ export function WarehouseOperationsTab({
 
   const showStockSectionHeaders =
     stockGroupMode === "category" || stockGroupMode === "subcategory";
+
+  const stockPaginationUnitCount = useMemo(() => {
+    if (showStockSectionHeaders) return stockSections.length;
+    return stockSections[0]?.blocks?.length ?? 0;
+  }, [stockSections, showStockSectionHeaders]);
+
+  const stockPaginationPageSize = showStockSectionHeaders
+    ? STOCK_OPS_SECTIONS_PAGE_SIZE
+    : STOCK_OPS_BLOCKS_PAGE_SIZE;
+
+  const stockPaginationTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(stockPaginationUnitCount / stockPaginationPageSize)),
+    [stockPaginationUnitCount, stockPaginationPageSize]
+  );
+
+  useEffect(() => {
+    setStockListPage(1);
+  }, [
+    stockGroupMode,
+    scope.mainCategoryId,
+    scope.subCategoryId,
+    scope.parentProductId,
+    scope.productId,
+    stockSearch,
+    stockMinQty,
+    stockMaxQty,
+    stockLevel,
+    stockUnit,
+    stockRowsFiltered.length,
+  ]);
+
+  useEffect(() => {
+    setStockListPage((p) => Math.max(1, Math.min(p, stockPaginationTotalPages)));
+  }, [stockPaginationTotalPages]);
+
+  const stockSectionsPaged = useMemo(() => {
+    if (stockSections.length === 0) return stockSections;
+    if (showStockSectionHeaders) {
+      const start = (stockListPage - 1) * STOCK_OPS_SECTIONS_PAGE_SIZE;
+      return stockSections.slice(start, start + STOCK_OPS_SECTIONS_PAGE_SIZE);
+    }
+    const head = stockSections[0];
+    if (!head) return stockSections;
+    const start = (stockListPage - 1) * STOCK_OPS_BLOCKS_PAGE_SIZE;
+    const blocks = head.blocks.slice(start, start + STOCK_OPS_BLOCKS_PAGE_SIZE);
+    return [{ ...head, blocks }];
+  }, [stockSections, showStockSectionHeaders, stockListPage]);
 
   const stockGroupOptions = useMemo(
     () => [
@@ -308,7 +355,7 @@ export function WarehouseOperationsTab({
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       {!hideRecentMovements && onOpenMovementsTab ? (
         <WarehouseOperationsRecentMovements
           warehouseId={warehouseId}
@@ -317,22 +364,9 @@ export function WarehouseOperationsTab({
         />
       ) : null}
 
-      <p className="text-sm text-zinc-500">{t("warehouse.stockHint")}</p>
-
-      <div className="max-w-full sm:max-w-xs">
-        <DateField
-          label={t("warehouse.quickMovementDate")}
-          labelRequired
-          required
-          value={movementDate}
-          onChange={(e) => setMovementDate(e.target.value)}
-          disabled={quickDisabled}
-        />
-      </div>
-
-      <div className="flex min-w-0 flex-col gap-2 border-b border-zinc-200/80 pb-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <h3 className="min-w-0 text-sm font-semibold text-zinc-900 sm:text-base">{t("warehouse.stockTitle")}</h3>
-        <div className="flex shrink-0 items-center justify-end gap-2">
+      <div className="flex min-w-0 flex-col gap-2 border-b border-zinc-200/80 pb-3">
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          <h3 className="min-w-0 text-sm font-semibold text-zinc-900 sm:text-base">{t("warehouse.stockTitle")}</h3>
           <Tooltip content={t("warehouse.stockOpsFiltersToggle")} delayMs={220}>
             <button
               type="button"
@@ -345,13 +379,16 @@ export function WarehouseOperationsTab({
               <FilterFunnelIcon className="h-5 w-5" />
               {stockOpsFiltersActive ? (
                 <span
-                  className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-violet-500 ring-2 ring-white"
+                  className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-zinc-500 ring-2 ring-white"
                   aria-hidden
                 />
               ) : null}
             </button>
           </Tooltip>
         </div>
+        {stockGroupMode === "parent" ? (
+          <p className="text-xs leading-snug text-zinc-600 sm:text-sm">{t("warehouse.stockOpsMainVsVariantsIntro")}</p>
+        ) : null}
       </div>
       {stockRowsRaw.length > 0 && stockRowsFiltered.length !== stockRowsRaw.length ? (
         <p className="text-xs text-zinc-600 sm:text-sm">
@@ -370,15 +407,19 @@ export function WarehouseOperationsTab({
         className="max-w-lg"
         rootClassName={OVERLAY_Z_TW.modalNested}
       >
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-5">
           <p className="text-xs leading-relaxed text-zinc-600 sm:text-sm">{t("warehouse.stockOpsFiltersDrawerHint")}</p>
           <WarehouseProductScopeFilters
             value={scope}
             onChange={setScope}
             disabled={quickDisabled}
             menuZIndex={DRAWER_SELECT_Z}
+            layout="productFirst"
           />
-          <div className="min-w-0">
+          <div className="min-w-0 border-t border-zinc-200 pt-1">
+            <p className="mb-2 text-[0.7rem] font-semibold uppercase tracking-wide text-zinc-500">
+              {t("warehouse.stockOpsFilterSectionView")}
+            </p>
             <Select
               name="wh-stock-group-mode"
               label={t("warehouse.stockGroupByLabel")}
@@ -394,59 +435,73 @@ export function WarehouseOperationsTab({
               {t("warehouse.stockGroupByHint")}
             </p>
           </div>
-          <Input
-            name="wh-stock-search"
-            label={t("warehouse.stockOpsFilterSearchLabel")}
-            value={stockSearch}
-            onChange={(e) => setStockSearch(e.target.value)}
-            placeholder={t("warehouse.stockOpsFilterSearchPlaceholder")}
-            disabled={quickDisabled}
-            autoComplete="off"
-            className="min-h-11 text-base sm:text-sm"
-          />
-          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="min-w-0 border-t border-zinc-200 pt-1">
+            <p className="mb-2 text-[0.7rem] font-semibold uppercase tracking-wide text-zinc-500">
+              {t("warehouse.stockOpsFilterSectionSearch")}
+            </p>
             <Input
-              name="wh-stock-min-qty"
-              label={t("warehouse.stockOpsFilterMinQty")}
-              value={stockMinQty}
-              onChange={(e) => setStockMinQty(e.target.value)}
-              inputMode="decimal"
+              name="wh-stock-search"
+              label={t("warehouse.stockOpsFilterSearchLabel")}
+              value={stockSearch}
+              onChange={(e) => setStockSearch(e.target.value)}
+              placeholder={t("warehouse.stockOpsFilterSearchPlaceholder")}
               disabled={quickDisabled}
-              className="min-h-11 text-base sm:text-sm"
-            />
-            <Input
-              name="wh-stock-max-qty"
-              label={t("warehouse.stockOpsFilterMaxQty")}
-              value={stockMaxQty}
-              onChange={(e) => setStockMaxQty(e.target.value)}
-              inputMode="decimal"
-              disabled={quickDisabled}
+              autoComplete="off"
               className="min-h-11 text-base sm:text-sm"
             />
           </div>
-          <p className="text-[0.65rem] leading-snug text-zinc-500 sm:text-xs">{t("warehouse.stockOpsFilterQtyHelp")}</p>
-          <Select
-            name="wh-stock-level"
-            label={t("warehouse.stockOpsFilterStockLevel")}
-            options={stockLevelOptions}
-            value={stockLevel}
-            onChange={(e) => setStockLevel(e.target.value as "all" | "positive" | "zero")}
-            onBlur={() => {}}
-            disabled={quickDisabled}
-            menuZIndex={DRAWER_SELECT_Z}
-            className="min-w-0 max-w-full"
-          />
-          <Select
-            name="wh-stock-unit"
-            label={t("warehouse.stockOpsFilterUnit")}
-            options={stockUnitOptions}
-            value={stockUnit}
-            onChange={(e) => setStockUnit(e.target.value)}
-            onBlur={() => {}}
-            disabled={quickDisabled || stockUnitOptions.length <= 1}
-            menuZIndex={DRAWER_SELECT_Z}
-            className="min-w-0 max-w-full"
-          />
+          <div className="min-w-0 border-t border-zinc-200 pt-1">
+            <p className="mb-2 text-[0.7rem] font-semibold uppercase tracking-wide text-zinc-500">
+              {t("warehouse.stockOpsFilterSectionQuantity")}
+            </p>
+            <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+              <Input
+                name="wh-stock-min-qty"
+                label={t("warehouse.stockOpsFilterMinQty")}
+                value={stockMinQty}
+                onChange={(e) => setStockMinQty(e.target.value)}
+                inputMode="decimal"
+                disabled={quickDisabled}
+                className="min-h-11 text-base sm:text-sm"
+              />
+              <Input
+                name="wh-stock-max-qty"
+                label={t("warehouse.stockOpsFilterMaxQty")}
+                value={stockMaxQty}
+                onChange={(e) => setStockMaxQty(e.target.value)}
+                inputMode="decimal"
+                disabled={quickDisabled}
+                className="min-h-11 text-base sm:text-sm"
+              />
+            </div>
+            <p className="mt-2 text-[0.65rem] leading-snug text-zinc-500 sm:text-xs">
+              {t("warehouse.stockOpsFilterQtyHelp")}
+            </p>
+            <div className="mt-3 grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+              <Select
+                name="wh-stock-level"
+                label={t("warehouse.stockOpsFilterStockLevel")}
+                options={stockLevelOptions}
+                value={stockLevel}
+                onChange={(e) => setStockLevel(e.target.value as "all" | "positive" | "zero")}
+                onBlur={() => {}}
+                disabled={quickDisabled}
+                menuZIndex={DRAWER_SELECT_Z}
+                className="min-w-0 max-w-full"
+              />
+              <Select
+                name="wh-stock-unit"
+                label={t("warehouse.stockOpsFilterUnit")}
+                options={stockUnitOptions}
+                value={stockUnit}
+                onChange={(e) => setStockUnit(e.target.value)}
+                onBlur={() => {}}
+                disabled={quickDisabled || stockUnitOptions.length <= 1}
+                menuZIndex={DRAWER_SELECT_Z}
+                className="min-w-0 max-w-full"
+              />
+            </div>
+          </div>
           <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
             <Button
               type="button"
@@ -473,7 +528,7 @@ export function WarehouseOperationsTab({
       ) : (
         <>
           <div className="space-y-4 md:hidden">
-            {stockSections.map((sec) => (
+            {stockSectionsPaged.map((sec) => (
               <div key={sec.sectionId} className="flex flex-col gap-2">
                 {showStockSectionHeaders ? (
                   <WarehouseStockSectionHeader
@@ -498,6 +553,20 @@ export function WarehouseOperationsTab({
                         parentDirectQty={b.parentDirectQty}
                         hasVariantsInCatalog={b.hasVariantsInCatalog}
                       />
+                      <WarehouseStockLine
+                        key={`gmain-${b.parentId}-${b.parentStockRow.productId}`}
+                        variant="card"
+                        row={b.parentStockRow}
+                        groupMainProductLine
+                        warehouseId={warehouseId}
+                        branchOptions={branchOptions}
+                        branchesReady={branchesReady}
+                        disabled={quickDisabled}
+                        movementMutate={movement.mutateAsync}
+                        transferPreviewMutate={transferPreview.mutateAsync}
+                        transferMutate={toBranch.mutateAsync}
+                        personnelOptions={personnelOptions}
+                      />
                       {b.children.map((r) => (
                         <WarehouseStockLine
                           key={r.productId}
@@ -505,7 +574,6 @@ export function WarehouseOperationsTab({
                           row={r}
                           isVariantLine
                           warehouseId={warehouseId}
-                          movementDate={movementDate}
                           branchOptions={branchOptions}
                           branchesReady={branchesReady}
                           disabled={quickDisabled}
@@ -522,7 +590,6 @@ export function WarehouseOperationsTab({
                       variant="card"
                       row={b.row}
                       warehouseId={warehouseId}
-                      movementDate={movementDate}
                       branchOptions={branchOptions}
                       branchesReady={branchesReady}
                       disabled={quickDisabled}
@@ -544,13 +611,13 @@ export function WarehouseOperationsTab({
                   <TableHeader>{t("warehouse.productName")}</TableHeader>
                   <TableHeader>{t("warehouse.productUnit")}</TableHeader>
                   <TableHeader className="text-right">{t("products.colQty")}</TableHeader>
-                  <TableHeader className="min-w-[240px] text-right">
+                  <TableHeader className="min-w-[6.5rem] text-right sm:min-w-[7.5rem]">
                     {t("common.actions")}
                   </TableHeader>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {stockSections.map((sec) => (
+                {stockSectionsPaged.map((sec) => (
                   <Fragment key={sec.sectionId}>
                     {showStockSectionHeaders ? (
                       <WarehouseStockSectionHeader
@@ -575,6 +642,20 @@ export function WarehouseOperationsTab({
                             parentDirectQty={b.parentDirectQty}
                             hasVariantsInCatalog={b.hasVariantsInCatalog}
                           />
+                          <WarehouseStockLine
+                            key={`gmain-${b.parentId}-${b.parentStockRow.productId}`}
+                            variant="table"
+                            row={b.parentStockRow}
+                            groupMainProductLine
+                            warehouseId={warehouseId}
+                            branchOptions={branchOptions}
+                            branchesReady={branchesReady}
+                            disabled={quickDisabled}
+                            movementMutate={movement.mutateAsync}
+                            transferPreviewMutate={transferPreview.mutateAsync}
+                            transferMutate={toBranch.mutateAsync}
+                            personnelOptions={personnelOptions}
+                          />
                           {b.children.map((r) => (
                             <WarehouseStockLine
                               key={r.productId}
@@ -582,7 +663,6 @@ export function WarehouseOperationsTab({
                               row={r}
                               isVariantLine
                               warehouseId={warehouseId}
-                              movementDate={movementDate}
                               branchOptions={branchOptions}
                               branchesReady={branchesReady}
                               disabled={quickDisabled}
@@ -599,7 +679,6 @@ export function WarehouseOperationsTab({
                           variant="table"
                           row={b.row}
                           warehouseId={warehouseId}
-                          movementDate={movementDate}
                           branchOptions={branchOptions}
                           branchesReady={branchesReady}
                           disabled={quickDisabled}
@@ -615,6 +694,35 @@ export function WarehouseOperationsTab({
               </TableBody>
             </Table>
           </div>
+          {stockPaginationTotalPages > 1 ? (
+            <div className="flex flex-col gap-2 border-t border-zinc-200/90 pt-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs text-zinc-600">
+                {t("warehouse.stockOpsPaginationPage")
+                  .replace("{{page}}", String(stockListPage))
+                  .replace("{{pages}}", String(stockPaginationTotalPages))}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="min-h-10 min-w-[6.5rem]"
+                  disabled={stockListPage <= 1}
+                  onClick={() => setStockListPage((p) => Math.max(1, p - 1))}
+                >
+                  {t("warehouse.stockOpsPaginationPrev")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="min-h-10 min-w-[6.5rem]"
+                  disabled={stockListPage >= stockPaginationTotalPages}
+                  onClick={() => setStockListPage((p) => Math.min(stockPaginationTotalPages, p + 1))}
+                >
+                  {t("warehouse.stockOpsPaginationNext")}
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </>
       )}
 

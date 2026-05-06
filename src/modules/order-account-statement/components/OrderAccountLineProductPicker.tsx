@@ -149,7 +149,7 @@ export function OrderAccountLineProductPicker({
 
   return (
     <RichCombobox
-      className={cn("relative z-[45]", className)}
+      className={cn("w-full min-w-0", className)}
       value={value}
       onChange={(raw) => {
         const id = Number.parseInt(raw, 10);

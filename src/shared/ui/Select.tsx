@@ -15,6 +15,7 @@ import {
   type Ref,
 } from "react";
 import { createPortal } from "react-dom";
+import { getVisualViewportBottomPx } from "@/shared/lib/visual-viewport-bottom";
 
 export type SelectOption = { value: string; label: string };
 
@@ -65,7 +66,7 @@ function computeMenuGeom(container: HTMLElement): MenuGeom {
   const margin = 8;
   const gap = 4;
   const preferredTop = r.bottom + gap;
-  const spaceBelow = window.innerHeight - preferredTop - margin;
+  const spaceBelow = getVisualViewportBottomPx() - preferredTop - margin;
   const spaceAbove = r.top - margin - gap;
 
   if (spaceBelow >= 120 || spaceBelow >= spaceAbove) {
@@ -149,9 +150,18 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
       const handler = () => refreshMenuGeom();
       window.addEventListener("scroll", handler, true);
       window.addEventListener("resize", handler);
+      const vv = window.visualViewport;
+      if (vv) {
+        vv.addEventListener("resize", handler);
+        vv.addEventListener("scroll", handler);
+      }
       return () => {
         window.removeEventListener("scroll", handler, true);
         window.removeEventListener("resize", handler);
+        if (vv) {
+          vv.removeEventListener("resize", handler);
+          vv.removeEventListener("scroll", handler);
+        }
       };
     }, [open, disabled, refreshMenuGeom]);
 

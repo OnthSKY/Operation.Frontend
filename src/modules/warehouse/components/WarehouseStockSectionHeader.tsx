@@ -28,13 +28,13 @@ export function WarehouseStockSectionHeader({ title, unitTotals, variant }: Prop
 
   if (variant === "card") {
     return (
-      <div className="rounded-xl border border-emerald-200/75 bg-gradient-to-br from-emerald-50/90 to-white px-3 py-2.5 shadow-sm ring-1 ring-emerald-100/50 sm:px-4">
-        <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-emerald-900/80">
+      <div className="rounded-xl border border-zinc-200/90 bg-zinc-50/90 px-3 py-2.5 shadow-sm sm:px-4">
+        <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
           {t("warehouse.stockSectionEyebrow")}
         </p>
         <p className="mt-0.5 text-base font-semibold leading-snug text-zinc-900">{title}</p>
         {line ? (
-          <p className="mt-1 text-sm tabular-nums text-emerald-950/90">{line}</p>
+          <p className="mt-1 text-sm tabular-nums text-zinc-800">{line}</p>
         ) : (
           <p className="mt-1 text-xs text-zinc-500">{t("warehouse.stockSectionNoQty")}</p>
         )}
@@ -43,14 +43,14 @@ export function WarehouseStockSectionHeader({ title, unitTotals, variant }: Prop
   }
 
   return (
-    <TableRow className="bg-emerald-50/35">
+    <TableRow className="bg-zinc-50/80">
       <TableCell colSpan={4} className="py-3">
-        <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-emerald-900/80">
+        <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
           {t("warehouse.stockSectionEyebrow")}
         </p>
         <p className="mt-0.5 text-sm font-semibold text-zinc-900">{title}</p>
         {line ? (
-          <p className="mt-1 text-sm tabular-nums text-emerald-950/90">{line}</p>
+          <p className="mt-1 text-sm tabular-nums text-zinc-800">{line}</p>
         ) : (
           <p className="mt-1 text-xs text-zinc-500">{t("warehouse.stockSectionNoQty")}</p>
         )}

@@ -1,5 +1,7 @@
 "use client";
 
+import { useAuth } from "@/lib/auth/AuthContext";
+import { canSeeFinancialReports } from "@/lib/auth/permissions";
 import { ReportLinkRow } from "@/modules/dashboard/components/ReportLinkRow";
 
 export function DashboardReportsTab({
@@ -9,6 +11,7 @@ export function DashboardReportsTab({
   t: (key: string) => string;
   userRole?: string | null;
 }) {
+  const { user } = useAuth();
   return (
             <section className="flex min-w-0 w-full flex-col gap-3" role="tabpanel">
             <div>
@@ -20,9 +23,11 @@ export function DashboardReportsTab({
               </p>
             </div>
             <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
-              <ReportLinkRow href="/reports/financial">
-                {t("dashboard.reportLinkReportsHub")}
-              </ReportLinkRow>
+              {canSeeFinancialReports(user) ? (
+                <ReportLinkRow href="/reports/financial">
+                  {t("dashboard.reportLinkReportsHub")}
+                </ReportLinkRow>
+              ) : null}
               <ReportLinkRow href="/reports/branches">
                 {t("dashboard.reportLinkBranchComparison")}
               </ReportLinkRow>

@@ -3,7 +3,6 @@
 import { useI18n } from "@/i18n/context";
 import { isPersonnelPortalRole } from "@/lib/auth/roles";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { fetchBranches } from "@/modules/branch/api/branches-api";
 import {
   useBranchesList,
   useBranchesListPaged,
@@ -33,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/Table";
+import { useBranchDetailOverlay } from "@/shared/branch-detail";
 import { useSearchParams } from "next/navigation";
 import type { MouseEvent } from "react";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
@@ -43,7 +43,6 @@ import { detailOpenIconButtonClass, EyeIcon } from "@/shared/ui/EyeIcon";
 import { AddBranchModal } from "./AddBranchModal";
 import { EditBranchModal } from "./EditBranchModal";
 import { AddBranchTransactionModal } from "./AddBranchTransactionModal";
-import { BranchDetailSheet } from "./BranchDetailSheet";
 import { BranchListMetricsPanel } from "./BranchListMetricsPanel";
 import {
   BranchQuickActionsMenu,
@@ -52,8 +51,6 @@ import {
 import { AssignPersonnelToBranchModal } from "./AssignPersonnelToBranchModal";
 import { BranchPdfSettlementOptionsModal } from "./BranchPdfSettlementOptionsModal";
 import { BranchPosSettlementProfileModal } from "./BranchPosSettlementProfileModal";
-import { parseBranchDetailTabParam } from "@/modules/branch/lib/branch-detail-tab";
-import { parseRegisterDaySearchParam } from "@/modules/branch/lib/register-day-search-param";
 
 function seasonLabel(status: BranchSeasonStatus, t: (key: string) => string): string {
   switch (status) {
@@ -304,11 +301,15 @@ export function BranchScreen() {
   const { t, locale } = useI18n();
   const { user } = useAuth();
   const searchParams = useSearchParams();
+  const {
+    openBranchDetail: openBranchDetailOverlay,
+    closeBranchDetail,
+    branchDetailBranchId,
+  } = useBranchDetailOverlay();
   const personnelPortal = isPersonnelPortalRole(user?.role);
   const [listPage, setListPage] = useState(1);
   const [listSearch, setListSearch] = useState("");
   const [sortBy, setSortBy] = useState<BranchListSort>("nameAsc");
-  const [deepLinkedBranch, setDeepLinkedBranch] = useState<Branch | null>(null);
   const listSearchTrimmed = listSearch.trim();
   const listSearchActive = listSearchTrimmed.length > 0;
   const listSearchLower = listSearchTrimmed.toLowerCase();
@@ -373,7 +374,6 @@ export function BranchScreen() {
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editBranchId, setEditBranchId] = useState<number | null>(null);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
   const [quickTx, setQuickTx] = useState<{
     branchId: number;
     preset: "income" | "expense" | "dayClose";
@@ -431,12 +431,15 @@ export function BranchScreen() {
     };
   }, []);
 
-  const openBranchDetail = useCallback((id: number) => {
-    setSelectedId(id);
-    setQuickTx(null);
-    setEditOpen(false);
-    setEditBranchId(null);
-  }, []);
+  const openBranchDetail = useCallback(
+    (id: number) => {
+      openBranchDetailOverlay(id);
+      setQuickTx(null);
+      setEditOpen(false);
+      setEditBranchId(null);
+    },
+    [openBranchDetailOverlay]
+  );
 
   const openBranchEdit = useCallback((id: number) => {
     setEditBranchId(id);
@@ -523,47 +526,6 @@ export function BranchScreen() {
     ]
   );
 
-  const selected = useMemo(() => {
-    if (selectedId == null) return null;
-    return list.find((b) => b.id === selectedId) ?? deepLinkedBranch;
-  }, [list, selectedId, deepLinkedBranch]);
-
-  useEffect(() => {
-    const raw = searchParams.get("openBranch");
-    if (!raw?.trim()) {
-      setDeepLinkedBranch(null);
-      return;
-    }
-    const id = Number.parseInt(raw, 10);
-    if (!Number.isFinite(id) || id <= 0) return;
-
-    if (list.some((b) => b.id === id)) {
-      setDeepLinkedBranch(null);
-      setSelectedId(id);
-      setQuickTx(null);
-      return;
-    }
-
-    let cancelled = false;
-    void fetchBranches().then((all) => {
-      if (cancelled) return;
-      const b = all.find((x) => x.id === id);
-      if (b) {
-        setDeepLinkedBranch(b);
-        setSelectedId(id);
-        setQuickTx(null);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [searchParams, list]);
-
-  const staff = useMemo(
-    () => personnel.filter((p) => p.branchId === selectedId),
-    [personnel, selectedId]
-  );
-
   const editStaff = useMemo(
     () => personnel.filter((p) => p.branchId === editBranchId),
     [personnel, editBranchId]
@@ -578,20 +540,8 @@ export function BranchScreen() {
     const raw = searchParams.get("openBranch");
     if (!raw?.trim()) return false;
     const id = Number.parseInt(raw, 10);
-    if (!Number.isFinite(id) || id <= 0) return false;
-    if (list.some((b) => b.id === id)) return true;
-    return deepLinkedBranch?.id === id;
-  }, [searchParams, list, deepLinkedBranch]);
-
-  const initialDetailTab = useMemo(
-    () => parseBranchDetailTabParam(searchParams.get("branchTab")),
-    [searchParams]
-  );
-
-  const registerDayFromUrl = useMemo(
-    () => parseRegisterDaySearchParam(searchParams.get("registerDay")),
-    [searchParams]
-  );
+    return Number.isFinite(id) && id > 0;
+  }, [searchParams]);
 
   const confirmBranchSoftDelete = useCallback(async () => {
     const target = branchPendingDelete;
@@ -601,8 +551,7 @@ export function BranchScreen() {
       notify.success(t("toast.branchSoftDeleted"));
       const id = target.id;
       setBranchPendingDelete(null);
-      setSelectedId((s) => (s === id ? null : s));
-      setDeepLinkedBranch((d) => (d?.id === id ? null : d));
+      if (branchDetailBranchId === id) closeBranchDetail();
       if (editBranchId === id) {
         setEditOpen(false);
         setEditBranchId(null);
@@ -615,7 +564,9 @@ export function BranchScreen() {
     }
   }, [
     assignBranchId,
+    branchDetailBranchId,
     branchPendingDelete,
+    closeBranchDetail,
     deleteBranchMut,
     editBranchId,
     pdfBranch,
@@ -729,7 +680,7 @@ export function BranchScreen() {
           <>
             <div className="flex flex-col gap-4 md:hidden">
               {list.map((b) => {
-                const active = selectedId === b.id;
+                const active = branchDetailBranchId === b.id;
                 const mOpen = Boolean(metricsOpen[b.id]);
                 return (
                   <MobileListCard
@@ -853,7 +804,7 @@ export function BranchScreen() {
                 </TableHead>
                 <TableBody>
                   {list.map((b) => {
-                    const active = selectedId === b.id;
+                    const active = branchDetailBranchId === b.id;
                     const mOpen = Boolean(metricsOpen[b.id]);
                     return (
                       <Fragment key={b.id}>
@@ -1006,36 +957,12 @@ export function BranchScreen() {
               ) : null}
           </>
         )}
-        {!isPending && !isError && totalCount > 0 && !selectedId && (
+        {!isPending && !isError && totalCount > 0 && branchDetailBranchId == null && (
           <p className="mt-3 text-sm text-zinc-500">{t("branch.selectHint")}</p>
         )}
           </Card>
         }
       />
-
-      {selected ? (
-        <BranchDetailSheet
-          open
-          branch={selected}
-          staff={staff}
-          employeeSelfService={personnelPortal}
-          initialTab={initialDetailTab}
-          initialRegisterDay={registerDayFromUrl}
-          canEditBranch={!personnelPortal}
-          onEditBranch={() => {
-            if (selectedId != null) {
-              setEditBranchId(selectedId);
-              setEditOpen(true);
-            }
-          }}
-          onClose={() => {
-            setSelectedId(null);
-            setDeepLinkedBranch(null);
-            setEditOpen(false);
-            setEditBranchId(null);
-          }}
-        />
-      ) : null}
 
       {!personnelPortal ? (
         <EditBranchModal
@@ -1099,7 +1026,7 @@ export function BranchScreen() {
           titleId={BRANCH_DELETE_CONFIRM_TITLE_ID}
           title={t("branch.deleteBranchConfirmTitle")}
           closeButtonLabel={t("common.close")}
-          nested={selectedId != null || editOpen}
+          nested={branchDetailBranchId != null || editOpen}
           className="max-w-md"
         >
           <p className="text-sm text-zinc-800">

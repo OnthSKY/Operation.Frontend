@@ -11,6 +11,7 @@ import type {
   CashPositionHeldRegisterCashLine,
   CashPositionTotalsRow,
 } from "@/types/reports";
+import { BranchDetailHrefLink } from "@/shared/branch-detail";
 import Link from "next/link";
 import { useMemo, type ReactNode } from "react";
 
@@ -84,12 +85,14 @@ function CashBranchMetricBreakdown({
             key={row.branchId}
             className="flex items-baseline justify-between gap-2 border-b border-zinc-100 py-1.5 last:border-b-0"
           >
-            <Link
-              href={`/branches?openBranch=${row.branchId}&branchTab=dashboard&registerDay=${encodeURIComponent(registerDayIso)}`}
+            <BranchDetailHrefLink
+              branchId={row.branchId}
+              initialTab="dashboard"
+              initialRegisterDay={registerDayIso}
               className="min-w-0 truncate font-medium text-violet-800 underline decoration-violet-200 underline-offset-2 hover:text-violet-950"
             >
               {row.branchName}
-            </Link>
+            </BranchDetailHrefLink>
             <span className="shrink-0 tabular-nums font-semibold text-zinc-900">
               {formatLocaleAmount(pickAmount(row), locale)}
             </span>

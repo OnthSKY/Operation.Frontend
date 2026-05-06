@@ -1,7 +1,18 @@
 "use client";
 
 import { cn } from "@/lib/cn";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { getVisualViewportBottomPx } from "@/shared/lib/visual-viewport-bottom";
+import { OVERLAY_Z_INDEX } from "@/shared/overlays/z-layers";
+import { createPortal } from "react-dom";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 
 export type RichComboboxOption = {
   value: string;
@@ -9,6 +20,33 @@ export type RichComboboxOption = {
   description?: string;
   detail?: string;
 };
+
+const LIST_MAX_PX = 208;
+
+type MenuGeom = {
+  top: number;
+  left: number;
+  width: number;
+  maxHeight: number;
+};
+
+function computeMenuGeom(container: HTMLElement): MenuGeom {
+  const r = container.getBoundingClientRect();
+  const margin = 8;
+  const gap = 4;
+  const preferredTop = r.bottom + gap;
+  const spaceBelow = getVisualViewportBottomPx() - preferredTop - margin;
+  const spaceAbove = r.top - margin - gap;
+
+  if (spaceBelow >= 120 || spaceBelow >= spaceAbove) {
+    const maxHeight = Math.min(LIST_MAX_PX, Math.max(96, spaceBelow));
+    return { top: preferredTop, left: r.left, width: r.width, maxHeight };
+  }
+
+  const maxHeight = Math.min(LIST_MAX_PX, Math.max(96, spaceAbove));
+  const top = Math.max(margin, r.top - maxHeight - gap);
+  return { top, left: r.left, width: r.width, maxHeight };
+}
 
 type RichComboboxProps = {
   value: string;
@@ -30,6 +68,8 @@ type RichComboboxProps = {
   loadingText?: string;
   disabled?: boolean;
   className?: string;
+  /** Portallanan liste z-index (modal üstü). */
+  menuZIndex?: number;
 };
 
 export function RichCombobox({
@@ -50,22 +90,40 @@ export function RichCombobox({
   loadingText,
   disabled,
   className,
+  menuZIndex = OVERLAY_Z_INDEX.menuPanel,
 }: RichComboboxProps) {
   const [internalQuery, setInternalQuery] = useState("");
   const [open, setOpen] = useState(false);
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [menuGeom, setMenuGeom] = useState<MenuGeom | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const listPanelRef = useRef<HTMLDivElement | null>(null);
+  const listScrollRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+
   const resolvedQuery = query ?? internalQuery;
-  const setResolvedQuery = (value: string) => {
-    if (onQueryChange) {
-      onQueryChange(value);
-      return;
-    }
-    setInternalQuery(value);
-  };
-  const patchOpen = (next: boolean) => {
-    setOpen(next);
-    onOpenChange?.(next);
-  };
+  const setResolvedQuery = useCallback(
+    (next: string) => {
+      if (onQueryChange) onQueryChange(next);
+      else setInternalQuery(next);
+    },
+    [onQueryChange]
+  );
+
+  const patchOpen = useCallback(
+    (next: boolean) => {
+      setOpen(next);
+      onOpenChange?.(next);
+    },
+    [onOpenChange]
+  );
+
+  const closeAndReset = useCallback(() => {
+    patchOpen(false);
+    setResolvedQuery("");
+  }, [patchOpen, setResolvedQuery]);
+
   const filtered = useMemo(() => {
     if (serverSideFilter) return options;
     const q = resolvedQuery.trim().toLocaleLowerCase("tr-TR");
@@ -74,125 +132,267 @@ export function RichCombobox({
       `${opt.title} ${opt.description ?? ""} ${opt.detail ?? ""}`.toLocaleLowerCase("tr-TR").includes(q)
     );
   }, [options, resolvedQuery, serverSideFilter]);
+
   const selected = useMemo(() => options.find((x) => x.value === value) ?? null, [options, value]);
-  const closeAndReset = () => {
-    patchOpen(false);
-    setResolvedQuery("");
-  };
+
+  const refreshMenuGeom = useCallback(() => {
+    if (!containerRef.current) return;
+    setMenuGeom(computeMenuGeom(containerRef.current));
+  }, []);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
     if (clearQueryOnOpen) {
       setResolvedQuery("");
     }
-    const timer = window.setTimeout(() => {
-      searchInputRef.current?.focus();
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [open, clearQueryOnOpen]);
+    const t = window.setTimeout(() => inputRef.current?.focus(), 0);
+    return () => window.clearTimeout(t);
+  }, [open, clearQueryOnOpen, setResolvedQuery]);
 
-  return (
-    <div className={cn("relative", className)}>
-      <button
-        type="button"
-        onClick={() => patchOpen(!open)}
-        onKeyDown={(e) => {
-          if (disabled || open) return;
-          const printable = e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey;
-          if (!printable) return;
-          e.preventDefault();
-          patchOpen(true);
-          setResolvedQuery(e.key);
+  useLayoutEffect(() => {
+    if (!open || disabled) {
+      setMenuGeom(null);
+      return;
+    }
+    refreshMenuGeom();
+    const handler = () => refreshMenuGeom();
+    window.addEventListener("scroll", handler, true);
+    window.addEventListener("resize", handler);
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener("resize", handler);
+      vv.addEventListener("scroll", handler);
+    }
+    return () => {
+      window.removeEventListener("scroll", handler, true);
+      window.removeEventListener("resize", handler);
+      if (vv) {
+        vv.removeEventListener("resize", handler);
+        vv.removeEventListener("scroll", handler);
+      }
+    };
+  }, [open, disabled, refreshMenuGeom, filtered.length]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e: MouseEvent) => {
+      const node = e.target as Node;
+      if (containerRef.current?.contains(node)) return;
+      if (listPanelRef.current?.contains(node)) return;
+      patchOpen(false);
+      setResolvedQuery("");
+    };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open, patchOpen, setResolvedQuery]);
+
+  useEffect(() => {
+    if (!open || !onReachEnd || !hasMore || isLoadingMore || !menuGeom) return;
+    const root = listScrollRef.current;
+    const sentinel = loadMoreSentinelRef.current;
+    if (!root || !sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        onReachEnd();
+      },
+      { root, rootMargin: "0px 0px 160px 0px", threshold: 0 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [open, onReachEnd, hasMore, isLoadingMore, filtered.length, menuGeom]);
+
+  const openList = useCallback(() => {
+    if (disabled) return;
+    patchOpen(true);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, [disabled, patchOpen]);
+
+  const displayValue = open ? resolvedQuery : (selected?.title ?? "");
+
+  const onInputChange = (raw: string) => {
+    if (!open) {
+      patchOpen(true);
+      setResolvedQuery(raw);
+      return;
+    }
+    setResolvedQuery(raw);
+  };
+
+  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Escape") {
+      if (open) {
+        e.preventDefault();
+        e.stopPropagation();
+        patchOpen(false);
+        setResolvedQuery("");
+      }
+      return;
+    }
+    if (
+      !open &&
+      e.key.length === 1 &&
+      !e.ctrlKey &&
+      !e.metaKey &&
+      !e.altKey
+    ) {
+      e.preventDefault();
+      patchOpen(true);
+      setResolvedQuery(e.key);
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  };
+
+  const listPanel =
+    open &&
+    !disabled &&
+    mounted &&
+    menuGeom &&
+    createPortal(
+      <div
+        ref={listPanelRef}
+        style={{
+          position: "fixed",
+          top: menuGeom.top,
+          left: menuGeom.left,
+          width: menuGeom.width,
+          maxHeight: menuGeom.maxHeight,
+          zIndex: menuZIndex,
         }}
-        disabled={disabled}
-        className={cn(
-          "w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-left transition",
-          "hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-zinc-300"
-        )}
+        className="flex flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-lg"
       >
-        <p className="text-xs font-semibold text-zinc-900">
-          {selected?.title || placeholder}
-        </p>
-        <p className="mt-0.5 line-clamp-1 text-[11px] text-zinc-600">
-          {selected?.description || selected?.detail || searchPlaceholder}
-        </p>
-      </button>
-      {open ? (
-        <div className="absolute z-40 mt-1 w-full rounded-md border border-zinc-200 bg-white shadow-lg">
-          <div className="border-b border-zinc-100 p-2">
-            <input
-              ref={searchInputRef}
-              value={resolvedQuery}
-              onChange={(e) => setResolvedQuery(e.target.value)}
-              placeholder={searchPlaceholder}
-              disabled={disabled}
-              className="w-full rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-xs outline-none focus:border-zinc-400"
-            />
-          </div>
-          <div
-            className="max-h-[min(48vh,18rem)] overflow-y-auto"
-            onScroll={(e) => {
-              if (!onReachEnd || !hasMore || isLoadingMore) return;
-              const target = e.currentTarget;
-              const remaining = target.scrollHeight - target.scrollTop - target.clientHeight;
-              if (remaining <= 24) onReachEnd();
-            }}
-          >
-            {filtered.length === 0 ? (
-              <p className="px-3 py-2 text-xs text-zinc-500">{emptyText}</p>
-            ) : (
-              <ul className="divide-y divide-zinc-100">
-                {filtered.map((opt) => {
-                  const isSelected = opt.value === value;
-                  return (
-                    <li key={opt.value}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onChange(opt.value);
-                          closeAndReset();
-                        }}
-                        disabled={disabled}
+        <div
+          ref={listScrollRef}
+          className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain"
+        >
+          {filtered.length === 0 ? (
+            <p className="px-3 py-2.5 text-sm text-zinc-500">{emptyText}</p>
+          ) : (
+            <ul className="divide-y divide-zinc-100 py-0.5">
+              {filtered.map((opt) => {
+                const isSelected = opt.value === value;
+                return (
+                  <li key={opt.value}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onChange(opt.value);
+                        closeAndReset();
+                      }}
+                      disabled={disabled}
+                      className={cn(
+                        "min-h-11 w-full px-3 py-2.5 text-left transition active:bg-zinc-100 sm:min-h-10",
+                        isSelected ? "bg-zinc-900 text-white" : "hover:bg-zinc-50"
+                      )}
+                    >
+                      <p
                         className={cn(
-                          "w-full px-3 py-2 text-left transition",
-                          isSelected ? "bg-zinc-900 text-white" : "hover:bg-zinc-50"
+                          "text-sm font-semibold leading-snug",
+                          isSelected ? "text-white" : "text-zinc-900"
                         )}
                       >
-                        <p className={cn("text-xs font-semibold", isSelected ? "text-white" : "text-zinc-900")}>
-                          {opt.title || placeholder}
+                        {opt.title || placeholder}
+                      </p>
+                      {opt.description ? (
+                        <p
+                          className={cn(
+                            "mt-0.5 text-xs leading-snug",
+                            isSelected ? "text-zinc-200" : "text-zinc-600"
+                          )}
+                        >
+                          {opt.description}
                         </p>
-                        {opt.description ? (
-                          <p className={cn("mt-0.5 text-[11px]", isSelected ? "text-zinc-200" : "text-zinc-600")}>
-                            {opt.description}
-                          </p>
-                        ) : null}
-                        {opt.detail ? (
-                          <p className={cn("mt-0.5 text-[11px]", isSelected ? "text-zinc-300" : "text-zinc-500")}>
-                            {opt.detail}
-                          </p>
-                        ) : null}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-            {isLoadingMore ? (
-              <p className="border-t border-zinc-100 px-3 py-2 text-xs text-zinc-500">
-                {loadingText ?? "Loading..."}
-              </p>
-            ) : null}
-          </div>
+                      ) : null}
+                      {opt.detail ? (
+                        <p
+                          className={cn(
+                            "mt-0.5 text-xs leading-snug",
+                            isSelected ? "text-zinc-300" : "text-zinc-500"
+                          )}
+                        >
+                          {opt.detail}
+                        </p>
+                      ) : null}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {filtered.length > 0 && hasMore && onReachEnd ? (
+            <div ref={loadMoreSentinelRef} className="h-2 w-full shrink-0" aria-hidden />
+          ) : null}
+          {isLoadingMore ? (
+            <p className="border-t border-zinc-100 px-3 py-2 text-xs text-zinc-500">
+              {loadingText ?? "Loading..."}
+            </p>
+          ) : null}
         </div>
-      ) : null}
-      {open ? (
-        <button
-          type="button"
-          aria-label="Close options"
-          className="fixed inset-0 z-30 cursor-default bg-transparent"
-          onClick={closeAndReset}
+      </div>,
+      document.body
+    );
+
+  return (
+    <div ref={containerRef} className={cn("w-full min-w-0", className)}>
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="text"
+          role="combobox"
+          aria-expanded={open}
+          aria-autocomplete="list"
+          disabled={disabled}
+          autoComplete="off"
+          readOnly={!open}
+          value={displayValue}
+          title={!open && selected ? `${selected.title}${selected.detail ? ` · ${selected.detail}` : ""}` : undefined}
+          placeholder={
+            !open
+              ? placeholder
+              : resolvedQuery === "" && selected?.title
+                ? selected.title
+                : searchPlaceholder
+          }
+          onChange={(e) => onInputChange(e.target.value)}
+          onClick={() => {
+            if (!disabled && !open) openList();
+          }}
+          onFocus={() => {
+            if (!disabled && !open) openList();
+          }}
+          onKeyDown={onKeyDown}
+          className={cn(
+            "h-10 min-h-[44px] w-full rounded-xl border border-zinc-300 bg-white py-2 pl-3 pr-10 text-sm text-zinc-900 outline-none ring-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 read-only:cursor-pointer sm:h-11 sm:text-base",
+            disabled && "cursor-not-allowed bg-zinc-50 opacity-70"
+          )}
         />
+        <span
+          className="pointer-events-none absolute inset-y-0 right-0 flex w-10 items-center justify-center text-zinc-500"
+          aria-hidden
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className={cn("transition-transform", open && "rotate-180")}
+          >
+            <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+      </div>
+      {!open && (selected?.description || selected?.detail) ? (
+        <p className="mt-1 line-clamp-2 px-0.5 text-[11px] leading-snug text-zinc-500">
+          {selected.description || selected.detail}
+        </p>
       ) : null}
+      {listPanel}
     </div>
   );
 }

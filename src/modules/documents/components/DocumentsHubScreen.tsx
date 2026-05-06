@@ -22,9 +22,247 @@ import type { BranchDocumentKind } from "@/types/branch-document";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useMemo, useState, type FocusEventHandler } from "react";
+import { useEffect, useMemo, useState, type FocusEventHandler, type ReactNode } from "react";
 
 const NOOP_BLUR: FocusEventHandler<HTMLInputElement> = () => {};
+
+/** URL `q` sometimes contains literal "null"/"undefined"; treat as empty so the input stays clean. */
+function sanitizeUrlSearchQuery(raw: string | null | undefined): string {
+  const s = String(raw ?? "").trim();
+  if (!s) return "";
+  const lower = s.toLowerCase();
+  if (lower === "null" || lower === "undefined") return "";
+  return s;
+}
+
+function inferRasterKind(previewUrl: string): "png" | "jpeg" | "webp" | "generic" {
+  const raw = String(previewUrl ?? "").trim();
+  if (!raw) return "generic";
+  try {
+    const path = new URL(raw, "https://local.invalid").pathname.toLowerCase();
+    const dot = path.lastIndexOf(".");
+    const ext = dot >= 0 ? path.slice(dot) : "";
+    if (ext === ".png") return "png";
+    if (ext === ".jpg" || ext === ".jpeg") return "jpeg";
+    if (ext === ".webp") return "webp";
+  } catch {
+    /* ignore */
+  }
+  const u = raw.toLowerCase();
+  if (u.includes(".png")) return "png";
+  if (u.includes(".jpg") || u.includes(".jpeg")) return "jpeg";
+  if (u.includes(".webp")) return "webp";
+  return "generic";
+}
+
+function moduleGlyphBadgeClass(category: DocumentsHubRow["category"]): string {
+  switch (category) {
+    case "BRANCH_DOCUMENT":
+      return "bg-violet-600 text-white";
+    case "VEHICLE_DOCUMENT":
+      return "bg-sky-600 text-white";
+    case "VEHICLE_INSURANCE_POLICY":
+      return "bg-indigo-600 text-white";
+    case "PERSONNEL_NATIONAL_ID":
+      return "bg-emerald-600 text-white";
+    case "PERSONNEL_PROFILE":
+      return "bg-teal-600 text-white";
+    case "PERSONNEL_YEAR_CLOSURE":
+      return "bg-emerald-800 text-white";
+    case "WAREHOUSE_INBOUND_INVOICE":
+      return "bg-amber-600 text-white";
+    case "WAREHOUSE_OUTBOUND_INVOICE":
+      return "bg-orange-600 text-white";
+    case "OTHER_INVOICE":
+      return "bg-zinc-600 text-white";
+    default:
+      return "bg-zinc-500 text-white";
+  }
+}
+
+function ModuleGlyphIcon({
+  category,
+  className,
+}: {
+  category: DocumentsHubRow["category"];
+  className?: string;
+}) {
+  const cn = `shrink-0 ${className ?? ""}`.trim();
+  switch (category) {
+    case "BRANCH_DOCUMENT":
+      return (
+        <svg viewBox="0 0 24 24" className={cn} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M3 21h18" />
+          <path d="M5 21V7l8-4v18" />
+          <path d="M19 21V11h-6" />
+          <path d="M9 9v0" />
+          <path d="M9 13v0" />
+          <path d="M9 17v0" />
+        </svg>
+      );
+    case "VEHICLE_DOCUMENT":
+      return (
+        <svg viewBox="0 0 24 24" className={cn} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9L18 10l-1.4-3.2a2 2 0 0 0-1.8-1.2H8.4a2 2 0 0 0-1.8 1.2L5 10l-2.5.9C1.7 11.1 1 11.9 1 12.8V16c0 .6.4 1 1 1h2" />
+          <circle cx="7" cy="17" r="2" />
+          <path d="M9 17h6" />
+          <circle cx="17" cy="17" r="2" />
+        </svg>
+      );
+    case "VEHICLE_INSURANCE_POLICY":
+      return (
+        <svg viewBox="0 0 24 24" className={cn} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10" />
+          <path d="m9 12 2 2 4-4" />
+        </svg>
+      );
+    case "PERSONNEL_NATIONAL_ID":
+      return (
+        <svg viewBox="0 0 24 24" className={cn} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <rect width="20" height="14" x="2" y="5" rx="2" />
+          <path d="M2 10h20" />
+          <path d="M6 15h.01" />
+          <path d="M10 15h4" />
+        </svg>
+      );
+    case "PERSONNEL_PROFILE":
+      return (
+        <svg viewBox="0 0 24 24" className={cn} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 20a8 8 0 0 1 16 0" />
+        </svg>
+      );
+    case "PERSONNEL_YEAR_CLOSURE":
+      return (
+        <svg viewBox="0 0 24 24" className={cn} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <path d="M14 2v6h6" />
+          <path d="M8 13h8" />
+          <path d="M8 17h5" />
+        </svg>
+      );
+    case "WAREHOUSE_INBOUND_INVOICE":
+      return (
+        <svg viewBox="0 0 24 24" className={cn} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+          <path d="M12 12v9" />
+          <path d="m9 15 3 3 3-3" />
+        </svg>
+      );
+    case "WAREHOUSE_OUTBOUND_INVOICE":
+      return (
+        <svg viewBox="0 0 24 24" className={cn} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+          <path d="M12 21V12" />
+          <path d="m9 9 3-3 3 3" />
+        </svg>
+      );
+    case "OTHER_INVOICE":
+      return (
+        <svg viewBox="0 0 24 24" className={cn} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <path d="M14 2v6h6" />
+          <path d="M16 13H8" />
+          <path d="M16 17H8" />
+          <path d="M10 9H8" />
+        </svg>
+      );
+    default:
+      return (
+        <svg viewBox="0 0 24 24" className={cn} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <path d="M14 2v6h6" />
+        </svg>
+      );
+  }
+}
+
+/** Decorative file-type tile + source module badge (not the real file — avoids accidental open/download). */
+function DocumentGlyph({
+  category,
+  previewMode,
+  previewUrl,
+}: {
+  category: DocumentsHubRow["category"];
+  previewMode: DocumentsHubRow["previewMode"];
+  previewUrl: string;
+}) {
+  let fileTile: ReactNode;
+  if (previewMode === "pdf") {
+    fileTile = (
+      <div className="flex h-12 w-10 flex-col overflow-hidden rounded-md border border-rose-200 bg-white shadow-sm sm:h-14 sm:w-11">
+        <div className="flex h-5 shrink-0 items-center justify-center bg-gradient-to-r from-rose-600 to-red-500 sm:h-[22px]">
+          <span className="text-[8px] font-bold tracking-wide text-white sm:text-[9px]">PDF</span>
+        </div>
+        <div className="flex flex-1 flex-col justify-center gap-0.5 px-1.5 py-1.5 sm:gap-1 sm:px-2 sm:py-2">
+          <div className="h-0.5 rounded-sm bg-rose-100/90 sm:h-1" />
+          <div className="h-0.5 rounded-sm bg-rose-50 sm:h-1" />
+          <div className="h-0.5 w-3/4 rounded-sm bg-rose-50/80 sm:h-1" />
+        </div>
+      </div>
+    );
+  } else if (previewMode === "image") {
+    const kind = inferRasterKind(previewUrl);
+    const label = kind === "png" ? "PNG" : kind === "jpeg" ? "JPEG" : kind === "webp" ? "WEBP" : "IMG";
+    const bar =
+      kind === "png"
+        ? "from-cyan-600 to-sky-500"
+        : kind === "jpeg"
+          ? "from-amber-500 to-orange-500"
+          : kind === "webp"
+            ? "from-violet-600 to-purple-500"
+            : "from-emerald-600 to-teal-500";
+    const frame = kind === "png" ? "border-cyan-200" : kind === "jpeg" ? "border-amber-200" : kind === "webp" ? "border-violet-200" : "border-emerald-200";
+
+    fileTile = (
+      <div className={`flex h-12 w-10 flex-col overflow-hidden rounded-md border bg-white shadow-sm sm:h-14 sm:w-11 ${frame}`}>
+        <div className={`flex h-5 shrink-0 items-center justify-center bg-gradient-to-r ${bar} sm:h-[22px]`}>
+          <span className="text-[7px] font-bold tracking-wide text-white sm:text-[8px]">{label}</span>
+        </div>
+        <div className="flex flex-1 items-center justify-center bg-gradient-to-b from-slate-50 to-white px-1 pb-1 pt-0.5 sm:px-1.5 sm:pb-1.5 sm:pt-1">
+          <svg
+            viewBox="0 0 24 24"
+            className="h-7 w-7 text-sky-400/90 sm:h-9 sm:w-9"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.35"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <rect x="3.5" y="5" width="17" height="14" rx="1.5" />
+            <path d="M8 14h8M8 17h5" className="text-sky-300/80" strokeWidth="1.1" />
+            <circle cx="9" cy="10" r="1.1" fill="currentColor" stroke="none" />
+            <path d="m14 9 4 4" />
+          </svg>
+        </div>
+      </div>
+    );
+  } else {
+    fileTile = (
+      <div className="flex h-12 w-10 flex-col overflow-hidden rounded-md border border-zinc-200 bg-white shadow-sm sm:h-14 sm:w-11">
+        <div className="flex h-5 shrink-0 items-center justify-center bg-gradient-to-r from-zinc-500 to-zinc-600 sm:h-[22px]">
+          <span className="text-[8px] font-bold tracking-wide text-white sm:text-[9px]">···</span>
+        </div>
+        <div className="flex flex-1 flex-col justify-center gap-0.5 px-1.5 py-1.5 sm:gap-1 sm:px-2 sm:py-2">
+          <div className="h-0.5 rounded-sm bg-zinc-100 sm:h-1" />
+          <div className="h-0.5 rounded-sm bg-zinc-50 sm:h-1" />
+          <div className="h-0.5 w-2/3 rounded-sm bg-zinc-50 sm:h-1" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative h-12 w-10 shrink-0 sm:h-14 sm:w-11" aria-hidden>
+      {fileTile}
+      <div
+        className={`absolute bottom-0.5 right-0.5 z-[1] flex h-[18px] w-[18px] items-center justify-center rounded-full border-2 border-white shadow-md sm:bottom-1 sm:right-1 sm:h-[22px] sm:w-[22px] md:bottom-1.5 md:right-1.5 md:h-6 md:w-6 ${moduleGlyphBadgeClass(category)}`}
+      >
+        <ModuleGlyphIcon category={category} className="h-2.5 w-2.5 sm:h-3 sm:w-3 md:h-3.5 md:w-3.5" />
+      </div>
+    </div>
+  );
+}
 
 function documentBadgeClass(category: DocumentsHubRow["category"]): string {
   switch (category) {
@@ -96,6 +334,19 @@ function formatDocumentDate(raw: string): string {
   return text;
 }
 
+function formatDocumentsListSummary(
+  template: string,
+  values: { count: number; from: number; to: number; total: number; page: number; pages: number }
+): string {
+  return template
+    .replaceAll("{count}", String(values.count))
+    .replaceAll("{from}", String(values.from))
+    .replaceAll("{to}", String(values.to))
+    .replaceAll("{total}", String(values.total))
+    .replaceAll("{page}", String(values.page))
+    .replaceAll("{pages}", String(values.pages));
+}
+
 function buildDocumentCardLines(
   row: DocumentsHubRow,
   categoryLabel: string
@@ -151,8 +402,13 @@ export function DocumentsHubScreen() {
   const { t } = useI18n();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const [query, setQuery] = useState(() => (searchParams.get("q") ?? "").trim());
+  const [query, setQuery] = useState(() => sanitizeUrlSearchQuery(searchParams.get("q")));
   const [category, setCategory] = useState("ALL");
+
+  const qParam = searchParams.get("q");
+  useEffect(() => {
+    setQuery(sanitizeUrlSearchQuery(qParam));
+  }, [qParam]);
   const [openError, setOpenError] = useState<string | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -168,6 +424,8 @@ export function DocumentsHubScreen() {
   const [uploadNotes, setUploadNotes] = useState("");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const pageSize = 24;
   const { data: unifiedRows = [], isPending: loading } = useDocumentsHubQuery();
   const { data: branches = [] } = useBranchesList();
   const { data: personnelList } = usePersonnelList(defaultPersonnelListFilters);
@@ -194,23 +452,41 @@ export function DocumentsHubScreen() {
       return r.searchText.toLocaleLowerCase("tr-TR").includes(q);
     });
   }, [unifiedRows, query, category]);
-  const selectedRow = useMemo(() => {
-    if (filteredRows.length === 0) return null;
-    return filteredRows.find((r) => r.id === selectedId) ?? filteredRows[0];
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const effectivePage = Math.min(Math.max(1, page), totalPages);
+  const pageStart = (effectivePage - 1) * pageSize;
+  const pagedRows = useMemo(
+    () => filteredRows.slice(pageStart, pageStart + pageSize),
+    [filteredRows, pageStart, pageSize]
+  );
+  /** Only after explicit row click — avoids loading iframe/img on mount (can trigger unwanted downloads). */
+  const previewRow = useMemo(() => {
+    if (!selectedId) return null;
+    return filteredRows.find((r) => r.id === selectedId) ?? null;
   }, [filteredRows, selectedId]);
 
-  const categoryOptions = [
-    { value: "ALL", label: t("documents.categoryAll") },
-    { value: "BRANCH_DOCUMENT", label: t("documents.categoryBranch") },
-    { value: "VEHICLE_DOCUMENT", label: t("documents.categoryVehicle") },
-    { value: "VEHICLE_INSURANCE_POLICY", label: t("documents.categoryVehicleInsurancePolicy") },
-    { value: "PERSONNEL_NATIONAL_ID", label: t("documents.categoryPersonnelNationalId") },
-    { value: "PERSONNEL_PROFILE", label: t("documents.categoryPersonnelProfile") },
-    { value: "PERSONNEL_YEAR_CLOSURE", label: t("documents.categoryPersonnelYearClosure") },
-    { value: "WAREHOUSE_INBOUND_INVOICE", label: t("documents.categoryWarehouseInboundInvoice") },
-    { value: "WAREHOUSE_OUTBOUND_INVOICE", label: t("documents.categoryWarehouseOutboundInvoice") },
-    { value: "OTHER_INVOICE", label: t("documents.categoryOtherInvoice") },
-  ];
+  const previewPlaceholderText = useMemo(() => {
+    if (loading) return t("common.loading");
+    if (filteredRows.length === 0) return t("documents.empty");
+    if (!selectedId) return t("documents.previewSelectHint");
+    return t("documents.previewHiddenByFilter");
+  }, [loading, filteredRows.length, selectedId, t]);
+
+  const categoryOptions = useMemo(
+    () => [
+      { value: "ALL", label: t("documents.categoryAll") },
+      { value: "BRANCH_DOCUMENT", label: t("documents.categoryBranch") },
+      { value: "VEHICLE_DOCUMENT", label: t("documents.categoryVehicle") },
+      { value: "VEHICLE_INSURANCE_POLICY", label: t("documents.categoryVehicleInsurancePolicy") },
+      { value: "PERSONNEL_NATIONAL_ID", label: t("documents.categoryPersonnelNationalId") },
+      { value: "PERSONNEL_PROFILE", label: t("documents.categoryPersonnelProfile") },
+      { value: "PERSONNEL_YEAR_CLOSURE", label: t("documents.categoryPersonnelYearClosure") },
+      { value: "WAREHOUSE_INBOUND_INVOICE", label: t("documents.categoryWarehouseInboundInvoice") },
+      { value: "WAREHOUSE_OUTBOUND_INVOICE", label: t("documents.categoryWarehouseOutboundInvoice") },
+      { value: "OTHER_INVOICE", label: t("documents.categoryOtherInvoice") },
+    ],
+    [t]
+  );
   const categoryLabelMap = useMemo(
     () =>
       Object.fromEntries(
@@ -337,26 +613,31 @@ export function DocumentsHubScreen() {
   };
 
   const openSelectedInNewTab = () => {
-    if (!selectedRow) return;
+    if (!previewRow) return;
     setOpenError(null);
-    const opened = window.open(selectedRow.previewUrl, "_blank", "noopener,noreferrer");
+    const opened = window.open(previewRow.previewUrl, "_blank", "noopener,noreferrer");
     if (!opened) {
       setOpenError(t("documents.openPopupBlocked"));
     }
   };
 
-  const mobilePreviewBody = !selectedRow ? (
-    <p className="text-sm text-zinc-500">{t("documents.empty")}</p>
-  ) : selectedRow.previewMode === "image" ? (
-    <img
-      src={selectedRow.previewUrl}
-      alt={selectedRow.subtitle}
-      className="h-full w-full rounded-lg border border-zinc-200 object-contain"
-    />
-  ) : selectedRow.previewMode === "pdf" ? (
+  const mobilePreviewBody = !previewRow ? (
+    <p className="text-sm text-zinc-500">{previewPlaceholderText}</p>
+  ) : previewRow.previewMode === "image" ? (
+    <div className="relative h-full w-full overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">
+      {/* Authenticated API preview URL; next/image not applicable */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={previewRow.previewUrl}
+        alt={previewRow.subtitle}
+        draggable={false}
+        className="pointer-events-none h-full w-full select-none object-contain"
+      />
+    </div>
+  ) : previewRow.previewMode === "pdf" ? (
     <iframe
-      src={selectedRow.previewUrl}
-      title={selectedRow.subtitle}
+      src={previewRow.previewUrl}
+      title={previewRow.subtitle}
       className="h-full w-full rounded-lg border border-zinc-200"
     />
   ) : (
@@ -365,18 +646,23 @@ export function DocumentsHubScreen() {
     </div>
   );
 
-  const previewBody = !selectedRow ? (
-    <p className="text-sm text-zinc-500">{t("documents.empty")}</p>
-  ) : selectedRow.previewMode === "image" ? (
-    <img
-      src={selectedRow.previewUrl}
-      alt={selectedRow.subtitle}
-      className="h-[48vh] w-full rounded-lg border border-zinc-200 object-contain"
-    />
-  ) : selectedRow.previewMode === "pdf" ? (
+  const previewBody = !previewRow ? (
+    <p className="text-sm text-zinc-500">{previewPlaceholderText}</p>
+  ) : previewRow.previewMode === "image" ? (
+    <div className="relative h-[48vh] w-full overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">
+      {/* Authenticated API preview URL; next/image not applicable */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={previewRow.previewUrl}
+        alt={previewRow.subtitle}
+        draggable={false}
+        className="pointer-events-none h-full w-full select-none object-contain"
+      />
+    </div>
+  ) : previewRow.previewMode === "pdf" ? (
     <iframe
-      src={selectedRow.previewUrl}
-      title={selectedRow.subtitle}
+      src={previewRow.previewUrl}
+      title={previewRow.subtitle}
       className="h-[52vh] w-full rounded-lg border border-zinc-200"
     />
   ) : (
@@ -385,17 +671,17 @@ export function DocumentsHubScreen() {
     </div>
   );
 
-  const previewPane = !selectedRow ? (
+  const previewPane = !previewRow ? (
     previewBody
   ) : (
     <div className="space-y-2">
-      <p className="font-medium text-zinc-900">{selectedRow.title}</p>
-      <p className="text-sm text-zinc-600">{selectedRow.subtitle}</p>
-      {selectedRow.relatedLinks && selectedRow.relatedLinks.length > 0 ? (
+      <p className="font-medium text-zinc-900">{previewRow.title}</p>
+      <p className="text-sm text-zinc-600">{previewRow.subtitle}</p>
+      {previewRow.relatedLinks && previewRow.relatedLinks.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
-          {selectedRow.relatedLinks.map((lnk) => (
+          {previewRow.relatedLinks.map((lnk) => (
             <Link
-              key={`${selectedRow.id}-${lnk.href}`}
+              key={`${previewRow.id}-${lnk.href}`}
               href={lnk.href}
               className="rounded-md border border-zinc-200 bg-white px-2 py-1 text-xs font-semibold text-violet-700"
             >
@@ -410,67 +696,96 @@ export function DocumentsHubScreen() {
 
   return (
     <div className="space-y-3 overflow-x-hidden pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:space-y-4">
-      <div className="rounded-2xl border border-zinc-200 bg-white/95 p-3 md:sticky md:top-2 md:z-10 md:backdrop-blur md:supports-[backdrop-filter]:bg-white/80 sm:p-4">
-        <h1 className="text-lg font-semibold text-zinc-900">{t("documents.pageTitle")}</h1>
-        <p className="mt-1 text-sm text-zinc-600">{t("documents.pageDescription")}</p>
-        <div className="mt-3 flex md:mt-4 md:justify-end">
+      <div className="rounded-2xl border border-zinc-200 bg-white/95 p-2.5 shadow-sm sm:p-4 md:sticky md:top-2 md:z-10 md:backdrop-blur md:supports-[backdrop-filter]:bg-white/80">
+        <header className="min-w-0">
+          <h1 className="text-base font-semibold tracking-tight text-zinc-900 sm:text-lg">{t("documents.pageTitle")}</h1>
+          <p className="mt-0.5 line-clamp-2 text-xs leading-snug text-zinc-600 sm:mt-1 sm:text-sm sm:leading-normal">
+            {t("documents.pageDescription")}
+          </p>
+        </header>
+
+        <div className="mt-2.5 grid gap-2 sm:mt-3 sm:gap-3 md:mt-4 md:grid-cols-[minmax(0,1fr)_18rem] md:items-start">
+          <label className="min-w-0">
+            <span className="sr-only">{t("documents.searchPlaceholder")}</span>
+            <input
+              value={query}
+              onChange={(e) => {
+                setPage(1);
+                setQuery(e.target.value);
+              }}
+              type="search"
+              inputMode="search"
+              enterKeyHint="search"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              placeholder={t("documents.searchPlaceholder")}
+              className="min-h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base outline-none ring-zinc-900 [-webkit-tap-highlight-color:transparent] focus:border-zinc-900 focus:ring-2 sm:min-h-12 sm:text-sm"
+            />
+          </label>
+          <div className="min-w-0 self-stretch">
+            <Select
+              name="documentsCategory"
+              ariaLabel={t("documents.categoryFilterAria")}
+              value={category}
+              onChange={(e) => {
+                setPage(1);
+                setSelectedId(null);
+                setCategory(e.target.value);
+              }}
+              onBlur={NOOP_BLUR}
+              options={categoryOptions}
+              menuZIndex={220}
+            />
+          </div>
+        </div>
+
+        <div className="mt-2.5 flex flex-col gap-2 sm:mt-3 sm:flex-row sm:items-stretch sm:justify-between sm:gap-3">
+          <div className="flex shrink-0 items-center justify-start gap-2 sm:order-1">
+            <button
+              type="button"
+              onClick={() => {
+                setPage(1);
+                setSelectedId(null);
+                setCategory("BRANCH_DOCUMENT");
+                setQuery(orderPdfQuickFilter);
+              }}
+              className="inline-flex min-h-[44px] min-w-[44px] touch-manipulation items-center justify-center rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-violet-800 [-webkit-tap-highlight-color:transparent] active:bg-violet-100"
+              aria-label={t("documents.orderStatementPdfQuickFilter")}
+              title={t("documents.orderStatementPdfQuickFilter")}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M3 5h18" />
+                <path d="M6 12h12" />
+                <path d="M10 19h4" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPage(1);
+                setSelectedId(null);
+                setCategory("ALL");
+                setQuery("");
+              }}
+              className="inline-flex min-h-[44px] min-w-[44px] touch-manipulation items-center justify-center rounded-full border border-zinc-200 bg-white px-3 py-1 text-zinc-700 [-webkit-tap-highlight-color:transparent] active:bg-zinc-100"
+              aria-label={t("documents.clearFilters")}
+              title={t("documents.clearFilters")}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+              </svg>
+            </button>
+          </div>
           <Button
             type="button"
             variant="primary"
-            className="min-h-[44px] min-w-[44px] w-full px-3 py-2 text-sm md:w-auto"
+            className="min-h-[44px] w-full touch-manipulation px-3 py-2 text-sm [-webkit-tap-highlight-color:transparent] sm:order-2 sm:w-auto sm:min-w-[11rem] md:min-w-[12rem]"
             onClick={openQuickAdd}
           >
             {t("documents.quickAdd")}
           </Button>
-        </div>
-        <div className="mt-3 grid gap-2 md:mt-4 md:grid-cols-[1fr_18rem] md:gap-3">
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t("documents.searchPlaceholder")}
-            className="min-h-12 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none ring-zinc-900 focus:border-zinc-900 focus:ring-2"
-          />
-          <Select
-            name="documentsCategory"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            onBlur={NOOP_BLUR}
-            options={categoryOptions}
-            menuZIndex={220}
-          />
-        </div>
-        <div className="mt-2 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setCategory("BRANCH_DOCUMENT");
-              setQuery(orderPdfQuickFilter);
-            }}
-            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-violet-800"
-            aria-label={t("documents.orderStatementPdfQuickFilter")}
-            title={t("documents.orderStatementPdfQuickFilter")}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M3 5h18" />
-              <path d="M6 12h12" />
-              <path d="M10 19h4" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setCategory("ALL");
-              setQuery("");
-            }}
-            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-zinc-200 bg-white px-3 py-1 text-zinc-700"
-            aria-label="Temizle"
-            title="Temizle"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <path d="M18 6 6 18" />
-              <path d="m6 6 12 12" />
-            </svg>
-          </button>
         </div>
       </div>
 
@@ -483,8 +798,28 @@ export function DocumentsHubScreen() {
         ) : filteredRows.length === 0 ? (
           <p className="text-sm text-zinc-500">{t("documents.empty")}</p>
         ) : (
+          <div className="space-y-3">
+          <div
+            className="flex flex-col gap-1 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-2"
+            role="status"
+            aria-live="polite"
+          >
+            <p className="text-xs font-medium leading-snug text-zinc-800 sm:text-sm">
+              {formatDocumentsListSummary(t("documents.listSummary"), {
+                count: filteredRows.length,
+                from: pageStart + 1,
+                to: Math.min(pageStart + pageSize, filteredRows.length),
+                total: filteredRows.length,
+                page: effectivePage,
+                pages: totalPages,
+              })}
+            </p>
+            <p className="text-[11px] text-zinc-500 sm:text-xs">
+              {t("documents.pageSizeLabel").replace("{n}", String(pageSize))}
+            </p>
+          </div>
           <ul className="space-y-2">
-            {filteredRows.map((r) => (
+            {pagedRows.map((r) => (
               (() => {
                 const categoryLabel = categoryLabelMap[r.category] ?? r.category;
                 const lines = buildDocumentCardLines(r, categoryLabel);
@@ -492,7 +827,7 @@ export function DocumentsHubScreen() {
               <li
                 key={r.id}
                 className={`rounded-xl border p-3 shadow-sm transition-colors ${
-                  selectedRow?.id === r.id
+                  selectedId === r.id
                     ? "border-zinc-900 bg-zinc-100"
                     : "border-zinc-200 bg-zinc-50"
                 }`}
@@ -503,16 +838,23 @@ export function DocumentsHubScreen() {
                     className="min-h-[44px] min-w-0 flex-1 rounded-lg p-1 text-left touch-manipulation"
                     onClick={() => setSelectedId(r.id)}
                   >
-                    <div className="flex min-w-0 flex-wrap items-center gap-2">
-                      <p className="line-clamp-1 min-w-0 break-words text-base font-semibold text-zinc-900">{lines.title}</p>
-                      <span
-                        className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${documentBadgeClass(r.category)}`}
-                      >
-                        {categoryLabel}
-                      </span>
+                    <div className="flex gap-3">
+                      <div className="pointer-events-none shrink-0 pt-0.5" aria-hidden>
+                        <DocumentGlyph category={r.category} previewMode={r.previewMode} previewUrl={r.previewUrl} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
+                          <p className="line-clamp-1 min-w-0 break-words text-base font-semibold text-zinc-900">{lines.title}</p>
+                          <span
+                            className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${documentBadgeClass(r.category)}`}
+                          >
+                            {categoryLabel}
+                          </span>
+                        </div>
+                        <p className="mt-1 line-clamp-1 break-all text-sm text-zinc-700">{lines.subtitle}</p>
+                        <p className="mt-1 line-clamp-2 break-words text-xs text-zinc-500">{lines.detail}</p>
+                      </div>
                     </div>
-                    <p className="mt-1 line-clamp-1 break-all text-sm text-zinc-700">{lines.subtitle}</p>
-                    <p className="mt-1 line-clamp-2 break-words text-xs text-zinc-500">{lines.detail}</p>
                   </button>
                   <div className="flex shrink-0 flex-col items-center gap-2">
                     <button
@@ -560,6 +902,40 @@ export function DocumentsHubScreen() {
               })()
             ))}
           </ul>
+          <div className="flex flex-col gap-2 border-t border-zinc-100 pt-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-zinc-600 sm:text-sm">
+              {pageStart + 1}–{Math.min(pageStart + pageSize, filteredRows.length)} / {filteredRows.length}
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-[44px] min-w-[44px] px-3"
+                disabled={effectivePage <= 1}
+                onClick={() => setPage(effectivePage - 1)}
+                aria-label={t("products.pagingPrev")}
+                title={t("products.pagingPrev")}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="m15 18-6-6 6-6" />
+                </svg>
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-[44px] min-w-[44px] px-3"
+                disabled={effectivePage >= totalPages}
+                onClick={() => setPage(effectivePage + 1)}
+                aria-label={t("products.pagingNext")}
+                title={t("products.pagingNext")}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="m9 18 6-6-6-6" />
+                </svg>
+              </Button>
+            </div>
+          </div>
+          </div>
         )}
       </div>
       <div className="hidden rounded-2xl border border-zinc-200 bg-white p-3 lg:block">
@@ -718,15 +1094,15 @@ export function DocumentsHubScreen() {
         open={mobilePreviewOpen}
         onClose={() => setMobilePreviewOpen(false)}
         titleId="documents-mobile-preview-title"
-        title={selectedRow?.title ?? t("documents.pageTitle")}
-        description={selectedRow?.subtitle}
+        title={previewRow?.title ?? t("documents.pageTitle")}
+        description={previewRow?.subtitle}
         closeButtonLabel={t("common.close")}
         className="h-[100dvh] max-h-[100dvh] w-screen max-w-screen rounded-none border-0 lg:hidden"
         wide
       >
         <div className="flex h-full min-h-0 flex-col gap-3 p-1 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
           <div className="min-h-0 flex-1">{mobilePreviewBody}</div>
-          {selectedRow ? (
+          {previewRow ? (
             <div className="mt-auto flex items-center justify-end gap-2 border-t border-zinc-100 pt-3">
               <Button type="button" variant="secondary" onClick={openSelectedInNewTab}>
                 {t("documents.open")}
@@ -734,17 +1110,17 @@ export function DocumentsHubScreen() {
               <Button
                 type="button"
                 variant="primary"
-                disabled={openingId === selectedRow.id}
+                disabled={openingId === previewRow.id}
                 onClick={() => {
                   setOpenError(null);
-                  setOpeningId(selectedRow.id);
-                  void selectedRow
+                  setOpeningId(previewRow.id);
+                  void previewRow
                     .download()
                     .catch((e) => setOpenError(toErrorMessage(e)))
                     .finally(() => setOpeningId(null));
                 }}
               >
-                {openingId === selectedRow.id ? t("common.loading") : t("documents.download")}
+                {openingId === previewRow.id ? t("common.loading") : t("documents.download")}
               </Button>
             </div>
           ) : null}

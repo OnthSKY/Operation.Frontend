@@ -13,6 +13,8 @@ import { toErrorMessage } from "@/shared/lib/error-message";
 import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
 import { OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
 import { Tooltip } from "@/shared/ui/Tooltip";
+import { useBranchDetailOverlay } from "@/shared/branch-detail";
+import { usePersonnelDetailOverlay } from "@/shared/personnel-detail";
 import { useRouter } from "next/navigation";
 import {
   Fragment,
@@ -66,6 +68,8 @@ export function AppGlobalSearch() {
   const { user } = useAuth();
   const personnelPortal = isPersonnelPortalRole(user?.role);
   const router = useRouter();
+  const { openBranchDetail } = useBranchDetailOverlay();
+  const { openPersonnelDetail } = usePersonnelDetailOverlay();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
@@ -198,13 +202,19 @@ export function AppGlobalSearch() {
         go(h.route);
         return;
       }
-      if (h.kind === "branch") go(`/branches?openBranch=${h.id}`);
+      if (h.kind === "branch") {
+        openBranchDetail(h.id);
+        return;
+      }
       else if (h.kind === "warehouse") go(`/warehouses?openWarehouse=${h.id}`);
-      else if (h.kind === "personnel") go(`/personnel?openPersonnel=${h.id}`);
+      else if (h.kind === "personnel") {
+        openPersonnelDetail(h.id);
+        return;
+      }
       else if (h.kind === "product") go(`/products?openProduct=${h.id}`);
       else if (h.kind === "vehicle") go(`/vehicles?openVehicle=${h.id}`);
     },
-    [go]
+    [go, openBranchDetail, openPersonnelDetail]
   );
 
   useEffect(() => {

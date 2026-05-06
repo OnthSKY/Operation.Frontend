@@ -46,12 +46,15 @@ import {
 } from "@/shared/ui/Table";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
+import { useBranchDetailOverlay } from "@/shared/branch-detail";
+import { usePersonnelDetailOverlay } from "@/shared/personnel-detail";
 import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
 import { useHashScroll } from "@/shared/lib/use-hash-scroll";
 import type { Personnel, PersonnelJobTitle } from "@/types/personnel";
 import { ToolbarGlyphUserPlus } from "@/shared/ui/ToolbarGlyph";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { canManageUserDataScopes } from "@/lib/auth/permissions";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { PersonnelCostsExpenseModal } from "@/modules/personnel/components/PersonnelCostsExpenseModal";
@@ -74,10 +77,7 @@ import { CreatePersonnelSystemUserModal } from "./CreatePersonnelSystemUserModal
 import { PersonnelAdvanceHistory } from "./PersonnelAdvanceHistory";
 import { PersonnelListCashHandoverPoolLine } from "./PersonnelListCashHandoverPoolLine";
 import { PersonnelSettlementSeasonPickerModal } from "./PersonnelSettlementSeasonPickerModal";
-import {
-  PersonnelDetailModal,
-  type PersonnelDetailTabId,
-} from "./PersonnelDetailModal";
+import type { PersonnelDetailTabId } from "./PersonnelDetailModal";
 import { AddPersonnelInsurancePeriodModal } from "./AddPersonnelInsurancePeriodModal";
 import { PersonnelFormModal } from "./PersonnelFormModal";
 import { PersonnelProfilePhotoAvatar } from "./PersonnelProfilePhotoAvatar";
@@ -179,28 +179,6 @@ function fillPersonnelSummaryTemplate(
 
 function hasLinkedSystemUser(p: Personnel): boolean {
   return p.userId != null && p.userId > 0;
-}
-
-/** Detay açıkken liste yenilenince (sigorta vb.) aynı personeli güncelle. */
-function personnelDetailSyncSig(p: Personnel): string {
-  return [
-    p.insuranceStarted,
-    p.insuranceStartDate ?? "",
-    p.insuranceEndDate ?? "",
-    p.fullName,
-    p.jobTitle,
-    p.branchId ?? "",
-    p.salary ?? "",
-    p.isDeleted,
-    p.nationalIdCardGeneration ?? "",
-    p.hasNationalIdPhotoFront,
-    p.hasNationalIdPhotoBack,
-    p.hasProfilePhoto1,
-    p.hasProfilePhoto2,
-    p.insuranceIntakeStartDate ?? "",
-    p.insuranceAccountingNotified,
-    (p.yearAccountClosedYears ?? []).join(","),
-  ].join("|");
 }
 
 function PersonnelInsuranceBadge({
@@ -552,7 +530,8 @@ function PersonnelRowActionsToolbar({
 export function PersonnelScreen() {
   const { t, locale } = useI18n();
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const { openBranchDetail } = useBranchDetailOverlay();
+  const { openPersonnelDetail: openPersonnelDetailOverlay } = usePersonnelDetailOverlay();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const isAdmin = user?.role === "ADMIN";
@@ -573,9 +552,6 @@ export function PersonnelScreen() {
   const [pdfSeasonBusy, setPdfSeasonBusy] = useState(false);
   const [profilePhotoPreviewPerson, setProfilePhotoPreviewPerson] =
     useState<Personnel | null>(null);
-  const [mobileCardDetailsOpenById, setMobileCardDetailsOpenById] = useState<
-    Record<number, boolean>
-  >({});
   const [salaryRevealedById, setSalaryRevealedById] = useState<
     Record<number, boolean>
   >({});
@@ -846,9 +822,6 @@ export function PersonnelScreen() {
   const [systemUserTarget, setSystemUserTarget] = useState<Personnel | null>(
     null
   );
-  const [detailPerson, setDetailPerson] = useState<Personnel | null>(null);
-  const [detailInitialTab, setDetailInitialTab] =
-    useState<PersonnelDetailTabId>("profile");
   const [expensePersonnel, setExpensePersonnel] = useState<Personnel | null>(
     null
   );
@@ -863,46 +836,12 @@ export function PersonnelScreen() {
   const [insuranceIntakeTarget, setInsuranceIntakeTarget] =
     useState<Personnel | null>(null);
 
-  useEffect(() => {
-    if (detailPerson == null || items.length === 0) return;
-    const fresh = items.find((p) => p.id === detailPerson.id);
-    if (!fresh) return;
-    if (personnelDetailSyncSig(fresh) !== personnelDetailSyncSig(detailPerson)) {
-      setDetailPerson(fresh);
-    }
-  }, [items, detailPerson]);
-
   const openPersonnelDetail = (
     p: Personnel,
     tab: PersonnelDetailTabId = "profile"
   ) => {
-    setDetailInitialTab(tab);
-    setDetailPerson(p);
+    openPersonnelDetailOverlay(p.id, { initialTab: tab });
   };
-
-  useEffect(() => {
-    const raw = searchParams.get("openPersonnel");
-    if (!raw) return;
-    const id = Number.parseInt(raw, 10);
-    if (!Number.isFinite(id) || id <= 0) return;
-    const p = items.find((x) => x.id === id);
-    if (p) {
-      setDetailInitialTab("profile");
-      setDetailPerson(p);
-      return;
-    }
-    let cancelled = false;
-    void fetchPersonnel(id)
-      .then((person) => {
-        if (cancelled) return;
-        setDetailInitialTab("profile");
-        setDetailPerson(person);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [searchParams, items]);
 
   const openCreate = () => {
     setFormInitial(null);
@@ -971,10 +910,6 @@ export function PersonnelScreen() {
 
   const openCreateSystemUser = (p: Personnel) => setSystemUserTarget(p);
   const closeCreateSystemUser = () => setSystemUserTarget(null);
-  const closeDetail = () => {
-    setDetailPerson(null);
-    setDetailInitialTab("profile");
-  };
 
   const personnelToolbarMoreItems = useMemo(
     () => [
@@ -1161,8 +1096,6 @@ export function PersonnelScreen() {
               {/* Kartlar: tablet & mobil (< md) */}
               <div className="flex flex-col gap-4 md:hidden">
                 {items.map((p) => {
-                  const mobileDetailsOpen =
-                    mobileCardDetailsOpenById[p.id] === true;
                   return (
                     <MobileListCard
                       key={p.id}
@@ -1227,17 +1160,27 @@ export function PersonnelScreen() {
                             <span className="text-zinc-500">
                               {t("personnel.tableBranch")}:{" "}
                             </span>
-                            <span
-                              className={cn(
-                                "font-medium text-zinc-800",
-                                p.isDeleted && "text-zinc-600"
-                              )}
-                            >
-                              {p.branchId != null
-                                ? (branchNameById.get(p.branchId) ??
-                                  `#${p.branchId}`)
-                                : t("personnel.dash")}
-                            </span>
+                            {p.branchId != null && p.branchId > 0 ? (
+                              <button
+                                type="button"
+                                className={cn(
+                                  "font-medium text-violet-800 underline decoration-violet-200 underline-offset-2 hover:text-violet-950",
+                                  p.isDeleted && "text-violet-700/80"
+                                )}
+                                onClick={() => openBranchDetail(p.branchId!)}
+                              >
+                                {branchNameById.get(p.branchId) ?? `#${p.branchId}`}
+                              </button>
+                            ) : (
+                              <span
+                                className={cn(
+                                  "font-medium text-zinc-800",
+                                  p.isDeleted && "text-zinc-600"
+                                )}
+                              >
+                                {t("personnel.dash")}
+                              </span>
+                            )}
                           </p>
                           <PersonnelInsuranceBadge personnel={p} t={t} />
                         </div>
@@ -1288,114 +1231,7 @@ export function PersonnelScreen() {
                           />
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        className={cn(
-                          "mt-0 w-full rounded-xl border border-zinc-200 bg-zinc-50/90 py-2.5 text-sm font-semibold text-zinc-800 transition-colors hover:bg-zinc-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900",
-                          MOBILE_TOKENS.TOUCH.MIN
-                        )}
-                        aria-expanded={mobileDetailsOpen}
-                        onClick={() =>
-                          setMobileCardDetailsOpenById((prev) => {
-                            if (prev[p.id]) return {};
-                            return { [p.id]: true };
-                          })
-                        }
-                      >
-                        {mobileDetailsOpen
-                          ? t("personnel.mobileCardHideDetails")
-                          : t("personnel.mobileCardShowDetails")}
-                      </button>
-                      {mobileDetailsOpen ? (
-                        <>
-                          <dl className="mt-4 space-y-1 border-t border-zinc-200/80 pt-4 text-sm">
-                            <div className="flex justify-between gap-3">
-                              <dt className="shrink-0 text-zinc-500">
-                                {t("personnel.tableCompanyHireDate")}
-                              </dt>
-                              <dd
-                                className={cn(
-                                  "text-right font-medium text-zinc-900",
-                                  p.isDeleted && "text-zinc-600"
-                                )}
-                              >
-                                {formatCompanyHireDate(
-                                  p,
-                                  t("personnel.dash"),
-                                  locale
-                                )}
-                              </dd>
-                            </div>
-                            <div className="flex justify-between gap-3">
-                              <dt className="shrink-0 text-zinc-500">
-                                {t("personnel.tableSeasonArrivalDate")}
-                              </dt>
-                              <dd
-                                className={cn(
-                                  "text-right font-medium text-zinc-900",
-                                  p.isDeleted && "text-zinc-600"
-                                )}
-                              >
-                                {formatSeasonArrivalDate(
-                                  p,
-                                  t("personnel.dash"),
-                                  locale
-                                )}
-                              </dd>
-                            </div>
-                            <div className="flex justify-between gap-3">
-                              <dt className="shrink-0 text-zinc-500">
-                                {t("personnel.tableSalary")}
-                              </dt>
-                              <dd className="text-right font-medium text-zinc-900">
-                                <PersonnelListSalaryReveal
-                                  p={p}
-                                  locale={locale}
-                                  dash={t("personnel.dash")}
-                                  revealed={salaryRevealedById[p.id] === true}
-                                  onToggle={() => toggleSalaryReveal(p.id)}
-                                  t={t}
-                                />
-                              </dd>
-                            </div>
-                            <div className="flex justify-between gap-3">
-                              <dt className="shrink-0 text-zinc-500">
-                                {t("personnel.tableSystemUser")}
-                              </dt>
-                              <dd
-                                className={cn(
-                                  "max-w-[55%] truncate text-right font-medium text-zinc-900",
-                                  p.isDeleted && "text-zinc-600"
-                                )}
-                                title={
-                                  hasLinkedSystemUser(p) && p.username
-                                    ? p.username
-                                    : undefined
-                                }
-                              >
-                                {hasLinkedSystemUser(p) && p.username
-                                  ? p.username
-                                  : t("personnel.systemUserNone")}
-                              </dd>
-                            </div>
-                          </dl>
-                          <div className="mt-3 border-t border-zinc-200/80 pt-3">
-                            <PersonnelListCashHandoverPoolLine
-                              personnelId={p.id}
-                              currencyCode={p.currencyCode}
-                              className="mb-3 text-xs leading-snug"
-                            />
-                            <PersonnelAdvanceHistory
-                              personnelId={p.id}
-                              variant="card"
-                              className="text-left"
-                              showAttributedExpenses
-                              maskSensitiveAmounts
-                            />
-                          </div>
-                        </>
-                      ) : null}
-                      </div>
+                    </div>
                     </MobileListCard>
                   );
                 })}
@@ -1518,10 +1354,20 @@ export function PersonnelScreen() {
                             p.isDeleted && "text-zinc-500"
                           )}
                         >
-                          {p.branchId != null
-                            ? (branchNameById.get(p.branchId) ??
-                              `#${p.branchId}`)
-                            : t("personnel.dash")}
+                          {p.branchId != null && p.branchId > 0 ? (
+                            <button
+                              type="button"
+                              className={cn(
+                                "text-left font-medium text-violet-800 underline decoration-violet-200 underline-offset-2 hover:text-violet-950",
+                                p.isDeleted && "text-violet-700/80"
+                              )}
+                              onClick={() => openBranchDetail(p.branchId!)}
+                            >
+                              {branchNameById.get(p.branchId) ?? `#${p.branchId}`}
+                            </button>
+                          ) : (
+                            t("personnel.dash")
+                          )}
                         </TableCell>
                         <TableCell
                           className={cn(
@@ -1760,13 +1606,6 @@ export function PersonnelScreen() {
         open={systemUserTarget != null}
         onClose={closeCreateSystemUser}
         personnel={systemUserTarget}
-      />
-      <PersonnelDetailModal
-        open={detailPerson != null}
-        onClose={closeDetail}
-        personnel={detailPerson}
-        branchNameById={branchNameById}
-        initialTab={detailInitialTab}
       />
       <PersonnelCostsExpenseModal
         key={

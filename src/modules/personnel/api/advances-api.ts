@@ -1,5 +1,6 @@
 import { apiRequest } from "@/shared/api/client";
 import type { Advance, AdvanceListItem, CreateAdvanceInput } from "@/types/advance";
+import type { Personnel } from "@/types/personnel";
 
 function normalizeCurrency(v: unknown): string {
   const s = String(v ?? "TRY").trim().toUpperCase();
@@ -70,6 +71,60 @@ export async function fetchAllAdvances(
 
 export async function deleteAdvance(advanceId: number): Promise<void> {
   await apiRequest<null>(`/advances/${advanceId}`, { method: "DELETE" });
+}
+
+/** `GET /advances/delegate-targets` — gün sonu kasiyeri için avans hedefi personeller. */
+export async function fetchAdvanceDelegateTargets(
+  branchId: number
+): Promise<Array<{ id: number; fullName: string }>> {
+  if (!Number.isFinite(branchId) || branchId <= 0) return [];
+  const rows = await apiRequest<Array<{ id: number; fullName: string }>>(
+    `/advances/delegate-targets?branchId=${Math.trunc(branchId)}`
+  );
+  return Array.isArray(rows) ? rows : [];
+}
+
+function personnelStubForAdvanceDelegate(
+  row: { id: number; fullName: string },
+  branchId: number
+): Personnel {
+  return {
+    id: row.id,
+    fullName: row.fullName,
+    hireDate: "1970-01-01",
+    seasonArrivalDate: null,
+    jobTitle: "CASHIER",
+    currencyCode: "TRY",
+    salary: null,
+    phone: null,
+    insuranceStarted: false,
+    insuranceStartDate: null,
+    insuranceEndDate: null,
+    nationalId: null,
+    birthDate: null,
+    nationalIdCardGeneration: null,
+    hasNationalIdPhotoFront: false,
+    hasNationalIdPhotoBack: false,
+    hasProfilePhoto1: false,
+    hasProfilePhoto2: false,
+    profilePhoto1Url: null,
+    profilePhoto2Url: null,
+    insuranceIntakeStartDate: null,
+    insuranceAccountingNotified: false,
+    isDeleted: false,
+    branchId,
+    userId: null,
+    driverHasSrc: null,
+    driverHasPsychotechnical: null,
+  };
+}
+
+/** Avans modalı için minimal `Personnel` listesi (yalnızca id / ad / şube). */
+export function advanceDelegateTargetsToPersonnelStubs(
+  targets: Array<{ id: number; fullName: string }>,
+  branchId: number
+): Personnel[] {
+  return targets.map((row) => personnelStubForAdvanceDelegate(row, branchId));
 }
 
 export async function createAdvance(

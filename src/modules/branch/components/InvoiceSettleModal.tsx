@@ -9,7 +9,6 @@ import type { Personnel } from "@/types/personnel";
 import { ApiError } from "@/lib/api/base-api";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { BRANCH_API_ERROR_TOURISM_SEASON_CLOSED_FOR_REGISTER } from "@/modules/branch/lib/branch-api-error-codes";
-import { branchTourismSeasonDeepLink } from "@/modules/branch/lib/branch-tourism-season-nav";
 import {
   resolveLocalizedApiError,
   userCanManageTourismSeasonClosedPolicy,
@@ -23,8 +22,8 @@ import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
 import { Select, type SelectOption } from "@/shared/ui/Select";
+import { useBranchDetailOverlay } from "@/shared/branch-detail";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Props = {
@@ -38,7 +37,7 @@ export function InvoiceSettleModal({ open, onClose, row, branchStaff }: Props) {
   const { t, locale } = useI18n();
   const { user } = useAuth();
   const canManageTourismPolicy = userCanManageTourismSeasonClosedPolicy(user?.role);
-  const router = useRouter();
+  const { openBranchDetail } = useBranchDetailOverlay();
   const qc = useQueryClient();
   const [expensePaymentSource, setExpensePaymentSource] = useState("");
   const [expensePocketPersonnelId, setExpensePocketPersonnelId] = useState("");
@@ -123,11 +122,10 @@ export function InvoiceSettleModal({ open, onClose, row, branchStaff }: Props) {
       notify.success(t("toast.branchInvoiceSettled"));
       onClose();
     } catch (e) {
-      const tourismHref = branchTourismSeasonDeepLink(branchId, false);
       if (
         e instanceof ApiError &&
         e.errorCode === BRANCH_API_ERROR_TOURISM_SEASON_CLOSED_FOR_REGISTER &&
-        tourismHref
+        branchId != null
       ) {
         notifyErrorWithAction({
           message: resolveLocalizedApiError(e, t, {
@@ -137,7 +135,7 @@ export function InvoiceSettleModal({ open, onClose, row, branchStaff }: Props) {
           autoCloseMs: 10_000,
           onAction: () => {
             onClose();
-            router.push(tourismHref);
+            openBranchDetail(branchId, { initialTab: "tourismSeason" });
           },
         });
       } else {
@@ -152,7 +150,7 @@ export function InvoiceSettleModal({ open, onClose, row, branchStaff }: Props) {
     expensePocketPersonnelId,
     qc,
     onClose,
-    router,
+    openBranchDetail,
     branchId,
     t,
     canManageTourismPolicy,

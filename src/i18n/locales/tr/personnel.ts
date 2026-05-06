@@ -335,8 +335,6 @@ export const personnel = {
   filterStatusPassive: "Yalnız pasif",
   filterNameSearch: "Ada göre ara",
   listFilteredEmpty: "Seçilen filtrelere uyan personel yok.",
-  mobileCardShowDetails: "Detay göster",
-  mobileCardHideDetails: "Detay gizle",
   tableName: "Ad",
   tableJobTitle: "Ünvan",
   tableCompanyHireDate: "Şirkette işe başlama",

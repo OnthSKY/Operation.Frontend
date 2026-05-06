@@ -9,6 +9,8 @@ export const warehouse = {
   listActionDeleteWarehouse: "Delete warehouse",
   listQuickPickProduct: "— Select product —",
   listQuickPickProductError: "Select a product.",
+  appendLineProductStockPrefix: "Stock at this warehouse",
+  appendLineProductUnknownTitle: "Product #{{id}}",
   listQuickTransferNoStock: "No products with stock in this warehouse; add stock first.",
   subtitle:
     "Warehouse receipts and branch issues; movements and stock below. Products are in the global catalog.",
@@ -281,17 +283,23 @@ export const warehouse = {
   overviewQtyMixedUnitsHint: "Category quantities sum lines; units may differ across products.",
   overviewTopByQuantity: "Top SKUs by on-hand quantity",
   overviewTopByQuantityEmpty: "No positive stock to rank.",
+  detailModalDescription: "Stock actions, movement history, and warehouse settings.",
   detailGeneralTitle: "General information",
   detailFieldEmpty: "—",
   detailWarehouseId: "Warehouse id",
   detailProductCountWithStock: "SKUs with positive stock",
   detailTotalOnHandQuantity: "Total on-hand quantity (rolled up)",
   stockHint:
-    "Full catalog; use «Warehouse product receipt» or «Branch product issue» (dialogs) to move stock. Shared movement date above.",
+    "Full catalog; use «Warehouse product receipt» or «Branch product issue» to move stock. The posting date is set automatically to the day of the action.",
   stockOpsFiltersTitle: "Stock list filters",
   stockOpsFiltersToggle: "Open stock filters",
   stockOpsFiltersDrawerHint:
-    "Category and product scope are sent to the server; search, quantity, stock level, and unit refine the rows below instantly. Grouping only changes layout.",
+    "Narrow by main / sub-product or category first. Search, quantity, stock level, and unit filter the list below instantly; grouping only changes layout.",
+  stockOpsFilterProductPickTitle: "Main and sub-product",
+  stockOpsFilterCategoryScopeTitle: "Category (optional)",
+  stockOpsFilterSectionView: "List layout",
+  stockOpsFilterSectionSearch: "Quick search",
+  stockOpsFilterSectionQuantity: "Quantity and unit",
   stockOpsFilterSearchLabel: "Search product or parent name",
   stockOpsFilterSearchPlaceholder: "e.g. sponge, paint…",
   stockOpsFilterMinQty: "Minimum quantity",
@@ -310,6 +318,19 @@ export const warehouse = {
   quickMovementDate: "Movement date",
   quickActionsCol: "Actions",
   productName: "Product name",
+  /** Stock ops row: clarifies which SKU the action applies to. */
+  stockLineSkuEyebrow: "Product on this line",
+  /** Parent row in a group (top): stock on the parent code. */
+  stockLineGroupMainEyebrow: "Main product SKU",
+  stockLineParentRowInGroupHint:
+    "Quantity on this line is recorded on the parent product code. Sub products appear as separate SKUs below; use inbound and shipment on the line for the SKU you mean.",
+  stockGroupHeaderChildRowsHint:
+    "Rows below are sub product SKUs; the parent row quantity belongs only to the parent code.",
+  stockOpsMainVsVariantsIntro:
+    "Parent and sub product stock are separate: the parent SKU row is listed first, then variant rows.",
+  stockOpsPaginationPrev: "Previous",
+  stockOpsPaginationNext: "Next",
+  stockOpsPaginationPage: "Page {{page}} / {{pages}}",
   productUnit: "Unit",
   movementTitle: "Stock movement",
   movementHintGlobal: "Choose a catalog product; the movement applies only to the selected warehouse.",

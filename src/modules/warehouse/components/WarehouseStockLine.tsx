@@ -8,6 +8,7 @@ import {
 import { WarehouseTransferFreightValuationBar } from "@/modules/warehouse/components/WarehouseTransferFreightValuationBar";
 import { useI18n } from "@/i18n/context";
 import { apiUserFacingMessage } from "@/shared/lib/api-user-facing-message";
+import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { notify } from "@/shared/lib/notify";
 import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
@@ -15,12 +16,14 @@ import { cn } from "@/lib/cn";
 import { LocalImageFileThumb } from "@/shared/components/LocalImageFileThumb";
 import { IMAGE_FILE_INPUT_ACCEPT } from "@/shared/lib/image-upload-limits";
 import { validateImageFileForUpload } from "@/shared/lib/validate-image-upload";
+import { detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
 import { Button } from "@/shared/ui/Button";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
 import { TableCell, TableRow } from "@/shared/ui/Table";
+import { BranchTransferListIcon, PlusProductIcon } from "@/shared/ui/WarehouseListIcons";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import { Fragment, useEffect, useMemo, useState, type FormEvent } from "react";
 
@@ -100,7 +103,6 @@ type TransferPreviewResult = {
 type Props = {
   row: WarehouseProductStockRow;
   warehouseId: number;
-  movementDate: string;
   branchOptions: { value: string; label: string }[];
   branchesReady: boolean;
   disabled: boolean;
@@ -111,12 +113,13 @@ type Props = {
   variant: "card" | "table";
   /** Ana ürün grubu altında varyant satırı */
   isVariantLine?: boolean;
+  /** Ana ürün grubunda: ana ürün koduna doğrudan stok satırı (alt varyantlardan ayrı). */
+  groupMainProductLine?: boolean;
 };
 
 export function WarehouseStockLine({
   row,
   warehouseId,
-  movementDate,
   branchOptions,
   branchesReady,
   disabled,
@@ -126,6 +129,7 @@ export function WarehouseStockLine({
   personnelOptions,
   variant,
   isVariantLine = false,
+  groupMainProductLine = false,
 }: Props) {
   const { t, locale } = useI18n();
   const [qty, setQty] = useState("1");
@@ -193,7 +197,7 @@ export function WarehouseStockLine({
     if (!transferOpen) return;
     setPreviewToken(null);
     setPreviewAllocations([]);
-  }, [transferOpen, branchId, tQty, movementDate, row.productId]);
+  }, [transferOpen, branchId, tQty, row.productId]);
 
   const off = disabled || pending !== null;
   const canOut = row.quantity > 0;
@@ -305,7 +309,7 @@ export function WarehouseStockLine({
     try {
       await movementMutate({
         warehouseId,
-        movementDate,
+        movementDate: localIsoDate(),
         direction: "in",
         lines: [
           {
@@ -384,7 +388,7 @@ export function WarehouseStockLine({
           warehouseId,
           branchId: b,
           lines: [{ productId: row.productId, quantity: n }],
-          movementDate,
+          movementDate: localIsoDate(),
           transportedByPersonnelId: transportedBy,
           sentByPersonnelId: sentBy,
           receivedByPersonnelId: trManualReceiverEnabled ? sentBy : receivedBy,
@@ -399,7 +403,7 @@ export function WarehouseStockLine({
         warehouseId,
         branchId: b,
         lines: [{ productId: row.productId, quantity: n }],
-        movementDate,
+        movementDate: localIsoDate(),
         description: mergeDescriptionWithManualReceiver(
           tDesc,
           trManualReceiverEnabled ? trManualReceiverName : ""
@@ -434,43 +438,47 @@ export function WarehouseStockLine({
     }
   };
 
+  const actionIconClass = "h-5 w-5 shrink-0 sm:h-[1.35rem] sm:w-[1.35rem]";
+
   const actionButtons = (
     <div
       className={cn(
-        "flex flex-wrap gap-2",
-        variant === "card" ? "items-stretch" : "items-center justify-end"
+        "flex shrink-0 flex-nowrap items-center gap-2",
+        variant === "card" ? "justify-end" : "justify-end"
       )}
     >
-      <Button
-        type="button"
-        disabled={off}
-        aria-haspopup="dialog"
-        aria-expanded={depoInOpen}
-        onClick={() => setDepoInOpen(true)}
-        className={cn(
-          variant === "card" ? "min-h-11 flex-1 px-3 sm:flex-none" : "min-h-[44px] min-w-[44px] px-3 text-sm"
-        )}
-      >
-        {t("warehouse.actionDepoProductIn")}
-      </Button>
-      <Tooltip
-        content={transferTooltip}
-        delayMs={280}
-        className={variant === "card" ? "w-full sm:w-auto sm:flex-1" : undefined}
-      >
+      <Tooltip content={t("warehouse.actionDepoProductIn")} delayMs={200} className="shrink-0">
+        <Button
+          type="button"
+          variant="primary"
+          disabled={off}
+          aria-haspopup="dialog"
+          aria-expanded={depoInOpen}
+          aria-label={t("warehouse.actionDepoProductIn")}
+          title={t("warehouse.actionDepoProductIn")}
+          onClick={() => setDepoInOpen(true)}
+          className={cn(detailOpenIconButtonClass, "rounded-xl shadow-sm")}
+        >
+          <PlusProductIcon className={actionIconClass} />
+        </Button>
+      </Tooltip>
+      <Tooltip content={transferTooltip} delayMs={280} className="shrink-0">
         <Button
           type="button"
           variant="secondary"
           disabled={off || !canTransfer}
           aria-haspopup="dialog"
           aria-expanded={transferOpen}
+          aria-label={t("warehouse.actionBranchProductOut")}
+          title={t("warehouse.actionBranchProductOut")}
           onClick={() => setTransferOpen(true)}
           className={cn(
-            variant === "card" ? "min-h-11 w-full sm:w-auto sm:flex-1" : "min-h-[44px] min-w-[44px] px-3 text-sm",
-            !canTransfer && "opacity-50"
+            detailOpenIconButtonClass,
+            "rounded-xl shadow-sm",
+            !canTransfer && "opacity-45"
           )}
         >
-          {t("warehouse.actionBranchProductOut")}
+          <BranchTransferListIcon className={actionIconClass} />
         </Button>
       </Tooltip>
     </div>
@@ -530,7 +538,22 @@ export function WarehouseStockLine({
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
             {t("warehouse.transferProduct")}
           </p>
-          <p className="mt-0.5 font-semibold text-zinc-900">{row.productName}</p>
+          {groupMainProductLine ? (
+            <>
+              <p className="mt-1 text-base font-semibold leading-snug text-zinc-900">{row.productName}</p>
+              <p className="mt-1.5 text-xs leading-snug text-zinc-600">{t("warehouse.stockLineParentRowInGroupHint")}</p>
+            </>
+          ) : isVariantLine && row.parentProductName?.trim() ? (
+            <>
+              <p className="mt-1 text-base font-semibold leading-snug text-zinc-900">{row.productName}</p>
+              <p className="mt-1.5 text-sm leading-snug text-zinc-600">
+                <span className="text-zinc-500">{t("products.parentProduct")}:</span>{" "}
+                <span className="font-medium text-zinc-800">{row.parentProductName}</span>
+              </p>
+            </>
+          ) : (
+            <p className="mt-0.5 font-semibold text-zinc-900">{row.productName}</p>
+          )}
           {row.unit ? (
             <p className="mt-1 text-sm text-zinc-600">
               {t("warehouse.productUnit")}: {row.unit}
@@ -672,7 +695,22 @@ export function WarehouseStockLine({
           <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
             {t("warehouse.transferProduct")}
           </p>
-          <p className="mt-0.5 font-semibold text-zinc-900">{row.productName}</p>
+          {groupMainProductLine ? (
+            <>
+              <p className="mt-1 text-base font-semibold leading-snug text-zinc-900">{row.productName}</p>
+              <p className="mt-1.5 text-xs leading-snug text-zinc-600">{t("warehouse.stockLineParentRowInGroupHint")}</p>
+            </>
+          ) : isVariantLine && row.parentProductName?.trim() ? (
+            <>
+              <p className="mt-1 text-base font-semibold leading-snug text-zinc-900">{row.productName}</p>
+              <p className="mt-1.5 text-sm leading-snug text-zinc-600">
+                <span className="text-zinc-500">{t("products.parentProduct")}:</span>{" "}
+                <span className="font-medium text-zinc-800">{row.parentProductName}</span>
+              </p>
+            </>
+          ) : (
+            <p className="mt-0.5 font-semibold text-zinc-900">{row.productName}</p>
+          )}
           {row.unit ? (
             <p className="mt-1 text-sm text-zinc-600">
               {t("warehouse.productUnit")}: {row.unit}
@@ -789,16 +827,17 @@ export function WarehouseStockLine({
           />
         ) : null}
         {previewAllocations.length > 0 ? (
-          <div className="rounded-lg border border-violet-200 bg-violet-50/60 px-3 py-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-violet-800">
+          <div className="rounded-lg border border-zinc-200 bg-zinc-50/90 px-3 py-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
               {t("warehouse.transferPreviewTitle")}
             </p>
             {previewMainGroups.length > 0 ? (
               <ul className="mt-1.5 space-y-2 text-xs text-zinc-800">
                 {previewMainGroups.map((group) => (
-                  <li key={`main-${group.mainProductId}`} className="rounded border border-violet-200/80 bg-white/70 px-2 py-1.5">
+                  <li key={`main-${group.mainProductId}`} className="rounded-md border border-zinc-200 bg-white px-2 py-1.5">
                     <p className="font-semibold text-zinc-900">
-                      Ana ürün: {group.mainProductName} ({formatLocaleAmount(group.quantity, locale)})
+                      {t("products.parentProduct")}: {group.mainProductName} ·{" "}
+                      {formatLocaleAmount(group.quantity, locale)}
                     </p>
                     {group.allocations.length > 0 ? (
                       <ul className="mt-1 space-y-0.5 pl-3 text-zinc-700">
@@ -827,29 +866,66 @@ export function WarehouseStockLine({
 
   if (variant === "card") {
     return (
-      <div className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm ring-1 ring-zinc-100">
-        <div className="flex flex-wrap items-start justify-between gap-2 gap-y-1">
-          <div className={`min-w-0 flex-1 ${isVariantLine ? "border-l-2 border-violet-200 pl-2.5" : ""}`}>
-            {row.parentProductName?.trim() && isVariantLine ? (
-              <p className="text-[0.65rem] font-medium uppercase tracking-wide text-violet-800/90">
-                {row.parentProductName}
-              </p>
-            ) : null}
-            <p className="font-medium leading-snug text-zinc-900">{row.productName}</p>
+      <div className="rounded-xl border border-zinc-200/90 bg-white p-3 shadow-sm sm:p-4">
+        <div className="flex min-w-0 flex-col gap-3">
+          <div
+            className={cn(
+              "min-w-0",
+              isVariantLine &&
+                row.parentProductName?.trim() &&
+                !groupMainProductLine &&
+                "border-l-[3px] border-zinc-300 pl-3"
+            )}
+          >
+            {groupMainProductLine ? (
+              <div className="min-w-0 space-y-1">
+                <p className="text-[0.65rem] font-medium uppercase tracking-wide text-zinc-500">
+                  {t("warehouse.stockLineGroupMainEyebrow")}
+                </p>
+                <p className="text-base font-semibold leading-snug text-zinc-900 sm:text-[1.0625rem]">
+                  {row.productName}
+                </p>
+                <p className="pt-0.5 text-xs leading-snug text-zinc-600 sm:text-sm">
+                  {t("warehouse.stockLineParentRowInGroupHint")}
+                </p>
+              </div>
+            ) : isVariantLine && row.parentProductName?.trim() ? (
+              <div className="min-w-0 space-y-1">
+                <p className="text-[0.65rem] font-medium uppercase tracking-wide text-zinc-500">
+                  {t("warehouse.stockLineSkuEyebrow")}
+                </p>
+                <p className="text-base font-semibold leading-snug text-zinc-900 sm:text-[1.0625rem]">
+                  {row.productName}
+                </p>
+                <p className="pt-1 text-sm leading-snug text-zinc-600">
+                  <span className="text-zinc-500">{t("products.parentProduct")}:</span>{" "}
+                  <span className="font-medium text-zinc-800">{row.parentProductName}</span>
+                </p>
+              </div>
+            ) : (
+              <p className="text-base font-semibold leading-snug text-zinc-900 sm:text-[1.0625rem]">{row.productName}</p>
+            )}
             {row.unit ? (
-              <p className="text-xs text-zinc-500">
+              <p className="mt-1 text-xs text-zinc-500 sm:text-sm">
                 {t("warehouse.productUnit")}: {row.unit}
               </p>
             ) : null}
             {suggestedAvgLabel ? (
-              <p className="text-[0.65rem] text-zinc-500">
+              <p className="mt-1 text-[0.65rem] text-zinc-500 sm:text-xs">
                 {t("warehouse.suggestedAvgUnitLabel")}: {suggestedAvgLabel}
               </p>
             ) : null}
           </div>
-          <p className="shrink-0 text-lg font-semibold tabular-nums text-zinc-900">{row.quantity}</p>
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-1">
+            <div className="flex min-w-0 items-baseline gap-2">
+              <span className="text-xs font-medium text-zinc-500">{t("products.colQty")}</span>
+              <span className="text-xl font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-2xl">
+                {row.quantity}
+              </span>
+            </div>
+            {actionButtons}
+          </div>
         </div>
-        <div className="mt-3 space-y-2 border-t border-zinc-100 pt-3">{actionButtons}</div>
         {depoInModal}
         {transferModal}
       </div>
@@ -860,13 +936,37 @@ export function WarehouseStockLine({
     <Fragment>
       <TableRow>
         <TableCell>
-          <div className={isVariantLine ? "border-l-2 border-violet-200 pl-2.5" : ""}>
-            {row.parentProductName?.trim() && isVariantLine ? (
-              <div className="text-[0.65rem] font-medium uppercase tracking-wide text-violet-800/90">
-                {row.parentProductName}
+          <div
+            className={cn(
+              "min-w-0",
+              isVariantLine &&
+                row.parentProductName?.trim() &&
+                !groupMainProductLine &&
+                "border-l-[3px] border-zinc-300 pl-2.5"
+            )}
+          >
+            {groupMainProductLine ? (
+              <div className="min-w-0 space-y-0.5">
+                <p className="text-[0.65rem] font-medium uppercase tracking-wide text-zinc-500">
+                  {t("warehouse.stockLineGroupMainEyebrow")}
+                </p>
+                <p className="text-sm font-semibold leading-snug text-zinc-900">{row.productName}</p>
+                <p className="text-xs leading-snug text-zinc-600">{t("warehouse.stockLineParentRowInGroupHint")}</p>
               </div>
-            ) : null}
-            <div className="font-medium text-zinc-900">{row.productName}</div>
+            ) : isVariantLine && row.parentProductName?.trim() ? (
+              <div className="min-w-0 space-y-0.5">
+                <p className="text-[0.65rem] font-medium uppercase tracking-wide text-zinc-500">
+                  {t("warehouse.stockLineSkuEyebrow")}
+                </p>
+                <p className="text-sm font-semibold leading-snug text-zinc-900">{row.productName}</p>
+                <p className="text-xs leading-snug text-zinc-600">
+                  <span className="text-zinc-500">{t("products.parentProduct")}:</span>{" "}
+                  <span className="font-medium text-zinc-800">{row.parentProductName}</span>
+                </p>
+              </div>
+            ) : (
+              <div className="font-medium text-zinc-900">{row.productName}</div>
+            )}
             {suggestedAvgLabel ? (
               <div className="mt-0.5 text-[0.65rem] text-zinc-500">
                 {t("warehouse.suggestedAvgUnitLabel")}: {suggestedAvgLabel}
@@ -878,7 +978,7 @@ export function WarehouseStockLine({
         <TableCell className="text-right text-base font-semibold tabular-nums text-zinc-900">
           {row.quantity}
         </TableCell>
-        <TableCell className="min-w-[220px] text-right">{actionButtons}</TableCell>
+        <TableCell className="min-w-[6.5rem] text-right sm:min-w-[7.5rem]">{actionButtons}</TableCell>
       </TableRow>
       {depoInModal}
       {transferModal}

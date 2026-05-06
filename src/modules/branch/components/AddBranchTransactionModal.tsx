@@ -71,11 +71,14 @@ import { validateImageFileForUpload } from "@/shared/lib/validate-image-upload";
 import { ApiError } from "@/lib/api/base-api";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { BRANCH_API_ERROR_TOURISM_SEASON_CLOSED_FOR_REGISTER } from "@/modules/branch/lib/branch-api-error-codes";
-import { branchTourismSeasonDeepLink } from "@/modules/branch/lib/branch-tourism-season-nav";
 import {
   resolveLocalizedApiError,
   userCanManageTourismSeasonClosedPolicy,
 } from "@/shared/lib/resolve-localized-api-error";
+import {
+  buildBranchDetailHref,
+  useBranchDetailOverlayOptional,
+} from "@/shared/branch-detail";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -230,6 +233,7 @@ export function AddBranchTransactionModal({
   const { t, locale } = useI18n();
   const { user } = useAuth();
   const router = useRouter();
+  const branchDetailOverlay = useBranchDetailOverlayOptional();
   const canManageTourismPolicy = userCanManageTourismSeasonClosedPolicy(user?.role);
 
   const tryTourismSeasonClosedRedirect = useCallback(
@@ -240,8 +244,7 @@ export function AddBranchTransactionModal({
         registerBranchId != null && Number.isFinite(registerBranchId) && registerBranchId > 0
           ? registerBranchId
           : null;
-      const href = branchTourismSeasonDeepLink(id, false);
-      if (href == null) return false;
+      if (id == null) return false;
       notifyErrorWithAction({
         message: resolveLocalizedApiError(e, t, {
           canManageTourismSeasonClosedPolicy: canManageTourismPolicy,
@@ -250,12 +253,16 @@ export function AddBranchTransactionModal({
         autoCloseMs: 10_000,
         onAction: () => {
           onClose();
-          router.push(href);
+          if (branchDetailOverlay) {
+            branchDetailOverlay.openBranchDetail(id, { initialTab: "tourismSeason" });
+          } else {
+            void router.push(buildBranchDetailHref(id, { tab: "tourismSeason" }));
+          }
         },
       });
       return true;
     },
-    [onClose, router, t, canManageTourismPolicy]
+    [onClose, branchDetailOverlay, router, t, canManageTourismPolicy]
   );
   /** Sabit şube yok: null veya geçersiz/0 id (personel API normalize ile uyumlu). */
   const orgMode = propBranchId == null || propBranchId <= 0;

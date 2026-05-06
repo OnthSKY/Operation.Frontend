@@ -40,7 +40,7 @@ import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import { Tooltip } from "@/shared/ui/Tooltip";
-import Link from "next/link";
+import { BranchDetailHrefLink } from "@/shared/branch-detail";
 import { useEffect, useMemo, useState } from "react";
 
 type RegisterScopeMode = "day" | "season_single" | "season_range" | "date_range";
@@ -819,12 +819,13 @@ export function DailyBranchRegisterScreen() {
                             </dl>
                           </details>
                         ) : null}
-                        <Link
-                          href={`/branches?openBranch=${row.branchId}&branchTab=income`}
+                        <BranchDetailHrefLink
+                          branchId={row.branchId}
+                          initialTab="income"
                           className="mt-3 text-xs font-semibold text-violet-800 underline-offset-2 hover:underline"
                         >
                           {t("dashboard.dailyRegisterOpenBranch")}
-                        </Link>
+                        </BranchDetailHrefLink>
                       </>
                     )}
                   </article>

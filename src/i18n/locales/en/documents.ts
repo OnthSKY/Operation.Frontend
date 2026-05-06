@@ -26,6 +26,14 @@ export const documents = {
   noBranch: "No branch",
   noDetail: "No detail",
   empty: "No documents found for current filters.",
+  previewSelectHint: "Select a document from the list to preview it here.",
+  previewHiddenByFilter:
+    "The previously selected document is hidden by the current filters. Choose another row.",
+  listSummary:
+    "{count} matching documents · showing {from}–{to} of {total} · page {page} of {pages}",
+  pageSizeLabel: "Up to {n} rows per page",
+  clearFilters: "Clear filters",
+  categoryFilterAria: "Document category",
   quickAdd: "Quick add document",
   orderStatementPdfQuickFilter: "Order/Statement PDFs",
   uploadCategoryLabel: "Category",

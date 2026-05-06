@@ -32,8 +32,11 @@ import {
   TableRow,
 } from "@/shared/ui/Table";
 import type { PatronFlowLine } from "@/types/patron-flow";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { canSeeFinancialReports } from "@/lib/auth/permissions";
 import { cn } from "@/lib/cn";
 import Link from "next/link";
+import { BranchDetailHrefLink } from "@/shared/branch-detail";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   compareValues,
@@ -215,6 +218,7 @@ const mobileCardStack = "flex flex-col gap-3 sm:hidden";
 
 export function PatronFlowReportScreen() {
   const { t, locale } = useI18n();
+  const { user } = useAuth();
   const [dateFrom, setDateFrom] = useState(() => startOfCalendarYearIso());
   const [dateTo, setDateTo] = useState(() => localIsoDate());
   const [dateRangeLock, setDateRangeLock] =
@@ -726,12 +730,12 @@ export function PatronFlowReportScreen() {
                               </dt>
                               <dd className="text-sm text-zinc-800">
                                 {row.branchId != null && row.branchId > 0 ? (
-                                  <Link
-                                    href={`/branches?openBranch=${row.branchId}`}
+                                  <BranchDetailHrefLink
+                                    branchId={row.branchId}
                                     className="text-violet-800 underline decoration-violet-200 underline-offset-2 hover:text-violet-950"
                                   >
                                     {row.branchName ?? "—"}
-                                  </Link>
+                                  </BranchDetailHrefLink>
                                 ) : (
                                   (row.branchName ?? "—")
                                 )}
@@ -815,12 +819,12 @@ export function PatronFlowReportScreen() {
                               </TableCell>
                               <TableCell className="text-sm">
                                 {row.branchId != null && row.branchId > 0 ? (
-                                  <Link
-                                    href={`/branches?openBranch=${row.branchId}`}
+                                  <BranchDetailHrefLink
+                                    branchId={row.branchId}
                                     className="text-violet-800 underline decoration-violet-200 underline-offset-2 hover:text-violet-950"
                                   >
                                     {row.branchName ?? "—"}
-                                  </Link>
+                                  </BranchDetailHrefLink>
                                 ) : (
                                   (row.branchName ?? "—")
                                 )}
@@ -967,12 +971,12 @@ export function PatronFlowReportScreen() {
                                   </dt>
                                   <dd className="text-sm text-zinc-800">
                                     {row.branchId != null && row.branchId > 0 ? (
-                                      <Link
-                                        href={`/branches?openBranch=${row.branchId}`}
+                                      <BranchDetailHrefLink
+                                        branchId={row.branchId}
                                         className="text-violet-800 underline decoration-violet-200 underline-offset-2 hover:text-violet-950"
                                       >
                                         {row.branchName ?? "—"}
-                                      </Link>
+                                      </BranchDetailHrefLink>
                                     ) : (
                                       (row.branchName ?? "—")
                                     )}
@@ -1044,12 +1048,12 @@ export function PatronFlowReportScreen() {
                                   </TableCell>
                                   <TableCell className="text-sm">
                                     {row.branchId != null && row.branchId > 0 ? (
-                                      <Link
-                                        href={`/branches?openBranch=${row.branchId}`}
+                                      <BranchDetailHrefLink
+                                        branchId={row.branchId}
                                         className="text-violet-800 underline decoration-violet-200 underline-offset-2 hover:text-violet-950"
                                       >
                                         {row.branchName ?? "—"}
-                                      </Link>
+                                      </BranchDetailHrefLink>
                                     ) : (
                                       (row.branchName ?? "—")
                                     )}
@@ -1100,14 +1104,16 @@ export function PatronFlowReportScreen() {
                 <p className="text-xs leading-relaxed text-amber-900/90">
                   {t("reports.patronFlowEmptyWhy")}
                 </p>
-                <p>
-                  <Link
-                    href="/reports/financial/trend"
-                    className="font-semibold text-violet-800 underline decoration-violet-300 underline-offset-2 hover:text-violet-950"
-                  >
-                    {t("reports.patronFlowEmptyTrendCta")}
-                  </Link>
-                </p>
+                {canSeeFinancialReports(user) ? (
+                  <p>
+                    <Link
+                      href="/reports/financial/trend"
+                      className="font-semibold text-violet-800 underline decoration-violet-300 underline-offset-2 hover:text-violet-950"
+                    >
+                      {t("reports.patronFlowEmptyTrendCta")}
+                    </Link>
+                  </p>
+                ) : null}
               </div>
             ) : null}
           </>

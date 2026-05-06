@@ -41,6 +41,7 @@ export const profile = {
   roleViewer: "Read-only (dashboard & reports)",
   roleFinance: "Finance & accounting",
   roleProcurement: "Procurement & warehouse",
+  roleBranchDayRegister: "Branch day register (today only + delegated advances)",
   roleUnknown: "Unknown role",
   sectionActivity: "Your activity",
   auditEmpty: "No actions recorded for your account yet.",

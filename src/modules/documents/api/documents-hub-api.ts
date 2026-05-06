@@ -36,6 +36,26 @@ function parseOrderMetadata(notes: string | null | undefined): Record<string, st
   return map;
 }
 
+async function fetchAllWarehouseMovementsWithInvoices(warehouseId: number) {
+  const pageSize = 100;
+  const allItems: Awaited<ReturnType<typeof fetchWarehouseMovementsPage>>["items"] = [];
+  let page = 1;
+  let totalCount = 0;
+
+  do {
+    const res = await fetchWarehouseMovementsPage(warehouseId, {
+      page,
+      pageSize,
+    });
+    totalCount = res.totalCount ?? 0;
+    allItems.push(...res.items);
+    if (res.items.length === 0) break;
+    page += 1;
+  } while (allItems.length < totalCount && page <= 100);
+
+  return allItems.filter((x) => x.hasInvoicePhoto === true);
+}
+
 export async function fetchDocumentsHubRows(t: TranslateFn): Promise<DocumentsHubRow[]> {
   const [branches, personnelList, supplierInvoices] = await Promise.all([
     fetchBranches(),
@@ -54,10 +74,7 @@ export async function fetchDocumentsHubRows(t: TranslateFn): Promise<DocumentsHu
   const warehouseInvoicesByWarehouse = await Promise.all(
     warehouses.map(async (w) => ({
       warehouse: w,
-      page: await fetchWarehouseMovementsPage(w.id, {
-        page: 1,
-        pageSize: 500,
-      }),
+      items: await fetchAllWarehouseMovementsWithInvoices(w.id),
     }))
   );
   const personnelYearClosures = await Promise.all(
@@ -227,7 +244,7 @@ export async function fetchDocumentsHubRows(t: TranslateFn): Promise<DocumentsHu
   }
 
   for (const group of warehouseInvoicesByWarehouse) {
-    const items = group.page.items.filter((x) => x.hasInvoicePhoto === true);
+    const items = group.items;
     for (const row of items) {
       const photoUrl = warehouseMovementInvoicePhotoUrl(row.id);
       if (row.type === "IN") {

@@ -94,11 +94,15 @@ export function WarehouseOverviewStorySection({
     isUncategorizedSection(sectionId) ? t("warehouse.stockSectionUncategorized") : raw;
 
   const slideCardClass =
-    "flex h-full min-h-[11rem] flex-col rounded-lg border border-teal-100/90 bg-white/95 p-3 shadow-sm";
+    "flex min-h-0 flex-col rounded-lg border border-teal-100/90 bg-white/95 p-3 shadow-sm sm:p-3.5";
+
+  const listScrollClass =
+    "max-h-[min(44dvh,15.5rem)] overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] sm:max-h-[min(40dvh,14rem)]";
 
   return (
     <StoryBlock
       id="warehouse-overview"
+      dense
       title={storyTitle ?? t("warehouse.overviewTitle")}
       description={storyDescription ?? t("warehouse.overviewDescription")}
     >
@@ -107,9 +111,9 @@ export function WarehouseOverviewStorySection({
       ) : stockQ.isError ? (
         <p className="text-sm text-red-600">{toErrorMessage(stockQ.error)}</p>
       ) : (
-        <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <DashboardStorySlide>
-            <div className={cn(slideCardClass, "min-h-[16rem]")}>
+            <div className={cn(slideCardClass, "sm:min-h-[14rem]")}>
               <p className="text-[0.65rem] font-bold uppercase tracking-wide text-teal-900/75">
                 {t("warehouse.overviewDistinctProductsLabel")}
               </p>
@@ -160,29 +164,29 @@ export function WarehouseOverviewStorySection({
           </DashboardStorySlide>
 
           <DashboardStorySlide>
-            <div className={cn(slideCardClass, "min-h-[14rem]")}>
+            <div className={cn(slideCardClass, "sm:min-h-[13rem]")}>
               <p className="shrink-0 text-[0.65rem] font-bold uppercase tracking-wide text-teal-900/75">
                 {t("warehouse.overviewByMainCategory")}
               </p>
-              <ul className="mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto text-sm">
+              <ul className={cn("mt-2 min-h-0 flex-1 space-y-1.5 text-sm", listScrollClass)}>
                 {byMain.length === 0 ? (
                   <li className="text-zinc-500">{t("warehouse.overviewBreakdownEmpty")}</li>
                 ) : (
                   byMain.map((b) => (
                     <li
                       key={b.sectionId}
-                      className="flex flex-col gap-1 border-b border-zinc-100/90 pb-1.5 last:border-0 sm:flex-row sm:items-baseline sm:justify-between sm:gap-x-2 sm:gap-y-0.5"
+                      className="flex flex-row items-start justify-between gap-2 border-b border-zinc-100/90 pb-1.5 last:border-0"
                     >
-                      <span className="min-w-0 flex-1 break-words text-zinc-800">
+                      <span className="min-w-0 flex-1 break-words text-sm leading-snug text-zinc-800">
                         {breakdownTitle(b.sectionId, b.title)}
                       </span>
-                      <span className="shrink-0 text-left tabular-nums text-zinc-600 sm:text-right">
-                        <span className="block text-xs text-zinc-500">
+                      <span className="shrink-0 text-right tabular-nums text-zinc-600">
+                        <span className="block text-[0.65rem] leading-tight text-zinc-500">
                           {fillDashboardTemplate(t("warehouse.overviewSkuCount"), {
                             count: String(b.productCount),
                           })}
                         </span>
-                        <span className="block font-medium text-zinc-800">
+                        <span className="block text-sm font-medium text-zinc-800">
                           {formatLocaleAmount(b.totalQuantity, locale)}
                         </span>
                       </span>
@@ -197,29 +201,29 @@ export function WarehouseOverviewStorySection({
           </DashboardStorySlide>
 
           <DashboardStorySlide>
-            <div className={cn(slideCardClass, "min-h-[14rem]")}>
+            <div className={cn(slideCardClass, "sm:min-h-[13rem]")}>
               <p className="shrink-0 text-[0.65rem] font-bold uppercase tracking-wide text-teal-900/75">
                 {t("warehouse.overviewBySubcategory")}
               </p>
-              <ul className="mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto text-sm">
+              <ul className={cn("mt-2 min-h-0 flex-1 space-y-1.5 text-sm", listScrollClass)}>
                 {bySub.length === 0 ? (
                   <li className="text-zinc-500">{t("warehouse.overviewBreakdownEmpty")}</li>
                 ) : (
                   bySub.map((b) => (
                     <li
                       key={b.sectionId}
-                      className="flex flex-col gap-1 border-b border-zinc-100/90 pb-1.5 last:border-0 sm:flex-row sm:items-baseline sm:justify-between sm:gap-x-2 sm:gap-y-0.5"
+                      className="flex flex-row items-start justify-between gap-2 border-b border-zinc-100/90 pb-1.5 last:border-0"
                     >
-                      <span className="min-w-0 flex-1 break-words text-zinc-800">
+                      <span className="min-w-0 flex-1 break-words text-sm leading-snug text-zinc-800">
                         {breakdownTitle(b.sectionId, b.title)}
                       </span>
-                      <span className="shrink-0 text-left tabular-nums text-zinc-600 sm:text-right">
-                        <span className="block text-xs text-zinc-500">
+                      <span className="shrink-0 text-right tabular-nums text-zinc-600">
+                        <span className="block text-[0.65rem] leading-tight text-zinc-500">
                           {fillDashboardTemplate(t("warehouse.overviewSkuCount"), {
                             count: String(b.productCount),
                           })}
                         </span>
-                        <span className="block font-medium text-zinc-800">
+                        <span className="block text-sm font-medium text-zinc-800">
                           {formatLocaleAmount(b.totalQuantity, locale)}
                         </span>
                       </span>
@@ -234,29 +238,33 @@ export function WarehouseOverviewStorySection({
           </DashboardStorySlide>
 
           <DashboardStorySlide>
-            <div className={cn(slideCardClass, "min-h-[14rem]")}>
+            <div className={cn(slideCardClass, "sm:min-h-[13rem]")}>
               <p className="shrink-0 text-[0.65rem] font-bold uppercase tracking-wide text-teal-900/75">
                 {t("warehouse.overviewTopByQuantity")}
               </p>
-              <ul className="mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto text-sm">
+              <ul className={cn("mt-2 min-h-0 flex-1 space-y-2 text-sm", listScrollClass)}>
                 {topByQty.length === 0 ? (
                   <li className="text-zinc-500">{t("warehouse.overviewTopByQuantityEmpty")}</li>
                 ) : (
                   topByQty.map((r, i) => (
                     <li
                       key={r.productId}
-                      className="flex flex-col gap-1 rounded-md border border-zinc-100 bg-zinc-50/80 px-2 py-1.5 sm:flex-row sm:items-start sm:justify-between sm:gap-2"
+                      className="flex flex-row items-start justify-between gap-2 rounded-md border border-zinc-100 bg-zinc-50/80 px-2 py-1.5"
                     >
-                      <span className="min-w-0 flex-1">
-                        <span className="mr-1.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-100 text-[0.65rem] font-bold text-teal-900">
+                      <span className="flex min-w-0 flex-1 items-start gap-1.5">
+                        <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-100 text-[0.65rem] font-bold text-teal-900">
                           {i + 1}
                         </span>
-                        <span className="break-words font-medium leading-snug text-zinc-900">{r.productName}</span>
+                        <span className="min-w-0 break-words text-sm font-medium leading-snug text-zinc-900">
+                          {r.productName}
+                        </span>
                       </span>
-                      <span className="shrink-0 text-left tabular-nums text-sm font-semibold text-zinc-800 sm:text-right">
+                      <span className="shrink-0 text-right text-sm font-semibold tabular-nums text-zinc-800">
                         {formatLocaleAmount(r.quantity, locale)}
                         {r.unit?.trim() ? (
-                          <span className="ml-1 text-xs font-normal text-zinc-500">{r.unit.trim()}</span>
+                          <span className="ml-1 block text-[0.65rem] font-normal text-zinc-500 sm:inline">
+                            {r.unit.trim()}
+                          </span>
                         ) : null}
                       </span>
                     </li>
@@ -267,23 +275,23 @@ export function WarehouseOverviewStorySection({
           </DashboardStorySlide>
 
           <DashboardStorySlide>
-            <div className={cn(slideCardClass, "min-h-[14rem]")}>
-              <div className="flex shrink-0 items-start justify-between gap-2">
-                <p className="text-[0.65rem] font-bold uppercase tracking-wide text-teal-900/75">
+            <div className={cn(slideCardClass, "sm:min-h-[13rem]")}>
+              <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
+                <p className="min-w-0 text-[0.65rem] font-bold uppercase tracking-wide text-teal-900/75">
                   {t("warehouse.overviewRecentMovements")}
                 </p>
                 {onOpenMovementsTab ? (
                   <Button
                     type="button"
-                    variant="ghost"
-                    className="h-auto min-h-0 shrink-0 px-2 py-0.5 text-xs font-medium text-teal-800 hover:bg-teal-50"
+                    variant="secondary"
+                    className="min-h-10 w-full shrink-0 px-3 text-xs font-medium sm:min-h-0 sm:w-auto sm:px-2 sm:py-1 sm:text-xs"
                     onClick={onOpenMovementsTab}
                   >
                     {t("warehouse.overviewAllMovements")}
                   </Button>
                 ) : null}
               </div>
-              <ul className="mt-2 min-h-0 flex-1 space-y-2 overflow-y-auto text-sm">
+              <ul className={cn("mt-2 min-h-0 flex-1 space-y-2 text-sm", listScrollClass)}>
                 {movQ.isPending ? (
                   <li className="text-zinc-500">{t("common.loading")}</li>
                 ) : movQ.isError ? (

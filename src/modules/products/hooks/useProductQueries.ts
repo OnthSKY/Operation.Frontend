@@ -53,14 +53,16 @@ export function useProductsCatalogPaged(
   page: number,
   pageSize: number,
   search: string,
-  enabled = true
+  enabled = true,
+  /** Sayfa veya arama değişince önceki yanıtı tutar (varsayılan). Sonsuz kaydırma gibi birleştirme senaryolarında false verin. */
+  keepPreviousData = true
 ) {
   const q = search.trim();
   return useQuery({
     queryKey: productKeys.catalogPaged(page, pageSize, q),
     queryFn: () => fetchProductCatalogPaged({ page, pageSize, search: q }),
     enabled,
-    placeholderData: (previousData) => previousData,
+    placeholderData: keepPreviousData ? (previousData) => previousData : undefined,
   });
 }
 

@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { TopNavbar } from "./TopNavbar";
 import { MobileBottomNav } from "./MobileBottomNav";
+import { BranchDetailOverlayProvider } from "@/shared/branch-detail";
+import { PersonnelDetailOverlayProvider } from "@/shared/personnel-detail";
 import { NavigationStateProvider, useNavigationState } from "./NavigationState";
 import { AppShellErrorBoundary } from "./AppShellErrorBoundary";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -81,7 +83,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <AppShellErrorBoundary>
       <NavigationStateProvider>
-        <AppShellInner>{children}</AppShellInner>
+        <PersonnelDetailOverlayProvider>
+          <BranchDetailOverlayProvider>
+            <AppShellInner>{children}</AppShellInner>
+          </BranchDetailOverlayProvider>
+        </PersonnelDetailOverlayProvider>
       </NavigationStateProvider>
     </AppShellErrorBoundary>
   );

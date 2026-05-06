@@ -27,7 +27,7 @@ type Props = {
 const TITLE_ID = "edit-branch-title";
 
 export function EditBranchModal({ open, branch, staff, onClose }: Props) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const updateBranchMut = useUpdateBranch();
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
@@ -41,6 +41,11 @@ export function EditBranchModal({ open, branch, staff, onClose }: Props) {
   const activeStaff = useMemo(
     () => staff.filter((p) => !p.isDeleted && p.branchId === branch?.id),
     [staff, branch?.id]
+  );
+
+  const activeStaffSorted = useMemo(
+    () => [...activeStaff].sort((a, b) => a.fullName.localeCompare(b.fullName, locale)),
+    [activeStaff, locale]
   );
 
   useEffect(() => {
@@ -135,21 +140,46 @@ export function EditBranchModal({ open, branch, staff, onClose }: Props) {
                 {activeStaff.length === 0 ? (
                   <p className="text-sm text-zinc-500">{t("branch.responsiblesEmptyStaff")}</p>
                 ) : (
-                  <ul className="flex max-h-40 flex-col gap-2 overflow-y-auto rounded-lg border border-zinc-200 p-2">
-                    {activeStaff.map((p) => (
-                      <li key={p.id}>
-                        <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-800">
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 rounded border-zinc-300"
-                            checked={selectedIds.has(p.id)}
-                            onChange={() => togglePid(p.id)}
-                          />
-                          <span className="min-w-0 truncate">{p.fullName}</span>
-                        </label>
-                      </li>
-                    ))}
-                  </ul>
+                  <>
+                    <ul className="flex max-h-40 flex-col gap-2 overflow-y-auto rounded-lg border border-zinc-200 p-2">
+                      {activeStaffSorted.map((p) => (
+                        <li key={p.id}>
+                          <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-800">
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 rounded border-zinc-300"
+                              checked={selectedIds.has(p.id)}
+                              onChange={() => togglePid(p.id)}
+                            />
+                            <span className="min-w-0 truncate">{p.fullName}</span>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                    {selectedIds.size === 0 ? (
+                      <p className="text-xs text-zinc-500">{t("branch.responsiblesScopePreviewSelectHint")}</p>
+                    ) : (
+                      <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-3">
+                        <p className="text-xs font-semibold text-zinc-800">{t("branch.responsiblesScopePreviewTitle")}</p>
+                        <p className="mt-1 text-xs leading-relaxed text-zinc-600">
+                          {t("branch.responsiblesScopePreviewBody")}{" "}
+                          <span className="font-medium text-zinc-800">
+                            {t("branch.responsiblesScopePreviewCount").replace(
+                              "{count}",
+                              String(activeStaffSorted.length)
+                            )}
+                          </span>
+                        </p>
+                        <ul className="mt-2 max-h-36 overflow-y-auto rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs text-zinc-800">
+                          {activeStaffSorted.map((p) => (
+                            <li key={`preview-${p.id}`} className="truncate py-0.5">
+                              {p.fullName}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
                 )}
               </FormSection>
             </>

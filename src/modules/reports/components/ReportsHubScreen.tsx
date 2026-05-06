@@ -41,6 +41,8 @@ import {
   startOfMonthIso,
 } from "@/modules/reports/lib/report-period-helpers";
 import type { ReportsHubTab } from "@/modules/reports/lib/reports-hub-paths";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { canSeeFinancialReports } from "@/lib/auth/permissions";
 import { cn } from "@/lib/cn";
 import Link from "next/link";
 import { useMemo, useEffect, useState } from "react";
@@ -58,6 +60,7 @@ function seasonStatusLabel(t: (key: string) => string, status: string): string {
 
 export function ReportsHubScreen({ routeTab }: { routeTab: ReportsHubTab }) {
   const { t, locale } = useI18n();
+  const { user } = useAuth();
   const tab = routeTab;
   const [dateFrom, setDateFrom] = useState(startOfMonthIso);
   const [dateTo, setDateTo] = useState(() => localIsoDate());
@@ -229,11 +232,13 @@ export function ReportsHubScreen({ routeTab }: { routeTab: ReportsHubTab }) {
       },
     };
     const cfg = map[tab];
-    const elsewhere = cfg.elsewhere.map((item) => ({
-      href: item.href,
-      label: t(item.labelKey),
-      desc: t(item.descKey),
-    }));
+    const elsewhere = cfg.elsewhere
+      .filter((item) => item.href !== "/reports/financial" || canSeeFinancialReports(user))
+      .map((item) => ({
+        href: item.href,
+        label: t(item.labelKey),
+        desc: t(item.descKey),
+      }));
     return (
       <div className="space-y-3">
         <p>{t("pageHelp.reportsHub.intro")}</p>
@@ -283,7 +288,7 @@ export function ReportsHubScreen({ routeTab }: { routeTab: ReportsHubTab }) {
         </div>
       </div>
     );
-  }, [tab, t]);
+  }, [tab, t, user]);
 
   const reportsHubFilterScopeBelow = useMemo(() => {
     if (tab === "cash") {

@@ -20,6 +20,7 @@ import { RechartsMeasureBox } from "@/shared/components/RechartsMeasureBox";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { useMediaMinWidth } from "@/shared/lib/use-media-min-width";
+import { BranchDetailHrefLink } from "@/shared/branch-detail";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
@@ -580,12 +581,12 @@ export function ReportFinancialStoryCharts({
               Δ {formatLocaleAmount(storyDeck.worst.netDelta, locale, ccy)}
             </p>
             {storyDeck.worst.branchId !== 0 ? (
-              <Link
-                href={`/branches?openBranch=${storyDeck.worst.branchId}`}
+              <BranchDetailHrefLink
+                branchId={storyDeck.worst.branchId}
                 className="mt-3 inline-flex text-sm font-semibold text-red-800 underline-offset-2 hover:underline"
               >
                 {t("reports.storyOpenBranchLink")}
-              </Link>
+              </BranchDetailHrefLink>
             ) : null}
           </div>
         ) : null}
@@ -605,12 +606,12 @@ export function ReportFinancialStoryCharts({
               Δ {formatLocaleAmount(storyDeck.best.netDelta, locale, ccy)}
             </p>
             {storyDeck.best.branchId !== 0 ? (
-              <Link
-                href={`/branches?openBranch=${storyDeck.best.branchId}`}
+              <BranchDetailHrefLink
+                branchId={storyDeck.best.branchId}
                 className="mt-3 inline-flex text-sm font-semibold text-emerald-800 underline-offset-2 hover:underline"
               >
                 {t("reports.storyOpenBranchLink")}
-              </Link>
+              </BranchDetailHrefLink>
             ) : null}
           </div>
         ) : null}

@@ -18,6 +18,8 @@ type Props = {
   staff: Personnel[];
   /** Şube personeli (PERSONNEL rolü): turizm/personel sekmeleri ve yönetici avansları gizlenir. */
   employeeSelfService?: boolean;
+  /** `ui.branch_day_clerk` ve tam `ui.branches` yok: sınırlı sekmeler + delegeli avans. */
+  branchDayClerkMode?: boolean;
   canEditBranch?: boolean;
   onEditBranch?: () => void;
   onClose: () => void;
@@ -50,6 +52,7 @@ export function BranchDetailSheet({
   branch,
   staff,
   employeeSelfService = false,
+  branchDayClerkMode = false,
   canEditBranch = false,
   onEditBranch,
   onClose,
@@ -156,6 +159,7 @@ export function BranchDetailSheet({
             branch={branch}
             staff={staff}
             employeeSelfService={employeeSelfService}
+            branchDayClerkMode={branchDayClerkMode}
             initialTab={initialTab}
             initialRegisterDay={initialRegisterDay}
           />

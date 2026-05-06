@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/cn";
 import type { ReactNode } from "react";
 
 export function StoryBlock({
@@ -7,22 +8,41 @@ export function StoryBlock({
   description,
   id: sectionId,
   children,
+  /** Depo özeti gibi dar alanlarda daha küçük başlık ve boşluk. */
+  dense = false,
 }: {
   title: string;
   description: string;
   id?: string;
   children: ReactNode;
+  dense?: boolean;
 }) {
   return (
     <section
       id={sectionId}
-      className={`flex min-w-0 flex-col gap-3 sm:gap-4 ${sectionId ? "scroll-mt-28 sm:scroll-mt-24" : ""}`}
+      className={cn(
+        "flex min-w-0 flex-col",
+        dense ? "gap-2.5 sm:gap-3" : "gap-3 sm:gap-4",
+        sectionId ? "scroll-mt-28 sm:scroll-mt-24" : ""
+      )}
     >
       <div className="min-w-0">
-        <h2 className="text-xl font-semibold leading-snug tracking-tight text-zinc-900 sm:text-lg">
+        <h2
+          className={cn(
+            "font-semibold leading-snug tracking-tight text-zinc-900",
+            dense ? "text-base sm:text-lg" : "text-xl sm:text-lg"
+          )}
+        >
           {title}
         </h2>
-        <p className="mt-1 text-sm leading-relaxed text-zinc-600 sm:mt-0.5 sm:text-sm sm:text-zinc-500">
+        <p
+          className={cn(
+            "leading-relaxed text-zinc-600",
+            dense
+              ? "mt-0.5 text-xs sm:mt-1 sm:text-sm sm:text-zinc-500"
+              : "mt-1 text-sm sm:mt-0.5 sm:text-sm sm:text-zinc-500"
+          )}
+        >
           {description}
         </p>
       </div>

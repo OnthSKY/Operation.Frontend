@@ -12,12 +12,20 @@ import { notify } from "@/shared/lib/notify";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
 import { Button } from "@/shared/ui/Button";
 import { Checkbox } from "@/shared/ui/Checkbox";
-import { Tooltip } from "@/shared/ui/Tooltip";
+import { Modal } from "@/shared/ui/Modal";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { ChevronRight } from "lucide-react";
+import { startTransition, useCallback, useEffect, useMemo, useState } from "react";
 
 import type { PermissionDefinition } from "@/types/authorization-matrix";
+import {
+  groupPermissionsForMatrix,
+  resolvePermissionGroupTitle,
+  resolvePermissionLocalizedDescription,
+  resolvePermissionScreenHint,
+} from "@/modules/admin/lib/permission-groups";
+import { adminUsersRoleTitleOrFallback } from "@/modules/account/lib/role-label";
 
 function permissionPrimaryLabel(p: PermissionDefinition): string {
   return (p.description ?? "").trim() || p.code;
@@ -32,6 +40,7 @@ export function AuthorizationMatrixScreen() {
   const putRole = usePutRolePermissions();
 
   const [draft, setDraft] = useState<Record<string, Set<string>> | null>(null);
+  const [dialogRoleCode, setDialogRoleCode] = useState<string | null>(null);
 
   useEffect(() => {
     if (isReady && user && user.role !== "ADMIN") router.replace("/personnel");
@@ -43,7 +52,9 @@ export function AuthorizationMatrixScreen() {
     for (const r of data.roles) {
       next[r.roleCode] = new Set(r.permissionCodes);
     }
-    setDraft(next);
+    startTransition(() => {
+      setDraft(next);
+    });
   }, [data]);
 
   const toggle = useCallback((roleCode: string, permCode: string, adminRole: boolean) => {
@@ -104,6 +115,21 @@ export function AuthorizationMatrixScreen() {
     return d;
   }, [data, draft]);
 
+  const permissionGroups = useMemo(
+    () => (data ? groupPermissionsForMatrix(data.permissions) : []),
+    [data]
+  );
+
+  const modalRole = useMemo(() => {
+    if (!data?.roles?.length || !dialogRoleCode) return null;
+    return data.roles.find((ro) => ro.roleCode === dialogRoleCode) ?? null;
+  }, [data, dialogRoleCode]);
+
+  const modalRoleTitle = useMemo(() => {
+    if (!modalRole) return "";
+    return adminUsersRoleTitleOrFallback(modalRole.roleCode, modalRole.displayName, t);
+  }, [modalRole, t]);
+
   if (!isReady || !user) {
     return (
       <div className="flex flex-1 items-center justify-center p-8 text-zinc-500">
@@ -134,6 +160,7 @@ export function AuthorizationMatrixScreen() {
         </h1>
         <p className="mt-1 text-sm text-zinc-500">{t("settings.authzPageDescription")}</p>
         <p className="mt-2 text-xs leading-relaxed text-zinc-600 sm:text-sm">{t("settings.authzMatrixHint")}</p>
+        <p className="mt-1.5 text-xs leading-relaxed text-zinc-600 sm:text-sm">{t("settings.authzRoleAccordionHint")}</p>
       </div>
 
       <PageWhenToUseGuide
@@ -147,8 +174,22 @@ export function AuthorizationMatrixScreen() {
             text: t("pageHelp.settingsAuthorization.step2"),
             link: { href: "/admin/users", label: t("pageHelp.settingsAuthorization.step2Link") },
           },
+          { text: t("pageHelp.settingsAuthorization.step3") },
         ]}
       />
+
+      {!isLoading && !isError && data ? (
+        <div className="rounded-2xl border border-sky-200/90 bg-sky-50/80 p-4 text-sm leading-relaxed text-zinc-800 shadow-sm sm:p-5">
+          <p className="font-semibold text-zinc-900">{t("permissionMeta.roleVsUserMatrixIntro")}</p>
+          <p className="mt-2 text-zinc-700">{t("permissionMeta.roleVsUserOverrideIntro")}</p>
+          <Link
+            href="/admin/users"
+            className="mt-3 inline-flex min-h-10 items-center text-sm font-semibold text-violet-700 underline-offset-2 hover:text-violet-900 hover:underline"
+          >
+            {t("settings.authzUsersLink")} →
+          </Link>
+        </div>
+      ) : null}
 
       {isLoading ? (
         <div className="rounded-2xl border border-zinc-200/80 bg-gradient-to-br from-zinc-50 to-white p-10 text-center text-sm text-zinc-500 shadow-inner">
@@ -163,230 +204,174 @@ export function AuthorizationMatrixScreen() {
         </div>
       ) : (
         <>
-          {/* Küçük / orta ekran (xl altı): kartlar — dar masaüstünde tablo yerine */}
-          <div className="flex flex-col gap-5 xl:hidden">
+          <div className="flex flex-col gap-3 sm:gap-4">
             {data.roles.map((r) => {
               const set = draft[r.roleCode] ?? new Set();
-              const isSaving = putRole.isPending && putRole.variables?.roleCode === r.roleCode;
               const rowDirty = dirty.has(r.roleCode);
+              const permTotal = data.permissions.length;
+              const permCurrent = set.size;
+              const roleTitle = adminUsersRoleTitleOrFallback(r.roleCode, r.displayName, t);
+              const countLabel = t("settings.authzRolePermissionCount")
+                .replace("{current}", String(permCurrent))
+                .replace("{total}", String(permTotal));
+              const openAria = t("settings.authzExpandRoleAria").replace("{role}", roleTitle);
               return (
-                <section
+                <button
                   key={r.roleCode}
-                  className="overflow-hidden rounded-3xl border border-zinc-200/80 bg-white shadow-lg shadow-zinc-900/[0.06] ring-1 ring-zinc-950/[0.04]"
+                  type="button"
+                  aria-label={openAria}
+                  className={cn(
+                    "flex w-full min-h-[4.25rem] items-center gap-3 rounded-2xl border border-zinc-200/90 bg-white px-3 py-3 text-left shadow-md shadow-zinc-900/[0.04] ring-1 ring-zinc-950/[0.03] transition-colors sm:min-h-[4.5rem] sm:gap-4 sm:rounded-3xl sm:px-5 sm:py-4",
+                    "bg-gradient-to-r from-violet-50/90 via-white to-fuchsia-50/50 hover:from-violet-50 hover:to-fuchsia-50/70 active:scale-[0.99]"
+                  )}
+                  onClick={() => setDialogRoleCode(r.roleCode)}
                 >
-                  <header className="relative border-b border-violet-100 bg-gradient-to-r from-violet-50/95 via-white to-fuchsia-50/80 px-4 py-3.5 sm:px-5">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-base font-bold tracking-tight text-zinc-900 sm:text-lg">
-                          {r.displayName}
-                        </p>
-                        <p className="mt-0.5 font-mono text-[11px] font-medium uppercase tracking-wider text-violet-700/90">
-                          {r.roleCode}
-                        </p>
-                      </div>
-                      {rowDirty ? (
-                        <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-900 ring-1 ring-amber-200/80">
-                          {t("settings.authzUnsaved")}
-                        </span>
-                      ) : null}
-                    </div>
-                  </header>
-                  <p className="border-b border-zinc-100 px-4 py-2.5 text-xs font-semibold text-zinc-500 sm:px-5">
-                    {t("settings.authzMobileRolePerms")}
-                  </p>
-                  <div className="max-h-[min(58vh,28rem)] overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] px-3 py-3 sm:px-4">
-                    <ul className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                      {data.permissions.map((p) => {
-                        const checked = set.has(p.code);
-                        const disabled =
-                          (r.roleCode === "ADMIN" && p.code === "system.admin") || isSaving;
-                        const label = permissionPrimaryLabel(p);
-                        return (
-                          <li key={p.code}>
-                            <label
-                              className={cn(
-                                "flex min-h-[4.25rem] cursor-pointer flex-col justify-between gap-2 rounded-2xl border p-3 shadow-sm transition active:scale-[0.99] motion-reduce:active:scale-100 sm:min-h-0 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-3.5",
-                                checked
-                                  ? "border-violet-200/90 bg-violet-50/50 ring-1 ring-violet-200/60"
-                                  : "border-zinc-200/80 bg-gradient-to-br from-white to-zinc-50/90 hover:border-zinc-300/90",
-                                disabled && "cursor-not-allowed opacity-60"
-                              )}
-                            >
-                              <span className="min-w-0 flex-1">
-                                <span className="line-clamp-3 text-sm font-semibold leading-snug text-zinc-900">
-                                  {label}
-                                </span>
-                                <span className="mt-1 block truncate font-mono text-[10px] text-zinc-500">
-                                  {p.code}
-                                </span>
-                              </span>
-                              <div className="flex shrink-0 items-center justify-end sm:pl-2">
-                                <Checkbox
-                                  className="h-5 w-5 rounded-md [&_svg]:h-3 [&_svg]:w-3"
-                                  checked={checked}
-                                  disabled={disabled}
-                                  onCheckedChange={() =>
-                                    void toggle(r.roleCode, p.code, r.roleCode === "ADMIN")
-                                  }
-                                  aria-label={`${r.roleCode} — ${p.code}`}
-                                />
-                              </div>
-                            </label>
-                          </li>
-                        );
-                      })}
-                    </ul>
+                  <ChevronRight
+                    className="h-5 w-5 shrink-0 text-violet-700 sm:h-6 sm:w-6"
+                    aria-hidden
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-base font-bold tracking-tight text-zinc-900 sm:text-lg">{roleTitle}</p>
+                    <p className="mt-0.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-violet-700/85 sm:text-[11px]">
+                      {r.roleCode}
+                    </p>
                   </div>
-                  <div className="border-t border-zinc-100 bg-zinc-50/60 p-3 sm:p-4">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-12 w-full rounded-xl text-sm font-semibold shadow-sm ring-1 ring-zinc-200/80 sm:min-h-11"
-                      disabled={!rowDirty || isSaving}
-                      onClick={() => void saveRow(r.roleCode)}
-                    >
-                      {isSaving ? t("common.saving") : t("settings.authzSaveRow")}
-                    </Button>
+                  <div className="flex shrink-0 flex-col items-end gap-1 text-right">
+                    {rowDirty ? (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-900 ring-1 ring-amber-200/80 sm:text-[10px]">
+                        {t("settings.authzUnsaved")}
+                      </span>
+                    ) : null}
+                    <span className="text-[11px] font-medium tabular-nums text-zinc-600 sm:text-xs">{countLabel}</span>
                   </div>
-                </section>
+                </button>
               );
             })}
           </div>
 
-          {/* Geniş ekran (xl+): yatay başlıklı tablo; w-max ile sütunlar gereksiz genişlemez, taşarsa kaydır */}
-          <div className="relative hidden xl:block">
-            <div className="pointer-events-none absolute inset-x-0 -top-px h-px bg-gradient-to-r from-violet-400/0 via-violet-400/25 to-fuchsia-400/0" />
-            <div className="overflow-hidden rounded-3xl border border-zinc-200/80 bg-white shadow-xl shadow-zinc-900/[0.07] ring-1 ring-zinc-950/[0.04]">
-              <div className="max-h-[min(78vh,56rem)] overflow-auto overscroll-contain [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable]">
-                <table className="w-max max-w-none border-collapse text-left text-sm 2xl:text-base">
-                  <thead className="sticky top-0 z-20 border-b border-zinc-200/90 bg-zinc-50/95 backdrop-blur-md">
-                    <tr>
-                      <th
-                        className={cn(
-                          "sticky left-0 z-30 min-w-[13rem] max-w-[18rem] border-b border-r border-zinc-200/80 bg-zinc-50/95 px-4 py-3.5 text-left text-xs font-bold uppercase tracking-wide text-zinc-600 backdrop-blur-md 2xl:min-w-[15rem] 2xl:px-5 2xl:py-4",
-                          "shadow-[4px_0_12px_-4px_rgba(0,0,0,0.08)]"
-                        )}
-                      >
-                        {t("settings.authzRole")}
-                      </th>
-                      {data.permissions.map((p) => {
-                        const label = permissionPrimaryLabel(p);
-                        const tip = (
-                          <div className="space-y-1.5">
-                            <p className="text-[13px] font-semibold leading-snug text-white">{label}</p>
-                            <p className="font-mono text-[11px] leading-normal text-zinc-300">{p.code}</p>
-                          </div>
-                        );
-                        return (
-                          <th
-                            key={p.code}
-                            className="w-14 min-w-[3.5rem] max-w-[3.5rem] border-b border-zinc-200/80 px-0 py-2.5 align-middle 2xl:w-16 2xl:min-w-[4rem] 2xl:max-w-[4rem] 2xl:py-3"
-                          >
-                            <Tooltip
-                              content={tip}
-                              side="bottom"
-                              delayMs={160}
-                              className="flex w-full justify-center"
-                              panelClassName="max-w-[min(20rem,calc(100vw-1.5rem))] whitespace-normal"
-                            >
-                              <button
-                                type="button"
-                                className="flex w-full max-w-full cursor-help flex-col items-center gap-1 rounded-md px-1 py-1.5 text-center outline-none hover:bg-violet-100/60 focus-visible:ring-2 focus-visible:ring-violet-400"
-                                aria-label={`${label} — ${p.code}`}
-                              >
-                                <span className="line-clamp-4 w-full break-all font-mono text-[9px] font-semibold leading-[1.2] text-zinc-800 2xl:text-[10px]">
-                                  {p.code}
-                                </span>
-                                <span
-                                  className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-violet-200/90 bg-violet-50 text-[9px] font-serif font-bold leading-none text-violet-800 2xl:h-[1.125rem] 2xl:w-[1.125rem]"
-                                  aria-hidden
-                                >
-                                  i
-                                </span>
-                              </button>
-                            </Tooltip>
-                          </th>
-                        );
-                      })}
-                      <th className="sticky right-0 z-30 min-w-[8.5rem] border-b border-l border-zinc-200/80 bg-zinc-50/95 px-3 py-3.5 text-center text-xs font-bold uppercase tracking-wide text-zinc-600 backdrop-blur-md shadow-[-4px_0_12px_-4px_rgba(0,0,0,0.08)] 2xl:min-w-[9.5rem]">
-                        {t("settings.authzActions")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-zinc-100">
-                    {data.roles.map((r) => {
-                      const set = draft[r.roleCode] ?? new Set();
-                      const isSaving = putRole.isPending && putRole.variables?.roleCode === r.roleCode;
-                      const rowDirty = dirty.has(r.roleCode);
-                      return (
-                        <tr
-                          key={r.roleCode}
-                          className="group transition-colors hover:bg-violet-50/[0.35]"
-                        >
-                          <td
-                            className={cn(
-                              "sticky left-0 z-10 min-w-[13rem] max-w-[18rem] border-r border-zinc-100 bg-white px-4 py-3 align-middle shadow-[4px_0_12px_-6px_rgba(0,0,0,0.06)] transition-colors group-hover:bg-violet-50/40 2xl:min-w-[15rem] 2xl:px-5"
-                            )}
-                          >
-                            <div className="font-semibold text-zinc-900">{r.displayName}</div>
-                            <div className="mt-0.5 truncate font-mono text-[11px] text-zinc-500" title={r.roleCode}>
-                              {r.roleCode}
-                            </div>
-                            {rowDirty ? (
-                              <div className="mt-1.5 inline-flex rounded-md bg-amber-100/90 px-1.5 py-0.5 text-[9px] font-bold uppercase text-amber-900">
-                                {t("settings.authzUnsaved")}
-                              </div>
-                            ) : null}
-                          </td>
-                          {data.permissions.map((p) => {
-                            const checked = set.has(p.code);
+          {modalRole ? (
+            <Modal
+              open
+              onClose={() => setDialogRoleCode(null)}
+              titleId="authz-role-dialog-title"
+              title={modalRoleTitle}
+              description={t("settings.authzRoleModalDescription")}
+              closeButtonLabel={t("common.close")}
+              wide
+              wideFixedHeight
+              wideFullScreenMobile
+              backdropCloseRequiresConfirm={dirty.has(modalRole.roleCode)}
+            >
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-zinc-50/80 sm:bg-white">
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3 pt-2 [-webkit-overflow-scrolling:touch] sm:px-6 sm:pb-4 sm:pt-3">
+                  <p className="mb-3 rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[11px] font-medium text-zinc-600 shadow-sm sm:px-4 sm:text-xs">
+                    <span className="font-mono font-semibold text-violet-800">{modalRole.roleCode}</span>
+                    <span className="mx-1.5 text-zinc-400">·</span>
+                    {t("settings.authzMobileRolePerms")}
+                  </p>
+                  <div className="space-y-6">
+                    {permissionGroups.map((grp) => (
+                      <div key={grp.prefix}>
+                        <h3 className="mb-2 border-b border-zinc-200 pb-1 text-[11px] font-bold uppercase tracking-wide text-zinc-500 sm:text-xs">
+                          {resolvePermissionGroupTitle(grp.prefix, t)}
+                        </h3>
+                        <ul className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
+                          {grp.permissions.map((p) => {
+                            const permSet = draft[modalRole.roleCode] ?? new Set();
+                            const checked = permSet.has(p.code);
+                            const isSaving =
+                              putRole.isPending && putRole.variables?.roleCode === modalRole.roleCode;
                             const disabled =
-                              (r.roleCode === "ADMIN" && p.code === "system.admin") || isSaving;
+                              (modalRole.roleCode === "ADMIN" && p.code === "system.admin") || isSaving;
+                            const whereHint = resolvePermissionScreenHint(p.code, t);
+                            const detailBody = resolvePermissionLocalizedDescription(p, t);
+                            const sameWhereAndDetail =
+                              Boolean(whereHint) &&
+                              Boolean(detailBody) &&
+                              whereHint.trim() === detailBody.trim();
+                            const ariaTitle = whereHint || detailBody || permissionPrimaryLabel(p);
                             return (
-                              <td
-                                key={p.code}
-                                className="w-14 min-w-[3.5rem] max-w-[3.5rem] px-0 py-2.5 text-center align-middle 2xl:w-16 2xl:min-w-[4rem] 2xl:max-w-[4rem] 2xl:py-3"
-                              >
-                                <div className="flex min-h-[3rem] items-center justify-center 2xl:min-h-[3.25rem]">
-                                  <Checkbox
-                                    className="h-5 w-5 shrink-0 2xl:h-[1.375rem] 2xl:w-[1.375rem]"
-                                    checked={checked}
-                                    disabled={disabled}
-                                    onCheckedChange={() =>
-                                      void toggle(r.roleCode, p.code, r.roleCode === "ADMIN")
-                                    }
-                                    aria-label={`${r.roleCode} ${p.code}`}
-                                  />
-                                </div>
-                              </td>
+                              <li key={p.code}>
+                                <label
+                                  className={cn(
+                                    "flex min-h-0 cursor-pointer flex-col gap-2 rounded-2xl border bg-white p-3 shadow-sm transition sm:flex-row sm:items-start sm:justify-between sm:gap-3 sm:p-4",
+                                    checked
+                                      ? "border-violet-200/90 bg-violet-50/45 ring-1 ring-violet-200/50"
+                                      : "border-zinc-200/85 hover:border-zinc-300",
+                                    disabled && "cursor-not-allowed opacity-60"
+                                  )}
+                                >
+                                  <span className="min-w-0 flex-1 space-y-2">
+                                    {whereHint && !sameWhereAndDetail ? (
+                                      <span className="block space-y-1">
+                                        <span className="block text-[10px] font-semibold uppercase tracking-wide text-violet-800/90">
+                                          {t("users.permissionCardWhereHeading")}
+                                        </span>
+                                        <span className="block text-sm font-semibold leading-snug text-zinc-900 sm:text-[0.9375rem]">
+                                          {whereHint}
+                                        </span>
+                                      </span>
+                                    ) : null}
+                                    <span className="block space-y-1">
+                                      <span className="block text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                                        {t("users.permissionCardDetailHeading")}
+                                      </span>
+                                      <span className="block text-xs leading-snug text-zinc-700 sm:text-[0.8125rem] sm:leading-relaxed">
+                                        {detailBody || permissionPrimaryLabel(p)}
+                                      </span>
+                                    </span>
+                                    <span className="block rounded-md bg-zinc-50/95 px-2 py-1.5 ring-1 ring-zinc-200/80">
+                                      <span className="block text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                                        {t("users.permissionCardTechnicalCodeHeading")}
+                                      </span>
+                                      <span className="mt-0.5 block break-all font-mono text-[10px] leading-normal text-zinc-800 sm:text-[11px]">
+                                        {p.code}
+                                      </span>
+                                    </span>
+                                  </span>
+                                  <div className="flex shrink-0 items-center justify-end pt-0.5 sm:pt-1">
+                                    <Checkbox
+                                      className="h-5 w-5 rounded-md [&_svg]:h-3 [&_svg]:w-3 sm:h-6 sm:w-6"
+                                      checked={checked}
+                                      disabled={disabled}
+                                      onCheckedChange={() =>
+                                        void toggle(
+                                          modalRole.roleCode,
+                                          p.code,
+                                          modalRole.roleCode === "ADMIN"
+                                        )
+                                      }
+                                      aria-label={`${modalRoleTitle} — ${ariaTitle} — ${p.code}`}
+                                    />
+                                  </div>
+                                </label>
+                              </li>
                             );
                           })}
-                          <td
-                            className={cn(
-                              "sticky right-0 z-10 min-w-[8.5rem] border-l border-zinc-100 bg-white px-3 py-2.5 text-center align-middle shadow-[-4px_0_12px_-6px_rgba(0,0,0,0.06)] transition-colors group-hover:bg-violet-50/40 2xl:min-w-[9.5rem]"
-                            )}
-                          >
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="rounded-lg px-3.5 py-2 text-xs font-semibold 2xl:text-sm"
-                              disabled={!rowDirty || isSaving}
-                              onClick={() => void saveRow(r.roleCode)}
-                            >
-                              {isSaving ? t("common.saving") : t("settings.authzSaveRow")}
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="shrink-0 border-t border-zinc-200 bg-zinc-50/90 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] sm:bg-zinc-50/70 sm:p-4">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="min-h-12 w-full rounded-xl text-sm font-semibold shadow-sm ring-1 ring-zinc-200/80"
+                    disabled={
+                      !dirty.has(modalRole.roleCode) ||
+                      (putRole.isPending && putRole.variables?.roleCode === modalRole.roleCode)
+                    }
+                    onClick={() => void saveRow(modalRole.roleCode)}
+                  >
+                    {putRole.isPending && putRole.variables?.roleCode === modalRole.roleCode
+                      ? t("common.saving")
+                      : t("settings.authzSaveRow")}
+                  </Button>
+                </div>
               </div>
-            </div>
-            <p className="mt-2 text-center text-[11px] text-zinc-400">
-              {t("settings.authzDesktopScrollHint")}
-            </p>
-          </div>
+            </Modal>
+          ) : null}
         </>
       )}
     </div>

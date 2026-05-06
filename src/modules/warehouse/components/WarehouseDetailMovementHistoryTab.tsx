@@ -33,10 +33,9 @@ import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
-import { RichCombobox, type RichComboboxOption } from "@/shared/ui/RichCombobox";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import { Tooltip } from "@/shared/ui/Tooltip";
-import { useProductsCatalogPaged } from "@/modules/products/hooks/useProductQueries";
+import { CatalogProductWarehouseStockCombobox } from "@/modules/products/components/CatalogProductWarehouseStockCombobox";
 import type { WarehouseMovementItem, WarehouseMovementsPageParams } from "@/types/warehouse";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
@@ -50,6 +49,7 @@ import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { fetchWarehouseMovementsPage } from "@/modules/warehouse/api/warehouse-stock-api";
 import { warehouseKeys } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import { useQuery } from "@tanstack/react-query";
+import { ChevronLeft, ChevronRight, FilePlus2, Info, Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -187,8 +187,6 @@ function buildShipmentGroups(items: WarehouseMovementItem[]) {
 const GROUP_PAGE_SIZE = 10;
 const MOVEMENTS_FETCH_PAGE_SIZE = 200;
 const DRAWER_SELECT_Z = 280;
-const APPEND_PRODUCTS_PAGE_SIZE = 50;
-
 type Props = {
   warehouseId: number;
   warehouseName?: string;
@@ -237,7 +235,6 @@ export function WarehouseDetailMovementHistoryTab({
   const [detailsContentTab, setDetailsContentTab] = useState<"LINES" | "AUDIT">("LINES");
   const [headerEditOpen, setHeaderEditOpen] = useState(false);
   const [headerEditBusinessDate, setHeaderEditBusinessDate] = useState("");
-  const [headerEditLegacyDate, setHeaderEditLegacyDate] = useState("");
   const [headerEditDescription, setHeaderEditDescription] = useState("");
   const [headerEditCheckedBy, setHeaderEditCheckedBy] = useState("");
   const [headerEditApprovedBy, setHeaderEditApprovedBy] = useState("");
@@ -259,11 +256,6 @@ export function WarehouseDetailMovementHistoryTab({
   const [appendInboundQty, setAppendInboundQty] = useState("1");
   const [appendProductId, setAppendProductId] = useState("");
   const [appendQty, setAppendQty] = useState("1");
-  const [appendProductSearch, setAppendProductSearch] = useState("");
-  const [appendProductsPage, setAppendProductsPage] = useState(1);
-  const [appendProductCatalogRows, setAppendProductCatalogRows] = useState<
-    Array<{ id: number; name: string; parentProductName?: string | null; unit?: string | null }>
-  >([]);
 
   const confirmDeleteInboundFromRow = useCallback(
     (m: WarehouseMovementItem) => {
@@ -454,9 +446,6 @@ export function WarehouseDetailMovementHistoryTab({
     setAppendLineOpen(false);
     setAppendProductId("");
     setAppendQty("1");
-    setAppendProductSearch("");
-    setAppendProductsPage(1);
-    setAppendProductCatalogRows([]);
   }, [warehouseId]);
 
   useEffect(() => {
@@ -698,20 +687,6 @@ export function WarehouseDetailMovementHistoryTab({
     ],
     [peopleRaw, t]
   );
-  const appendProductOptions = useMemo<RichComboboxOption[]>(
-    () =>
-      appendProductCatalogRows.map((r) => {
-        const parent = r.parentProductName?.trim();
-        const productName = r.name.trim();
-        const title = parent && parent !== productName ? `${parent} › ${productName}` : productName;
-        return {
-          value: String(r.id),
-          title,
-          description: r.unit?.trim() ? `(${r.unit.trim()})` : undefined,
-        };
-      }),
-    [appendProductCatalogRows]
-  );
   const submitHeaderEdit = useCallback(async () => {
     if (!selectedDetailGroup || !canEditHeaderInfo) return;
     if (headerEditBusinessDate.length !== 10) {
@@ -724,8 +699,6 @@ export function WarehouseDetailMovementHistoryTab({
       notify.error(t("warehouse.personnelVerifierRequired"));
       return;
     }
-    const dateForApi =
-      headerEditLegacyDate.length === 10 ? headerEditLegacyDate : headerEditBusinessDate;
     const desc = headerEditDescription.trim() ? headerEditDescription.trim() : null;
     try {
       let updated = 0;
@@ -739,7 +712,7 @@ export function WarehouseDetailMovementHistoryTab({
               productId: m.productId,
               quantity: Number(m.quantity),
               businessDate: headerEditBusinessDate,
-              date: dateForApi,
+              date: headerEditBusinessDate,
               description: desc,
               checkedByPersonnelId: checkedById,
               approvedByPersonnelId: approvedById,
@@ -764,7 +737,7 @@ export function WarehouseDetailMovementHistoryTab({
               productId: m.productId,
               quantity: Number(m.quantity),
               businessDate: headerEditBusinessDate,
-              date: dateForApi,
+              date: headerEditBusinessDate,
               description: desc,
               checkedByPersonnelId: checkedById,
               approvedByPersonnelId: approvedById,
@@ -786,7 +759,6 @@ export function WarehouseDetailMovementHistoryTab({
     canManageWholeOutboundShipment,
     selectedOutboundBranchId,
     headerEditBusinessDate,
-    headerEditLegacyDate,
     headerEditDescription,
     headerEditCheckedBy,
     headerEditApprovedBy,
@@ -917,55 +889,11 @@ export function WarehouseDetailMovementHistoryTab({
     };
     const date = (first?.movementDate ?? "").slice(0, 10);
     setHeaderEditBusinessDate(date);
-    setHeaderEditLegacyDate(date);
     setHeaderEditDescription(first?.description?.trim() ?? "");
     setHeaderEditCheckedBy(findPersonnelId(first?.checkedByPersonnelName));
     setHeaderEditApprovedBy(findPersonnelId(first?.approvedByPersonnelName));
   }, [headerEditOpen, selectedDetailGroup, peopleRaw]);
 
-  const appendProductsEnabled =
-    selectedDetailGroup != null &&
-    ((appendLineOpen && canManageWholeOutboundShipment) ||
-      (appendInboundLineOpen && canManageWholeInboundShipment));
-  const appendProductsPagedQ = useProductsCatalogPaged(
-    appendProductsPage,
-    APPEND_PRODUCTS_PAGE_SIZE,
-    appendProductSearch,
-    appendProductsEnabled
-  );
-
-  useEffect(() => {
-    if (!appendProductsEnabled) return;
-    setAppendProductsPage(1);
-    setAppendProductCatalogRows([]);
-  }, [appendProductsEnabled, appendProductSearch]);
-
-  useEffect(() => {
-    const data = appendProductsPagedQ.data;
-    if (!data || !appendProductsEnabled) return;
-    setAppendProductCatalogRows((prev) => {
-      const source = appendProductsPage === 1 ? [] : prev;
-      const map = new Map<number, { id: number; name: string; parentProductName?: string | null; unit?: string | null }>();
-      for (const row of source) map.set(row.id, row);
-      for (const item of data.items) {
-        if (item.id > 0) {
-          map.set(item.id, {
-            id: item.id,
-            name: item.name,
-            parentProductName: item.parentProductName,
-            unit: item.unit,
-          });
-        }
-      }
-      return Array.from(map.values());
-    });
-  }, [appendProductsPagedQ.data, appendProductsEnabled, appendProductsPage]);
-  const appendProductsTotalCount = appendProductsPagedQ.data?.totalCount ?? 0;
-  const appendCanLoadMore =
-    appendProductsEnabled &&
-    appendProductOptions.length < appendProductsTotalCount &&
-    !appendProductsPagedQ.isPending &&
-    !appendProductsPagedQ.isFetching;
   const shipmentPdfQueryEnabled =
     canManageWholeOutboundShipment &&
     selectedOutboundBranchId != null &&
@@ -1006,77 +934,89 @@ export function WarehouseDetailMovementHistoryTab({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
-      <div className="flex flex-col gap-3 border-b border-zinc-200/80 pb-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-        <h2 className="text-sm font-semibold text-zinc-900 sm:text-base">{t("warehouse.movementsHistoryTitle")}</h2>
-        <div
-          role="tablist"
-          aria-label={t("warehouse.movementsTypeSegmentAria")}
-          className="flex w-full snap-x snap-mandatory gap-1 overflow-x-auto rounded-2xl border border-zinc-200/80 bg-zinc-100/80 p-1 shadow-inner [-webkit-overflow-scrolling:touch] sm:w-auto sm:flex-wrap sm:overflow-visible"
-        >
-          {(
-            [
-              { v: "" as const, label: t("warehouse.movementsTypeSegmentAll") },
-              { v: "IN" as const, label: t("warehouse.movementsTypeSegmentInbound") },
-              { v: "OUT" as const, label: t("warehouse.movementsTypeSegmentOutbound") },
-            ] as const
-          ).map(({ v, label }) => (
-            <button
-              key={v || "all"}
-              type="button"
-              role="tab"
-              aria-selected={type === v}
-              className={cn(
-                "min-h-[44px] min-w-[44px] shrink-0 snap-start rounded-xl px-3.5 py-2 text-xs font-semibold transition-all duration-150 sm:text-sm",
-                type === v
-                  ? "bg-white text-violet-800 shadow-sm ring-1 ring-violet-300/80"
-                  : "bg-transparent text-zinc-600 hover:bg-white/70 hover:text-zinc-900"
-              )}
-              onClick={() => setType(v)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-2">
-        <Tooltip content={t("warehouse.movementsFiltersToggle")} delayMs={200}>
-          <button
-            type="button"
-            className="relative flex h-11 min-w-11 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white px-3 text-zinc-700 shadow-sm transition hover:bg-zinc-50"
-            aria-expanded={filtersDrawerOpen}
-            aria-haspopup="dialog"
-            aria-label={t("warehouse.movementsFilterIconAria")}
-            onClick={() => setFiltersDrawerOpen(true)}
+      <div className="flex flex-col gap-3 border-b border-zinc-200/80 pb-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+        <div className="flex min-w-0 shrink-0 items-center gap-2">
+          <h2 className="min-w-0 text-sm font-semibold text-zinc-900 sm:text-base">
+            {t("warehouse.movementsHistoryTitle")}
+          </h2>
+          <Tooltip
+            content={
+              <div className="text-left font-normal">
+                <p className="mb-2 font-semibold">{t("warehouse.movementsHistoryEditGuideTitle")}</p>
+                <ul className="list-disc space-y-1.5 pl-4 leading-relaxed">
+                  <li>{t("warehouse.movementsHistoryEditGuide1")}</li>
+                  <li>{t("warehouse.movementsHistoryEditGuide2")}</li>
+                  <li>{t("warehouse.movementsHistoryEditGuide3")}</li>
+                </ul>
+              </div>
+            }
+            delayMs={200}
+            side="bottom"
+            panelClassName="max-w-[min(22rem,calc(100vw-1.25rem))] py-2.5"
           >
-            <FilterFunnelIcon className="h-5 w-5" />
-            {movementFiltersActive ? (
-              <span
-                className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-violet-500 ring-2 ring-white"
-                aria-hidden
-              />
-            ) : null}
-          </button>
-        </Tooltip>
-        <Button
-          type="button"
-          variant="secondary"
-          className="min-h-11 touch-manipulation"
-          onClick={() => void refetch()}
-        >
-          {t("products.filterApplyRefresh")}
-        </Button>
+            <button
+              type="button"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-violet-200/90 bg-violet-50 text-violet-800 shadow-sm transition hover:bg-violet-100/90 sm:h-10 sm:w-10"
+              aria-label={t("warehouse.movementsHistoryEditGuideTitle")}
+            >
+              <Info className="h-4 w-4 sm:h-[1.125rem] sm:w-[1.125rem]" aria-hidden />
+            </button>
+          </Tooltip>
         </div>
-      </div>
 
-      <div
-        className="rounded-xl border border-violet-200/80 bg-violet-50/50 px-3 py-3 shadow-sm ring-1 ring-violet-950/[0.04] sm:px-4 sm:py-3.5"
-        role="note"
-      >
-        <p className="text-xs font-semibold text-violet-950 sm:text-sm">{t("warehouse.movementsHistoryEditGuideTitle")}</p>
-        <ul className="mt-2 list-disc space-y-1.5 pl-4 text-xs leading-relaxed text-violet-900 sm:text-sm sm:leading-snug">
-          <li>{t("warehouse.movementsHistoryEditGuide1")}</li>
-          <li>{t("warehouse.movementsHistoryEditGuide2")}</li>
-          <li>{t("warehouse.movementsHistoryEditGuide3")}</li>
-        </ul>
+        <div className="flex min-h-[48px] w-full min-w-0 items-stretch gap-2 sm:w-auto sm:min-w-0 sm:flex-1 sm:justify-end">
+          <div
+            role="tablist"
+            aria-label={t("warehouse.movementsTypeSegmentAria")}
+            className="flex min-h-0 min-w-0 flex-1 snap-x snap-mandatory gap-1 overflow-x-auto rounded-2xl border border-zinc-200/80 bg-zinc-100/80 p-1 shadow-inner [-webkit-overflow-scrolling:touch] sm:max-w-max sm:flex-none sm:flex-wrap sm:overflow-visible"
+          >
+            {(
+              [
+                { v: "" as const, label: t("warehouse.movementsTypeSegmentAll") },
+                { v: "IN" as const, label: t("warehouse.movementsTypeSegmentInbound") },
+                { v: "OUT" as const, label: t("warehouse.movementsTypeSegmentOutbound") },
+              ] as const
+            ).map(({ v, label }) => (
+              <button
+                key={v || "all"}
+                type="button"
+                role="tab"
+                aria-selected={type === v}
+                className={cn(
+                  "flex min-h-[44px] min-w-[44px] shrink-0 snap-start items-center justify-center rounded-xl px-3.5 py-2 text-xs font-semibold transition-all duration-150 sm:text-sm",
+                  type === v
+                    ? "bg-white text-violet-800 shadow-sm ring-1 ring-violet-300/80"
+                    : "bg-transparent text-zinc-600 hover:bg-white/70 hover:text-zinc-900"
+                )}
+                onClick={() => setType(v)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <Tooltip
+            content={t("warehouse.movementsFiltersToggle")}
+            delayMs={200}
+            className="inline-flex shrink-0 self-stretch"
+          >
+            <button
+              type="button"
+              className="relative flex h-full min-h-[44px] w-11 items-center justify-center rounded-xl border border-zinc-200/80 bg-white text-zinc-700 shadow-sm transition hover:bg-zinc-50"
+              aria-expanded={filtersDrawerOpen}
+              aria-haspopup="dialog"
+              aria-label={t("warehouse.movementsFilterIconAria")}
+              onClick={() => setFiltersDrawerOpen(true)}
+            >
+              <FilterFunnelIcon className="h-5 w-5" />
+              {movementFiltersActive ? (
+                <span
+                  className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-violet-500 ring-2 ring-white"
+                  aria-hidden
+                />
+              ) : null}
+            </button>
+          </Tooltip>
+        </div>
       </div>
 
       <RightDrawer
@@ -1393,27 +1333,31 @@ export function WarehouseDetailMovementHistoryTab({
             {"–"}
             {Math.min(page * GROUP_PAGE_SIZE, groupTotalCount)} · {t("products.pagingTotal")} {groupTotalCount}
           </p>
-          <div className="flex min-w-0 flex-wrap items-stretch gap-2 sm:items-center sm:justify-end">
+          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
             <Button
               type="button"
               variant="secondary"
-              className="min-h-11 min-w-0 flex-1 touch-manipulation sm:flex-none"
+              className="min-h-11 min-w-[44px] px-3 touch-manipulation"
               disabled={page <= 1}
               onClick={() => setPage((p) => Math.max(1, p - 1))}
+              aria-label={t("products.pagingPrev")}
             >
-              {t("products.pagingPrev")}
+              <ChevronLeft className="h-4 w-4" aria-hidden />
+              <span className="sr-only">{t("products.pagingPrev")}</span>
             </Button>
-            <span className="flex min-w-[4.5rem] shrink-0 items-center justify-center text-sm tabular-nums text-zinc-700">
+            <span className="flex min-h-11 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm tabular-nums text-zinc-700 sm:min-h-0 sm:rounded-none sm:border-0 sm:bg-transparent">
               {page} / {totalPages}
             </span>
             <Button
               type="button"
               variant="secondary"
-              className="min-h-11 min-w-0 flex-1 touch-manipulation sm:flex-none"
+              className="min-h-11 min-w-[44px] px-3 touch-manipulation"
               disabled={page >= totalPages}
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              aria-label={t("products.pagingNext")}
             >
-              {t("products.pagingNext")}
+              <ChevronRight className="h-4 w-4" aria-hidden />
+              <span className="sr-only">{t("products.pagingNext")}</span>
             </Button>
           </div>
         </div>
@@ -1462,17 +1406,11 @@ export function WarehouseDetailMovementHistoryTab({
       >
         <div className="mt-3 flex flex-col gap-3">
           <DateField
-            label={t("warehouse.editInboundBusinessDate")}
+            label={t("warehouse.quickMovementDate")}
             labelRequired
             required
             value={headerEditBusinessDate}
             onChange={(e) => setHeaderEditBusinessDate(e.target.value)}
-            disabled={updateInboundM.isPending || updateOutboundM.isPending}
-          />
-          <DateField
-            label={t("warehouse.editInboundLegacyDate")}
-            value={headerEditLegacyDate}
-            onChange={(e) => setHeaderEditLegacyDate(e.target.value)}
             disabled={updateInboundM.isPending || updateOutboundM.isPending}
           />
           <Input
@@ -1531,28 +1469,40 @@ export function WarehouseDetailMovementHistoryTab({
           {selectedDetailGroup ? (
             <div className="space-y-3">
               <div className="rounded-lg border border-zinc-200 bg-white p-3 shadow-sm">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-semibold text-zinc-800">{t("warehouse.movementHeaderInfoTitle")}</p>
-                  <div className="ml-auto flex items-center gap-2">
+                <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                  <p className="min-w-0 text-xs font-semibold leading-snug text-zinc-800">
+                    {t("warehouse.movementHeaderInfoTitle")}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
                     {canEditHeaderInfo ? (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="min-h-[44px] min-w-[44px] px-2.5 text-xs"
-                        onClick={() => setHeaderEditOpen(true)}
-                      >
-                        {t("common.edit")}
-                      </Button>
+                      <Tooltip content={t("common.edit")} delayMs={200} className="inline-flex shrink-0">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className={detailOpenIconButtonClass}
+                          onClick={() => setHeaderEditOpen(true)}
+                          aria-label={t("common.edit")}
+                        >
+                          <Pencil className="h-5 w-5 shrink-0" aria-hidden />
+                          <span className="sr-only">{t("common.edit")}</span>
+                        </Button>
+                      </Tooltip>
                     ) : null}
                     {canManageWholeOutboundShipment ? (
                       <>
-                        <Tooltip content={t("warehouse.movementHistoryCreateInvoiceFromShipment")} delayMs={200}>
+                        <Tooltip
+                          content={t("warehouse.movementHistoryCreateInvoiceFromShipment")}
+                          delayMs={200}
+                          className="inline-flex shrink-0"
+                        >
                           <Button
                             type="button"
                             variant="secondary"
                             className={cn(
-                              "min-h-11 gap-2 border-violet-200 bg-violet-50 px-3 text-violet-800 hover:bg-violet-100"
+                              detailOpenIconButtonClass,
+                              "border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100"
                             )}
+                            aria-label={t("warehouse.movementHistoryCreateInvoiceFromShipment")}
                             onClick={() => {
                               if (selectedOutboundShipmentRepresentativeMovementId == null) return;
                               openInvoiceDraftFromShipment(
@@ -1563,16 +1513,17 @@ export function WarehouseDetailMovementHistoryTab({
                               );
                             }}
                           >
-                            <PlusIcon className="h-5 w-5" />
-                            <span className="text-xs font-semibold sm:text-sm">{t("warehouse.movementHistoryCreateInvoiceFromShipment")}</span>
+                            <FilePlus2 className="h-5 w-5 shrink-0" aria-hidden />
+                            <span className="sr-only">{t("warehouse.movementHistoryCreateInvoiceFromShipment")}</span>
                           </Button>
                         </Tooltip>
                         {hasShipmentPdfDoc ? (
-                          <Tooltip content={t("warehouse.movementHistoryOpenRelatedPdf")} delayMs={200}>
+                          <Tooltip content={t("warehouse.movementHistoryOpenRelatedPdf")} delayMs={200} className="inline-flex shrink-0">
                             <Button
                               type="button"
                               variant="secondary"
-                              className="min-h-11 gap-2 px-3"
+                              className={detailOpenIconButtonClass}
+                              aria-label={t("warehouse.movementHistoryOpenRelatedPdf")}
                               onClick={() => {
                                 if (selectedOutboundShipmentRepresentativeMovementId == null) return;
                                 openRelatedShipmentPdfDocs(
@@ -1583,61 +1534,69 @@ export function WarehouseDetailMovementHistoryTab({
                               }}
                             >
                               <EyeIcon className="h-5 w-5" />
-                              <span className="text-xs font-semibold sm:text-sm">{t("warehouse.movementHistoryOpenRelatedPdf")}</span>
+                              <span className="sr-only">{t("warehouse.movementHistoryOpenRelatedPdf")}</span>
                             </Button>
                           </Tooltip>
                         ) : null}
-                        <Tooltip content={t("warehouse.transferAddLine")} delayMs={200}>
+                        <Tooltip content={t("warehouse.transferAddLine")} delayMs={200} className="inline-flex shrink-0">
                           <Button
                             type="button"
                             variant="secondary"
                             className={detailOpenIconButtonClass}
+                            aria-label={t("warehouse.transferAddLine")}
                             onClick={() => setAppendLineOpen(true)}
                           >
                             <PlusIcon className="h-5 w-5" />
+                            <span className="sr-only">{t("warehouse.transferAddLine")}</span>
                           </Button>
                         </Tooltip>
-                        <Tooltip content={t("warehouse.editOutboundShipmentDeleteAction")} delayMs={200}>
+                        <Tooltip content={t("warehouse.editOutboundShipmentDeleteAction")} delayMs={200} className="inline-flex shrink-0">
                           <Button
                             type="button"
                             variant="secondary"
                             className={trashIconActionButtonClass}
                             disabled={softDeleteOutboundShipmentM.isPending}
+                            aria-label={t("warehouse.editOutboundShipmentDeleteAction")}
                             onClick={() => confirmDeleteWholeOutboundShipment(selectedDetailGroup)}
                           >
                             <TrashIcon className="h-5 w-5" />
+                            <span className="sr-only">{t("warehouse.editOutboundShipmentDeleteAction")}</span>
                           </Button>
                         </Tooltip>
                       </>
                     ) : null}
                     {canManageWholeInboundShipment ? (
                       <>
-                        <Tooltip content={t("warehouse.depoInAddLine")} delayMs={200}>
+                        <Tooltip content={t("warehouse.depoInAddLine")} delayMs={200} className="inline-flex shrink-0">
                           <Button
                             type="button"
                             variant="secondary"
                             className={detailOpenIconButtonClass}
+                            aria-label={t("warehouse.depoInAddLine")}
                             onClick={() => setAppendInboundLineOpen(true)}
                           >
                             <PlusIcon className="h-5 w-5" />
+                            <span className="sr-only">{t("warehouse.depoInAddLine")}</span>
                           </Button>
                         </Tooltip>
-                        <Tooltip content={t("warehouse.editInboundFullDeleteAction")} delayMs={200}>
+                        <Tooltip content={t("warehouse.editInboundFullDeleteAction")} delayMs={200} className="inline-flex shrink-0">
                           <Button
                             type="button"
                             variant="secondary"
-                            className="min-h-[44px] min-w-[44px] border-red-200 px-3 text-xs text-red-800 hover:bg-red-50"
+                            className={trashIconActionButtonClass}
                             disabled={softDeleteInboundM.isPending}
+                            aria-label={t("warehouse.editInboundFullDeleteAction")}
                             onClick={() => confirmDeleteWholeInboundShipment(selectedDetailGroup)}
                           >
-                            {t("warehouse.editInboundFullDeleteAction")}
+                            <TrashIcon className="h-5 w-5" />
+                            <span className="sr-only">{t("warehouse.editInboundFullDeleteAction")}</span>
                           </Button>
                         </Tooltip>
                       </>
                     ) : null}
                   </div>
                 </div>
-                <p className="mt-1 text-xs text-zinc-500">{t("warehouse.movementHeaderInfoHint")}</p>
+                <p className="mt-2 text-xs leading-relaxed text-zinc-500 sm:mt-1.5">{t("warehouse.movementHeaderInfoHint")}</p>
                 <div className="mt-2 rounded-md border border-zinc-200 bg-zinc-50/60">
                   <div className="border-b border-zinc-200 px-3 py-2">
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1814,11 +1773,6 @@ export function WarehouseDetailMovementHistoryTab({
                           }
                         }}
                         onDeleteOutboundShipment={confirmDeleteOutboundShipmentFromRow}
-                        onCreateInvoiceFromShipment={(row) => {
-                          if (!canManageWholeOutboundShipment && row.type === "OUT" && row.isDepotToBranchShipment) {
-                            openInvoiceDraftFromShipment(row.id);
-                          }
-                        }}
                         onPreviewInvoice={(row) => {
                           if (row.type !== "IN" || !row.hasInvoicePhoto) return;
                           setInvoicePreviewTarget({
@@ -1880,22 +1834,17 @@ export function WarehouseDetailMovementHistoryTab({
             <p className="text-xs font-medium text-zinc-800">
               {t("warehouse.movementProduct")} <span className="text-red-600">*</span>
             </p>
-            <RichCombobox
+            <CatalogProductWarehouseStockCombobox
+              warehouseId={warehouseId}
               value={appendInboundProductId}
               onChange={setAppendInboundProductId}
-              options={appendProductOptions}
-              query={appendProductSearch}
-              onQueryChange={setAppendProductSearch}
-              onReachEnd={() => {
-                if (!appendCanLoadMore) return;
-                setAppendProductsPage((p) => p + 1);
-              }}
-              hasMore={appendCanLoadMore}
-              isLoadingMore={appendProductsPagedQ.isFetching}
-              placeholder={t("warehouse.listQuickPickProduct")}
-              searchPlaceholder={t("products.catalogSearchPlaceholder")}
-              emptyText={t("products.empty")}
-              loadingText={t("common.loading")}
+              enabled={
+                appendInboundLineOpen &&
+                selectedDetailGroup != null &&
+                canManageWholeInboundShipment
+              }
+              locale={locale}
+              t={t}
               disabled={appendInboundLineM.isPending}
             />
           </div>
@@ -1963,22 +1912,15 @@ export function WarehouseDetailMovementHistoryTab({
             <p className="text-xs font-medium text-zinc-800">
               {t("warehouse.movementProduct")} <span className="text-red-600">*</span>
             </p>
-            <RichCombobox
+            <CatalogProductWarehouseStockCombobox
+              warehouseId={warehouseId}
               value={appendProductId}
               onChange={setAppendProductId}
-              options={appendProductOptions}
-              query={appendProductSearch}
-              onQueryChange={setAppendProductSearch}
-              onReachEnd={() => {
-                if (!appendCanLoadMore) return;
-                setAppendProductsPage((p) => p + 1);
-              }}
-              hasMore={appendCanLoadMore}
-              isLoadingMore={appendProductsPagedQ.isFetching}
-              placeholder={t("warehouse.listQuickPickProduct")}
-              searchPlaceholder={t("products.catalogSearchPlaceholder")}
-              emptyText={t("products.empty")}
-              loadingText={t("common.loading")}
+              enabled={
+                appendLineOpen && selectedDetailGroup != null && canManageWholeOutboundShipment
+              }
+              locale={locale}
+              t={t}
               disabled={appendOutboundLineM.isPending}
             />
           </div>

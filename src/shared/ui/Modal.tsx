@@ -31,6 +31,10 @@ type ModalProps = {
   wideFixedHeight?: boolean;
   /** wide + büyük ekran: daha geniş/yüksek panel (ör. personel detay). */
   wideExpanded?: boolean;
+  /**
+   * wide: max-sm’de paneli tam ekran (köşesiz, backdrop kenar boşluksuz) — detay sayfası hissi.
+   */
+  wideFullScreenMobile?: boolean;
   /** Kapat düğmesi (mobilde keşfedilebilirlik için); erişilebilir etiket. */
   closeButtonLabel?: string;
   /** Başka bir modalın üstünde açılırken daha yüksek z-index. */
@@ -53,6 +57,7 @@ export function Modal({
   wide = false,
   wideFixedHeight = false,
   wideExpanded = false,
+  wideFullScreenMobile = false,
   closeButtonLabel,
   nested = false,
   backdropCloseRequiresConfirm = false,
@@ -109,13 +114,16 @@ export function Modal({
       ? "h-[min(92dvh,60rem)] sm:h-[min(92dvh,64rem)] lg:h-[min(93dvh,72rem)] xl:h-[min(94dvh,80rem)] 2xl:h-[min(94dvh,84rem)]"
       : "max-h-[min(92dvh,60rem)] sm:max-h-[min(92dvh,64rem)] lg:max-h-[min(93dvh,72rem)] xl:max-h-[min(94dvh,80rem)] 2xl:max-h-[min(94dvh,84rem)]";
   const sheetMobileActive = Boolean(sheetMobile && narrow);
+  const wideFullScreenMobileActive = Boolean(wide && wideFullScreenMobile);
 
   const panelClass = wide
     ? cn(
         wideExpanded
           ? "flex min-h-0 w-full max-w-[min(100vw-1rem,96rem)] flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white p-0 shadow-lg lg:max-w-[min(100vw-2rem,108rem)] xl:max-w-[min(100vw-2rem,124rem)] 2xl:max-w-[min(100vw-3rem,132rem)]"
           : "flex min-h-0 w-full max-w-[min(100vw-1rem,88rem)] flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white p-0 shadow-lg lg:max-w-[min(100vw-2rem,96rem)] xl:max-w-[min(100vw-2rem,112rem)] 2xl:max-w-[min(100vw-3rem,120rem)]",
-        wideHeight
+        wideHeight,
+        wideFullScreenMobileActive &&
+          "max-sm:!h-[100dvh] max-sm:!max-h-[100dvh] max-sm:!min-h-0 max-sm:w-full max-sm:!max-w-none max-sm:rounded-none max-sm:border-0 max-sm:!shadow-none max-sm:!ring-0"
       )
     : narrow
       ? cn(
@@ -125,7 +133,12 @@ export function Modal({
         )
       : dialogTheme.panel;
   const headerClass = wide
-    ? cn(dialogTheme.headerRow, "shrink-0 border-b border-zinc-100 px-4 py-3 sm:px-6 sm:py-4")
+    ? cn(
+        dialogTheme.headerRow,
+        "shrink-0 border-b border-zinc-100 px-4 py-3 sm:px-6 sm:py-4",
+        wideFullScreenMobileActive &&
+          "max-sm:pt-[max(0.65rem,env(safe-area-inset-top,0px))] max-sm:pb-3"
+      )
     : cn(
         dialogTheme.headerRow,
         sheetMobileActive &&
@@ -144,6 +157,8 @@ export function Modal({
         backdropClassName,
         sheetMobileActive &&
           "max-sm:items-end max-sm:justify-center max-sm:!bg-zinc-950/50 max-sm:!p-0 max-sm:!pt-0 max-sm:!pb-0",
+        wideFullScreenMobileActive &&
+          "max-sm:items-stretch max-sm:justify-stretch max-sm:!bg-zinc-950/40 max-sm:!p-0 max-sm:!px-0 max-sm:!pt-0 max-sm:!pb-0",
         nested && OVERLAY_Z_TW.modalNested
       )}
       role="presentation"

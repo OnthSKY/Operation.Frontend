@@ -46,6 +46,11 @@ type Props = {
   personnel: Personnel[];
   /** Açılışta kişi seçili gelsin (tablo/karttan hızlı avans). */
   initialPersonnelId?: number | null;
+  /**
+   * false: yalnızca kasadan (CASH) avans — gün sonu kasiyeri / delegeli akış; patron ve cep kaynağı gizlenir.
+   * @default true
+   */
+  allowPersonnelPocketAdvance?: boolean;
 };
 
 const TITLE_ID = "advance-title";
@@ -59,6 +64,7 @@ export function AdvancePersonnelModal({
   onClose,
   personnel,
   initialPersonnelId = null,
+  allowPersonnelPocketAdvance = true,
 }: Props) {
   const { t, locale } = useI18n();
   const { data: branches = [] } = useBranchesList();
@@ -97,14 +103,16 @@ export function AdvancePersonnelModal({
     [branches, t]
   );
 
-  const sourceOptions: SelectOption[] = useMemo(
-    () => [
-      { value: "CASH", label: t("personnel.sourceCash") },
+  const allowExtendedAdvanceSources = allowPersonnelPocketAdvance !== false;
+  const sourceOptions: SelectOption[] = useMemo(() => {
+    const cash = { value: "CASH", label: t("personnel.sourceCash") } as const;
+    if (!allowExtendedAdvanceSources) return [cash];
+    return [
+      cash,
       { value: "PATRON", label: t("personnel.sourcePatron") },
       { value: "PERSONNEL_POCKET", label: t("personnel.sourcePersonnelPocket") },
-    ],
-    [t]
-  );
+    ];
+  }, [t, allowExtendedAdvanceSources]);
 
   const { field: personnelField } = useController({
     name: "personnelId",
@@ -230,6 +238,12 @@ export function AdvancePersonnelModal({
   useEffect(() => {
     void trigger("branchId");
   }, [sourceTypeWatch, trigger]);
+
+  useEffect(() => {
+    if (!open || allowExtendedAdvanceSources) return;
+    const st = (sourceTypeWatch || "CASH").toUpperCase();
+    if (st !== "CASH") setValue("sourceType", "CASH", { shouldValidate: true });
+  }, [open, allowExtendedAdvanceSources, sourceTypeWatch, setValue]);
 
   useEffect(() => {
     if (!personnelId) return;

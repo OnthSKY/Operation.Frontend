@@ -26,6 +26,14 @@ export const documents = {
   noBranch: "Şube yok",
   noDetail: "Detay yok",
   empty: "Filtrelere uygun belge bulunamadı.",
+  previewSelectHint: "Önizleme için listeden bir belgeye tıklayın.",
+  previewHiddenByFilter:
+    "Seçili belge şu anki filtrelerde görünmüyor. Listeden başka bir satır seçin.",
+  listSummary:
+    "{count} uygun belge · bu sayfada {from}–{to} / toplam {total} · sayfa {page}/{pages}",
+  pageSizeLabel: "Sayfa başına en fazla {n} kayıt",
+  clearFilters: "Filtreleri temizle",
+  categoryFilterAria: "Belge kategorisi",
   quickAdd: "Hızlı belge ekle",
   orderStatementPdfQuickFilter: "Sipariş/Hesap Dökümü PDF",
   uploadCategoryLabel: "Kategori",

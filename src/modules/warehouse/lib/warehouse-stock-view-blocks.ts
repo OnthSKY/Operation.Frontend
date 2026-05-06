@@ -5,6 +5,8 @@ export type WarehouseStockViewBlock =
       kind: "group";
       parentId: number;
       parentName: string;
+      /** Ana ürün SKU satırı (depo girişi / sevkiyat bu kayda da ayrı yazılır). */
+      parentStockRow: WarehouseProductStockRow;
       unit: string | null;
       /** Pozitif stoklu alt ürün satırlarının toplamı. */
       variantsSumQty: number;
@@ -57,6 +59,7 @@ export function buildWarehouseStockViewBlocks(
       kind: "group",
       parentId: pid,
       parentName: parentRow.productName,
+      parentStockRow: parentRow,
       unit: parentRow.unit,
       variantsSumQty,
       parentDirectQty,

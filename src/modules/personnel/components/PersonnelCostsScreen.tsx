@@ -4,6 +4,7 @@ import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
 import { cn } from "@/lib/cn";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { canSeeFinancialReports } from "@/lib/auth/permissions";
 import { isPersonnelPortalRole } from "@/lib/auth/roles";
 import { fetchAllNonAdvancePersonnelAttributedExpenses } from "@/modules/branch/api/branch-transactions-api";
 import { NonAdvanceExpenseSortBar } from "@/modules/personnel/components/NonAdvanceExpenseSortBar";
@@ -916,6 +917,25 @@ export function PersonnelCostsScreen() {
     }
   }, [personnelPortal, searchParams, router]);
 
+  const personnelCostsPageHelpItems = useMemo(
+    () => [
+      { text: t("pageHelp.personnelCosts.step1") },
+      { text: t("pageHelp.personnelCosts.step2") },
+      {
+        text: t("pageHelp.personnelCosts.step3"),
+        ...(canSeeFinancialReports(user)
+          ? {
+              link: {
+                href: "/reports/financial/tables",
+                label: t("pageHelp.personnelCosts.step3Link"),
+              },
+            }
+          : {}),
+      },
+    ],
+    [t, user]
+  );
+
   return (
     <div className="flex w-full min-w-0 max-w-full flex-col gap-4 px-4 pb-8 pt-4 sm:gap-6 sm:px-6 lg:px-8">
       <PageContentSection
@@ -937,14 +957,7 @@ export function PersonnelCostsScreen() {
         description={t("pageHelp.personnelCosts.intro")}
         listVariant="ordered"
         guideTab="personnel"
-        items={[
-          { text: t("pageHelp.personnelCosts.step1") },
-          { text: t("pageHelp.personnelCosts.step2") },
-          {
-            text: t("pageHelp.personnelCosts.step3"),
-            link: { href: "/reports/financial/tables", label: t("pageHelp.personnelCosts.step3Link") },
-          },
-        ]}
+        items={personnelCostsPageHelpItems}
       />
 
       {!personnelPortal ? (

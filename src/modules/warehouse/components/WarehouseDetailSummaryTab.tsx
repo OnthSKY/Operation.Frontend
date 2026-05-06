@@ -23,16 +23,16 @@ export function WarehouseDetailSummaryTab({
   const { data: productCategories = [] } = useProductCategories(enabled);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="rounded-2xl border border-zinc-200/85 bg-white p-4 shadow-sm ring-1 ring-zinc-950/[0.04] sm:p-5">
+    <div className="flex min-h-0 flex-col gap-4 max-sm:gap-3">
+      <section className="rounded-xl border border-zinc-200/85 bg-white p-3 shadow-sm ring-1 ring-zinc-950/[0.04] sm:rounded-2xl sm:p-5">
         <WarehouseSummaryKpiCards
           warehouseId={warehouseId}
           enabled={enabled}
           onOpenMovementsTab={onOpenMovementsTab}
           onOpenInboundMovementsTab={onOpenInboundMovementsTab}
         />
-      </div>
-      <div className="rounded-2xl border border-zinc-200/85 bg-white p-4 shadow-sm ring-1 ring-zinc-950/[0.04] sm:p-5">
+      </section>
+      <section className="rounded-xl border border-zinc-200/85 bg-white p-3 shadow-sm ring-1 ring-zinc-950/[0.04] sm:rounded-2xl sm:p-5">
         <WarehouseOverviewStorySection
           warehouseId={warehouseId}
           active={enabled}
@@ -42,7 +42,7 @@ export function WarehouseDetailSummaryTab({
           storyTitle={t("warehouse.overviewBreakdownSectionTitle")}
           storyDescription={t("warehouse.overviewBreakdownSectionDesc")}
         />
-      </div>
+      </section>
     </div>
   );
 }

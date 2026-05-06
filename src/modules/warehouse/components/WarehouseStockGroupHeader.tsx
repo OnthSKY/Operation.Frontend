@@ -2,6 +2,7 @@
 
 import { useI18n } from "@/i18n/context";
 import { TableCell, TableRow } from "@/shared/ui/Table";
+import { Fragment } from "react";
 
 type Props = {
   parentName: string;
@@ -34,11 +35,11 @@ function StockGroupQtyBreakdown({
   const fmt = formatWarehouseStockQty;
   if (variantsSumQty > 0 && parentDirectQty > 0) {
     return (
-      <p className="mt-1 max-w-[18rem] text-right text-xs font-medium leading-snug tabular-nums text-violet-900/90">
+      <p className="mt-1 max-w-[18rem] text-right text-xs font-medium leading-snug tabular-nums text-zinc-700">
         <span>
           {t("warehouse.stockGroupLabelVariants")}: {fmt(variantsSumQty)}
         </span>
-        <span className="mx-1.5 text-violet-700/70">·</span>
+        <span className="mx-1.5 text-zinc-400">·</span>
         <span>
           {t("warehouse.stockGroupLabelParentDirect")}: {fmt(parentDirectQty)}
         </span>
@@ -47,7 +48,7 @@ function StockGroupQtyBreakdown({
   }
   if (parentDirectQty > 0 && variantsSumQty === 0 && hasVariantsInCatalog) {
     return (
-      <p className="mt-1 max-w-[18rem] text-right text-xs leading-snug text-violet-900/80">
+      <p className="mt-1 max-w-[18rem] text-right text-xs leading-snug text-zinc-600">
         {t("warehouse.stockGroupParentDirectOnlyNote")}
       </p>
     );
@@ -77,42 +78,56 @@ export function WarehouseStockGroupHeader({
 
   if (variant === "card") {
     return (
-      <div className="rounded-xl border border-violet-200/80 bg-violet-50/50 px-3 py-2.5 ring-1 ring-violet-100">
+      <div className="rounded-xl border border-zinc-200/90 bg-zinc-50/80 px-3 py-2.5">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-violet-800">
+            <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
               {t("warehouse.stockGroupTotal")}
             </p>
-            <p className="mt-0.5 font-semibold text-violet-950">{parentName}</p>
+            <p className="mt-0.5 text-base font-semibold leading-snug text-zinc-900 sm:text-lg">{parentName}</p>
             {unit?.trim() ? (
-              <p className="text-xs text-violet-800/80">
+              <p className="text-xs text-zinc-600">
                 {t("warehouse.productUnit")}: {unit}
               </p>
             ) : null}
           </div>
           <div className="shrink-0 text-right">
-            <p className="text-xl font-bold tabular-nums text-violet-950">{totalStr}</p>
+            <p className="text-xl font-bold tabular-nums text-zinc-900">{totalStr}</p>
             <div className="mt-1 flex flex-col items-end">{breakdown}</div>
           </div>
         </div>
+        {hasVariantsInCatalog ? (
+          <p className="mt-2 border-t border-zinc-200/80 pt-2 text-[0.65rem] leading-snug text-zinc-600">
+            {t("warehouse.stockGroupHeaderChildRowsHint")}
+          </p>
+        ) : null}
       </div>
     );
   }
 
   return (
-    <TableRow className="bg-violet-50/40">
-      <TableCell>
-        <div className="text-[0.65rem] font-semibold uppercase tracking-wide text-violet-800">
-          {t("warehouse.stockGroupTotal")}
-        </div>
-        <div className="font-semibold text-violet-950">{parentName}</div>
-      </TableCell>
-      <TableCell className="align-top text-violet-900/90">{unit?.trim() ? unit : "—"}</TableCell>
-      <TableCell className="align-top text-right">
-        <div className="text-base font-bold tabular-nums text-violet-950">{totalStr}</div>
-        <div className="mt-1 flex flex-col items-end text-right">{breakdown}</div>
-      </TableCell>
-      <TableCell className="text-sm text-zinc-400">—</TableCell>
-    </TableRow>
+    <Fragment>
+      <TableRow className="bg-zinc-50/90">
+        <TableCell>
+          <div className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+            {t("warehouse.stockGroupTotal")}
+          </div>
+          <div className="text-base font-semibold leading-snug text-zinc-900">{parentName}</div>
+        </TableCell>
+        <TableCell className="align-top text-zinc-700">{unit?.trim() ? unit : "—"}</TableCell>
+        <TableCell className="align-top text-right">
+          <div className="text-base font-bold tabular-nums text-zinc-900">{totalStr}</div>
+          <div className="mt-1 flex flex-col items-end text-right">{breakdown}</div>
+        </TableCell>
+        <TableCell className="text-sm text-zinc-400">—</TableCell>
+      </TableRow>
+      {hasVariantsInCatalog ? (
+        <TableRow className="bg-zinc-50/40">
+          <TableCell colSpan={4} className="py-1.5 text-[0.65rem] leading-snug text-zinc-600">
+            {t("warehouse.stockGroupHeaderChildRowsHint")}
+          </TableCell>
+        </TableRow>
+      ) : null}
+    </Fragment>
   );
 }

@@ -6,7 +6,7 @@ type CardProps = {
   className?: string;
   title?: string;
   description?: string;
-  /** Başlık satırında sağda; başlık ile `items-center` hizalı */
+  /** Başlık satırında sağda; dar ekranda başlık solda, aksiyonlar sağda tek satır */
   headerActions?: ReactNode;
 };
 
@@ -23,16 +23,26 @@ export function Card({ children, className, title, description, headerActions }:
       {hasHeader ? (
         <div className="mb-3 max-sm:mb-2.5">
           {(title || headerActions) && (
-            <div className="flex min-h-11 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-3 sm:gap-y-2">
+            <div
+              className={cn(
+                "flex min-h-11 flex-row items-start justify-between gap-x-2 sm:items-center sm:gap-x-3",
+                headerActions ? "flex-nowrap gap-y-0" : "flex-wrap gap-y-2"
+              )}
+            >
               {title ? (
-                <h2 className="min-w-0 text-base font-semibold leading-snug tracking-tight text-zinc-900 sm:flex-1 sm:text-lg md:text-xl">
+                <h2
+                  className={cn(
+                    "min-w-0 flex-1 text-base font-semibold leading-snug tracking-tight text-zinc-900 sm:text-lg md:text-xl",
+                    headerActions ? "truncate" : undefined
+                  )}
+                >
                   {title}
                 </h2>
               ) : (
-                <div className="min-w-0 sm:flex-1" aria-hidden />
+                <div className="min-w-0 flex-1" aria-hidden />
               )}
               {headerActions ? (
-                <div className="flex min-w-0 w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                   {headerActions}
                 </div>
               ) : null}

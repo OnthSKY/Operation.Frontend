@@ -48,9 +48,15 @@ export const branch = {
   fieldName: "Şube adı",
   fieldAddress: "Adres",
   fieldResponsibles: "Sorumlular",
-  responsiblesHint: "Yalnızca bu şubeye atanmış aktif personel seçilebilir.",
+  responsiblesHint:
+    "Yalnızca bu şubeye atanmış aktif personel seçilebilir. Burada işaretlenen kişiler şube sorumlusudur; kullanıcı hesabı aynı personel kaydına bağlıysa, yönetici ekranındaki «Kapsam düzenle» üzerinde o şubedeki tüm personel için veri kapsamı otomatik tanımlanır (ayrıca depo sevkiyat görünürlüğü kurallarında kullanılır).",
   responsiblesEmptyStaff:
     "Henüz atanmış personel yok — önce personeli bu şubeye bağlayın.",
+  responsiblesScopePreviewTitle: "Personel verisi önizlemesi",
+  responsiblesScopePreviewBody:
+    "İşaretli her sorumlu, kullanıcı hesabı aynı personel kaydına bağlıysa aşağıdaki tüm personeli personel verisi kapsamında görür.",
+  responsiblesScopePreviewSelectHint: "Listeyi görmek için en az bir sorumlu seçin.",
+  responsiblesScopePreviewCount: "{count} kişi",
   detailResponsibles: "Sorumlular",
   tableId: "No",
   tableName: "Ad",
@@ -1088,7 +1094,7 @@ export const branch = {
   txSubSvcOther: "Diğer hizmet",
   txSubIncRegister: "Kasa tahsilatı (nakit / kart)",
   txSubIncOther: "Diğer gelir",
-  txAmountCash: "Nakit (kasada)",
+  txAmountCash: "Nakit",
   txAmountCard: "Kart (POS / banka)",
   txCashShort: "Nakit",
   txCardShort: "Kart",

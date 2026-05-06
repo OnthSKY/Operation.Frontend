@@ -30,6 +30,11 @@ type Props = {
   disabled?: boolean;
   /** Çekmece / modal içinde açılır liste z-index (ör. RightDrawer). */
   menuZIndex?: number;
+  /**
+   * `productFirst`: ana / alt ürün seçimleri vurgulu kutu ve tam genişlik; kategoriler altında.
+   * `grid` (varsayılan): dört seçim tek ızgara.
+   */
+  layout?: "grid" | "productFirst";
 };
 
 export function WarehouseProductScopeFilters({
@@ -37,6 +42,7 @@ export function WarehouseProductScopeFilters({
   onChange,
   disabled,
   menuZIndex,
+  layout = "grid",
 }: Props) {
   const { t } = useI18n();
   const { data: categories = [], isPending: catLoading } = useProductCategories(true);
@@ -131,85 +137,124 @@ export function WarehouseProductScopeFilters({
 
   const mainUnset = value.mainCategoryId == null || value.mainCategoryId <= 0;
 
+  const selectClass = "min-h-11 min-w-0 sm:min-h-[44px] sm:text-sm";
+
+  const categoryBlock = (
+    <>
+      <Select
+        label={t("warehouse.scopeMainCategory")}
+        name="wh-scope-main-category"
+        options={mainCategoryOptions}
+        menuZIndex={menuZIndex}
+        value={mainPick}
+        onChange={(e) => {
+          const v = e.target.value;
+          onChange({
+            mainCategoryId: v !== "" && Number(v) > 0 ? Math.trunc(Number(v)) : null,
+            subCategoryId: null,
+            parentProductId: null,
+            productId: null,
+          });
+        }}
+        onBlur={() => {}}
+        disabled={disabled}
+        className={selectClass}
+      />
+      <Select
+        label={t("warehouse.scopeSubCategory")}
+        name="wh-scope-sub-category"
+        options={subCategoryOptions}
+        menuZIndex={menuZIndex}
+        value={mainUnset ? "" : subPick}
+        onChange={(e) => {
+          const v = e.target.value;
+          onChange({
+            ...value,
+            subCategoryId: v !== "" && Number(v) > 0 ? Math.trunc(Number(v)) : null,
+            parentProductId: null,
+            productId: null,
+          });
+        }}
+        onBlur={() => {}}
+        disabled={disabled || mainUnset}
+        className={selectClass}
+      />
+    </>
+  );
+
+  const productBlock = (
+    <>
+      <Select
+        label={t("warehouse.scopeMainProduct")}
+        name="wh-scope-parent"
+        options={parentOptions}
+        menuZIndex={menuZIndex}
+        value={parPick}
+        onChange={(e) => {
+          const v = e.target.value;
+          onChange({
+            ...value,
+            parentProductId: v !== "" && Number(v) > 0 ? Math.trunc(Number(v)) : null,
+            productId: null,
+          });
+        }}
+        onBlur={() => {}}
+        disabled={disabled}
+        className={selectClass}
+      />
+      <Select
+        label={t("warehouse.scopeSubProduct")}
+        name="wh-scope-product"
+        options={productOptions}
+        menuZIndex={menuZIndex}
+        value={prodPick}
+        onChange={(e) => {
+          const v = e.target.value;
+          onChange({
+            ...value,
+            productId: v !== "" && Number(v) > 0 ? Math.trunc(Number(v)) : null,
+          });
+        }}
+        onBlur={() => {}}
+        disabled={disabled}
+        className={selectClass}
+      />
+    </>
+  );
+
+  if (layout === "productFirst") {
+    return (
+      <div className="flex min-w-0 flex-col gap-4">
+        {loading ? (
+          <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+        ) : (
+          <>
+            <div className="rounded-xl border border-zinc-200/95 bg-zinc-50/80 p-3 shadow-sm sm:p-4">
+              <p className="mb-3 text-[0.7rem] font-semibold uppercase tracking-[0.04em] text-zinc-600">
+                {t("warehouse.stockOpsFilterProductPickTitle")}
+              </p>
+              <div className="flex min-w-0 flex-col gap-3">{productBlock}</div>
+            </div>
+            <div>
+              <p className="mb-2 text-[0.7rem] font-semibold uppercase tracking-wide text-zinc-500">
+                {t("warehouse.stockOpsFilterCategoryScopeTitle")}
+              </p>
+              <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">{categoryBlock}</div>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       {loading ? (
         <p className="text-sm text-zinc-500 sm:col-span-2 lg:col-span-4">{t("common.loading")}</p>
       ) : (
         <>
-          <Select
-            label={t("warehouse.scopeMainCategory")}
-            name="wh-scope-main-category"
-            options={mainCategoryOptions}
-            menuZIndex={menuZIndex}
-            value={mainPick}
-            onChange={(e) => {
-              const v = e.target.value;
-              onChange({
-                mainCategoryId: v !== "" && Number(v) > 0 ? Math.trunc(Number(v)) : null,
-                subCategoryId: null,
-                parentProductId: null,
-                productId: null,
-              });
-            }}
-            onBlur={() => {}}
-            disabled={disabled}
-            className="min-h-11 sm:min-h-[44px] sm:text-sm"
-          />
-          <Select
-            label={t("warehouse.scopeSubCategory")}
-            name="wh-scope-sub-category"
-            options={subCategoryOptions}
-            menuZIndex={menuZIndex}
-            value={mainUnset ? "" : subPick}
-            onChange={(e) => {
-              const v = e.target.value;
-              onChange({
-                ...value,
-                subCategoryId: v !== "" && Number(v) > 0 ? Math.trunc(Number(v)) : null,
-                parentProductId: null,
-                productId: null,
-              });
-            }}
-            onBlur={() => {}}
-            disabled={disabled || mainUnset}
-            className="min-h-11 sm:min-h-[44px] sm:text-sm"
-          />
-          <Select
-            label={t("warehouse.scopeMainProduct")}
-            name="wh-scope-parent"
-            options={parentOptions}
-            menuZIndex={menuZIndex}
-            value={parPick}
-            onChange={(e) => {
-              const v = e.target.value;
-              onChange({
-                ...value,
-                parentProductId: v !== "" && Number(v) > 0 ? Math.trunc(Number(v)) : null,
-                productId: null,
-              });
-            }}
-            onBlur={() => {}}
-            disabled={disabled}
-            className="min-h-11 sm:min-h-[44px] sm:text-sm"
-          />
-          <Select
-            label={t("warehouse.scopeSubProduct")}
-            name="wh-scope-product"
-            options={productOptions}
-            menuZIndex={menuZIndex}
-            value={prodPick}
-            onChange={(e) => {
-              const v = e.target.value;
-              onChange({
-                ...value,
-                productId: v !== "" && Number(v) > 0 ? Math.trunc(Number(v)) : null,
-              });
-            }}
-            onBlur={() => {}}
-            disabled={disabled}
-            className="min-h-11 sm:min-h-[44px] sm:text-sm"
-          />
+          {categoryBlock}
+          {productBlock}
         </>
       )}
     </div>

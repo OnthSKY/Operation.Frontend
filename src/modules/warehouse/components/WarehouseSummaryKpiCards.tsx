@@ -24,7 +24,7 @@ function countParentProductGroupsWithStock(rows: WarehouseProductStockRow[]): nu
 const MOVEMENT_SAMPLE = 100;
 
 const cardBase =
-  "flex min-h-0 min-w-0 flex-col rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm ring-1 ring-zinc-200/80 sm:p-5";
+  "flex min-h-0 min-w-0 flex-col rounded-xl border border-zinc-200/90 bg-white p-3.5 shadow-sm ring-1 ring-zinc-200/80 sm:rounded-2xl sm:p-5";
 
 type Props = {
   warehouseId: number;
@@ -104,20 +104,30 @@ export function WarehouseSummaryKpiCards({
     totalMovementLines <= MOVEMENT_SAMPLE &&
     movItems.length === totalMovementLines;
 
+  const hasBothMovementCtas = Boolean(onOpenMovementsTab && onOpenInboundMovementsTab);
+
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
         <div className="min-w-0">
           <h2 className="text-base font-semibold text-zinc-900 sm:text-lg">{t("warehouse.summaryKpiHeading")}</h2>
-          <p className="text-xs leading-relaxed text-zinc-600 sm:text-sm">{t("warehouse.summaryKpiIntro")}</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-zinc-600 sm:mt-0 sm:text-sm">{t("warehouse.summaryKpiIntro")}</p>
         </div>
         {onOpenMovementsTab || onOpenInboundMovementsTab ? (
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-end">
+          <div
+            className={cn(
+              "w-full shrink-0 gap-2",
+              hasBothMovementCtas ? "grid grid-cols-2 sm:flex sm:w-auto sm:flex-row sm:flex-wrap sm:justify-end" : "flex flex-col sm:w-auto sm:flex-row"
+            )}
+          >
             {onOpenMovementsTab ? (
               <Button
                 type="button"
                 variant="secondary"
-                className="min-h-11 w-full shrink-0 sm:min-h-[44px] sm:w-auto"
+                className={cn(
+                  "min-h-11 shrink-0 px-2 text-center text-[0.7rem] font-medium leading-snug sm:min-h-[44px] sm:px-3 sm:text-sm",
+                  hasBothMovementCtas ? "w-full" : "w-full sm:w-auto"
+                )}
                 onClick={onOpenMovementsTab}
               >
                 {t("warehouse.summaryKpiOpenMovements")}
@@ -127,7 +137,10 @@ export function WarehouseSummaryKpiCards({
               <Button
                 type="button"
                 variant="secondary"
-                className="min-h-11 w-full shrink-0 border-emerald-200/90 text-emerald-950 ring-emerald-100/80 hover:bg-emerald-50/90 sm:min-h-[44px] sm:w-auto"
+                className={cn(
+                  "min-h-11 shrink-0 border-emerald-200/90 px-2 text-center text-[0.7rem] font-medium leading-snug text-emerald-950 ring-emerald-100/80 hover:bg-emerald-50/90 sm:min-h-[44px] sm:px-3 sm:text-sm",
+                  hasBothMovementCtas ? "w-full" : "w-full sm:w-auto"
+                )}
                 onClick={onOpenInboundMovementsTab}
               >
                 {t("warehouse.summaryKpiOpenInboundMovements")}
@@ -142,7 +155,7 @@ export function WarehouseSummaryKpiCards({
       ) : loading ? (
         <p className="text-sm text-zinc-500">{t("common.loading")}</p>
       ) : (
-        <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div className={cardBase}>
             <div className="h-1 w-10 shrink-0 rounded-full bg-gradient-to-r from-zinc-600/90 to-zinc-700/85" />
             <p className="mt-3 text-[0.65rem] font-bold uppercase tracking-wide text-zinc-600">
@@ -222,7 +235,7 @@ export function WarehouseSummaryKpiCards({
             </p>
           </div>
 
-          <div className={cn(cardBase, "min-[420px]:col-span-2 xl:col-span-1")}>
+          <div className={cn(cardBase, "sm:col-span-2 xl:col-span-1")}>
             <div className="h-1 w-10 shrink-0 rounded-full bg-gradient-to-r from-rose-600/90 to-red-600/85" />
             <p className="mt-3 text-[0.65rem] font-bold uppercase tracking-wide text-rose-900/80">
               {t("warehouse.summaryKpiLifetimeQtyTitle")}

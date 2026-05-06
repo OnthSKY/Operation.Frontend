@@ -34,7 +34,8 @@ export const products = {
   colTotal: "Toplam stok",
   colInWarehouses: "Bulunduğu depolar",
   notInAnyWarehouse: "Hiç depoda yok",
-  emptyCatalog: "Henüz ürün tanımlanmadı.",
+  emptyCatalog:
+    "Katalogda henüz ürün yok. Ürünler sayfasından tanımlayıp tekrar deneyin.",
   noWarehouses: "Önce en az bir depo oluşturun.",
   addProduct: "Ürün ekle",
   addSubProduct: "Alt ürün ekle",
@@ -56,7 +57,8 @@ export const products = {
   editParentLockedHint:
     "Bu ürünün alt ürünleri var; ana ürün olarak kalmalı. Üst ürünü değiştirmek için önce alt ürünleri kaldırın veya taşıyın.",
   catalogSearchPlaceholder: "Ad, kategori, birim ile ara…",
-  catalogSearchNoResults: "Aramanızla eşleşen ürün yok.",
+  catalogSearchNoResults:
+    "Bu aramaya uygun ürün bulunamadı. Farklı ad, kategori veya birim deneyin; ya da aramayı temizleyip kataloğu listeleyin.",
   /** Mobil katalog kartı: ana ürün + alt ürün sayısı ve grup stoku */
   mobileCatalogCardGroupTotalCaption:
     "{{count}} alt ürün dahil — gösterilen miktar ana ürün ve tüm alt ürünlerin depo toplamıdır.",
