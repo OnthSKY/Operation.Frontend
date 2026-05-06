@@ -27,6 +27,7 @@ import { DateField } from "@/shared/ui/DateField";
 import { EyeIcon, detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
 import { Modal } from "@/shared/ui/Modal";
 import { Select, type SelectOption } from "@/shared/ui/Select";
+import { WarehouseMovementInvoicePreviewModal } from "@/modules/warehouse/components/WarehouseMovementInvoicePreviewModal";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -299,6 +300,11 @@ export function WarehouseGlobalMovementsScreen() {
   const [detailSummaryGroup, setDetailSummaryGroup] = useState<ShipmentGroupSummary | null>(null);
   const [movementDetailListMode, setMovementDetailListMode] =
     useState<MovementDetailListMode>("lines");
+  const [invoicePreviewTarget, setInvoicePreviewTarget] = useState<{
+    movementId: number;
+    title: string;
+    subtitle?: string;
+  } | null>(null);
 
   useEffect(() => {
     const k = detailSummaryGroup?.key;
@@ -477,8 +483,21 @@ export function WarehouseGlobalMovementsScreen() {
     });
     router.push(`/products/order-account-statement?${params.toString()}`);
   };
-  const openShipmentPdfDocuments = (row: WarehouseGlobalMovementRow) => {
-    router.push(`/documents?q=${encodeURIComponent(`shipmentPrimaryMovementId=${row.id}`)}`);
+  const openShipmentPdfDocuments = (group: ShipmentGroupSummary) => {
+    const movementIds = Array.from(
+      new Set(
+        group.rows
+          .map((x) => Number(x.id))
+          .filter((id) => Number.isFinite(id) && id > 0)
+      )
+    );
+    if (movementIds.length === 0) return;
+    const primaryMovementId = movementIds[0]!;
+    const query = [
+      `shipmentPrimaryMovementId=${primaryMovementId}`,
+      `shipmentMovementIds=${movementIds.join(",")}`,
+    ].join(" ");
+    router.push(`/documents?q=${encodeURIComponent(query)}`);
   };
   const shipmentGroups = useMemo<ShipmentGroupSummary[]>(() => {
     const grouped = new Map<string, WarehouseGlobalMovementRow[]>();
@@ -559,6 +578,9 @@ export function WarehouseGlobalMovementsScreen() {
     const detailType = rep.type;
     const typeLabel = detailType === "IN" ? t("products.typeIn") : t("products.typeOut");
     const mainTotals = shipmentMainProductTotals(g.rows);
+    const hasPdfActions = rep.type === "OUT";
+    const hasSystemPdf = hasSystemPdfByShipmentGroupKey.get(g.key) === true;
+    const invoiceRows = g.rows.filter((x) => x.type === "IN" && x.hasInvoicePhoto);
     return (
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto px-3 pb-3 pr-2 sm:mt-4 sm:px-4 sm:pb-4 sm:pr-3">
         <div className="space-y-3">
@@ -596,6 +618,36 @@ export function WarehouseGlobalMovementsScreen() {
                     <p className="mt-1 text-sm font-semibold text-zinc-900">{destBranch || "—"}</p>
                   </div>
                 ) : null}
+                {detailType === "IN" ? (
+                  <div className="border-b border-zinc-200 px-3 py-2 md:col-span-2">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                      {t("warehouse.movementInvoicesDialogTitle")}
+                    </p>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      {invoiceRows.length === 0 ? (
+                        <p className="text-sm font-medium text-zinc-500">{t("warehouse.detailFieldEmpty")}</p>
+                      ) : (
+                        invoiceRows.map((row) => (
+                          <Button
+                            key={`dlg-invoice-${g.key}-${row.id}`}
+                            type="button"
+                            variant="secondary"
+                            className="min-h-11 px-2.5 text-xs"
+                            onClick={() =>
+                              setInvoicePreviewTarget({
+                                movementId: row.id,
+                                title: t("warehouse.movementInvoicePreviewTitle"),
+                                subtitle: row.productName,
+                              })
+                            }
+                          >
+                            {t("warehouse.openInvoicePhoto")}
+                          </Button>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ) : null}
                 <div className="border-b border-zinc-200 px-3 py-2 md:col-span-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                     {t("warehouse.movementBatchGroup")}
@@ -631,6 +683,39 @@ export function WarehouseGlobalMovementsScreen() {
               </div>
             </div>
           </div>
+          {hasPdfActions ? (
+            <div className="rounded-lg border border-zinc-200 bg-white p-3 shadow-sm">
+              <p className="text-xs font-semibold text-zinc-800">
+                {t("warehouse.globalShipmentOpenDetail")}
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">
+                {hasSystemPdf
+                  ? t("warehouse.globalShipmentPdfAlreadyExists")
+                  : t("warehouse.globalShipmentSystemPdfMissing")}
+              </p>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                {!hasSystemPdf ? (
+                  <Button
+                    type="button"
+                    className="min-h-11 w-full sm:w-auto"
+                    onClick={() => openOrderAccountStatement(g)}
+                  >
+                    {t("warehouse.globalShipmentCreatePdf")}
+                  </Button>
+                ) : null}
+                {hasSystemPdf ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="min-h-11 w-full sm:w-auto"
+                    onClick={() => openShipmentPdfDocuments(g)}
+                  >
+                    {t("warehouse.globalShipmentOpenExistingPdf")}
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
           <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-2.5">
             <p className="text-xs font-semibold text-zinc-700">{t("warehouse.globalMovementDetailViewHint")}</p>
             <div
@@ -768,16 +853,21 @@ export function WarehouseGlobalMovementsScreen() {
                     <div className="flex shrink-0 items-center gap-2">
                       <span className="tabular-nums font-semibold text-zinc-900">{x.quantity}</span>
                       {x.type === "IN" && x.hasInvoicePhoto ? (
-                        <a
-                          href={warehouseMovementInvoicePhotoUrl(x.id)}
-                          target="_blank"
-                          rel="noopener noreferrer"
+                        <button
+                          type="button"
                           className={detailOpenIconButtonClass}
                           aria-label={t("warehouse.openInvoicePhoto")}
                           title={t("warehouse.openInvoicePhoto")}
+                          onClick={() =>
+                            setInvoicePreviewTarget({
+                              movementId: x.id,
+                              title: t("warehouse.movementInvoicePreviewTitle"),
+                              subtitle: x.productName,
+                            })
+                          }
                         >
                           <EyeIcon className="h-4 w-4" />
-                        </a>
+                        </button>
                       ) : null}
                     </div>
                   </div>
@@ -788,7 +878,15 @@ export function WarehouseGlobalMovementsScreen() {
         </div>
       </div>
     );
-  }, [detailSummaryGroup, locale, movementDetailListMode, t]);
+  }, [
+    detailSummaryGroup,
+    hasSystemPdfByShipmentGroupKey,
+    locale,
+    movementDetailListMode,
+    openOrderAccountStatement,
+    openShipmentPdfDocuments,
+    t,
+  ]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 p-3 pb-6 sm:p-4 sm:pb-10">
@@ -1233,7 +1331,7 @@ export function WarehouseGlobalMovementsScreen() {
                             </span>
                           )}
                           {hasSystemPdf ? (
-                            <Button type="button" variant="ghost" className="min-h-9 text-xs" onClick={() => openShipmentPdfDocuments(row)}>
+                            <Button type="button" variant="ghost" className="min-h-9 text-xs" onClick={() => openShipmentPdfDocuments(group)}>
                               {t("warehouse.globalShipmentOpenExistingPdf")}
                             </Button>
                           ) : null}
@@ -1297,6 +1395,14 @@ export function WarehouseGlobalMovementsScreen() {
       >
         {movementDetailModalContent}
       </Modal>
+      <WarehouseMovementInvoicePreviewModal
+        open={invoicePreviewTarget != null}
+        movementId={invoicePreviewTarget?.movementId ?? null}
+        title={invoicePreviewTarget?.title ?? t("warehouse.movementInvoicePreviewTitle")}
+        subtitle={invoicePreviewTarget?.subtitle}
+        t={t}
+        onClose={() => setInvoicePreviewTarget(null)}
+      />
     </div>
   );
 }

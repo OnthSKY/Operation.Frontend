@@ -19,6 +19,7 @@ import {
 import {
   FinancialExpensePaySourceSubline,
   expenseBucketsFromDailyRegisterRow,
+  shouldShowExpensePaySourceBreakdown,
   type ExpensePayFiveBucket,
 } from "@/modules/reports/lib/financial-expense-pay-source-inline";
 import { cn } from "@/lib/cn";
@@ -677,15 +678,22 @@ export function DailyBranchRegisterScreen() {
                 <p className="mt-1 text-sm font-semibold tabular-nums text-orange-950">
                   {formatLocaleAmount(totalsStrip.expenseOut, locale)}
                 </p>
-                <p className="mt-2 text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
-                  {t("dashboard.dailyRegisterExpenseByPaymentSource")}
-                </p>
-                <FinancialExpensePaySourceSubline
-                  buckets={totalsStrip.expensePayBuckets}
-                  currencyCode=""
-                  locale={locale}
-                  t={t}
-                />
+                {shouldShowExpensePaySourceBreakdown(
+                  totalsStrip.expenseOut,
+                  totalsStrip.expensePayBuckets
+                ) ? (
+                  <>
+                    <p className="mt-2 text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                      {t("dashboard.dailyRegisterExpenseByPaymentSource")}
+                    </p>
+                    <FinancialExpensePaySourceSubline
+                      buckets={totalsStrip.expensePayBuckets}
+                      currencyCode=""
+                      locale={locale}
+                      t={t}
+                    />
+                  </>
+                ) : null}
                 <DailyRegisterExpenseSplit
                   totalOut={totalsStrip.expenseOut}
                   fromRegister={totalsStrip.expenseFromRegister}
@@ -711,6 +719,7 @@ export function DailyBranchRegisterScreen() {
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {visibleRows.map((row) => {
                 const { cash, card } = splitIncomeDisplay(row);
+                const expensePayBuckets = expenseBucketsFromDailyRegisterRow(row);
                 const expenseDetails = branchExpenseDetailItems(row);
                 return (
                   <article
@@ -752,15 +761,22 @@ export function DailyBranchRegisterScreen() {
                                 {formatLocaleAmount(row.totalExpenseOut, locale)}
                               </dd>
                             </div>
-                            <p className="mt-1.5 text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
-                              {t("dashboard.dailyRegisterExpenseByPaymentSource")}
-                            </p>
-                            <FinancialExpensePaySourceSubline
-                              buckets={expenseBucketsFromDailyRegisterRow(row)}
-                              currencyCode=""
-                              locale={locale}
-                              t={t}
-                            />
+                            {shouldShowExpensePaySourceBreakdown(
+                              row.totalExpenseOut,
+                              expensePayBuckets
+                            ) ? (
+                              <>
+                                <p className="mt-1.5 text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                                  {t("dashboard.dailyRegisterExpenseByPaymentSource")}
+                                </p>
+                                <FinancialExpensePaySourceSubline
+                                  buckets={expensePayBuckets}
+                                  currencyCode=""
+                                  locale={locale}
+                                  t={t}
+                                />
+                              </>
+                            ) : null}
                             <DailyRegisterExpenseSplit
                               totalOut={row.totalExpenseOut}
                               fromRegister={row.expenseFromRegister}

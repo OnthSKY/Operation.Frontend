@@ -432,6 +432,9 @@ export const branch = {
   incomeListPatronTransferredCash: "Cash transferred to owner (filter)",
   incomeListPatronTransferredCard: "Card/POS to owner (filter)",
   incomeListPatronTransferredTotal: "Income to owner (filter)",
+  incomeListFilterScopeHint: "Filter scope",
+  incomeListUnifiedBreakdownHint:
+    "Split inside this total (amount and percentage), calculated by filters.",
   incomeListPosPatronHint:
     "Card/POS intake is tracked on the owner side per branch POS settlement policy; see cash settlement on line items.",
   incomeListInvalidRange: "Start date cannot be after end date.",
@@ -620,6 +623,9 @@ export const branch = {
   expensesListDatesSummaryLead:
     "Set start and end under «Filters». Same day: that day’s register bridge; a range: filtered expense total, owner-paid expense total, and row count. Empty dates default to today.",
   expensesListFilteredTotal: "Filtered expense total",
+  expensesListFilterScopeHint: "Filter scope",
+  expensesListUnifiedBreakdownHint:
+    "Payment-source split within this total (amount and percentage).",
   expensesListPeriodPatronTotal: "Owner-paid expense total",
   expensesListPeriodRowCount: "Matching rows",
   expensesListDayForPrefix: "Selected day:",
@@ -635,6 +641,8 @@ export const branch = {
   noExpensesClearFilters: "Clear all filters",
   filterToday: "Today",
   filterAllDates: "All dates",
+  filterAllTime: "All time",
+  filterThisSeason: "This season",
   stockSingleDayBanner:
     "Selected day {date}: only warehouse receipts on this day are listed below.",
   noExpenses: "No expenses match these filters.",

@@ -438,6 +438,9 @@ export const branch = {
   incomeListPatronTransferredCash: "Patrona devredilen nakit (filtre)",
   incomeListPatronTransferredCard: "Patrona yansıyan kart/POS (filtre)",
   incomeListPatronTransferredTotal: "Patrona devreden tahsilat (filtre)",
+  incomeListFilterScopeHint: "Filtre kapsamı",
+  incomeListUnifiedBreakdownHint:
+    "Toplam içindeki kırılım (TL ve yüzde) filtreye göre hesaplanır.",
   incomeListPosPatronHint:
     "POS / kart tutarı şube POS tahsilat politikasına göre patron lehine izlenir; ayrıntı satırlarda kasa tahsisi görünür.",
   incomeListInvalidRange: "Başlangıç, bitişten sonra olamaz.",
@@ -626,6 +629,9 @@ export const branch = {
   expensesListDatesSummaryLead:
     "Başlangıç ve bitişi «Filtreler»den ayarlayın. Tek günde o günün gün sonu köprüsü; farklı günlerde aralıkta filtrelenen gider toplamı, patron ödemeli gider ve satır sayısı. Tüm tarihler boşsa bugün varsayılır.",
   expensesListFilteredTotal: "Filtrelenen gider toplamı",
+  expensesListFilterScopeHint: "Filtre kapsamı",
+  expensesListUnifiedBreakdownHint:
+    "Toplam içindeki ödeme kaynağı dağılımı (TL ve yüzde).",
   expensesListPeriodPatronTotal: "Patron ödemeli gider toplamı",
   expensesListPeriodRowCount: "Eşleşen satır",
   expensesListDayForPrefix: "Seçilen gün:",
@@ -642,6 +648,8 @@ export const branch = {
   noExpensesClearFilters: "Tüm filtreleri sıfırla",
   filterToday: "Bugün",
   filterAllDates: "Tüm tarihler",
+  filterAllTime: "Tüm zamanlar",
+  filterThisSeason: "Bu sezon",
   stockSingleDayBanner:
     "Seçili gün {date}: aşağıda yalnızca bu güne düşen depo girişleri listelenir.",
   noExpenses: "Bu filtreye uygun gider yok.",

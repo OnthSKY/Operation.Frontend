@@ -412,9 +412,21 @@ export function WarehouseDetailMovementHistoryTab({
     [router, warehouseId]
   );
   const openRelatedShipmentPdfDocs = useCallback(
-    (movementId: number) => {
-      if (!Number.isFinite(movementId) || movementId <= 0) return;
-      router.push(`/documents?q=${encodeURIComponent(`shipmentPrimaryMovementId=${movementId}`)}`);
+    (movementIds?: number[] | null) => {
+      const validMovementIds = Array.from(
+        new Set(
+          (movementIds ?? [])
+            .map((id) => Number(id))
+            .filter((id) => Number.isFinite(id) && id > 0)
+        )
+      );
+      if (validMovementIds.length === 0) return;
+      const primaryMovementId = validMovementIds[0]!;
+      const query = [
+        `shipmentPrimaryMovementId=${primaryMovementId}`,
+        `shipmentMovementIds=${validMovementIds.join(",")}`,
+      ].join(" ");
+      router.push(`/documents?q=${encodeURIComponent(query)}`);
     },
     [router]
   );
@@ -645,6 +657,9 @@ export function WarehouseDetailMovementHistoryTab({
   const selectedDetailDestinationBranch = selectedDetailGroup
     ? shipmentBranchSummary(selectedDetailGroup.movements)
     : null;
+  const selectedDetailInvoiceMovements = selectedDetailGroup
+    ? selectedDetailGroup.movements.filter((m) => m.hasInvoicePhoto)
+    : [];
   const canManageWholeOutboundShipment = useMemo(
     () =>
       selectedDetailGroup != null &&
@@ -1560,7 +1575,11 @@ export function WarehouseDetailMovementHistoryTab({
                               className="min-h-11 gap-2 px-3"
                               onClick={() => {
                                 if (selectedOutboundShipmentRepresentativeMovementId == null) return;
-                                openRelatedShipmentPdfDocs(selectedOutboundShipmentRepresentativeMovementId);
+                                openRelatedShipmentPdfDocs(
+                                  selectedDetailGroup?.movements
+                                    .map((m) => m.id)
+                                    .filter((id) => Number.isFinite(id) && id > 0) ?? []
+                                );
                               }}
                             >
                               <EyeIcon className="h-5 w-5" />
@@ -1634,7 +1653,42 @@ export function WarehouseDetailMovementHistoryTab({
                         {selectedDetailTypeLabel}
                       </span>
                     </div>
-                    
+                    {selectedDetailType === "IN" ? (
+                      <div className="mt-2 rounded-md border border-zinc-200 bg-white px-2.5 py-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                          {t("warehouse.movementInvoicesDialogTitle")}
+                        </p>
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                          {selectedDetailInvoiceMovements.length === 0 ? (
+                            <p className="text-sm font-medium text-zinc-500">{t("warehouse.detailFieldEmpty")}</p>
+                          ) : (
+                            selectedDetailInvoiceMovements.map((m) => (
+                              <div
+                                key={`header-invoice-row-${m.id}`}
+                                className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-zinc-50 px-1.5 py-1"
+                              >
+                                <span className="max-w-[11rem] truncate px-1 text-xs font-medium text-zinc-800" title={m.productName}>
+                                  {m.productName}
+                                </span>
+                                <button
+                                  type="button"
+                                  className="inline-flex min-h-[44px] min-w-[44px] items-center rounded-md border border-zinc-200 bg-white px-1.5 text-xs font-semibold text-zinc-900 hover:bg-zinc-100"
+                                  onClick={() =>
+                                    setInvoicePreviewTarget({
+                                      movementId: m.id,
+                                      title: t("warehouse.movementInvoicePreviewTitle"),
+                                      subtitle: m.productName,
+                                    })
+                                  }
+                                >
+                                  {t("warehouse.openInvoicePhoto")}
+                                </button>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2">
                     <div className="border-b border-zinc-200 px-3 py-2 md:border-r">
@@ -1674,42 +1728,6 @@ export function WarehouseDetailMovementHistoryTab({
                       <p className="mt-1 text-sm font-semibold text-zinc-900">
                         {compactPeopleList(selectedDetailGroup.movements.map((m) => m.approvedByPersonnelName))}
                       </p>
-                    </div>
-                    <div className="px-3 py-2 md:col-span-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                        {t("warehouse.movementInvoicesDialogTitle")}
-                      </p>
-                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                        {selectedDetailGroup.movements.filter((m) => m.hasInvoicePhoto).length === 0 ? (
-                          <p className="text-sm font-medium text-zinc-500">{t("warehouse.detailFieldEmpty")}</p>
-                        ) : (
-                          selectedDetailGroup.movements
-                            .filter((m) => m.hasInvoicePhoto)
-                            .map((m) => (
-                            <div
-                              key={`header-invoice-row-${m.id}`}
-                              className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-1.5 py-1"
-                            >
-                              <span className="max-w-[11rem] truncate px-1 text-xs font-medium text-zinc-800" title={m.productName}>
-                                {m.productName}
-                              </span>
-                              <button
-                                type="button"
-                                className="inline-flex min-h-[44px] min-w-[44px] items-center rounded-md border border-zinc-200 bg-zinc-50 px-1.5 text-xs font-medium text-zinc-900 hover:bg-zinc-100"
-                                onClick={() =>
-                                  setInvoicePreviewTarget({
-                                    movementId: m.id,
-                                    title: t("warehouse.movementInvoicePreviewTitle"),
-                                    subtitle: m.productName,
-                                  })
-                                }
-                              >
-                                {t("warehouse.openInvoicePhoto")}
-                              </button>
-                            </div>
-                            ))
-                        )}
-                      </div>
                     </div>
                   </div>
                 </div>

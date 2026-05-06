@@ -28,11 +28,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/Table";
-import { Receipt } from "lucide-react";
-import { BranchRegisterTourismSeasonStrip } from "@/modules/branch/components/BranchRegisterTourismSeasonStrip";
-import { branchTourismSeasonDeepLink } from "@/modules/branch/lib/branch-tourism-season-nav";
+import { ChevronLeft, ChevronRight, Receipt } from "lucide-react";
 import { BranchMobileInsightJumpRail } from "@/modules/branch/components/BranchMobileInsightJumpRail";
-import { CollapsibleInsightSection } from "@/modules/branch/components/CollapsibleInsightSection";
 import { useMediaMinWidth } from "@/shared/lib/use-media-min-width";
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import type { UseMutationResult } from "@tanstack/react-query";
@@ -48,8 +45,6 @@ import {
   listSummaryPosPatronHint,
   partiesDayFromRegisterSummary,
   partiesFromPeriodSummary,
-  partiesFromRegisterSummary,
-  partiesSeasonFromRegisterSummary,
   isRegisterIncomeCashSettlementRow,
   registerCashSettlementLabel,
   type PatronIncomePin,
@@ -111,6 +106,7 @@ export type BranchDetailIncomeTabProps = {
     | {
         items: BranchTransaction[];
         totalCount: number;
+        filteredAmountTotal?: number;
         patronIncomeToPatron?: PatronIncomePin | null;
       }
     | null
@@ -124,89 +120,6 @@ export type BranchDetailIncomeTabProps = {
   incTotal: number;
   INC_PAGE: number;
 };
-
-function IncomePatronRegisterSplitPanel({
-  summary,
-  t,
-  locale,
-}: {
-  summary: BranchRegisterSummary;
-  t: (key: string) => string;
-  locale: Locale;
-}) {
-  const d = summary.expenseOverviewOnAsOfDay;
-  if (!d) return null;
-  const fmt = (n: number) =>
-    formatMoneyDash(n, t("personnel.dash"), locale, "TRY");
-  const splitBlock = (subTitle: string, rows: { label: string; value: number }[]) => (
-    <div className="rounded-lg border border-white/90 bg-white/60 p-2.5 shadow-sm">
-      <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-600">{subTitle}</h4>
-      <dl className="mt-2 space-y-1.5">
-        {rows.map((r) => (
-          <div key={r.label} className="flex justify-between gap-3 text-sm">
-            <dt className="text-zinc-600">{r.label}</dt>
-            <dd className="font-mono font-medium tabular-nums text-zinc-900">{fmt(r.value)}</dd>
-          </div>
-        ))}
-      </dl>
-    </div>
-  );
-  return (
-    <CollapsibleInsightSection
-      sectionClassName="rounded-xl border border-violet-200/60 bg-violet-50/35 p-2 shadow-sm ring-1 ring-violet-950/[0.04] sm:p-3"
-      title={t("branch.incomePatronKasaSplitTitle")}
-      lead={t("branch.incomePatronKasaSplitLead")}
-      defaultOpen={false}
-    >
-      <div className="grid gap-3 lg:grid-cols-2">
-        {splitBlock(t("branch.incomeSplitOffRegisterAdvTitle"), [
-          {
-            label: t("branch.incomeSplitOffRegisterAdvPatron"),
-            value: summary.dayNonRegisterAdvancePatron ?? 0,
-          },
-          {
-            label: t("branch.incomeSplitOffRegisterAdvBank"),
-            value: summary.dayNonRegisterAdvanceBank ?? 0,
-          },
-          {
-            label: t("branch.incomeSplitOffRegisterAdvTotal"),
-            value: summary.dayNonRegisterAdvanceExpense,
-          },
-        ])}
-        {splitBlock(t("branch.incomeSplitOutNonPnlTitle"), [
-          {
-            label: t("branch.incomeSplitOutNonPnlRegister"),
-            value: d.outAdvanceNonPnlFromRegister,
-          },
-          {
-            label: t("branch.incomeSplitOutNonPnlPatron"),
-            value: d.outAdvanceNonPnlFromPatron,
-          },
-          {
-            label: t("branch.incomeSplitOutNonPnlPocket"),
-            value: d.outAdvanceNonPnlFromPersonnelPocket,
-          },
-          { label: t("branch.incomeSplitOutNonPnlTotal"), value: d.outAdvanceNonPnl },
-        ])}
-      </div>
-      <div className="mt-3 grid gap-3 lg:grid-cols-2">
-        {splitBlock(t("branch.incomeSplitOtherOutTitle"), [
-          { label: t("branch.incomeSplitOtherOutRegister"), value: d.outPaidFromRegister },
-          { label: t("branch.incomeSplitOtherOutPatron"), value: d.outPaidFromPatron },
-          { label: t("branch.incomeSplitOtherOutPocket"), value: d.outPaidFromPersonnelPocket },
-        ])}
-        <div className="rounded-lg border border-emerald-200/70 bg-emerald-50/50 p-2.5 shadow-sm">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-emerald-900/90">
-            {t("branch.incomeSplitDayNetPatron")}
-          </h4>
-          <p className="mt-2 font-mono text-base font-semibold tabular-nums text-emerald-950">
-            {fmt(summary.dayNetRegisterOwesPatron ?? 0)}
-          </p>
-        </div>
-      </div>
-    </CollapsibleInsightSection>
-  );
-}
 
 export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
   const {
@@ -279,7 +192,6 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
       : "narrow"
     : "pending";
 
-  const tourismSeasonHref = branchTourismSeasonDeepLink(branchIdForTourismLink, employeeSelfService);
   const todayIso = localIsoDate();
   const incMainLabel =
     incMainFilterOpts.find((x) => x.value === incFilterMain)?.label ?? incFilterMain;
@@ -311,14 +223,18 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
     setIncFilterCash(merged.cash);
     setIncPage(1);
   };
+  const pctLine = (amount: number, total: number) => `%${(total > 0 ? (amount / total) * 100 : 0).toFixed(1)}`;
+  const seasonQuickRange = useMemo(() => {
+    const from = String(incThroughToday?.activeTourismSeasonOpenedOn ?? "");
+    const toRaw = String(incThroughToday?.activeTourismSeasonClosedOn ?? "");
+    if (from.length !== 10) return null;
+    const to = toRaw.length === 10 ? toRaw : String(incThroughToday?.asOfDate ?? todayIso);
+    return to.length === 10 ? { from, to } : null;
+  }, [incThroughToday, todayIso]);
 
   const incomeJumpItems = useMemo(() => {
     const items: { id: string; label: string }[] = [];
     if (!employeeSelfService) {
-      items.push({ id: "branch-income-summary", label: t("branch.mobileJumpIncomeSummary") });
-      if (incThroughToday && !incThroughToday.hideFinancialTotals) {
-        items.push({ id: "branch-income-patron-split", label: t("branch.mobileJumpIncomePatron") });
-      }
       items.push({ id: "branch-income-list-dates", label: t("branch.mobileJumpIncomeListDates") });
     }
     items.push({ id: "branch-income-lines", label: t("branch.mobileJumpIncomeLines") });
@@ -331,144 +247,104 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
               ariaLabel={t("branch.mobileJumpIncomeNavAria")}
               items={incomeJumpItems}
             />
+            <section
+              className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm sm:p-4"
+              aria-label={t("branch.incomeActionsTitle")}
+            >
+              <h3 className="mb-2 text-sm font-semibold text-zinc-900">{t("branch.incomeActionsTitle")}</h3>
+              <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+                <Button
+                  type="button"
+                  className="min-h-11 w-full sm:w-auto"
+                  onClick={() => {
+                    const d = incFrom.length === 10 && incFrom === incTo ? incFrom : localIsoDate();
+                    setTxModalLaunch({ defaultType: "IN", defaultTransactionDate: d });
+                    setTxModalOpen(true);
+                  }}
+                >
+                  {t("branch.addIncomeTx")}
+                </Button>
+                {!employeeSelfService ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="min-h-11 w-full sm:w-auto"
+                    onClick={() => {
+                      const d = incFrom.length === 10 && incFrom === incTo ? incFrom : localIsoDate();
+                      setTxModalLaunch({
+                        defaultType: "IN",
+                        defaultMainCategory: "IN_DAY_CLOSE",
+                        defaultTransactionDate: d,
+                      });
+                      setTxModalOpen(true);
+                    }}
+                  >
+                    {t("branch.quickAddDayClose")}
+                  </Button>
+                ) : null}
+                {canEditRegisterIncomeCashSettlement ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="min-h-11 w-full sm:w-auto"
+                    onClick={() => setCashSettleDialog({ mode: "bulk" })}
+                  >
+                    {t("branch.registerCashSettlementOpenBulk")}
+                  </Button>
+                ) : null}
+              </div>
+              <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50/70 p-3">
+                <p className="text-xs font-semibold text-zinc-700">{t("branch.incomeQuickFiltersLead")}</p>
+                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                  <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:contents">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="min-h-11 w-full touch-manipulation sm:min-w-[9rem] sm:flex-1"
+                      onClick={() => {
+                        const d = localIsoDate();
+                        applyUnifiedFilters({ from: d, to: d });
+                      }}
+                    >
+                      {t("branch.filterToday")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="min-h-11 w-full touch-manipulation sm:min-w-[9rem] sm:flex-1"
+                      onClick={() => {
+                        applyUnifiedFilters({ from: "", to: "", main: "", cash: "" });
+                      }}
+                    >
+                      {t("branch.filterAllTime")}
+                    </Button>
+                    {seasonQuickRange ? (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="col-span-2 min-h-11 w-full touch-manipulation sm:col-span-1 sm:min-w-[9rem] sm:flex-1"
+                        onClick={() => applyUnifiedFilters({ from: seasonQuickRange.from, to: seasonQuickRange.to })}
+                      >
+                        {t("branch.filterThisSeason")}
+                      </Button>
+                    ) : null}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="min-h-11 w-full touch-manipulation sm:ml-auto sm:w-auto sm:min-w-[8.5rem]"
+                    onClick={() => {
+                      void refetchInc();
+                      refetchIncomeSummaryBlocks();
+                    }}
+                  >
+                    {t("branch.filterApplyRefresh")}
+                  </Button>
+                </div>
+              </div>
+            </section>
             {!employeeSelfService ? (
               <>
-                <section
-                  id="branch-income-summary"
-                  className="scroll-mt-[5.5rem] rounded-xl border border-emerald-100 bg-emerald-50/50 p-3 sm:p-4 sm:scroll-mt-0"
-                >
-                  <BranchSectionTitleWithInfo
-                    title={t("branch.incomeSummarySectionTitle")}
-                    body={t("branch.incomeSummaryCardsLead")}
-                    t={t}
-                  />
-                  {incSummaryShowErr && incSummaryErrFirst ? (
-                    <p className="mt-2 text-sm text-red-600">{toErrorMessage(incSummaryErrFirst)}</p>
-                  ) : null}
-                  {incSummaryShowSkeleton ? (
-                    <p className="mt-2 text-sm text-zinc-500">{t("common.loading")}</p>
-                  ) : incThroughToday ? (
-                    <div className="mt-3 grid gap-3 lg:grid-cols-2">
-                      <CollapsibleInsightSection
-                        key={`income-cum-all-${incomeCumulativeInsightKey}`}
-                        sectionClassName="rounded-xl border border-emerald-200/70 bg-white/50 p-2 shadow-sm ring-1 ring-emerald-950/[0.03] sm:p-3"
-                        title={t("branch.incomeCumulativeAllTimeTitle")}
-                        defaultOpen={incomeCumulativeInsightOpen}
-                      >
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                          <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
-                            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                              {t("branch.incomeCumulativeCash")}
-                            </p>
-                            {incomeCashTotalAndParties(
-                              incThroughToday.cumulativeIncomeCashThroughAsOf ?? 0,
-                              partiesFromRegisterSummary(incThroughToday),
-                              t,
-                              locale,
-                              incThroughToday.cumulativeIncomeCashBranchManagerByPersonThroughAsOf
-                            )}
-                          </div>
-                          <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
-                            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                              {t("branch.incomeCumulativeCard")}
-                            </p>
-                            <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-base">
-                              {formatMoneyDash(
-                                incThroughToday.cumulativeIncomeCardThroughAsOf ?? 0,
-                                t("personnel.dash"),
-                                locale,
-                                "TRY"
-                              )}
-                            </p>
-                          </div>
-                          <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 p-2.5 shadow-sm ring-1 ring-emerald-200/60 sm:col-span-2 sm:p-3 lg:col-span-1">
-                            <p className="text-xs font-medium uppercase tracking-wide text-zinc-600">
-                              {t("branch.incomeCumulativeTotal")}
-                            </p>
-                            <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-emerald-900 sm:text-base">
-                              {formatMoneyDash(
-                                incThroughToday.cumulativeIncomeTotalThroughAsOf ?? 0,
-                                t("personnel.dash"),
-                                locale,
-                                "TRY"
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                      </CollapsibleInsightSection>
-                      <CollapsibleInsightSection
-                        key={`income-cum-season-${incomeCumulativeInsightKey}`}
-                        sectionClassName="rounded-xl border border-teal-200/80 bg-white/50 p-2 shadow-sm ring-1 ring-teal-950/[0.05] sm:p-3"
-                        title={t("branch.incomeCumulativeSeasonTitle")}
-                        defaultOpen={incomeCumulativeInsightOpen}
-                      >
-                        <BranchRegisterTourismSeasonStrip
-                          t={t}
-                          locale={locale}
-                          summary={incThroughToday}
-                          missingHintKey="branch.incomeSeasonMissingForToday"
-                          tourismSeasonHref={tourismSeasonHref}
-                        />
-                        {incThroughToday.hasActiveTourismSeasonForAsOf ? (
-                          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                              <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
-                                <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                                  {t("branch.incomeCumulativeCash")}
-                                </p>
-                                {incomeCashTotalAndParties(
-                                  incThroughToday.seasonCumulativeIncomeCashThroughAsOf ?? 0,
-                                  partiesSeasonFromRegisterSummary(incThroughToday),
-                                  t,
-                                  locale,
-                                  incThroughToday.seasonCumulativeIncomeCashBranchManagerByPersonThroughAsOf
-                                )}
-                              </div>
-                              <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
-                                <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                                  {t("branch.incomeCumulativeCard")}
-                                </p>
-                                <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-base">
-                                  {formatMoneyDash(
-                                    incThroughToday.seasonCumulativeIncomeCardThroughAsOf ?? 0,
-                                    t("personnel.dash"),
-                                    locale,
-                                    "TRY"
-                                  )}
-                                </p>
-                              </div>
-                              <div className="rounded-lg border border-teal-200 bg-teal-50/60 p-2.5 shadow-sm ring-1 ring-teal-200/50 sm:col-span-2 sm:p-3 lg:col-span-1">
-                                <p className="text-xs font-medium uppercase tracking-wide text-teal-950/80">
-                                  {t("branch.incomeCumulativeTotal")}
-                                </p>
-                                <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-teal-950 sm:text-base">
-                                  {formatMoneyDash(
-                                    incThroughToday.seasonCumulativeIncomeTotalThroughAsOf ?? 0,
-                                    t("personnel.dash"),
-                                    locale,
-                                    "TRY"
-                                  )}
-                                </p>
-                              </div>
-                            </div>
-                        ) : null}
-                      </CollapsibleInsightSection>
-                    </div>
-                  ) : null}
-                </section>
-
-                {incThroughToday && !incThroughToday.hideFinancialTotals ? (
-                  <div
-                    id="branch-income-patron-split"
-                    className="scroll-mt-[5.5rem] sm:scroll-mt-0"
-                  >
-                    <IncomePatronRegisterSplitPanel
-                      summary={incThroughToday}
-                      t={t}
-                      locale={locale}
-                    />
-                  </div>
-                ) : null}
-
                 <section
                   id="branch-income-list-dates"
                   className="scroll-mt-[5.5rem] rounded-xl border border-slate-200 bg-slate-50/70 p-3 sm:p-4 sm:scroll-mt-0"
@@ -493,51 +369,60 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                         </span>
                       </p>
                       <div
-                        className="mt-1 rounded-xl border border-slate-200 bg-white p-2 shadow-sm sm:p-3"
+                        className="mt-1 rounded-xl border border-emerald-200/80 bg-white p-2 shadow-sm sm:p-3"
                         role="group"
                         aria-label={t("branch.incomePeriodTitle")}
                       >
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                          <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
-                            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                              {t("branch.incomePeriodCash")}
-                            </p>
-                            {incomeCashTotalAndParties(
-                              incListPeriod.incomeCash,
-                              partiesFromPeriodSummary(incListPeriod),
-                              t,
-                              locale,
-                              incListPeriod.incomeCashBranchManagerByPerson
-                            )}
-                            {listSummaryPatronCashLine(incListPatronOverlay, t, locale)}
-                          </div>
-                          <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
-                            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                              {t("branch.incomePeriodCard")}
-                            </p>
-                            <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-base">
-                              {formatMoneyDash(
-                                incListPeriod.incomeCard,
-                                t("personnel.dash"),
-                                locale,
-                                "TRY"
-                              )}
-                            </p>
-                            {listSummaryPosPatronHint(t)}
-                            {listSummaryPatronCardLine(incListPatronOverlay, t, locale)}
-                          </div>
-                          <div className="rounded-lg border border-slate-200 bg-slate-100/80 p-2.5 shadow-sm sm:col-span-2 sm:p-3 lg:col-span-1">
+                        <div className="rounded-lg border border-emerald-200/70 bg-emerald-50/40 p-2.5 sm:p-3">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
                             <p className="text-xs font-medium uppercase tracking-wide text-zinc-600">
                               {t("branch.incomePeriodTotal")}
                             </p>
-                            <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-base">
-                              {formatMoneyDash(
-                                incListPeriod.totalIncome,
-                                t("personnel.dash"),
-                                locale,
-                                "TRY"
-                              )}
-                            </p>
+                            <span className="rounded-full border border-emerald-200 bg-white px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                              {t("branch.incomeListFilterScopeHint")}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-base font-semibold tabular-nums tracking-tight text-emerald-900 sm:text-lg">
+                            {formatMoneyDash(
+                              Number(incData?.filteredAmountTotal ?? incListPeriod.totalIncome),
+                              t("personnel.dash"),
+                              locale,
+                              "TRY"
+                            )}
+                          </p>
+                          <p className="mt-1 text-xs leading-snug text-zinc-600">
+                            {t("branch.incomeListUnifiedBreakdownHint")}
+                          </p>
+                          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            {[
+                              { key: "cash", label: t("branch.incomePeriodCash"), amount: incListPeriod.incomeCash },
+                              { key: "card", label: t("branch.incomePeriodCard"), amount: incListPeriod.incomeCard },
+                              {
+                                key: "patron",
+                                label: t("branch.incomeListPatronTransferredTotal"),
+                                amount: incListPatronOverlay?.total ?? 0,
+                              },
+                            ].map((row) => (
+                              <div key={row.key} className="rounded-md border border-zinc-200 bg-white px-2 py-1.5">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                                  {row.label}
+                                </p>
+                                <p className="mt-0.5 text-sm font-semibold tabular-nums text-zinc-900">
+                                  {formatMoneyDash(row.amount, t("personnel.dash"), locale, "TRY")}
+                                </p>
+                                <p className="text-[11px] tabular-nums text-zinc-600">
+                                  {pctLine(
+                                    row.amount,
+                                    Number(incData?.filteredAmountTotal ?? incListPeriod.totalIncome)
+                                  )}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mt-2 space-y-1">
+                            {listSummaryPosPatronHint(t)}
+                            {listSummaryPatronCashLine(incListPatronOverlay, t, locale)}
+                            {listSummaryPatronCardLine(incListPatronOverlay, t, locale)}
                             {listSummaryPatronTotalLine(incListPatronOverlay, t, locale)}
                           </div>
                         </div>
@@ -555,62 +440,64 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                         </span>
                       </p>
                       <div
-                        className="mt-1 rounded-xl border border-slate-200 bg-white p-2 shadow-sm sm:p-3"
+                        className="mt-1 rounded-xl border border-emerald-200/80 bg-white p-2 shadow-sm sm:p-3"
                         role="group"
                         aria-label={t("branch.incomeCloseTitle")}
                       >
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                          <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
-                            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                              {t("branch.incomeCloseCash")}
-                            </p>
-                            {incomeCashTotalAndParties(
-                              incListDayRegister.dayIncomeCash,
-                              partiesDayFromRegisterSummary(incListDayRegister),
-                              t,
-                              locale,
-                              incListDayRegister.dayIncomeCashBranchManagerByPerson
-                            )}
-                            {listSummaryPatronCashLine(incListPatronOverlay, t, locale)}
-                          </div>
-                          <div className="rounded-lg border border-white bg-white p-2.5 shadow-sm sm:p-3">
-                            <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                              {t("branch.incomeCloseCard")}
-                            </p>
-                            <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-base">
-                              {formatMoneyDash(
-                                incListDayRegister.dayIncomeCard,
-                                t("personnel.dash"),
-                                locale,
-                                "TRY"
-                              )}
-                            </p>
-                            {listSummaryPosPatronHint(t)}
-                            {listSummaryPatronCardLine(incListPatronOverlay, t, locale)}
-                          </div>
-                          <div className="rounded-lg border border-slate-200 bg-slate-100/80 p-2.5 shadow-sm sm:col-span-2 sm:p-3 lg:col-span-1">
+                        <div className="rounded-lg border border-emerald-200/70 bg-emerald-50/40 p-2.5 sm:p-3">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
                             <p className="text-xs font-medium uppercase tracking-wide text-zinc-600">
                               {t("branch.incomeCloseTotal")}
                             </p>
-                            <p className="mt-0.5 text-sm font-semibold tabular-nums tracking-tight text-zinc-900 sm:text-base">
-                              {formatMoneyDash(
-                                incListDayRegister.dayTotalIncome,
-                                t("personnel.dash"),
-                                locale,
-                                "TRY"
-                              )}
-                            </p>
+                            <span className="rounded-full border border-emerald-200 bg-white px-2 py-0.5 text-[11px] font-medium text-emerald-700">
+                              {t("branch.incomeListFilterScopeHint")}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-base font-semibold tabular-nums tracking-tight text-emerald-900 sm:text-lg">
+                            {formatMoneyDash(
+                              Number(incData?.filteredAmountTotal ?? incListDayRegister.dayTotalIncome),
+                              t("personnel.dash"),
+                              locale,
+                              "TRY"
+                            )}
+                          </p>
+                          <p className="mt-1 text-xs leading-snug text-zinc-600">
+                            {t("branch.incomeListUnifiedBreakdownHint")}
+                          </p>
+                          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            {[
+                              { key: "cash", label: t("branch.incomeCloseCash"), amount: incListDayRegister.dayIncomeCash },
+                              { key: "card", label: t("branch.incomeCloseCard"), amount: incListDayRegister.dayIncomeCard },
+                              {
+                                key: "patron",
+                                label: t("branch.incomeListPatronTransferredTotal"),
+                                amount: incListPatronOverlay?.total ?? 0,
+                              },
+                            ].map((row) => (
+                              <div key={row.key} className="rounded-md border border-zinc-200 bg-white px-2 py-1.5">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                                  {row.label}
+                                </p>
+                                <p className="mt-0.5 text-sm font-semibold tabular-nums text-zinc-900">
+                                  {formatMoneyDash(row.amount, t("personnel.dash"), locale, "TRY")}
+                                </p>
+                                <p className="text-[11px] tabular-nums text-zinc-600">
+                                  {pctLine(
+                                    row.amount,
+                                    Number(incData?.filteredAmountTotal ?? incListDayRegister.dayTotalIncome)
+                                  )}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mt-2 space-y-1">
+                            {listSummaryPosPatronHint(t)}
+                            {listSummaryPatronCashLine(incListPatronOverlay, t, locale)}
+                            {listSummaryPatronCardLine(incListPatronOverlay, t, locale)}
                             {listSummaryPatronTotalLine(incListPatronOverlay, t, locale)}
                           </div>
                         </div>
                         {listSummaryPatronUnspecifiedNote(incListPatronOverlay, t, locale)}
-                        <div className="mt-3">
-                          <IncomePatronRegisterSplitPanel
-                            summary={incListDayRegister}
-                            t={t}
-                            locale={locale}
-                          />
-                        </div>
                       </div>
                     </>
                   ) : incListDatesRangeInvalid ? (
@@ -626,108 +513,9 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
               id="branch-income-lines"
               className="scroll-mt-[5.5rem] flex flex-col gap-4 sm:scroll-mt-0"
             >
-              <section
-                className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm sm:p-4"
-                aria-label={t("branch.incomeActionsTitle")}
-              >
-                <h3 className="mb-2 text-sm font-semibold text-zinc-900">
-                  {t("branch.incomeActionsTitle")}
-                </h3>
-                <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
-                  <Button
-                    type="button"
-                    className="min-h-11 w-full sm:w-auto"
-                    onClick={() => {
-                      const d =
-                        incFrom.length === 10 && incFrom === incTo ? incFrom : localIsoDate();
-                      setTxModalLaunch({ defaultType: "IN", defaultTransactionDate: d });
-                      setTxModalOpen(true);
-                    }}
-                  >
-                    {t("branch.addIncomeTx")}
-                  </Button>
-                  {!employeeSelfService ? (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-11 w-full sm:w-auto"
-                      onClick={() => {
-                        const d =
-                          incFrom.length === 10 && incFrom === incTo ? incFrom : localIsoDate();
-                        setTxModalLaunch({
-                          defaultType: "IN",
-                          defaultMainCategory: "IN_DAY_CLOSE",
-                          defaultTransactionDate: d,
-                        });
-                        setTxModalOpen(true);
-                      }}
-                    >
-                      {t("branch.quickAddDayClose")}
-                    </Button>
-                  ) : null}
-                  {canEditRegisterIncomeCashSettlement ? (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-11 w-full sm:w-auto"
-                      onClick={() => setCashSettleDialog({ mode: "bulk" })}
-                    >
-                      {t("branch.registerCashSettlementOpenBulk")}
-                    </Button>
-                  ) : null}
-                </div>
-              </section>
-
               <div className="flex flex-col gap-3">
                 <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3">
-                  <div className="flex flex-col gap-1">
-                    <h3 className="text-sm font-semibold text-zinc-900">{t("branch.incomeListSection")}</h3>
-                    <p className="text-xs leading-relaxed text-zinc-600">
-                      {t("branch.incomeListSection")} · {t("branch.incomeFilterDrawerHint")}
-                    </p>
-                  </div>
-
-                  <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-2.5 shadow-sm">
-                    <p className="text-xs font-semibold text-zinc-700">{t("branch.incomeQuickFiltersLead")}</p>
-                    <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                      <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:contents">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="min-h-11 w-full touch-manipulation sm:min-w-[9rem] sm:flex-1"
-                          onClick={() => {
-                            const d = localIsoDate();
-                            applyUnifiedFilters({ from: d, to: d });
-                          }}
-                        >
-                          {t("branch.filterToday")}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="min-h-11 w-full touch-manipulation sm:min-w-[9rem] sm:flex-1"
-                          onClick={() => {
-                            applyUnifiedFilters({ from: "", to: "", main: "", cash: "" });
-                          }}
-                        >
-                          {t("branch.filterAllDates")}
-                        </Button>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="min-h-11 w-full touch-manipulation sm:ml-auto sm:w-auto sm:min-w-[8.5rem]"
-                        onClick={() => {
-                          void refetchInc();
-                          refetchIncomeSummaryBlocks();
-                        }}
-                      >
-                        {t("branch.filterApplyRefresh")}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-2.5">
+                  <div className="mt-0 rounded-lg border border-zinc-200 bg-white p-2.5">
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-xs font-semibold text-zinc-700">
                         {t("branch.incomeFilterDrawerTitle")}
@@ -1066,27 +854,31 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                     {(incPage - 1) * INC_PAGE + 1}–{Math.min(incPage * INC_PAGE, incTotal)} · {t("branch.pagingTotal")}{" "}
                     {incTotal}
                   </p>
-                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                  <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:flex sm:flex-wrap sm:items-center">
                     <Button
                       type="button"
                       variant="secondary"
-                      className="min-h-11 w-full"
+                      className="min-h-11 min-w-[44px] px-3"
                       disabled={incPage <= 1}
                       onClick={() => setIncPage((p) => Math.max(1, p - 1))}
+                      aria-label={t("branch.pagingPrev")}
                     >
-                      {t("branch.pagingPrev")}
+                      <ChevronLeft className="h-4 w-4" aria-hidden />
+                      <span className="sr-only">{t("branch.pagingPrev")}</span>
                     </Button>
-                    <span className="col-span-2 flex min-h-11 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 text-sm tabular-nums text-zinc-700 sm:col-span-1 sm:min-h-0 sm:rounded-none sm:border-0 sm:bg-transparent">
+                    <span className="flex min-h-11 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm tabular-nums text-zinc-700 sm:min-h-0 sm:rounded-none sm:border-0 sm:bg-transparent">
                       {incPage} / {incPages}
                     </span>
                     <Button
                       type="button"
                       variant="secondary"
-                      className="min-h-11 w-full"
+                      className="min-h-11 min-w-[44px] px-3"
                       disabled={incPage >= incPages}
                       onClick={() => setIncPage((p) => Math.min(incPages, p + 1))}
+                      aria-label={t("branch.pagingNext")}
                     >
-                      {t("branch.pagingNext")}
+                      <ChevronRight className="h-4 w-4" aria-hidden />
+                      <span className="sr-only">{t("branch.pagingNext")}</span>
                     </Button>
                   </div>
                 </div>

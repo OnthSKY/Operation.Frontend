@@ -20,6 +20,30 @@ export type ExpensePayFiveBucket = {
   unset: number;
 };
 
+const PAY_BREAKDOWN_EPS = 0.005;
+/** Kasa parasal yuvarlama; kova toplamı OUT üst sınırını hafifçe aşabilir. */
+const PAY_BREAKDOWN_SUM_OVER_TOTAL_TOLERANCE = 0.05;
+
+export function sumExpensePayBuckets(b: ExpensePayFiveBucket): number {
+  return (
+    b.register + b.patron + b.personnelPocket + b.heldRegister + b.unset
+  );
+}
+
+/**
+ * Günlük kasa kartında gider OUT toplamı ile ödeme kaynağı kovaları uyumsuzsa (ör. OUT 0 iken kovalar tahsilatı yansıtıyorsa)
+ * alt satırı göstermeyin — kullanıcıyı yanıltır.
+ */
+export function shouldShowExpensePaySourceBreakdown(
+  totalExpenseOut: number,
+  buckets: ExpensePayFiveBucket
+): boolean {
+  const sum = sumExpensePayBuckets(buckets);
+  if (sum <= PAY_BREAKDOWN_EPS) return false;
+  if (totalExpenseOut <= PAY_BREAKDOWN_EPS) return false;
+  return sum <= totalExpenseOut + PAY_BREAKDOWN_SUM_OVER_TOTAL_TOLERANCE;
+}
+
 export function expenseBucketsFromBranchRow(row: FinancialBranchBreakdownRow): ExpensePayFiveBucket {
   return {
     register: row.totalExpenseRegister ?? 0,
