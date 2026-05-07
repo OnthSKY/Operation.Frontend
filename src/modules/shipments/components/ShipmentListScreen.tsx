@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { PERM, hasPermissionCode } from "@/lib/auth/permissions";
 import { useShipmentList } from "@/modules/shipments/hooks/useShipmentQueries";
@@ -9,10 +9,37 @@ import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 import type { ShipmentStatus } from "@/types/shipment";
 
+const SHIPMENT_STATUSES = [
+  "DRAFT",
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "REJECTED",
+  "WAITING_WAREHOUSE",
+  "PREPARING",
+  "READY_FOR_DISPATCH",
+  "ON_THE_WAY",
+  "DELIVERED",
+  "COMPLETED",
+  "COMPLETED_WITH_ISSUE",
+  "CANCELLED",
+] as const satisfies readonly ShipmentStatus[];
+
+function isShipmentStatus(value: string): value is ShipmentStatus {
+  return (SHIPMENT_STATUSES as readonly string[]).includes(value);
+}
+
 export function ShipmentListScreen() {
   const { user } = useAuth();
-  const [status, setStatus] = useState<ShipmentStatus | "">("");
+  const [statusInput, setStatusInput] = useState("");
+  const normalizedStatus = statusInput.trim().toUpperCase();
+  const status: ShipmentStatus | "" = isShipmentStatus(normalizedStatus)
+    ? normalizedStatus
+    : "";
   const { data, isPending } = useShipmentList({ status, page: 1, pageSize: 20 });
+
+  const handleStatusChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setStatusInput(e.target.value);
+  };
   const canCreateDraft =
     hasPermissionCode(user, PERM.systemAdmin) ||
     hasPermissionCode(user, PERM.operationsStaff) ||
@@ -36,7 +63,7 @@ export function ShipmentListScreen() {
         </div>
       </div>
       <div className="grid gap-2 sm:grid-cols-3">
-        <Input name="status" placeholder="Status (e.g. PREPARING)" value={status} onChange={(e) => setStatus(e.target.value)} />
+        <Input name="status" placeholder="Status (e.g. PREPARING)" value={statusInput} onChange={handleStatusChange} />
       </div>
       {isPending ? <p className="text-sm text-zinc-500">Loading...</p> : null}
       <div className="grid gap-3">
