@@ -11,6 +11,7 @@ import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
+import { Checkbox } from "@/shared/ui/Checkbox";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
@@ -23,6 +24,7 @@ export type EditProductModalProduct = {
   categoryId?: number | null;
   parentProductId?: number | null;
   hasChildren?: boolean;
+  isOrderable?: boolean;
 };
 
 type Props = {
@@ -49,6 +51,7 @@ export function EditProductModal({ open, product, onClose, onUpdated }: Props) {
   const [parentPick, setParentPick] = useState("");
   const [categoryRootPick, setCategoryRootPick] = useState("");
   const [categorySubPick, setCategorySubPick] = useState("");
+  const [isOrderable, setIsOrderable] = useState(true);
 
   const hasChildren = Boolean(product?.hasChildren);
 
@@ -59,6 +62,7 @@ export function EditProductModal({ open, product, onClose, onUpdated }: Props) {
       setParentPick("");
       setCategoryRootPick("");
       setCategorySubPick("");
+      setIsOrderable(true);
       return;
     }
     if (product == null) return;
@@ -70,6 +74,7 @@ export function EditProductModal({ open, product, onClose, onUpdated }: Props) {
     } else {
       setParentPick("");
     }
+    setIsOrderable(product.isOrderable ?? true);
   }, [open, product, hasChildren]);
 
   useEffect(() => {
@@ -184,6 +189,7 @@ export function EditProductModal({ open, product, onClose, onUpdated }: Props) {
         unit: unit.trim() || null,
         categoryId: catId,
         parentProductId: parentId,
+        isOrderable,
       });
       notify.success(t("toast.productUpdated"));
       onUpdated?.({ id: product.id, name: n });
@@ -207,6 +213,7 @@ export function EditProductModal({ open, product, onClose, onUpdated }: Props) {
           : product.parentProductId != null && product.parentProductId > 0
             ? String(product.parentProductId)
             : "") ||
+      isOrderable !== (product.isOrderable ?? true) ||
       categoryRootPick !== initialCategoryPicks.root ||
       categorySubPick !== initialCategoryPicks.sub);
   const requestClose = useDirtyGuard({
@@ -252,6 +259,17 @@ export function EditProductModal({ open, product, onClose, onUpdated }: Props) {
                   autoComplete="off"
                   maxLength={20}
                 />
+                <div className="flex items-start gap-2.5 rounded-md border border-zinc-200 px-3 py-2.5">
+                  <Checkbox
+                    checked={isOrderable}
+                    onCheckedChange={setIsOrderable}
+                    aria-label={t("products.orderableLabel")}
+                  />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-zinc-900">{t("products.orderableLabel")}</p>
+                    <p className="text-xs text-zinc-500">{t("products.orderableHint")}</p>
+                  </div>
+                </div>
                 {hasChildren ? (
                   <p className="text-sm text-zinc-600">{t("products.editParentLockedHint")}</p>
                 ) : (

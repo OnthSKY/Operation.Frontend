@@ -70,6 +70,7 @@ export const permissionMeta = {
 
   screen_shipment_own_view: "Sevkiyat: bu kullanıcıya atananları görme",
   screen_shipment_own_write: "Sevkiyat: atanan satırları tamamlama",
+  screen_shipment_start: "Sevkiyat: akışı başlatma (taslağı onaya gönderme)",
 
   desc_system_admin:
     "Kullanıcı hesapları, roller ve yetkilendirme matrisi gibi yönetim ekranlarına erişim; ayrıca bu ayarları değiştirme.",
@@ -128,6 +129,8 @@ export const permissionMeta = {
     "Hareket toplamları, eldeki stok ızgarası ve özetler gibi birleşik depo özet verilerinin görüntülenmesi.",
   desc_shipment_own_view: "Bu kullanıcıya atanmış sevkiyat satırlarının görüntülenmesi.",
   desc_shipment_own_write: "Atanan sevkiyat satırlarının tamamlanması ve imzalanması akışı.",
+  desc_shipment_start:
+    "Taslak sevkiyatı onay akışına başlatma yetkisi verir (şube sorumlusu/usta için).",
 
   roleVsUserMatrixIntro:
     "Bu sayfa her rol için varsayılan izin paketini tanımlar. O role sahip her kullanıcının çıkış noktası burasıdır.",

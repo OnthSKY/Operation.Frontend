@@ -10,6 +10,7 @@ import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayou
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
+import { Checkbox } from "@/shared/ui/Checkbox";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
@@ -22,6 +23,7 @@ type FormValues = {
   parentPick: string;
   categoryRootPick: string;
   categorySubPick: string;
+  isOrderable: boolean;
 };
 
 type Props = {
@@ -57,6 +59,7 @@ export function AddProductModal({ open, onClose, descriptionKey, fixedParent }: 
       parentPick: "",
       categoryRootPick: "",
       categorySubPick: "",
+      isOrderable: true,
     },
   });
 
@@ -115,6 +118,7 @@ export function AddProductModal({ open, onClose, descriptionKey, fixedParent }: 
         parentPick: "",
         categoryRootPick: "",
         categorySubPick: "",
+        isOrderable: true,
       });
       return;
     }
@@ -124,6 +128,7 @@ export function AddProductModal({ open, onClose, descriptionKey, fixedParent }: 
       parentPick: fixedParent != null ? String(fixedParent.id) : "",
       categoryRootPick: "",
       categorySubPick: "",
+      isOrderable: true,
     });
   }, [open, fixedParent, reset]);
 
@@ -200,6 +205,7 @@ export function AddProductModal({ open, onClose, descriptionKey, fixedParent }: 
         unit: values.unit.trim() || null,
         parentProductId: parentId,
         categoryId: catId,
+        isOrderable: values.isOrderable,
       });
       notify.success(t("toast.productCreated"));
       reset();
@@ -265,6 +271,17 @@ export function AddProductModal({ open, onClose, descriptionKey, fixedParent }: 
                     autoComplete="off"
                     maxLength={20}
                   />
+                  <div className="flex items-start gap-2.5 rounded-md border border-zinc-200 px-3 py-2.5">
+                    <Checkbox
+                      checked={watch("isOrderable")}
+                      onCheckedChange={(next) => setValue("isOrderable", next, { shouldDirty: true })}
+                      aria-label={t("products.orderableLabel")}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-zinc-900">{t("products.orderableLabel")}</p>
+                      <p className="text-xs text-zinc-500">{t("products.orderableHint")}</p>
+                    </div>
+                  </div>
                 </FormSection>
                 <FormSection>
                   {categoriesLoading ? (

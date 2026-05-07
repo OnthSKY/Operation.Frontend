@@ -26,6 +26,8 @@ export const productKeys = {
   catalog: () => [...productKeys.all, "catalog"] as const,
   catalogPaged: (page: number, pageSize: number, search: string) =>
     [...productKeys.all, "catalog-paged", page, pageSize, search] as const,
+  catalogPagedOrderable: (page: number, pageSize: number, search: string, orderableOnly: boolean) =>
+    [...productKeys.all, "catalog-paged", page, pageSize, search, orderableOnly ? 1 : 0] as const,
   inventory: (id: number) => [...productKeys.all, "inventory", id] as const,
   movementsPage: (id: number, params: ProductMovementsPageParams) =>
     [
@@ -55,12 +57,13 @@ export function useProductsCatalogPaged(
   search: string,
   enabled = true,
   /** Sayfa veya arama değişince önceki yanıtı tutar (varsayılan). Sonsuz kaydırma gibi birleştirme senaryolarında false verin. */
-  keepPreviousData = true
+  keepPreviousData = true,
+  orderableOnly = false
 ) {
   const q = search.trim();
   return useQuery({
-    queryKey: productKeys.catalogPaged(page, pageSize, q),
-    queryFn: () => fetchProductCatalogPaged({ page, pageSize, search: q }),
+    queryKey: productKeys.catalogPagedOrderable(page, pageSize, q, orderableOnly),
+    queryFn: () => fetchProductCatalogPaged({ page, pageSize, search: q, orderableOnly }),
     enabled,
     placeholderData: keepPreviousData ? (previousData) => previousData : undefined,
   });
@@ -176,13 +179,15 @@ export function useUpdateProduct() {
       unit,
       categoryId,
       parentProductId,
+      isOrderable,
     }: {
       id: number;
       name: string;
       unit?: string | null;
       categoryId?: number | null;
       parentProductId?: number | null;
-    }) => updateProduct(id, { name, unit, categoryId, parentProductId }),
+      isOrderable?: boolean;
+    }) => updateProduct(id, { name, unit, categoryId, parentProductId, isOrderable }),
     onSuccess: (_data, vars) => {
       invalidateProductCatalogQueries(qc);
       void qc.invalidateQueries({ queryKey: productKeys.inventory(vars.id) });

@@ -476,6 +476,7 @@ export function DocumentsHubScreen() {
     () => [
       { value: "ALL", label: t("documents.categoryAll") },
       { value: "BRANCH_DOCUMENT", label: t("documents.categoryBranch") },
+      { value: "COMPANY_GENERAL_DOCUMENT", label: t("documents.categoryCompanyGeneral") },
       { value: "VEHICLE_DOCUMENT", label: t("documents.categoryVehicle") },
       { value: "VEHICLE_INSURANCE_POLICY", label: t("documents.categoryVehicleInsurancePolicy") },
       { value: "PERSONNEL_NATIONAL_ID", label: t("documents.categoryPersonnelNationalId") },
@@ -500,6 +501,7 @@ export function DocumentsHubScreen() {
   const uploadCategoryOptions = categoryOptions.filter(
     (opt) =>
       opt.value !== "ALL" &&
+      opt.value !== "COMPANY_GENERAL_DOCUMENT" &&
       opt.value !== "WAREHOUSE_INBOUND_INVOICE" &&
       opt.value !== "WAREHOUSE_OUTBOUND_INVOICE" &&
       opt.value !== "OTHER_INVOICE"

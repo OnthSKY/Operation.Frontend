@@ -43,6 +43,7 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
     !personnelPortal && !driverPortal && canSeeUiModule(user, PERM.uiGeneralOverhead);
   const showInsurances = !personnelPortal && !driverPortal && canSeeUiModule(user, PERM.uiInsurances);
   const showWarehouseLink = driverPortal || canSeeUiModule(user, PERM.uiWarehouse);
+  const showShipments = !personnelPortal && canSeeUiModule(user, PERM.uiShipments);
   const showProducts = !driverPortal && canSeeUiModule(user, PERM.uiProducts);
   const showProcurement = !personnelPortal && !driverPortal && canSeeUiModule(user, PERM.uiSuppliers);
   const showFleet = !personnelPortal && !driverPortal && canSeeUiModule(user, PERM.uiVehicles);
@@ -160,7 +161,7 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
     });
   }
 
-  if (showWarehouseLink || showProducts) {
+  if (showWarehouseLink || showShipments || showProducts) {
     items.push({
       id: "warehouse-products",
       labelKey: "nav.groupWarehouseProducts",
@@ -172,6 +173,7 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
         ...(showWarehouseLink
           ? [
               { id: "warehouses", labelKey: "nav.warehouse", route: "/warehouses", icon: "warehouse" },
+              { id: "shipments", labelKey: "nav.shipments", route: "/shipments", icon: "warehouse" },
               {
                 id: "warehouse-global-movements",
                 labelKey: "nav.warehouseGlobalMovements",

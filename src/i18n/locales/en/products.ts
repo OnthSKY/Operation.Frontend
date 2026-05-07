@@ -47,6 +47,8 @@ export const products = {
   categorySubPickMainOnly: "Main category only",
   categoryLoadFailed: "Categories could not be loaded. You can still save the product without a category.",
   categoryNone: "None",
+  orderableLabel: "Orderable in shipment/order flows",
+  orderableHint: "Turn off for products your company does not supply, regardless of stock.",
   newCategoryInline: "New category",
   newCategoryName: "Category name",
   addCategory: "Add category",

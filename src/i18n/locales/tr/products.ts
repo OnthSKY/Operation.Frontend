@@ -47,6 +47,8 @@ export const products = {
   categorySubPickMainOnly: "Sadece ana kategori",
   categoryLoadFailed: "Kategoriler yüklenemedi. Ürünü yine de kategorisiz kaydedebilirsiniz.",
   categoryNone: "Yok",
+  orderableLabel: "Siparis/sevkiyat akislarinda kullanilabilir",
+  orderableHint: "Stoktan bagimsiz olarak tedarik etmeyeceginiz urunler icin kapatin.",
   newCategoryInline: "Yeni kategori",
   newCategoryName: "Kategori adı",
   addCategory: "Kategori ekle",

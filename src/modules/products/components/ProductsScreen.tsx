@@ -903,6 +903,7 @@ export function ProductsScreen() {
                 categoryId: productEdit.categoryId ?? null,
                 parentProductId: productEdit.parentProductId ?? null,
                 hasChildren: Boolean(productEdit.hasChildren),
+                isOrderable: productEdit.isOrderable,
               }
             : null
         }
@@ -936,6 +937,7 @@ export function ProductsScreen() {
                     categoryName: inv.categoryName ?? null,
                     parentProductId: inv.parentProductId ?? null,
                     hasChildren: Boolean(inv.hasChildren),
+                    isOrderable: inv.isOrderable ?? true,
                     totalQuantity: inv.totalQuantity,
                     byWarehouse: (inv.byWarehouse ?? []).map((w) => ({
                       warehouseId: w.warehouseId,

@@ -88,7 +88,9 @@ export function OrderAccountLineProductPicker({
     page,
     PAGE_SIZE,
     debouncedSearch,
-    enabled && menuOpen
+    enabled && menuOpen,
+    true,
+    true
   );
 
   useEffect(() => {

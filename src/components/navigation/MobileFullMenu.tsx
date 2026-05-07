@@ -11,6 +11,7 @@ import { useI18n } from "@/i18n/context";
 import { useSystemBrandingQuery } from "@/modules/admin/hooks/useSystemBrandingQuery";
 import { SidebarBrandingLogo } from "@/shared/components/SidebarBrandingLogo";
 import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
+import { useIsMobile } from "@/shared/lib/use-is-mobile";
 import { Input } from "@/shared/ui/Input";
 import {
   flattenNavItems,
@@ -69,6 +70,7 @@ export function MobileFullMenu({ open, onClose, onOpenSidebar, badgeState }: Mob
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [menuSearch, setMenuSearch] = useState("");
   const debouncedMenuSearch = useDebouncedValue(menuSearch, 250);
+  const isMobile = useIsMobile();
 
   const sortedItems = useMemo(() => getVisibleNavItems(user, t), [user, t]);
   const quickItems = useMemo(() => getConfiguredMobileNavItems(sortedItems), [sortedItems]);
@@ -90,6 +92,10 @@ export function MobileFullMenu({ open, onClose, onOpenSidebar, badgeState }: Mob
       return () => window.cancelAnimationFrame(id);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (open && !isMobile) onClose();
+  }, [open, isMobile, onClose]);
 
   useEffect(() => {
     if (!open) return;

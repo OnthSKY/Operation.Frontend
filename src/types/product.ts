@@ -12,6 +12,7 @@ export type ProductListItem = {
   parentProductName?: string | null;
   categoryId?: number | null;
   categoryName?: string | null;
+  isOrderable: boolean;
   hasChildren?: boolean;
   totalQuantity: number;
   byWarehouse: ProductWarehouseQty[];
@@ -33,6 +34,7 @@ export type ProductInventory = {
   categoryName?: string | null;
   parentProductId?: number | null;
   parentProductName?: string | null;
+  isOrderable?: boolean;
   hasChildren?: boolean;
   /** Ana ürün satırının kendi stoku (alt ürünler hariç); backend eskiyse totalQuantity ile aynı kabul edilebilir */
   ownTotalQuantity?: number;
@@ -80,6 +82,7 @@ export type ProductCreated = {
   unit: string | null;
   parentProductId?: number | null;
   categoryId?: number | null;
+  isOrderable: boolean;
 };
 
 export type WarehouseProductStockRow = {

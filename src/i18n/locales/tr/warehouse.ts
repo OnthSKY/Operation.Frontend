@@ -33,6 +33,8 @@ export const warehouse = {
   globalShipmentLineCount: "{count} satır",
   globalShipmentSummary: "Özet: Toplam miktar {qty} · Satır sayısı {lines}",
   globalShipmentOpenDetail: "Hareket detayını aç",
+  relatedShipmentRequestLabel: "İlişkili sevkiyat talebi",
+  relatedShipmentRequestEmpty: "Bağlı talep yok",
   globalShipmentCreatePdf: "Bu sevkiyattan PDF oluştur",
   globalShipmentOpenExistingPdf: "Önceden oluşturulan PDF'leri gör/indir",
   globalShipmentPdfAlreadyExists: "PDF zaten oluşturulmuş",

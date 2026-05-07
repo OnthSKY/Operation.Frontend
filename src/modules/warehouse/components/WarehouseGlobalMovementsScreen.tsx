@@ -7,6 +7,7 @@ import {
   type WarehouseGlobalMovementsFilters,
   type WarehouseGlobalMovementRow,
 } from "@/modules/warehouse/api/warehouse-global-movements-api";
+import { fetchShipmentRequests } from "@/modules/shipments/api/shipment-api";
 import { warehouseMovementInvoicePhotoUrl } from "@/modules/warehouse/api/warehouse-movements-api";
 import { useWarehousesList } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import {
@@ -160,6 +161,43 @@ function parseShipmentMetadataFromNotes(notes: string | null | undefined): Recor
     map[key] = value;
   }
   return map;
+}
+
+type RelatedShipmentRequest = {
+  id: number;
+  shipmentNo: string;
+  status: string;
+};
+
+function resolveRelatedShipmentFromRows(
+  rows: WarehouseGlobalMovementRow[],
+  shipmentById: Map<number, RelatedShipmentRequest>,
+  shipmentByNo: Map<string, RelatedShipmentRequest>
+): RelatedShipmentRequest | null {
+  for (const row of rows) {
+    const meta = parseShipmentMetadataFromNotes(row.description);
+    const idRaw =
+      meta.shipmentRequestId ??
+      meta.shipment_request_id ??
+      meta.shipmentId ??
+      meta.shipment_id;
+    const noRaw =
+      meta.shipmentNo ??
+      meta.shipment_no ??
+      meta.shipmentRequestNo ??
+      meta.shipment_request_no;
+    const id = Number(idRaw ?? 0);
+    if (Number.isFinite(id) && id > 0) {
+      const hit = shipmentById.get(id);
+      if (hit) return hit;
+    }
+    const no = String(noRaw ?? "").trim().toUpperCase();
+    if (no.length > 0) {
+      const hit = shipmentByNo.get(no);
+      if (hit) return hit;
+    }
+  }
+  return null;
 }
 
 /** Sevkiyat kartı `<details>` içi: modal ile aynı «kalem / ana ürün» görünümü. */
@@ -398,6 +436,29 @@ export function WarehouseGlobalMovementsScreen() {
     queryFn: () => fetchWarehouseGlobalMovements(filters),
     placeholderData: (prev) => prev,
   });
+  const { data: relatedShipmentCandidates } = useQuery({
+    queryKey: ["shipment-requests-for-warehouse-movements-link"] as const,
+    queryFn: async () => {
+      const page = await fetchShipmentRequests({ page: 1, pageSize: 200 });
+      return (page.items ?? []).map((x) => ({
+        id: x.id,
+        shipmentNo: x.shipmentNo,
+        status: x.status,
+      })) as RelatedShipmentRequest[];
+    },
+    staleTime: 60_000,
+  });
+  const relatedShipmentById = useMemo(() => {
+    const map = new Map<number, RelatedShipmentRequest>();
+    for (const x of relatedShipmentCandidates ?? []) map.set(x.id, x);
+    return map;
+  }, [relatedShipmentCandidates]);
+  const relatedShipmentByNo = useMemo(() => {
+    const map = new Map<string, RelatedShipmentRequest>();
+    for (const x of relatedShipmentCandidates ?? [])
+      map.set(String(x.shipmentNo).trim().toUpperCase(), x);
+    return map;
+  }, [relatedShipmentCandidates]);
 
   const warehouseOptions: SelectOption[] = useMemo(
     () => [
@@ -1245,6 +1306,11 @@ export function WarehouseGlobalMovementsScreen() {
               const hasPdfActions = row.type === "OUT";
               const hasSystemPdf = hasSystemPdfByShipmentGroupKey.get(group.key) === true;
               const outboundBranchSummary = shipmentOutboundBranchSummary(group.rows);
+              const relatedShipment = resolveRelatedShipmentFromRows(
+                group.rows,
+                relatedShipmentById,
+                relatedShipmentByNo
+              );
               return (
                 <details key={group.key} className="rounded-lg border border-zinc-200 bg-white p-3">
                   <summary className="cursor-pointer list-none">
@@ -1315,6 +1381,22 @@ export function WarehouseGlobalMovementsScreen() {
                         .replace("{qty}", String(group.totalQuantity))
                         .replace("{lines}", String(group.lineCount))}
                     </p>
+                    <div className="rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                        {t("warehouse.relatedShipmentRequestLabel")}
+                      </p>
+                      {relatedShipment ? (
+                        <button
+                          type="button"
+                          className="mt-1 text-left text-sm font-semibold text-violet-700 underline decoration-violet-300 underline-offset-2 hover:decoration-violet-700"
+                          onClick={() => router.push(`/shipments/${relatedShipment.id}`)}
+                        >
+                          {relatedShipment.shipmentNo} · {relatedShipment.status}
+                        </button>
+                      ) : (
+                        <p className="mt-1 text-sm text-zinc-500">{t("warehouse.relatedShipmentRequestEmpty")}</p>
+                      )}
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       <Button type="button" variant="secondary" className="min-h-9 text-xs" onClick={() => setDetailSummaryGroup(group)}>
                         {t("warehouse.globalShipmentOpenDetail")}
@@ -1392,6 +1474,7 @@ export function WarehouseGlobalMovementsScreen() {
         wide
         wideExpanded
         wideFixedHeight
+        wideFullScreenMobile
       >
         {movementDetailModalContent}
       </Modal>

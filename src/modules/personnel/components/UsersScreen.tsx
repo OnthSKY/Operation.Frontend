@@ -1685,19 +1685,10 @@ export function UsersScreen() {
           )}
           </div>
 
-          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-zinc-200 bg-white px-4 py-3 sm:flex-row sm:justify-end sm:px-6">
+          <div className="flex shrink-0 justify-stretch border-t border-zinc-200 bg-white px-4 py-3 sm:justify-end sm:px-6">
             <Button
               type="button"
-              variant="secondary"
-              className="min-h-11 w-full min-w-0 sm:min-w-[130px]"
-              onClick={closeScopesModal}
-              disabled={putUserDataScopes.isPending}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              type="button"
-              className="min-h-11 w-full min-w-0 sm:min-w-[130px]"
+              className="min-h-11 w-full min-w-0 sm:w-auto sm:min-w-[130px]"
               onClick={() => void saveUserScopes()}
               disabled={!hasScopesDraftChanges || putUserDataScopes.isPending}
             >
@@ -1712,9 +1703,9 @@ export function UsersScreen() {
         onClose={closePermissionsModal}
         titleId="user-permissions-title"
         title={t("users.permissionsModalTitle")}
-        description={t("users.permissionsModalDescriptionShort")}
         closeButtonLabel={t("common.close")}
         wide
+        wideExpanded
         wideFixedHeight
         wideFullScreenMobile
       >
@@ -1931,7 +1922,7 @@ export function UsersScreen() {
             ) : (
               groupedPermissions.map(({ prefix: group, permissions }) => (
                 <section key={group} className="space-y-2 sm:space-y-3">
-                  <h3 className="sticky top-0 z-[1] border-b border-zinc-200/80 bg-zinc-50/95 py-2 text-sm font-bold text-zinc-900 backdrop-blur-sm supports-[backdrop-filter]:bg-zinc-50/80 sm:static sm:border-0 sm:bg-transparent sm:py-0 sm:text-base">
+                  <h3 className="sticky top-0 z-[1] border-b border-zinc-200/80 bg-zinc-50/95 py-2 text-sm font-bold text-zinc-900 backdrop-blur-sm supports-[backdrop-filter]:bg-zinc-50/80 sm:text-base">
                     {resolvePermissionGroupTitle(group, t)}
                   </h3>
                   <div className="space-y-2">
@@ -2140,8 +2131,8 @@ export function UsersScreen() {
         sheetMobile
       >
         {roleEditor ? (
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-1 py-2 sm:px-0 [-webkit-overflow-scrolling:touch]">
+          <div className="flex min-h-0 flex-1 flex-col overflow-visible sm:overflow-hidden">
+            <div className="space-y-4 px-1 py-2 sm:min-h-0 sm:flex-1 sm:overflow-y-auto sm:overscroll-contain sm:px-0 sm:[-webkit-overflow-scrolling:touch]">
               <div className="rounded-xl border border-zinc-200/90 bg-gradient-to-br from-zinc-50 to-white p-4 shadow-sm">
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                   {t("users.roleChangeAccountHeading")}
@@ -2261,16 +2252,7 @@ export function UsersScreen() {
               ) : null}
             </div>
 
-            <div className="flex shrink-0 flex-col gap-2 border-t border-zinc-200 bg-white px-1 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:flex-row sm:justify-end sm:px-0 sm:pb-3">
-              <Button
-                type="button"
-                variant="secondary"
-                className="min-h-12 w-full sm:min-h-11 sm:w-auto sm:min-w-[120px]"
-                disabled={patchRole.isPending}
-                onClick={closeRoleEditor}
-              >
-                {t("common.cancel")}
-              </Button>
+            <div className="flex shrink-0 justify-stretch border-t border-zinc-200 bg-white px-1 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:justify-end sm:px-0 sm:pb-3">
               <Button
                 type="button"
                 variant="primary"
@@ -2317,16 +2299,7 @@ export function UsersScreen() {
                 @{accountStatusDialog.target.username}
               </p>
             </div>
-            <div className="mt-4 flex shrink-0 flex-col gap-2 border-t border-zinc-200 pt-3 sm:flex-row sm:justify-end">
-              <Button
-                type="button"
-                variant="secondary"
-                className="min-h-12 w-full sm:min-h-11 sm:w-auto sm:min-w-[120px]"
-                disabled={patchAccountStatus.isPending}
-                onClick={closeAccountStatusDialog}
-              >
-                {t("common.cancel")}
-              </Button>
+            <div className="mt-4 flex shrink-0 justify-stretch border-t border-zinc-200 pt-3 sm:justify-end">
               <Button
                 type="button"
                 variant="primary"
@@ -2426,16 +2399,8 @@ export function UsersScreen() {
             footer={
               <>
                 <Button
-                  type="button"
-                  variant="secondary"
-                  className="min-w-[120px]"
-                  onClick={requestModalClose}
-                >
-                  {t("common.cancel")}
-                </Button>
-                <Button
                   type="submit"
-                  className="min-w-[120px]"
+                  className="min-h-11 w-full min-w-[120px] sm:w-auto"
                   disabled={createUser.isPending}
                 >
                   {createUser.isPending ? t("common.saving") : t("common.save")}

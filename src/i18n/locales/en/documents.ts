@@ -5,6 +5,7 @@ export const documents = {
   searchPlaceholder: "Search by person, branch, file name, note...",
   categoryAll: "All categories",
   categoryBranch: "Branch documents",
+  categoryCompanyGeneral: "Company-wide documents",
   categoryVehicle: "Vehicle documents",
   categoryVehicleInsurancePolicy: "Vehicle insurance policies",
   categoryPersonnelNationalId: "Personnel national ID",

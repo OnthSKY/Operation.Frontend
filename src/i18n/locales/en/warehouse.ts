@@ -33,6 +33,8 @@ export const warehouse = {
   globalShipmentLineCount: "{count} lines",
   globalShipmentSummary: "Summary: Total quantity {qty} · Line count {lines}",
   globalShipmentOpenDetail: "Open movement details",
+  relatedShipmentRequestLabel: "Related shipment request",
+  relatedShipmentRequestEmpty: "No linked request",
   globalShipmentCreatePdf: "Create PDF from this shipment",
   globalShipmentOpenExistingPdf: "View/download existing PDFs",
   globalShipmentPdfAlreadyExists: "PDF already exists",

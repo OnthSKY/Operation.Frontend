@@ -46,6 +46,7 @@ export const nav = {
   dailyBranchRegister: "Register day (all branches)",
   generalOverhead: "General overhead",
   warehouse: "Warehouse",
+  shipments: "Shipments",
   warehouseGlobalMovements: "All warehouse movements",
   products: "Products",
   productCategories: "Categories",

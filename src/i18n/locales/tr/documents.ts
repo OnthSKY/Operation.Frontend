@@ -5,6 +5,7 @@ export const documents = {
   searchPlaceholder: "Kişi, şube, dosya adı, not ile ara...",
   categoryAll: "Tüm kategoriler",
   categoryBranch: "Şube belgeleri",
+  categoryCompanyGeneral: "Şirket geneli belgeler",
   categoryVehicle: "Araç belgeleri",
   categoryVehicleInsurancePolicy: "Araç sigorta poliçeleri",
   categoryPersonnelNationalId: "Personel kimlik belgeleri",

@@ -45,6 +45,7 @@ function normalizeProductListItem(r: Record<string, unknown>): ProductListItem {
       r.categoryName != null && String(r.categoryName ?? r.CategoryName).trim()
         ? String(r.categoryName ?? r.CategoryName).trim()
         : null,
+    isOrderable: Boolean(r.isOrderable ?? r.IsOrderable ?? true),
     hasChildren: Boolean(r.hasChildren ?? r.HasChildren),
     totalQuantity: Number(r.totalQuantity ?? r.TotalQuantity ?? 0) || 0,
     byWarehouse,
@@ -55,12 +56,14 @@ export async function fetchProductCatalogPaged(params: {
   page: number;
   pageSize: number;
   search?: string;
+  orderableOnly?: boolean;
 }): Promise<ProductCatalogPaged> {
   const q = new URLSearchParams();
   q.set("page", String(Math.max(1, params.page)));
   q.set("pageSize", String(Math.max(1, params.pageSize)));
   const s = params.search?.trim();
   if (s) q.set("search", s);
+  if (params.orderableOnly) q.set("orderableOnly", "true");
   const raw = await apiRequest<Record<string, unknown>>(`/products/paged?${q.toString()}`);
   const itemsRaw = raw.items ?? raw.Items;
   const items = Array.isArray(itemsRaw)
@@ -108,6 +111,7 @@ export async function createProduct(input: {
   unit?: string | null;
   parentProductId?: number | null;
   categoryId?: number | null;
+  isOrderable?: boolean;
 }): Promise<ProductCreated> {
   return apiRequest<ProductCreated>("/products", {
     method: "POST",
@@ -120,6 +124,7 @@ export async function createProduct(input: {
           : null,
       categoryId:
         input.categoryId != null && input.categoryId > 0 ? input.categoryId : null,
+      isOrderable: input.isOrderable ?? true,
     }),
   });
 }
@@ -147,6 +152,7 @@ export async function updateProduct(
     unit?: string | null;
     categoryId?: number | null;
     parentProductId?: number | null;
+    isOrderable?: boolean;
   }
 ): Promise<ProductCreated> {
   return apiRequest<ProductCreated>(`/products/${id}`, {
@@ -160,6 +166,7 @@ export async function updateProduct(
         input.parentProductId != null && input.parentProductId > 0
           ? input.parentProductId
           : null,
+      isOrderable: input.isOrderable ?? true,
     }),
   });
 }

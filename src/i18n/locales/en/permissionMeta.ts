@@ -67,6 +67,7 @@ export const permissionMeta = {
 
   screen_shipment_own_view: "Shipments: see assignments for this user",
   screen_shipment_own_write: "Shipments: complete own assigned lines",
+  screen_shipment_start: "Shipments: start flow (submit draft to approval)",
 
   desc_system_admin: "User accounts, roles, and the authorization matrix — administration screens and edits.",
   desc_admin_users_permission_overrides:
@@ -120,6 +121,8 @@ export const permissionMeta = {
   desc_warehouse_aggregates_view: "View movement totals, on-hand grid, and warehouse rollups.",
   desc_shipment_own_view: "View shipment lines assigned to this user.",
   desc_shipment_own_write: "Complete assigned shipment lines (driver signing flow).",
+  desc_shipment_start:
+    "Allows starting shipment workflow from draft to approval (for branch manager/master users).",
 
   roleVsUserMatrixIntro:
     "This page sets the default permission bundle for each role. It is the baseline for every user with that role.",
