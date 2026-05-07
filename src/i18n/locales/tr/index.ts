@@ -20,6 +20,7 @@ import { reports } from "./reports";
 import { users } from "./users";
 import { search } from "./search";
 import { settings } from "./settings";
+import { shipments } from "./shipments";
 import { suppliers } from "./suppliers";
 import { vehicles } from "./vehicles";
 import { toast } from "./toast";
@@ -42,6 +43,7 @@ export const tr = {
   profile,
   users,
   settings,
+  shipments,
   branch,
   warehouse,
   products,

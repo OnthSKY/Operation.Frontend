@@ -1,0 +1,36 @@
+export const shipments = {
+  create: {
+    eyebrow: "Sevkiyat talebi",
+    title: "Sevkiyat oluştur",
+    subtitle:
+      "Şubeyi seçin, ürünleri katalogdan isimleriyle ekleyin, görünen stok miktarlarını kontrol edin ve ürün ya da depo ID girmeden ihtiyaç miktarını isteyin.",
+    linesCount: "{{count}} seçili satır",
+    branchSection: "Şube",
+    branchHint: "Talep bu şube için oluşturulacak.",
+    branchLabel: "Şube",
+    selectBranch: "Şube seçin",
+    searchBranch: "Şube ara…",
+    noBranch: "Şube bulunamadı",
+    productsSection: "Ürünler ve miktarlar",
+    productsHint:
+      "Ürünleri isimle seçin. Açılır liste güncel toplam stoğu ve depo bazlı bulunurluğu gösterir; böylece istenen miktar güvenle belirlenir.",
+    addProduct: "Ürün ekle",
+    productLineLabel: "Ürün {{index}}",
+    selectProduct: "Ürün seçin",
+    noProduct: "Ürün bulunamadı",
+    noWarehouseStock: "Görünen stok yok",
+    productTotalStock: "Toplam stok: {{quantity}}",
+    unit: "Birim: {{unit}}",
+    quantityLabel: "İstenen miktar",
+    productRequired: "En az bir ürün seçin ve sıfırdan büyük bir istenen miktar girin.",
+    availableTotal: "Mevcut toplam",
+    topStocks: "En yüksek stok konumları",
+    summaryTitle: "Talep özeti",
+    summaryBranch: "Şube",
+    summaryLines: "Ürün satırı",
+    autoWarehouseHint:
+      "Depo ataması talep edene gösterilmez. Taslak, en uygun stok konumu ile otomatik gönderilir.",
+    saveDraft: "Taslak kaydet",
+    savingDraft: "Kaydediliyor…",
+  },
+} as const;

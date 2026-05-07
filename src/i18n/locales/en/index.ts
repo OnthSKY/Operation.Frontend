@@ -18,6 +18,7 @@ import { reminders } from "./reminders";
 import { reports } from "./reports";
 import { search } from "./search";
 import { settings } from "./settings";
+import { shipments } from "./shipments";
 import { suppliers } from "./suppliers";
 import { vehicles } from "./vehicles";
 import { toast } from "./toast";
@@ -41,6 +42,7 @@ export const en = {
   profile,
   users,
   settings,
+  shipments,
   branch,
   warehouse,
   products,
