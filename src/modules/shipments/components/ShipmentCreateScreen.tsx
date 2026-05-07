@@ -18,6 +18,8 @@ import type { ProductListItem } from "@/types/product";
 
 const PAGE_SIZE = 100;
 const FALLBACK_WAREHOUSE_ID = 1;
+const SCREEN_CLASS_NAME = "mx-auto flex w-full max-w-[100rem] flex-col gap-4 p-3 sm:p-4 lg:p-6 xl:px-8 2xl:px-10";
+const HERO_CARD_CLASS_NAME = "rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-6 xl:p-7";
 
 type DraftLine = {
   key: string;
@@ -158,8 +160,8 @@ export function ShipmentCreateScreen() {
   };
 
   return (
-    <div className="mx-auto flex w-full max-w-[100rem] flex-col gap-4 p-3 sm:p-4 lg:p-6 xl:px-8 2xl:px-10">
-      <div className="rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-6 xl:p-7">
+    <div className={SCREEN_CLASS_NAME}>
+      <div className={HERO_CARD_CLASS_NAME}>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600">
