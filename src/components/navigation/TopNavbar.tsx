@@ -67,6 +67,9 @@ export function TopNavbar({ onOpenMenu, breadcrumbs }: TopNavbarProps) {
         <div className="hidden w-full max-w-xs md:block">
           <AppGlobalSearch />
         </div>
+        <div className="hidden">
+          <AppGlobalSearch />
+        </div>
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
           <div className="flex items-center gap-1 rounded-lg bg-zinc-100 p-1">
             <button

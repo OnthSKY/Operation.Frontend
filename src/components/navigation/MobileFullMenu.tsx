@@ -10,6 +10,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useI18n } from "@/i18n/context";
 import { useSystemBrandingQuery } from "@/modules/admin/hooks/useSystemBrandingQuery";
 import { SidebarBrandingLogo } from "@/shared/components/SidebarBrandingLogo";
+import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
 import { Input } from "@/shared/ui/Input";
 import {
   flattenNavItems,
@@ -67,16 +68,20 @@ export function MobileFullMenu({ open, onClose, onOpenSidebar, badgeState }: Mob
   const brandingIsCustom = Boolean(branding?.companyName?.trim());
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [menuSearch, setMenuSearch] = useState("");
+  const debouncedMenuSearch = useDebouncedValue(menuSearch, 250);
 
   const sortedItems = useMemo(() => getVisibleNavItems(user, t), [user, t]);
   const quickItems = useMemo(() => getConfiguredMobileNavItems(sortedItems), [sortedItems]);
 
-  const searchQueryNorm = useMemo(() => normalizeMenuSearchQuery(menuSearch), [menuSearch]);
+  const searchQueryNorm = useMemo(
+    () => normalizeMenuSearchQuery(debouncedMenuSearch),
+    [debouncedMenuSearch]
+  );
   const searchActive = searchQueryNorm.length > 0;
 
   const searchResults = useMemo(
-    () => buildMenuSearchResults(sortedItems, menuSearch),
-    [sortedItems, menuSearch]
+    () => buildMenuSearchResults(sortedItems, debouncedMenuSearch),
+    [sortedItems, debouncedMenuSearch]
   );
 
   useEffect(() => {
@@ -117,7 +122,7 @@ export function MobileFullMenu({ open, onClose, onOpenSidebar, badgeState }: Mob
     };
     root.addEventListener("keydown", onKeyDown);
     return () => root.removeEventListener("keydown", onKeyDown);
-  }, [open, searchActive, menuSearch]);
+  }, [open]);
 
   useEffect(() => {
     const prev = document.body.style.overflow;
