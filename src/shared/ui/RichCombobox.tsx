@@ -1,7 +1,9 @@
 "use client";
 
 import { cn } from "@/lib/cn";
-import { getVisualViewportBottomPx } from "@/shared/lib/visual-viewport-bottom";
+import { computeComboboxMenuGeom, type ComboboxMenuGeom } from "@/shared/lib/combobox-menu-geom";
+import { scrollOverlayAnchorIntoView } from "@/shared/lib/scroll-overlay-anchor-into-view";
+import { rafThrottle } from "@/shared/lib/viewport-raf-throttle";
 import { OVERLAY_Z_INDEX } from "@/shared/overlays/z-layers";
 import { createPortal } from "react-dom";
 import {
@@ -20,33 +22,6 @@ export type RichComboboxOption = {
   description?: string;
   detail?: string;
 };
-
-const LIST_MAX_PX = 208;
-
-type MenuGeom = {
-  top: number;
-  left: number;
-  width: number;
-  maxHeight: number;
-};
-
-function computeMenuGeom(container: HTMLElement): MenuGeom {
-  const r = container.getBoundingClientRect();
-  const margin = 8;
-  const gap = 4;
-  const preferredTop = r.bottom + gap;
-  const spaceBelow = getVisualViewportBottomPx() - preferredTop - margin;
-  const spaceAbove = r.top - margin - gap;
-
-  if (spaceBelow >= 120 || spaceBelow >= spaceAbove) {
-    const maxHeight = Math.min(LIST_MAX_PX, Math.max(96, spaceBelow));
-    return { top: preferredTop, left: r.left, width: r.width, maxHeight };
-  }
-
-  const maxHeight = Math.min(LIST_MAX_PX, Math.max(96, spaceAbove));
-  const top = Math.max(margin, r.top - maxHeight - gap);
-  return { top, left: r.left, width: r.width, maxHeight };
-}
 
 type RichComboboxProps = {
   value: string;
@@ -95,7 +70,7 @@ export function RichCombobox({
   const [internalQuery, setInternalQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [menuGeom, setMenuGeom] = useState<MenuGeom | null>(null);
+  const [menuGeom, setMenuGeom] = useState<ComboboxMenuGeom | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const listPanelRef = useRef<HTMLDivElement | null>(null);
@@ -137,7 +112,7 @@ export function RichCombobox({
 
   const refreshMenuGeom = useCallback(() => {
     if (!containerRef.current) return;
-    setMenuGeom(computeMenuGeom(containerRef.current));
+    setMenuGeom(computeComboboxMenuGeom(containerRef.current));
   }, []);
 
   useEffect(() => {
@@ -158,8 +133,10 @@ export function RichCombobox({
       setMenuGeom(null);
       return;
     }
-    refreshMenuGeom();
-    const handler = () => refreshMenuGeom();
+    scrollOverlayAnchorIntoView(containerRef.current);
+    const throttled = rafThrottle(refreshMenuGeom);
+    throttled.flush();
+    const handler = throttled.schedule;
     window.addEventListener("scroll", handler, true);
     window.addEventListener("resize", handler);
     const vv = window.visualViewport;
@@ -168,6 +145,7 @@ export function RichCombobox({
       vv.addEventListener("scroll", handler);
     }
     return () => {
+      throttled.cancel();
       window.removeEventListener("scroll", handler, true);
       window.removeEventListener("resize", handler);
       if (vv) {
@@ -179,15 +157,15 @@ export function RichCombobox({
 
   useEffect(() => {
     if (!open) return;
-    const onDoc = (e: MouseEvent) => {
+    const onDoc = (e: PointerEvent) => {
       const node = e.target as Node;
       if (containerRef.current?.contains(node)) return;
       if (listPanelRef.current?.contains(node)) return;
       patchOpen(false);
       setResolvedQuery("");
     };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
+    document.addEventListener("pointerdown", onDoc);
+    return () => document.removeEventListener("pointerdown", onDoc);
   }, [open, patchOpen, setResolvedQuery]);
 
   useEffect(() => {

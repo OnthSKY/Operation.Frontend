@@ -32,6 +32,7 @@ import {
 } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import { useI18n } from "@/i18n/context";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
 import { notify } from "@/shared/lib/notify";
 import { notifyWarehouseDeleteConfirm } from "@/shared/lib/notify-warehouse-delete";
 import { Button } from "@/shared/ui/Button";
@@ -54,6 +55,7 @@ const DRAWER_SELECT_Z = 280;
 const STOCK_OPS_BLOCKS_PAGE_SIZE = 12;
 /** Kategori / alt kategori görünümünde bölüm sayısı. */
 const STOCK_OPS_SECTIONS_PAGE_SIZE = 4;
+const STOCK_OPS_SEARCH_DEBOUNCE_MS = 280;
 
 function parseOptionalQty(s: string): number | null {
   const t = s.trim();
@@ -127,7 +129,8 @@ export function WarehouseOperationsTab({
     productId: null,
   });
   const [stockGroupMode, setStockGroupMode] = useState<WarehouseStockGroupMode>("parent");
-  const [stockSearch, setStockSearch] = useState("");
+  const [stockSearchInput, setStockSearchInput] = useState("");
+  const stockSearchDebounced = useDebouncedValue(stockSearchInput, STOCK_OPS_SEARCH_DEBOUNCE_MS);
   const [stockMinQty, setStockMinQty] = useState("");
   const [stockMaxQty, setStockMaxQty] = useState("");
   const [stockLevel, setStockLevel] = useState<"all" | "positive" | "zero">("all");
@@ -167,7 +170,7 @@ export function WarehouseOperationsTab({
       productId: null,
     });
     setFiltersDrawerOpen(false);
-    setStockSearch("");
+    setStockSearchInput("");
     setStockMinQty("");
     setStockMaxQty("");
     setStockLevel("all");
@@ -185,24 +188,24 @@ export function WarehouseOperationsTab({
   const stockRowsFiltered = useMemo(
     () =>
       filterWarehouseStockRowsClient(stockRowsRaw, {
-        q: stockSearch,
+        q: stockSearchDebounced,
         minQty: minQtyParsed,
         maxQty: maxQtyParsed,
         level: stockLevel,
         unit: stockUnit,
       }),
-    [stockRowsRaw, stockSearch, minQtyParsed, maxQtyParsed, stockLevel, stockUnit]
+    [stockRowsRaw, stockSearchDebounced, minQtyParsed, maxQtyParsed, stockLevel, stockUnit]
   );
 
   const stockOpsFiltersActive = useMemo(() => {
     if (warehouseScopeFiltersActive(scope)) return true;
     if (stockGroupMode !== "parent") return true;
-    if (stockSearch.trim().length > 0) return true;
+    if (stockSearchInput.trim().length > 0) return true;
     if (minQtyParsed != null || maxQtyParsed != null) return true;
     if (stockLevel !== "all") return true;
     if (stockUnit !== "") return true;
     return false;
-  }, [scope, stockGroupMode, stockSearch, minQtyParsed, maxQtyParsed, stockLevel, stockUnit]);
+  }, [scope, stockGroupMode, stockSearchInput, minQtyParsed, maxQtyParsed, stockLevel, stockUnit]);
 
   const stockUnitOptions: SelectOption[] = useMemo(() => {
     const withUnit = new Set<string>();
@@ -236,7 +239,7 @@ export function WarehouseOperationsTab({
       productId: null,
     });
     setStockGroupMode("parent");
-    setStockSearch("");
+    setStockSearchInput("");
     setStockMinQty("");
     setStockMaxQty("");
     setStockLevel("all");
@@ -294,7 +297,7 @@ export function WarehouseOperationsTab({
     scope.subCategoryId,
     scope.parentProductId,
     scope.productId,
-    stockSearch,
+    stockSearchDebounced,
     stockMinQty,
     stockMaxQty,
     stockLevel,
@@ -386,6 +389,16 @@ export function WarehouseOperationsTab({
             </button>
           </Tooltip>
         </div>
+        <Input
+          name="wh-stock-search-inline"
+          label={t("warehouse.stockOpsFilterSearchLabel")}
+          value={stockSearchInput}
+          onChange={(e) => setStockSearchInput(e.target.value)}
+          placeholder={t("warehouse.stockOpsFilterSearchPlaceholder")}
+          disabled={quickDisabled}
+          autoComplete="off"
+          className="min-h-11 w-full min-w-0 text-base sm:text-sm"
+        />
         {stockGroupMode === "parent" ? (
           <p className="text-xs leading-snug text-zinc-600 sm:text-sm">{t("warehouse.stockOpsMainVsVariantsIntro")}</p>
         ) : null}
@@ -434,21 +447,6 @@ export function WarehouseOperationsTab({
             <p className="mt-1.5 text-[0.65rem] leading-snug text-zinc-500 sm:text-xs">
               {t("warehouse.stockGroupByHint")}
             </p>
-          </div>
-          <div className="min-w-0 border-t border-zinc-200 pt-1">
-            <p className="mb-2 text-[0.7rem] font-semibold uppercase tracking-wide text-zinc-500">
-              {t("warehouse.stockOpsFilterSectionSearch")}
-            </p>
-            <Input
-              name="wh-stock-search"
-              label={t("warehouse.stockOpsFilterSearchLabel")}
-              value={stockSearch}
-              onChange={(e) => setStockSearch(e.target.value)}
-              placeholder={t("warehouse.stockOpsFilterSearchPlaceholder")}
-              disabled={quickDisabled}
-              autoComplete="off"
-              className="min-h-11 text-base sm:text-sm"
-            />
           </div>
           <div className="min-w-0 border-t border-zinc-200 pt-1">
             <p className="mb-2 text-[0.7rem] font-semibold uppercase tracking-wide text-zinc-500">

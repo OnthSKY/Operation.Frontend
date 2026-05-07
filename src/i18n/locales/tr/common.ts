@@ -58,15 +58,18 @@ export const common = {
   pageIntroSummaryExpand: "Göster",
   pageIntroSummaryCollapse: "Gizle",
   toolbarMoreActions: "Diğer işlemler",
-  modalConfirmOutsideCloseTitle: "Pencereyi kapatmak istiyor musunuz?",
+  modalConfirmOutsideCloseTitle: "Kaydedilmemiş bilgi",
   modalConfirmOutsideCloseMessage:
-    "Diyalogun dışına tıkladınız. Yine de kapatılsın mı? Kaydedilmemiş bilgiler kaybolabilir.",
+    "Dışarıya tıkladınız; form henüz kaydedilmedi. Kapatırsanız yazdıklarınız silinir.",
   unsavedChangesConfirm:
     "Kaydedilmemiş değişiklikleriniz var. Bu sayfadan ayrılırsanız değişiklikler kaybolabilir.",
   // Backward-compatible typo alias used in some older keys/usages.
   unsavedChangesConfitm:
     "Kaydedilmemiş değişiklikleriniz var. Bu sayfadan ayrılırsanız değişiklikler kaybolabilir.",
-  modalBackdropCloseStay: "Diyalogda kal",
+  modalBackdropCloseStay: "Formda kal",
+  /** Backdrop dışı tık onayı: güvenli eylem (formu açık tut) */
+  modalConfirmOutsideCloseLeave: "Kaydetmeden kapat",
+  modalConfirmOutsideCloseDismissAria: "Forma dön",
   /** Genişletilebilir mobil kart (`MobileCard` bileşeni). */
   mobileCardDetailsShow: "Detayları göster",
   mobileCardDetailsHide: "Detayları gizle",

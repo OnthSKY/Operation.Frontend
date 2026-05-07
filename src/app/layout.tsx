@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { APP_MOBILE_LIKE_SHELL_MAX_CLASS } from "@/config/mobile.config";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "./providers";
 import "./globals.css";
@@ -35,9 +36,11 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="overflow-x-hidden bg-zinc-50 text-zinc-900">
+      <body className="overflow-x-hidden bg-zinc-300/45 text-zinc-900 sm:bg-zinc-200/80">
         <Providers>
-          <div className="relative z-0 min-h-[100dvh] w-full pb-[max(0rem,env(safe-area-inset-bottom,0px))]">
+          <div
+            className={`relative z-0 mx-auto min-h-[100dvh] w-full ${APP_MOBILE_LIKE_SHELL_MAX_CLASS} bg-zinc-50 pb-[max(0rem,env(safe-area-inset-bottom,0px))] shadow-[0_0_0_1px_rgb(0_0_0/0.05)] sm:min-h-[100dvh] sm:shadow-[0_20px_50px_-12px_rgb(0_0_0/0.18)]`}
+          >
             {children}
           </div>
         </Providers>

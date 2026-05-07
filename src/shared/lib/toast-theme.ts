@@ -3,6 +3,13 @@
  * AppToastify, notify-confirm-toast, notify-error-with-action burayı kullanır.
  */
 
+/** `notifyConfirmToast` — ikinci ToastContainer ile tam ekran karartma + ortada kart */
+export const toastifyConfirmContainerId = "confirm-center" as const;
+
+/** Toastify toast kabuğu: kart görünümü içeride; dışarı şeffaf (overlay container’da) */
+export const toastConfirmOuterClassName =
+  "!m-0 !min-h-0 !w-full !max-w-none !min-w-0 !bg-transparent !p-0 !shadow-none !ring-0";
+
 /** Mobil önce genişlik; masaüstünde orta boy kart */
 export const toastCardWidth =
   "!w-[min(100vw-1rem,22rem)] !max-w-[min(100vw-1rem,22rem)] sm:!w-auto sm:!max-w-md";
@@ -29,5 +36,5 @@ export const toastSurfaceWarning = `${toastSurfaceNeutral} !border-l-[3px] !bord
 /** Hata + aksiyon kartı */
 export const toastSurfaceDanger = "!bg-white !text-zinc-900 !ring-1 !ring-red-200/90";
 
-/** Alt konumda narrow layout — safe area */
+/** Alt konumda narrow layout — safe area (renkli toast’lar; onay overlay’de kullanılmıyor) */
 export const toastSafeBottomMobile = "!mb-[max(0.75rem,env(safe-area-inset-bottom,0px))]";

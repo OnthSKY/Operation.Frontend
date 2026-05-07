@@ -32,6 +32,14 @@ import { Select, type SelectOption } from "@/shared/ui/Select";
 import { enUS as rdpEn } from "react-day-picker/locale/en-US";
 import { tr as rdpTr } from "react-day-picker/locale/tr";
 import "react-day-picker/style.css";
+import {
+  getVisualViewportBottomPx,
+  getVisualViewportTopPx,
+  getVisualViewportHeightPx,
+  getVisualViewportWidthPx,
+} from "@/shared/lib/visual-viewport-bottom";
+import { rafThrottle } from "@/shared/lib/viewport-raf-throttle";
+import { scrollOverlayAnchorIntoView } from "@/shared/lib/scroll-overlay-anchor-into-view";
 
 export type DateFieldMode = "date" | "datetime-local";
 
@@ -575,11 +583,14 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
 
     useLayoutEffect(() => {
       if (!open || !mounted) return;
+      scrollOverlayAnchorIntoView(triggerRef.current ?? null);
       const place = () => {
         const r = triggerRef.current?.getBoundingClientRect();
         if (!r) return;
-        const vw = window.innerWidth;
-        const vh = window.innerHeight;
+        const vvTop = getVisualViewportTopPx();
+        const vvBottom = getVisualViewportBottomPx();
+        const vw = getVisualViewportWidthPx();
+        const vh = getVisualViewportHeightPx();
         const pad = 8;
         /** Upper cap for popover height — scales with viewport, stays compact on large monitors. */
         const maxPopoverH = Math.min(
@@ -588,8 +599,8 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
         );
         /** Rough content height for “flip to sheet / above” heuristics (not the CSS max-height). */
         const estContentH = mode === "datetime-local" ? 320 : 280;
-        const below = vh - r.bottom - pad;
-        const above = r.top - pad;
+        const below = vvBottom - r.bottom - pad;
+        const above = r.top - vvTop - pad;
         const narrowViewport = vw < 640;
         const crampedY = below < estContentH && above < estContentH;
         const useSheet = narrowViewport || crampedY;
@@ -619,14 +630,14 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
         left = Math.min(Math.max(pad, left), vw - w - pad);
 
         let top = r.bottom + 6;
-        if (top + maxPopoverH > vh - pad) {
+        if (top + maxPopoverH > vvBottom - pad) {
           top = r.top - maxPopoverH - 6;
         }
-        if (top < pad) {
-          top = pad;
+        if (top < vvTop + pad) {
+          top = vvTop + pad;
         }
-        if (top + maxPopoverH > vh - pad) {
-          top = Math.max(pad, vh - maxPopoverH - pad);
+        if (top + maxPopoverH > vvBottom - pad) {
+          top = Math.max(vvTop + pad, vvBottom - maxPopoverH - pad);
         }
 
         setPopoverStyle({
@@ -640,12 +651,20 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(
           zIndex: OVERLAY_Z_INDEX.dateFieldPopover,
         });
       };
-      place();
-      window.addEventListener("scroll", place, true);
-      window.addEventListener("resize", place);
+      const throttled = rafThrottle(place);
+      throttled.flush();
+      const handler = throttled.schedule;
+      window.addEventListener("scroll", handler, true);
+      window.addEventListener("resize", handler);
+      const vv = window.visualViewport;
+      vv?.addEventListener("resize", handler);
+      vv?.addEventListener("scroll", handler);
       return () => {
-        window.removeEventListener("scroll", place, true);
-        window.removeEventListener("resize", place);
+        throttled.cancel();
+        window.removeEventListener("scroll", handler, true);
+        window.removeEventListener("resize", handler);
+        vv?.removeEventListener("resize", handler);
+        vv?.removeEventListener("scroll", handler);
       };
     }, [open, mounted, mode]);
 

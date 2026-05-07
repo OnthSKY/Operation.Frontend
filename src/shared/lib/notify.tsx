@@ -50,7 +50,7 @@ export const notify = {
   dismiss(id?: Id) {
     toast.dismiss(id);
   },
-  isActive(id: Id) {
-    return toast.isActive(id);
+  isActive(id: Id, containerId?: Id) {
+    return toast.isActive(id, containerId);
   },
 };

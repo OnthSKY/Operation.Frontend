@@ -15,7 +15,9 @@ import {
   type Ref,
 } from "react";
 import { createPortal } from "react-dom";
-import { getVisualViewportBottomPx } from "@/shared/lib/visual-viewport-bottom";
+import { computeComboboxMenuGeom, type ComboboxMenuGeom } from "@/shared/lib/combobox-menu-geom";
+import { scrollOverlayAnchorIntoView } from "@/shared/lib/scroll-overlay-anchor-into-view";
+import { rafThrottle } from "@/shared/lib/viewport-raf-throttle";
 
 export type SelectOption = { value: string; label: string };
 
@@ -51,33 +53,7 @@ function norm(s: string) {
   return s.toLocaleLowerCase("tr-TR").normalize("NFD");
 }
 
-const LIST_MAX_PX = 208;
 const DROPDOWN_Z = 130;
-
-type MenuGeom = {
-  top: number;
-  left: number;
-  width: number;
-  maxHeight: number;
-};
-
-function computeMenuGeom(container: HTMLElement): MenuGeom {
-  const r = container.getBoundingClientRect();
-  const margin = 8;
-  const gap = 4;
-  const preferredTop = r.bottom + gap;
-  const spaceBelow = getVisualViewportBottomPx() - preferredTop - margin;
-  const spaceAbove = r.top - margin - gap;
-
-  if (spaceBelow >= 120 || spaceBelow >= spaceAbove) {
-    const maxHeight = Math.min(LIST_MAX_PX, Math.max(96, spaceBelow));
-    return { top: preferredTop, left: r.left, width: r.width, maxHeight };
-  }
-
-  const maxHeight = Math.min(LIST_MAX_PX, Math.max(96, spaceAbove));
-  const top = Math.max(margin, r.top - maxHeight - gap);
-  return { top, left: r.left, width: r.width, maxHeight };
-}
 
 export const Select = forwardRef<HTMLInputElement, SelectProps>(
   function Select(
@@ -112,7 +88,7 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
     const [query, setQuery] = useState("");
     const [highlighted, setHighlighted] = useState(0);
     const [mounted, setMounted] = useState(false);
-    const [menuGeom, setMenuGeom] = useState<MenuGeom | null>(null);
+    const [menuGeom, setMenuGeom] = useState<ComboboxMenuGeom | null>(null);
 
     useEffect(() => {
       setMounted(true);
@@ -133,7 +109,7 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
 
     const refreshMenuGeom = useCallback(() => {
       if (!containerRef.current) return;
-      setMenuGeom(computeMenuGeom(containerRef.current));
+      setMenuGeom(computeComboboxMenuGeom(containerRef.current));
     }, []);
 
     useEffect(() => {
@@ -146,8 +122,10 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
         setMenuGeom(null);
         return;
       }
-      refreshMenuGeom();
-      const handler = () => refreshMenuGeom();
+      scrollOverlayAnchorIntoView(containerRef.current);
+      const throttled = rafThrottle(refreshMenuGeom);
+      throttled.flush();
+      const handler = throttled.schedule;
       window.addEventListener("scroll", handler, true);
       window.addEventListener("resize", handler);
       const vv = window.visualViewport;
@@ -156,6 +134,7 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
         vv.addEventListener("scroll", handler);
       }
       return () => {
+        throttled.cancel();
         window.removeEventListener("scroll", handler, true);
         window.removeEventListener("resize", handler);
         if (vv) {
@@ -163,19 +142,19 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
           vv.removeEventListener("scroll", handler);
         }
       };
-    }, [open, disabled, refreshMenuGeom]);
+    }, [open, disabled, refreshMenuGeom, filtered.length]);
 
     useEffect(() => {
       if (!open) return;
-      const onDoc = (e: MouseEvent) => {
+      const onDoc = (e: PointerEvent) => {
         const node = e.target as Node;
         if (containerRef.current?.contains(node)) return;
         if (listboxRef.current?.contains(node)) return;
         setOpen(false);
         setQuery("");
       };
-      document.addEventListener("mousedown", onDoc);
-      return () => document.removeEventListener("mousedown", onDoc);
+      document.addEventListener("pointerdown", onDoc);
+      return () => document.removeEventListener("pointerdown", onDoc);
     }, [open]);
 
     const commit = useCallback(
@@ -295,6 +274,7 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
               )}
               onMouseEnter={() => setHighlighted(idx)}
               onMouseDown={(e) => e.preventDefault()}
+              onPointerDown={(e) => e.preventDefault()}
               onClick={() => commit(o.value)}
             >
               {o.label}

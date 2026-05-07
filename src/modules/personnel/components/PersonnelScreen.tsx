@@ -5,7 +5,6 @@ import { isPersonnelPortalRole } from "@/lib/auth/roles";
 import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
 import { cn } from "@/lib/cn";
-import { MOBILE_TOKENS } from "@/config/mobile.config";
 import { fetchPersonnel } from "@/modules/personnel/api/personnel-api";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
@@ -184,9 +183,11 @@ function hasLinkedSystemUser(p: Personnel): boolean {
 function PersonnelInsuranceBadge({
   personnel,
   t,
+  variant = "default",
 }: {
   personnel: Personnel;
   t: (key: string) => string;
+  variant?: "default" | "tag";
 }) {
   const hasAnyInsurancePeriod =
     Boolean(personnel.insuranceStartDate) || Boolean(personnel.insuranceEndDate);
@@ -194,13 +195,32 @@ function PersonnelInsuranceBadge({
 
   if (!personnel.insuranceStarted && !showPending) return null;
 
+  const tone = personnel.insuranceStarted
+    ? "border-emerald-200/90 bg-emerald-50 text-emerald-900"
+    : "border-amber-300/90 bg-amber-50 text-amber-900";
+
+  if (variant === "tag") {
+    return (
+      <span
+        className={cn(
+          "inline-flex max-w-full shrink-0 items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold leading-tight min-[375px]:px-3 min-[375px]:py-1 min-[375px]:text-xs",
+          tone
+        )}
+      >
+        <span className="truncate">
+          {personnel.insuranceStarted
+            ? t("personnel.insuranceBadgeStarted")
+            : t("personnel.insuranceBadgePending")}
+        </span>
+      </span>
+    );
+  }
+
   return (
     <span
       className={cn(
         "inline-flex w-fit shrink-0 items-center rounded-md border px-2.5 py-1 text-xs font-semibold leading-tight shadow-sm",
-        personnel.insuranceStarted
-          ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-          : "border-amber-300 bg-amber-50 text-amber-900"
+        tone
       )}
     >
       {personnel.insuranceStarted
@@ -291,6 +311,50 @@ function ChevronRightIcon({ className }: { className?: string }) {
       aria-hidden
     >
       <path d="m9 18 6-6-6-6" />
+    </svg>
+  );
+}
+
+/** Mobil personel kartı — ünvan satırı */
+function PersonnelMobileJobTitleIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+      <path d="M20 9H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2Z" />
+      <path d="M8 14h.01M12 14h.01M16 14h.01" />
+    </svg>
+  );
+}
+
+/** Mobil personel kartı — şube satırı */
+function PersonnelMobileBranchIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M3 21h18" />
+      <path d="M5 21V7l8-4 8 4v14" />
+      <path d="M9 21v-6h6v6" />
     </svg>
   );
 }
@@ -432,12 +496,15 @@ function PersonnelRowActionsToolbar({
   viewLabel,
   editLabel,
   deactivateLabel,
+  framedDelete,
   t,
 }: {
   p: Personnel;
   isAdmin: boolean;
   menuId: string;
   compact?: boolean;
+  /** Sil ikonunu belirgin çerçeve ile göster (mobil kart). */
+  framedDelete?: boolean;
   onView?: () => void;
   onEdit: () => void;
   onDeactivate: () => void;
@@ -474,7 +541,7 @@ function PersonnelRowActionsToolbar({
     <div
       className={cn(
         "inline-flex shrink-0 flex-nowrap items-center justify-end gap-1",
-        compact && "flex-wrap"
+        compact && "w-full max-w-full flex-wrap"
       )}
     >
       {menuSections.length > 0 ? (
@@ -517,7 +584,11 @@ function PersonnelRowActionsToolbar({
             type="button"
             onClick={onDeactivate}
             aria-label={deactivateLabel}
-            className={trashIconActionButtonClass}
+            className={cn(
+              trashIconActionButtonClass,
+              framedDelete &&
+                "border-2 border-red-200 bg-white shadow-sm ring-1 ring-red-100/80 hover:border-red-300 hover:bg-red-50/90 active:bg-red-100"
+            )}
           >
             <TrashIcon />
           </button>
@@ -1105,91 +1176,104 @@ export function PersonnelScreen() {
                       )}
                     >
                       <div className="flex min-w-0 flex-col gap-3">
-                      <div className="flex min-w-0 flex-wrap items-start gap-3">
-                        <PersonnelProfilePhotoAvatar
-                          shape="square"
-                          personnelId={p.id}
-                          hasPhoto={p.hasProfilePhoto1}
-                          profilePhotoPaths={{
-                            profilePhoto1Url: p.profilePhoto1Url,
-                            profilePhoto2Url: p.profilePhoto2Url,
-                          }}
-                          nonce={listPhotoNonce}
-                          displayName={personnelDisplayName(p)}
-                          photoLabel={t("personnel.profilePhotoAvatarAria")}
-                          photoOpenLabel={t("personnel.nationalIdPhotoEnlarge")}
-                          onPhotoClick={
-                            p.hasProfilePhoto1
-                              ? () => setProfilePhotoPreviewPerson(p)
-                              : undefined
-                          }
-                          className={cn(
-                            MOBILE_TOKENS.AVATAR.MAX,
-                            "shrink-0 text-lg"
-                          )}
-                        />
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <div className="flex min-w-0 flex-wrap items-center gap-2 gap-y-1">
+                        <div className="flex min-w-0 items-start gap-3">
+                          <PersonnelProfilePhotoAvatar
+                            shape="square"
+                            personnelId={p.id}
+                            hasPhoto={p.hasProfilePhoto1}
+                            profilePhotoPaths={{
+                              profilePhoto1Url: p.profilePhoto1Url,
+                              profilePhoto2Url: p.profilePhoto2Url,
+                            }}
+                            nonce={listPhotoNonce}
+                            displayName={personnelDisplayName(p)}
+                            photoLabel={t("personnel.profilePhotoAvatarAria")}
+                            photoOpenLabel={t("personnel.nationalIdPhotoEnlarge")}
+                            onPhotoClick={
+                              p.hasProfilePhoto1
+                                ? () => setProfilePhotoPreviewPerson(p)
+                                : undefined
+                            }
+                            className={cn(
+                              "h-[4.75rem] w-[4.75rem] shrink-0 text-xl ring-1 ring-zinc-200/80 min-[360px]:h-[5.25rem] min-[360px]:w-[5.25rem] min-[360px]:text-2xl min-[420px]:h-24 min-[420px]:w-24 min-[420px]:text-3xl",
+                              p.isDeleted && "opacity-90"
+                            )}
+                          />
+                          <div className="min-w-0 flex-1 space-y-2">
                             <h3
                               className={cn(
-                                "min-w-0 max-w-full truncate text-base font-semibold leading-snug text-zinc-900",
+                                "min-w-0 max-w-full text-pretty text-lg font-bold leading-snug tracking-tight text-zinc-900 min-[375px]:text-xl",
                                 p.isDeleted && "text-zinc-600"
                               )}
                             >
                               {personnelDisplayName(p)}
                             </h3>
-                            {p.isDeleted ? (
-                              <StatusBadge tone="inactive">{t("personnel.badgePassive")}</StatusBadge>
-                            ) : null}
-                            <PersonnelYearAccountClosedBadge personnel={p} t={t} />
-                          </div>
-                          <p
-                            className={cn(
-                              "truncate text-sm font-medium text-zinc-700",
-                              p.isDeleted && "text-zinc-500"
-                            )}
-                          >
-                            {t(`personnel.jobTitles.${p.jobTitle}`)}
-                          </p>
-                          <p
-                            className={cn(
-                              "truncate text-sm text-zinc-600",
-                              p.isDeleted && "text-zinc-500"
-                            )}
-                          >
-                            <span className="text-zinc-500">
-                              {t("personnel.tableBranch")}:{" "}
-                            </span>
-                            {p.branchId != null && p.branchId > 0 ? (
-                              <button
-                                type="button"
-                                className={cn(
-                                  "font-medium text-violet-800 underline decoration-violet-200 underline-offset-2 hover:text-violet-950",
-                                  p.isDeleted && "text-violet-700/80"
-                                )}
-                                onClick={() => openBranchDetail(p.branchId!)}
-                              >
-                                {branchNameById.get(p.branchId) ?? `#${p.branchId}`}
-                              </button>
-                            ) : (
+                            <div
+                              className="flex min-w-0 items-start gap-2.5"
+                              aria-label={`${t("personnel.tableJobTitle")}: ${t(`personnel.jobTitles.${p.jobTitle}`)}`}
+                            >
                               <span
+                                className="mt-0.5 shrink-0 text-violet-600"
+                                aria-hidden
+                              >
+                                <PersonnelMobileJobTitleIcon className="h-[18px] w-[18px] min-[375px]:h-5 min-[375px]:w-5" />
+                              </span>
+                              <p
                                 className={cn(
-                                  "font-medium text-zinc-800",
-                                  p.isDeleted && "text-zinc-600"
+                                  "min-w-0 flex-1 text-pretty text-sm font-semibold leading-snug text-zinc-800 min-[375px]:text-base",
+                                  p.isDeleted && "text-zinc-500"
                                 )}
                               >
-                                {t("personnel.dash")}
+                                {t(`personnel.jobTitles.${p.jobTitle}`)}
+                              </p>
+                            </div>
+                            <div
+                              className="flex min-w-0 items-start gap-2.5"
+                              aria-label={
+                                p.branchId != null && p.branchId > 0
+                                  ? `${t("personnel.tableBranch")}: ${branchNameById.get(p.branchId) ?? `#${p.branchId}`}`
+                                  : `${t("personnel.tableBranch")}: ${t("personnel.dash")}`
+                              }
+                            >
+                              <span
+                                className="mt-0.5 shrink-0 text-violet-600"
+                                aria-hidden
+                              >
+                                <PersonnelMobileBranchIcon className="h-[18px] w-[18px] min-[375px]:h-5 min-[375px]:w-5" />
                               </span>
-                            )}
-                          </p>
-                          <PersonnelInsuranceBadge personnel={p} t={t} />
+                              <div
+                                className={cn(
+                                  "min-w-0 flex-1 text-sm font-semibold leading-snug text-zinc-800 min-[375px]:text-[0.9375rem]",
+                                  p.isDeleted && "text-zinc-500"
+                                )}
+                              >
+                                {p.branchId != null && p.branchId > 0 ? (
+                                  <button
+                                    type="button"
+                                    className={cn(
+                                      "inline text-left font-semibold text-violet-900 underline decoration-violet-200 decoration-2 underline-offset-2 hover:text-violet-950",
+                                      p.isDeleted && "text-violet-800/85"
+                                    )}
+                                    onClick={() => openBranchDetail(p.branchId!)}
+                                  >
+                                    <span className="break-words">
+                                      {branchNameById.get(p.branchId) ?? `#${p.branchId}`}
+                                    </span>
+                                  </button>
+                                ) : (
+                                  <span>{t("personnel.dash")}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="ml-auto flex w-full min-w-0 shrink-0 flex-wrap justify-end gap-1 self-start pt-0.5 sm:w-auto sm:max-w-[min(100%,14rem)]">
+                        <div className="flex w-full min-w-0 flex-wrap items-center justify-end gap-1 border-t border-zinc-100 pt-2.5">
                           <PersonnelRowActionsToolbar
                             p={p}
                             isAdmin={isAdmin}
                             menuId={`personnel-quick-${p.id}`}
                             compact
+                            framedDelete
                             onView={() => openPersonnelDetail(p)}
                             viewLabel={t("personnel.viewPersonnelAria")}
                             onEdit={() => openEdit(p)}
@@ -1214,12 +1298,8 @@ export function PersonnelScreen() {
                                 }
                               : {})}
                             onNotes={() => openPersonnelDetail(p, "notes")}
-                            onInsuranceIntake={() =>
-                              setInsuranceIntakeTarget(p)
-                            }
-                            onCreateSystemUser={() =>
-                              openCreateSystemUser(p)
-                            }
+                            onInsuranceIntake={() => setInsuranceIntakeTarget(p)}
+                            onCreateSystemUser={() => openCreateSystemUser(p)}
                             onPdfSettlement={() =>
                               openPersonnelPdfSettlementPicker(p)
                             }
@@ -1230,8 +1310,20 @@ export function PersonnelScreen() {
                             t={t}
                           />
                         </div>
+                        <div className="flex min-w-0 flex-wrap items-center gap-1.5 gap-y-1.5 border-t border-zinc-100 pt-2.5">
+                          {p.isDeleted ? (
+                            <StatusBadge tone="inactive">
+                              {t("personnel.badgePassive")}
+                            </StatusBadge>
+                          ) : null}
+                          <PersonnelYearAccountClosedBadge personnel={p} t={t} />
+                          <PersonnelInsuranceBadge
+                            personnel={p}
+                            t={t}
+                            variant="tag"
+                          />
+                        </div>
                       </div>
-                    </div>
                     </MobileListCard>
                   );
                 })}

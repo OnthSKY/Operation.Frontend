@@ -11,6 +11,12 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import {
+  getVisualViewportBottomPx,
+  getVisualViewportTopPx,
+  getVisualViewportWidthPx,
+} from "@/shared/lib/visual-viewport-bottom";
+import { rafThrottle } from "@/shared/lib/viewport-raf-throttle";
 
 export type TooltipSide = "top" | "bottom" | "right";
 
@@ -78,28 +84,28 @@ export function Tooltip({
     const th = tipEl.offsetHeight;
     const gap = 8;
     const pad = 8;
+    const vTop = getVisualViewportTopPx();
+    const vBottom = getVisualViewportBottomPx();
+    const vWidth = getVisualViewportWidthPx();
 
     let placement: "top" | "bottom" | "right" = side === "right" ? "right" : side === "bottom" ? "bottom" : "top";
     let top = placement === "top" ? rect.top - gap : placement === "bottom" ? rect.bottom + gap : rect.top + rect.height / 2;
     let left = placement === "right" ? rect.right + gap : rect.left + rect.width / 2;
 
     if (placement === "right") {
-      if (window.innerWidth - rect.right < tw + pad) {
+      if (vWidth - rect.right < tw + pad) {
         placement = "top";
         top = rect.top - gap;
         left = rect.left + rect.width / 2;
       } else {
-        top = Math.max(th / 2 + pad, Math.min(top, window.innerHeight - th / 2 - pad));
+        top = Math.max(vTop + th / 2 + pad, Math.min(top, vBottom - th / 2 - pad));
       }
     }
 
-    if (placement === "top" && rect.top < th + pad) {
+    if (placement === "top" && rect.top - vTop < th + pad) {
       placement = "bottom";
       top = rect.bottom + gap;
-    } else if (
-      placement === "bottom" &&
-      window.innerHeight - rect.bottom < th + pad
-    ) {
+    } else if (placement === "bottom" && vBottom - rect.bottom < th + pad) {
       placement = "top";
       top = rect.top - gap;
     }
@@ -107,7 +113,7 @@ export function Tooltip({
     if (placement !== "right") {
       left = Math.max(
         tw / 2 + pad,
-        Math.min(left, window.innerWidth - tw / 2 - pad)
+        Math.min(left, vWidth - tw / 2 - pad)
       );
     }
 
@@ -125,12 +131,20 @@ export function Tooltip({
 
   useEffect(() => {
     if (!open) return;
-    const handler = () => measureAndPlace();
+    const throttled = rafThrottle(measureAndPlace);
+    throttled.flush();
+    const handler = throttled.schedule;
     window.addEventListener("scroll", handler, true);
     window.addEventListener("resize", handler);
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", handler);
+    vv?.addEventListener("scroll", handler);
     return () => {
+      throttled.cancel();
       window.removeEventListener("scroll", handler, true);
       window.removeEventListener("resize", handler);
+      vv?.removeEventListener("resize", handler);
+      vv?.removeEventListener("scroll", handler);
     };
   }, [open, measureAndPlace]);
 

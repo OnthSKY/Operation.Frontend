@@ -14,6 +14,11 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { ToolbarGlyphLightning } from "@/shared/ui/ToolbarGlyph";
+import {
+  getVisualViewportHeightPx,
+  getVisualViewportWidthPx,
+} from "@/shared/lib/visual-viewport-bottom";
+import { rafThrottle } from "@/shared/lib/viewport-raf-throttle";
 
 export type QuickActionsMenuItem = {
   id: string;
@@ -78,8 +83,8 @@ export function BranchQuickActionsMenu({
     const el = anchorRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const vw = getVisualViewportWidthPx();
+    const vh = getVisualViewportHeightPx();
     const margin = 10;
     const narrow = vw < 640;
     const menuWidth = narrow
@@ -144,12 +149,20 @@ export function BranchQuickActionsMenu({
 
   useEffect(() => {
     if (!open) return;
-    const onScroll = () => updatePosition();
+    const throttled = rafThrottle(updatePosition);
+    throttled.flush();
+    const onScroll = throttled.schedule;
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", onScroll);
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", onScroll);
+    vv?.addEventListener("scroll", onScroll);
     return () => {
+      throttled.cancel();
       window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", onScroll);
+      vv?.removeEventListener("resize", onScroll);
+      vv?.removeEventListener("scroll", onScroll);
     };
   }, [open, updatePosition]);
 

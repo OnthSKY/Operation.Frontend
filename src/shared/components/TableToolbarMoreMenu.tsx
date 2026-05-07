@@ -14,6 +14,11 @@ import {
 import { createPortal } from "react-dom";
 import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
 import { OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
+import {
+  getVisualViewportHeightPx,
+  getVisualViewportWidthPx,
+} from "@/shared/lib/visual-viewport-bottom";
+import { rafThrottle } from "@/shared/lib/viewport-raf-throttle";
 
 export type TableToolbarMoreMenuItem = {
   id: string;
@@ -55,8 +60,8 @@ export function TableToolbarMoreMenu({
     const el = anchorRef.current;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
+    const vw = getVisualViewportWidthPx();
+    const vh = getVisualViewportHeightPx();
     const margin = 10;
     const narrow = vw < 640;
     const menuWidth = narrow
@@ -85,12 +90,20 @@ export function TableToolbarMoreMenu({
 
   useEffect(() => {
     if (!open) return;
-    const onResize = () => updatePosition();
+    const throttled = rafThrottle(updatePosition);
+    throttled.flush();
+    const onResize = throttled.schedule;
     window.addEventListener("resize", onResize);
     window.addEventListener("scroll", onResize, true);
+    const vv = window.visualViewport;
+    vv?.addEventListener("resize", onResize);
+    vv?.addEventListener("scroll", onResize);
     return () => {
+      throttled.cancel();
       window.removeEventListener("resize", onResize);
       window.removeEventListener("scroll", onResize, true);
+      vv?.removeEventListener("resize", onResize);
+      vv?.removeEventListener("scroll", onResize);
     };
   }, [open, updatePosition]);
 

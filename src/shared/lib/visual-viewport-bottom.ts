@@ -10,3 +10,35 @@ export function getVisualViewportBottomPx(): number {
   if (vv) return vv.offsetTop + vv.height;
   return window.innerHeight;
 }
+
+/** Top Y of the visible viewport (useful when the browser UI shifts `offsetTop`). */
+export function getVisualViewportTopPx(): number {
+  if (typeof window === "undefined") return 0;
+  const vv = window.visualViewport;
+  if (vv) return vv.offsetTop;
+  return 0;
+}
+
+/** Left X of the visible viewport (pinch-zoom / horizontal inset). */
+export function getVisualViewportLeftPx(): number {
+  if (typeof window === "undefined") return 0;
+  const vv = window.visualViewport;
+  if (vv) return vv.offsetLeft;
+  return 0;
+}
+
+/** Visible height in CSS pixels (keyboard-aware on mobile). */
+export function getVisualViewportHeightPx(): number {
+  if (typeof window === "undefined") return 0;
+  const vv = window.visualViewport;
+  if (vv) return vv.height;
+  return window.innerHeight;
+}
+
+/** Visible width (pinch-zoom / split view aware when supported). */
+export function getVisualViewportWidthPx(): number {
+  if (typeof window === "undefined") return 0;
+  const vv = window.visualViewport;
+  if (vv) return vv.width;
+  return window.innerWidth;
+}

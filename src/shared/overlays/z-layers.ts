@@ -9,6 +9,8 @@ export const OVERLAY_Z_INDEX = {
   remindersDesktopPopover: 50,
   branchDetailSheet: 100,
   modal: 110,
+  /** Ana modalın üstünde, dış tık kapatma onayı (viewport ortası). */
+  backdropCloseConfirm: 118,
   modalNested: 120,
   /** Mobil menü backdrop (toolbar / satır menüleri). */
   menuMobileBackdrop: 199,
@@ -27,6 +29,7 @@ export const OVERLAY_Z_TW = {
   remindersPanel: "max-md:z-[90] md:z-50",
   branchDetailSheet: "z-[100]",
   modal: "z-[110]",
+  backdropCloseConfirm: "z-[118]",
   modalNested: "z-[120]",
   menuMobileBackdrop: "z-[199]",
   menuPanel: "z-[200]",

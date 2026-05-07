@@ -20,13 +20,24 @@ const MobileSidebar = dynamic(
   () => import("./MobileSidebar").then((m) => m.MobileSidebar),
   { ssr: false }
 );
+const MobileFullMenu = dynamic(
+  () => import("./MobileFullMenu").then((m) => m.MobileFullMenu),
+  { ssr: false }
+);
 const DesktopSidebar = dynamic(
   () => import("./DesktopSidebar").then((m) => m.DesktopSidebar),
   { ssr: false }
 );
 
 function AppShellInner({ children }: { children: ReactNode }) {
-  const { isSidebarOpen, openSidebar, closeSidebar } = useNavigationState();
+  const {
+    isSidebarOpen,
+    isMobileFullMenuOpen,
+    openMobileFullMenu,
+    closeMobileFullMenu,
+    openSidebar,
+    closeSidebar,
+  } = useNavigationState();
   const pathname = usePathname() ?? "/";
   const { user } = useAuth();
   const { t } = useI18n();
@@ -58,7 +69,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
       {routeLoading ? (
         <div className="fixed inset-x-0 top-0 z-[75] h-0.5 bg-zinc-900/80" aria-hidden />
       ) : null}
-      <TopNavbar onOpenMenu={openSidebar} breadcrumbs={breadcrumbs} />
+      <TopNavbar onOpenMenu={openMobileFullMenu} breadcrumbs={breadcrumbs} />
 
       <div className="flex h-full w-full pt-16">
         <div className="hidden md:block">
@@ -71,9 +82,15 @@ function AppShellInner({ children }: { children: ReactNode }) {
       </div>
 
       <div className="block md:hidden">
-        <MobileBottomNav onOpenMore={openSidebar} badgeState={badgeState} />
+        <MobileBottomNav onOpenMore={openMobileFullMenu} badgeState={badgeState} />
       </div>
 
+      <MobileFullMenu
+        open={isMobileFullMenuOpen}
+        onClose={closeMobileFullMenu}
+        onOpenSidebar={openSidebar}
+        badgeState={badgeState}
+      />
       <MobileSidebar open={isSidebarOpen} onClose={closeSidebar} badgeState={badgeState} />
     </div>
   );
