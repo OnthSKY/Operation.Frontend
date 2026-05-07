@@ -166,14 +166,13 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
       id: "warehouse-products",
       labelKey: "nav.groupWarehouseProducts",
       dockLabelKey: "nav.dockWarehouseShort",
-      route: showWarehouseLink ? "/warehouses" : "/products",
+      route: showWarehouseLink ? "/warehouses" : showShipments ? "/shipments" : "/products",
       icon: "warehouse",
       mobileVisible: true,
       children: [
         ...(showWarehouseLink
           ? [
               { id: "warehouses", labelKey: "nav.warehouse", route: "/warehouses", icon: "warehouse" },
-              { id: "shipments", labelKey: "nav.shipments", route: "/shipments", icon: "warehouse" },
               {
                 id: "warehouse-global-movements",
                 labelKey: "nav.warehouseGlobalMovements",
@@ -181,6 +180,9 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
                 icon: "movements",
               },
             ]
+          : []),
+        ...(showShipments
+          ? [{ id: "shipments", labelKey: "nav.shipments", route: "/shipments", icon: "warehouse" }]
           : []),
         ...(showProducts
           ? [

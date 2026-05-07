@@ -1,4 +1,32 @@
 export const shipments = {
+  list: {
+    eyebrow: "Shipment requests",
+    title: "Shipment request tracking",
+    subtitle:
+      "This page lists shipment requests opened for branches. Use it to follow approval, warehouse preparation, dispatch, and completion statuses; actual stock movements continue to be posted from warehouse flows.",
+    requestOnlyTitle: "Request screen:",
+    requestOnlyHint:
+      "Create a shipment request here; it is not the final warehouse dispatch record until the workflow is approved and processed.",
+    assignments: "Assignments",
+    createRequest: "Create shipment request",
+    statusLabel: "Status",
+    statusAll: "All statuses",
+    routeSummary: "Branch #{{branchId}} · Warehouse #{{warehouseId}}",
+  },
+  status: {
+    DRAFT: "Draft",
+    PENDING_APPROVAL: "Pending approval",
+    APPROVED: "Approved",
+    REJECTED: "Rejected",
+    WAITING_WAREHOUSE: "Waiting for warehouse",
+    PREPARING: "Preparing",
+    READY_FOR_DISPATCH: "Ready for dispatch",
+    ON_THE_WAY: "On the way",
+    DELIVERED: "Delivered",
+    COMPLETED: "Completed",
+    COMPLETED_WITH_ISSUE: "Completed with issue",
+    CANCELLED: "Cancelled",
+  },
   create: {
     eyebrow: "Shipment request",
     title: "Create shipment",

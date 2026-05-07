@@ -1,4 +1,32 @@
 export const shipments = {
+  list: {
+    eyebrow: "Sevkiyat talepleri",
+    title: "Sevkiyat talebi takibi",
+    subtitle:
+      "Bu sayfa şubeler için açılan sevkiyat taleplerini listeler. Onay, depo hazırlığı, yola çıkış ve tamamlama durumlarını buradan takip edin; gerçek stok hareketleri depo akışlarından işlenmeye devam eder.",
+    requestOnlyTitle: "Talep ekranı:",
+    requestOnlyHint:
+      "Burada sevkiyat talebi oluşturulur; iş akışı onaylanıp depoda işlenmeden nihai depo çıkış kaydı değildir.",
+    assignments: "Atamalar",
+    createRequest: "Sevkiyat talebi oluştur",
+    statusLabel: "Durum",
+    statusAll: "Tüm durumlar",
+    routeSummary: "Şube #{{branchId}} · Depo #{{warehouseId}}",
+  },
+  status: {
+    DRAFT: "Taslak",
+    PENDING_APPROVAL: "Onay bekliyor",
+    APPROVED: "Onaylandı",
+    REJECTED: "Reddedildi",
+    WAITING_WAREHOUSE: "Depo bekliyor",
+    PREPARING: "Hazırlanıyor",
+    READY_FOR_DISPATCH: "Sevke hazır",
+    ON_THE_WAY: "Yolda",
+    DELIVERED: "Teslim edildi",
+    COMPLETED: "Tamamlandı",
+    COMPLETED_WITH_ISSUE: "Sorunla tamamlandı",
+    CANCELLED: "İptal edildi",
+  },
   create: {
     eyebrow: "Sevkiyat talebi",
     title: "Sevkiyat oluştur",
