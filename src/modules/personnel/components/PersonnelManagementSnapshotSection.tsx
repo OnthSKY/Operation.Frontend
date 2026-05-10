@@ -78,6 +78,8 @@ function emptyRow(ccy: string): PersonnelCurrencySnapshot {
     netSalaryMinusAdvanceYearToDate: 0,
     totalCashHandoverAsResponsibleAllTime: 0,
     totalCashHandoverAsResponsibleYearToDate: 0,
+    totalPersonnelExpenseAllTime: 0,
+    totalPersonnelExpenseYearToDate: 0,
   };
 }
 
