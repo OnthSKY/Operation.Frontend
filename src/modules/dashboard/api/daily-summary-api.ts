@@ -14,6 +14,7 @@ function normalizeDailySummary(r: BranchDailySummary): BranchDailySummary {
     expenseOperationalPersonnelPocket: Number(r.expenseOperationalPersonnelPocket ?? 0) || 0,
     expenseOperationalHeldRegisterCash: Number(r.expenseOperationalHeldRegisterCash ?? 0) || 0,
     expenseOperationalUnset: Number(r.expenseOperationalUnset ?? 0) || 0,
+    expenseFromRegister: Number(r.expenseFromRegister ?? 0) || 0,
     incomeCash: Number(row.incomeCash ?? row.IncomeCash ?? 0) || 0,
     incomeCard: Number(row.incomeCard ?? row.IncomeCard ?? 0) || 0,
     registerOwesPersonnelToday: Number(r.registerOwesPersonnelToday ?? 0) || 0,

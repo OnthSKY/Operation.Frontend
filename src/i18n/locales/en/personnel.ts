@@ -1027,6 +1027,8 @@ export const personnel = {
   detailMgmtSimpleSummaryZero:
     "Summary: Total salary {sal}, total advances {adv}. Records look balanced.",
   detailMgmtTileAdvanceTotal: "Total advances",
+  detailMgmtTilePersonnelExpenseTotal: "Personnel expenses",
+  detailMgmtTileCostTotal: "Total cost (Advances + Expenses)",
   detailMgmtTileSalaryTotal: "Total salary paid",
   detailMgmtTileNetAll: "Net position",
   detailMgmtTileNetHint: "Salary − advances",

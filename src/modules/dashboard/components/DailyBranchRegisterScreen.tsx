@@ -676,7 +676,7 @@ export function DailyBranchRegisterScreen() {
                   {t("dashboard.dailyRegisterTotal_expense_primary")}
                 </p>
                 <p className="mt-1 text-sm font-semibold tabular-nums text-orange-950">
-                  {formatLocaleAmount(totalsStrip.expenseOut, locale)}
+                  {formatLocaleAmount(totalsStrip.expenseFromRegister, locale)}
                 </p>
                 {shouldShowExpensePaySourceBreakdown(
                   totalsStrip.expenseOut,
@@ -706,10 +706,18 @@ export function DailyBranchRegisterScreen() {
               </div>
               <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/80 px-3 py-2.5 shadow-sm">
                 <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-500">
-                  {t("dashboard.dailyRegisterTotal_net")}
+                  Kalan Nakit
                 </p>
                 <p className="mt-1 text-sm font-semibold tabular-nums text-violet-950">
                   {formatLocaleAmount(totalsStrip.net, locale)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/80 px-3 py-2.5 shadow-sm">
+                <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-500">
+                  {t("dashboard.dailyRegisterTotal_net")}
+                </p>
+                <p className="mt-1 text-sm font-semibold tabular-nums text-indigo-950">
+                  {formatLocaleAmount(totalsStrip.net + totalsStrip.card, locale)}
                 </p>
               </div>
             </div>
@@ -758,7 +766,7 @@ export function DailyBranchRegisterScreen() {
                             <div className="flex items-baseline justify-between gap-2">
                               <dt className="text-zinc-600">{t("dashboard.dailyRegisterCardExpenseHeadline")}</dt>
                               <dd className="tabular-nums font-semibold text-orange-950">
-                                {formatLocaleAmount(row.totalExpenseOut, locale)}
+                                {formatLocaleAmount(row.expenseFromRegister, locale)}
                               </dd>
                             </div>
                             {shouldShowExpensePaySourceBreakdown(
@@ -791,9 +799,15 @@ export function DailyBranchRegisterScreen() {
                             </p>
                           </div>
                           <div className="flex items-baseline justify-between gap-2 border-t border-zinc-100 pt-2">
-                            <dt className="font-medium text-zinc-800">{t("dashboard.dailyRegisterCardNet")}</dt>
+                            <dt className="font-medium text-zinc-800">Kalan Nakit</dt>
                             <dd className="tabular-nums font-bold text-violet-950">
                               {formatLocaleAmount(row.netCash, locale)}
+                            </dd>
+                          </div>
+                          <div className="flex items-baseline justify-between gap-2 border-t border-zinc-100 pt-2">
+                            <dt className="font-medium text-zinc-800">{t("dashboard.dailyRegisterCardNet")}</dt>
+                            <dd className="tabular-nums font-bold text-indigo-950">
+                              {formatLocaleAmount(row.netCash + card, locale)}
                             </dd>
                           </div>
                         </dl>

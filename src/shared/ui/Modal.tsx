@@ -209,7 +209,7 @@ export function Modal({
           ) : null}
         </div>
         {sheetMobileActive ? (
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom,0.75rem))] pt-1 [-webkit-overflow-scrolling:touch]">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom,0.75rem))] pt-1">
             {children}
           </div>
         ) : (

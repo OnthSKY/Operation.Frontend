@@ -11,6 +11,7 @@ import {
 import {
   branchKeys,
   useBranchHeldRegisterCashByPerson,
+  useBranchRegisterSummary,
   useBranchesList,
   useCreateBranchTransaction,
 } from "@/modules/branch/hooks/useBranchQueries";
@@ -996,6 +997,11 @@ export function AddBranchTransactionModal({
   const expensePayWatch = useWatch({ control, name: "expensePaymentSource" });
   const transactionDateWatch = useWatch({ control, name: "transactionDate" });
 
+  const asOfDateYmd = useMemo(() => {
+    const s = String(transactionDateWatch ?? "").trim().slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : "";
+  }, [transactionDateWatch]);
+
   const expensePayUForHandover = String(expensePayWatch ?? "").trim().toUpperCase();
   const cashHandoverSettleFieldVisible =
     txType.toUpperCase() === "OUT" &&
@@ -1087,6 +1093,7 @@ export function AddBranchTransactionModal({
     },
   });
 
+  const amountWatch = useWatch({ control, name: "amount" });
   const amountCashWatch = useWatch({ control, name: "amountCash" });
   const amountCardWatch = useWatch({ control, name: "amountCard" });
   const currencyWatch = useWatch({ control, name: "currencyCode" });
@@ -1105,6 +1112,36 @@ export function AddBranchTransactionModal({
     mainCategoryWatch,
     categoryWatch
   );
+
+  const { data: registerSummary } = useBranchRegisterSummary(
+    resolvedBranchId,
+    asOfDateYmd,
+    registerDayClose && resolvedBranchId != null && resolvedBranchId > 0 && asOfDateYmd.length === 10 && !orgMode
+  );
+
+  const priorRegisterExpenses = registerDayClose ? (registerSummary?.dayCashOutFromRegister ?? 0) : 0;
+
+  const bundledRegisterExpenses = useMemo(() => {
+    if (!registerDayClose) return 0;
+    return dayCloseBundledConfirmedLines.reduce((sum, row) => {
+      if (row.paymentSource === "REGISTER") return sum + row.amount;
+      return sum;
+    }, 0);
+  }, [registerDayClose, dayCloseBundledConfirmedLines]);
+
+  const totalDeductibleRegisterExpenses = priorRegisterExpenses + bundledRegisterExpenses;
+
+  const enteredCashIncome = useMemo(() => {
+    if (!registerDayClose) return 0;
+    if (incomeSplitActive) {
+      const c = parseLocaleAmount(String(amountCashWatch ?? ""), locale);
+      return Number.isFinite(c) && c > 0 ? c : 0;
+    }
+    const a = parseLocaleAmount(String(amountWatch ?? ""), locale);
+    return Number.isFinite(a) && a > 0 ? a : 0;
+  }, [registerDayClose, incomeSplitActive, amountCashWatch, amountWatch, locale]);
+
+  const netCashHandover = Math.max(0, enteredCashIncome - totalDeductibleRegisterExpenses);
 
   useEffect(() => {
     if (!registerDayClose || orgMode) {
@@ -1258,11 +1295,6 @@ export function AddBranchTransactionModal({
         })),
     ];
   }, [allPersonnel, locale, t]);
-
-  const asOfDateYmd = useMemo(() => {
-    const s = String(transactionDateWatch ?? "").trim().slice(0, 10);
-    return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : "";
-  }, [transactionDateWatch]);
 
   const expensePaySourceUpper = String(expensePayWatch ?? "").trim().toUpperCase();
   const heldRegisterPaySourceActive =
@@ -1781,6 +1813,22 @@ export function AddBranchTransactionModal({
       return;
     }
 
+    const registerDayCloseSubmit = isRegisterDayCloseIncomeRow(
+      values.type,
+      values.mainCategory,
+      values.category
+    );
+
+    let totalDeductibleSubmit = 0;
+    if (registerDayCloseSubmit) {
+      totalDeductibleSubmit += (registerSummary?.dayCashOutFromRegister ?? 0);
+      for (const row of dayCloseBundledConfirmedLines) {
+        if (row.paymentSource === "REGISTER") {
+          totalDeductibleSubmit += row.amount;
+        }
+      }
+    }
+
     if (splitIncome) {
       const c = parseLocaleAmount(values.amountCash, locale);
       const k = parseLocaleAmount(values.amountCard, locale);
@@ -1793,7 +1841,7 @@ export function AddBranchTransactionModal({
         notify.error(t("branch.txAmountInvalid"));
         return;
       }
-      cashAmount = c;
+      cashAmount = registerDayCloseSubmit ? Math.max(0, c - totalDeductibleSubmit) : c;
       cardAmount = k;
     } else {
       amount = parseLocaleAmount(values.amount, locale);
@@ -1801,13 +1849,11 @@ export function AddBranchTransactionModal({
         notify.error(t("branch.txAmountInvalid"));
         return;
       }
+      if (registerDayCloseSubmit && totalDeductibleSubmit > 0) {
+        cashAmount = Math.max(0, amount - totalDeductibleSubmit);
+      }
     }
 
-    const registerDayCloseSubmit = isRegisterDayCloseIncomeRow(
-      values.type,
-      values.mainCategory,
-      values.category
-    );
     const hasCashPortion = cashAmount != null && cashAmount > 0;
     let cashSettlementParty: string | null = null;
     if (registerDayCloseSubmit || hasCashPortion) {
@@ -2790,6 +2836,37 @@ export function AddBranchTransactionModal({
                       </p>
                     ) : null}
                   </>
+                ) : null}
+                
+                {registerDayClose && enteredCashIncome > 0 && String(cashPartyWatch ?? "").trim().toUpperCase() !== "" ? (
+                   <div className="min-w-0 rounded-lg border border-indigo-100 bg-indigo-50/50 p-3 lg:col-span-2">
+                     <p className="text-xs font-semibold text-indigo-900 mb-2">
+                       Nakit Devir Özeti
+                     </p>
+                     <div className="flex justify-between items-center text-xs text-indigo-800 py-0.5">
+                       <span>Girilen Nakit Gelir:</span>
+                       <span className="font-mono">{formatLocaleAmount(enteredCashIncome, locale, currencyWatch)}</span>
+                     </div>
+                     {priorRegisterExpenses > 0 ? (
+                       <div className="flex justify-between items-center text-xs text-indigo-800 py-0.5">
+                         <span>Gün İçi Kasa Giderleri:</span>
+                         <span className="font-mono text-red-700">-{formatLocaleAmount(priorRegisterExpenses, locale, currencyWatch)}</span>
+                       </div>
+                     ) : null}
+                     {bundledRegisterExpenses > 0 ? (
+                       <div className="flex justify-between items-center text-xs text-indigo-800 py-0.5">
+                         <span>Yeni Eklenen Kasa Giderleri:</span>
+                         <span className="font-mono text-red-700">-{formatLocaleAmount(bundledRegisterExpenses, locale, currencyWatch)}</span>
+                       </div>
+                     ) : null}
+                     <div className="mt-1.5 flex justify-between items-center text-sm font-semibold text-indigo-950 pt-1.5 border-t border-indigo-200/60">
+                       <span>Aktarılacak Net Nakit:</span>
+                       <span className="font-mono">{formatLocaleAmount(netCashHandover, locale, currencyWatch)}</span>
+                     </div>
+                     <p className="mt-2 text-[11px] leading-relaxed text-indigo-600/90">
+                       Kasa giderleri, kullanıcının girdiği nakit gelir tutarından otomatik olarak düşülerek aktarılır.
+                     </p>
+                   </div>
                 ) : null}
               </>
             ) : null}

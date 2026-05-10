@@ -161,7 +161,7 @@ export function EditWarehouseInboundMovementFullModal({ open, warehouseId, movem
       ) : q.isError ? (
         <p className="mt-4 text-sm text-red-600">{toErrorMessage(q.error)}</p>
       ) : q.data ? (
-        <div className="mt-3 flex max-h-[min(78dvh,32rem)] flex-col gap-3 overflow-y-auto [-webkit-overflow-scrolling:touch] sm:max-h-none sm:overflow-visible">
+        <div className="mt-3 flex max-h-[min(78dvh,32rem)] flex-col gap-3 overflow-y-auto sm:max-h-none sm:overflow-visible">
           {locked ? (
             <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950">
               {t("warehouse.editInboundFullSupplierLock")}

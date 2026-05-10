@@ -57,6 +57,8 @@ export type PersonnelCurrencySnapshot = {
   /** Kasa gelir/gün sonu satırında bu personele «sorumlu» olarak işaretlenen fiziksel nakit. */
   totalCashHandoverAsResponsibleAllTime: number;
   totalCashHandoverAsResponsibleYearToDate: number;
+  totalPersonnelExpenseAllTime: number;
+  totalPersonnelExpenseYearToDate: number;
 };
 
 export type PersonnelManagementSnapshot = {

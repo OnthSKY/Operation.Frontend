@@ -119,6 +119,7 @@ export function useTodayBranchesSummary(
     let totalIncome = 0;
     let totalIncomeCash = 0;
     let totalIncomeCard = 0;
+    let totalExpenseFromRegister = 0;
     let totalExpenseAllOut = 0;
     let totalRegisterOwesPatronToday = 0;
     let totalPersonnelPocketRepaidFromPatronToday = 0;
@@ -157,7 +158,7 @@ export function useTodayBranchesSummary(
       counted++;
       const income = Number(d.totalIncome);
       const net = Number(d.netCash);
-      const expenseFromRegister = income - net;
+      const expenseFromRegister = Number(d.expenseFromRegister ?? 0);
       const totalExpenseOut = Number(d.totalExpense);
       const registerOwesPatronToday = Number(d.registerOwesPatronToday ?? 0);
       const registerOwesPersonnelToday = Number(d.registerOwesPersonnelToday ?? 0);
@@ -176,6 +177,7 @@ export function useTodayBranchesSummary(
       totalIncome += income;
       totalIncomeCash += Number(d.incomeCash ?? 0);
       totalIncomeCard += Number(d.incomeCard ?? 0);
+      totalExpenseFromRegister += expenseFromRegister;
       totalExpenseAllOut += totalExpenseOut;
       totalRegisterOwesPatronToday += registerOwesPatronToday;
       totalPersonnelPocketRepaidFromPatronToday += personnelPocketRepaidFromPatronToday;
@@ -217,7 +219,6 @@ export function useTodayBranchesSummary(
       );
     });
 
-    const totalExpenseFromRegister = totalIncome - netCashSum;
     if (counted === 0 && branches.length > 0) {
       return { kind: "empty" };
     }

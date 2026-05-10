@@ -15,6 +15,7 @@ export type BranchDailySummary = {
   expenseOperationalPersonnelPocket?: number;
   expenseOperationalHeldRegisterCash?: number;
   expenseOperationalUnset?: number;
+  expenseFromRegister?: number;
   netCash: number;
   /** Same-day OUT paid from personnel pocket (register debt). */
   registerOwesPersonnelToday?: number;

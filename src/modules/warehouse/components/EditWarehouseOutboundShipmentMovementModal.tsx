@@ -260,7 +260,7 @@ export function EditWarehouseOutboundShipmentMovementModal({
       ) : q.isError ? (
         <p className="mt-4 text-sm text-red-600">{toErrorMessage(q.error)}</p>
       ) : q.data ? (
-        <div className="mt-3 flex max-h-[min(78dvh,32rem)] flex-col gap-3 overflow-y-auto [-webkit-overflow-scrolling:touch] sm:max-h-none sm:overflow-visible">
+        <div className="mt-3 flex max-h-[min(78dvh,32rem)] flex-col gap-3 overflow-y-auto sm:max-h-none sm:overflow-visible">
           <p className="rounded-lg border border-zinc-200/90 bg-zinc-50/90 px-3 py-2 text-xs text-zinc-700">
             {t("warehouse.editOutboundShipmentAuditHint")}
           </p>

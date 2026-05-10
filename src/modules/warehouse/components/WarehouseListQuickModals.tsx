@@ -311,7 +311,7 @@ export function WarehouseListDepoInModal({
           className="mt-3 flex min-h-0 flex-1 flex-col sm:mt-4"
           onSubmit={(e) => void onSubmit(e)}
         >
-          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto [-webkit-overflow-scrolling:touch] pr-1">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
           <DateField
             label={t("warehouse.quickMovementDate")}
             labelRequired
@@ -1033,7 +1033,7 @@ export function WarehouseListTransferModal({
           className="mt-3 flex min-h-0 flex-1 flex-col sm:mt-4"
           onSubmit={(e) => void onSubmit(e)}
         >
-          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto [-webkit-overflow-scrolling:touch] pr-1">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 sm:pr-2">
           <DateField
             label={t("warehouse.quickMovementDate")}
             labelRequired
@@ -1284,7 +1284,7 @@ export function WarehouseListTransferModal({
         closeButtonLabel={t("common.close")}
         className="w-full max-w-lg"
       >
-        <div className="mt-3 max-h-[min(78dvh,32rem)] space-y-3 overflow-y-auto [-webkit-overflow-scrolling:touch] pr-1">
+        <div className="mt-3 max-h-[min(78dvh,32rem)] space-y-3 overflow-y-auto pr-1">
           {previewMainGroups.length > 0 ? (
             <ul className="space-y-2">
               {previewMainGroups.map((group) => (

@@ -488,182 +488,207 @@ export function PersonnelManagementSnapshotSection({
 
   return (
     <>
-    <section
-      className="mb-3 w-full min-w-0 shrink-0 rounded-2xl border border-zinc-200/90 bg-white p-3 shadow-md shadow-zinc-900/10 sm:p-5"
-      aria-labelledby="personnel-mgmt-snapshot-title"
-    >
-      <div className="flex flex-col gap-3 border-b border-zinc-100 pb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-        <div className="min-w-0 flex-1">
-          <h3
-            id="personnel-mgmt-snapshot-title"
-            className="text-base font-semibold tracking-tight text-zinc-900"
-          >
-            {viewMode === "cashPhysicalHandover"
-              ? t("personnel.detailCashPhysicalTabTitle")
-              : t("personnel.detailMgmtTitle")}
-          </h3>
-          <p
-            className={cn(
-              "mt-1 text-xs font-medium uppercase tracking-wide",
-              viewMode === "cashPhysicalHandover" ? "text-sky-800" : "text-violet-600",
-            )}
-          >
-            {viewMode === "cashPhysicalHandover"
-              ? t("personnel.detailCashPhysicalTabBadge")
-              : t("personnel.detailMgmtBadge")}
-          </p>
-          {viewMode === "cashPhysicalHandover" ? (
-            <p className="mt-2 text-sm leading-relaxed text-zinc-700">
-              {t("personnel.detailCashPhysicalTabLead")}
+      <section
+        className="mb-3 w-full min-w-0 shrink-0 rounded-2xl border border-zinc-200/90 bg-white p-3 shadow-md shadow-zinc-900/10 sm:p-5"
+        aria-labelledby="personnel-mgmt-snapshot-title"
+      >
+        <div className="flex flex-col gap-3 border-b border-zinc-100 pb-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+          <div className="min-w-0 flex-1">
+            <h3
+              id="personnel-mgmt-snapshot-title"
+              className="text-base font-semibold tracking-tight text-zinc-900"
+            >
+              {viewMode === "cashPhysicalHandover"
+                ? t("personnel.detailCashPhysicalTabTitle")
+                : t("personnel.detailMgmtTitle")}
+            </h3>
+            <p
+              className={cn(
+                "mt-1 text-xs font-medium uppercase tracking-wide",
+                viewMode === "cashPhysicalHandover" ? "text-sky-800" : "text-violet-600",
+              )}
+            >
+              {viewMode === "cashPhysicalHandover"
+                ? t("personnel.detailCashPhysicalTabBadge")
+                : t("personnel.detailMgmtBadge")}
             </p>
-          ) : null}
-        </div>
-      </div>
-
-      {isPending ? (
-        <div className="mt-4 space-y-3" aria-busy="true">
-          <div className="h-24 animate-pulse rounded-xl bg-zinc-100" />
-          <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7">
-            {[1, 2, 3, 4, 5, 6, 7].map((i) => (
-              <div key={i} className="h-20 animate-pulse rounded-xl bg-zinc-100" />
-            ))}
+            {viewMode === "cashPhysicalHandover" ? (
+              <p className="mt-2 text-sm leading-relaxed text-zinc-700">
+                {t("personnel.detailCashPhysicalTabLead")}
+              </p>
+            ) : null}
           </div>
         </div>
-      ) : null}
 
-      {isError ? (
-        <div className="mt-4 flex flex-col gap-2">
-          <p className="text-sm text-red-600">{toErrorMessage(error)}</p>
-          <Button type="button" variant="secondary" className="w-full min-h-[44px] min-w-[44px] sm:w-auto" onClick={() => refetch()}>
-            {t("common.retry")}
-          </Button>
-        </div>
-      ) : null}
+        {isPending ? (
+          <div className="mt-4 space-y-3" aria-busy="true">
+            <div className="h-24 animate-pulse rounded-xl bg-zinc-100" />
+            <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7">
+              {[1, 2, 3, 4, 5, 6, 7].map((i) => (
+                <div key={i} className="h-20 animate-pulse rounded-xl bg-zinc-100" />
+              ))}
+            </div>
+          </div>
+        ) : null}
 
-      {!isPending && !isError && snap && primary ? (
-        <div className="mt-4 space-y-4">
-          {viewMode === "manager" ? (
-            <>
-              <div
-                className={cn(
-                  "rounded-xl border-l-4 p-4 sm:p-5",
-                  netTone === "positive" && "border-l-emerald-500 bg-emerald-50/35",
-                  netTone === "negative" && "border-l-amber-500 bg-amber-50/35",
-                  netTone === "neutral" && "border-l-zinc-400 bg-zinc-50/90"
-                )}
-              >
-                <p className="text-sm font-semibold text-zinc-900">{personnelDisplayName(personnel)}</p>
-                <div className="mt-2 space-y-1 text-xs leading-relaxed text-zinc-800 sm:text-sm">
-                  <p>
-                    <span className="font-semibold">{t("personnel.tableCompanyHireDate")}:</span>{" "}
-                    <span className="font-mono tabular-nums">{hireDateLabel}</span>
-                  </p>
-                  <p>
-                    <span className="font-semibold">{t("personnel.seasonArrivalDate")}:</span>{" "}
-                    <span className="font-mono tabular-nums">{seasonArrivalDateLabel}</span>
-                  </p>
-                  <p>
-                    <span className="font-semibold">{t("personnel.detailMgmtSeasonWorkedDaysLabel")}:</span>{" "}
-                    <span className="font-mono tabular-nums">
-                      {tourismSeasonDays == null ? dash : String(tourismSeasonDays)}
-                    </span>
-                  </p>
+        {isError ? (
+          <div className="mt-4 flex flex-col gap-2">
+            <p className="text-sm text-red-600">{toErrorMessage(error)}</p>
+            <Button type="button" variant="secondary" className="w-full min-h-[44px] min-w-[44px] sm:w-auto" onClick={() => refetch()}>
+              {t("common.retry")}
+            </Button>
+          </div>
+        ) : null}
+
+        {!isPending && !isError && snap && primary ? (
+          <div className="mt-4 space-y-4">
+            {viewMode === "manager" ? (
+              <>
+                <div
+                  className={cn(
+                    "rounded-xl border-l-4 p-4 sm:p-5",
+                    netTone === "positive" && "border-l-emerald-500 bg-emerald-50/35",
+                    netTone === "negative" && "border-l-amber-500 bg-amber-50/35",
+                    netTone === "neutral" && "border-l-zinc-400 bg-zinc-50/90"
+                  )}
+                >
+                  <p className="text-sm font-semibold text-zinc-900">{personnelDisplayName(personnel)}</p>
+                  <div className="mt-2 space-y-1 text-xs leading-relaxed text-zinc-800 sm:text-sm">
+                    <p>
+                      <span className="font-semibold">{t("personnel.tableCompanyHireDate")}:</span>{" "}
+                      <span className="font-mono tabular-nums">{hireDateLabel}</span>
+                    </p>
+                    <p>
+                      <span className="font-semibold">{t("personnel.seasonArrivalDate")}:</span>{" "}
+                      <span className="font-mono tabular-nums">{seasonArrivalDateLabel}</span>
+                    </p>
+                    <p>
+                      <span className="font-semibold">{t("personnel.detailMgmtSeasonWorkedDaysLabel")}:</span>{" "}
+                      <span className="font-mono tabular-nums">
+                        {tourismSeasonDays == null ? dash : String(tourismSeasonDays)}
+                      </span>
+                    </p>
+                  </div>
+                  <p className="mt-3 text-sm leading-relaxed text-zinc-900">{simpleSummary}</p>
                 </div>
-                <p className="mt-3 text-sm leading-relaxed text-zinc-900">{simpleSummary}</p>
-              </div>
 
-              <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7">
-                <MetricTile
-                  label={t("personnel.detailMgmtTileTenure")}
-                  value={`${snap.tenureDaysInclusive}`}
-                  hint={t("personnel.detailMgmtTileTenureHint")}
-                  emphasis="violet"
-                />
-                <MetricTile
-                  label={t("personnel.detailMgmtTileTourismSeasonDays")}
-                  value={tourismSeasonDays == null ? dash : String(tourismSeasonDays)}
-                  hint={t("personnel.detailMgmtTileTourismSeasonDaysHint")}
-                  emphasis="violet"
-                />
-                <MetricTile
-                  label={t("personnel.detailMgmtTileAdvanceTotal")}
-                  value={formatMoneyDash(
-                    primary.totalAdvanceAllTime,
-                    dash,
-                    locale,
-                    primary.currencyCode
-                  )}
-                  hint={primary.currencyCode}
-                />
-                <MetricTile
-                  label={t("personnel.detailMgmtTileSalaryTotal")}
-                  value={formatMoneyDash(
-                    primary.totalSalaryAllTime,
-                    dash,
-                    locale,
-                    primary.currencyCode
-                  )}
-                  hint={primary.currencyCode}
-                />
-                <MetricTile
-                  label={t("personnel.detailMgmtTileNetAll")}
-                  value={signedMoney(netAll, dash, locale, primary.currencyCode)}
-                  hint={t("personnel.detailMgmtTileNetHint")}
-                  emphasis={netTone === "neutral" ? "violet" : netTone}
-                />
-                <MetricTile
-                  label={t("personnel.detailMgmtTileCashHandover")}
-                  value={formatMoneyDash(summaryHandoverAll, dash, locale, summaryHandoverCcy)}
-                  hint={`${summaryHandoverCcy} · ${t("personnel.detailProfileCashHandoverCount").replace("{n}", String(snap.cashHandoverResponsibleRecordCount))}`}
-                  emphasis={summaryHandoverAll > 0.009 ? "sky" : undefined}
-                />
-                <MetricTile
-                  label={t("personnel.detailMgmtTileRecords")}
-                  value={`${snap.advanceRecordCount + snap.salaryPaymentRecordCount}`}
-                  hint={t("personnel.detailMgmtTileRecordsHint")
-                    .replace("{adv}", String(snap.advanceRecordCount))
-                    .replace("{sal}", String(snap.salaryPaymentRecordCount))}
-                />
-                <MetricTile
-                  label={t("personnel.detailMgmtTileWarehouses")}
-                  value={`${snap.warehouseResponsibilityCount}`}
-                  hint={t("personnel.detailMgmtTileWarehousesHint")}
-                />
-              </div>
+                <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-7">
+                  <MetricTile
+                    label={t("personnel.detailMgmtTileTenure")}
+                    value={`${snap.tenureDaysInclusive}`}
+                    hint={t("personnel.detailMgmtTileTenureHint")}
+                    emphasis="violet"
+                  />
+                  <MetricTile
+                    label={t("personnel.detailMgmtTileTourismSeasonDays")}
+                    value={tourismSeasonDays == null ? dash : String(tourismSeasonDays)}
+                    hint={t("personnel.detailMgmtTileTourismSeasonDaysHint")}
+                    emphasis="violet"
+                  />
+                  <MetricTile
+                    label={t("personnel.detailMgmtTileAdvanceTotal")}
+                    value={formatMoneyDash(
+                      primary.totalAdvanceAllTime,
+                      dash,
+                      locale,
+                      primary.currencyCode
+                    )}
+                    hint={primary.currencyCode}
+                  />
+                  <MetricTile
+                    label={t("personnel.detailMgmtTilePersonnelExpenseTotal")}
+                    value={formatMoneyDash(
+                      primary.totalPersonnelExpenseAllTime,
+                      dash,
+                      locale,
+                      primary.currencyCode
+                    )}
+                    hint={primary.currencyCode}
+                  />
+                  <MetricTile
+                    label={t("personnel.detailMgmtTileCostTotal")}
+                    value={formatMoneyDash(
+                      (primary.totalAdvanceAllTime ?? 0) + (primary.totalPersonnelExpenseAllTime ?? 0),
+                      dash,
+                      locale,
+                      primary.currencyCode
+                    )}
+                    hint={primary.currencyCode}
+                    emphasis="violet"
+                  />
+                  <MetricTile
+                    label={t("personnel.detailMgmtTileSalaryTotal")}
+                    value={formatMoneyDash(
+                      primary.totalSalaryAllTime,
+                      dash,
+                      locale,
+                      primary.currencyCode
+                    )}
+                    hint={primary.currencyCode}
+                  />
+                  <MetricTile
+                    label={t("personnel.detailMgmtTileNetAll")}
+                    value={signedMoney(netAll, dash, locale, primary.currencyCode)}
+                    hint={t("personnel.detailMgmtTileNetHint")}
+                    emphasis={netTone === "neutral" ? "violet" : netTone}
+                  />
+                  <MetricTile
+                    label={t("personnel.detailMgmtTileCashHandover")}
+                    value={formatMoneyDash(summaryHandoverAll, dash, locale, summaryHandoverCcy)}
+                    hint={`${summaryHandoverCcy} · ${t("personnel.detailProfileCashHandoverCount").replace("{n}", String(snap.cashHandoverResponsibleRecordCount))}`}
+                    emphasis={summaryHandoverAll > 0.009 ? "sky" : undefined}
+                  />
+                  <MetricTile
+                    label={t("personnel.detailMgmtTileRecords")}
+                    value={`${snap.advanceRecordCount + snap.salaryPaymentRecordCount}`}
+                    hint={t("personnel.detailMgmtTileRecordsHint")
+                      .replace("{adv}", String(snap.advanceRecordCount))
+                      .replace("{sal}", String(snap.salaryPaymentRecordCount))}
+                  />
+                  <MetricTile
+                    label={t("personnel.detailMgmtTileWarehouses")}
+                    value={`${snap.warehouseResponsibilityCount}`}
+                    hint={t("personnel.detailMgmtTileWarehousesHint")}
+                  />
+                </div>
 
-              {snap.byCurrency.length > 1 ? (
-                <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-3 sm:p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                    {t("personnel.detailMgmtMultiTitle")}
-                  </p>
-                  <ul className="mt-2 space-y-2 text-sm text-zinc-800">
-                    {snap.byCurrency.map((row) => (
-                      <li
-                        key={row.currencyCode}
-                        className="flex flex-col gap-0.5 border-b border-zinc-200/80 py-2 last:border-0 last:pb-0"
-                      >
-                        <span className="font-semibold">{row.currencyCode}</span>
-                        <span className="text-xs text-zinc-600">
-                          {t("personnel.detailMgmtMultiLine")
-                            .replace(
-                              "{adv}",
-                              formatMoneyDash(row.totalAdvanceAllTime, dash, locale, row.currencyCode)
-                            )
-                            .replace(
-                              "{sal}",
-                              formatMoneyDash(row.totalSalaryAllTime, dash, locale, row.currencyCode)
-                            )
-                            .replace(
-                              "{net}",
-                              signedMoney(
-                                row.netSalaryMinusAdvanceAllTime,
-                                dash,
-                                locale,
-                                row.currencyCode
+                {snap.byCurrency.length > 1 ? (
+                  <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-3 sm:p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                      {t("personnel.detailMgmtMultiTitle")}
+                    </p>
+                    <ul className="mt-2 space-y-2 text-sm text-zinc-800">
+                      {snap.byCurrency.map((row) => (
+                        <li
+                          key={row.currencyCode}
+                          className="flex flex-col gap-0.5 border-b border-zinc-200/80 py-2 last:border-0 last:pb-0"
+                        >
+                          <span className="font-semibold">{row.currencyCode}</span>
+                          <span className="text-xs text-zinc-600">
+                            {t("personnel.detailMgmtMultiLine")
+                              .replace(
+                                "{adv}",
+                                formatMoneyDash(row.totalAdvanceAllTime, dash, locale, row.currencyCode)
                               )
-                            )}
-                          {row.totalCashHandoverAsResponsibleAllTime > 0
-                            ? ` · ${t("personnel.detailMgmtMultiHandover").replace(
+                              .replace(
+                                "{sal}",
+                                formatMoneyDash(row.totalSalaryAllTime, dash, locale, row.currencyCode)
+                              )
+                              .replace(
+                                "{net}",
+                                signedMoney(
+                                  row.netSalaryMinusAdvanceAllTime,
+                                  dash,
+                                  locale,
+                                  row.currencyCode
+                                )
+                              )}
+                            <br />
+                            {t("personnel.detailMgmtTilePersonnelExpenseTotal")}: {formatMoneyDash(row.totalPersonnelExpenseAllTime, dash, locale, row.currencyCode)}
+                            <br />
+                            {t("personnel.detailMgmtTileCostTotal")}: {formatMoneyDash((row.totalAdvanceAllTime ?? 0) + (row.totalPersonnelExpenseAllTime ?? 0), dash, locale, row.currencyCode)}
+                            {row.totalCashHandoverAsResponsibleAllTime > 0
+                              ? ` · ${t("personnel.detailMgmtMultiHandover").replace(
                                 "{hand}",
                                 formatMoneyDash(
                                   row.totalCashHandoverAsResponsibleAllTime,
@@ -672,566 +697,566 @@ export function PersonnelManagementSnapshotSection({
                                   row.currencyCode
                                 )
                               )}`
-                            : ""}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-
-              
-            </>
-          ) : (
-            <div className="space-y-4">
-              {personnel.isDeleted ? (
-                <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
-                  {t("personnel.detailCashPhysicalPassiveNotice")}
-                </p>
-              ) : null}
-              {handoverRow ? (
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
-                  <MetricTile
-                    label={t("personnel.detailMgmtHandoverHeroIncomingTotal")}
-                    value={formatMoneyDash(
-                      handoverHeroIncomingTotal,
-                      dash,
-                      locale,
-                      handoverPoolHeroMetrics.ccy
-                    )}
-                    hint={t("personnel.detailMgmtHandoverSubTabHintGross").replace(
-                      "{gross}",
-                      formatMoneyDash(
-                        handoverHeroIncomingTotal,
-                        dash,
-                        locale,
-                        handoverPoolHeroMetrics.ccy
-                      )
-                    )}
-                    emphasis="neutral"
-                  />
-                  <MetricTile
-                    label={t("personnel.detailMgmtHandoverSubTabHeroRemaining")}
-                    value={formatMoneyDash(
-                      handoverPoolHeroMetrics.heroValue,
-                      dash,
-                      locale,
-                      handoverPoolHeroMetrics.ccy
-                    )}
-                    hint={handoverSubTabHeroHint}
-                    emphasis="sky"
-                  />
-                  <MetricTile
-                    label={t("personnel.detailMgmtHandoverHeroSpentTotal")}
-                    value={formatMoneyDash(
-                      handoverHeroSpentTotal,
-                      dash,
-                      locale,
-                      handoverPoolHeroMetrics.ccy
-                    )}
-                    hint={t("personnel.detailMgmtHandoverHeroSpentHint")}
-                    emphasis="negative"
-                  />
-                </div>
-              ) : null}
-
-              <div className="overflow-hidden rounded-xl border border-zinc-200/90 bg-white shadow-sm shadow-zinc-900/5">
-                <div className="border-b border-zinc-200/80 bg-gradient-to-b from-zinc-50 to-white px-2 py-2 sm:px-3 sm:py-2.5">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch sm:justify-between sm:gap-3">
-                    <div
-                      className="grid min-h-[2.75rem] w-full grid-cols-2 gap-1 rounded-xl border border-zinc-200/90 bg-zinc-100/80 p-1 shadow-inner shadow-zinc-200/70 sm:w-auto sm:min-w-[19rem]"
-                      role="tablist"
-                      aria-orientation="horizontal"
-                      aria-label={t("personnel.detailMgmtCashHandoverTabsAria")}
-                    >
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={cashHandoverSubTab === "in"}
-                        className={cn(
-                          "min-h-[44px] min-w-[44px] rounded-[0.65rem] px-2.5 py-2 text-center text-xs font-semibold leading-snug transition sm:px-3 sm:text-sm",
-                          cashHandoverSubTab === "in"
-                            ? "bg-white text-sky-950 shadow-sm ring-1 ring-sky-300/70"
-                            : "text-zinc-600 hover:bg-white/70 hover:text-zinc-800"
-                        )}
-                        onClick={() => setCashHandoverSubTab("in")}
-                      >
-                        {t("personnel.detailMgmtCashHandoverTabIn")}
-                      </button>
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={cashHandoverSubTab === "out"}
-                        className={cn(
-                          "min-h-[44px] min-w-[44px] rounded-[0.65rem] px-2.5 py-2 text-center text-xs font-semibold leading-snug transition sm:px-3 sm:text-sm",
-                          cashHandoverSubTab === "out"
-                            ? "bg-white text-amber-950 shadow-sm ring-1 ring-amber-300/70"
-                            : "text-zinc-600 hover:bg-white/70 hover:text-zinc-800"
-                        )}
-                        onClick={() => setCashHandoverSubTab("out")}
-                      >
-                        {t("personnel.detailMgmtCashHandoverTabOut")}
-                      </button>
-                    </div>
-                    <button
-                      type="button"
-                      className="relative flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center gap-1.5 self-stretch rounded-xl border border-zinc-300/90 bg-white px-3 text-zinc-800 shadow-sm transition hover:bg-zinc-50 sm:h-11 sm:min-h-[44px] sm:w-11 sm:px-0 sm:self-center"
-                      aria-label={t("personnel.detailMgmtHandoverFilterAria")}
-                      onClick={() => {
-                        setHovDraft(hovApplied);
-                        setHovFilterDrawerOpen(true);
-                      }}
-                    >
-                      <svg
-                        className="h-5 w-5"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="1.75"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden
-                      >
-                        <path d="M4 6h16M7 12h10M10 18h4" />
-                      </svg>
-                      <span className="text-xs font-medium sm:hidden">
-                        {t("personnel.detailMgmtHandoverFilterAria")}
-                      </span>
-                      {handoverFiltersBadgeCount > 0 ? (
-                        <span className="absolute -right-1 -top-1 flex min-h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-zinc-700 px-1 text-[0.65rem] font-bold leading-none text-white">
-                          {handoverFiltersBadgeCount > 9 ? "9+" : handoverFiltersBadgeCount}
-                        </span>
-                      ) : null}
-                    </button>
-                  </div>
-                </div>
-
-                {cashHandoverSubTab === "in" ? (
-                <div className="border-t border-sky-200/50 bg-sky-50/40 p-3 sm:p-4">
-                  <div className="min-w-0 space-y-2">
-                    {handoverList.data != null ? (
-                      <p className="text-xs leading-relaxed text-sky-900/75">
-                        {t("personnel.detailMgmtHandoverPagedRange")
-                          .replace(
-                            "{from}",
-                            String(hovTotal === 0 ? 0 : (hovPage - 1) * hovPageSize + 1)
-                          )
-                          .replace("{to}", String(Math.min(hovPage * hovPageSize, hovTotal)))
-                          .replace("{total}", String(hovTotal))}
-                        {" · "}
-                        {t("personnel.detailMgmtHandoverPagedPages")
-                          .replace("{page}", String(hovPage))
-                          .replace("{pages}", String(hovPages))}
-                      </p>
-                    ) : handoverList.isPending ? (
-                      <p className="text-xs text-sky-900/70">{t("common.loading")}</p>
-                    ) : null}
-                    {handoverActionsEnabled ? (
-                      <p className="text-xs leading-relaxed text-sky-900/75">
-                        {t("personnel.detailMgmtHandoverActionsIntro")}
-                      </p>
-                    ) : null}
-                  </div>
-
-                {handoverActionsEnabled && handoverPoolCurrencyRows.length > 0 ? (
-                  <div className="mt-3 space-y-2 rounded-lg border border-sky-300/50 bg-white/60 p-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-sky-950/90">
-                      {t("personnel.detailMgmtHandoverPoolTitle")}
-                    </p>
-                    <ul className="space-y-2">
-                      {handoverPoolCurrencyRows.map((r) => {
-                        const ctx = {
-                          branchId: r.actionBranchId,
-                          currencyCode: r.currencyCode,
-                          suggestedAmount: r.totalRemainingHandover,
-                        };
-                        return (
-                          <li
-                            key={r.currencyCode}
-                            className="flex flex-col gap-2 rounded-md border border-sky-200/70 bg-white/90 p-2.5 sm:flex-row sm:items-center sm:justify-between"
-                          >
-                            <div className="min-w-0 text-sm">
-                              <span className="font-medium text-zinc-900">
-                                {t("personnel.detailMgmtHandoverPoolRemainingLabel")}
-                              </span>
-                              <span className="text-zinc-600"> · {r.currencyCode}</span>
-                              <div className="mt-0.5 font-mono text-sm font-semibold text-zinc-900">
-                                {formatMoneyDash(
-                                  r.totalRemainingHandover,
-                                  dash,
-                                  locale,
-                                  r.currencyCode
-                                )}
-                              </div>
-                              {r.branchBreakdown.length > 0 ? (
-                                <div className="mt-1.5 space-y-0.5 text-xs text-zinc-700">
-                                  {r.branchBreakdown.map((b) => (
-                                    <div
-                                      key={`${r.currencyCode}-${b.branchId}`}
-                                      className="flex items-center justify-between gap-3"
-                                    >
-                                      <span className="truncate">{b.branchName}</span>
-                                      <span className="shrink-0 font-mono">
-                                        {formatMoneyDash(
-                                          b.amount,
-                                          dash,
-                                          locale,
-                                          r.currencyCode
-                                        )}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : null}
-                              {r.branchCount > 1 ? (
-                                <div className="mt-0.5 text-xs text-zinc-600">
-                                  {t("personnel.detailMgmtHandoverHeroAllBranchesFootnote").replace(
-                                    "{amount}",
-                                    formatMoneyDash(
-                                      r.totalRemainingHandover,
-                                      dash,
-                                      locale,
-                                      r.currencyCode
-                                    )
-                                  )}
-                                </div>
-                              ) : null}
-                            </div>
-                            <div className="flex flex-wrap gap-2 max-md:w-full">
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                className="min-h-[44px] min-w-[44px] px-3 text-xs font-semibold max-md:w-full"
-                                onClick={() => onHandoverOpenExpenseRegister?.(ctx)}
-                              >
-                                {t("personnel.detailMgmtHandoverActionExpenseShort")}
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                className="min-h-[44px] min-w-[44px] px-3 text-xs font-semibold max-md:w-full"
-                                onClick={() => onHandoverOpenPatronRegisterRepay?.(ctx)}
-                              >
-                                {t("personnel.detailMgmtHandoverActionPatronShort")}
-                              </Button>
-                            </div>
-                          </li>
-                        );
-                      })}
+                              : ""}
+                          </span>
+                        </li>
+                      ))}
                     </ul>
                   </div>
                 ) : null}
 
-                {handoverList.isError ? (
-                  <div className="mt-3 flex flex-col gap-2">
-                    <p className="text-sm text-red-600">{toErrorMessage(handoverList.error)}</p>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="w-full min-h-[44px] min-w-[44px] sm:w-auto"
-                      onClick={() => handoverList.refetch()}
-                    >
-                      {t("common.retry")}
-                    </Button>
-                  </div>
-                ) : handoverList.isPending && !handoverList.data ? (
-                  <div className="mt-3 space-y-2" aria-busy="true">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <div key={i} className="h-14 animate-pulse rounded-lg bg-white/70" />
-                    ))}
-                  </div>
-                ) : (
-                  <>
-                    {hovItems.length === 0 ? (
-                      <p className="mt-3 text-sm text-zinc-600">
-                        {handoverFiltersBadgeCount > 0
-                          ? t("personnel.detailMgmtHandoverNoRowsFilter")
-                          : t("personnel.detailMgmtHandoverLinesEmpty")}
-                      </p>
-                    ) : (
-                      <>
-                        <div className="mt-3 overflow-x-auto">
-                          <Table className="w-full min-w-0 lg:min-w-[56rem]">
-                            <TableHead>
-                              <TableRow>
-                                <TableHeader>{t("personnel.detailMgmtHandoverColDate")}</TableHeader>
-                                <TableHeader>{t("personnel.detailMgmtHandoverColBranch")}</TableHeader>
-                                <TableHeader className="text-right">
-                                  {t("personnel.detailMgmtHandoverColAmount")}
-                                </TableHeader>
-                                <TableHeader className="text-right">
-                                  {t("personnel.detailMgmtHandoverColSettled")}
-                                </TableHeader>
-                                <TableHeader className="text-right">
-                                  {t("personnel.detailMgmtHandoverColRemaining")}
-                                </TableHeader>
-                                <TableHeader>{t("personnel.detailMgmtHandoverColCategory")}</TableHeader>
-                                <TableHeader>{t("personnel.detailMgmtHandoverColNote")}</TableHeader>
-                              </TableRow>
-                            </TableHead>
-                            <TableBody>
-                              {hovItems.map((row) => {
-                                const cat = txCategoryLine(row.mainCategory, row.category, t);
-                                return (
-                                  <TableRow key={row.transactionId}>
-                                    <TableCell
-                                      dataLabel={t("personnel.detailMgmtHandoverColDate")}
-                                      className="whitespace-nowrap"
-                                    >
-                                      {formatLocaleDate(row.transactionDate, locale, dash)}
-                                    </TableCell>
-                                    <TableCell dataLabel={t("personnel.detailMgmtHandoverColBranch")}>
-                                      {row.branchName?.trim() || dash}
-                                    </TableCell>
-                                    <TableCell
-                                      dataLabel={t("personnel.detailMgmtHandoverColAmount")}
-                                      className="text-right tabular-nums font-mono"
-                                    >
-                                      {formatMoneyDash(row.cashAmount, dash, locale, row.currencyCode)}
-                                    </TableCell>
-                                    <TableCell
-                                      dataLabel={t("personnel.detailMgmtHandoverColSettled")}
-                                      className="text-right tabular-nums font-mono text-zinc-700"
-                                    >
-                                      {formatMoneyDash(
-                                        row.settledFromHandoverAmount,
-                                        dash,
-                                        locale,
-                                        row.currencyCode
-                                      )}
-                                    </TableCell>
-                                    <TableCell
-                                      dataLabel={t("personnel.detailMgmtHandoverColRemaining")}
-                                      className="text-right tabular-nums font-mono text-zinc-900"
-                                    >
-                                      {formatMoneyDash(
-                                        row.remainingHandoverAmount,
-                                        dash,
-                                        locale,
-                                        row.currencyCode
-                                      )}
-                                    </TableCell>
-                                    <TableCell
-                                      dataLabel={t("personnel.detailMgmtHandoverColCategory")}
-                                      className="max-w-[12rem] text-zinc-600"
-                                    >
-                                      {cat || dash}
-                                    </TableCell>
-                                    <TableCell
-                                      dataLabel={t("personnel.detailMgmtHandoverColNote")}
-                                      className="max-w-[14rem] text-zinc-600"
-                                    >
-                                      {row.description?.trim() || dash}
-                                    </TableCell>
-                                  </TableRow>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      </>
-                    )}
 
-                    {hovTotal > 0 ? (
-                      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="min-h-[44px] min-w-[44px] w-full sm:w-auto"
-                          disabled={hovPage <= 1 || handoverList.isFetching}
-                          onClick={() => setHovPage((p) => Math.max(1, p - 1))}
-                        >
-                          {t("personnel.detailMgmtHandoverPrev")}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="min-h-[44px] min-w-[44px] w-full sm:w-auto"
-                          disabled={hovPage >= hovPages || handoverList.isFetching}
-                          onClick={() => setHovPage((p) => p + 1)}
-                        >
-                          {t("personnel.detailMgmtHandoverNext")}
-                        </Button>
-                      </div>
-                    ) : null}
-                  </>
-                )}
-              </div>
+              </>
+            ) : (
+              <div className="space-y-4">
+                {personnel.isDeleted ? (
+                  <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
+                    {t("personnel.detailCashPhysicalPassiveNotice")}
+                  </p>
+                ) : null}
+                {handoverRow ? (
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+                    <MetricTile
+                      label={t("personnel.detailMgmtHandoverHeroIncomingTotal")}
+                      value={formatMoneyDash(
+                        handoverHeroIncomingTotal,
+                        dash,
+                        locale,
+                        handoverPoolHeroMetrics.ccy
+                      )}
+                      hint={t("personnel.detailMgmtHandoverSubTabHintGross").replace(
+                        "{gross}",
+                        formatMoneyDash(
+                          handoverHeroIncomingTotal,
+                          dash,
+                          locale,
+                          handoverPoolHeroMetrics.ccy
+                        )
+                      )}
+                      emphasis="neutral"
+                    />
+                    <MetricTile
+                      label={t("personnel.detailMgmtHandoverSubTabHeroRemaining")}
+                      value={formatMoneyDash(
+                        handoverPoolHeroMetrics.heroValue,
+                        dash,
+                        locale,
+                        handoverPoolHeroMetrics.ccy
+                      )}
+                      hint={handoverSubTabHeroHint}
+                      emphasis="sky"
+                    />
+                    <MetricTile
+                      label={t("personnel.detailMgmtHandoverHeroSpentTotal")}
+                      value={formatMoneyDash(
+                        handoverHeroSpentTotal,
+                        dash,
+                        locale,
+                        handoverPoolHeroMetrics.ccy
+                      )}
+                      hint={t("personnel.detailMgmtHandoverHeroSpentHint")}
+                      emphasis="negative"
+                    />
+                  </div>
                 ) : null}
 
-                {cashHandoverSubTab === "out" ? (
-              <div className="border-t border-amber-200/50 bg-amber-50/35 p-3 sm:p-4">
-                  <div className="min-w-0 space-y-2">
-                    <p className="text-xs leading-relaxed text-amber-950/80">
-                      {t("personnel.detailMgmtOutflowsLead")}
-                    </p>
-                    {outflowList.data != null ? (
-                      <p className="text-xs leading-relaxed text-amber-950/75">
-                        {t("personnel.detailMgmtHandoverPagedRange")
-                          .replace(
-                            "{from}",
-                            String(outTotal === 0 ? 0 : (outPage - 1) * hovPageSize + 1)
-                          )
-                          .replace("{to}", String(Math.min(outPage * hovPageSize, outTotal)))
-                          .replace("{total}", String(outTotal))}
-                        {" · "}
-                        {t("personnel.detailMgmtHandoverPagedPages")
-                          .replace("{page}", String(outPage))
-                          .replace("{pages}", String(outPages))}
-                      </p>
-                    ) : outflowList.isPending ? (
-                      <p className="text-xs text-amber-950/70">{t("common.loading")}</p>
-                    ) : null}
-                  </div>
-
-                {outflowList.isError ? (
-                  <div className="mt-3 flex flex-col gap-2">
-                    <p className="text-sm text-red-600">{toErrorMessage(outflowList.error)}</p>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="w-full min-h-[44px] min-w-[44px] sm:w-auto"
-                      onClick={() => outflowList.refetch()}
-                    >
-                      {t("common.retry")}
-                    </Button>
-                  </div>
-                ) : outflowList.isPending && !outflowList.data ? (
-                  <div className="mt-3 space-y-2" aria-busy="true">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <div key={i} className="h-14 animate-pulse rounded-lg bg-white/70" />
-                    ))}
-                  </div>
-                ) : (
-                  <>
-                    {outItems.length === 0 ? (
-                      <p className="mt-3 text-sm text-zinc-600">
-                        {handoverFiltersBadgeCount > 0
-                          ? t("personnel.detailMgmtHandoverNoRowsFilter")
-                          : t("personnel.detailMgmtOutflowsEmpty")}
-                      </p>
-                    ) : (
-                      <>
-                        <div className="mt-3 overflow-x-auto">
-                          <Table className="w-full min-w-0 lg:min-w-[68rem]">
-                            <TableHead>
-                              <TableRow>
-                                <TableHeader>{t("personnel.detailMgmtHandoverColDate")}</TableHeader>
-                                <TableHeader>{t("personnel.detailMgmtHandoverColBranch")}</TableHeader>
-                                <TableHeader className="text-right">
-                                  {t("personnel.detailMgmtOutflowsColAmount")}
-                                </TableHeader>
-                                <TableHeader className="text-right">
-                                  {t("personnel.detailMgmtOutflowsColBalanceBefore")}
-                                </TableHeader>
-                                <TableHeader className="text-right">
-                                  {t("personnel.detailMgmtOutflowsColBalanceAfter")}
-                                </TableHeader>
-                                <TableHeader>{t("personnel.detailMgmtOutflowsColKind")}</TableHeader>
-                                <TableHeader>{t("personnel.detailMgmtOutflowsColInRef")}</TableHeader>
-                                <TableHeader>{t("personnel.detailMgmtHandoverColCategory")}</TableHeader>
-                                <TableHeader>{t("personnel.detailMgmtHandoverColNote")}</TableHeader>
-                              </TableRow>
-                            </TableHead>
-                            <TableBody>
-                              {outItems.map((row) => {
-                                const cat = txCategoryLine(row.mainCategory, row.category, t);
-                                const inRef =
-                                  row.settlesCashHandoverTransactionId != null
-                                    ? `#${row.settlesCashHandoverTransactionId}`
-                                    : dash;
-                                return (
-                                  <TableRow key={row.transactionId}>
-                                    <TableCell
-                                      dataLabel={t("personnel.detailMgmtHandoverColDate")}
-                                      className="whitespace-nowrap"
-                                    >
-                                      {formatLocaleDate(row.transactionDate, locale, dash)}
-                                    </TableCell>
-                                    <TableCell dataLabel={t("personnel.detailMgmtHandoverColBranch")}>
-                                      {row.branchName?.trim() || dash}
-                                    </TableCell>
-                                    <TableCell
-                                      dataLabel={t("personnel.detailMgmtOutflowsColAmount")}
-                                      className="text-right tabular-nums font-mono"
-                                    >
-                                      {formatMoneyDash(row.amount, dash, locale, row.currencyCode)}
-                                    </TableCell>
-                                    <TableCell
-                                      dataLabel={t("personnel.detailMgmtOutflowsColBalanceBefore")}
-                                      className="text-right tabular-nums font-mono text-zinc-700"
-                                    >
-                                      {row.balanceBefore != null
-                                        ? formatMoneyDash(row.balanceBefore, dash, locale, row.currencyCode)
-                                        : dash}
-                                    </TableCell>
-                                    <TableCell
-                                      dataLabel={t("personnel.detailMgmtOutflowsColBalanceAfter")}
-                                      className="text-right tabular-nums font-mono text-zinc-700"
-                                    >
-                                      {row.balanceAfter != null
-                                        ? formatMoneyDash(row.balanceAfter, dash, locale, row.currencyCode)
-                                        : dash}
-                                    </TableCell>
-                                    <TableCell dataLabel={t("personnel.detailMgmtOutflowsColKind")} className="text-zinc-700">
-                                      {outflowKindLabel(row.outflowKind, t)}
-                                    </TableCell>
-                                    <TableCell dataLabel={t("personnel.detailMgmtOutflowsColInRef")} className="font-mono text-zinc-600">
-                                      {inRef}
-                                    </TableCell>
-                                    <TableCell
-                                      dataLabel={t("personnel.detailMgmtHandoverColCategory")}
-                                      className="max-w-[12rem] text-zinc-600"
-                                    >
-                                      {cat || dash}
-                                    </TableCell>
-                                    <TableCell
-                                      dataLabel={t("personnel.detailMgmtHandoverColNote")}
-                                      className="max-w-[14rem] text-zinc-600"
-                                    >
-                                      {row.description?.trim() || dash}
-                                    </TableCell>
-                                  </TableRow>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
-                        </div>
-                      </>
-                    )}
-
-                    {outTotal > 0 ? (
-                      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <Button
+                <div className="overflow-hidden rounded-xl border border-zinc-200/90 bg-white shadow-sm shadow-zinc-900/5">
+                  <div className="border-b border-zinc-200/80 bg-gradient-to-b from-zinc-50 to-white px-2 py-2 sm:px-3 sm:py-2.5">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch sm:justify-between sm:gap-3">
+                      <div
+                        className="grid min-h-[2.75rem] w-full grid-cols-2 gap-1 rounded-xl border border-zinc-200/90 bg-zinc-100/80 p-1 shadow-inner shadow-zinc-200/70 sm:w-auto sm:min-w-[19rem]"
+                        role="tablist"
+                        aria-orientation="horizontal"
+                        aria-label={t("personnel.detailMgmtCashHandoverTabsAria")}
+                      >
+                        <button
                           type="button"
-                          variant="secondary"
-                          className="min-h-[44px] min-w-[44px] w-full sm:w-auto"
-                          disabled={outPage <= 1 || outflowList.isFetching}
-                          onClick={() => setOutPage((p) => Math.max(1, p - 1))}
+                          role="tab"
+                          aria-selected={cashHandoverSubTab === "in"}
+                          className={cn(
+                            "min-h-[44px] min-w-[44px] rounded-[0.65rem] px-2.5 py-2 text-center text-xs font-semibold leading-snug transition sm:px-3 sm:text-sm",
+                            cashHandoverSubTab === "in"
+                              ? "bg-white text-sky-950 shadow-sm ring-1 ring-sky-300/70"
+                              : "text-zinc-600 hover:bg-white/70 hover:text-zinc-800"
+                          )}
+                          onClick={() => setCashHandoverSubTab("in")}
                         >
-                          {t("personnel.detailMgmtHandoverPrev")}
-                        </Button>
-                        <Button
+                          {t("personnel.detailMgmtCashHandoverTabIn")}
+                        </button>
+                        <button
                           type="button"
-                          variant="secondary"
-                          className="min-h-[44px] min-w-[44px] w-full sm:w-auto"
-                          disabled={outPage >= outPages || outflowList.isFetching}
-                          onClick={() => setOutPage((p) => p + 1)}
+                          role="tab"
+                          aria-selected={cashHandoverSubTab === "out"}
+                          className={cn(
+                            "min-h-[44px] min-w-[44px] rounded-[0.65rem] px-2.5 py-2 text-center text-xs font-semibold leading-snug transition sm:px-3 sm:text-sm",
+                            cashHandoverSubTab === "out"
+                              ? "bg-white text-amber-950 shadow-sm ring-1 ring-amber-300/70"
+                              : "text-zinc-600 hover:bg-white/70 hover:text-zinc-800"
+                          )}
+                          onClick={() => setCashHandoverSubTab("out")}
                         >
-                          {t("personnel.detailMgmtHandoverNext")}
-                        </Button>
+                          {t("personnel.detailMgmtCashHandoverTabOut")}
+                        </button>
                       </div>
-                    ) : null}
-                  </>
-                )}
+                      <button
+                        type="button"
+                        className="relative flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center gap-1.5 self-stretch rounded-xl border border-zinc-300/90 bg-white px-3 text-zinc-800 shadow-sm transition hover:bg-zinc-50 sm:h-11 sm:min-h-[44px] sm:w-11 sm:px-0 sm:self-center"
+                        aria-label={t("personnel.detailMgmtHandoverFilterAria")}
+                        onClick={() => {
+                          setHovDraft(hovApplied);
+                          setHovFilterDrawerOpen(true);
+                        }}
+                      >
+                        <svg
+                          className="h-5 w-5"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.75"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden
+                        >
+                          <path d="M4 6h16M7 12h10M10 18h4" />
+                        </svg>
+                        <span className="text-xs font-medium sm:hidden">
+                          {t("personnel.detailMgmtHandoverFilterAria")}
+                        </span>
+                        {handoverFiltersBadgeCount > 0 ? (
+                          <span className="absolute -right-1 -top-1 flex min-h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-zinc-700 px-1 text-[0.65rem] font-bold leading-none text-white">
+                            {handoverFiltersBadgeCount > 9 ? "9+" : handoverFiltersBadgeCount}
+                          </span>
+                        ) : null}
+                      </button>
+                    </div>
+                  </div>
+
+                  {cashHandoverSubTab === "in" ? (
+                    <div className="border-t border-sky-200/50 bg-sky-50/40 p-3 sm:p-4">
+                      <div className="min-w-0 space-y-2">
+                        {handoverList.data != null ? (
+                          <p className="text-xs leading-relaxed text-sky-900/75">
+                            {t("personnel.detailMgmtHandoverPagedRange")
+                              .replace(
+                                "{from}",
+                                String(hovTotal === 0 ? 0 : (hovPage - 1) * hovPageSize + 1)
+                              )
+                              .replace("{to}", String(Math.min(hovPage * hovPageSize, hovTotal)))
+                              .replace("{total}", String(hovTotal))}
+                            {" · "}
+                            {t("personnel.detailMgmtHandoverPagedPages")
+                              .replace("{page}", String(hovPage))
+                              .replace("{pages}", String(hovPages))}
+                          </p>
+                        ) : handoverList.isPending ? (
+                          <p className="text-xs text-sky-900/70">{t("common.loading")}</p>
+                        ) : null}
+                        {handoverActionsEnabled ? (
+                          <p className="text-xs leading-relaxed text-sky-900/75">
+                            {t("personnel.detailMgmtHandoverActionsIntro")}
+                          </p>
+                        ) : null}
+                      </div>
+
+                      {handoverActionsEnabled && handoverPoolCurrencyRows.length > 0 ? (
+                        <div className="mt-3 space-y-2 rounded-lg border border-sky-300/50 bg-white/60 p-3">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-sky-950/90">
+                            {t("personnel.detailMgmtHandoverPoolTitle")}
+                          </p>
+                          <ul className="space-y-2">
+                            {handoverPoolCurrencyRows.map((r) => {
+                              const ctx = {
+                                branchId: r.actionBranchId,
+                                currencyCode: r.currencyCode,
+                                suggestedAmount: r.totalRemainingHandover,
+                              };
+                              return (
+                                <li
+                                  key={r.currencyCode}
+                                  className="flex flex-col gap-2 rounded-md border border-sky-200/70 bg-white/90 p-2.5 sm:flex-row sm:items-center sm:justify-between"
+                                >
+                                  <div className="min-w-0 text-sm">
+                                    <span className="font-medium text-zinc-900">
+                                      {t("personnel.detailMgmtHandoverPoolRemainingLabel")}
+                                    </span>
+                                    <span className="text-zinc-600"> · {r.currencyCode}</span>
+                                    <div className="mt-0.5 font-mono text-sm font-semibold text-zinc-900">
+                                      {formatMoneyDash(
+                                        r.totalRemainingHandover,
+                                        dash,
+                                        locale,
+                                        r.currencyCode
+                                      )}
+                                    </div>
+                                    {r.branchBreakdown.length > 0 ? (
+                                      <div className="mt-1.5 space-y-0.5 text-xs text-zinc-700">
+                                        {r.branchBreakdown.map((b) => (
+                                          <div
+                                            key={`${r.currencyCode}-${b.branchId}`}
+                                            className="flex items-center justify-between gap-3"
+                                          >
+                                            <span className="truncate">{b.branchName}</span>
+                                            <span className="shrink-0 font-mono">
+                                              {formatMoneyDash(
+                                                b.amount,
+                                                dash,
+                                                locale,
+                                                r.currencyCode
+                                              )}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : null}
+                                    {r.branchCount > 1 ? (
+                                      <div className="mt-0.5 text-xs text-zinc-600">
+                                        {t("personnel.detailMgmtHandoverHeroAllBranchesFootnote").replace(
+                                          "{amount}",
+                                          formatMoneyDash(
+                                            r.totalRemainingHandover,
+                                            dash,
+                                            locale,
+                                            r.currencyCode
+                                          )
+                                        )}
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                  <div className="flex flex-wrap gap-2 max-md:w-full">
+                                    <Button
+                                      type="button"
+                                      variant="secondary"
+                                      className="min-h-[44px] min-w-[44px] px-3 text-xs font-semibold max-md:w-full"
+                                      onClick={() => onHandoverOpenExpenseRegister?.(ctx)}
+                                    >
+                                      {t("personnel.detailMgmtHandoverActionExpenseShort")}
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="secondary"
+                                      className="min-h-[44px] min-w-[44px] px-3 text-xs font-semibold max-md:w-full"
+                                      onClick={() => onHandoverOpenPatronRegisterRepay?.(ctx)}
+                                    >
+                                      {t("personnel.detailMgmtHandoverActionPatronShort")}
+                                    </Button>
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      ) : null}
+
+                      {handoverList.isError ? (
+                        <div className="mt-3 flex flex-col gap-2">
+                          <p className="text-sm text-red-600">{toErrorMessage(handoverList.error)}</p>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="w-full min-h-[44px] min-w-[44px] sm:w-auto"
+                            onClick={() => handoverList.refetch()}
+                          >
+                            {t("common.retry")}
+                          </Button>
+                        </div>
+                      ) : handoverList.isPending && !handoverList.data ? (
+                        <div className="mt-3 space-y-2" aria-busy="true">
+                          {[1, 2, 3, 4, 5].map((i) => (
+                            <div key={i} className="h-14 animate-pulse rounded-lg bg-white/70" />
+                          ))}
+                        </div>
+                      ) : (
+                        <>
+                          {hovItems.length === 0 ? (
+                            <p className="mt-3 text-sm text-zinc-600">
+                              {handoverFiltersBadgeCount > 0
+                                ? t("personnel.detailMgmtHandoverNoRowsFilter")
+                                : t("personnel.detailMgmtHandoverLinesEmpty")}
+                            </p>
+                          ) : (
+                            <>
+                              <div className="mt-3 overflow-x-auto">
+                                <Table className="w-full min-w-0 lg:min-w-[56rem]">
+                                  <TableHead>
+                                    <TableRow>
+                                      <TableHeader>{t("personnel.detailMgmtHandoverColDate")}</TableHeader>
+                                      <TableHeader>{t("personnel.detailMgmtHandoverColBranch")}</TableHeader>
+                                      <TableHeader className="text-right">
+                                        {t("personnel.detailMgmtHandoverColAmount")}
+                                      </TableHeader>
+                                      <TableHeader className="text-right">
+                                        {t("personnel.detailMgmtHandoverColSettled")}
+                                      </TableHeader>
+                                      <TableHeader className="text-right">
+                                        {t("personnel.detailMgmtHandoverColRemaining")}
+                                      </TableHeader>
+                                      <TableHeader>{t("personnel.detailMgmtHandoverColCategory")}</TableHeader>
+                                      <TableHeader>{t("personnel.detailMgmtHandoverColNote")}</TableHeader>
+                                    </TableRow>
+                                  </TableHead>
+                                  <TableBody>
+                                    {hovItems.map((row) => {
+                                      const cat = txCategoryLine(row.mainCategory, row.category, t);
+                                      return (
+                                        <TableRow key={row.transactionId}>
+                                          <TableCell
+                                            dataLabel={t("personnel.detailMgmtHandoverColDate")}
+                                            className="whitespace-nowrap"
+                                          >
+                                            {formatLocaleDate(row.transactionDate, locale, dash)}
+                                          </TableCell>
+                                          <TableCell dataLabel={t("personnel.detailMgmtHandoverColBranch")}>
+                                            {row.branchName?.trim() || dash}
+                                          </TableCell>
+                                          <TableCell
+                                            dataLabel={t("personnel.detailMgmtHandoverColAmount")}
+                                            className="text-right tabular-nums font-mono"
+                                          >
+                                            {formatMoneyDash(row.cashAmount, dash, locale, row.currencyCode)}
+                                          </TableCell>
+                                          <TableCell
+                                            dataLabel={t("personnel.detailMgmtHandoverColSettled")}
+                                            className="text-right tabular-nums font-mono text-zinc-700"
+                                          >
+                                            {formatMoneyDash(
+                                              row.settledFromHandoverAmount,
+                                              dash,
+                                              locale,
+                                              row.currencyCode
+                                            )}
+                                          </TableCell>
+                                          <TableCell
+                                            dataLabel={t("personnel.detailMgmtHandoverColRemaining")}
+                                            className="text-right tabular-nums font-mono text-zinc-900"
+                                          >
+                                            {formatMoneyDash(
+                                              row.remainingHandoverAmount,
+                                              dash,
+                                              locale,
+                                              row.currencyCode
+                                            )}
+                                          </TableCell>
+                                          <TableCell
+                                            dataLabel={t("personnel.detailMgmtHandoverColCategory")}
+                                            className="max-w-[12rem] text-zinc-600"
+                                          >
+                                            {cat || dash}
+                                          </TableCell>
+                                          <TableCell
+                                            dataLabel={t("personnel.detailMgmtHandoverColNote")}
+                                            className="max-w-[14rem] text-zinc-600"
+                                          >
+                                            {row.description?.trim() || dash}
+                                          </TableCell>
+                                        </TableRow>
+                                      );
+                                    })}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </>
+                          )}
+
+                          {hovTotal > 0 ? (
+                            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                className="min-h-[44px] min-w-[44px] w-full sm:w-auto"
+                                disabled={hovPage <= 1 || handoverList.isFetching}
+                                onClick={() => setHovPage((p) => Math.max(1, p - 1))}
+                              >
+                                {t("personnel.detailMgmtHandoverPrev")}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                className="min-h-[44px] min-w-[44px] w-full sm:w-auto"
+                                disabled={hovPage >= hovPages || handoverList.isFetching}
+                                onClick={() => setHovPage((p) => p + 1)}
+                              >
+                                {t("personnel.detailMgmtHandoverNext")}
+                              </Button>
+                            </div>
+                          ) : null}
+                        </>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {cashHandoverSubTab === "out" ? (
+                    <div className="border-t border-amber-200/50 bg-amber-50/35 p-3 sm:p-4">
+                      <div className="min-w-0 space-y-2">
+                        <p className="text-xs leading-relaxed text-amber-950/80">
+                          {t("personnel.detailMgmtOutflowsLead")}
+                        </p>
+                        {outflowList.data != null ? (
+                          <p className="text-xs leading-relaxed text-amber-950/75">
+                            {t("personnel.detailMgmtHandoverPagedRange")
+                              .replace(
+                                "{from}",
+                                String(outTotal === 0 ? 0 : (outPage - 1) * hovPageSize + 1)
+                              )
+                              .replace("{to}", String(Math.min(outPage * hovPageSize, outTotal)))
+                              .replace("{total}", String(outTotal))}
+                            {" · "}
+                            {t("personnel.detailMgmtHandoverPagedPages")
+                              .replace("{page}", String(outPage))
+                              .replace("{pages}", String(outPages))}
+                          </p>
+                        ) : outflowList.isPending ? (
+                          <p className="text-xs text-amber-950/70">{t("common.loading")}</p>
+                        ) : null}
+                      </div>
+
+                      {outflowList.isError ? (
+                        <div className="mt-3 flex flex-col gap-2">
+                          <p className="text-sm text-red-600">{toErrorMessage(outflowList.error)}</p>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="w-full min-h-[44px] min-w-[44px] sm:w-auto"
+                            onClick={() => outflowList.refetch()}
+                          >
+                            {t("common.retry")}
+                          </Button>
+                        </div>
+                      ) : outflowList.isPending && !outflowList.data ? (
+                        <div className="mt-3 space-y-2" aria-busy="true">
+                          {[1, 2, 3, 4, 5].map((i) => (
+                            <div key={i} className="h-14 animate-pulse rounded-lg bg-white/70" />
+                          ))}
+                        </div>
+                      ) : (
+                        <>
+                          {outItems.length === 0 ? (
+                            <p className="mt-3 text-sm text-zinc-600">
+                              {handoverFiltersBadgeCount > 0
+                                ? t("personnel.detailMgmtHandoverNoRowsFilter")
+                                : t("personnel.detailMgmtOutflowsEmpty")}
+                            </p>
+                          ) : (
+                            <>
+                              <div className="mt-3 overflow-x-auto">
+                                <Table className="w-full min-w-0 lg:min-w-[68rem]">
+                                  <TableHead>
+                                    <TableRow>
+                                      <TableHeader>{t("personnel.detailMgmtHandoverColDate")}</TableHeader>
+                                      <TableHeader>{t("personnel.detailMgmtHandoverColBranch")}</TableHeader>
+                                      <TableHeader className="text-right">
+                                        {t("personnel.detailMgmtOutflowsColAmount")}
+                                      </TableHeader>
+                                      <TableHeader className="text-right">
+                                        {t("personnel.detailMgmtOutflowsColBalanceBefore")}
+                                      </TableHeader>
+                                      <TableHeader className="text-right">
+                                        {t("personnel.detailMgmtOutflowsColBalanceAfter")}
+                                      </TableHeader>
+                                      <TableHeader>{t("personnel.detailMgmtOutflowsColKind")}</TableHeader>
+                                      <TableHeader>{t("personnel.detailMgmtOutflowsColInRef")}</TableHeader>
+                                      <TableHeader>{t("personnel.detailMgmtHandoverColCategory")}</TableHeader>
+                                      <TableHeader>{t("personnel.detailMgmtHandoverColNote")}</TableHeader>
+                                    </TableRow>
+                                  </TableHead>
+                                  <TableBody>
+                                    {outItems.map((row) => {
+                                      const cat = txCategoryLine(row.mainCategory, row.category, t);
+                                      const inRef =
+                                        row.settlesCashHandoverTransactionId != null
+                                          ? `#${row.settlesCashHandoverTransactionId}`
+                                          : dash;
+                                      return (
+                                        <TableRow key={row.transactionId}>
+                                          <TableCell
+                                            dataLabel={t("personnel.detailMgmtHandoverColDate")}
+                                            className="whitespace-nowrap"
+                                          >
+                                            {formatLocaleDate(row.transactionDate, locale, dash)}
+                                          </TableCell>
+                                          <TableCell dataLabel={t("personnel.detailMgmtHandoverColBranch")}>
+                                            {row.branchName?.trim() || dash}
+                                          </TableCell>
+                                          <TableCell
+                                            dataLabel={t("personnel.detailMgmtOutflowsColAmount")}
+                                            className="text-right tabular-nums font-mono"
+                                          >
+                                            {formatMoneyDash(row.amount, dash, locale, row.currencyCode)}
+                                          </TableCell>
+                                          <TableCell
+                                            dataLabel={t("personnel.detailMgmtOutflowsColBalanceBefore")}
+                                            className="text-right tabular-nums font-mono text-zinc-700"
+                                          >
+                                            {row.balanceBefore != null
+                                              ? formatMoneyDash(row.balanceBefore, dash, locale, row.currencyCode)
+                                              : dash}
+                                          </TableCell>
+                                          <TableCell
+                                            dataLabel={t("personnel.detailMgmtOutflowsColBalanceAfter")}
+                                            className="text-right tabular-nums font-mono text-zinc-700"
+                                          >
+                                            {row.balanceAfter != null
+                                              ? formatMoneyDash(row.balanceAfter, dash, locale, row.currencyCode)
+                                              : dash}
+                                          </TableCell>
+                                          <TableCell dataLabel={t("personnel.detailMgmtOutflowsColKind")} className="text-zinc-700">
+                                            {outflowKindLabel(row.outflowKind, t)}
+                                          </TableCell>
+                                          <TableCell dataLabel={t("personnel.detailMgmtOutflowsColInRef")} className="font-mono text-zinc-600">
+                                            {inRef}
+                                          </TableCell>
+                                          <TableCell
+                                            dataLabel={t("personnel.detailMgmtHandoverColCategory")}
+                                            className="max-w-[12rem] text-zinc-600"
+                                          >
+                                            {cat || dash}
+                                          </TableCell>
+                                          <TableCell
+                                            dataLabel={t("personnel.detailMgmtHandoverColNote")}
+                                            className="max-w-[14rem] text-zinc-600"
+                                          >
+                                            {row.description?.trim() || dash}
+                                          </TableCell>
+                                        </TableRow>
+                                      );
+                                    })}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            </>
+                          )}
+
+                          {outTotal > 0 ? (
+                            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                className="min-h-[44px] min-w-[44px] w-full sm:w-auto"
+                                disabled={outPage <= 1 || outflowList.isFetching}
+                                onClick={() => setOutPage((p) => Math.max(1, p - 1))}
+                              >
+                                {t("personnel.detailMgmtHandoverPrev")}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                className="min-h-[44px] min-w-[44px] w-full sm:w-auto"
+                                disabled={outPage >= outPages || outflowList.isFetching}
+                                onClick={() => setOutPage((p) => p + 1)}
+                              >
+                                {t("personnel.detailMgmtHandoverNext")}
+                              </Button>
+                            </div>
+                          ) : null}
+                        </>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
               </div>
-                ) : null}
-              </div>
-            </div>
-          )}
-        </div>
-      ) : null}
-    </section>
+            )}
+          </div>
+        ) : null}
+      </section>
 
       <RightDrawer
         open={hovFilterDrawerOpen}
@@ -1248,7 +1273,7 @@ export function PersonnelManagementSnapshotSection({
             options={handoverBranchOptions}
             value={hovDraft.branchId}
             onChange={(e) => setHovDraft((d) => ({ ...d, branchId: e.target.value }))}
-            onBlur={() => {}}
+            onBlur={() => { }}
             menuZIndex={OVERLAY_Z_INDEX.dateFieldPopover + 20}
           />
           <Select
@@ -1257,7 +1282,7 @@ export function PersonnelManagementSnapshotSection({
             options={handoverCurrencyOptions}
             value={hovDraft.currency}
             onChange={(e) => setHovDraft((d) => ({ ...d, currency: e.target.value }))}
-            onBlur={() => {}}
+            onBlur={() => { }}
             menuZIndex={OVERLAY_Z_INDEX.dateFieldPopover + 20}
           />
           <div className="grid grid-cols-1 gap-3">

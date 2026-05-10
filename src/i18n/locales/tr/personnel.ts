@@ -1039,6 +1039,8 @@ export const personnel = {
   detailMgmtSimpleSummaryZero:
     "Özet: Toplam maaş {sal}, toplam avans {adv}. Kayıtlar dengede görünüyor.",
   detailMgmtTileAdvanceTotal: "Toplam avans",
+  detailMgmtTilePersonnelExpenseTotal: "Personel gideri",
+  detailMgmtTileCostTotal: "Toplam maliyet (Avans + Gider)",
   detailMgmtTileSalaryTotal: "Toplam maaş",
   detailMgmtTileNetAll: "Net durum",
   detailMgmtTileNetHint: "Maaş − avans",

@@ -29,6 +29,7 @@ function buildStateFromSummaries(
     income: number;
     incomeCash: number;
     incomeCard: number;
+    expenseFromRegister: number;
     net: number;
     expenseAllOut: number;
     expenseOperationalRegister: number;
@@ -51,6 +52,7 @@ function buildStateFromSummaries(
       income: 0,
       incomeCash: 0,
       incomeCard: 0,
+      expenseFromRegister: 0,
       net: 0,
       expenseAllOut: 0,
       expenseOperationalRegister: 0,
@@ -80,6 +82,7 @@ function buildStateFromSummaries(
       acc.income += Number(d.totalIncome);
       acc.incomeCash += Number(d.incomeCash ?? 0);
       acc.incomeCard += Number(d.incomeCard ?? 0);
+      acc.expenseFromRegister += Number(d.expenseFromRegister ?? 0);
       acc.net += Number(d.netCash);
       acc.expenseAllOut += Number(d.totalExpense);
       acc.expenseOperationalRegister += Number(d.expenseOperationalRegister ?? 0) || 0;
@@ -102,6 +105,7 @@ function buildStateFromSummaries(
   let totalIncome = 0;
   let totalIncomeCash = 0;
   let totalIncomeCard = 0;
+  let totalExpenseFromRegister = 0;
   let totalExpenseAllOut = 0;
   let totalRegisterOwesPatronToday = 0;
   let totalPersonnelPocketRepaidFromPatronToday = 0;
@@ -140,11 +144,12 @@ function buildStateFromSummaries(
     counted++;
     const income = acc.income;
     const net = acc.net;
-    const expenseFromRegister = income - net;
+    const expenseFromRegister = acc.expenseFromRegister;
     const totalExpenseOut = acc.expenseAllOut;
     totalIncome += income;
     totalIncomeCash += acc.incomeCash;
     totalIncomeCard += acc.incomeCard;
+    totalExpenseFromRegister += expenseFromRegister;
     totalExpenseAllOut += acc.expenseAllOut;
     totalRegisterOwesPatronToday += acc.registerOwesPatronToday;
     totalPersonnelPocketRepaidFromPatronToday += acc.personnelPocketRepaidFromPatronToday;
@@ -183,7 +188,6 @@ function buildStateFromSummaries(
     );
   });
 
-  const totalExpenseFromRegister = totalIncome - netCashSum;
   if (counted === 0 && branches.length > 0) {
     return { kind: "empty" };
   }
