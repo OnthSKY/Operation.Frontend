@@ -209,6 +209,13 @@ export function useTodayBranchesSummary(
     branchTodayRows.sort((a, b) => {
       if (a.financialHidden !== b.financialHidden)
         return a.financialHidden ? 1 : -1;
+
+      if (!a.financialHidden && !b.financialHidden) {
+        const aHasExp = a.totalExpenseOut > 0.005;
+        const bHasExp = b.totalExpenseOut > 0.005;
+        if (aHasExp !== bHasExp) return aHasExp ? -1 : 1;
+      }
+
       const activity = (r: BranchTodayRow) =>
         r.financialHidden ? 0 : r.income + r.expenseFromRegister;
       return (

@@ -41,7 +41,7 @@ export const nav = {
   insuranceSection: "Sigorta ve kapsam",
   branch: "Şube yönetimi",
   documents: "Belgeler",
-  dailyBranchRegister: "Kasa günü (tüm şubeler)",
+  dailyBranchRegister: "Kasa Gün Sonları",
   generalOverhead: "Genel giderler",
   warehouse: "Depolar",
   shipments: "Sevkiyat talepleri",

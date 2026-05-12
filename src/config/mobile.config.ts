@@ -5,7 +5,7 @@ export const MOBILE_BREAKPOINT = 768;
  * `lg` ve üzerinde kısıt kalkar; giriş ekranı iki sütun ve ana uygulama tam genişlik kullanır.
  * Toast genişliği (`globals.css`) ayrıca `min(..., 28rem)` ile sınırlı kalır.
  */
-export const APP_MOBILE_LIKE_SHELL_MAX_CLASS = "max-w-md lg:max-w-none" as const;
+export const APP_MOBILE_LIKE_SHELL_MAX_CLASS = "max-w-md md:max-w-none" as const;
 export const MAX_PRIMARY_FIELDS = 3;
 export const TOUCH_TARGET_MIN = 44;
 

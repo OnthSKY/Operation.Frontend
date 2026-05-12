@@ -40,7 +40,8 @@ import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import { Tooltip } from "@/shared/ui/Tooltip";
-import { BranchDetailHrefLink } from "@/shared/branch-detail";
+import { EyeIcon } from "@/shared/ui/EyeIcon";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 type RegisterScopeMode = "day" | "season_single" | "season_range" | "date_range";
@@ -85,53 +86,20 @@ function sumBranchRegisterRows(rows: BranchTodayRow[]): {
     cash += r.incomeCash;
     card += r.incomeCard;
     expenseOut += r.totalExpenseOut;
-    expenseFromRegister += r.expenseFromRegister;
+    const buckets = expenseBucketsFromDailyRegisterRow(r);
+    expenseFromRegister += buckets.register;
     net += r.netCash;
     expensePayBuckets = addExpenseBuckets(
       expensePayBuckets,
-      expenseBucketsFromDailyRegisterRow(r)
+      buckets
     );
   }
   if (!has) return null;
-  if (income > 0.005 && cash + card < 0.005) {
-    cash = income;
-    card = 0;
-  }
   return { income, cash, card, expenseOut, expenseFromRegister, net, expensePayBuckets };
 }
 
-function splitIncomeDisplay(row: BranchTodayRow): { cash: number; card: number } {
-  if (row.financialHidden) return { cash: 0, card: 0 };
-  const c = row.incomeCash;
-  const cd = row.incomeCard;
-  if (c + cd > 0.005) return { cash: c, card: cd };
-  if (row.income > 0.005) return { cash: row.income, card: 0 };
-  return { cash: 0, card: 0 };
-}
-
-const EXP_EPS = 0.005;
-
-function expenseRegisterSplit(totalOut: number, fromRegister: number) {
-  const total = Math.max(0, totalOut);
-  const fromReg = Math.max(0, fromRegister);
-  const fromRegCapped = total > EXP_EPS ? Math.min(fromReg, total) : fromReg;
-  const outside = Math.max(0, total - fromRegCapped);
-  const denom = total > EXP_EPS ? total : null;
-  const ratioRegister = denom != null ? fromRegCapped / denom : 0;
-  const ratioOutside = denom != null ? outside / denom : 0;
-  return { total, fromRegCapped, outside, ratioRegister, ratioOutside };
-}
-
-function formatPercentRatio(ratio: number, locale: Locale) {
-  const loc = locale === "tr" ? "tr-TR" : "en-US";
-  return new Intl.NumberFormat(loc, {
-    style: "percent",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 1,
-  }).format(ratio);
-}
-
 function branchExpenseDetailItems(row: BranchTodayRow) {
+  const EXP_EPS = 0.005;
   return [
     { v: row.registerOwesPatronToday, labelKey: "dashboard.dailyRegisterDetailOwesPatron" as const },
     { v: row.registerOwesPersonnelToday, labelKey: "dashboard.dailyRegisterDetailOwesPersonnel" as const },
@@ -148,50 +116,6 @@ function branchExpenseDetailItems(row: BranchTodayRow) {
       labelKey: "dashboard.dailyRegisterDetailPatronDebtRepaidRegister" as const,
     },
   ].filter((x) => x.v > EXP_EPS);
-}
-
-function DailyRegisterExpenseSplit({
-  totalOut,
-  fromRegister,
-  locale,
-  labelRegister,
-  labelOutside,
-  labelNoOutHint,
-  className,
-}: {
-  totalOut: number;
-  fromRegister: number;
-  locale: Locale;
-  labelRegister: string;
-  labelOutside: string;
-  labelNoOutHint: string;
-  className?: string;
-}) {
-  const s = expenseRegisterSplit(totalOut, fromRegister);
-  if (s.total <= EXP_EPS && s.fromRegCapped <= EXP_EPS && s.outside <= EXP_EPS) return null;
-  if (s.total <= EXP_EPS) {
-    return (
-      <div className={cn("text-[0.65rem] leading-snug text-zinc-500", className)}>
-        {labelNoOutHint}
-      </div>
-    );
-  }
-  return (
-    <div className={cn("space-y-0.5 text-[0.65rem] leading-snug text-zinc-600", className)}>
-      <p>
-        <span className="text-zinc-500">{labelRegister}</span>{" "}
-        <span className="font-medium text-zinc-800">
-          {formatPercentRatio(s.ratioRegister, locale)} · {formatLocaleAmount(s.fromRegCapped, locale)}
-        </span>
-      </p>
-      <p>
-        <span className="text-zinc-500">{labelOutside}</span>{" "}
-        <span className="font-medium text-zinc-800">
-          {formatPercentRatio(s.ratioOutside, locale)} · {formatLocaleAmount(s.outside, locale)}
-        </span>
-      </p>
-    </div>
-  );
 }
 
 export function DailyBranchRegisterScreen() {
@@ -452,7 +376,7 @@ export function DailyBranchRegisterScreen() {
                   disabled={branchesListPending}
                   menuZIndex={260}
                   onChange={(e) => setBranchFilterBranchId(e.target.value)}
-                  onBlur={() => {}}
+                  onBlur={() => { }}
                   className="min-h-11 sm:min-h-10 sm:text-sm"
                 />
                 <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">
@@ -542,7 +466,7 @@ export function DailyBranchRegisterScreen() {
                         const y = Number.parseInt(v, 10);
                         if (Number.isFinite(y)) setSeasonYear(y);
                       }}
-                      onBlur={() => {}}
+                      onBlur={() => { }}
                       className="min-h-11 sm:min-h-10 sm:text-sm"
                     />
                     <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">
@@ -564,7 +488,7 @@ export function DailyBranchRegisterScreen() {
                         const y = Number.parseInt(v, 10);
                         if (Number.isFinite(y)) setSeasonYearFrom(y);
                       }}
-                      onBlur={() => {}}
+                      onBlur={() => { }}
                       className="min-h-11 sm:min-h-10 sm:text-sm"
                     />
                     <Select
@@ -578,7 +502,7 @@ export function DailyBranchRegisterScreen() {
                         const y = Number.parseInt(v, 10);
                         if (Number.isFinite(y)) setSeasonYearTo(y);
                       }}
-                      onBlur={() => {}}
+                      onBlur={() => { }}
                       className="min-h-11 sm:min-h-10 sm:text-sm"
                     />
                     <p className="col-span-full text-xs leading-relaxed text-zinc-500 sm:-mt-2">
@@ -651,72 +575,57 @@ export function DailyBranchRegisterScreen() {
           ) : null}
 
           {totalsStrip ? (
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-              {(
-                [
-                  ["income", totalsStrip.income, "text-zinc-900"],
-                  ["cash", totalsStrip.cash, "text-emerald-900"],
-                  ["pos", totalsStrip.card, "text-sky-900"],
-                ] as const
-              ).map(([key, val, color]) => (
-                <div
-                  key={key}
-                  className="rounded-xl border border-zinc-200/80 bg-zinc-50/80 px-3 py-2.5 shadow-sm"
-                >
-                  <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-500">
-                    {t(`dashboard.dailyRegisterTotal_${key}`)}
-                  </p>
-                  <p className={`mt-1 text-sm font-semibold tabular-nums ${color}`}>
-                    {formatLocaleAmount(val, locale)}
-                  </p>
-                </div>
-              ))}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/80 px-3 py-2.5 shadow-sm">
                 <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-500">
-                  {t("dashboard.dailyRegisterTotal_expense_primary")}
+                  {t("dashboard.dailyRegisterCardTotalIncoming")}
                 </p>
-                <p className="mt-1 text-sm font-semibold tabular-nums text-orange-950">
+                <p className="mt-1 text-sm font-semibold tabular-nums text-zinc-950">
+                  {formatLocaleAmount(totalsStrip.income, locale)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-emerald-200/50 bg-emerald-50/50 px-3 py-2.5 shadow-sm ring-1 ring-emerald-100/30">
+                <p className="text-[0.65rem] font-bold uppercase tracking-wide text-emerald-800">
+                  {t("dashboard.dailyRegisterCardCashEarnedToday")}
+                </p>
+                <p className="mt-1 text-sm font-bold tabular-nums text-emerald-950">
                   {formatLocaleAmount(totalsStrip.expenseFromRegister, locale)}
+                </p>
+              </div>
+              <div className="rounded-xl border border-orange-200/60 bg-orange-50/60 px-3 py-2.5 shadow-sm ring-1 ring-orange-100/30">
+                <p className="text-[0.65rem] font-bold uppercase tracking-wide text-orange-800">
+                  {t("dashboard.dailyRegisterCardTotalOutgoing")}
+                </p>
+                <p className="mt-1 text-sm font-bold tabular-nums text-orange-950">
+                  {formatLocaleAmount(totalsStrip.expenseOut, locale)}
                 </p>
                 {shouldShowExpensePaySourceBreakdown(
                   totalsStrip.expenseOut,
                   totalsStrip.expensePayBuckets
                 ) ? (
-                  <>
-                    <p className="mt-2 text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
-                      {t("dashboard.dailyRegisterExpenseByPaymentSource")}
-                    </p>
+                  <div className="mt-1.5 border-t border-orange-200/40 pt-1.5">
                     <FinancialExpensePaySourceSubline
                       buckets={totalsStrip.expensePayBuckets}
                       currencyCode=""
                       locale={locale}
                       t={t}
                     />
-                  </>
+                  </div>
                 ) : null}
-                <DailyRegisterExpenseSplit
-                  totalOut={totalsStrip.expenseOut}
-                  fromRegister={totalsStrip.expenseFromRegister}
-                  locale={locale}
-                  labelRegister={t("dashboard.dailyRegisterExpenseShareRegister")}
-                  labelOutside={t("dashboard.dailyRegisterExpenseShareOutside")}
-                  labelNoOutHint={t("dashboard.dailyRegisterExpenseNoOutHint")}
-                  className="mt-1.5"
-                />
               </div>
-              <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/80 px-3 py-2.5 shadow-sm">
-                <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-500">
-                  Kalan Nakit
+              <div className="rounded-xl border border-violet-200/60 bg-violet-50/60 px-3 py-2.5 shadow-sm ring-1 ring-violet-100/30">
+                <p className="text-[0.65rem] font-bold uppercase tracking-wide text-violet-800">
+                  {t("dashboard.dailyRegisterCardRemainingCash")}
                 </p>
-                <p className="mt-1 text-sm font-semibold tabular-nums text-violet-950">
+                <p className="mt-1 text-sm font-bold tabular-nums text-violet-950">
                   {formatLocaleAmount(totalsStrip.net, locale)}
                 </p>
               </div>
-              <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/80 px-3 py-2.5 shadow-sm">
-                <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-500">
-                  {t("dashboard.dailyRegisterTotal_net")}
+              <div className="hidden rounded-xl border border-zinc-200/80 bg-zinc-100/50 px-3 py-2.5 shadow-sm lg:block">
+                <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-600">
+                  {t("dashboard.dailyRegisterCardNetResult")}
                 </p>
-                <p className="mt-1 text-sm font-semibold tabular-nums text-indigo-950">
+                <p className="mt-1 text-sm font-bold tabular-nums text-zinc-900">
                   {formatLocaleAmount(totalsStrip.net + totalsStrip.card, locale)}
                 </p>
               </div>
@@ -726,121 +635,111 @@ export function DailyBranchRegisterScreen() {
           {state.kind === "ok" && visibleRows.length > 0 ? (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {visibleRows.map((row) => {
-                const { cash, card } = splitIncomeDisplay(row);
                 const expensePayBuckets = expenseBucketsFromDailyRegisterRow(row);
                 const expenseDetails = branchExpenseDetailItems(row);
                 return (
                   <article
                     key={row.branchId}
-                    className="flex min-w-0 flex-col rounded-xl border border-zinc-200/85 bg-white p-4 shadow-sm ring-1 ring-zinc-950/[0.03]"
+                    className="flex flex-col overflow-hidden rounded-[2rem] border border-zinc-200 bg-white shadow-sm transition-all hover:shadow-md"
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <h2 className="min-w-0 text-base font-semibold leading-snug text-zinc-900">
-                        {row.branchName}
-                      </h2>
+                    <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50/30 px-5 py-4">
+                      <h2 className="text-lg font-black text-zinc-900 tracking-tight">{row.branchName}</h2>
                     </div>
+
                     {row.financialHidden ? (
-                      <p className="mt-2 text-xs text-zinc-500">{t("dashboard.branchTodayHiddenRow")}</p>
+                      <div className="px-5 py-8 text-center">
+                        <p className="text-sm text-zinc-500 font-medium">{t("dashboard.branchTodayHiddenRow")}</p>
+                      </div>
                     ) : (
-                      <>
-                        <dl className="mt-3 space-y-2 text-sm">
-                          <div className="flex items-baseline justify-between gap-2">
-                            <dt className="text-zinc-500">{t("dashboard.dailyRegisterCardCash")}</dt>
-                            <dd className="tabular-nums font-medium text-emerald-900">
-                              {formatLocaleAmount(cash, locale)}
-                            </dd>
-                          </div>
-                          <div className="flex items-baseline justify-between gap-2">
-                            <dt className="text-zinc-500">{t("dashboard.dailyRegisterCardPos")}</dt>
-                            <dd className="tabular-nums font-medium text-sky-900">
-                              {formatLocaleAmount(card, locale)}
-                            </dd>
-                          </div>
-                          <div className="flex items-baseline justify-between gap-2 border-t border-zinc-100 pt-2">
-                            <dt className="text-zinc-600">{t("dashboard.dailyRegisterCardIncomeTotal")}</dt>
-                            <dd className="tabular-nums font-semibold text-zinc-900">
-                              {formatLocaleAmount(row.income, locale)}
-                            </dd>
-                          </div>
-                          <div className="space-y-1.5 border-t border-zinc-100 pt-2">
-                            <div className="flex items-baseline justify-between gap-2">
-                              <dt className="text-zinc-600">{t("dashboard.dailyRegisterCardExpenseHeadline")}</dt>
-                              <dd className="tabular-nums font-semibold text-orange-950">
-                                {formatLocaleAmount(row.expenseFromRegister, locale)}
-                              </dd>
+                      <div className="mt-4 px-4 pb-4">
+                        <div className="space-y-4">
+                          {/* TAHSİLAT GRUBU */}
+                          <div className="rounded-xl border border-emerald-100 bg-emerald-50/20 p-3">
+                            <h3 className="text-[10px] font-bold uppercase tracking-wider text-emerald-800/70 mb-2">
+                              Tahsilat
+                            </h3>
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between text-[13px]">
+                                <span className="text-zinc-500">Nakit Tahsilat</span>
+                                <span className="font-semibold text-zinc-900 tabular-nums">
+                                  {formatLocaleAmount(row.income - row.expenseOperationalUnset, locale)}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-[13px]">
+                                <span className="text-zinc-500">{t("dashboard.dailyRegisterCardPosIncome")}</span>
+                                <span className="font-semibold text-zinc-900 tabular-nums">
+                                  {formatLocaleAmount(row.expenseOperationalUnset, locale)}
+                                </span>
+                              </div>
+                              <div className="pt-2 border-t border-emerald-200/50 flex items-center justify-between">
+                                <span className="font-bold text-emerald-900 text-[13px]">Toplam</span>
+                                <span className="font-black text-emerald-950 tabular-nums">
+                                  {formatLocaleAmount(row.income, locale)}
+                                </span>
+                              </div>
                             </div>
-                            {shouldShowExpensePaySourceBreakdown(
-                              row.totalExpenseOut,
-                              expensePayBuckets
-                            ) ? (
-                              <>
-                                <p className="mt-1.5 text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
-                                  {t("dashboard.dailyRegisterExpenseByPaymentSource")}
-                                </p>
-                                <FinancialExpensePaySourceSubline
-                                  buckets={expensePayBuckets}
-                                  currencyCode=""
-                                  locale={locale}
-                                  t={t}
-                                />
-                              </>
-                            ) : null}
-                            <DailyRegisterExpenseSplit
-                              totalOut={row.totalExpenseOut}
-                              fromRegister={row.expenseFromRegister}
-                              locale={locale}
-                              labelRegister={t("dashboard.dailyRegisterExpenseShareRegister")}
-                              labelOutside={t("dashboard.dailyRegisterExpenseShareOutside")}
-                              labelNoOutHint={t("dashboard.dailyRegisterExpenseNoOutHint")}
-                              className="mt-1.5 pl-0.5"
-                            />
-                            <p className="text-[0.65rem] leading-snug text-zinc-400">
-                              {t("dashboard.dailyRegisterCardExpenseFootnote")}
-                            </p>
                           </div>
-                          <div className="flex items-baseline justify-between gap-2 border-t border-zinc-100 pt-2">
-                            <dt className="font-medium text-zinc-800">Kalan Nakit</dt>
-                            <dd className="tabular-nums font-bold text-violet-950">
-                              {formatLocaleAmount(row.netCash, locale)}
-                            </dd>
-                          </div>
-                          <div className="flex items-baseline justify-between gap-2 border-t border-zinc-100 pt-2">
-                            <dt className="font-medium text-zinc-800">{t("dashboard.dailyRegisterCardNet")}</dt>
-                            <dd className="tabular-nums font-bold text-indigo-950">
-                              {formatLocaleAmount(row.netCash + card, locale)}
-                            </dd>
-                          </div>
-                        </dl>
-                        {expenseDetails.length > 0 ? (
-                          <details className="mt-3 rounded-lg border border-zinc-200/90 bg-zinc-50/60 px-2 py-1.5 text-xs text-zinc-800">
-                            <summary className="cursor-pointer select-none list-none py-1 font-semibold text-zinc-700 outline-none [&::-webkit-details-marker]:hidden">
-                              {t("dashboard.dailyRegisterExpenseDetailToggle")}
-                            </summary>
-                            <dl className="mt-2 space-y-1.5 border-t border-zinc-200/80 pt-2">
-                              {expenseDetails.map((line) => (
-                                <div
-                                  key={line.labelKey}
-                                  className="flex items-baseline justify-between gap-2"
-                                >
-                                  <dt className="min-w-0 flex-1 pr-1 leading-snug text-zinc-600">
-                                    {t(line.labelKey)}
-                                  </dt>
-                                  <dd className="shrink-0 tabular-nums font-medium text-zinc-900">
-                                    {formatLocaleAmount(line.v, locale)}
-                                  </dd>
+
+                          {/* GİDER GRUBU */}
+                          <div className="rounded-xl border border-orange-100 bg-orange-50/20 p-3">
+                            <h3 className="text-[10px] font-bold uppercase tracking-wider text-orange-800/70 mb-2">
+                              Gider
+                            </h3>
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between text-[13px]">
+                                <span className="text-zinc-500">Kasadan harcanan</span>
+                                <span className="font-semibold text-orange-950 tabular-nums">
+                                  {formatLocaleAmount(row.expenseFromRegister, locale)}
+                                </span>
+                              </div>
+                              {row.expenseOperationalPatron > 0.005 && (
+                                <div className="flex items-center justify-between text-[13px]">
+                                  <span className="text-zinc-500">Patron (kasa dışı) gider</span>
+                                  <span className="font-semibold text-orange-950 tabular-nums">
+                                    {formatLocaleAmount(row.expenseOperationalPatron, locale)}
+                                  </span>
                                 </div>
-                              ))}
-                            </dl>
-                          </details>
-                        ) : null}
-                        <BranchDetailHrefLink
-                          branchId={row.branchId}
-                          initialTab="income"
-                          className="mt-3 text-xs font-semibold text-violet-800 underline-offset-2 hover:underline"
-                        >
-                          {t("dashboard.dailyRegisterOpenBranch")}
-                        </BranchDetailHrefLink>
-                      </>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* NET SONUÇ */}
+                          <div className="pt-1">
+                            {(() => {
+                              // Net = Nakit Tahsilat - Kasadan Harcanan
+                              // Nakit Tahsilat = totalIncome - expenseOperationalUnset (kart/POS kısmı)
+                              const nakitTahsilat = row.income - row.expenseOperationalUnset;
+                              const netVal = nakitTahsilat - row.expenseFromRegister;
+                              return (
+                                <div className={cn(
+                                  "flex items-center justify-between rounded-xl px-3.5 py-3 border transition-all",
+                                  netVal >= -0.005
+                                    ? "bg-emerald-50/70 border-emerald-200 text-emerald-900"
+                                    : "bg-rose-50/70 border-rose-200 text-rose-900"
+                                )}>
+                                  <span className="text-[12px] font-bold">
+                                    {t("dashboard.dailyRegisterCardNetEarnings")}
+                                  </span>
+                                  <span className={cn(
+                                    "text-base font-black tabular-nums",
+                                    netVal >= -0.005 ? "text-emerald-700" : "text-rose-700"
+                                  )}>
+                                    {formatLocaleAmount(netVal, locale)}
+                                  </span>
+                                </div>
+                              );
+                            })()}
+                          </div>
+
+                          <Link
+                            href={`/daily-branch-register/${row.branchId}?date=${date}`}
+                            className="flex h-11 w-full items-center justify-center rounded-xl bg-zinc-900 text-sm font-bold text-white transition-all hover:bg-zinc-800 active:scale-[0.98] shadow-sm mt-2"
+                          >
+                            <EyeIcon className="mr-2 h-4 w-4" />
+                            {t("dashboard.dailyRegisterCardOpenBranchDetail")}
+                          </Link>
+                        </div>
+                      </div>
                     )}
                   </article>
                 );
