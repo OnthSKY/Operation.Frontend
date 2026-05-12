@@ -86,10 +86,11 @@ function sumBranchRegisterRows(rows: BranchTodayRow[]): {
     income += r.income;
     cash += r.incomeCash;
     card += r.incomeCard;
-    expenseOut += r.totalExpenseOut;
-    const buckets = expenseBucketsFromDailyRegisterRow(r);
-    expenseFromRegister += buckets.register;
+    // We only want register-based outgoing in the summary strip to match user expectations
+    expenseOut += r.expenseFromRegister;
+    expenseFromRegister += r.expenseFromRegister;
     net += r.netCash;
+    const buckets = expenseBucketsFromDailyRegisterRow(r);
     expensePayBuckets = addExpenseBuckets(
       expensePayBuckets,
       buckets
@@ -585,6 +586,14 @@ export function DailyBranchRegisterScreen() {
                   {formatLocaleAmount(totalsStrip.income, locale)}
                 </p>
               </div>
+              <div className="rounded-xl border border-blue-200/50 bg-blue-50/50 px-3 py-2.5 shadow-sm ring-1 ring-blue-100/30">
+                <p className="text-[0.65rem] font-bold uppercase tracking-wide text-blue-800">
+                  {t("dashboard.dailyRegisterCardPosIncome")}
+                </p>
+                <p className="mt-1 text-sm font-bold tabular-nums text-blue-950">
+                  {formatLocaleAmount(totalsStrip.card, locale)}
+                </p>
+              </div>
               <div className="rounded-xl border border-emerald-200/50 bg-emerald-50/50 px-3 py-2.5 shadow-sm ring-1 ring-emerald-100/30">
                 <p className="text-[0.65rem] font-bold uppercase tracking-wide text-emerald-800">
                   {t("dashboard.dailyRegisterCardCashSpentToday")}
@@ -592,27 +601,6 @@ export function DailyBranchRegisterScreen() {
                 <p className="mt-1 text-sm font-bold tabular-nums text-emerald-950">
                   {formatLocaleAmount(totalsStrip.expenseFromRegister, locale)}
                 </p>
-              </div>
-              <div className="rounded-xl border border-orange-200/60 bg-orange-50/60 px-3 py-2.5 shadow-sm ring-1 ring-orange-100/30">
-                <p className="text-[0.65rem] font-bold uppercase tracking-wide text-orange-800">
-                  {t("dashboard.dailyRegisterCardTotalOutgoing")}
-                </p>
-                <p className="mt-1 text-sm font-bold tabular-nums text-orange-950">
-                  {formatLocaleAmount(totalsStrip.expenseOut, locale)}
-                </p>
-                {shouldShowExpensePaySourceBreakdown(
-                  totalsStrip.expenseOut,
-                  totalsStrip.expensePayBuckets
-                ) ? (
-                  <div className="mt-1.5 border-t border-orange-200/40 pt-1.5">
-                    <FinancialExpensePaySourceSubline
-                      buckets={totalsStrip.expensePayBuckets}
-                      currencyCode=""
-                      locale={locale}
-                      t={t}
-                    />
-                  </div>
-                ) : null}
               </div>
               <div className="rounded-xl border border-violet-200/60 bg-violet-50/60 px-3 py-2.5 shadow-sm ring-1 ring-violet-100/30">
                 <p className="text-[0.65rem] font-bold uppercase tracking-wide text-violet-800">
