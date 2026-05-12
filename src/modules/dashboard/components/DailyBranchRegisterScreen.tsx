@@ -41,6 +41,7 @@ import { DateField } from "@/shared/ui/DateField";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import { EyeIcon } from "@/shared/ui/EyeIcon";
+import { buildBranchDetailHref } from "@/shared/branch-detail/branch-detail-deep-link";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -578,7 +579,7 @@ export function DailyBranchRegisterScreen() {
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/80 px-3 py-2.5 shadow-sm">
                 <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-500">
-                  {t("dashboard.dailyRegisterCardTotalIncoming")}
+                  {t("dashboard.dailyRegisterCardTotalIncome")}
                 </p>
                 <p className="mt-1 text-sm font-semibold tabular-nums text-zinc-950">
                   {formatLocaleAmount(totalsStrip.income, locale)}
@@ -586,7 +587,7 @@ export function DailyBranchRegisterScreen() {
               </div>
               <div className="rounded-xl border border-emerald-200/50 bg-emerald-50/50 px-3 py-2.5 shadow-sm ring-1 ring-emerald-100/30">
                 <p className="text-[0.65rem] font-bold uppercase tracking-wide text-emerald-800">
-                  {t("dashboard.dailyRegisterCardCashEarnedToday")}
+                  {t("dashboard.dailyRegisterCardCashSpentToday")}
                 </p>
                 <p className="mt-1 text-sm font-bold tabular-nums text-emerald-950">
                   {formatLocaleAmount(totalsStrip.expenseFromRegister, locale)}
@@ -626,7 +627,7 @@ export function DailyBranchRegisterScreen() {
                   {t("dashboard.dailyRegisterCardNetResult")}
                 </p>
                 <p className="mt-1 text-sm font-bold tabular-nums text-zinc-900">
-                  {formatLocaleAmount(totalsStrip.net + totalsStrip.card, locale)}
+                  {formatLocaleAmount(totalsStrip.income - totalsStrip.expenseFromRegister, locale)}
                 </p>
               </div>
             </div>
@@ -656,11 +657,11 @@ export function DailyBranchRegisterScreen() {
                           {/* TAHSİLAT GRUBU */}
                           <div className="rounded-xl border border-emerald-100 bg-emerald-50/20 p-3">
                             <h3 className="text-[10px] font-bold uppercase tracking-wider text-emerald-800/70 mb-2">
-                              Tahsilat
+                              {t("dashboard.dailyRegisterIncomeGroupTitle")}
                             </h3>
                             <div className="space-y-1.5">
                               <div className="flex items-center justify-between text-[13px]">
-                                <span className="text-zinc-500">Nakit Tahsilat</span>
+                                <span className="text-zinc-500">{t("dashboard.dailyRegisterCashEarned")}</span>
                                 <span className="font-semibold text-zinc-900 tabular-nums">
                                   {formatLocaleAmount(row.income - row.expenseOperationalUnset, locale)}
                                 </span>
@@ -672,7 +673,9 @@ export function DailyBranchRegisterScreen() {
                                 </span>
                               </div>
                               <div className="pt-2 border-t border-emerald-200/50 flex items-center justify-between">
-                                <span className="font-bold text-emerald-900 text-[13px]">Toplam</span>
+                                <span className="font-bold text-emerald-900 text-[13px]">
+                                  {t("dashboard.dailyRegisterTotalLabel")}
+                                </span>
                                 <span className="font-black text-emerald-950 tabular-nums">
                                   {formatLocaleAmount(row.income, locale)}
                                 </span>
@@ -683,18 +686,20 @@ export function DailyBranchRegisterScreen() {
                           {/* GİDER GRUBU */}
                           <div className="rounded-xl border border-orange-100 bg-orange-50/20 p-3">
                             <h3 className="text-[10px] font-bold uppercase tracking-wider text-orange-800/70 mb-2">
-                              Gider
+                              {t("dashboard.dailyRegisterExpenseGroupTitle")}
                             </h3>
                             <div className="space-y-1.5">
                               <div className="flex items-center justify-between text-[13px]">
-                                <span className="text-zinc-500">Kasadan harcanan</span>
+                                <span className="text-zinc-500">{t("dashboard.dailyRegisterSpentFromRegister")}</span>
                                 <span className="font-semibold text-orange-950 tabular-nums">
                                   {formatLocaleAmount(row.expenseFromRegister, locale)}
                                 </span>
                               </div>
                               {row.expenseOperationalPatron > 0.005 && (
                                 <div className="flex items-center justify-between text-[13px]">
-                                  <span className="text-zinc-500">Patron (kasa dışı) gider</span>
+                                  <span className="text-zinc-500">
+                                    {t("dashboard.dailyRegisterPatronExpenseOutside")}
+                                  </span>
                                   <span className="font-semibold text-orange-950 tabular-nums">
                                     {formatLocaleAmount(row.expenseOperationalPatron, locale)}
                                   </span>
@@ -706,24 +711,26 @@ export function DailyBranchRegisterScreen() {
                           {/* NET SONUÇ */}
                           <div className="pt-1">
                             {(() => {
-                              // Net = Nakit Tahsilat - Kasadan Harcanan
-                              // Nakit Tahsilat = totalIncome - expenseOperationalUnset (kart/POS kısmı)
-                              const nakitTahsilat = row.income - row.expenseOperationalUnset;
-                              const netVal = nakitTahsilat - row.expenseFromRegister;
+                              // Gün sonu net kazanç = (Nakit + POS) - Kasadan Harcanan
+                              const netVal = row.income - row.expenseFromRegister;
                               return (
-                                <div className={cn(
-                                  "flex items-center justify-between rounded-xl px-3.5 py-3 border transition-all",
-                                  netVal >= -0.005
-                                    ? "bg-emerald-50/70 border-emerald-200 text-emerald-900"
-                                    : "bg-rose-50/70 border-rose-200 text-rose-900"
-                                )}>
+                                <div
+                                  className={cn(
+                                    "flex items-center justify-between rounded-xl px-3.5 py-3 border transition-all",
+                                    netVal >= -0.005
+                                      ? "bg-emerald-50/70 border-emerald-200 text-emerald-900"
+                                      : "bg-rose-50/70 border-rose-200 text-rose-900"
+                                  )}
+                                >
                                   <span className="text-[12px] font-bold">
                                     {t("dashboard.dailyRegisterCardNetEarnings")}
                                   </span>
-                                  <span className={cn(
-                                    "text-base font-black tabular-nums",
-                                    netVal >= -0.005 ? "text-emerald-700" : "text-rose-700"
-                                  )}>
+                                  <span
+                                    className={cn(
+                                      "text-base font-black tabular-nums",
+                                      netVal >= -0.005 ? "text-emerald-700" : "text-rose-700"
+                                    )}
+                                  >
                                     {formatLocaleAmount(netVal, locale)}
                                   </span>
                                 </div>
@@ -732,7 +739,7 @@ export function DailyBranchRegisterScreen() {
                           </div>
 
                           <Link
-                            href={`/daily-branch-register/${row.branchId}?date=${date}`}
+                            href={buildBranchDetailHref(row.branchId, { tab: "income", registerDay: date })}
                             className="flex h-11 w-full items-center justify-center rounded-xl bg-zinc-900 text-sm font-bold text-white transition-all hover:bg-zinc-800 active:scale-[0.98] shadow-sm mt-2"
                           >
                             <EyeIcon className="mr-2 h-4 w-4" />

@@ -323,4 +323,10 @@ export const dashboard = {
   dailyRegisterDetailPocketRepaidRegister: "Pocket repayment posted through register",
   dailyRegisterDetailPatronDebtRepaidRegister: "Patron debt repaid from register",
   dailyRegisterOpenBranch: "Open branch detail →",
+  dailyRegisterIncomeGroupTitle: "Income",
+  dailyRegisterExpenseGroupTitle: "Expense",
+  dailyRegisterTotalLabel: "Total",
+  dailyRegisterCashEarned: "Cash Intake",
+  dailyRegisterSpentFromRegister: "Spent from register",
+  dailyRegisterPatronExpenseOutside: "Owner (off-register) expense",
 } as const;

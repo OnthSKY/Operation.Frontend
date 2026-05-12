@@ -336,4 +336,10 @@ export const dashboard = {
   dailyRegisterDetailPocketRepaidRegister: "Cep iadesi kasa kaydı üzerinden",
   dailyRegisterDetailPatronDebtRepaidRegister: "Patron borcu kasadan kapatma",
   dailyRegisterOpenBranch: "Şube detayını aç →",
+  dailyRegisterIncomeGroupTitle: "Tahsilat",
+  dailyRegisterExpenseGroupTitle: "Gider",
+  dailyRegisterTotalLabel: "Toplam",
+  dailyRegisterCashEarned: "Nakit Tahsilat",
+  dailyRegisterSpentFromRegister: "Kasadan harcanan",
+  dailyRegisterPatronExpenseOutside: "Patron (kasa dışı) gider",
 } as const;
