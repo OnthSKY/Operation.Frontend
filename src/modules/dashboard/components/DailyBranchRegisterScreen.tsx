@@ -73,31 +73,46 @@ function sumBranchRegisterRows(rows: BranchTodayRow[]): {
   expensePayBuckets: ExpensePayFiveBucket;
 } | null {
   let income = 0;
-  let cash = 0;
   let card = 0;
-  let expenseOut = 0;
   let expenseFromRegister = 0;
-  let net = 0;
   let expensePayBuckets = emptyExpenseBuckets();
   let has = false;
+
   for (const r of rows) {
     if (r.financialHidden) continue;
     has = true;
+    
+    // totalIncome: Cash + POS
     income += r.income;
-    cash += r.incomeCash;
-    card += r.incomeCard;
-    // We only want register-based outgoing in the summary strip to match user expectations
-    expenseOut += r.expenseFromRegister;
+    
+    // card: POS portion (the "Kazanılan Kart / POS" subline in cards)
+    card += r.expenseOperationalUnset;
+    
+    // expenseFromRegister: Outgoing from the till
     expenseFromRegister += r.expenseFromRegister;
-    net += r.netCash;
+
+    // Accumulate buckets for potential breakdown view
     const buckets = expenseBucketsFromDailyRegisterRow(r);
-    expensePayBuckets = addExpenseBuckets(
-      expensePayBuckets,
-      buckets
-    );
+    expensePayBuckets = addExpenseBuckets(expensePayBuckets, buckets);
   }
+
   if (!has) return null;
-  return { income, cash, card, expenseOut, expenseFromRegister, net, expensePayBuckets };
+
+  // Manual derivation to match card logic:
+  // Nakit Tahsilat = income - card
+  // Elde Kalan Nakit = Nakit Tahsilat - expenseFromRegister
+  const cashIntake = income - card;
+  const netCash = cashIntake - expenseFromRegister;
+
+  return {
+    income,
+    card,
+    cash: cashIntake,
+    expenseFromRegister,
+    net: netCash,
+    expenseOut: expenseFromRegister, // Legacy/alias field
+    expensePayBuckets,
+  };
 }
 
 function branchExpenseDetailItems(row: BranchTodayRow) {
@@ -578,46 +593,78 @@ export function DailyBranchRegisterScreen() {
 
           {totalsStrip ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/80 px-3 py-2.5 shadow-sm">
-                <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-500">
+              {/* TOTAL INCOME */}
+              <div className="relative overflow-hidden rounded-[1.75rem] border border-zinc-200 bg-white p-4 shadow-sm transition-all hover:shadow-md">
+                <div className="absolute inset-0 bg-gradient-to-br from-zinc-500/5 to-transparent" />
+                <p className="relative text-[10px] font-black uppercase tracking-[0.12em] text-zinc-500">
                   {t("dashboard.dailyRegisterCardTotalIncome")}
                 </p>
-                <p className="mt-1 text-sm font-semibold tabular-nums text-zinc-950">
+                <p className="relative mt-1.5 text-lg font-black tabular-nums text-zinc-950">
                   {formatLocaleAmount(totalsStrip.income, locale)}
                 </p>
               </div>
-              <div className="rounded-xl border border-blue-200/50 bg-blue-50/50 px-3 py-2.5 shadow-sm ring-1 ring-blue-100/30">
-                <p className="text-[0.65rem] font-bold uppercase tracking-wide text-blue-800">
+
+              {/* CASH INCOME */}
+              <div className="relative overflow-hidden rounded-[1.75rem] border border-emerald-100 bg-white p-4 shadow-sm transition-all hover:shadow-md">
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/5 to-transparent" />
+                <p className="relative text-[10px] font-black uppercase tracking-[0.12em] text-emerald-700">
+                  {t("dashboard.dailyRegisterCardCashIncome")}
+                </p>
+                <p className="relative mt-1.5 text-lg font-black tabular-nums text-zinc-950">
+                  {formatLocaleAmount(totalsStrip.cash, locale)}
+                </p>
+              </div>
+
+              {/* POS INCOME */}
+              <div className="relative overflow-hidden rounded-[1.75rem] border border-blue-100 bg-white p-4 shadow-sm transition-all hover:shadow-md">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent" />
+                <p className="relative text-[10px] font-black uppercase tracking-[0.12em] text-blue-700">
                   {t("dashboard.dailyRegisterCardPosIncome")}
                 </p>
-                <p className="mt-1 text-sm font-bold tabular-nums text-blue-950">
+                <p className="relative mt-1.5 text-lg font-black tabular-nums text-zinc-950">
                   {formatLocaleAmount(totalsStrip.card, locale)}
                 </p>
               </div>
-              <div className="rounded-xl border border-emerald-200/50 bg-emerald-50/50 px-3 py-2.5 shadow-sm ring-1 ring-emerald-100/30">
-                <p className="text-[0.65rem] font-bold uppercase tracking-wide text-emerald-800">
+
+              {/* CASH SPENT (EXPENSE) */}
+              <div className="relative overflow-hidden rounded-[1.75rem] border border-orange-100 bg-white p-4 shadow-sm transition-all hover:shadow-md">
+                <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent" />
+                <p className="relative text-[10px] font-black uppercase tracking-[0.12em] text-orange-700">
                   {t("dashboard.dailyRegisterCardCashSpentToday")}
                 </p>
-                <p className="mt-1 text-sm font-bold tabular-nums text-emerald-950">
+                <p className="relative mt-1.5 text-lg font-black tabular-nums text-orange-950">
                   {formatLocaleAmount(totalsStrip.expenseFromRegister, locale)}
                 </p>
               </div>
-              <div className="rounded-xl border border-violet-200/60 bg-violet-50/60 px-3 py-2.5 shadow-sm ring-1 ring-violet-100/30">
-                <p className="text-[0.65rem] font-bold uppercase tracking-wide text-violet-800">
-                  {t("dashboard.dailyRegisterCardRemainingCash")}
-                </p>
-                <p className="mt-1 text-sm font-bold tabular-nums text-violet-950">
-                  {formatLocaleAmount(totalsStrip.net, locale)}
-                </p>
-              </div>
-              <div className="hidden rounded-xl border border-zinc-200/80 bg-zinc-100/50 px-3 py-2.5 shadow-sm lg:block">
-                <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-600">
-                  {t("dashboard.dailyRegisterCardNetResult")}
-                </p>
-                <p className="mt-1 text-sm font-bold tabular-nums text-zinc-900">
-                  {formatLocaleAmount(totalsStrip.income - totalsStrip.expenseFromRegister, locale)}
-                </p>
-              </div>
+
+              {/* NET RESULT */}
+              {(() => {
+                const netVal = totalsStrip.income - totalsStrip.expenseFromRegister;
+                const isGood = netVal >= -0.005;
+                return (
+                  <div className={cn(
+                    "relative overflow-hidden rounded-[1.75rem] border p-4 shadow-sm transition-all hover:shadow-md hidden lg:block",
+                    isGood ? "border-emerald-200 bg-emerald-50/30" : "border-rose-200 bg-rose-50/30"
+                  )}>
+                    <div className={cn(
+                      "absolute inset-0 bg-gradient-to-br to-transparent",
+                      isGood ? "from-emerald-500/10" : "from-rose-500/10"
+                    )} />
+                    <p className={cn(
+                      "relative text-[10px] font-black uppercase tracking-[0.12em]",
+                      isGood ? "text-emerald-700" : "text-rose-700"
+                    )}>
+                      {t("dashboard.dailyRegisterCardNetEarnings")}
+                    </p>
+                    <p className={cn(
+                      "relative mt-1.5 text-lg font-black tabular-nums",
+                      isGood ? "text-emerald-900" : "text-rose-900"
+                    )}>
+                      {formatLocaleAmount(netVal, locale)}
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           ) : null}
 
@@ -629,66 +676,113 @@ export function DailyBranchRegisterScreen() {
                 return (
                   <article
                     key={row.branchId}
-                    className="flex flex-col overflow-hidden rounded-[2rem] border border-zinc-200 bg-white shadow-sm transition-all hover:shadow-md"
+                    className="group relative flex flex-col overflow-hidden rounded-[2.5rem] border border-zinc-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-zinc-300"
                   >
-                    <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50/30 px-5 py-4">
-                      <h2 className="text-lg font-black text-zinc-900 tracking-tight">{row.branchName}</h2>
+                    {/* Status Gradient Background */}
+                    {(() => {
+                      const netVal = row.income - row.expenseFromRegister;
+                      return (
+                        <div
+                          className={cn(
+                            "absolute inset-0 h-32 opacity-[0.03] transition-opacity group-hover:opacity-[0.05]",
+                            netVal >= -0.005 ? "bg-emerald-500" : "bg-rose-500"
+                          )}
+                        />
+                      );
+                    })()}
+
+                    <div className="relative flex items-center justify-between border-b border-zinc-100/80 bg-zinc-50/40 px-6 py-5">
+                      <div className="flex flex-col">
+                        <h2 className="text-lg font-black text-zinc-900 tracking-tight group-hover:text-zinc-950 transition-colors">
+                          {row.branchName}
+                        </h2>
+                      </div>
+                      
+                      {/* Profit/Loss Badge */}
+                      {(() => {
+                        const netVal = row.income - row.expenseFromRegister;
+                        const isGood = netVal >= -0.005;
+                        return (
+                          <div className={cn(
+                            "flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest shadow-sm border",
+                            isGood 
+                              ? "bg-emerald-50 border-emerald-100 text-emerald-700" 
+                              : "bg-rose-50 border-rose-100 text-rose-700"
+                          )}>
+                            <div className={cn("h-1.5 w-1.5 rounded-full animate-pulse", isGood ? "bg-emerald-500" : "bg-rose-500")} />
+                            {isGood ? "Pozitif" : "Negatif"}
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {row.financialHidden ? (
-                      <div className="px-5 py-8 text-center">
-                        <p className="text-sm text-zinc-500 font-medium">{t("dashboard.branchTodayHiddenRow")}</p>
+                      <div className="px-6 py-12 text-center">
+                        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-zinc-100">
+                          <EyeIcon className="h-6 w-6 text-zinc-400 opacity-50" />
+                        </div>
+                        <p className="text-sm text-zinc-500 font-medium italic">{t("dashboard.branchTodayHiddenRow")}</p>
                       </div>
                     ) : (
-                      <div className="mt-4 px-4 pb-4">
-                        <div className="space-y-4">
-                          {/* TAHSİLAT GRUBU */}
-                          <div className="rounded-xl border border-emerald-100 bg-emerald-50/20 p-3">
-                            <h3 className="text-[10px] font-bold uppercase tracking-wider text-emerald-800/70 mb-2">
-                              {t("dashboard.dailyRegisterIncomeGroupTitle")}
-                            </h3>
-                            <div className="space-y-1.5">
+                      <div className="relative mt-5 px-5 pb-6">
+                        <div className="space-y-5">
+                          {/* TAHSİLAT (IN) */}
+                          <div className="relative overflow-hidden rounded-2xl border border-emerald-100/80 bg-emerald-50/10 p-4 transition-colors hover:bg-emerald-50/20">
+                            <div className="mb-3 flex items-center justify-between">
+                              <span className="text-[10px] font-black uppercase tracking-[0.15em] text-emerald-800/60">
+                                {t("dashboard.dailyRegisterIncomeGroupTitle")}
+                              </span>
+                              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100/50">
+                                <svg className="h-3.5 w-3.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                </svg>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between border-b border-emerald-100/50 pb-2 mb-2">
+                                <span className="text-[11px] font-bold text-emerald-900">{t("dashboard.dailyRegisterCardTotalIncome")}</span>
+                                <span className="text-sm font-black text-emerald-950 tabular-nums">
+                                  {formatLocaleAmount(row.income, locale)}
+                                </span>
+                              </div>
                               <div className="flex items-center justify-between text-[13px]">
-                                <span className="text-zinc-500">{t("dashboard.dailyRegisterCashEarned")}</span>
-                                <span className="font-semibold text-zinc-900 tabular-nums">
+                                <span className="text-zinc-500 font-medium">{t("dashboard.dailyRegisterCardCashIncome")}</span>
+                                <span className="font-bold text-zinc-900 tabular-nums">
                                   {formatLocaleAmount(row.income - row.expenseOperationalUnset, locale)}
                                 </span>
                               </div>
                               <div className="flex items-center justify-between text-[13px]">
-                                <span className="text-zinc-500">{t("dashboard.dailyRegisterCardPosIncome")}</span>
-                                <span className="font-semibold text-zinc-900 tabular-nums">
+                                <span className="text-zinc-500 font-medium">{t("dashboard.dailyRegisterCardPosIncome")}</span>
+                                <span className="font-bold text-zinc-900 tabular-nums">
                                   {formatLocaleAmount(row.expenseOperationalUnset, locale)}
-                                </span>
-                              </div>
-                              <div className="pt-2 border-t border-emerald-200/50 flex items-center justify-between">
-                                <span className="font-bold text-emerald-900 text-[13px]">
-                                  {t("dashboard.dailyRegisterTotalLabel")}
-                                </span>
-                                <span className="font-black text-emerald-950 tabular-nums">
-                                  {formatLocaleAmount(row.income, locale)}
                                 </span>
                               </div>
                             </div>
                           </div>
 
-                          {/* GİDER GRUBU */}
-                          <div className="rounded-xl border border-orange-100 bg-orange-50/20 p-3">
-                            <h3 className="text-[10px] font-bold uppercase tracking-wider text-orange-800/70 mb-2">
-                              {t("dashboard.dailyRegisterExpenseGroupTitle")}
-                            </h3>
-                            <div className="space-y-1.5">
+                          {/* GİDER (OUT) */}
+                          <div className="relative overflow-hidden rounded-2xl border border-orange-100/80 bg-orange-50/10 p-4 transition-colors hover:bg-orange-50/20">
+                            <div className="mb-3 flex items-center justify-between">
+                              <span className="text-[10px] font-black uppercase tracking-[0.15em] text-orange-800/60">
+                                {t("dashboard.dailyRegisterExpenseGroupTitle")}
+                              </span>
+                              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-orange-100/50">
+                                <svg className="h-3.5 w-3.5 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                </svg>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
                               <div className="flex items-center justify-between text-[13px]">
-                                <span className="text-zinc-500">{t("dashboard.dailyRegisterSpentFromRegister")}</span>
-                                <span className="font-semibold text-orange-950 tabular-nums">
+                                <span className="text-zinc-500 font-medium">{t("dashboard.dailyRegisterSpentFromRegister")}</span>
+                                <span className="font-bold text-orange-950 tabular-nums">
                                   {formatLocaleAmount(row.expenseFromRegister, locale)}
                                 </span>
                               </div>
                               {row.expenseOperationalPatron > 0.005 && (
                                 <div className="flex items-center justify-between text-[13px]">
-                                  <span className="text-zinc-500">
-                                    {t("dashboard.dailyRegisterPatronExpenseOutside")}
-                                  </span>
-                                  <span className="font-semibold text-orange-950 tabular-nums">
+                                  <span className="text-zinc-500 font-medium">{t("dashboard.dailyRegisterPatronExpenseOutside")}</span>
+                                  <span className="font-bold text-orange-950 tabular-nums text-opacity-80">
                                     {formatLocaleAmount(row.expenseOperationalPatron, locale)}
                                   </span>
                                 </div>
@@ -697,28 +791,28 @@ export function DailyBranchRegisterScreen() {
                           </div>
 
                           {/* NET SONUÇ */}
-                          <div className="pt-1">
+                          <div className="relative pt-1">
                             {(() => {
-                              // Gün sonu net kazanç = (Nakit + POS) - Kasadan Harcanan
                               const netVal = row.income - row.expenseFromRegister;
+                              const isGood = netVal >= -0.005;
                               return (
                                 <div
                                   className={cn(
-                                    "flex items-center justify-between rounded-xl px-3.5 py-3 border transition-all",
-                                    netVal >= -0.005
-                                      ? "bg-emerald-50/70 border-emerald-200 text-emerald-900"
-                                      : "bg-rose-50/70 border-rose-200 text-rose-900"
+                                    "flex items-center justify-between rounded-2xl px-5 py-4 border-2 shadow-sm transition-all duration-300",
+                                    isGood
+                                      ? "bg-emerald-600 border-emerald-500 text-white shadow-emerald-200/50"
+                                      : "bg-rose-600 border-rose-500 text-white shadow-rose-200/50"
                                   )}
                                 >
-                                  <span className="text-[12px] font-bold">
-                                    {t("dashboard.dailyRegisterCardNetEarnings")}
-                                  </span>
-                                  <span
-                                    className={cn(
-                                      "text-base font-black tabular-nums",
-                                      netVal >= -0.005 ? "text-emerald-700" : "text-rose-700"
-                                    )}
-                                  >
+                                  <div className="flex flex-col">
+                                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/70">
+                                      {t("dashboard.dailyRegisterCardNetEarnings")}
+                                    </span>
+                                    <span className="text-[12px] font-medium text-white/90">
+                                      {isGood ? "Net Kazanç" : "Net Zarar"}
+                                    </span>
+                                  </div>
+                                  <span className="text-xl font-black tabular-nums">
                                     {formatLocaleAmount(netVal, locale)}
                                   </span>
                                 </div>
@@ -728,7 +822,7 @@ export function DailyBranchRegisterScreen() {
 
                           <Link
                             href={buildBranchDetailHref(row.branchId, { tab: "income", registerDay: date })}
-                            className="flex h-11 w-full items-center justify-center rounded-xl bg-zinc-900 text-sm font-bold text-white transition-all hover:bg-zinc-800 active:scale-[0.98] shadow-sm mt-2"
+                            className="flex h-12 w-full items-center justify-center rounded-2xl bg-zinc-900 text-[13px] font-bold text-white transition-all hover:bg-zinc-800 active:scale-[0.98] shadow-md shadow-zinc-200"
                           >
                             <EyeIcon className="mr-2 h-4 w-4" />
                             {t("dashboard.dailyRegisterCardOpenBranchDetail")}
