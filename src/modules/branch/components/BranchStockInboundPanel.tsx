@@ -259,7 +259,7 @@ export function BranchStockInboundPanel({ branchId }: Props) {
       categoryId,
       parentProductId,
       productId: leafProductId,
-      groupBy: listViewMode === "shipment" ? "shipment" : "mainProduct",
+      groupBy: listViewMode,
     };
   }, [
     page,
