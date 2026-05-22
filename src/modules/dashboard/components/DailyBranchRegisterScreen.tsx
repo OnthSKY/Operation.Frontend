@@ -68,39 +68,35 @@ function sumBranchRegisterRows(rows: BranchTodayRow[]): {
   cash: number;
   card: number;
   expenseOut: number;
+  totalExpenseOut: number;
   expenseFromRegister: number;
   net: number;
   expensePayBuckets: ExpensePayFiveBucket;
+  expenseDetails: ExpenseDetailLine[];
 } | null {
   let income = 0;
   let card = 0;
   let expenseFromRegister = 0;
+  let totalExpenseOut = 0;
   let expensePayBuckets = emptyExpenseBuckets();
   let has = false;
 
   for (const r of rows) {
     if (r.financialHidden) continue;
     has = true;
-    
-    // totalIncome: Cash + POS
-    income += r.income;
-    
-    // card: POS portion (the "Kazanılan Kart / POS" subline in cards)
-    card += r.expenseOperationalUnset;
-    
-    // expenseFromRegister: Outgoing from the till
-    expenseFromRegister += r.expenseFromRegister;
 
-    // Accumulate buckets for potential breakdown view
-    const buckets = expenseBucketsFromDailyRegisterRow(r);
-    expensePayBuckets = addExpenseBuckets(expensePayBuckets, buckets);
+    income += r.income;
+    card += r.expenseOperationalUnset;
+    expenseFromRegister += r.expenseFromRegister;
+    totalExpenseOut += r.totalExpenseOut;
+    expensePayBuckets = addExpenseBuckets(
+      expensePayBuckets,
+      expenseBucketsFromDailyRegisterRow(r)
+    );
   }
 
   if (!has) return null;
 
-  // Manual derivation to match card logic:
-  // Nakit Tahsilat = income - card
-  // Elde Kalan Nakit = Nakit Tahsilat - expenseFromRegister
   const cashIntake = income - card;
   const netCash = cashIntake - expenseFromRegister;
 
@@ -109,30 +105,193 @@ function sumBranchRegisterRows(rows: BranchTodayRow[]): {
     card,
     cash: cashIntake,
     expenseFromRegister,
+    totalExpenseOut,
     net: netCash,
-    expenseOut: expenseFromRegister, // Legacy/alias field
+    expenseOut: expenseFromRegister,
     expensePayBuckets,
+    expenseDetails: aggregateExpenseDetailItems(rows),
   };
 }
 
-function branchExpenseDetailItems(row: BranchTodayRow) {
-  const EXP_EPS = 0.005;
+const EXP_DETAIL_EPS = 0.005;
+
+type ExpenseDetailLine = {
+  v: number;
+  labelKey:
+    | "dashboard.dailyRegisterDetailOwesPatron"
+    | "dashboard.dailyRegisterDetailOwesPersonnel"
+    | "dashboard.dailyRegisterDetailPocketRepaidPatron"
+    | "dashboard.dailyRegisterDetailPocketRepaidRegister"
+    | "dashboard.dailyRegisterDetailPatronDebtRepaidRegister";
+};
+
+function expenseDetailItemsFromAmounts(amounts: {
+  registerOwesPatronToday: number;
+  registerOwesPersonnelToday: number;
+  personnelPocketRepaidFromPatronToday: number;
+  personnelPocketRepaidFromRegisterToday: number;
+  patronDebtRepaidFromRegisterToday: number;
+}): ExpenseDetailLine[] {
   return [
-    { v: row.registerOwesPatronToday, labelKey: "dashboard.dailyRegisterDetailOwesPatron" as const },
-    { v: row.registerOwesPersonnelToday, labelKey: "dashboard.dailyRegisterDetailOwesPersonnel" as const },
+    { v: amounts.registerOwesPatronToday, labelKey: "dashboard.dailyRegisterDetailOwesPatron" },
+    { v: amounts.registerOwesPersonnelToday, labelKey: "dashboard.dailyRegisterDetailOwesPersonnel" },
     {
-      v: row.personnelPocketRepaidFromPatronToday,
-      labelKey: "dashboard.dailyRegisterDetailPocketRepaidPatron" as const,
+      v: amounts.personnelPocketRepaidFromPatronToday,
+      labelKey: "dashboard.dailyRegisterDetailPocketRepaidPatron",
     },
     {
-      v: row.personnelPocketRepaidFromRegisterToday,
-      labelKey: "dashboard.dailyRegisterDetailPocketRepaidRegister" as const,
+      v: amounts.personnelPocketRepaidFromRegisterToday,
+      labelKey: "dashboard.dailyRegisterDetailPocketRepaidRegister",
     },
     {
-      v: row.patronDebtRepaidFromRegisterToday,
-      labelKey: "dashboard.dailyRegisterDetailPatronDebtRepaidRegister" as const,
+      v: amounts.patronDebtRepaidFromRegisterToday,
+      labelKey: "dashboard.dailyRegisterDetailPatronDebtRepaidRegister",
     },
-  ].filter((x) => x.v > EXP_EPS);
+  ].filter((x) => x.v > EXP_DETAIL_EPS);
+}
+
+function branchExpenseDetailItems(row: BranchTodayRow): ExpenseDetailLine[] {
+  return expenseDetailItemsFromAmounts(row);
+}
+
+function aggregateExpenseDetailItems(rows: BranchTodayRow[]): ExpenseDetailLine[] {
+  const amounts = {
+    registerOwesPatronToday: 0,
+    registerOwesPersonnelToday: 0,
+    personnelPocketRepaidFromPatronToday: 0,
+    personnelPocketRepaidFromRegisterToday: 0,
+    patronDebtRepaidFromRegisterToday: 0,
+  };
+  for (const r of rows) {
+    if (r.financialHidden) continue;
+    amounts.registerOwesPatronToday += r.registerOwesPatronToday;
+    amounts.registerOwesPersonnelToday += r.registerOwesPersonnelToday;
+    amounts.personnelPocketRepaidFromPatronToday += r.personnelPocketRepaidFromPatronToday;
+    amounts.personnelPocketRepaidFromRegisterToday += r.personnelPocketRepaidFromRegisterToday;
+    amounts.patronDebtRepaidFromRegisterToday += r.patronDebtRepaidFromRegisterToday;
+  }
+  return expenseDetailItemsFromAmounts(amounts);
+}
+
+function DailyRegisterExpenseLinesIconLink({
+  branchId,
+  registerDay,
+  t,
+  className,
+}: {
+  branchId: number;
+  registerDay?: string | null;
+  t: (key: string) => string;
+  className?: string;
+}) {
+  const href = buildBranchDetailHref(branchId, {
+    tab: "expenses",
+    registerDay: registerDay?.trim() || undefined,
+  });
+  return (
+    <Tooltip content={t("dashboard.dailyRegisterOpenExpenseLines")} delayMs={200}>
+      <Link
+        href={href}
+        className={cn(
+          "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-orange-200/90 bg-white text-orange-700 shadow-sm transition hover:border-orange-300 hover:bg-orange-50 active:scale-95",
+          className
+        )}
+        aria-label={t("dashboard.dailyRegisterOpenExpenseLinesAria")}
+      >
+        <svg
+          className="h-4 w-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M8 6h13" />
+          <path d="M8 12h13" />
+          <path d="M8 18h13" />
+          <path d="M3 6h.01" />
+          <path d="M3 12h.01" />
+          <path d="M3 18h.01" />
+        </svg>
+      </Link>
+    </Tooltip>
+  );
+}
+
+function DailyRegisterExpenseBreakdown({
+  totalExpenseOut,
+  expenseFromRegister,
+  expensePayBuckets,
+  expenseDetails,
+  locale,
+  t,
+}: {
+  totalExpenseOut: number;
+  expenseFromRegister: number;
+  expensePayBuckets: ExpensePayFiveBucket;
+  expenseDetails: ExpenseDetailLine[];
+  locale: Locale;
+  t: (key: string) => string;
+}) {
+  const showPaySource = shouldShowExpensePaySourceBreakdown(totalExpenseOut, expensePayBuckets);
+  const hasDetailLines = expenseDetails.length > 0;
+  const hasExpense =
+    totalExpenseOut > EXP_DETAIL_EPS ||
+    expenseFromRegister > EXP_DETAIL_EPS ||
+    showPaySource ||
+    hasDetailLines;
+
+  if (!hasExpense) {
+    return (
+      <p className="border-t border-orange-100/80 pt-2 text-[11px] leading-relaxed text-zinc-500">
+        {t("dashboard.dailyRegisterExpenseNoOutHint")}
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-2 border-t border-orange-100/80 pt-2">
+      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-orange-800/70">
+        {t("dashboard.dailyRegisterExpenseDetailToggle")}
+      </p>
+      {totalExpenseOut > EXP_DETAIL_EPS ? (
+        <div className="flex items-center justify-between text-[13px]">
+          <span className="text-zinc-500 font-medium">{t("dashboard.dailyRegisterCardExpenseOutTotal")}</span>
+          <span className="font-bold text-orange-950 tabular-nums">
+            {formatLocaleAmount(totalExpenseOut, locale)}
+          </span>
+        </div>
+      ) : null}
+      {hasDetailLines ? (
+        <ul className="space-y-1">
+          {expenseDetails.map((line) => (
+            <li key={line.labelKey} className="flex items-start justify-between gap-2 text-[12px] leading-snug">
+              <span className="min-w-0 text-zinc-600">{t(line.labelKey)}</span>
+              <span className="shrink-0 font-semibold tabular-nums text-orange-950">
+                {formatLocaleAmount(line.v, locale)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {showPaySource ? (
+        <div>
+          <p className="mb-1 text-[11px] font-medium text-zinc-500">
+            {t("dashboard.dailyRegisterExpenseByPaymentSource")}
+          </p>
+          <FinancialExpensePaySourceSubline
+            buckets={expensePayBuckets}
+            currencyCode="TRY"
+            locale={locale}
+            t={t}
+            align="start"
+          />
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 export function DailyBranchRegisterScreen() {
@@ -243,6 +402,18 @@ export function DailyBranchRegisterScreen() {
     if (state.kind !== "ok") return null;
     return sumBranchRegisterRows(visibleRows);
   }, [state, visibleRows]);
+
+  const registerDayForBranchLink = useMemo(() => {
+    if (mode === "day") return date;
+    if (mode === "date_range") return rangeTo;
+    return null;
+  }, [mode, date, rangeTo]);
+
+  const singleFilteredBranchId = useMemo(() => {
+    if (branchFilterBranchId === BRANCH_FILTER_ALL) return null;
+    const id = Number.parseInt(branchFilterBranchId, 10);
+    return Number.isFinite(id) && id > 0 ? id : null;
+  }, [branchFilterBranchId]);
 
   const selectedBranchLabel = useMemo(() => {
     if (branchFilterBranchId === BRANCH_FILTER_ALL) return null;
@@ -627,14 +798,34 @@ export function DailyBranchRegisterScreen() {
               </div>
 
               {/* CASH SPENT (EXPENSE) */}
-              <div className="relative overflow-hidden rounded-[1.75rem] border border-orange-100 bg-white p-4 shadow-sm transition-all hover:shadow-md">
+              <div className="relative overflow-hidden rounded-[1.75rem] border border-orange-100 bg-white p-4 shadow-sm transition-all hover:shadow-md sm:col-span-2 lg:col-span-1">
                 <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent" />
-                <p className="relative text-[10px] font-black uppercase tracking-[0.12em] text-orange-700">
-                  {t("dashboard.dailyRegisterCardCashSpentToday")}
-                </p>
+                <div className="relative flex items-start justify-between gap-2">
+                  <p className="text-[10px] font-black uppercase tracking-[0.12em] text-orange-700">
+                    {t("dashboard.dailyRegisterCardCashSpentToday")}
+                  </p>
+                  {singleFilteredBranchId != null ? (
+                    <DailyRegisterExpenseLinesIconLink
+                      branchId={singleFilteredBranchId}
+                      registerDay={registerDayForBranchLink}
+                      t={t}
+                      className="h-7 w-7"
+                    />
+                  ) : null}
+                </div>
                 <p className="relative mt-1.5 text-lg font-black tabular-nums text-orange-950">
                   {formatLocaleAmount(totalsStrip.expenseFromRegister, locale)}
                 </p>
+                <div className="relative mt-2">
+                  <DailyRegisterExpenseBreakdown
+                    totalExpenseOut={totalsStrip.totalExpenseOut}
+                    expenseFromRegister={totalsStrip.expenseFromRegister}
+                    expensePayBuckets={totalsStrip.expensePayBuckets}
+                    expenseDetails={totalsStrip.expenseDetails}
+                    locale={locale}
+                    t={t}
+                  />
+                </div>
               </div>
 
               {/* NET RESULT */}
@@ -762,14 +953,29 @@ export function DailyBranchRegisterScreen() {
 
                           {/* GİDER (OUT) */}
                           <div className="relative overflow-hidden rounded-2xl border border-orange-100/80 bg-orange-50/10 p-4 transition-colors hover:bg-orange-50/20">
-                            <div className="mb-3 flex items-center justify-between">
+                            <div className="mb-3 flex items-center justify-between gap-2">
                               <span className="text-[10px] font-black uppercase tracking-[0.15em] text-orange-800/60">
                                 {t("dashboard.dailyRegisterExpenseGroupTitle")}
                               </span>
-                              <div className="flex h-6 w-6 items-center justify-center rounded-full bg-orange-100/50">
-                                <svg className="h-3.5 w-3.5 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                                </svg>
+                              <div className="flex items-center gap-1.5">
+                                <DailyRegisterExpenseLinesIconLink
+                                  branchId={row.branchId}
+                                  registerDay={registerDayForBranchLink}
+                                  t={t}
+                                  className="h-7 w-7"
+                                />
+                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-orange-100/50">
+                                  <svg
+                                    className="h-3.5 w-3.5 text-orange-600"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                    strokeWidth="3"
+                                    aria-hidden
+                                  >
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                                  </svg>
+                                </div>
                               </div>
                             </div>
                             <div className="space-y-2">
@@ -779,14 +985,22 @@ export function DailyBranchRegisterScreen() {
                                   {formatLocaleAmount(row.expenseFromRegister, locale)}
                                 </span>
                               </div>
-                              {row.expenseOperationalPatron > 0.005 && (
+                              {row.expenseOperationalPatron > EXP_DETAIL_EPS ? (
                                 <div className="flex items-center justify-between text-[13px]">
                                   <span className="text-zinc-500 font-medium">{t("dashboard.dailyRegisterPatronExpenseOutside")}</span>
                                   <span className="font-bold text-orange-950 tabular-nums text-opacity-80">
                                     {formatLocaleAmount(row.expenseOperationalPatron, locale)}
                                   </span>
                                 </div>
-                              )}
+                              ) : null}
+                              <DailyRegisterExpenseBreakdown
+                                totalExpenseOut={row.totalExpenseOut}
+                                expenseFromRegister={row.expenseFromRegister}
+                                expensePayBuckets={expensePayBuckets}
+                                expenseDetails={expenseDetails}
+                                locale={locale}
+                                t={t}
+                              />
                             </div>
                           </div>
 
@@ -820,13 +1034,44 @@ export function DailyBranchRegisterScreen() {
                             })()}
                           </div>
 
-                          <Link
-                            href={buildBranchDetailHref(row.branchId, { tab: "income", registerDay: date })}
-                            className="flex h-12 w-full items-center justify-center rounded-2xl bg-zinc-900 text-[13px] font-bold text-white transition-all hover:bg-zinc-800 active:scale-[0.98] shadow-md shadow-zinc-200"
-                          >
-                            <EyeIcon className="mr-2 h-4 w-4" />
-                            {t("dashboard.dailyRegisterCardOpenBranchDetail")}
-                          </Link>
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            <Link
+                              href={buildBranchDetailHref(row.branchId, {
+                                tab: "expenses",
+                                registerDay: registerDayForBranchLink ?? undefined,
+                              })}
+                              className="flex h-12 w-full items-center justify-center rounded-2xl border border-orange-200 bg-orange-50 text-[13px] font-bold text-orange-950 transition-all hover:bg-orange-100 active:scale-[0.98]"
+                            >
+                              <svg
+                                className="mr-2 h-4 w-4"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                aria-hidden
+                              >
+                                <path d="M8 6h13" />
+                                <path d="M8 12h13" />
+                                <path d="M8 18h13" />
+                                <path d="M3 6h.01" />
+                                <path d="M3 12h.01" />
+                                <path d="M3 18h.01" />
+                              </svg>
+                              {t("dashboard.dailyRegisterCardExpenseDetail")}
+                            </Link>
+                            <Link
+                              href={buildBranchDetailHref(row.branchId, {
+                                tab: "income",
+                                registerDay: registerDayForBranchLink ?? undefined,
+                              })}
+                              className="flex h-12 w-full items-center justify-center rounded-2xl bg-zinc-900 text-[13px] font-bold text-white transition-all hover:bg-zinc-800 active:scale-[0.98] shadow-md shadow-zinc-200"
+                            >
+                              <EyeIcon className="mr-2 h-4 w-4" />
+                              {t("dashboard.dailyRegisterCardOpenBranchDetail")}
+                            </Link>
+                          </div>
                         </div>
                       </div>
                     )}

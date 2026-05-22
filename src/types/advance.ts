@@ -24,6 +24,10 @@ export type Advance = {
   description: string | null;
   /** Kasadan düşen şube gider satırına bağlı */
   hasLinkedRegisterExpense?: boolean;
+  /** PERSONNEL_POCKET: cebindeki kasa parası kullanılan personel. */
+  heldRegisterSourcePersonnelId?: number | null;
+  heldRegisterSourcePersonnelFullName?: string | null;
+  linkedBranchTransactionId?: number | null;
 };
 
 export type AdvanceListItem = Advance & {

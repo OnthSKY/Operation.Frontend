@@ -544,6 +544,14 @@ function mapCashHandoverOutflow(r: Record<string, unknown>): PersonnelCashHandov
     settlesCashHandoverTransactionId: settles,
     balanceBefore: optNum((r as { balanceBefore?: unknown }).balanceBefore),
     balanceAfter: optNum((r as { balanceAfter?: unknown }).balanceAfter),
+    linkedAdvanceId: optNum(r.linkedAdvanceId ?? r.LinkedAdvanceId),
+    linkedAdvancePersonnelId: optNum(r.linkedAdvancePersonnelId ?? r.LinkedAdvancePersonnelId),
+    linkedAdvancePersonnelFullName:
+      r.linkedAdvancePersonnelFullName != null
+        ? String(r.linkedAdvancePersonnelFullName)
+        : r.LinkedAdvancePersonnelFullName != null
+          ? String(r.LinkedAdvancePersonnelFullName)
+          : null,
   };
 }
 

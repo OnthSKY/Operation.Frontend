@@ -22,6 +22,7 @@ import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
 import { AddPersonnelInsurancePeriodModal } from "@/modules/personnel/components/AddPersonnelInsurancePeriodModal";
 import { EditPersonnelInsurancePeriodModal } from "@/modules/personnel/components/EditPersonnelInsurancePeriodModal";
 import { PersonnelAccountClosureSheet } from "@/modules/personnel/components/PersonnelAccountClosureSheet";
+import { PersonnelHeldRegisterPersonLink } from "@/modules/personnel/components/PersonnelHeldRegisterPersonLink";
 import { PersonnelManagementSnapshotSection } from "@/modules/personnel/components/PersonnelManagementSnapshotSection";
 import {
   PersonnelPocketClaimToPatronDialog,
@@ -40,10 +41,12 @@ import {
 import { PersonnelProfilePhotoAvatar } from "@/modules/personnel/components/PersonnelProfilePhotoAvatar";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import {
+  defaultPersonnelListFilters,
   useDeleteAdvance,
   useDeletePersonnelInsurancePeriod,
   usePersonnelAdvancesAll,
   usePersonnelInsurancePeriods,
+  usePersonnelList,
   usePersonnelManagementSnapshot,
   usePersonnelYearAccountClosures,
   useReopenPersonnelYearAccount,
@@ -296,6 +299,68 @@ function sourceAbbrev(t: (k: string) => string, st: string): string {
 function expenseSourceLabel(t: (k: string) => string, source: string | null | undefined, dash: string): string {
   const label = expensePaymentSourceLabelShort(source, t);
   return label || dash;
+}
+
+function AdvanceHeldRegisterSourceMeta({
+  advance,
+  personnelById,
+  dash,
+  t,
+}: {
+  advance: Advance;
+  personnelById: Map<number, Personnel>;
+  dash: string;
+  t: (k: string) => string;
+}) {
+  if (advance.sourceType?.toUpperCase() !== "PERSONNEL_POCKET") return null;
+  const pid = advance.heldRegisterSourcePersonnelId;
+  if (pid == null || pid <= 0) return null;
+  return (
+    <p className="mt-1 text-xs text-zinc-600">
+      <span className="font-medium text-zinc-500">
+        {t("personnel.detailCostsHeldRegisterSource")}:{" "}
+      </span>
+      <PersonnelHeldRegisterPersonLink
+        personnelId={pid}
+        fullName={advance.heldRegisterSourcePersonnelFullName}
+        personnelById={personnelById}
+        dash={dash}
+        openCashPhysicalTab
+      />
+    </p>
+  );
+}
+
+function ExpenseHeldRegisterSourceMeta({
+  tx,
+  personnelById,
+  dash,
+  t,
+}: {
+  tx: BranchTransaction;
+  personnelById: Map<number, Personnel>;
+  dash: string;
+  t: (k: string) => string;
+}) {
+  if (tx.expensePaymentSource?.toUpperCase() !== "PERSONNEL_HELD_REGISTER_CASH") {
+    return null;
+  }
+  const pid = tx.expensePocketPersonnelId;
+  if (pid == null || pid <= 0) return null;
+  return (
+    <p className="text-xs text-zinc-700">
+      <span className="font-medium text-zinc-500">
+        {t("personnel.detailCostsHeldRegisterSource")}:{" "}
+      </span>
+      <PersonnelHeldRegisterPersonLink
+        personnelId={pid}
+        fullName={null}
+        personnelById={personnelById}
+        dash={dash}
+        openCashPhysicalTab
+      />
+    </p>
+  );
 }
 
 function nationalIdFileExt(mime: string): string {
@@ -565,6 +630,24 @@ export function PersonnelDetailModal({
     isError: advError,
     error: advErr,
   } = usePersonnelAdvancesAll(open && pid > 0 ? pid : null);
+
+  const labelPersonnelFilters = useMemo(
+    () => ({
+      ...defaultPersonnelListFilters,
+      status: "active" as const,
+      page: 1,
+      pageSize: 500,
+    }),
+    [],
+  );
+  const { data: labelPersonnelList } = usePersonnelList(labelPersonnelFilters, open);
+  const personnelById = useMemo(() => {
+    const m = new Map<number, Personnel>();
+    for (const p of labelPersonnelList?.items ?? []) {
+      m.set(p.id, p);
+    }
+    return m;
+  }, [labelPersonnelList]);
 
   const {
     data: mgmtSnap,
@@ -2097,6 +2180,12 @@ export function PersonnelDetailModal({
                                       ? ` · ${row.advance.description.trim()}`
                                       : ""}
                                   </p>
+                                  <AdvanceHeldRegisterSourceMeta
+                                    advance={row.advance}
+                                    personnelById={personnelById}
+                                    dash={dash}
+                                    t={t}
+                                  />
                                   <p className="mt-1 text-xs text-zinc-500">
                                     {row.advance.branchId != null &&
                                     row.advance.branchId > 0
@@ -2184,6 +2273,12 @@ export function PersonnelDetailModal({
                                         dash,
                                       )}
                                     </p>
+                                    <ExpenseHeldRegisterSourceMeta
+                                      tx={row.tx}
+                                      personnelById={personnelById}
+                                      dash={dash}
+                                      t={t}
+                                    />
                                     <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                                       {t("personnel.detailCostsDescriptionLabel")}
                                     </p>
@@ -2292,6 +2387,12 @@ export function PersonnelDetailModal({
                                             {row.advance.description.trim()}
                                           </span>
                                         ) : null}
+                                        <AdvanceHeldRegisterSourceMeta
+                                          advance={row.advance}
+                                          personnelById={personnelById}
+                                          dash={dash}
+                                          t={t}
+                                        />
                                         <button
                                           type="button"
                                           className="mt-1 inline-flex rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
@@ -2379,6 +2480,12 @@ export function PersonnelDetailModal({
                                               dash,
                                             )}
                                           </p>
+                                          <ExpenseHeldRegisterSourceMeta
+                                            tx={row.tx}
+                                            personnelById={personnelById}
+                                            dash={dash}
+                                            t={t}
+                                          />
                                           <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                                             {t("personnel.detailCostsDescriptionLabel")}
                                           </p>

@@ -27,6 +27,9 @@ export type PersonnelCashHandoverOutflow = {
   balanceBefore?: number | null;
   /** Satır sonrası havuz (güncel kalanla tutarlı). */
   balanceAfter?: number | null;
+  linkedAdvanceId?: number | null;
+  linkedAdvancePersonnelId?: number | null;
+  linkedAdvancePersonnelFullName?: string | null;
 };
 
 export type PersonnelCashHandoverLine = {

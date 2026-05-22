@@ -41,6 +41,7 @@ import {
   type BranchTxPageParams,
 } from "@/modules/branch/api/branches-api";
 import { fetchAllAdvances } from "@/modules/personnel/api/advances-api";
+import { personnelKeys } from "@/modules/personnel/hooks/usePersonnelQueries";
 import {
   bulkPatchBranchTransactionsCashSettlement,
   type BulkCashSettlementBody,
@@ -594,7 +595,15 @@ export function useDeleteBranchTransaction() {
       });
       invalidatePersonnelCashHandoverUiQueries(qc);
       void qc.invalidateQueries({
+        queryKey: [...branchKeys.all, "held-register-cash-by-person"],
+        exact: false,
+      });
+      void qc.invalidateQueries({
         queryKey: ["personnel", "attributed-expenses"],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: [...personnelKeys.all, "advances"],
         exact: false,
       });
       void qc.invalidateQueries({ queryKey: reportsKeys.all });

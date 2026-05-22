@@ -313,6 +313,8 @@ export const dashboard = {
   dailyRegisterCardExpenseFootnote:
     "The lines above match each expense line’s «payment source» (register / owner / staff pocket / held register cash / unset). Below, percentages of OUT total: register share uses income − net; the remainder is owner/staff-pocket OUT.",
   dailyRegisterCardExpenseOutTotal: "Expense total (OUT)",
+  dailyRegisterOpenExpenseLines: "Open expense lines",
+  dailyRegisterOpenExpenseLinesAria: "View expense lines for this scope on the branch expenses tab",
   dailyRegisterCardRegisterOut: "Paid from register",
   dailyRegisterCardRegisterOutHint: "Income minus net cash for the scope (subset of OUT economics).",
   dailyRegisterCardNet: "Net",

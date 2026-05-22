@@ -6,9 +6,12 @@ import { cn } from "@/lib/cn";
 import { fetchBranchPersonnelMoneySummaries } from "@/modules/branch/api/branches-api";
 import { branchKeys } from "@/modules/branch/hooks/useBranchQueries";
 import { txCategoryLine } from "@/modules/branch/lib/branch-transaction-options";
+import { PersonnelHeldRegisterPersonLink } from "@/modules/personnel/components/PersonnelHeldRegisterPersonLink";
 import {
+  defaultPersonnelListFilters,
   usePersonnelCashHandoverLinesPaged,
   usePersonnelCashHandoverOutflowsPaged,
+  usePersonnelList,
   usePersonnelManagementSnapshot,
   type PersonnelCashHandoverLinesFilterState,
 } from "@/modules/personnel/hooks/usePersonnelQueries";
@@ -159,6 +162,40 @@ function emptyHandoverFilters(): PersonnelCashHandoverLinesFilterState {
   return { branchId: "", currency: "", dateFrom: "", dateTo: "", search: "" };
 }
 
+function CashHandoverOutflowNote({
+  row,
+  personnelById,
+  dash,
+  t,
+}: {
+  row: PersonnelCashHandoverOutflow;
+  personnelById: Map<number, Personnel>;
+  dash: string;
+  t: (k: string) => string;
+}) {
+  const desc = row.description?.trim();
+  const advPid = row.linkedAdvancePersonnelId;
+  if (advPid != null && advPid > 0) {
+    return (
+      <div className="space-y-1">
+        <p className="text-xs text-zinc-600">
+          <span className="font-medium text-zinc-500">
+            {t("personnel.detailMgmtOutflowsAdvanceRecipient")}:{" "}
+          </span>
+          <PersonnelHeldRegisterPersonLink
+            personnelId={advPid}
+            fullName={row.linkedAdvancePersonnelFullName}
+            personnelById={personnelById}
+            dash={dash}
+          />
+        </p>
+        {desc ? <p className="text-xs text-zinc-500">{desc}</p> : null}
+      </div>
+    );
+  }
+  return <>{desc || dash}</>;
+}
+
 function outflowKindLabel(
   kind: PersonnelCashHandoverOutflow["outflowKind"],
   t: (key: string) => string
@@ -299,6 +336,27 @@ export function PersonnelManagementSnapshotSection({
     hovApplied,
     handoverListEnabled
   );
+
+  const labelPersonnelFilters = useMemo(
+    () => ({
+      ...defaultPersonnelListFilters,
+      status: "active" as const,
+      page: 1,
+      pageSize: 500,
+    }),
+    [],
+  );
+  const { data: labelPersonnelList } = usePersonnelList(
+    labelPersonnelFilters,
+    handoverListEnabled,
+  );
+  const personnelById = useMemo(() => {
+    const m = new Map<number, Personnel>();
+    for (const p of labelPersonnelList?.items ?? []) {
+      m.set(p.id, p);
+    }
+    return m;
+  }, [labelPersonnelList]);
 
   const handoverFiltersBadgeCount = useMemo(() => {
     let n = 0;
@@ -1216,7 +1274,12 @@ export function PersonnelManagementSnapshotSection({
                                             dataLabel={t("personnel.detailMgmtHandoverColNote")}
                                             className="max-w-[14rem] text-zinc-600"
                                           >
-                                            {row.description?.trim() || dash}
+                                            <CashHandoverOutflowNote
+                                              row={row}
+                                              personnelById={personnelById}
+                                              dash={dash}
+                                              t={t}
+                                            />
                                           </TableCell>
                                         </TableRow>
                                       );

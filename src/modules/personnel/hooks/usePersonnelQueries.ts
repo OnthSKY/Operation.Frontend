@@ -795,6 +795,22 @@ export function useDeleteAdvance() {
         exact: false,
       });
       void qc.invalidateQueries({ queryKey: branchKeys.all });
+      void qc.invalidateQueries({
+        queryKey: [...branchKeys.all, "held-register-cash-by-person"],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: [...branchKeys.all, "personnel-money"],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: ["personnel", "cash-handover-outflows"],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: ["personnel", "cash-handover-lines"],
+        exact: false,
+      });
       void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
       void qc.invalidateQueries({ queryKey: reportsKeys.all });
     },

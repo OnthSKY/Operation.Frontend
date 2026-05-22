@@ -5,8 +5,10 @@ import type { Locale } from "@/i18n/messages";
 import { cn } from "@/lib/cn";
 import { fetchPersonnelAttributedExpenses } from "@/modules/branch/api/branch-transactions-api";
 import { txCategoryLine } from "@/modules/branch/lib/branch-transaction-options";
+import { PersonnelHeldRegisterPersonLink } from "@/modules/personnel/components/PersonnelHeldRegisterPersonLink";
 import { usePersonnelAdvancesAll } from "@/modules/personnel/hooks/usePersonnelQueries";
 import type { Advance } from "@/types/advance";
+import type { Personnel } from "@/types/personnel";
 import type { BranchTransaction } from "@/types/branch-transaction";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
@@ -153,6 +155,37 @@ function maxIsoDate(dates: string[]): string | null {
     .filter((d) => d.length >= 10);
   if (cleaned.length === 0) return null;
   return cleaned.reduce((a, b) => (a >= b ? a : b));
+}
+
+const emptyPersonnelById = new Map<number, Personnel>();
+
+function AdvanceHeldRegisterSourceInline({
+  advance,
+  dash,
+  t,
+}: {
+  advance: Advance;
+  dash: string;
+  t: (k: string) => string;
+}) {
+  if (advance.sourceType?.toUpperCase() !== "PERSONNEL_POCKET") return null;
+  const pid = advance.heldRegisterSourcePersonnelId;
+  if (pid == null || pid <= 0) return null;
+  return (
+    <span className="block w-full text-xs text-zinc-500 sm:w-auto">
+      <span className="font-medium text-zinc-600">
+        {t("personnel.detailCostsHeldRegisterSource")}:{" "}
+      </span>
+      <PersonnelHeldRegisterPersonLink
+        personnelId={pid}
+        fullName={advance.heldRegisterSourcePersonnelFullName}
+        personnelById={emptyPersonnelById}
+        dash={dash}
+        openCashPhysicalTab
+        className="font-medium text-sky-800 underline-offset-2 hover:underline"
+      />
+    </span>
+  );
 }
 
 type Props = {
@@ -458,6 +491,11 @@ export function PersonnelAdvanceHistory({
                         </span>
                       ) : null}
                     </span>
+                    <AdvanceHeldRegisterSourceInline
+                      advance={row.advance}
+                      dash={dash}
+                      t={t}
+                    />
                   </li>
                 ) : (
                   <li
@@ -595,6 +633,11 @@ export function PersonnelAdvanceHistory({
                     </span>
                   ) : null}
                 </p>
+                <AdvanceHeldRegisterSourceInline
+                  advance={row.advance}
+                  dash={dash}
+                  t={t}
+                />
                 {row.advance.description ? (
                   <p className="text-xs text-zinc-600">
                     {row.advance.description}

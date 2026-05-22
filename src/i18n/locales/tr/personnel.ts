@@ -1012,6 +1012,8 @@ export const personnel = {
   detailMgmtOutflowsColBalanceBefore: "Önceki bakiye",
   detailMgmtOutflowsColBalanceAfter: "Sonraki bakiye",
   detailMgmtOutflowsColInId: "Bağlı IN satırı: #{id}",
+  detailMgmtOutflowsAdvanceRecipient: "Avans alan",
+  detailCostsHeldRegisterSource: "Kasa parası kaynağı",
   detailMgmtTitle: "Yönetici özeti",
   detailMgmtSubTabSummary: "Özet",
   detailMgmtSubTabHandover: "Kasa nakit para devri",

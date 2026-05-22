@@ -18,11 +18,24 @@ export async function fetchAdvancesByPersonnel(
   const rows = await apiRequest<
     Array<Omit<Advance, "currencyCode"> & { currencyCode?: string }>
   >(`/advances?${q.toString()}`);
-  return rows.map((r) => ({
-    ...r,
-    currencyCode: normalizeCurrency(r.currencyCode),
-    hasLinkedRegisterExpense: Boolean((r as { hasLinkedRegisterExpense?: boolean }).hasLinkedRegisterExpense),
-  }));
+  return rows.map((r) => {
+    const raw = r as Record<string, unknown>;
+    const heldPid = raw.heldRegisterSourcePersonnelId ?? raw.HeldRegisterSourcePersonnelId;
+    const heldName =
+      raw.heldRegisterSourcePersonnelFullName ?? raw.HeldRegisterSourcePersonnelFullName;
+    const linkedTx = raw.linkedBranchTransactionId ?? raw.LinkedBranchTransactionId;
+    return {
+      ...r,
+      currencyCode: normalizeCurrency(r.currencyCode),
+      hasLinkedRegisterExpense: Boolean(raw.hasLinkedRegisterExpense ?? raw.HasLinkedRegisterExpense),
+      heldRegisterSourcePersonnelId:
+        heldPid != null && Number(heldPid) > 0 ? Number(heldPid) : null,
+      heldRegisterSourcePersonnelFullName:
+        heldName != null && String(heldName).trim() ? String(heldName).trim() : null,
+      linkedBranchTransactionId:
+        linkedTx != null && Number(linkedTx) > 0 ? Number(linkedTx) : null,
+    };
+  });
 }
 
 export type FetchAllAdvancesParams = {
@@ -63,10 +76,23 @@ export async function fetchAllAdvances(
       Omit<AdvanceListItem, "currencyCode"> & { currencyCode?: string }
     >
   >(path);
-  return rows.map((r) => ({
-    ...r,
-    currencyCode: normalizeCurrency(r.currencyCode),
-  }));
+  return rows.map((r) => {
+    const raw = r as Record<string, unknown>;
+    const heldPid = raw.heldRegisterSourcePersonnelId ?? raw.HeldRegisterSourcePersonnelId;
+    const heldName =
+      raw.heldRegisterSourcePersonnelFullName ?? raw.HeldRegisterSourcePersonnelFullName;
+    const linkedTx = raw.linkedBranchTransactionId ?? raw.LinkedBranchTransactionId;
+    return {
+      ...r,
+      currencyCode: normalizeCurrency(r.currencyCode),
+      heldRegisterSourcePersonnelId:
+        heldPid != null && Number(heldPid) > 0 ? Number(heldPid) : null,
+      heldRegisterSourcePersonnelFullName:
+        heldName != null && String(heldName).trim() ? String(heldName).trim() : null,
+      linkedBranchTransactionId:
+        linkedTx != null && Number(linkedTx) > 0 ? Number(linkedTx) : null,
+    };
+  });
 }
 
 export async function deleteAdvance(advanceId: number): Promise<void> {

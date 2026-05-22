@@ -338,16 +338,6 @@ export function BranchDetailTabs({
 
   const canDeleteBranchTx = showStaffOnlyFeatures;
 
-  const confirmDeleteBranchTx = async (id: number) => {
-    try {
-      await deleteTxMut.mutateAsync(id);
-      setTxDeletePendingId(null);
-      notify.success(t("toast.branchTxDeleted"));
-    } catch (e) {
-      notify.error(toErrorMessage(e));
-    }
-  };
-
   const incMainFilterOpts = useMemo(
     () => [
       { value: "", label: t("branch.txFilterAny") },
@@ -618,6 +608,20 @@ export function BranchDetailTabs({
   const refetchExpenseSummaryBlocks = () => {
     void refetchExpThroughToday();
     if (expListDetailSingleDay != null && !expListDetailRangeActive) void refetchExpListDayRegister();
+  };
+
+  const confirmDeleteBranchTx = async (id: number) => {
+    try {
+      await deleteTxMut.mutateAsync(id);
+      setTxDeletePendingId(null);
+      notify.success(t("toast.branchTxDeleted"));
+      void refetchInc();
+      void refetchExp();
+      refetchIncomeSummaryBlocks();
+      refetchExpenseSummaryBlocks();
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    }
   };
 
   const incParams = useMemo(

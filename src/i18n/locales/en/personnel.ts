@@ -1000,6 +1000,8 @@ export const personnel = {
   detailMgmtOutflowsColBalanceBefore: "Balance before",
   detailMgmtOutflowsColBalanceAfter: "Balance after",
   detailMgmtOutflowsColInId: "Linked IN line: #{id}",
+  detailMgmtOutflowsAdvanceRecipient: "Advance recipient",
+  detailCostsHeldRegisterSource: "Held register cash source",
   detailMgmtTitle: "Manager snapshot",
   detailMgmtSubTabSummary: "Summary",
   detailMgmtSubTabHandover: "Physical cash handover",
