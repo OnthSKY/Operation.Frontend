@@ -40,6 +40,19 @@ export type OutboundInvoiceShipmentLinkRequest = {
   quantity: number;
 };
 
+export type OutboundInvoiceLineResponse = {
+  id: number;
+  lineNo: number;
+  description: string;
+  quantity: number;
+  unit?: string | null;
+  unitPrice: number;
+  lineAmount: number;
+  lineSource?: "shipment" | "manual";
+  manualReasonCode?: string | null;
+  sourceShipmentLineId?: number | null;
+};
+
 export type OutboundInvoiceResponse = {
   id: number;
   documentNumber: string;
@@ -57,6 +70,8 @@ export type OutboundInvoiceResponse = {
   giftAmount?: number;
   promoAmount?: number;
   advanceAmount?: number;
+  paymentInfo?: OutboundInvoicePaymentInfoRequest | null;
+  lines?: OutboundInvoiceLineResponse[];
 };
 
 export type OutboundInvoiceReceiptRequest = {
@@ -182,6 +197,10 @@ export async function fetchShipmentInvoiceability(
 
 export async function fetchOutboundInvoices(): Promise<OutboundInvoiceResponse[]> {
   return apiRequest<OutboundInvoiceResponse[]>("/outbound-invoices");
+}
+
+export async function fetchOutboundInvoice(invoiceId: number): Promise<OutboundInvoiceResponse> {
+  return apiRequest<OutboundInvoiceResponse>(`/outbound-invoices/${invoiceId}`);
 }
 
 export async function addOutboundInvoiceReceipt(

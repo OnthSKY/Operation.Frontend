@@ -996,6 +996,8 @@ export async function fetchBranchTransactionsPaged(
   };
 }
 
+export type BranchStockReceiptGroupBy = "line" | "shipment" | "mainProduct";
+
 export type BranchStockPageParams = {
   page: number;
   pageSize: number;
@@ -1004,6 +1006,8 @@ export type BranchStockPageParams = {
   categoryId?: number;
   parentProductId?: number;
   productId?: number;
+  /** Sayfalandırma birimi; shipment / mainProduct = grup bazlı. */
+  groupBy?: BranchStockReceiptGroupBy;
 };
 
 export type BranchStockSummaryParams = Omit<BranchStockPageParams, "page" | "pageSize">;
@@ -1105,6 +1109,8 @@ export async function fetchBranchStockReceiptsPaged(
     q.set("parentProductId", String(params.parentProductId));
   if (params.productId != null && params.productId > 0)
     q.set("productId", String(params.productId));
+  if (params.groupBy === "shipment" || params.groupBy === "mainProduct")
+    q.set("groupBy", params.groupBy);
   const raw = await apiRequest<Record<string, unknown>>(
     `/branches/${branchId}/stock-receipts?${q.toString()}`
   );

@@ -9,11 +9,14 @@ import {
   type WarehouseScopeFiltersValue,
 } from "@/modules/warehouse/components/WarehouseProductScopeFilters";
 import { warehouseScopeEffectiveCategoryId } from "@/modules/warehouse/lib/warehouse-scope-filters";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { useI18n } from "@/i18n/context";
+import { useWarehouseDetailOverlayOptional } from "@/shared/warehouse-detail";
 import { cn } from "@/lib/cn";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import {
   formatWarehouseShipmentDisplay,
+  shipmentIdLabelClassName,
   warehouseMovementShipmentGroupKey,
 } from "@/shared/lib/in-batch-group-label";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
@@ -25,8 +28,8 @@ import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
 import { Modal } from "@/shared/ui/Modal";
 import type { BranchStockReceiptRow } from "@/types/branch";
-import { Package } from "lucide-react";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Package, Warehouse } from "lucide-react";
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
 const PAGE_SIZE = 20;
 
@@ -39,6 +42,46 @@ const EMPTY_SCOPE: WarehouseScopeFiltersValue = {
 
 function sumReceiptQty(rows: BranchStockReceiptRow[]): number {
   return rows.reduce((s, r) => s + (Number(r.quantity) || 0), 0);
+}
+
+type ReceiptMainProductGroup = {
+  key: string;
+  label: string;
+  movements: BranchStockReceiptRow[];
+  totalQty: number;
+};
+
+function groupReceiptMovementsByMainProduct(
+  movements: BranchStockReceiptRow[],
+  fallbackProductLabel: string
+): ReceiptMainProductGroup[] {
+  const map = new Map<string, BranchStockReceiptRow[]>();
+  for (const m of movements) {
+    const hasParent = m.parentProductId != null && m.parentProductId > 0;
+    const key = hasParent ? `p:${m.parentProductId}` : `leaf:${m.productId}`;
+    const g = map.get(key) ?? [];
+    g.push(m);
+    map.set(key, g);
+  }
+  for (const g of map.values()) {
+    g.sort((a, b) => {
+      const c = b.movementDate.localeCompare(a.movementDate);
+      if (c !== 0) return c;
+      return b.id - a.id;
+    });
+  }
+  return Array.from(map.entries())
+    .map(([key, rows]) => {
+      const head = rows[0];
+      const label =
+        head.parentProductName?.trim() || head.productName || fallbackProductLabel;
+      return { key, label, movements: rows, totalQty: sumReceiptQty(rows) };
+    })
+    .sort((a, b) => {
+      const d = b.movements[0].movementDate.localeCompare(a.movements[0].movementDate);
+      if (d !== 0) return d;
+      return b.movements[0].id - a.movements[0].id;
+    });
 }
 
 function kv(label: string, value: ReactNode) {
@@ -108,9 +151,7 @@ function BranchReceiptLineCard({
         {!hideShipmentGroup
           ? kv(
               t("warehouse.movementBatchGroup"),
-              <span className="font-mono text-xs" title={batchCell.title}>
-                {batchCell.text}
-              </span>
+              <span className={shipmentIdLabelClassName}>{batchCell.text}</span>
             )
           : null}
         {kv(
@@ -153,6 +194,9 @@ type Props = {
 
 export function BranchStockInboundPanel({ branchId }: Props) {
   const { t, locale } = useI18n();
+  const { user } = useAuth();
+  const warehouseDetailOverlay = useWarehouseDetailOverlayOptional();
+  const isAdmin = user?.role === "ADMIN";
   const [scope, setScope] = useState<WarehouseScopeFiltersValue>({ ...EMPTY_SCOPE });
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -163,7 +207,10 @@ export function BranchStockInboundPanel({ branchId }: Props) {
     movements: BranchStockReceiptRow[];
     title: string;
     description?: string;
+    source: "shipment" | "mainProduct";
+    shipmentIdText?: string;
   }>(null);
+  const [detailModalViewMode, setDetailModalViewMode] = useState<"lines" | "mainProduct">("lines");
   const [stockFiltersDrawerOpen, setStockFiltersDrawerOpen] = useState(false);
 
   useEffect(() => {
@@ -175,6 +222,7 @@ export function BranchStockInboundPanel({ branchId }: Props) {
     setListViewMode("shipment");
     setExpandedGroupKeys(new Set());
     setDetailModal(null);
+    setDetailModalViewMode("lines");
     setStockFiltersDrawerOpen(false);
   }, [branchId]);
 
@@ -190,6 +238,7 @@ export function BranchStockInboundPanel({ branchId }: Props) {
   ]);
 
   useEffect(() => {
+    setPage(1);
     setExpandedGroupKeys(new Set());
   }, [listViewMode]);
 
@@ -210,9 +259,11 @@ export function BranchStockInboundPanel({ branchId }: Props) {
       categoryId,
       parentProductId,
       productId: leafProductId,
+      groupBy: listViewMode === "shipment" ? "shipment" : "mainProduct",
     };
   }, [
     page,
+    listViewMode,
     scope.mainCategoryId,
     scope.subCategoryId,
     scope.parentProductId,
@@ -279,37 +330,49 @@ export function BranchStockInboundPanel({ branchId }: Props) {
       });
   }, [items]);
 
-  const mainProductGroups = useMemo(() => {
-    const map = new Map<string, BranchStockReceiptRow[]>();
-    for (const m of items) {
-      const hasParent = m.parentProductId != null && m.parentProductId > 0;
-      const key = hasParent ? `p:${m.parentProductId}` : `leaf:${m.productId}`;
-      const g = map.get(key) ?? [];
-      g.push(m);
-      map.set(key, g);
+  const mainProductGroups = useMemo(
+    () =>
+      groupReceiptMovementsByMainProduct(items, t("branch.stockColProduct")).map(
+        ({ key, movements, label }) => ({ key, movements, label })
+      ),
+    [items, t]
+  );
+
+  const detailModalMainProductGroups = useMemo(() => {
+    if (!detailModal) return [];
+    return groupReceiptMovementsByMainProduct(
+      detailModal.movements,
+      t("branch.stockColProduct")
+    );
+  }, [detailModal, t]);
+
+  const detailModalWarehouseId = useMemo(() => {
+    if (!detailModal) return null;
+    for (const m of detailModal.movements) {
+      const id = m.warehouseId;
+      if (id != null && id > 0) return id;
     }
-    for (const g of map.values()) {
-      g.sort((a, b) => {
-        const c = b.movementDate.localeCompare(a.movementDate);
-        if (c !== 0) return c;
-        return b.id - a.id;
-      });
+    return null;
+  }, [detailModal]);
+
+  const detailModalWarehouseMovementId = useMemo(() => {
+    if (!detailModal) return null;
+    for (const m of detailModal.movements) {
+      const id = m.warehouseMovementId;
+      if (id != null && id > 0) return id;
     }
-    return Array.from(map.entries())
-      .map(([key, movements]) => {
-        const head = movements[0];
-        const label =
-          head.parentProductName?.trim() ||
-          head.productName ||
-          t("branch.stockColProduct");
-        return { key, movements, label };
-      })
-      .sort((a, b) => {
-        const d = b.movements[0].movementDate.localeCompare(a.movements[0].movementDate);
-        if (d !== 0) return d;
-        return b.movements[0].id - a.movements[0].id;
-      });
-  }, [items, t]);
+    return null;
+  }, [detailModal]);
+
+  const openWarehouseDetailFromModal = useCallback(() => {
+    const warehouseId = detailModalWarehouseId;
+    if (!warehouseId || !warehouseDetailOverlay) return;
+    warehouseDetailOverlay.openWarehouseDetail(warehouseId, {
+      initialTab: "history",
+      openMovementId: detailModalWarehouseMovementId,
+      nested: true,
+    });
+  }, [detailModalWarehouseId, detailModalWarehouseMovementId, warehouseDetailOverlay]);
 
   const listBlocks = useMemo((): StockListBlock[] => {
     if (listViewMode === "shipment") {
@@ -456,9 +519,7 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                     </td>
                     {block.mode === "mainProduct" ? (
                       <td className="hidden px-3 py-2 lg:table-cell">
-                        <span className="font-mono text-xs text-zinc-600" title={batchCell.title}>
-                          {batchCell.text}
-                        </span>
+                        <span className={shipmentIdLabelClassName}>{batchCell.text}</span>
                       </td>
                     ) : null}
                   </tr>
@@ -472,12 +533,14 @@ export function BranchStockInboundPanel({ branchId }: Props) {
   };
 
   const openDetailModal = (block: StockListBlock) => {
+    setDetailModalViewMode("lines");
     if (block.mode === "shipment") {
       const batchCell = block.batchCell;
       setDetailModal({
         movements: block.movements,
         title: t("branch.stockShipmentModalTitle"),
-        description: t("branch.stockShipmentModalHint").replace("{{shipment}}", batchCell.text),
+        shipmentIdText: batchCell.text,
+        source: "shipment",
       });
       return;
     }
@@ -485,6 +548,7 @@ export function BranchStockInboundPanel({ branchId }: Props) {
       movements: block.movements,
       title: t("branch.stockDetailModalTitleMainProduct"),
       description: t("branch.stockDetailModalHintMainProduct").replace("{{name}}", block.label),
+      source: "mainProduct",
     });
   };
 
@@ -778,73 +842,69 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                   const open = expandedGroupKeys.has(block.key);
                   return (
                     <div key={block.key} className="min-w-0 bg-white first:rounded-t-xl last:rounded-b-xl">
-                      <button
-                        type="button"
-                        className="flex w-full touch-manipulation flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2.5 text-left text-sm transition-colors hover:bg-zinc-50 sm:gap-x-3 sm:py-2"
-                        aria-expanded={open}
-                        aria-label={
-                          block.mode === "shipment"
-                            ? t("warehouse.shipmentGroupToggleAria")
-                            : t("branch.stockListViewMainProduct")
-                        }
-                        onClick={() => toggleExpanded(block.key)}
-                      >
-                        <span
-                          className={cn(
-                            "shrink-0 text-zinc-400 transition-transform duration-200",
-                            open && "rotate-180"
-                          )}
-                          aria-hidden
+                      <div className="flex w-full items-stretch gap-1 px-1 py-1 sm:gap-1.5 sm:px-1.5 sm:py-1">
+                        <button
+                          type="button"
+                          className="flex min-w-0 flex-1 touch-manipulation flex-wrap items-center gap-x-2 gap-y-1 rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-zinc-50 sm:gap-x-3 sm:py-1.5"
+                          aria-expanded={open}
+                          aria-label={
+                            block.mode === "shipment"
+                              ? t("warehouse.shipmentGroupToggleAria")
+                              : t("branch.stockListViewMainProduct")
+                          }
+                          onClick={() => toggleExpanded(block.key)}
                         >
-                          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                            <path
-                              fillRule="evenodd"
-                              d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        </span>
-                        {block.mode === "shipment" ? (
                           <span
-                            className="shrink-0 font-mono text-[0.7rem] text-zinc-600 sm:text-xs"
-                            title={block.batchCell.title ?? block.batchCell.text}
+                            className={cn(
+                              "shrink-0 text-zinc-400 transition-transform duration-200",
+                              open && "rotate-180"
+                            )}
+                            aria-hidden
                           >
-                            {block.batchCell.text}
+                            <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path
+                                fillRule="evenodd"
+                                d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
                           </span>
-                        ) : (
-                          <span className="min-w-0 max-w-[14rem] truncate text-sm font-semibold text-violet-950">
-                            {block.label}
+                          {block.mode === "shipment" ? (
+                            <span className={cn("min-w-0 max-w-full basis-full sm:basis-auto sm:max-w-[min(100%,20rem)]", shipmentIdLabelClassName)}>
+                              {block.batchCell.text}
+                            </span>
+                          ) : (
+                            <span className="min-w-0 max-w-[14rem] truncate text-sm font-semibold text-violet-950">
+                              {block.label}
+                            </span>
+                          )}
+                          <span className="shrink-0 whitespace-nowrap text-xs text-zinc-500 sm:text-sm">
+                            {fmtDate(block.sample.movementDate)}
                           </span>
-                        )}
-                        <span className="shrink-0 whitespace-nowrap text-xs text-zinc-500 sm:text-sm">
-                          {fmtDate(block.sample.movementDate)}
-                        </span>
-                        <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[0.65rem] font-semibold tracking-tight text-emerald-900 ring-1 ring-emerald-200/80 sm:text-xs">
-                          {t("products.typeIn")}
-                        </span>
-                        <span className="shrink-0 tabular-nums text-xs text-zinc-500">
-                          {block.movements.length}×
-                        </span>
-                        {block.mode === "mainProduct" ? (
-                          <span className="shrink-0 text-xs font-semibold tabular-nums text-zinc-800">
-                            Σ {formatLocaleAmount(block.totalQty, locale)}
+                          <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[0.65rem] font-semibold tracking-tight text-emerald-900 ring-1 ring-emerald-200/80 sm:text-xs">
+                            {t("products.typeIn")}
                           </span>
-                        ) : null}
-                        <span className="min-w-0 flex-1 basis-[min(100%,12rem)] truncate text-xs text-zinc-600 sm:text-sm">
-                          {block.preview}
-                        </span>
+                          <span className="shrink-0 tabular-nums text-xs text-zinc-500">
+                            {block.movements.length}×
+                          </span>
+                          {block.mode === "mainProduct" ? (
+                            <span className="shrink-0 text-xs font-semibold tabular-nums text-zinc-800">
+                              Σ {formatLocaleAmount(block.totalQty, locale)}
+                            </span>
+                          ) : null}
+                          <span className="min-w-0 flex-1 basis-[min(100%,12rem)] truncate text-xs text-zinc-600 sm:text-sm">
+                            {block.preview}
+                          </span>
+                        </button>
                         <Button
                           type="button"
                           variant="secondary"
-                          className="min-h-9 shrink-0 px-2.5 text-xs"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openDetailModal(block);
-                          }}
+                          className="min-h-9 shrink-0 self-center px-2.5 text-xs"
+                          onClick={() => openDetailModal(block)}
                         >
                           {t("branch.stockShipmentQuickOpen")}
                         </Button>
-                      </button>
+                      </div>
                       {open ? renderExpandedRowsMobile(block) : null}
                     </div>
                   );
@@ -858,75 +918,71 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                   const headerId = `br-grp-h-${safeKey}`;
                   return (
                     <div key={block.key} className="min-w-0 bg-white first:rounded-t-xl last:rounded-b-xl">
-                      <button
-                        type="button"
-                        className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 px-3 py-2.5 text-left text-sm transition-colors hover:bg-zinc-50 sm:gap-x-3 sm:py-2"
-                        aria-expanded={open}
-                        aria-label={
-                          block.mode === "shipment"
-                            ? t("warehouse.shipmentGroupToggleAria")
-                            : t("branch.stockListViewMainProduct")
-                        }
-                        aria-controls={`br-grp-${safeKey}`}
-                        id={headerId}
-                        onClick={() => toggleExpanded(block.key)}
-                      >
-                        <span
-                          className={cn(
-                            "shrink-0 text-zinc-400 transition-transform duration-200",
-                            open && "rotate-180"
-                          )}
-                          aria-hidden
+                      <div className="flex w-full items-stretch gap-1.5 px-1.5 py-1">
+                        <button
+                          type="button"
+                          className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-zinc-50 sm:gap-x-3 sm:py-1.5"
+                          aria-expanded={open}
+                          aria-label={
+                            block.mode === "shipment"
+                              ? t("warehouse.shipmentGroupToggleAria")
+                              : t("branch.stockListViewMainProduct")
+                          }
+                          aria-controls={`br-grp-${safeKey}`}
+                          id={headerId}
+                          onClick={() => toggleExpanded(block.key)}
                         >
-                          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                            <path
-                              fillRule="evenodd"
-                              d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        </span>
-                        {block.mode === "shipment" ? (
                           <span
-                            className="shrink-0 font-mono text-[0.7rem] text-zinc-600 sm:text-xs"
-                            title={block.batchCell.title ?? block.batchCell.text}
+                            className={cn(
+                              "shrink-0 text-zinc-400 transition-transform duration-200",
+                              open && "rotate-180"
+                            )}
+                            aria-hidden
                           >
-                            {block.batchCell.text}
+                            <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path
+                                fillRule="evenodd"
+                                d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
                           </span>
-                        ) : (
-                          <span className="min-w-0 max-w-[18rem] truncate text-sm font-semibold text-violet-950">
-                            {block.label}
+                          {block.mode === "shipment" ? (
+                            <span className={cn("min-w-0 max-w-full basis-full sm:basis-auto sm:max-w-[min(100%,24rem)]", shipmentIdLabelClassName)}>
+                              {block.batchCell.text}
+                            </span>
+                          ) : (
+                            <span className="min-w-0 max-w-[18rem] truncate text-sm font-semibold text-violet-950">
+                              {block.label}
+                            </span>
+                          )}
+                          <span className="shrink-0 whitespace-nowrap text-xs text-zinc-500 sm:text-sm">
+                            {fmtDate(block.sample.movementDate)}
                           </span>
-                        )}
-                        <span className="shrink-0 whitespace-nowrap text-xs text-zinc-500 sm:text-sm">
-                          {fmtDate(block.sample.movementDate)}
-                        </span>
-                        <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[0.65rem] font-semibold tracking-tight text-emerald-900 ring-1 ring-emerald-200/80 sm:text-xs">
-                          {t("products.typeIn")}
-                        </span>
-                        <span className="shrink-0 tabular-nums text-xs text-zinc-500">
-                          {block.movements.length}×
-                        </span>
-                        {block.mode === "mainProduct" ? (
-                          <span className="shrink-0 text-xs font-semibold tabular-nums text-zinc-800">
-                            Σ {formatLocaleAmount(block.totalQty, locale)}
+                          <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[0.65rem] font-semibold tracking-tight text-emerald-900 ring-1 ring-emerald-200/80 sm:text-xs">
+                            {t("products.typeIn")}
                           </span>
-                        ) : null}
-                        <span className="min-w-0 flex-1 basis-[min(100%,12rem)] truncate text-xs text-zinc-600 sm:text-sm">
-                          {block.preview}
-                        </span>
+                          <span className="shrink-0 tabular-nums text-xs text-zinc-500">
+                            {block.movements.length}×
+                          </span>
+                          {block.mode === "mainProduct" ? (
+                            <span className="shrink-0 text-xs font-semibold tabular-nums text-zinc-800">
+                              Σ {formatLocaleAmount(block.totalQty, locale)}
+                            </span>
+                          ) : null}
+                          <span className="min-w-0 flex-1 basis-[min(100%,12rem)] truncate text-xs text-zinc-600 sm:text-sm">
+                            {block.preview}
+                          </span>
+                        </button>
                         <Button
                           type="button"
                           variant="secondary"
-                          className="min-h-9 shrink-0 px-2.5 text-xs"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openDetailModal(block);
-                          }}
+                          className="min-h-9 shrink-0 self-center px-2.5 text-xs"
+                          onClick={() => openDetailModal(block)}
                         >
                           {t("branch.stockShipmentQuickOpen")}
                         </Button>
-                      </button>
+                      </div>
                       {open ? renderExpandedTableDesktop(block, safeKey) : null}
                     </div>
                   );
@@ -970,14 +1026,79 @@ export function BranchStockInboundPanel({ branchId }: Props) {
 
           <Modal
             open={detailModal != null}
-            onClose={() => setDetailModal(null)}
+            onClose={() => {
+              setDetailModal(null);
+              setDetailModalViewMode("lines");
+            }}
             titleId="branch-stock-detail-modal-title"
             title={detailModal?.title ?? ""}
-            description={detailModal?.description}
+            description={detailModal?.source === "mainProduct" ? detailModal?.description : undefined}
             closeButtonLabel={t("common.close")}
           >
             {detailModal ? (
               <div className="mt-4 max-h-[min(75dvh,38rem)] overflow-y-auto">
+                {detailModal.source === "shipment" && detailModal.shipmentIdText ? (
+                  <p className="-mt-1 mb-3 text-xs text-zinc-600 sm:mb-4">
+                    <span className="font-semibold text-zinc-700">{t("branch.stockShipmentModalHintLead")}</span>
+                    <span className={cn("mt-1 block", shipmentIdLabelClassName)}>
+                      {detailModal.shipmentIdText}
+                    </span>
+                  </p>
+                ) : null}
+                {isAdmin && detailModalWarehouseId && warehouseDetailOverlay ? (
+                  <div className="mb-3 flex justify-stretch sm:justify-end">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="inline-flex min-h-10 w-full items-center justify-center gap-2 text-xs sm:w-auto"
+                      onClick={openWarehouseDetailFromModal}
+                    >
+                      <Warehouse className="h-4 w-4 shrink-0" aria-hidden />
+                      {t("branch.stockShipmentModalOpenWarehouse")}
+                    </Button>
+                  </div>
+                ) : null}
+                {detailModal.source === "shipment" ? (
+                  <div className="mb-3 rounded-lg border border-zinc-200 bg-zinc-50/80 p-2">
+                    <p className="text-xs font-semibold text-zinc-700">
+                      {t("branch.stockShipmentModalViewHint")}
+                    </p>
+                    <div
+                      className="mt-2 inline-flex w-full rounded-lg border border-zinc-200 bg-white p-1 sm:w-auto"
+                      role="tablist"
+                      aria-label={t("branch.stockShipmentModalViewAria")}
+                    >
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={detailModalViewMode === "lines"}
+                        className={cn(
+                          "min-h-10 flex-1 rounded-md px-3 py-2 text-xs font-semibold touch-manipulation sm:min-h-0 sm:flex-none sm:py-1.5",
+                          detailModalViewMode === "lines"
+                            ? "bg-zinc-900 text-white"
+                            : "text-zinc-700 hover:bg-zinc-50"
+                        )}
+                        onClick={() => setDetailModalViewMode("lines")}
+                      >
+                        {t("branch.stockShipmentModalViewLines")}
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={detailModalViewMode === "mainProduct"}
+                        className={cn(
+                          "min-h-10 flex-1 rounded-md px-3 py-2 text-xs font-semibold touch-manipulation sm:min-h-0 sm:flex-none sm:py-1.5",
+                          detailModalViewMode === "mainProduct"
+                            ? "bg-zinc-900 text-white"
+                            : "text-zinc-700 hover:bg-zinc-50"
+                        )}
+                        onClick={() => setDetailModalViewMode("mainProduct")}
+                      >
+                        {t("branch.stockShipmentModalViewMainProduct")}
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
                 <div className="overflow-x-auto rounded-md border border-zinc-200 bg-white">
                   <table className="min-w-full text-sm">
                     <thead className="border-b border-zinc-200 bg-zinc-50 text-left text-xs font-semibold uppercase tracking-wide text-zinc-500">
@@ -986,42 +1107,99 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                         <th className="px-3 py-2">{t("branch.stockColProduct")}</th>
                         <th className="px-3 py-2 text-right">{t("branch.stockColQty")}</th>
                         <th className="hidden px-3 py-2 md:table-cell">{t("branch.stockColWarehouse")}</th>
-                        <th className="hidden px-3 py-2 lg:table-cell">{t("warehouse.movementBatchGroup")}</th>
+                        {detailModal.source === "mainProduct" ? (
+                          <th className="hidden px-3 py-2 lg:table-cell">
+                            {t("warehouse.movementBatchGroup")}
+                          </th>
+                        ) : null}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-zinc-100">
-                      {detailModal.movements.map((row) => {
-                        const batchCell = formatWarehouseShipmentDisplay(
-                          row.inBatchGroupId ?? null,
-                          row.warehouseMovementId ?? row.id
-                        );
-                        return (
-                          <tr key={row.id}>
-                            <td className="whitespace-nowrap px-3 py-2 text-zinc-700">{fmtDate(row.movementDate)}</td>
-                            <td className="px-3 py-2 font-medium text-zinc-900">
-                              {row.parentProductName?.trim() ? (
-                                <span className="mb-0.5 block text-[0.65rem] font-semibold uppercase tracking-wide text-violet-800">
-                                  {row.parentProductName}
+                    {detailModal.source === "shipment" && detailModalViewMode === "mainProduct" ? (
+                      <tbody className="divide-y divide-zinc-100">
+                        {detailModalMainProductGroups.map((group) => (
+                          <Fragment key={group.key}>
+                            <tr className="bg-violet-50/90">
+                              <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-600">
+                                {fmtDate(group.movements[0].movementDate)}
+                              </td>
+                              <td className="px-3 py-2">
+                                <span className="text-sm font-semibold text-violet-950">{group.label}</span>
+                                <span className="mt-0.5 block text-[0.65rem] font-medium text-zinc-500">
+                                  {t("branch.stockShipmentModalGroupLineCount").replace(
+                                    "{{count}}",
+                                    String(group.movements.length)
+                                  )}
                                 </span>
+                              </td>
+                              <td className="px-3 py-2 text-right text-sm font-bold tabular-nums text-zinc-900">
+                                {formatLocaleAmount(group.totalQty, locale)}
+                              </td>
+                              <td className="hidden px-3 py-2 text-zinc-600 md:table-cell">
+                                {group.movements[0].warehouseName?.trim() ?? "—"}
+                              </td>
+                            </tr>
+                            {group.movements.map((row) => (
+                              <tr key={row.id} className="bg-white">
+                                <td className="whitespace-nowrap px-3 py-1.5 pl-5 text-zinc-500">
+                                  {fmtDate(row.movementDate)}
+                                </td>
+                                <td className="px-3 py-1.5 pl-5 font-medium text-zinc-800">
+                                  {row.productName}
+                                  {row.unit ? (
+                                    <span className="font-normal text-zinc-500"> ({row.unit})</span>
+                                  ) : null}
+                                </td>
+                                <td className="px-3 py-1.5 text-right tabular-nums text-zinc-700">
+                                  {row.quantity}
+                                </td>
+                                <td className="hidden px-3 py-1.5 text-zinc-500 md:table-cell">
+                                  {row.warehouseName?.trim() ?? "—"}
+                                </td>
+                              </tr>
+                            ))}
+                          </Fragment>
+                        ))}
+                      </tbody>
+                    ) : (
+                      <tbody className="divide-y divide-zinc-100">
+                        {detailModal.movements.map((row) => {
+                          const batchCell = formatWarehouseShipmentDisplay(
+                            row.inBatchGroupId ?? null,
+                            row.warehouseMovementId ?? row.id
+                          );
+                          const showParentOnLine =
+                            detailModal.source === "mainProduct" ||
+                            (detailModal.source === "shipment" && detailModalViewMode === "lines");
+                          return (
+                            <tr key={row.id}>
+                              <td className="whitespace-nowrap px-3 py-2 text-zinc-700">
+                                {fmtDate(row.movementDate)}
+                              </td>
+                              <td className="px-3 py-2 font-medium text-zinc-900">
+                                {showParentOnLine && row.parentProductName?.trim() ? (
+                                  <span className="mb-0.5 block text-[0.65rem] font-semibold uppercase tracking-wide text-violet-800">
+                                    {row.parentProductName}
+                                  </span>
+                                ) : null}
+                                {row.productName}
+                                {row.unit ? (
+                                  <span className="font-normal text-zinc-500"> ({row.unit})</span>
+                                ) : null}
+                              </td>
+                              <td className="px-3 py-2 text-right tabular-nums">{row.quantity}</td>
+                              <td className="hidden px-3 py-2 text-zinc-600 md:table-cell">
+                                {row.warehouseName?.trim() ?? "—"}
+                              </td>
+                              {detailModal.source === "mainProduct" ? (
+                                <td className="hidden px-3 py-2 lg:table-cell">
+                                  <span className={shipmentIdLabelClassName}>{batchCell.text}</span>
+                                </td>
                               ) : null}
-                              {row.productName}
-                              {row.unit ? (
-                                <span className="font-normal text-zinc-500"> ({row.unit})</span>
-                              ) : null}
-                            </td>
-                            <td className="px-3 py-2 text-right tabular-nums">{row.quantity}</td>
-                            <td className="hidden px-3 py-2 text-zinc-600 md:table-cell">
-                              {row.warehouseName?.trim() ?? "—"}
-                            </td>
-                            <td className="hidden px-3 py-2 lg:table-cell">
-                              <span className="font-mono text-xs text-zinc-600" title={batchCell.title}>
-                                {batchCell.text}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    )}
                   </table>
                 </div>
               </div>

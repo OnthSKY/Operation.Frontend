@@ -14,6 +14,10 @@ import {
   useWarehousePeopleOptions,
   useWarehouseStock,
 } from "@/modules/warehouse/hooks/useWarehouseQueries";
+import {
+  mapWarehousePersonnelOptions,
+  withWarehousePersonnelPickPlaceholder,
+} from "@/modules/warehouse/lib/warehouse-personnel-select";
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
 import { LocalImageFileThumb } from "@/shared/components/LocalImageFileThumb";
@@ -169,15 +173,9 @@ export function WarehouseListDepoInModal({
     []
   );
 
-  const personnelOptions = useMemo(
-    () =>
-      peopleRaw
-        .filter((o) => o.personnelId != null && o.personnelId > 0)
-        .map((o) => ({ value: String(o.personnelId), label: o.displayName })),
-    [peopleRaw]
-  );
+  const personnelOptions = useMemo(() => mapWarehousePersonnelOptions(peopleRaw), [peopleRaw]);
   const personnelSelectOptions = useMemo(
-    () => [{ value: "", label: t("warehouse.personnelPickPlaceholder") }, ...personnelOptions],
+    () => withWarehousePersonnelPickPlaceholder(personnelOptions, t("warehouse.personnelPickPlaceholder")),
     [personnelOptions, t]
   );
   const productOptions = useMemo(
@@ -626,15 +624,9 @@ export function WarehouseListTransferModal({
   const [pending, setPending] = useState(false);
   const transferProductRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-  const personnelOptions = useMemo(
-    () =>
-      peopleRaw
-        .filter((o) => o.personnelId != null && o.personnelId > 0)
-        .map((o) => ({ value: String(o.personnelId), label: o.displayName })),
-    [peopleRaw]
-  );
+  const personnelOptions = useMemo(() => mapWarehousePersonnelOptions(peopleRaw), [peopleRaw]);
   const personnelSelectOptions = useMemo(
-    () => [{ value: "", label: t("warehouse.personnelPickPlaceholder") }, ...personnelOptions],
+    () => withWarehousePersonnelPickPlaceholder(personnelOptions, t("warehouse.personnelPickPlaceholder")),
     [personnelOptions, t]
   );
   const productOptions = useMemo(

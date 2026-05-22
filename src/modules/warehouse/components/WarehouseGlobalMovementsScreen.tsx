@@ -21,7 +21,10 @@ import { RightDrawer } from "@/shared/components/RightDrawer";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
-import { formatWarehouseShipmentDisplay } from "@/shared/lib/in-batch-group-label";
+import {
+  formatWarehouseShipmentDisplay,
+  shipmentIdLabelClassName,
+} from "@/shared/lib/in-batch-group-label";
 import { OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
@@ -713,9 +716,7 @@ export function WarehouseGlobalMovementsScreen() {
                   <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                     {t("warehouse.movementBatchGroup")}
                   </p>
-                  <p className="mt-1 font-mono text-xs text-zinc-800" title={batchCell.title}>
-                    {batchCell.text}
-                  </p>
+                  <p className={cn("mt-1", shipmentIdLabelClassName)}>{batchCell.text}</p>
                 </div>
                 <div className="border-b border-zinc-200 px-3 py-2 md:col-span-2">
                   <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
@@ -1185,7 +1186,10 @@ export function WarehouseGlobalMovementsScreen() {
                           {m.outDestinationBranchName || "—"}
                         </p>
                       </div>
-                      <div><p className="text-zinc-500">{t("warehouse.movementBatchGroup")}</p><p className="font-mono text-xs text-zinc-700" title={batchCell.title}>{batchCell.text}</p></div>
+                      <div>
+                        <p className="text-zinc-500">{t("warehouse.movementBatchGroup")}</p>
+                        <p className={shipmentIdLabelClassName}>{batchCell.text}</p>
+                      </div>
                       <div><p className="text-zinc-500">{t("products.colQty")}</p><p className="font-semibold tabular-nums text-zinc-900">{m.quantity}</p></div>
                     </div>
                     <p className="mt-2 text-xs text-zinc-600">{m.description || "—"}</p>
@@ -1255,9 +1259,7 @@ export function WarehouseGlobalMovementsScreen() {
                       <td className="px-3 py-2">
                         {m.type === "IN" ? t("products.typeIn") : t("products.typeOut")}
                       </td>
-                      <td className="px-3 py-2 font-mono text-xs" title={batchCell.title}>
-                        {batchCell.text}
-                      </td>
+                      <td className={cn("px-3 py-2", shipmentIdLabelClassName)}>{batchCell.text}</td>
                       <td
                         className={cn(
                           "px-3 py-2",

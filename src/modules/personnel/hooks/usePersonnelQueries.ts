@@ -50,6 +50,7 @@ import {
   type UploadProfilePhotosInput,
 } from "@/modules/personnel/api/personnel-api";
 import { usersKeys } from "@/modules/personnel/hooks/useUsersQueries";
+import { invalidateWarehousePeopleOptions } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import type { CreateAdvanceInput } from "@/types/advance";
 import type { SavePersonnelNoteInput } from "@/types/personnel-note";
 import type {
@@ -473,6 +474,7 @@ export function useCreatePersonnel() {
       void qc.invalidateQueries({ queryKey: personnelKeys.listRoot() });
       void qc.invalidateQueries({ queryKey: personnelKeys.detail(created.id) });
       void qc.invalidateQueries({ queryKey: usersKeys.list() });
+      invalidateWarehousePeopleOptions(qc);
     },
   });
 }
@@ -486,6 +488,7 @@ export function useUpdatePersonnel() {
       void qc.invalidateQueries({ queryKey: personnelKeys.detail(input.id) });
       void qc.invalidateQueries({ queryKey: branchKeys.all });
       void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
+      invalidateWarehousePeopleOptions(qc);
     },
   });
 }
@@ -524,6 +527,7 @@ export function useSoftDeletePersonnel() {
     mutationFn: (id: number) => softDeletePersonnel(id),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: personnelKeys.listRoot() });
+      invalidateWarehousePeopleOptions(qc);
     },
   });
 }

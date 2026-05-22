@@ -120,6 +120,7 @@ export const branchKeys = {
       p.categoryId ?? 0,
       p.parentProductId ?? 0,
       p.productId ?? 0,
+      p.groupBy ?? "line",
     ] as const,
   stockReceiptsSummary: (branchId: number, p: BranchStockSummaryParams) =>
     [

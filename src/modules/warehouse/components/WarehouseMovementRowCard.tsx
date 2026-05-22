@@ -4,7 +4,10 @@ import { warehouseMovementInvoicePhotoUrl } from "@/modules/warehouse/api/wareho
 import { cn } from "@/lib/cn";
 import { MobileListCard } from "@/shared/components/MobileListCard";
 import { PencilIcon, detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
-import { formatWarehouseShipmentDisplay } from "@/shared/lib/in-batch-group-label";
+import {
+  formatWarehouseShipmentDisplay,
+  shipmentIdLabelClassName,
+} from "@/shared/lib/in-batch-group-label";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import type { WarehouseMovementItem } from "@/types/warehouse";
@@ -244,9 +247,7 @@ export function WarehouseMovementRowCard({
         {!hideShipmentGroup
           ? movementKv(
               t("warehouse.movementBatchGroup"),
-              <span className="font-mono text-xs" title={batchCell.title}>
-                {batchCell.text}
-              </span>
+              <span className={shipmentIdLabelClassName}>{batchCell.text}</span>
             )
           : null}
         {m.type === "OUT" && m.outDestinationBranchName?.trim()

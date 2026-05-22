@@ -7,6 +7,7 @@ import {
 } from "@/modules/warehouse/components/WarehouseTransferFreightFields";
 import { WarehouseTransferFreightValuationBar } from "@/modules/warehouse/components/WarehouseTransferFreightValuationBar";
 import { useI18n } from "@/i18n/context";
+import { withWarehousePersonnelPickPlaceholder } from "@/modules/warehouse/lib/warehouse-personnel-select";
 import { apiUserFacingMessage } from "@/shared/lib/api-user-facing-message";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
@@ -160,7 +161,7 @@ export function WarehouseStockLine({
   >([]);
 
   const personnelSelectOptions = useMemo(
-    () => [{ value: "", label: t("warehouse.personnelPickPlaceholder") }, ...personnelOptions],
+    () => withWarehousePersonnelPickPlaceholder(personnelOptions, t("warehouse.personnelPickPlaceholder")),
     [personnelOptions, t]
   );
 

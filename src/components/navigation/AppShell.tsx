@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { TopNavbar } from "./TopNavbar";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { BranchDetailOverlayProvider } from "@/shared/branch-detail";
+import { WarehouseDetailOverlayProvider } from "@/shared/warehouse-detail";
 import { PersonnelDetailOverlayProvider } from "@/shared/personnel-detail";
 import { NavigationStateProvider, useNavigationState } from "./NavigationState";
 import { AppShellErrorBoundary } from "./AppShellErrorBoundary";
@@ -102,7 +103,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       <NavigationStateProvider>
         <PersonnelDetailOverlayProvider>
           <BranchDetailOverlayProvider>
-            <AppShellInner>{children}</AppShellInner>
+            <WarehouseDetailOverlayProvider>
+              <AppShellInner>{children}</AppShellInner>
+            </WarehouseDetailOverlayProvider>
           </BranchDetailOverlayProvider>
         </PersonnelDetailOverlayProvider>
       </NavigationStateProvider>

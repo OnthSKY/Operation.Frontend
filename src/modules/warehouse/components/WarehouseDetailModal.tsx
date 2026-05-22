@@ -73,10 +73,19 @@ type Props = {
   warehouseId: number;
   initialTabIntent?: "history" | null;
   openMovementIdIntent?: number | null;
+  /** Başka bir modalın üstünde (ör. şube sevkiyat detayı). */
+  nested?: boolean;
   onClose: () => void;
 };
 
-export function WarehouseDetailModal({ open, warehouseId, initialTabIntent = null, openMovementIdIntent = null, onClose }: Props) {
+export function WarehouseDetailModal({
+  open,
+  warehouseId,
+  initialTabIntent = null,
+  openMovementIdIntent = null,
+  nested = false,
+  onClose,
+}: Props) {
   const { t, locale } = useI18n();
   const [tab, setTab] = useState<Tab>("general");
   const [editOpen, setEditOpen] = useState(false);
@@ -167,6 +176,7 @@ export function WarehouseDetailModal({ open, warehouseId, initialTabIntent = nul
         title={detail?.name ?? (detailLoading ? t("common.loading") : t("warehouse.title"))}
         description={t("warehouse.detailModalDescription")}
         closeButtonLabel={t("common.close")}
+        nested={nested}
         wide
         wideFixedHeight
         wideExpanded

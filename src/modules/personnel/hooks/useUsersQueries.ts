@@ -18,6 +18,7 @@ import type {
   WarehouseScopeAssignment,
 } from "@/types/user";
 import type { CreateUserInput } from "@/types/user";
+import { invalidateWarehousePeopleOptions } from "@/modules/warehouse/hooks/useWarehouseQueries";
 
 export const usersKeys = {
   all: ["users"] as const,
@@ -42,6 +43,7 @@ export function useCreateUser() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: usersKeys.list() });
       void qc.invalidateQueries({ queryKey: ["personnel", "list"] });
+      invalidateWarehousePeopleOptions(qc);
     },
   });
 }
@@ -64,6 +66,7 @@ export function usePatchUserRole() {
       patchUserRole(args.userId, args.role, args.personnelId),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: usersKeys.list() });
+      invalidateWarehousePeopleOptions(qc);
     },
   });
 }

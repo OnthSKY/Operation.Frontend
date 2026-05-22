@@ -3,6 +3,7 @@
 import { useProductMovementsPage } from "@/modules/products/hooks/useProductQueries";
 import { useWarehousesList } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import { useI18n } from "@/i18n/context";
+import { cn } from "@/lib/cn";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
@@ -18,7 +19,10 @@ import {
 import { warehouseMovementInvoicePhotoUrl } from "@/modules/warehouse/api/warehouse-movements-api";
 import type { ProductMovementsPageParams } from "@/types/product";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
-import { formatWarehouseShipmentDisplay } from "@/shared/lib/in-batch-group-label";
+import {
+  formatWarehouseShipmentDisplay,
+  shipmentIdLabelClassName,
+} from "@/shared/lib/in-batch-group-label";
 import { useEffect, useMemo, useState } from "react";
 
 const PAGE_SIZE = 20;
@@ -179,8 +183,7 @@ export function ProductDetailMovementsTab({ productId, enabled }: Props) {
                   </TableCell>
                   <TableCell
                     dataLabel={t("warehouse.movementBatchGroup")}
-                    className="max-w-[6rem] truncate font-mono text-xs text-zinc-700"
-                    title={batchCell.title}
+                    className={cn("max-w-[min(100%,14rem)]", shipmentIdLabelClassName)}
                   >
                     {batchCell.text}
                   </TableCell>

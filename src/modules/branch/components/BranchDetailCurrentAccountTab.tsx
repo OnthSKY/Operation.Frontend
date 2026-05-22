@@ -3,11 +3,18 @@
 import { fetchBranchDocumentBlob } from "@/modules/branch/api/branch-documents-api";
 import {
   addOutboundInvoiceReceipt,
+  fetchOutboundInvoice,
   fetchOutboundInvoices,
   fetchOutboundInvoiceReceipts,
   type OutboundInvoiceReceiptResponse,
   type OutboundInvoiceResponse,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
+import { computePriorOpenBalanceForInvoice } from "@/modules/order-account-statement/lib/compute-prior-open-balance-for-invoice";
+import {
+  isOrderAccountStatementPdfNote,
+  parseOrderAccountDocumentMetadata,
+} from "@/modules/order-account-statement/lib/parse-order-account-document-metadata";
+import { regenerateSavedOrderAccountPdfBlob } from "@/modules/order-account-statement/lib/regenerate-saved-order-account-pdf";
 import {
   companyBrandingLogoUrl,
   fetchSystemBranding,
@@ -260,19 +267,99 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     };
   }, [active, advanceDeductionByInvoiceId, isAdvanceReceipt, isPromoOrDiscountReceipt, promoDeductionByInvoiceId, rows]);
 
+  const orderAccountPdfLabels = useMemo(
+    () => ({
+      headerCompany: t("reports.orderAccountStatementHeaderCompany"),
+      headerBranch: t("reports.orderAccountStatementHeaderBranch"),
+      documentTagline: t("reports.orderAccountStatementDocumentTagline"),
+      issuedPrefix: t("reports.orderAccountStatementIssuedPrefix"),
+      productCol: t("reports.orderAccountStatementColProduct"),
+      qtyCol: t("reports.orderAccountStatementColQty"),
+      unitCol: t("reports.orderAccountStatementUnit"),
+      unitPriceCol: t("reports.orderAccountStatementUnitPrice"),
+      amountCol: t("reports.orderAccountStatementColAmount"),
+      gross: t("reports.orderAccountStatementGross"),
+      giftTotal: t("reports.orderAccountStatementGiftTotalLine"),
+      advance: t("reports.orderAccountStatementAdvanceLine"),
+      subtotal: t("reports.orderAccountStatementSubtotal"),
+      previousBalance: t("reports.orderAccountStatementPreviousBalanceLine"),
+      net: t("reports.orderAccountStatementNet"),
+      giftSuffix: t("reports.orderAccountStatementGiftSuffix"),
+      paidSection: t("reports.orderAccountStatementPaidSectionPdf"),
+      promoLineFallback: t("reports.orderAccountStatementPromoLineFallback"),
+      emptyHint: t("reports.orderAccountStatementPreviewEmpty"),
+      paymentSection: "Ödeme bilgileri",
+      paymentIban: t("reports.orderAccountStatementPaymentIban"),
+      paymentAccountHolder: t("reports.orderAccountStatementPaymentAccountHolder"),
+      paymentBankName: t("reports.orderAccountStatementPaymentBankName"),
+      paymentNote: t("reports.orderAccountStatementPaymentNote"),
+    }),
+    [t]
+  );
+
   const openPdf = async (invoiceId: number, mode: "view" | "download") => {
     const documentId = pdfDocByInvoiceId.get(invoiceId);
     if (!documentId) return;
+    const listInvoice = rows.find((r) => r.id === invoiceId);
+    const doc = (docsQuery.data ?? []).find((d) => d.id === documentId);
     setPdfOpeningId(invoiceId);
     try {
-      const { blob } = await fetchBranchDocumentBlob(branchId, documentId);
+      let blob: Blob | null = null;
+
+      if (listInvoice && doc && isOrderAccountStatementPdfNote(doc.notes)) {
+        try {
+          const detail = await fetchOutboundInvoice(invoiceId);
+          if ((detail.lines ?? []).length > 0) {
+            const meta = parseOrderAccountDocumentMetadata(doc.notes);
+            const priorOpen = computePriorOpenBalanceForInvoice(rows, listInvoice);
+            let emblemDataUrl: string | undefined;
+            try {
+              const branding = await fetchSystemBranding();
+              const logoRes = await apiFetch(companyBrandingLogoUrl(branding.updatedAtUtc));
+              if (logoRes.ok) {
+                const logoBlob = await logoRes.blob();
+                emblemDataUrl = await new Promise<string>((resolve, reject) => {
+                  const reader = new FileReader();
+                  reader.onload = () => resolve(String(reader.result ?? ""));
+                  reader.onerror = () => reject(reader.error);
+                  reader.readAsDataURL(logoBlob);
+                });
+              }
+            } catch {
+              /* optional emblem */
+            }
+            blob = await regenerateSavedOrderAccountPdfBlob({
+              locale,
+              companyName: meta.company || detail.counterpartyName || "—",
+              branchName: meta.branch || detail.counterpartyName || "—",
+              documentTitle: meta.title || t("reports.orderAccountStatementDocTitle"),
+              emblemDataUrl,
+              orderDocumentKey: meta.orderKey || meta.pdfDocumentNo || `invoice-${invoiceId}`,
+              systemDocumentId: documentId,
+              invoice: detail,
+              priorOpenBalance: priorOpen,
+              labels: orderAccountPdfLabels,
+            });
+          }
+        } catch {
+          blob = null;
+        }
+      }
+
+      if (!blob) {
+        const stored = await fetchBranchDocumentBlob(branchId, documentId);
+        blob = stored.blob;
+      }
+
+      const fileBase =
+        listInvoice?.documentNumber?.trim() || `invoice-${invoiceId}`;
       const url = URL.createObjectURL(blob);
       if (mode === "view") {
         window.open(url, "_blank", "noopener,noreferrer");
       } else {
         const a = document.createElement("a");
         a.href = url;
-        a.download = `invoice-${invoiceId}.pdf`;
+        a.download = `${fileBase}.pdf`;
         a.rel = "noopener";
         a.click();
       }

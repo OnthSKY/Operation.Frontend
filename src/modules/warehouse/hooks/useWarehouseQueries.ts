@@ -55,12 +55,20 @@ function stockQueryKey(warehouseId: number, filters: WarehouseStockFilters) {
 export const warehouseKeys = {
   all: warehouseRootKey,
   list: () => [...warehouseKeys.all, "list"] as const,
+  peopleOptions: () => [...warehouseKeys.all, "peopleOptions"] as const,
+  userOptions: () => [...warehouseKeys.all, "userOptions"] as const,
   stock: stockQueryKey,
 };
 
 function invalidateWarehouseQueries(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: warehouseRootKey, exact: false });
   void qc.invalidateQueries({ queryKey: dashboardOverviewKeys.all });
+}
+
+/** Personel / kullanıcı değişince depo kişi listesi önbelleğini yeniler. */
+export function invalidateWarehousePeopleOptions(qc: ReturnType<typeof useQueryClient>) {
+  void qc.invalidateQueries({ queryKey: warehouseKeys.peopleOptions() });
+  void qc.invalidateQueries({ queryKey: warehouseKeys.userOptions() });
 }
 
 export function useWarehousesList() {
@@ -72,7 +80,7 @@ export function useWarehousesList() {
 
 export function useWarehouseUserOptions(enabled: boolean) {
   return useQuery({
-    queryKey: [...warehouseKeys.all, "userOptions"] as const,
+    queryKey: warehouseKeys.userOptions(),
     queryFn: fetchWarehouseUserOptions,
     enabled,
   });
@@ -80,9 +88,11 @@ export function useWarehouseUserOptions(enabled: boolean) {
 
 export function useWarehousePeopleOptions(enabled: boolean) {
   return useQuery({
-    queryKey: [...warehouseKeys.all, "peopleOptions"] as const,
+    queryKey: warehouseKeys.peopleOptions(),
     queryFn: fetchWarehousePeopleOptions,
     enabled,
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 }
 

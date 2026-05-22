@@ -30,6 +30,7 @@ import {
   useWarehousePeopleOptions,
   useWarehouseStock,
 } from "@/modules/warehouse/hooks/useWarehouseQueries";
+import { mapWarehousePersonnelOptions } from "@/modules/warehouse/lib/warehouse-personnel-select";
 import { useI18n } from "@/i18n/context";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
@@ -154,13 +155,7 @@ export function WarehouseOperationsTab({
   const { data: productCatalog = [], isPending: catLoading } = useProductsCatalog();
   const { data: productCategories = [] } = useProductCategories(active);
   const { data: peopleRaw = [], isPending: peopleLoading } = useWarehousePeopleOptions(active);
-  const personnelOptions = useMemo(
-    () =>
-      peopleRaw
-        .filter((o) => o.personnelId != null && o.personnelId > 0)
-        .map((o) => ({ value: String(o.personnelId), label: o.displayName })),
-    [peopleRaw]
-  );
+  const personnelOptions = useMemo(() => mapWarehousePersonnelOptions(peopleRaw), [peopleRaw]);
 
   useEffect(() => {
     setScope({

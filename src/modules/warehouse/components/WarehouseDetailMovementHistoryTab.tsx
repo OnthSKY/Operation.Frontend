@@ -23,7 +23,12 @@ import {
   useUpdateWarehouseInboundMovement,
   useUpdateWarehouseOutboundShipmentMovement,
   useWarehousePeopleOptions,
+  warehouseKeys,
 } from "@/modules/warehouse/hooks/useWarehouseQueries";
+import {
+  mapWarehousePersonnelOptions,
+  withWarehousePersonnelPickPlaceholder,
+} from "@/modules/warehouse/lib/warehouse-personnel-select";
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
 import { toErrorMessage } from "@/shared/lib/error-message";
@@ -41,13 +46,13 @@ import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import {
   formatWarehouseShipmentDisplay,
+  shipmentIdLabelClassName,
   warehouseMovementShipmentGroupKey,
 } from "@/shared/lib/in-batch-group-label";
 import { EyeIcon } from "@/shared/ui/EyeIcon";
 import { PlusIcon, detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { fetchWarehouseMovementsPage } from "@/modules/warehouse/api/warehouse-stock-api";
-import { warehouseKeys } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, FilePlus2, Info, Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -679,12 +684,11 @@ export function WarehouseDetailMovementHistoryTab({
     [canManageWholeInboundShipment, canManageWholeOutboundShipment]
   );
   const personnelSelectOptions = useMemo<SelectOption[]>(
-    () => [
-      { value: "", label: t("warehouse.personnelPickPlaceholder") },
-      ...peopleRaw
-        .filter((o) => o.personnelId != null && o.personnelId > 0)
-        .map((o) => ({ value: String(o.personnelId), label: o.displayName })),
-    ],
+    () =>
+      withWarehousePersonnelPickPlaceholder(
+        mapWarehousePersonnelOptions(peopleRaw),
+        t("warehouse.personnelPickPlaceholder")
+      ),
     [peopleRaw, t]
   );
   const submitHeaderEdit = useCallback(async () => {
@@ -1211,8 +1215,10 @@ export function WarehouseDetailMovementHistoryTab({
                       >
                         <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1.5">
                           <span
-                            className="shrink-0 font-mono text-[0.7rem] text-zinc-600 sm:text-xs"
-                            title={batchCell.title ?? batchCell.text}
+                            className={cn(
+                              "min-w-0 max-w-full basis-full sm:basis-auto sm:max-w-[min(100%,24rem)]",
+                              shipmentIdLabelClassName
+                            )}
                           >
                             {batchCell.text}
                           </span>
@@ -1380,6 +1386,7 @@ export function WarehouseDetailMovementHistoryTab({
         open={inboundFullMovementId != null}
         warehouseId={warehouseId}
         movementId={inboundFullMovementId}
+        lineOnly
         onClose={() => setInboundFullMovementId(null)}
       />
 
@@ -1916,6 +1923,7 @@ export function WarehouseDetailMovementHistoryTab({
               warehouseId={warehouseId}
               value={appendProductId}
               onChange={setAppendProductId}
+              pickMode="warehouseStockPositive"
               enabled={
                 appendLineOpen && selectedDetailGroup != null && canManageWholeOutboundShipment
               }

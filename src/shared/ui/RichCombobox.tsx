@@ -366,9 +366,16 @@ export function RichCombobox({
         </span>
       </div>
       {!open && (selected?.description || selected?.detail) ? (
-        <p className="mt-1 line-clamp-2 px-0.5 text-[11px] leading-snug text-zinc-500">
-          {selected.description || selected.detail}
-        </p>
+        <div className="mt-1 space-y-0.5 px-0.5">
+          {selected.description ? (
+            <p className="line-clamp-1 text-[11px] leading-snug text-zinc-500">{selected.description}</p>
+          ) : null}
+          {selected.detail ? (
+            <p className="line-clamp-1 text-[11px] font-medium leading-snug text-zinc-700">
+              {selected.detail}
+            </p>
+          ) : null}
+        </div>
       ) : null}
       {listPanel}
     </div>

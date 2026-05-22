@@ -22,6 +22,10 @@ import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { useProductsCatalog } from "@/modules/products/hooks/useProductQueries";
 import { useWarehousePeopleOptions, useWarehousesList } from "@/modules/warehouse/hooks/useWarehouseQueries";
+import {
+  mapWarehousePersonnelOptions,
+  withWarehousePersonnelPickPlaceholder,
+} from "@/modules/warehouse/lib/warehouse-personnel-select";
 import { cn } from "@/lib/cn";
 import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
@@ -750,16 +754,10 @@ export function SupplierInvoicesScreen() {
     [warehouses, t]
   );
 
-  const whPersonnelOptions = useMemo(
-    () =>
-      whPeopleRaw
-        .filter((o) => o.personnelId != null && o.personnelId > 0)
-        .map((o) => ({ value: String(o.personnelId), label: o.displayName })),
-    [whPeopleRaw]
-  );
+  const whPersonnelOptions = useMemo(() => mapWarehousePersonnelOptions(whPeopleRaw), [whPeopleRaw]);
 
   const whPersonnelSelectOptions = useMemo(
-    () => [{ value: "", label: t("warehouse.personnelPickPlaceholder") }, ...whPersonnelOptions],
+    () => withWarehousePersonnelPickPlaceholder(whPersonnelOptions, t("warehouse.personnelPickPlaceholder")),
     [whPersonnelOptions, t]
   );
 
