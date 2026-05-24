@@ -30,6 +30,11 @@ export type PersonnelCashHandoverOutflow = {
   linkedAdvanceId?: number | null;
   linkedAdvancePersonnelId?: number | null;
   linkedAdvancePersonnelFullName?: string | null;
+  /** OUT satırında doğrudan bağlı personel (gider hedefi). */
+  linkedPersonnelId?: number | null;
+  linkedPersonnelFullName?: string | null;
+  expensePocketPersonnelId?: number | null;
+  expensePocketPersonnelFullName?: string | null;
 };
 
 export type PersonnelCashHandoverLine = {

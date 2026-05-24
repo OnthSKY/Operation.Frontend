@@ -653,6 +653,8 @@ export const branch = {
   expensesListFilterScopeHint: "Filtre kapsamı",
   expensesListUnifiedBreakdownHint:
     "Toplam içindeki ödeme kaynağı dağılımı (TL ve yüzde).",
+  expensesListExcludesHeldRegisterHint:
+    "Personel cebindeki kasa nakdi devri gider sayılmaz; yalnızca kasa, patron ve personel cebinden ödemeler. Bu satırları görmek için ödeme kaynağı filtresinden «Cebdeki kasa»yı seçin.",
   expensesListPeriodPatronTotal: "Patron ödemeli gider toplamı",
   expensesListPeriodRowCount: "Eşleşen satır",
   expensesListDayForPrefix: "Seçilen gün:",

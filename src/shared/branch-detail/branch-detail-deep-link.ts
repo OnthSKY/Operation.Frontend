@@ -3,6 +3,8 @@ import type { BranchDetailTabId } from "@/modules/branch/lib/branch-detail-tab";
 export type BranchDetailDeepLinkOptions = {
   tab?: BranchDetailTabId | null;
   registerDay?: string | null;
+  /** Optional payment source filter for the expenses tab (REGISTER | PATRON | ...). */
+  expensePaymentSource?: string | null;
 };
 
 export function buildBranchDetailHref(
@@ -14,6 +16,8 @@ export function buildBranchDetailHref(
   if (opts?.tab) p.set("branchTab", opts.tab);
   const day = opts?.registerDay?.trim();
   if (day) p.set("registerDay", day);
+  const expSource = opts?.expensePaymentSource?.trim().toUpperCase();
+  if (expSource) p.set("expSource", expSource);
   return `/branches?${p.toString()}`;
 }
 
@@ -39,6 +43,7 @@ export function stripBranchDetailSearchParams(
   params.delete("openBranch");
   params.delete("branchTab");
   params.delete("registerDay");
+  params.delete("expSource");
   const next = params.toString();
   replace(next ? `${pathname}?${next}` : pathname);
 }

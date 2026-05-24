@@ -31,12 +31,14 @@ import {
 export type OpenBranchDetailOptions = {
   initialTab?: BranchDetailTabId | null;
   initialRegisterDay?: string | null;
+  initialExpensePaymentSource?: string | null;
 };
 
 type ProgrammaticOpen = {
   branchId: number;
   initialTab?: BranchDetailTabId | null;
   initialRegisterDay?: string | null;
+  initialExpensePaymentSource?: string | null;
 };
 
 export type BranchDetailOverlayContextValue = {
@@ -103,6 +105,12 @@ export function BranchDetailOverlayProvider({ children }: { children: ReactNode 
     [searchParams]
   );
 
+  const urlExpSource = useMemo(() => {
+    const raw = searchParams.get("expSource");
+    const v = raw?.trim().toUpperCase() ?? "";
+    return v || null;
+  }, [searchParams]);
+
   const overlayBranchId = programmaticOpen?.branchId ?? urlBranchId;
 
   const overlayInitialTab = useMemo(() => {
@@ -118,6 +126,13 @@ export function BranchDetailOverlayProvider({ children }: { children: ReactNode 
     }
     return urlRegisterDay;
   }, [programmaticOpen, urlRegisterDay]);
+
+  const overlayExpSource = useMemo(() => {
+    if (programmaticOpen) {
+      return programmaticOpen.initialExpensePaymentSource ?? null;
+    }
+    return urlExpSource;
+  }, [programmaticOpen, urlExpSource]);
 
   const closeBranchDetail = useCallback(() => {
     setProgrammaticOpen(null);
@@ -167,6 +182,7 @@ export function BranchDetailOverlayProvider({ children }: { children: ReactNode 
         branchId,
         initialTab: options?.initialTab ?? null,
         initialRegisterDay: options?.initialRegisterDay ?? null,
+        initialExpensePaymentSource: options?.initialExpensePaymentSource ?? null,
       });
     },
     [pathname, router, searchParams]
@@ -195,6 +211,7 @@ export function BranchDetailOverlayProvider({ children }: { children: ReactNode 
           branchDayClerkMode={branchDayClerkMode}
           initialTab={overlayInitialTab}
           initialRegisterDay={overlayRegisterDay}
+          initialExpensePaymentSource={overlayExpSource}
           canEditBranch={!personnelPortal && !branchDayClerkMode}
           onEditBranch={
             !personnelPortal

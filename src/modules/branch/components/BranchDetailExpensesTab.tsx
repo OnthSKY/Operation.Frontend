@@ -199,18 +199,19 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
     (hasExpDateFilters ? 1 : 0) +
     (hasExpMainFilter ? 1 : 0) +
     (hasExpPayFilter ? 1 : 0);
-  const visibleExpenseItems = useMemo(
-    () =>
-      (expData?.items ?? []).filter((row) => {
-        const src = String(row.expensePaymentSource ?? "").trim().toUpperCase();
-        return src !== "PERSONNEL_HELD_REGISTER_CASH";
-      }),
-    [expData?.items]
-  );
+  const showHeldRegisterInExpenseTab =
+    expFilterPay.trim().toUpperCase() === "PERSONNEL_HELD_REGISTER_CASH";
+  const visibleExpenseItems = useMemo(() => {
+    const items = expData?.items ?? [];
+    if (showHeldRegisterInExpenseTab) return items;
+    return items.filter((row) => {
+      const src = String(row.expensePaymentSource ?? "").trim().toUpperCase();
+      return src !== "PERSONNEL_HELD_REGISTER_CASH";
+    });
+  }, [expData?.items, showHeldRegisterInExpenseTab]);
   const expenseListFilteredTotal = Number(expData?.filteredAmountTotal ?? 0);
   const expenseListPatronTotal = Number(expData?.patronExpenseTotal ?? 0);
   const expenseListSourceTotals = useMemo(() => {
-    const total = Number.isFinite(expenseListFilteredTotal) ? Math.max(0, expenseListFilteredTotal) : 0;
     const patron = Number.isFinite(expenseListPatronTotal) ? Math.max(0, expenseListPatronTotal) : 0;
     const registerRaw = Number(expData?.registerExpenseTotal ?? Number.NaN);
     const pocketRaw = Number(expData?.personnelPocketExpenseTotal ?? Number.NaN);
@@ -220,11 +221,22 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
     const heldKnown = Number.isFinite(heldRaw);
     let register = registerKnown ? Math.max(0, registerRaw) : 0;
     const pocket = pocketKnown ? Math.max(0, pocketRaw) : 0;
-    const held = heldKnown ? Math.max(0, heldRaw) : 0;
-    if (!registerKnown && !pocketKnown && !heldKnown) {
+    const held = showHeldRegisterInExpenseTab && heldKnown ? Math.max(0, heldRaw) : 0;
+    const filteredFromApi = Number.isFinite(expenseListFilteredTotal)
+      ? Math.max(0, expenseListFilteredTotal)
+      : 0;
+    let total = filteredFromApi;
+    if (!showHeldRegisterInExpenseTab) {
+      if (registerKnown || pocketKnown) {
+        total = register + patron + pocket;
+      } else {
+        total = filteredFromApi;
+      }
+    }
+    if (!registerKnown && !pocketKnown && !showHeldRegisterInExpenseTab) {
       register = Math.max(0, total - patron);
-    } else if (!registerKnown) {
-      register = Math.max(0, total - patron - pocket - held);
+    } else if (!registerKnown && !showHeldRegisterInExpenseTab) {
+      register = Math.max(0, total - patron - pocket);
     }
     const pct = (amount: number) => (total > 0 ? (amount / total) * 100 : 0);
     return {
@@ -233,12 +245,20 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
       register,
       pocket,
       held,
+      showHeld: showHeldRegisterInExpenseTab,
       patronPct: pct(patron),
       registerPct: pct(register),
       pocketPct: pct(pocket),
       heldPct: pct(held),
     };
-  }, [expData?.registerExpenseTotal, expData?.personnelPocketExpenseTotal, expData?.personnelHeldRegisterCashExpenseTotal, expenseListFilteredTotal, expenseListPatronTotal]);
+  }, [
+    expData?.registerExpenseTotal,
+    expData?.personnelPocketExpenseTotal,
+    expData?.personnelHeldRegisterCashExpenseTotal,
+    expenseListFilteredTotal,
+    expenseListPatronTotal,
+    showHeldRegisterInExpenseTab,
+  ]);
 
   const expenseSeasonQuickRange = useMemo(() => {
     const from = String(expThroughToday?.activeTourismSeasonOpenedOn ?? "");
@@ -403,7 +423,9 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                             )}
                           </p>
                           <p className="mt-1 text-xs leading-snug text-zinc-500">
-                            {t("branch.expensesListUnifiedBreakdownHint")}
+                            {showHeldRegisterInExpenseTab
+                              ? t("branch.expensesListUnifiedBreakdownHint")
+                              : t("branch.expensesListExcludesHeldRegisterHint")}
                           </p>
                           <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                             {[
@@ -425,12 +447,16 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                                 amount: expenseListSourceTotals.pocket,
                                 pct: expenseListSourceTotals.pocketPct,
                               },
-                              {
-                                key: "held",
-                                label: t("branch.expensePayPersonnelHeldRegisterCashShort"),
-                                amount: expenseListSourceTotals.held,
-                                pct: expenseListSourceTotals.heldPct,
-                              },
+                              ...(expenseListSourceTotals.showHeld
+                                ? [
+                                    {
+                                      key: "held",
+                                      label: t("branch.expensePayPersonnelHeldRegisterCashShort"),
+                                      amount: expenseListSourceTotals.held,
+                                      pct: expenseListSourceTotals.heldPct,
+                                    },
+                                  ]
+                                : []),
                             ].map((source) => (
                               <div
                                 key={source.key}

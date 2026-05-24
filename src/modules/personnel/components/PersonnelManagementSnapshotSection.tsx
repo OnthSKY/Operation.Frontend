@@ -16,8 +16,15 @@ import {
   type PersonnelCashHandoverLinesFilterState,
 } from "@/modules/personnel/hooks/usePersonnelQueries";
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
+import {
+  classifyHandoverOutflowSpend,
+  handoverOutflowBucketLabelKey,
+  type HandoverOutflowSpendBucket,
+} from "@/modules/personnel/lib/personnel-cash-handover-ui";
+import { useBranchDetailOverlayOptional } from "@/shared/branch-detail";
 import type { BranchPersonnelMoneySummaryItem } from "@/types/branch-personnel-money";
 import type {
+  PersonnelCashHandoverLine,
   PersonnelCashHandoverOutflow,
   PersonnelCurrencySnapshot,
 } from "@/types/personnel-management-snapshot";
@@ -41,7 +48,7 @@ import {
   TableRow,
 } from "@/shared/ui/Table";
 import { useQueries } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 function formatHireShort(iso: string, locale: Locale, dash: string): string {
   const d = iso?.slice(0, 10);
@@ -162,37 +169,69 @@ function emptyHandoverFilters(): PersonnelCashHandoverLinesFilterState {
   return { branchId: "", currency: "", dateFrom: "", dateTo: "", search: "" };
 }
 
-function CashHandoverOutflowNote({
+function CashHandoverOutflowParty({
   row,
+  currentPersonnelId,
   personnelById,
   dash,
   t,
 }: {
   row: PersonnelCashHandoverOutflow;
+  currentPersonnelId: number;
   personnelById: Map<number, Personnel>;
   dash: string;
   t: (k: string) => string;
 }) {
-  const desc = row.description?.trim();
   const advPid = row.linkedAdvancePersonnelId;
   if (advPid != null && advPid > 0) {
     return (
-      <div className="space-y-1">
-        <p className="text-xs text-zinc-600">
-          <span className="font-medium text-zinc-500">
-            {t("personnel.detailMgmtOutflowsAdvanceRecipient")}:{" "}
-          </span>
-          <PersonnelHeldRegisterPersonLink
-            personnelId={advPid}
-            fullName={row.linkedAdvancePersonnelFullName}
-            personnelById={personnelById}
-            dash={dash}
-          />
-        </p>
-        {desc ? <p className="text-xs text-zinc-500">{desc}</p> : null}
+      <div className="text-xs text-zinc-700">
+        <span className="font-medium text-zinc-500">
+          {t("personnel.detailMgmtOutflowsAdvanceRecipient")}:{" "}
+        </span>
+        <PersonnelHeldRegisterPersonLink
+          personnelId={advPid}
+          fullName={row.linkedAdvancePersonnelFullName}
+          personnelById={personnelById}
+          dash={dash}
+        />
       </div>
     );
   }
+  const linkedPid = row.linkedPersonnelId;
+  if (linkedPid != null && linkedPid > 0 && linkedPid !== currentPersonnelId) {
+    return (
+      <PersonnelHeldRegisterPersonLink
+        personnelId={linkedPid}
+        fullName={row.linkedPersonnelFullName}
+        personnelById={personnelById}
+        dash={dash}
+      />
+    );
+  }
+  const pocketPid = row.expensePocketPersonnelId;
+  if (pocketPid != null && pocketPid > 0 && pocketPid !== currentPersonnelId) {
+    return (
+      <PersonnelHeldRegisterPersonLink
+        personnelId={pocketPid}
+        fullName={row.expensePocketPersonnelFullName}
+        personnelById={personnelById}
+        dash={dash}
+        openCashPhysicalTab
+      />
+    );
+  }
+  return <span className="text-xs text-zinc-500">{dash}</span>;
+}
+
+function CashHandoverOutflowNote({
+  row,
+  dash,
+}: {
+  row: PersonnelCashHandoverOutflow;
+  dash: string;
+}) {
+  const desc = row.description?.trim();
   return <>{desc || dash}</>;
 }
 
@@ -225,6 +264,7 @@ export function PersonnelManagementSnapshotSection({
   onHandoverOpenPatronRegisterRepay,
 }: Props) {
   const { t, locale } = useI18n();
+  const branchOverlay = useBranchDetailOverlayOptional();
   const dash = t("personnel.dash");
   const handoverActionsEnabled =
     !personnel.isDeleted &&
@@ -333,6 +373,14 @@ export function PersonnelManagementSnapshotSection({
     personnel.id,
     outPage,
     hovPageSize,
+    hovApplied,
+    handoverListEnabled
+  );
+
+  const outflowBreakdownList = usePersonnelCashHandoverOutflowsPaged(
+    personnel.id,
+    1,
+    500,
     hovApplied,
     handoverListEnabled
   );
@@ -475,6 +523,80 @@ export function PersonnelManagementSnapshotSection({
   const handoverHeroSpentTotal = Math.max(
     0,
     handoverHeroIncomingTotal - handoverPoolHeroMetrics.heroValue
+  );
+
+  const handoverInById = useMemo(() => {
+    const m = new Map<number, PersonnelCashHandoverLine>();
+    for (const row of snap?.cashHandoverLines ?? []) {
+      if (row.transactionId > 0) m.set(row.transactionId, row);
+    }
+    for (const row of hovItems) {
+      if (row.transactionId > 0) m.set(row.transactionId, row);
+    }
+    return m;
+  }, [snap?.cashHandoverLines, hovItems]);
+
+  const spentBreakdown = useMemo(() => {
+    const ccy = handoverPoolHeroMetrics.ccy;
+    const items = outflowBreakdownList.data?.items ?? snap?.cashHandoverOutflows ?? [];
+    const filtered = items.filter(
+      (r) => (r.currencyCode ?? "TRY").trim().toUpperCase() === ccy
+    );
+    const byBucket = new Map<HandoverOutflowSpendBucket, number>();
+    const byBranch = new Map<number, { name: string; total: number }>();
+    for (const row of filtered) {
+      const bucket = classifyHandoverOutflowSpend(row);
+      byBucket.set(bucket, (byBucket.get(bucket) ?? 0) + row.amount);
+      const bid = row.branchId;
+      const prev = byBranch.get(bid);
+      const bname = row.branchName?.trim() || branchNameById?.get(bid) || `#${bid}`;
+      byBranch.set(bid, {
+        name: bname,
+        total: (prev?.total ?? 0) + row.amount,
+      });
+    }
+    return {
+      ccy,
+      total: filtered.reduce((s, r) => s + r.amount, 0),
+      byBucket: [...byBucket.entries()].sort((a, b) => b[1] - a[1]),
+      byBranch: [...byBranch.values()].sort((a, b) => b.total - a.total),
+      loading: outflowBreakdownList.isPending && !outflowBreakdownList.data,
+    };
+  }, [
+    outflowBreakdownList.data,
+    outflowBreakdownList.isPending,
+    snap?.cashHandoverOutflows,
+    handoverPoolHeroMetrics.ccy,
+    branchNameById,
+  ]);
+
+  const openOutflowDetail = useCallback(
+    (row: PersonnelCashHandoverOutflow) => {
+      if (!branchOverlay || row.branchId <= 0) return;
+      const day = row.transactionDate.slice(0, 10);
+      const tab =
+        row.settlesCashHandoverTransactionId != null && row.settlesCashHandoverTransactionId > 0
+          ? "income"
+          : "expenses";
+      branchOverlay.openBranchDetail(row.branchId, {
+        initialTab: tab,
+        initialRegisterDay: day.length === 10 ? day : null,
+      });
+    },
+    [branchOverlay]
+  );
+
+  const openHandoverInDetail = useCallback(
+    (inId: number) => {
+      const line = handoverInById.get(inId);
+      if (!branchOverlay || !line || line.branchId <= 0) return;
+      const day = line.transactionDate.slice(0, 10);
+      branchOverlay.openBranchDetail(line.branchId, {
+        initialTab: "income",
+        initialRegisterDay: day.length === 10 ? day : null,
+      });
+    },
+    [branchOverlay, handoverInById]
   );
 
   const branchIdsForPocket = useMemo(() => {
@@ -817,6 +939,170 @@ export function PersonnelManagementSnapshotSection({
                       hint={t("personnel.detailMgmtHandoverHeroSpentHint")}
                       emphasis="negative"
                     />
+                  </div>
+                ) : null}
+
+                {handoverRow && spentBreakdown.byBucket.length > 0 ? (
+                  <div className="rounded-xl border border-amber-200/80 bg-amber-50/35 p-3 sm:p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-amber-950/90">
+                      {t("personnel.detailMgmtSpentBreakdownTitle")} · {spentBreakdown.ccy}
+                    </p>
+                    {spentBreakdown.loading ? (
+                      <p className="mt-2 text-xs text-amber-900/70">{t("common.loading")}</p>
+                    ) : (
+                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                        <ul className="space-y-1.5 text-sm">
+                          {spentBreakdown.byBucket.map(([bucket, amt]) => (
+                            <li
+                              key={bucket}
+                              className="flex items-center justify-between gap-3 rounded-lg border border-amber-200/60 bg-white/80 px-2.5 py-1.5"
+                            >
+                              <span className="text-zinc-700">
+                                {t(handoverOutflowBucketLabelKey(bucket))}
+                              </span>
+                              <span className="shrink-0 font-mono text-sm font-semibold tabular-nums text-amber-950">
+                                {formatMoneyDash(amt, dash, locale, spentBreakdown.ccy)}
+                              </span>
+                            </li>
+                          ))}
+                          <li className="flex items-center justify-between gap-3 border-t border-amber-200/70 pt-1.5 font-semibold text-zinc-900">
+                            <span>{t("personnel.detailMgmtHandoverHeroSpentTotal")}</span>
+                            <span className="font-mono tabular-nums">
+                              {formatMoneyDash(
+                                spentBreakdown.total,
+                                dash,
+                                locale,
+                                spentBreakdown.ccy
+                              )}
+                            </span>
+                          </li>
+                        </ul>
+                        {spentBreakdown.byBranch.length > 0 ? (
+                          <div>
+                            <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                              {t("personnel.detailMgmtSpentBreakdownByBranch")}
+                            </p>
+                            <ul className="mt-1.5 space-y-1 text-sm">
+                              {spentBreakdown.byBranch.map((b) => (
+                                <li
+                                  key={b.name}
+                                  className="flex items-center justify-between gap-3 text-zinc-800"
+                                >
+                                  <span className="truncate">{b.name}</span>
+                                  <span className="shrink-0 font-mono tabular-nums">
+                                    {formatMoneyDash(b.total, dash, locale, spentBreakdown.ccy)}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+
+                {!personnel.isDeleted &&
+                (pocketMoneyPending || pocketMoneyByBranch.length > 0) ? (
+                  <div className="rounded-xl border border-violet-200/80 bg-violet-50/30 p-3 sm:p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-violet-950/90">
+                          {t("personnel.detailMgmtPocketSectionTitle")}
+                        </p>
+                        <p className="mt-1 text-xs leading-relaxed text-violet-900/75">
+                          {t("personnel.detailMgmtPocketSectionHint")}
+                        </p>
+                      </div>
+                      {onOpenCostsDetail ? (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="min-h-[44px] shrink-0 px-3 text-xs font-semibold"
+                          onClick={onOpenCostsDetail}
+                        >
+                          {t("personnel.detailMgmtPocketOpenCosts")}
+                        </Button>
+                      ) : null}
+                    </div>
+                    {pocketMoneyPending ? (
+                      <p className="mt-3 text-sm text-zinc-600">{t("common.loading")}</p>
+                    ) : pocketMoneyByBranch.length === 0 ? (
+                      <p className="mt-3 text-sm text-zinc-600">
+                        {t("personnel.detailMgmtPocketEmpty")}
+                      </p>
+                    ) : (
+                      <ul className="mt-3 space-y-3">
+                        {pocketMoneyByBranch.map(({ branchId, row }) => {
+                          const cur =
+                            row.pocketCurrencyCode?.trim().toUpperCase() || "TRY";
+                          const bname =
+                            branchNameById?.get(branchId) ?? `#${branchId}`;
+                          return (
+                            <li
+                              key={branchId}
+                              className="rounded-lg border border-violet-200/70 bg-white/90 p-3 text-sm"
+                            >
+                              <p className="font-medium text-zinc-900">{bname}</p>
+                              <dl className="mt-2 grid gap-1.5 text-xs sm:grid-cols-2">
+                                <div className="flex justify-between gap-2 sm:block">
+                                  <dt className="text-zinc-500">
+                                    {t("personnel.detailMgmtPocketLineGross")}
+                                  </dt>
+                                  <dd className="font-mono font-semibold tabular-nums text-zinc-900 sm:mt-0.5">
+                                    {formatMoneyDash(
+                                      row.grossPocketExpense,
+                                      dash,
+                                      locale,
+                                      cur
+                                    )}
+                                  </dd>
+                                </div>
+                                <div className="flex justify-between gap-2 sm:block">
+                                  <dt className="text-zinc-500">
+                                    {t("personnel.detailMgmtPocketLineRepaidRegister")}
+                                  </dt>
+                                  <dd className="font-mono tabular-nums text-zinc-800 sm:mt-0.5">
+                                    {formatMoneyDash(
+                                      row.pocketRepaidFromRegister,
+                                      dash,
+                                      locale,
+                                      cur
+                                    )}
+                                  </dd>
+                                </div>
+                                <div className="flex justify-between gap-2 sm:block">
+                                  <dt className="text-zinc-500">
+                                    {t("personnel.detailMgmtPocketLineRepaidPatron")}
+                                  </dt>
+                                  <dd className="font-mono tabular-nums text-zinc-800 sm:mt-0.5">
+                                    {formatMoneyDash(
+                                      row.pocketRepaidFromPatron,
+                                      dash,
+                                      locale,
+                                      cur
+                                    )}
+                                  </dd>
+                                </div>
+                                <div className="flex justify-between gap-2 sm:block">
+                                  <dt className="text-zinc-500">
+                                    {t("personnel.detailMgmtPocketOwesShort")}
+                                  </dt>
+                                  <dd className="font-mono font-semibold tabular-nums text-violet-950 sm:mt-0.5">
+                                    {formatMoneyDash(
+                                      row.netRegisterOwesPocket,
+                                      dash,
+                                      locale,
+                                      cur
+                                    )}
+                                  </dd>
+                                </div>
+                              </dl>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
                   </div>
                 ) : null}
 
@@ -1213,18 +1499,23 @@ export function PersonnelManagementSnapshotSection({
                                         {t("personnel.detailMgmtOutflowsColBalanceAfter")}
                                       </TableHeader>
                                       <TableHeader>{t("personnel.detailMgmtOutflowsColKind")}</TableHeader>
+                                      <TableHeader>{t("personnel.detailMgmtOutflowsColParty")}</TableHeader>
                                       <TableHeader>{t("personnel.detailMgmtOutflowsColInRef")}</TableHeader>
                                       <TableHeader>{t("personnel.detailMgmtHandoverColCategory")}</TableHeader>
                                       <TableHeader>{t("personnel.detailMgmtHandoverColNote")}</TableHeader>
+                                      <TableHeader className="w-[1%] whitespace-nowrap">
+                                        {t("personnel.detailMgmtOutflowsColDetail")}
+                                      </TableHeader>
                                     </TableRow>
                                   </TableHead>
                                   <TableBody>
                                     {outItems.map((row) => {
                                       const cat = txCategoryLine(row.mainCategory, row.category, t);
-                                      const inRef =
-                                        row.settlesCashHandoverTransactionId != null
-                                          ? `#${row.settlesCashHandoverTransactionId}`
-                                          : dash;
+                                      const inId = row.settlesCashHandoverTransactionId;
+                                      const inLine =
+                                        inId != null && inId > 0
+                                          ? handoverInById.get(inId)
+                                          : undefined;
                                       return (
                                         <TableRow key={row.transactionId}>
                                           <TableCell
@@ -1261,8 +1552,46 @@ export function PersonnelManagementSnapshotSection({
                                           <TableCell dataLabel={t("personnel.detailMgmtOutflowsColKind")} className="text-zinc-700">
                                             {outflowKindLabel(row.outflowKind, t)}
                                           </TableCell>
-                                          <TableCell dataLabel={t("personnel.detailMgmtOutflowsColInRef")} className="font-mono text-zinc-600">
-                                            {inRef}
+                                          <TableCell dataLabel={t("personnel.detailMgmtOutflowsColParty")} className="max-w-[10rem]">
+                                            <CashHandoverOutflowParty
+                                              row={row}
+                                              currentPersonnelId={personnel.id}
+                                              personnelById={personnelById}
+                                              dash={dash}
+                                              t={t}
+                                            />
+                                          </TableCell>
+                                          <TableCell dataLabel={t("personnel.detailMgmtOutflowsColInRef")} className="text-xs">
+                                            {inId != null && inId > 0 ? (
+                                              branchOverlay ? (
+                                                <button
+                                                  type="button"
+                                                  className="font-medium text-sky-800 underline-offset-2 hover:underline"
+                                                  onClick={() => openHandoverInDetail(inId)}
+                                                >
+                                                  {t("personnel.detailMgmtHandoverInRefLink")
+                                                    .replace("{id}", String(inId))
+                                                    .replace(
+                                                      "{date}",
+                                                      inLine
+                                                        ? formatLocaleDate(
+                                                            inLine.transactionDate,
+                                                            locale,
+                                                            dash
+                                                          )
+                                                        : dash
+                                                    )}
+                                                </button>
+                                              ) : (
+                                                <span className="text-zinc-600">
+                                                  {t("personnel.detailMgmtHandoverInRefLink")
+                                                    .replace("{id}", String(inId))
+                                                    .replace("{date}", inLine?.transactionDate ?? dash)}
+                                                </span>
+                                              )
+                                            ) : (
+                                              dash
+                                            )}
                                           </TableCell>
                                           <TableCell
                                             dataLabel={t("personnel.detailMgmtHandoverColCategory")}
@@ -1274,12 +1603,21 @@ export function PersonnelManagementSnapshotSection({
                                             dataLabel={t("personnel.detailMgmtHandoverColNote")}
                                             className="max-w-[14rem] text-zinc-600"
                                           >
-                                            <CashHandoverOutflowNote
-                                              row={row}
-                                              personnelById={personnelById}
-                                              dash={dash}
-                                              t={t}
-                                            />
+                                            <CashHandoverOutflowNote row={row} dash={dash} />
+                                          </TableCell>
+                                          <TableCell dataLabel={t("personnel.detailMgmtOutflowsColDetail")}>
+                                            {branchOverlay && row.branchId > 0 ? (
+                                              <Button
+                                                type="button"
+                                                variant="secondary"
+                                                className="min-h-[44px] whitespace-nowrap px-2.5 text-xs font-semibold"
+                                                onClick={() => openOutflowDetail(row)}
+                                              >
+                                                {t("personnel.detailMgmtOutflowViewDetail")}
+                                              </Button>
+                                            ) : (
+                                              dash
+                                            )}
                                           </TableCell>
                                         </TableRow>
                                       );

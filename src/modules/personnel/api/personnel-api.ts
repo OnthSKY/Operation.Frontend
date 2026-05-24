@@ -552,6 +552,20 @@ function mapCashHandoverOutflow(r: Record<string, unknown>): PersonnelCashHandov
         : r.LinkedAdvancePersonnelFullName != null
           ? String(r.LinkedAdvancePersonnelFullName)
           : null,
+    linkedPersonnelId: optNum(r.linkedPersonnelId ?? r.LinkedPersonnelId),
+    linkedPersonnelFullName:
+      r.linkedPersonnelFullName != null
+        ? String(r.linkedPersonnelFullName)
+        : r.LinkedPersonnelFullName != null
+          ? String(r.LinkedPersonnelFullName)
+          : null,
+    expensePocketPersonnelId: optNum(r.expensePocketPersonnelId ?? r.ExpensePocketPersonnelId),
+    expensePocketPersonnelFullName:
+      r.expensePocketPersonnelFullName != null
+        ? String(r.expensePocketPersonnelFullName)
+        : r.ExpensePocketPersonnelFullName != null
+          ? String(r.ExpensePocketPersonnelFullName)
+          : null,
   };
 }
 

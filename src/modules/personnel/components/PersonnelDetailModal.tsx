@@ -103,6 +103,7 @@ import {
 import { Tooltip } from "@/shared/ui/Tooltip";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMatchMedia } from "@/shared/lib/use-match-media";
+import { useBranchDetailOverlayOptional } from "@/shared/branch-detail";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 
@@ -562,6 +563,7 @@ export function PersonnelDetailModal({
   initialTab = "profile",
 }: Props) {
   const { t, locale } = useI18n();
+  const branchOverlay = useBranchDetailOverlayOptional();
   const queryClient = useQueryClient();
   const dash = t("personnel.dash");
   const [tab, setTab] = useState<TabId>("profile");
@@ -582,12 +584,8 @@ export function PersonnelDetailModal({
   const [costsListSeasonDraft, setCostsListSeasonDraft] = useState("");
   const costsPdfModalTitleId = useId();
   const costsListSeasonModalTitleId = useId();
-  const costsDetailModalTitleId = useId();
   const [costsFiltersDrawerOpen, setCostsFiltersDrawerOpen] = useState(false);
   const [costsActionsDrawerOpen, setCostsActionsDrawerOpen] = useState(false);
-  const [costsDetailRow, setCostsDetailRow] = useState<CombinedCostsRow | null>(
-    null,
-  );
   const [accountClosureOpen, setAccountClosureOpen] = useState(false);
   /** true: «Kesilen hesaplar»dan açıldı — doğrudan yıl özeti (2. adım). */
   const [accountClosureYearSummary, setAccountClosureYearSummary] =
@@ -833,7 +831,6 @@ export function PersonnelDetailModal({
     setCostsListSeasonModalOpen(false);
     setCostsFiltersDrawerOpen(false);
     setCostsActionsDrawerOpen(false);
-    setCostsDetailRow(null);
   }, [open, personnel?.id, initialTab]);
 
   const seasonScopeSelectOptions = useMemo(
@@ -945,14 +942,35 @@ export function PersonnelDetailModal({
   );
   const costsCombinedTotal = costsAdvanceTotal + costsExpenseTotal;
   const costsSummaryCurrency = (personnel?.currencyCode ?? "TRY").trim() || "TRY";
-  const costsDetailPayload = useMemo(() => {
-    if (costsDetailRow == null) return "";
-    const payload =
-      costsDetailRow.kind === "advance"
-        ? { itemType: "advance", ...costsDetailRow.advance }
-        : { itemType: "expense", ...costsDetailRow.tx };
-    return JSON.stringify(payload, null, 2);
-  }, [costsDetailRow]);
+
+  const openCostsRowDetail = useCallback(
+    (row: CombinedCostsRow) => {
+      if (row.kind === "expense") {
+        const bid = row.tx.branchId;
+        const day = row.tx.transactionDate?.slice(0, 10) ?? "";
+        if (branchOverlay && bid != null && bid > 0 && day.length === 10) {
+          branchOverlay.openBranchDetail(bid, {
+            initialTab: "expenses",
+            initialRegisterDay: day,
+          });
+          return;
+        }
+      }
+      if (row.kind === "advance") {
+        const bid = row.advance.branchId;
+        const day = row.advance.advanceDate?.slice(0, 10) ?? "";
+        if (branchOverlay && bid != null && bid > 0 && day.length === 10) {
+          branchOverlay.openBranchDetail(bid, {
+            initialTab: "expenses",
+            initialRegisterDay: day,
+          });
+          return;
+        }
+      }
+      setTab("costs");
+    },
+    [branchOverlay]
+  );
 
   const warehouseAssignOptions = useMemo(
     () => [
@@ -2197,7 +2215,7 @@ export function PersonnelDetailModal({
                                     <button
                                       type="button"
                                       className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
-                                      onClick={() => setCostsDetailRow(row)}
+                                      onClick={() => openCostsRowDetail(row)}
                                     >
                                       {t("personnel.detailCostsViewDetailAction")}
                                     </button>
@@ -2296,7 +2314,7 @@ export function PersonnelDetailModal({
                                     <button
                                       type="button"
                                       className="rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
-                                      onClick={() => setCostsDetailRow(row)}
+                                      onClick={() => openCostsRowDetail(row)}
                                     >
                                       {t("personnel.detailCostsViewDetailAction")}
                                     </button>
@@ -2396,7 +2414,7 @@ export function PersonnelDetailModal({
                                         <button
                                           type="button"
                                           className="mt-1 inline-flex rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
-                                          onClick={() => setCostsDetailRow(row)}
+                                          onClick={() => openCostsRowDetail(row)}
                                         >
                                           {t("personnel.detailCostsViewDetailAction")}
                                         </button>
@@ -2496,7 +2514,7 @@ export function PersonnelDetailModal({
                                         <button
                                           type="button"
                                           className="mt-1 inline-flex rounded-md border border-zinc-300 px-2 py-1 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
-                                          onClick={() => setCostsDetailRow(row)}
+                                          onClick={() => openCostsRowDetail(row)}
                                         >
                                           {t("personnel.detailCostsViewDetailAction")}
                                         </button>
@@ -3444,37 +3462,6 @@ export function PersonnelDetailModal({
             >
               {t("personnel.detailCostsListSeasonApply")}
             </Button>
-          </div>
-        </div>
-      </Modal>
-      <Modal
-        nested
-        open={costsDetailRow != null}
-        onClose={() => setCostsDetailRow(null)}
-        titleId={costsDetailModalTitleId}
-        title={t("personnel.detailCostsDetailModalTitle")}
-        closeButtonLabel={t("common.close")}
-      >
-        <div className="space-y-4">
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700">
-            <p className="font-semibold text-zinc-900">
-              {costsDetailRow?.kind === "advance"
-                ? t("personnel.detailExpenseBadgeAdvance")
-                : t("personnel.detailExpenseBadgeExpense")}
-            </p>
-            <p className="mt-1 break-words">
-              {costsDetailRow?.kind === "advance"
-                ? `${t("personnel.advanceDate")}: ${formatAdvanceDay(costsDetailRow.advance.advanceDate, locale, dash)}`
-                : `${t("personnel.detailExpenseColDate")}: ${formatLocaleDate(costsDetailRow?.tx.transactionDate ?? "", locale, dash)}`}
-            </p>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-zinc-900">
-              {t("personnel.detailCostsAllFieldsLabel")}
-            </p>
-            <pre className="max-h-[24rem] overflow-auto rounded-lg border border-zinc-200 bg-zinc-950 p-3 text-xs leading-relaxed text-zinc-100">
-              {costsDetailPayload}
-            </pre>
           </div>
         </div>
       </Modal>

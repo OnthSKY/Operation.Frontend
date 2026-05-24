@@ -26,6 +26,8 @@ type Props = {
   initialTab?: BranchDetailTabId | null;
   /** `YYYY-MM-DD` from URL (?registerDay=) — register summary day + optional list filters. */
   initialRegisterDay?: string | null;
+  /** Expense payment source filter from URL (?expSource=). */
+  initialExpensePaymentSource?: string | null;
 };
 
 function BranchEditIcon({ className }: { className?: string }) {
@@ -58,6 +60,7 @@ export function BranchDetailSheet({
   onClose,
   initialTab = null,
   initialRegisterDay = null,
+  initialExpensePaymentSource = null,
 }: Props) {
   const { t } = useI18n();
   const [backdropConfirmOpen, setBackdropConfirmOpen] = useState(false);
@@ -162,6 +165,7 @@ export function BranchDetailSheet({
             branchDayClerkMode={branchDayClerkMode}
             initialTab={initialTab}
             initialRegisterDay={initialRegisterDay}
+            initialExpensePaymentSource={initialExpensePaymentSource}
           />
         </div>
       </div>

@@ -71,6 +71,7 @@ type Props = {
   branchDayClerkMode?: boolean;
   initialTab?: BranchDetailTabId | null;
   initialRegisterDay?: string | null;
+  initialExpensePaymentSource?: string | null;
 };
 
 const EXP_PAGE = 15;
@@ -83,6 +84,7 @@ export function BranchDetailTabs({
   branchDayClerkMode = false,
   initialTab = null,
   initialRegisterDay = null,
+  initialExpensePaymentSource = null,
 }: Props) {
   const { t, locale } = useI18n();
   const showStaffOnlyFeatures = !employeeSelfService && !branchDayClerkMode;
@@ -193,7 +195,7 @@ export function BranchDetailTabs({
     }
     setExpPage(1);
     setExpFilterMain("");
-    setExpFilterPay("");
+    setExpFilterPay((initialExpensePaymentSource ?? "").trim().toUpperCase());
     setIncPage(1);
     setIncFilterMain("");
     setIncFilterCash("");
@@ -202,7 +204,7 @@ export function BranchDetailTabs({
     setExpenseOverviewDetail(null);
     setPersonnelSubTab("people");
     setTxDeletePendingId(null);
-  }, [branch.id, employeeSelfService, branchDayClerkMode, initialTab, registerDayInitial]);
+  }, [branch.id, employeeSelfService, branchDayClerkMode, initialTab, registerDayInitial, initialExpensePaymentSource]);
 
   useEffect(() => {
     if (!employeeSelfService) return;

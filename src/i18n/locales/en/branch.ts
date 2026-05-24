@@ -647,6 +647,8 @@ export const branch = {
   expensesListFilterScopeHint: "Filter scope",
   expensesListUnifiedBreakdownHint:
     "Payment-source split within this total (amount and percentage).",
+  expensesListExcludesHeldRegisterHint:
+    "Held register cash handovers are not counted as expenses—only register, owner, and personnel-pocket payments. Filter by «Held register cash» to list those transfers.",
   expensesListPeriodPatronTotal: "Owner-paid expense total",
   expensesListPeriodRowCount: "Matching rows",
   expensesListDayForPrefix: "Selected day:",
