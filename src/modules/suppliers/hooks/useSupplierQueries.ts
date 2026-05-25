@@ -19,6 +19,9 @@ import {
   type SupplierInvoiceListQuery,
 } from "@/modules/suppliers/api/suppliers-api";
 import { fetchAuditLogs } from "@/lib/api/audit-logs-api";
+import { branchKeys } from "@/modules/branch/hooks/useBranchQueries";
+import { dashboardSummaryKeys } from "@/modules/dashboard/query-keys";
+import { reportsKeys } from "@/modules/reports/query-keys";
 
 export const supplierKeys = {
   all: ["suppliers"] as const,
@@ -152,6 +155,10 @@ export function useUpdateSupplierInvoice() {
       void qc.invalidateQueries({ queryKey: supplierKeys.invoice(vars.id) });
       void qc.invalidateQueries({ queryKey: supplierKeys.invoiceAudit(vars.id) });
       void qc.invalidateQueries({ queryKey: supplierKeys.all });
+      // paymentMarkedComplete / line content may shift downstream summaries.
+      void qc.invalidateQueries({ queryKey: branchKeys.all });
+      void qc.invalidateQueries({ queryKey: reportsKeys.all });
+      void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
     },
   });
 }
@@ -162,6 +169,9 @@ export function useCreateSupplierPayment() {
     mutationFn: createSupplierPayment,
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: supplierKeys.all });
+      void qc.invalidateQueries({ queryKey: branchKeys.all });
+      void qc.invalidateQueries({ queryKey: reportsKeys.all });
+      void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
     },
   });
 }
@@ -205,6 +215,10 @@ export function usePostSupplierInvoiceLineBranchAllocations() {
     onSuccess: (_data, vars) => {
       void qc.invalidateQueries({ queryKey: supplierKeys.lineAlloc(vars.lineId) });
       void qc.invalidateQueries({ queryKey: supplierKeys.all });
+      // Post creates branch_transactions rows; refresh every downstream cache.
+      void qc.invalidateQueries({ queryKey: branchKeys.all });
+      void qc.invalidateQueries({ queryKey: reportsKeys.all });
+      void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
     },
   });
 }

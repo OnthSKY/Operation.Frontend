@@ -532,7 +532,7 @@ export function WarehouseStockLine({
     >
       <form
         id={depoInFormId}
-        className="mt-4 flex max-h-[min(78dvh,28rem)] flex-col gap-3 overflow-y-auto [-webkit-overflow-scrolling:touch] sm:max-h-none sm:overflow-visible"
+        className="mt-4 flex flex-col gap-3"
         onSubmit={(e) => void runDepoIn(e)}
       >
         <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5">
@@ -689,7 +689,7 @@ export function WarehouseStockLine({
     >
       <form
         id={transferFormId}
-        className="mt-4 flex max-h-[min(78dvh,28rem)] flex-col gap-3 overflow-y-auto [-webkit-overflow-scrolling:touch] sm:max-h-none sm:overflow-visible"
+        className="mt-4 flex flex-col gap-3"
         onSubmit={(e) => void runTransfer(e)}
       >
         <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5">

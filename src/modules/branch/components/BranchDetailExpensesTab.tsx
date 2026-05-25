@@ -29,7 +29,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/Table";
-import { ChevronLeft, ChevronRight, Wallet } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Wallet } from "lucide-react";
+import { cn } from "@/lib/cn";
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 import type { UseMutationResult } from "@tanstack/react-query";
 import {
@@ -268,6 +269,14 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
     return to.length === 10 ? { from, to } : null;
   }, [expThroughToday, todayIso]);
 
+  const expQuickTodaySelected = expFrom === todayIso && expTo === todayIso;
+  const expQuickAllTimeSelected =
+    expFrom === "" && expTo === "" && !hasExpMainFilter && !hasExpPayFilter;
+  const expQuickSeasonSelected =
+    !!expenseSeasonQuickRange &&
+    expFrom === expenseSeasonQuickRange.from &&
+    expTo === expenseSeasonQuickRange.to;
+
   const unifiedExpenseFilters = useMemo(
     () => ({
       from: expFrom,
@@ -330,28 +339,42 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                   <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:contents">
                     <Button
                       type="button"
-                      variant="secondary"
-                      className="min-h-11 w-full touch-manipulation sm:min-w-[9rem] sm:flex-1"
+                      variant={expQuickTodaySelected ? "primary" : "secondary"}
+                      aria-pressed={expQuickTodaySelected}
+                      className={cn(
+                        "min-h-11 w-full touch-manipulation sm:min-w-[9rem] sm:flex-1",
+                        expQuickTodaySelected && "ring-2 ring-zinc-900 ring-offset-1 ring-offset-zinc-50"
+                      )}
                       onClick={() => {
                         const d = localIsoDate();
                         applyUnifiedExpenseFilters({ from: d, to: d });
                       }}
                     >
+                      {expQuickTodaySelected ? <Check className="mr-1.5 h-4 w-4" aria-hidden /> : null}
                       {t("branch.filterToday")}
                     </Button>
                     <Button
                       type="button"
-                      variant="secondary"
-                      className="min-h-11 w-full touch-manipulation sm:min-w-[9rem] sm:flex-1"
+                      variant={expQuickAllTimeSelected ? "primary" : "secondary"}
+                      aria-pressed={expQuickAllTimeSelected}
+                      className={cn(
+                        "min-h-11 w-full touch-manipulation sm:min-w-[9rem] sm:flex-1",
+                        expQuickAllTimeSelected && "ring-2 ring-zinc-900 ring-offset-1 ring-offset-zinc-50"
+                      )}
                       onClick={() => applyUnifiedExpenseFilters({ from: "", to: "", main: "", pay: "" })}
                     >
+                      {expQuickAllTimeSelected ? <Check className="mr-1.5 h-4 w-4" aria-hidden /> : null}
                       {t("branch.filterAllTime")}
                     </Button>
                     {expenseSeasonQuickRange ? (
                       <Button
                         type="button"
-                        variant="secondary"
-                        className="col-span-2 min-h-11 w-full touch-manipulation sm:col-span-1 sm:min-w-[9rem] sm:flex-1"
+                        variant={expQuickSeasonSelected ? "primary" : "secondary"}
+                        aria-pressed={expQuickSeasonSelected}
+                        className={cn(
+                          "col-span-2 min-h-11 w-full touch-manipulation sm:col-span-1 sm:min-w-[9rem] sm:flex-1",
+                          expQuickSeasonSelected && "ring-2 ring-zinc-900 ring-offset-1 ring-offset-zinc-50"
+                        )}
                         onClick={() =>
                           applyUnifiedExpenseFilters({
                             from: expenseSeasonQuickRange.from,
@@ -359,21 +382,11 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                           })
                         }
                       >
+                        {expQuickSeasonSelected ? <Check className="mr-1.5 h-4 w-4" aria-hidden /> : null}
                         {t("branch.filterThisSeason")}
                       </Button>
                     ) : null}
                   </div>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="min-h-11 w-full touch-manipulation sm:ml-auto sm:w-auto sm:min-w-[8.5rem]"
-                    onClick={() => {
-                      void refetchExp();
-                      refetchExpenseSummaryBlocks();
-                    }}
-                  >
-                    {t("branch.filterApplyRefresh")}
-                  </Button>
                 </div>
               </div>
             </section>

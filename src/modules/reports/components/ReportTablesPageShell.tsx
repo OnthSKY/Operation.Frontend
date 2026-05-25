@@ -23,7 +23,7 @@ export function ReportTablesPageShell({
   const { t } = useI18n();
   const rid = useId().replace(/:/g, "");
   return (
-    <div className="mx-auto flex w-full min-w-0 flex-col gap-6 app-page-max pb-6 pt-2 sm:pb-8 sm:pt-4 md:pt-0">
+    <div className="mx-auto flex min-h-full w-full min-w-0 flex-col gap-6 app-page-max pb-6 pt-2 sm:pb-8 sm:pt-4 md:pt-0">
       <Link
         href="/reports/financial"
         className="w-fit text-sm font-semibold text-violet-700 hover:underline touch-manipulation"
@@ -55,6 +55,7 @@ export function ReportTablesPageShell({
         sectionAriaLabel={t("common.pageSectionMain")}
         sectionLabelId={`report-main-${rid}`}
         mobileFrame="flush"
+        stretch
       >
         {children}
       </PageContentSection>

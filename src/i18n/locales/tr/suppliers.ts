@@ -7,6 +7,9 @@ export const suppliers = {
   invoicesPageTitle: "Tedarikçi faturaları",
   invoicesPageSubtitle:
     "Alım faturalarını tedarikçi, tarih aralığı, fatura toplam tutarı ve ödenmiş / ödenmemiş durumuna göre süzün.",
+  invoicesCrossRefToFinReport:
+    "Dönem sonu finansal özet (para birimi ve ödeme kaynağı bazında toplam) için:",
+  invoicesCrossRefToFinReportLink: "Finansal Tablolar → Tedarikçi ödemeleri",
   filterDrawerTitle: "Süzme",
   invoicePaidBadge: "Ödendi",
   filterLinesTotalMin: "Min. fatura tutarı",
@@ -130,6 +133,7 @@ export const suppliers = {
   sourceCash: "Şube kasası",
   sourceBank: "Banka",
   sourcePatron: "Patron",
+  sourcePersonnelHeldRegisterCash: "Personel cebindeki kasa parası",
   paymentBranch: "Ödemenin çıktığı şube",
   allocationsHint: "Bu ödeme yalnızca seçili faturaya mahsup edilir.",
   noInvoices: "Filtreye uygun fatura yok.",

@@ -318,6 +318,38 @@ export const branch = {
   currentAccountPdfPreview: "Ön izleme oluştur",
   currentAccountPdfExport: "PDF indir",
   currentAccountPdfPreviewHint: "Ön izleme için «Ön izleme oluştur» butonuna basın.",
+  currentAccountSubTabsAria: "Cari hesap alt sekmeleri",
+  currentAccountSubTabInvoices: "Faturalar",
+  currentAccountSubTabReceipts: "Tahsilatlar",
+  currentAccountReceiptsHint:
+    "Her fatura için yapılmış tahsilatları görüntüleyin; düzenleyebilir veya soft silebilirsiniz.",
+  currentAccountReceiptsEmpty: "Bu şube için tahsilat kaydı yok.",
+  currentAccountReceiptsInvoiceEmpty: "Bu faturada henüz tahsilat yok.",
+  currentAccountReceiptsInvoiceReceiptCount: "{n} tahsilat kalemi",
+  currentAccountReceiptsTotalCount: "Toplam tahsilat kalemi",
+  currentAccountReceiptsTotalAmount: "Tahsilat toplamı",
+  currentAccountReceiptsMixedCurrency: "(çoklu para birimi)",
+  currentAccountReceiptsSearchPlaceholder: "Fatura no ara",
+  currentAccountReceiptsFilterOnlyWithReceipts: "Yalnız tahsilatı olan faturalar",
+  currentAccountReceiptKindLabel: "Tahsilat türü",
+  currentAccountReceiptKindCash: "Nakit/Havale",
+  currentAccountReceiptKindPromo: "Promosyon/İskonto",
+  currentAccountReceiptKindAdvance: "Ön ödeme",
+  currentAccountReceiptKindOther: "Diğer",
+  currentAccountReceiptEdit: "Düzenle",
+  currentAccountReceiptDelete: "Sil",
+  currentAccountReceiptDeleteAsk: "Bu tahsilat silinsin mi?",
+  currentAccountReceiptDeleteConfirm: "Evet, sil",
+  currentAccountReceiptDeleteCancel: "Vazgeç",
+  currentAccountReceiptDeleted: "Tahsilat silindi.",
+  currentAccountReceiptUpdateModalTitle: "Tahsilatı düzenle",
+  currentAccountReceiptSaveEdit: "Güncellemeyi kaydet",
+  currentAccountReceiptUpdated: "Tahsilat güncellendi.",
+  currentAccountReceiptUpdateMaxAllowable:
+    "İzin verilen en yüksek tutar: {amount}",
+  currentAccountReceiptOverpay:
+    "Tahsilat tutarı açık bakiyeyi aşamaz. İzin verilen en yüksek tutar: {amount}.",
+  currentAccountReceiptDateInvalid: "Geçerli bir tarih girin.",
   tourismSeasonClosedOpenTab: "Turizm sezonu sekmesine git",
   expensesSeasonMissingForToday:
     "Bugün için bu şubede açık turizm sezonu tanımlı değil. Şube fiilen sezonda değilken şube kasasından gider yazmak tutarlı değildir; önce turizm sezonu kaydı ekleyin veya işlem tarihini sezon içine alın. Gider ve gelir dışı akışlar bu durumda sunucu tarafından engellenir; yalnızca gelir satırları merkez «Sezon kapalıyken izinler» politikasının açık olması halinde mümkün olabilir.",
@@ -1017,6 +1049,9 @@ export const branch = {
   txOrgModalTitle: "Merkez gideri (şubesiz)",
   txOrgModalHintShort:
     "Şube kasasına bağlı olmayan gider. Ödeme kaynağı patron (PATRON) veya personel cebi (kasaya borç) olmalıdır.",
+  txOrgPersonnelModalTitle: "Personel gideri",
+  txOrgPersonnelModalHintShort:
+    "Bir personele ait gider; şube atamadan, doğrudan patron cebinden ödenecek.",
   txOrgAdvanceExistingOnly:
     "Merkez giderinde buradan yeni avans oluşturulamaz; yalnızca mevcut avansa bağlayın.",
   txOrgPerOtherNeedPersonnel: "Personel kartında görünsün diye personel seçin.",

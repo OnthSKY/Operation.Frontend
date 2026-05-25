@@ -760,6 +760,7 @@ export function useCreateAdvance() {
       });
       void qc.invalidateQueries({ queryKey: branchKeys.all });
       void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
+      void qc.invalidateQueries({ queryKey: reportsKeys.all });
     },
   });
 }

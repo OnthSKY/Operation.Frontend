@@ -35,6 +35,7 @@ import {
 import { expensePaymentSourceLabel } from "@/modules/branch/lib/branch-transaction-options";
 import { cn } from "@/lib/cn";
 import type { FinancialBranchBreakdownRow } from "@/types/reports";
+import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState } from "react";
 
 function fillTemplate(template: string, vars: Record<string, string>): string {
@@ -263,9 +264,20 @@ export function BranchComparisonReportScreen() {
       title={t("reports.tablesPageBranchComparisonTitle")}
       subtitle={t("reports.tablesPageBranchComparisonSubtitle")}
       introCallout={
-        <p className="rounded-lg border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-xs leading-relaxed text-amber-950 sm:text-sm">
-          {t("reports.branchComparisonKpiScopeCallout")}
-        </p>
+        <div className="space-y-2">
+          <p className="rounded-lg border border-amber-200/80 bg-amber-50/90 px-3 py-2 text-xs leading-relaxed text-amber-950 sm:text-sm">
+            {t("reports.branchComparisonKpiScopeCallout")}
+          </p>
+          <p className="flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-lg border border-sky-200/80 bg-sky-50/70 px-3 py-2 text-xs leading-relaxed text-sky-950 sm:text-sm">
+            <span>{t("reports.branchComparisonCrossRefToFinTables")}</span>
+            <Link
+              href="/reports/financial/tables/branches"
+              className="font-semibold text-sky-800 underline underline-offset-2 hover:text-sky-900"
+            >
+              {t("reports.branchComparisonCrossRefToFinTablesLink")}
+            </Link>
+          </p>
+        </div>
       }
       pageGuide={
         <PageWhenToUseInfoButton

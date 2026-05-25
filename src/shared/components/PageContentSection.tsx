@@ -21,6 +21,11 @@ type Props = {
    * `plain` + dar ekran: dış kart çerçevesini kaldırır; içerideki kart/tablolar tek yüzey olur.
    */
   mobileFrame?: "card" | "flush";
+  /**
+   * Parent flex-col'de kalan yüksekliği doldur — kart aşağıya kadar uzar, sayfa altında
+   * gri zemin boşluğu görünmez. İçeriği değil sadece kart yüzeyini büyütür.
+   */
+  stretch?: boolean;
 };
 
 /**
@@ -34,6 +39,7 @@ export function PageContentSection({
   variant = "plain",
   sectionLabelId,
   mobileFrame = "card",
+  stretch = false,
 }: Props) {
   const showEyebrow = eyebrow != null && String(eyebrow).trim() !== "";
   const flushPlainMobile = variant === "plain" && mobileFrame === "flush";
@@ -87,8 +93,15 @@ export function PageContentSection({
     : ({ "aria-label": regionAriaLabel } as const);
 
   return (
-    <section className={cn("min-w-0", className)} {...a11y}>
-      <div className={shell}>
+    <section
+      className={cn(
+        "min-w-0",
+        stretch && "flex flex-1 flex-col",
+        className,
+      )}
+      {...a11y}
+    >
+      <div className={cn(shell, stretch && "flex flex-1 flex-col")}>
         {showEyebrow ? (
           <div className={header}>
             <p id={sectionLabelId} className={eyebrowClass}>
@@ -96,7 +109,7 @@ export function PageContentSection({
             </p>
           </div>
         ) : null}
-        <div className={body}>{children}</div>
+        <div className={cn(body, stretch && "flex-1")}>{children}</div>
       </div>
     </section>
   );

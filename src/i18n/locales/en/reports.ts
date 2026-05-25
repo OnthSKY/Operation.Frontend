@@ -318,6 +318,9 @@
   sectionByCategory: "By category (top lines)",
   sectionAdvances: "Advances in period",
   sectionSupplierPayments: "Supplier payments (period)",
+  supplierPaymentsCrossRefToInvoices:
+    "To view, create, or record payment on an individual invoice:",
+  supplierPaymentsCrossRefToInvoicesLink: "Suppliers -> Invoices",
   sectionGeneralOverheadAllocated: "General overhead allocated to branches (period)",
   colOverheadPoolTitle: "Pool",
   colOverheadPoolDate: "Pool date",
@@ -547,21 +550,21 @@
   navFinancialTables: "Financial Â· tables",
   navStockTables: "Stock â€” full tables",
   navCashReport: "Cash â€” full table",
-  navPatronFlow: "From my pocket â€” where it went",
-  navBranchComparison: "Branches side by side",
+  navPatronFlow: "Patron-Paid Expenses",
+  navBranchComparison: "Branch Comparison Report",
   navBackToReportsHub: "All reports",
   sidebarFinances: "Period finance",
   sidebarOrderAccountStatement: "Order / account statement",
-  sidebarCounterpartySummary: "Who received what summary",
+  sidebarCounterpartySummary: "Counterparty Summary",
   hubOpenCashFullTable: "Full cash table (sort & export)",
   hubOpenStockFullTables: "Stock â€” full tables page",
   finReportsLayoutTitle: "Financial reports",
   finToolbarPreviewEyebrow: "Selected period",
   finReportsLayoutSubtitle:
-    "Summary Â· vs prior Â· Charts Â· Monthly cumulative Â· Tables â€” top tabs; shared filter drawer.",
-  finNavSummary: "Period summary",
+    "KPI dashboard Â· vs prior Â· Charts & alerts Â· Monthly cumulative Â· Tables â€” top tabs; shared filter drawer.",
+  finNavSummary: "KPI dashboard",
   finNavCompare: "vs prior period",
-  finNavCharts: "Charts & mix",
+  finNavCharts: "Charts & alerts",
   finNavTrend: "Monthly cumulative",
   finNavCurrentAccounts: "Current account reports",
   finNavTables: "Financial tables",
@@ -569,7 +572,7 @@
     "Track issued invoices, collected receipts, and open balances in one current-account summary by branch and customer.",
   finNavCashFlow: "Owner pocket & register",
   finSummaryPageLead:
-    "Cards follow the period and extra filters in the drawer. Use the tabs above for signals and charts.",
+    "All period KPIs on one panel — primary (income/expense/net) and secondary (supplier, advance, overhead, off-register vehicle). Use Monthly cumulative for trend, Charts & alerts for signals and breakdown.",
   finChartsPageIntroEyebrow: "This tab in brief",
   finChartsPageIntroBody: `Pie and branch-bar charts use the same financial filters as the Summary tab (dates, branch, currency, direction, category, payment source, etc.).
 
@@ -604,48 +607,54 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   tablesPageStockSubtitle: "Warehouses, flows, and branch receipts â€” filter per section.",
   tablesPageCashTitle: "Cash position",
   tablesPageCashSubtitle: "Drawer cash and register debts by branch.",
-  tablesPagePatronFlowTitle: "From my pocket â€” where it went",
+  tablesPagePatronFlowTitle: "Patron Payments",
   tablesPagePatronFlowSubtitle:
-    "Owner-related lines written to the register: cash you inject, income cash tagged to you, register payouts to you, and expenses with payer = owner â€” full list with branch/date filters.",
+    "Every expense paid from the patron's pocket — filter by branch, date and expense group.",
+  patronExpensesLead:
+    "Every expense paid from the patron's pocket across all branches in one list. Taxes, suppliers, personnel salaries, operating costs or anything else — whatever the category, it shows up here.",
+  patronExpensesEmpty:
+    "No expenses paid from the patron's pocket for the selected date range and branch.",
+  patronExpensesRollupTitle: "Patron pocket — period summary",
+  patronExpensesRollupHeadline:
+    "{{amount}} {{currency}} was paid from the patron's pocket this period ({{count}} rows).",
+  patronExpensesRollupBreakdown: "Breakdown by expense group",
+  patronExpensesTableTitle: "Expense lines",
+  patronExpensesTableLead:
+    "All patron-paid OUT rows. 25 per page; expense group, search and sort available.",
+  patronExpensesBucketFilter: "Expense group",
+  patronExpensesKpiSummary: "{{count}} transactions · {{branches}} branches",
+  patronExpensesPartialFailureTitle: "Some data couldn't be loaded",
+  patronExpensesPartialFailureHint:
+    "Totals may be incomplete for these sources: {{sources}}. Try again.",
+  patronExpensesPartialFailureBranches: "{{count}} branches",
+  patronExpensesPartialFailureAdvances: "patron advances",
+  patronExpensesPartialFailurePools: "general overhead pools",
+  patronExpensesPartialFailureCentralPersonnel: "central personnel expenses",
+  patronExpensesPartialFailureSupplierPayments: "supplier payments",
+  patronExpensesPartialFailureRetry: "Retry",
+  patronExpensesExpandAria: "Show detail",
+  patronExpensesCollapseAria: "Hide detail",
+  patronExpensesOpenDetailAria: "Open branch expense",
+  patronExpenseBucketAll: "All",
+  patronExpenseGroupPersonnel: "Personnel",
+  patronExpenseBucketPersonnelAdvance: "Personnel advance",
+  patronExpenseBucketPersonnelExpense: "Personnel expense",
+  patronExpenseBucketVehicle: "Vehicle expense",
+  patronExpenseBucketSupplier: "Supplier expense",
+  patronExpenseBucketGoods: "Goods/stock",
+  patronExpenseBucketGeneralOverhead: "General overhead",
+  patronExpenseBucketBranchOps: "Branch operations",
+  patronExpenseBucketTax: "Tax & official",
+  patronExpenseBucketPatronDebtRepay: "Patron debt repayment",
+  patronExpenseBucketNonPnl: "Non-P&L",
+  patronExpenseBucketOther: "Other",
   patronFlowScopeNote:
     "â€œPaid from your pocketâ€ here means OUT rows with expense payment source Owner (split into supplier / accounting / other flow types). Cash you put in and income share lines are separate. If a line is not tagged Owner (e.g. salary defaults to register), it will not appear as owner-pocket outflow â€” different from the financial summary.",
-  patronPocketStoryTitle: "Owner pocket — summary",
-  patronPocketStoryBucketIntro:
-    "Outflows are grouped as: advances, payroll/personnel, branch (supplier, stock, operations), and general (accounting and other). See the detailed list below.",
-  patronPocketStoryHeadlineOut:
-    "In this period, {{amount}} {{currency}} left your pocket in total.",
-  patronPocketStoryInOnly:
-    "{{amount}} {{currency}} net toward you from the register (deposits + income tagged to you); no owner-pocket payments out in this slice.",
-  patronPocketStoryCashInAlso: "Register inflows on your side (deposits + income share): {{amount}} {{currency}}.",
-  patronPocketStoryWhere: "What it paid for (share of pocket outflows)",
-  patronFlowOutDetailTitle: "Paid from your pocket — detail",
-  patronFlowOutDetailLead:
-    "Only lines paid from your pocket. Filter by group, search, sort — 25 rows per page.",
-  patronFlowOutBucketAll: "All outflows",
-  patronFlowOutBucketAdvance: "Advance (off register)",
-  patronFlowOutBucketPersonnel: "Payroll / personnel",
-  patronFlowOutBucketBranch: "Branch: supplier, stock, operations",
-  patronFlowOutBucketGeneral: "General: accounting, legal, other",
-  patronFlowOutBucketFilter: "Expense group",
   patronFlowColExpenseGroup: "Group",
   patronFlowOutPaging:
     "Page {{page}} / {{totalPages}} · {{shown}} rows on this page ({{total}} after filters)",
   patronFlowOutPrevPage: "Previous page",
   patronFlowOutNextPage: "Next page",
-  patronFlowAllLinesSectionTitle: "All flow lines (register inflows included)",
-  patronFlowUnifiedLinesTitle: "Movements",
-  patronFlowViewBarAria: "Choose which list to show",
-  patronFlowViewBarOpen: "Pocket outflows",
-  patronFlowViewBarIntegrated: "All movements",
-  patronFlowViewBarIntegratedCaption:
-    "Register inflows, register payouts to you, and every flow type — search and sort below.",
-  patronPocketStoryNoMovement: "No movements for this currency.",
-  patronFlowLead:
-    "Rows come from branch register lines: owner cash in, income with cash settlement to owner, register payouts to owner (debt repay / on-books reassignment to owner), owner-paid OUT (supplier-linked, OUT_TAX, other). POS tags from each branch profile.",
-  patronFlowTotalsTitle: "Totals by flow type",
-  patronFlowKindPatronCashIn: "Patron cash in",
-  patronFlowKindRegisterIncomeToPatron: "Register income (owner cash share)",
-  patronFlowKindRegisterPaidToPatron: "Register paid to owner (debt repayment)",
   patronFlowKindPocketClaimToPatron: "On-books reassignment â†’ owner",
   patronFlowStoryInflowBreakdown:
     "Split: owner cash deposit {{deposit}} Â· register income tagged to you {{incomeShare}} {{currency}}.",
@@ -688,13 +697,19 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   patronFlowBeneficiaryOther: "Other",
   patronFlowPickBranchFirst: "Choose a branch first.",
   patronFlowPersonnelRequired: "Pick branch personnel when beneficiary is personnel.",
-  tablesPageBranchComparisonTitle: "Branch comparison â€” operating KPIs",
+  tablesPageBranchComparisonTitle: "Branch Comparison Report",
   tablesPageBranchComparisonSubtitle:
     "Operating income, operating expense, and net by branch and currency. Use the row chevron to open cash/card/owner-tagged income and expense-by-payment-source splits.",
   branchComparisonKpiScopeCallout:
     "Income and expense columns use the same KPI rules as the financial summary (internal routing INs excluded from income; pocket and owner-debt repayments from the register excluded from expense). Drawer cash on the Cash tab is a physical snapshot and can differ.",
   branchComparisonScopeNote:
     "Branch comparison uses the same operating-income and operating-expense definitions as the financial report for the selected date range â€” not raw â€œevery IN/OUTâ€ register turnover.",
+  branchComparisonCrossRefToFinTables:
+    "To filter by category, payment source or period delta:",
+  branchComparisonCrossRefToFinTablesLink: "Financial Tables -> Branch",
+  byBranchCrossRefToBranchComparison:
+    "For per-branch deep dive (income/expense breakdown, pagination):",
+  byBranchCrossRefToBranchComparisonLink: "Branch Comparison",
   branchComparisonPeriodHelp:
     "Uses branch register transactions in the date range. Sort columns by clicking headers.",
   branchComparisonSortHint: "Click a column title to sort; click again to reverse.",

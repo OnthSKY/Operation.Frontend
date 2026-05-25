@@ -2321,12 +2321,16 @@ export function AddBranchTransactionModal({
       titleId={TITLE_ID}
       title={
         propBranchId == null && resolvedBranchId == null
-          ? t("branch.txOrgModalTitle")
+          ? personnelExpenseFlow
+            ? t("branch.txOrgPersonnelModalTitle")
+            : t("branch.txOrgModalTitle")
           : t("branch.txModalTitle")
       }
       description={
         propBranchId == null && resolvedBranchId == null
-          ? t("branch.txOrgModalHintShort")
+          ? personnelExpenseFlow
+            ? t("branch.txOrgPersonnelModalHintShort")
+            : t("branch.txOrgModalHintShort")
           : t("branch.txModalHintShort")
       }
       closeButtonLabel={t("common.close")}

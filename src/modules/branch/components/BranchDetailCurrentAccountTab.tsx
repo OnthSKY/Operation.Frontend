@@ -25,6 +25,9 @@ import {
 } from "@/modules/order-account-statement/lib/download-counterparty-invoice-style-pdf";
 import { useBranchDocuments, useUploadBranchDocument } from "@/modules/branch/hooks/useBranchQueries";
 import { CurrentAccountReceiptModal } from "@/modules/order-account-statement/components/CurrentAccountReceiptModal";
+import { BranchCurrentAccountReceiptsPanel } from "./BranchCurrentAccountReceiptsPanel";
+import type { Locale } from "@/i18n/messages";
+import { cn } from "@/lib/cn";
 import { useI18n } from "@/i18n/context";
 import { apiFetch } from "@/shared/api/client";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
@@ -64,10 +67,13 @@ function parseInvoiceIdFromNote(note: string | null | undefined): number | null 
   return Number.isFinite(id) && id > 0 ? id : null;
 }
 
+type CurrentAccountSubTabId = "invoices" | "receipts";
+
 export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
   const { t, locale } = useI18n();
   const qc = useQueryClient();
 
+  const [subTab, setSubTab] = useState<CurrentAccountSubTabId>("invoices");
   const [receiptInvoice, setReceiptInvoice] = useState<OutboundInvoiceResponse | null>(null);
   const [receiptDate, setReceiptDate] = useState(localIsoDate());
   const [receiptAmount, setReceiptAmount] = useState("");
@@ -673,8 +679,50 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     );
   };
 
+  const subTabs: { id: CurrentAccountSubTabId; label: string }[] = [
+    { id: "invoices", label: t("branch.currentAccountSubTabInvoices") },
+    { id: "receipts", label: t("branch.currentAccountSubTabReceipts") },
+  ];
+
   return (
     <div className="w-full min-w-0 space-y-4">
+      <div
+        role="tablist"
+        aria-label={t("branch.currentAccountSubTabsAria")}
+        className="-mx-1 flex w-full min-w-0 gap-1 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {subTabs.map((x) => (
+          <button
+            key={x.id}
+            type="button"
+            role="tab"
+            aria-selected={subTab === x.id}
+            className={cn(
+              "min-h-[44px] shrink-0 whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold transition-all",
+              subTab === x.id
+                ? "bg-zinc-900 text-white shadow-sm shadow-zinc-900/25 ring-1 ring-zinc-800"
+                : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+            )}
+            onClick={() => setSubTab(x.id)}
+          >
+            {x.label}
+          </button>
+        ))}
+      </div>
+
+      {subTab === "receipts" ? (
+        <BranchCurrentAccountReceiptsPanel
+          invoices={rows}
+          branchId={branchId}
+          locale={locale as Locale}
+          t={t}
+          canEdit
+          active={active && subTab === "receipts"}
+        />
+      ) : null}
+
+      {subTab !== "invoices" ? null : (
+      <>
       <p className="text-sm text-zinc-600">{t("branch.currentAccountHint")}</p>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -1010,6 +1058,8 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
           })}
         </div>
       ) : null}
+      </>
+      )}
 
       <Modal
         open={pdfModalOpen}

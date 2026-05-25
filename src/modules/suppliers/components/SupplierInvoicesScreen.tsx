@@ -29,6 +29,7 @@ import {
 import { cn } from "@/lib/cn";
 import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
+import Link from "next/link";
 import { Card } from "@/shared/components/Card";
 import { MobileListCard } from "@/shared/components/MobileListCard";
 import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
@@ -690,6 +691,10 @@ export function SupplierInvoicesScreen() {
     () => [
       { value: "PATRON", label: t("suppliers.sourcePatron") },
       { value: "CASH", label: t("suppliers.sourceCash") },
+      {
+        value: "PERSONNEL_HELD_REGISTER_CASH",
+        label: t("suppliers.sourcePersonnelHeldRegisterCash"),
+      },
     ],
     [t]
   );
@@ -1116,8 +1121,10 @@ export function SupplierInvoicesScreen() {
     if (!Number.isFinite(amt) || amt <= 0) {
       pe.amount = t("common.formFieldRequiredHint");
     }
-    const cashBranch = paySrc === "CASH" ? parseIntId(payBranchId) : null;
-    if (paySrc === "CASH" && cashBranch == null) {
+    const requiresBranch =
+      paySrc === "CASH" || paySrc === "PERSONNEL_HELD_REGISTER_CASH";
+    const branchForPay = requiresBranch ? parseIntId(payBranchId) : null;
+    if (requiresBranch && branchForPay == null) {
       pe.branch = t("common.formFieldRequiredHint");
     }
     setPayFieldErrors(pe);
@@ -1132,7 +1139,7 @@ export function SupplierInvoicesScreen() {
         amount: amt,
         currencyCode: payTarget.currencyCode,
         sourceType: paySrc,
-        branchId: cashBranch,
+        branchId: branchForPay,
         description: payDesc.trim() || null,
         allocations: [{ invoiceId: payTarget.id, amount: amt }],
       });
@@ -1233,6 +1240,15 @@ export function SupplierInvoicesScreen() {
                 },
               ]}
             />
+            <p className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-lg border border-sky-200/80 bg-sky-50/70 px-3 py-2 text-xs leading-relaxed text-sky-950 sm:text-sm">
+              <span>{t("suppliers.invoicesCrossRefToFinReport")}</span>
+              <Link
+                href="/reports/financial/tables/supplier-payments"
+                className="font-semibold text-sky-800 underline underline-offset-2 hover:text-sky-900"
+              >
+                {t("suppliers.invoicesCrossRefToFinReportLink")}
+              </Link>
+            </p>
           </>
         }
         main={
@@ -2263,12 +2279,13 @@ export function SupplierInvoicesScreen() {
               onChange={(e) => {
                 const v = e.target.value;
                 setPaySrc(v);
-                if (v !== "CASH") setPayBranchId("");
+                if (v !== "CASH" && v !== "PERSONNEL_HELD_REGISTER_CASH")
+                  setPayBranchId("");
               }}
               onBlur={() => {}}
               className="min-h-11 sm:min-h-10 sm:text-sm"
             />
-            {paySrc === "CASH" ? (
+            {paySrc === "CASH" || paySrc === "PERSONNEL_HELD_REGISTER_CASH" ? (
               <Select
                 name="payBranchId"
                 label={t("suppliers.paymentBranch")}

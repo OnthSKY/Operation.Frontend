@@ -28,7 +28,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/Table";
-import { ChevronLeft, ChevronRight, Receipt } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Receipt } from "lucide-react";
+import { cn } from "@/lib/cn";
 import { BranchMobileInsightJumpRail } from "@/modules/branch/components/BranchMobileInsightJumpRail";
 import { useMediaMinWidth } from "@/shared/lib/use-media-min-width";
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
@@ -246,6 +247,14 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
     return to.length === 10 ? { from, to } : null;
   }, [incThroughToday, todayIso]);
 
+  const incQuickTodaySelected = incFrom === todayIso && incTo === todayIso;
+  const incQuickAllTimeSelected =
+    incFrom === "" && incTo === "" && !hasIncMainFilter && !hasIncCashFilter;
+  const incQuickSeasonSelected =
+    !!seasonQuickRange &&
+    incFrom === seasonQuickRange.from &&
+    incTo === seasonQuickRange.to;
+
   const incomeJumpItems = useMemo(() => {
     const items: { id: string; label: string }[] = [];
     if (!employeeSelfService) {
@@ -313,47 +322,51 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
             <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:contents">
               <Button
                 type="button"
-                variant="secondary"
-                className="min-h-11 w-full touch-manipulation sm:min-w-[9rem] sm:flex-1"
+                variant={incQuickTodaySelected ? "primary" : "secondary"}
+                aria-pressed={incQuickTodaySelected}
+                className={cn(
+                  "min-h-11 w-full touch-manipulation sm:min-w-[9rem] sm:flex-1",
+                  incQuickTodaySelected && "ring-2 ring-zinc-900 ring-offset-1 ring-offset-zinc-50"
+                )}
                 onClick={() => {
                   const d = localIsoDate();
                   applyUnifiedFilters({ from: d, to: d });
                 }}
               >
+                {incQuickTodaySelected ? <Check className="mr-1.5 h-4 w-4" aria-hidden /> : null}
                 {t("branch.filterToday")}
               </Button>
               <Button
                 type="button"
-                variant="secondary"
-                className="min-h-11 w-full touch-manipulation sm:min-w-[9rem] sm:flex-1"
+                variant={incQuickAllTimeSelected ? "primary" : "secondary"}
+                aria-pressed={incQuickAllTimeSelected}
+                className={cn(
+                  "min-h-11 w-full touch-manipulation sm:min-w-[9rem] sm:flex-1",
+                  incQuickAllTimeSelected && "ring-2 ring-zinc-900 ring-offset-1 ring-offset-zinc-50"
+                )}
                 onClick={() => {
                   applyUnifiedFilters({ from: "", to: "", main: "", cash: "" });
                 }}
               >
+                {incQuickAllTimeSelected ? <Check className="mr-1.5 h-4 w-4" aria-hidden /> : null}
                 {t("branch.filterAllTime")}
               </Button>
               {seasonQuickRange ? (
                 <Button
                   type="button"
-                  variant="secondary"
-                  className="col-span-2 min-h-11 w-full touch-manipulation sm:col-span-1 sm:min-w-[9rem] sm:flex-1"
+                  variant={incQuickSeasonSelected ? "primary" : "secondary"}
+                  aria-pressed={incQuickSeasonSelected}
+                  className={cn(
+                    "col-span-2 min-h-11 w-full touch-manipulation sm:col-span-1 sm:min-w-[9rem] sm:flex-1",
+                    incQuickSeasonSelected && "ring-2 ring-zinc-900 ring-offset-1 ring-offset-zinc-50"
+                  )}
                   onClick={() => applyUnifiedFilters({ from: seasonQuickRange.from, to: seasonQuickRange.to })}
                 >
+                  {incQuickSeasonSelected ? <Check className="mr-1.5 h-4 w-4" aria-hidden /> : null}
                   {t("branch.filterThisSeason")}
                 </Button>
               ) : null}
             </div>
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11 w-full touch-manipulation sm:ml-auto sm:w-auto sm:min-w-[8.5rem]"
-              onClick={() => {
-                void refetchInc();
-                refetchIncomeSummaryBlocks();
-              }}
-            >
-              {t("branch.filterApplyRefresh")}
-            </Button>
           </div>
         </div>
       </section>

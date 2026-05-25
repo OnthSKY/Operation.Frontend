@@ -92,6 +92,13 @@ export type OutboundInvoiceReceiptResponse = {
   receiptKind?: "cash" | "promo_discount" | "advance_payment" | "other";
 };
 
+export type UpdateOutboundInvoiceReceiptRequest = {
+  receiptDate: string;
+  amount: number;
+  receiptKind?: "cash" | "promo_discount" | "advance_payment" | "other";
+  notes?: string | null;
+};
+
 export type ShipmentInvoiceabilityLine = {
   warehouseMovementId: number;
   productId: number;
@@ -217,6 +224,29 @@ export async function fetchOutboundInvoiceReceipts(
   invoiceId: number
 ): Promise<OutboundInvoiceReceiptResponse[]> {
   return apiRequest<OutboundInvoiceReceiptResponse[]>(`/outbound-invoices/${invoiceId}/receipts`);
+}
+
+export async function updateOutboundInvoiceReceipt(
+  invoiceId: number,
+  receiptId: number,
+  input: UpdateOutboundInvoiceReceiptRequest
+): Promise<OutboundInvoiceResponse> {
+  return apiRequest<OutboundInvoiceResponse>(
+    `/outbound-invoices/${invoiceId}/receipts/${receiptId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    }
+  );
+}
+
+export async function deleteOutboundInvoiceReceipt(
+  invoiceId: number,
+  receiptId: number
+): Promise<void> {
+  await apiRequest<null>(`/outbound-invoices/${invoiceId}/receipts/${receiptId}`, {
+    method: "DELETE",
+  });
 }
 
 export async function deleteOutboundInvoice(invoiceId: number): Promise<void> {

@@ -7,6 +7,9 @@ export const suppliers = {
   invoicesPageTitle: "Supplier invoices",
   invoicesPageSubtitle:
     "Filter purchase invoices by supplier, date range, invoice total amount, and paid vs. open balance.",
+  invoicesCrossRefToFinReport:
+    "For a period-end financial summary (totals by currency and payment source):",
+  invoicesCrossRefToFinReportLink: "Financial Tables -> Supplier payments",
   filterDrawerTitle: "Filters",
   invoicePaidBadge: "Paid",
   filterLinesTotalMin: "Min. invoice total",
@@ -130,6 +133,7 @@ export const suppliers = {
   sourceCash: "Branch cash register",
   sourceBank: "Bank",
   sourcePatron: "Owner (patron)",
+  sourcePersonnelHeldRegisterCash: "Branch cash held by personnel",
   paymentBranch: "Branch the cash was paid from",
   allocationsHint: "This payment is applied to the selected invoice only.",
   noInvoices: "No invoices match the filter.",

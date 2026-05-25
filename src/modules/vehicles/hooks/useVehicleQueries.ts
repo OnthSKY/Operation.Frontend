@@ -29,6 +29,7 @@ import {
   uploadVehicleDocument,
 } from "@/modules/vehicles/api/vehicle-documents-api";
 import { branchKeys } from "@/modules/branch/hooks/useBranchQueries";
+import { reportsKeys } from "@/modules/reports/query-keys";
 import type { UploadVehicleDocumentInput } from "@/types/vehicle-document";
 import type { VehicleAuditPageParams } from "@/types/vehicle";
 
@@ -302,6 +303,7 @@ export function useCreateVehicleExpense() {
       void qc.invalidateQueries({ queryKey: vehicleKeys.detail(vars.vehicleId) });
       void qc.invalidateQueries({ queryKey: vehicleKeys.all });
       void qc.invalidateQueries({ queryKey: branchKeys.all });
+      void qc.invalidateQueries({ queryKey: reportsKeys.all });
     },
   });
 }
@@ -328,6 +330,7 @@ export function useUpdateVehicleExpense() {
       void qc.invalidateQueries({ queryKey: vehicleKeys.detail(vars.vehicleId) });
       void qc.invalidateQueries({ queryKey: vehicleKeys.all });
       void qc.invalidateQueries({ queryKey: branchKeys.all });
+      void qc.invalidateQueries({ queryKey: reportsKeys.all });
     },
   });
 }
@@ -341,6 +344,7 @@ export function useDeleteVehicleExpense() {
       void qc.invalidateQueries({ queryKey: vehicleKeys.detail(vars.vehicleId) });
       void qc.invalidateQueries({ queryKey: vehicleKeys.all });
       void qc.invalidateQueries({ queryKey: branchKeys.all });
+      void qc.invalidateQueries({ queryKey: reportsKeys.all });
     },
   });
 }

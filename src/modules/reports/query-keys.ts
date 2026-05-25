@@ -22,4 +22,18 @@ export const reportsKeys = {
   patronFlow: (p: PatronFlowParams) =>
     [...reportsKeys.all, "patronFlow", p] as const,
   patronFlowPosProfiles: ["reports", "patronFlowPosProfiles"] as const,
+  patronExpensesForBranch: (branchId: number, dateFrom: string, dateTo: string) =>
+    [...reportsKeys.all, "patronExpenses", branchId, dateFrom, dateTo] as const,
+  patronStandaloneAdvances: ["reports", "patronStandaloneAdvances"] as const,
+  patronOpenOverheadPools: ["reports", "patronOpenOverheadPools"] as const,
+  patronCentralPersonnelExpenses:
+    ["reports", "patronCentralPersonnelExpenses"] as const,
+  patronSupplierPayments: (dateFrom: string, dateTo: string, branchId: number | null) =>
+    [
+      ...reportsKeys.all,
+      "patronSupplierPayments",
+      dateFrom,
+      dateTo,
+      branchId,
+    ] as const,
 };

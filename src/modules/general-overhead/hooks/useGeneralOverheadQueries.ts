@@ -55,6 +55,7 @@ export function useCreateGeneralOverheadPool() {
     onSuccess: (data) => {
       void qc.invalidateQueries({ queryKey: generalOverheadKeys.all });
       void qc.invalidateQueries({ queryKey: generalOverheadPoolAuditKey(data.id) });
+      void qc.invalidateQueries({ queryKey: reportsKeys.all });
     },
   });
 }

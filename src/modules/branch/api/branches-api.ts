@@ -1094,6 +1094,29 @@ export async function fetchAllBranchTransactionsPaged(
   return out;
 }
 
+export async function fetchAllBranchPatronExpenses(
+  branchId: number,
+  dateFrom: string,
+  dateTo: string
+): Promise<BranchTransaction[]> {
+  const out: BranchTransaction[] = [];
+  let page = 1;
+  for (;;) {
+    const r = await fetchBranchTransactionsPaged(branchId, {
+      page,
+      pageSize: BRANCH_PDF_PAGE_SIZE,
+      type: "OUT",
+      dateFrom,
+      dateTo,
+      expensePaymentSource: "PATRON",
+    });
+    out.push(...r.items);
+    if (out.length >= r.totalCount || r.items.length === 0) break;
+    page += 1;
+  }
+  return out;
+}
+
 export async function fetchBranchStockReceiptsPaged(
   branchId: number,
   params: BranchStockPageParams

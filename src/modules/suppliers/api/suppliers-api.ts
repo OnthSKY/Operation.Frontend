@@ -254,7 +254,11 @@ export async function createSupplierPayment(body: {
       amount: body.amount,
       currencyCode: body.currencyCode ?? "TRY",
       sourceType: body.sourceType,
-      branchId: body.sourceType === "CASH" ? body.branchId ?? null : null,
+      branchId:
+        body.sourceType === "CASH" ||
+        body.sourceType === "PERSONNEL_HELD_REGISTER_CASH"
+          ? body.branchId ?? null
+          : null,
       description: body.description ?? null,
       allocations: body.allocations,
     }),
@@ -263,6 +267,34 @@ export async function createSupplierPayment(body: {
 
 export async function fetchSupplierPayments(supplierId: number): Promise<SupplierPayment[]> {
   return apiRequest<SupplierPayment[]>(`/suppliers/payments?supplierId=${supplierId}`);
+}
+
+export type PatronSupplierPayment = {
+  id: number;
+  paymentDate: string;
+  amount: number;
+  currencyCode: string;
+  branchId: number | null;
+  branchName: string | null;
+  description: string | null;
+  supplierNames: string | null;
+  invoiceDocumentNumbers: string | null;
+};
+
+export async function fetchPatronSupplierPayments(params: {
+  dateFrom: string;
+  dateTo: string;
+  branchId?: number | null;
+}): Promise<PatronSupplierPayment[]> {
+  const qs = new URLSearchParams();
+  qs.set("dateFrom", params.dateFrom);
+  qs.set("dateTo", params.dateTo);
+  if (params.branchId != null && params.branchId > 0) {
+    qs.set("branchId", String(params.branchId));
+  }
+  return apiRequest<PatronSupplierPayment[]>(
+    `/suppliers/payments/patron-flow?${qs.toString()}`,
+  );
 }
 
 /** Depo hareketi olmayan satırlar şubelere bölünebilir; post’ta varsayılan PATRON, isteğe REGISTER (şube ödedi). */
