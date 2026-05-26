@@ -41,6 +41,13 @@ type ModalProps = {
   nested?: boolean;
   /** true: arka plana tıklanınca ek onay modalı gösterir (varsayılan: doğrudan onClose). */
   backdropCloseRequiresConfirm?: boolean;
+  /**
+   * Default panel için: panel scroll'lu değil, içerik dahili scrollable wrapper'da render edilir.
+   * iOS Safari'de soft keyboard'un text input'larda doğru görünmesini garantiler
+   * (input scrollable panel'in dışında, kendi scrollable container'ında olur).
+   * Sadece `wide` ve `narrow` olmadığında etki eder.
+   */
+  bodyScroll?: boolean;
 };
 
 export function Modal({
@@ -61,6 +68,7 @@ export function Modal({
   closeButtonLabel,
   nested = false,
   backdropCloseRequiresConfirm = false,
+  bodyScroll = false,
 }: ModalProps) {
   const [mounted, setMounted] = useState(false);
   const [backdropConfirmOpen, setBackdropConfirmOpen] = useState(false);
@@ -115,6 +123,7 @@ export function Modal({
       : "max-h-[min(92dvh,60rem)] sm:max-h-[min(92dvh,64rem)] lg:max-h-[min(93dvh,72rem)] xl:max-h-[min(94dvh,80rem)] 2xl:max-h-[min(94dvh,84rem)]";
   const sheetMobileActive = Boolean(sheetMobile && narrow);
   const wideFullScreenMobileActive = Boolean(wide && wideFullScreenMobile);
+  const bodyScrollActive = Boolean(bodyScroll && !wide && !narrow);
 
   const panelClass = wide
     ? cn(
@@ -131,7 +140,9 @@ export function Modal({
           sheetMobileActive &&
             "max-sm:flex max-sm:h-[min(100dvh,100svh)] max-sm:max-h-[100dvh] max-sm:flex-col max-sm:overflow-hidden max-sm:rounded-b-none max-sm:border-x-0 max-sm:border-t max-sm:border-zinc-200/90 max-sm:!px-0 max-sm:!pt-0 max-sm:!pb-[env(safe-area-inset-bottom,0px)] max-sm:shadow-2xl max-sm:!ring-0"
         )
-      : dialogTheme.panel;
+      : bodyScrollActive
+        ? dialogTheme.panelBodyScroll
+        : dialogTheme.panel;
   const headerClass = wide
     ? cn(
         dialogTheme.headerRow,
@@ -139,11 +150,16 @@ export function Modal({
         wideFullScreenMobileActive &&
           "max-sm:pt-[max(0.65rem,env(safe-area-inset-top,0px))] max-sm:pb-3"
       )
-    : cn(
-        dialogTheme.headerRow,
-        sheetMobileActive &&
-          "max-sm:shrink-0 max-sm:border-b max-sm:border-zinc-100 max-sm:px-4 max-sm:pb-3 max-sm:pt-[max(0.5rem,env(safe-area-inset-top,0px))]"
-      );
+    : bodyScrollActive
+      ? cn(
+          dialogTheme.headerRow,
+          "shrink-0 px-4 pt-4 sm:px-6 sm:pt-6 xl:px-8 xl:pt-8"
+        )
+      : cn(
+          dialogTheme.headerRow,
+          sheetMobileActive &&
+            "max-sm:shrink-0 max-sm:border-b max-sm:border-zinc-100 max-sm:px-4 max-sm:pb-3 max-sm:pt-[max(0.5rem,env(safe-area-inset-top,0px))]"
+        );
 
   const requestBackdropClose = () => {
     if (backdropCloseRequiresConfirm) setBackdropConfirmOpen(true);
@@ -210,6 +226,10 @@ export function Modal({
         </div>
         {sheetMobileActive ? (
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom,0.75rem))] pt-1">
+            {children}
+          </div>
+        ) : bodyScrollActive ? (
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 sm:px-6 sm:pb-6 xl:px-8 xl:pb-8">
             {children}
           </div>
         ) : (

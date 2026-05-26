@@ -130,6 +130,21 @@ export function SystemSettingsScreen() {
             </span>
           </Card>
         </Link>
+
+        <Link
+          href="/admin/personnel-held-cash-reconciliation"
+          className="block min-h-[4.5rem] rounded-xl ring-1 ring-zinc-200/80 transition hover:bg-zinc-50 active:bg-zinc-100 sm:col-span-2 lg:col-span-1"
+        >
+          <Card className="h-full min-h-[inherit] p-4 sm:p-5">
+            <h2 className="text-base font-semibold text-zinc-900">Personel Kasa Bakiyesi Doğrulama</h2>
+            <p className="mt-2 text-sm text-zinc-600">
+              Tüm personellerin held register cash dökümü, anomali tespiti ve bug fix etki analizi.
+            </p>
+            <span className="mt-4 inline-block text-sm font-medium text-violet-700">
+              Aç →
+            </span>
+          </Card>
+        </Link>
         </div>
       }
     />

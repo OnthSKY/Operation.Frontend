@@ -132,7 +132,7 @@
   cashPatronFlowScreenHint:
     "Filter a date range for owner cash-in, owner-paid expenses, and register repayments (not the same as this single-date snapshot).",
   tabHint: "Financial: cash & branches. Stock: warehouse & inbound to branches.",
-  tabCashPosition: "Cash summary",
+  tabCashPosition: "Live cash",
   tabHintCash:
     "Estimated physical cash in each branch drawer plus net register debts to staff pocket / owner (same rules as branch register summary).",
   cashPeriodHelp: "As-of date: register movements through this day (inclusive).",
@@ -276,7 +276,7 @@
   chipNegativeNet: "Negative net in a currency",
   chipTopExpense: "Top expense driver: {{cat}} (~{{pct}}%)",
   tabFinancial: "Financial",
-  tabStock: "Stock summary",
+  tabStock: "Stock status",
   dateFrom: "From",
   dateTo: "To",
   allBranches: "All branches",
@@ -551,9 +551,10 @@
   navStockTables: "Stock â€” full tables",
   navCashReport: "Cash â€” full table",
   navPatronFlow: "Patron-Paid Expenses",
-  navBranchComparison: "Branch Comparison Report",
+  navBranchComparison: "Branch comparison",
   navBackToReportsHub: "All reports",
-  sidebarFinances: "Period finance",
+  sidebarFinances: "Income & expense",
+  sidebarPersonnelHeldCash: "Cash with personnel",
   sidebarOrderAccountStatement: "Order / account statement",
   sidebarCounterpartySummary: "Counterparty Summary",
   hubOpenCashFullTable: "Full cash table (sort & export)",
@@ -570,7 +571,7 @@
   finNavTables: "Financial tables",
   finCurrentAccountsIntro:
     "Track issued invoices, collected receipts, and open balances in one current-account summary by branch and customer.",
-  finNavCashFlow: "Owner pocket & register",
+  finNavCashFlow: "Owner movements",
   finSummaryPageLead:
     "All period KPIs on one panel — primary (income/expense/net) and secondary (supplier, advance, overhead, off-register vehicle). Use Monthly cumulative for trend, Charts & alerts for signals and breakdown.",
   finChartsPageIntroEyebrow: "This tab in brief",

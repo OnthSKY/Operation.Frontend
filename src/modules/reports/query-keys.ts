@@ -36,4 +36,5 @@ export const reportsKeys = {
       dateTo,
       branchId,
     ] as const,
+  personnelHeldCash: () => [...reportsKeys.all, "personnelHeldCash"] as const,
 };

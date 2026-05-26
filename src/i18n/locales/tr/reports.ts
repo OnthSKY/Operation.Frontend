@@ -133,7 +133,7 @@
   cashPatronFlowScreenHint:
     "Tarih aralığında patron nakit girişi, patronla ödenen giderler ve kasadan patrona ödemeler (tek tarih anlık görünümü değildir).",
   tabHint: "Finans: kasa ve şube. Stok: depo ve şubeye sevkiyat.",
-  tabCashPosition: "Kasa özeti",
+  tabCashPosition: "Anlık kasa",
   tabHintCash:
     "Şube kasasındaki tahmini fiili nakit ve kasanın personele / patrona net borçları (şube kasa özeti ile aynı kurallar).",
   cashPeriodHelp: "Rapor tarihi: kasa hareketleri bu güne kadar (dahil) hesaplanır.",
@@ -277,7 +277,7 @@
   chipNegativeNet: "Bir para biriminde net negatif",
   chipTopExpense: "Baskın gider: {{cat}} (~%{{pct}})",
   tabFinancial: "Finans",
-  tabStock: "Stok özeti",
+  tabStock: "Stok durumu",
   dateFrom: "Başlangıç",
   dateTo: "Bitiş",
   allBranches: "Tüm şubeler",
@@ -553,9 +553,10 @@
   navStockTables: "Stok — tüm tablolar",
   navCashReport: "Kasa — tam tablo",
   navPatronFlow: "Patron Cebinden Ödemeler",
-  navBranchComparison: "Şube Karşılaştırma Raporu",
+  navBranchComparison: "Şube karşılaştırma",
   navBackToReportsHub: "Tüm raporlar",
-  sidebarFinances: "Dönem finansı",
+  sidebarFinances: "Gelir-gider özeti",
+  sidebarPersonnelHeldCash: "Personeldeki kasa",
   sidebarOrderAccountStatement: "Sipariş / hesap dökümü",
   sidebarCounterpartySummary: "Cari Hesaplar",
   hubOpenCashFullTable: "Tam kasa tablosu (sıralama, dışa aktarma)",
@@ -572,7 +573,7 @@
   finNavTables: "Finans tabloları",
   finCurrentAccountsIntro:
     "Şube ve müşteri bazında kesilen faturalar, tahsilatlar ve açık bakiye cari özetini tek ekranda izleyin.",
-  finNavCashFlow: "Patron cebi ve kasa hareketleri",
+  finNavCashFlow: "Patron hareketleri",
   finSummaryPageLead:
     "Dönemin tüm KPI'ları tek panelde — birincil (gelir/gider/net) ve ikincil (tedarikçi, avans, sabit gider, kasa-dışı araç). Trend için «Ay ay birikimli», uyarı ve dağılım için «Grafikler ve uyarılar» sekmesi.",
   finChartsPageIntroEyebrow: "Bu sekme kısaca",

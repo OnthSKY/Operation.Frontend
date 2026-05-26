@@ -8,15 +8,21 @@ import {
 } from "@/modules/suppliers/api/suppliers-api";
 import { warehouseMovementInvoicePhotoUrl } from "@/modules/warehouse/api/warehouse-movements-api";
 import { SupplierLineBranchAllocationModal } from "@/modules/suppliers/components/SupplierLineBranchAllocationModal";
+import { SupplierInvoicePhotoField } from "@/modules/suppliers/components/SupplierInvoicePhotoField";
+import { SupplierInvoicePhotoPreviewModal } from "@/modules/suppliers/components/SupplierInvoicePhotoPreviewModal";
+import { SupplierInvoicePhotoThumb } from "@/modules/suppliers/components/SupplierInvoicePhotoThumb";
+import { useSupplierInvoicePhotoBlob } from "@/modules/suppliers/components/useSupplierInvoicePhoto";
 import {
   supplierKeys,
   useCreateSupplierInvoice,
   useCreateSupplierPayment,
+  useDeleteSupplierInvoicePhoto,
   useSupplierInvoice,
   useSupplierInvoiceAuditLogs,
   useSupplierInvoices,
   useSuppliers,
   useUpdateSupplierInvoice,
+  useUploadSupplierInvoicePhoto,
 } from "@/modules/suppliers/hooks/useSupplierQueries";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
@@ -372,18 +378,32 @@ function SupplierInvoiceDetailHero({
   invoice,
   locale,
   t,
+  onPreviewInvoicePhoto,
 }: {
   invoice: SupplierInvoiceDetail;
   locale: Locale;
   t: (key: string) => string;
+  onPreviewInvoicePhoto?: () => void;
 }) {
   const movementId = useMemo(() => {
     const line = invoice.lines.find((l) => l.warehouseMovementId != null && l.warehouseMovementId > 0);
     return line?.warehouseMovementId ?? null;
   }, [invoice.lines]);
 
-  const { objectUrl: photoUrl, loading: photoLoading } = useWarehouseMovementInvoicePhotoPreview(movementId);
-  const showPhotoPanel = movementId != null && movementId > 0 && (photoLoading || photoUrl);
+  const hasInvoicePhoto = Boolean(invoice.hasInvoicePhoto);
+  const { objectUrl: invoicePhotoUrl, loading: invoicePhotoLoading } = useSupplierInvoicePhotoBlob(
+    invoice.id,
+    hasInvoicePhoto,
+  );
+  const { objectUrl: movementPhotoUrl, loading: movementPhotoLoading } =
+    useWarehouseMovementInvoicePhotoPreview(hasInvoicePhoto ? null : movementId);
+
+  const photoUrl = hasInvoicePhoto ? invoicePhotoUrl : movementPhotoUrl;
+  const photoLoading = hasInvoicePhoto ? invoicePhotoLoading : movementPhotoLoading;
+  const showPhotoPanel =
+    hasInvoicePhoto
+      ? invoicePhotoLoading || invoicePhotoUrl
+      : movementId != null && movementId > 0 && (movementPhotoLoading || movementPhotoUrl);
 
   const docNo = invoice.documentNumber?.trim();
   const displayRef = docNo && docNo.length > 0 ? docNo : `#${invoice.id}`;
@@ -400,7 +420,15 @@ function SupplierInvoiceDetailHero({
           <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
             {t("suppliers.invoiceDetailScanLabel")}
           </p>
-          <div className="relative mt-2 aspect-[4/3] w-full overflow-hidden rounded-lg border border-zinc-200/90 bg-zinc-100 shadow-inner shadow-zinc-900/5 sm:aspect-[16/10] lg:aspect-[3/4] lg:max-h-[min(52vh,320px)]">
+          <div
+            className={cn(
+              "relative mt-2 aspect-[4/3] w-full overflow-hidden rounded-lg border border-zinc-200/90 bg-zinc-100 shadow-inner shadow-zinc-900/5 sm:aspect-[16/10] lg:aspect-[3/4] lg:max-h-[min(52vh,320px)]",
+              hasInvoicePhoto && photoUrl ? "cursor-zoom-in" : undefined,
+            )}
+            onClick={() => {
+              if (hasInvoicePhoto && photoUrl) onPreviewInvoicePhoto?.();
+            }}
+          >
             {photoLoading ? (
               <div className="flex h-full min-h-[120px] items-center justify-center text-xs text-zinc-500">
                 {t("common.loading")}
@@ -410,7 +438,15 @@ function SupplierInvoiceDetailHero({
               <img src={photoUrl} alt="" className="h-full w-full object-cover object-top" />
             ) : null}
           </div>
-          {photoUrl && movementId ? (
+          {hasInvoicePhoto && photoUrl ? (
+            <button
+              type="button"
+              onClick={() => onPreviewInvoicePhoto?.()}
+              className="mt-3 flex min-h-10 w-full items-center justify-center rounded-lg border border-zinc-200 bg-white px-3 text-center text-xs font-semibold text-zinc-800 shadow-sm shadow-zinc-900/5 transition hover:bg-zinc-50"
+            >
+              {t("suppliers.invoicePhotoOpen")}
+            </button>
+          ) : !hasInvoicePhoto && photoUrl && movementId ? (
             <a
               href={warehouseMovementInvoicePhotoUrl(movementId)}
               target="_blank"
@@ -642,6 +678,8 @@ export function SupplierInvoicesScreen() {
   const createInv = useCreateSupplierInvoice();
   const updateInv = useUpdateSupplierInvoice();
   const createPay = useCreateSupplierPayment();
+  const uploadPhoto = useUploadSupplierInvoicePhoto();
+  const deletePhoto = useDeleteSupplierInvoicePhoto();
 
   const { data: catalog = [] } = useProductsCatalog();
   const { data: branches = [] } = useBranchesList();
@@ -735,6 +773,7 @@ export function SupplierInvoicesScreen() {
   const [invWhApprovedBy, setInvWhApprovedBy] = useState("");
   const [invCreateFieldErrors, setInvCreateFieldErrors] = useState<InvCreateFormErrors>({});
   const [invLineEditErrors, setInvLineEditErrors] = useState<InvLineEditFormErrors>({});
+  const [invPhotoFile, setInvPhotoFile] = useState<File | null>(null);
 
   const [editInvOpen, setEditInvOpen] = useState(false);
   const [editInvDocNo, setEditInvDocNo] = useState("");
@@ -745,6 +784,9 @@ export function SupplierInvoicesScreen() {
   const [editInvFormalIssued, setEditInvFormalIssued] = useState(false);
   const [editChangeNote, setEditChangeNote] = useState("");
   const [editInvFieldErrors, setEditInvFieldErrors] = useState<EditInvFormErrors>({});
+  const [editInvPhotoFile, setEditInvPhotoFile] = useState<File | null>(null);
+  const [editInvPhotoClear, setEditInvPhotoClear] = useState(false);
+  const [previewPhotoInvoice, setPreviewPhotoInvoice] = useState<SupplierInvoiceListItem | SupplierInvoiceDetail | null>(null);
 
   const { data: warehouses = [] } = useWarehousesList();
   const { data: whPeopleRaw = [] } = useWarehousePeopleOptions(invOpen);
@@ -853,6 +895,7 @@ export function SupplierInvoicesScreen() {
     setInvCreateFieldErrors({});
     setInvWhCheckedBy("");
     setInvWhApprovedBy("");
+    setInvPhotoFile(null);
     setInvOpen(true);
   }, []);
 
@@ -961,7 +1004,7 @@ export function SupplierInvoicesScreen() {
     setInvCreateFieldErrors({});
     const supplierIdForApi = typeof invSupplierPick === "number" ? invSupplierPick : Number(invSupplierPick);
     try {
-      await createInv.mutateAsync({
+      const created = await createInv.mutateAsync({
         supplierId: supplierIdForApi,
         documentNumber: invDocNo.trim() || null,
         documentDate: invDocDate.trim(),
@@ -975,9 +1018,20 @@ export function SupplierInvoicesScreen() {
         lines,
       });
       notify.success(t("toast.supplierInvoiceCreated"));
+
+      if (invPhotoFile && created?.id) {
+        try {
+          await uploadPhoto.mutateAsync({ id: created.id, file: invPhotoFile });
+          notify.success(t("suppliers.invoicePhotoUploaded"));
+        } catch (e) {
+          notify.error(`${t("suppliers.invoicePhotoUploadFailed")} (${toErrorMessage(e)})`);
+        }
+      }
+
       setInvLineEditKey(null);
       setInvLineEditDraft(null);
       setInvCreateFieldErrors({});
+      setInvPhotoFile(null);
       setInvOpen(false);
     } catch (e) {
       notify.error(toErrorMessage(e));
@@ -1047,6 +1101,8 @@ export function SupplierInvoicesScreen() {
     setEditInvFormalIssued(viewInvoice.formalSupplierInvoiceIssued);
     setEditChangeNote("");
     setEditInvFieldErrors({});
+    setEditInvPhotoFile(null);
+    setEditInvPhotoClear(false);
     setEditInvOpen(true);
   };
 
@@ -1072,6 +1128,25 @@ export function SupplierInvoicesScreen() {
         },
       });
       notify.success(t("toast.supplierInvoiceUpdated"));
+
+      if (editInvPhotoFile) {
+        try {
+          await uploadPhoto.mutateAsync({ id: viewId, file: editInvPhotoFile });
+          notify.success(t("suppliers.invoicePhotoUploaded"));
+        } catch (e) {
+          notify.error(`${t("suppliers.invoicePhotoUploadFailed")} (${toErrorMessage(e)})`);
+        }
+      } else if (editInvPhotoClear && viewInvoice.hasInvoicePhoto) {
+        try {
+          await deletePhoto.mutateAsync(viewId);
+          notify.success(t("suppliers.invoicePhotoRemoved"));
+        } catch (e) {
+          notify.error(toErrorMessage(e));
+        }
+      }
+
+      setEditInvPhotoFile(null);
+      setEditInvPhotoClear(false);
       setEditInvOpen(false);
     } catch (e) {
       notify.error(toErrorMessage(e));
@@ -1181,6 +1256,7 @@ export function SupplierInvoicesScreen() {
     setInvLineEditDraft(null);
     setInvLineEditErrors({});
     setInvCreateFieldErrors({});
+    setInvPhotoFile(null);
     setInvOpen(false);
   };
 
@@ -1195,6 +1271,7 @@ export function SupplierInvoicesScreen() {
     invFormalIssued ||
     invWhCheckedBy.trim() !== "" ||
     invWhApprovedBy.trim() !== "" ||
+    invPhotoFile != null ||
     invLines.length > 1 ||
     (invLines[0] != null &&
       (invLines[0].description.trim() !== "" ||
@@ -1208,7 +1285,7 @@ export function SupplierInvoicesScreen() {
 
   const requestCloseCreateInvoiceModal = useDirtyGuard({
     isDirty: isCreateInvoiceDirty,
-    isBlocked: createInv.isPending,
+    isBlocked: createInv.isPending || uploadPhoto.isPending,
     confirmMessage: t("common.unsavedChangesConfirm"),
     onClose: closeCreateInvoiceModal,
   });
@@ -1300,12 +1377,22 @@ export function SupplierInvoicesScreen() {
             {invoices.map((row) => (
               <MobileListCard key={row.id} as="div" className="flex flex-col gap-4 bg-zinc-50/40">
                 <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1 overflow-hidden">
-                    <p className="truncate text-sm font-semibold text-zinc-900">{row.supplierName}</p>
-                    <p className="mt-1 text-xs text-zinc-600">{row.documentDate}</p>
-                    <p className="mt-1 break-words text-xs text-zinc-500">
-                      {row.documentNumber ?? "—"}
-                    </p>
+                  <div className="flex min-w-0 flex-1 items-start gap-3 overflow-hidden">
+                    {row.hasInvoicePhoto ? (
+                      <SupplierInvoicePhotoThumb
+                        invoiceId={row.id}
+                        hasInvoicePhoto
+                        ariaLabel={t("suppliers.invoicePhotoOpen")}
+                        onClick={() => setPreviewPhotoInvoice(row)}
+                      />
+                    ) : null}
+                    <div className="min-w-0 flex-1 overflow-hidden">
+                      <p className="truncate text-sm font-semibold text-zinc-900">{row.supplierName}</p>
+                      <p className="mt-1 text-xs text-zinc-600">{row.documentDate}</p>
+                      <p className="mt-1 break-words text-xs text-zinc-500">
+                        {row.documentNumber ?? "—"}
+                      </p>
+                    </div>
                   </div>
                   {supplierInvoiceLooksPaid(row) ? (
                     <span className="inline-flex shrink-0 items-center rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-900 ring-1 ring-emerald-200/90">
@@ -1344,6 +1431,7 @@ export function SupplierInvoicesScreen() {
             <Table>
               <TableHead>
                 <TableRow>
+                  <TableHeader className="w-20 whitespace-nowrap">{t("suppliers.invoicePhotoColumn")}</TableHeader>
                   <TableHeader>{t("suppliers.documentDate")}</TableHeader>
                   <TableHeader>{t("suppliers.name")}</TableHeader>
                   <TableHeader>{t("suppliers.documentNumber")}</TableHeader>
@@ -1355,6 +1443,18 @@ export function SupplierInvoicesScreen() {
               <TableBody>
                 {invoices.map((row) => (
                   <TableRow key={row.id}>
+                    <TableCell dataLabel={t("suppliers.invoicePhotoColumn")} className="align-middle">
+                      {row.hasInvoicePhoto ? (
+                        <SupplierInvoicePhotoThumb
+                          invoiceId={row.id}
+                          hasInvoicePhoto
+                          ariaLabel={t("suppliers.invoicePhotoOpen")}
+                          onClick={() => setPreviewPhotoInvoice(row)}
+                        />
+                      ) : (
+                        <span className="text-xs text-zinc-400">—</span>
+                      )}
+                    </TableCell>
                     <TableCell dataLabel={t("suppliers.documentDate")} className="whitespace-nowrap text-zinc-700">
                       {row.documentDate}
                     </TableCell>
@@ -1582,6 +1682,16 @@ export function SupplierInvoicesScreen() {
                   <Switch checked={invFormalIssued} onCheckedChange={setInvFormalIssued} />
                 </div>
               </div>
+              <SupplierInvoicePhotoField
+                invoiceId={null}
+                hasInvoicePhoto={false}
+                file={invPhotoFile}
+                clearRequested={false}
+                busy={createInv.isPending || uploadPhoto.isPending}
+                onFileChange={setInvPhotoFile}
+                onClearRequest={() => setInvPhotoFile(null)}
+                t={t}
+              />
               {invNeedsWhPersonnel ? (
                 <div className="rounded-xl border border-amber-200/90 bg-amber-50/50 p-3 sm:p-4">
                   <p className="text-sm font-semibold text-zinc-800">{t("suppliers.whIntakePersonnelSection")}</p>
@@ -1965,7 +2075,16 @@ export function SupplierInvoicesScreen() {
           <p className="p-4 text-sm text-zinc-500">{t("common.loading")}</p>
         ) : (
           <div className="max-h-[min(92dvh,72rem)] overflow-y-auto p-2 sm:p-3">
-            <SupplierInvoiceDetailHero invoice={viewInvoice} locale={locale} t={t} />
+            <SupplierInvoiceDetailHero
+              invoice={viewInvoice}
+              locale={locale}
+              t={t}
+              onPreviewInvoicePhoto={
+                viewInvoice.hasInvoicePhoto
+                  ? () => setPreviewPhotoInvoice(viewInvoice)
+                  : undefined
+              }
+            />
             <div className="mt-3 flex flex-wrap gap-2">
               <Button type="button" variant="secondary" className="min-h-10" onClick={openEditInvoice}>
                 {t("suppliers.invoiceEdit")}
@@ -2172,6 +2291,24 @@ export function SupplierInvoicesScreen() {
                     <Switch checked={editInvFormalIssued} onCheckedChange={setEditInvFormalIssued} />
                   </div>
                 </div>
+                <SupplierInvoicePhotoField
+                  invoiceId={viewInvoice.id}
+                  hasInvoicePhoto={Boolean(viewInvoice.hasInvoicePhoto)}
+                  file={editInvPhotoFile}
+                  clearRequested={editInvPhotoClear}
+                  busy={updateInv.isPending || uploadPhoto.isPending || deletePhoto.isPending}
+                  onFileChange={(f) => {
+                    setEditInvPhotoFile(f);
+                    if (f) setEditInvPhotoClear(false);
+                  }}
+                  onClearRequest={() => {
+                    setEditInvPhotoClear(true);
+                    setEditInvPhotoFile(null);
+                  }}
+                  onUndoClear={() => setEditInvPhotoClear(false)}
+                  onPreviewCurrent={() => setPreviewPhotoInvoice(viewInvoice)}
+                  t={t}
+                />
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium text-zinc-700" htmlFor="inv-edit-note">
                     {t("suppliers.invoiceEditNote")}
@@ -2229,6 +2366,15 @@ export function SupplierInvoicesScreen() {
             void queryClient.invalidateQueries({ queryKey: supplierKeys.invoice(viewId) });
           }
         }}
+      />
+
+      <SupplierInvoicePhotoPreviewModal
+        open={previewPhotoInvoice != null}
+        invoiceId={previewPhotoInvoice?.id ?? null}
+        title={t("suppliers.invoicePhotoPreviewTitle")}
+        subtitle={previewPhotoInvoice ? `${previewPhotoInvoice.supplierName} · ${previewPhotoInvoice.documentDate}` : undefined}
+        t={t}
+        onClose={() => setPreviewPhotoInvoice(null)}
       />
 
       <Modal

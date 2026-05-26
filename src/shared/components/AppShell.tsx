@@ -38,6 +38,7 @@ function reportsHubLinkActive(pathname: string, href: string): boolean {
   if (href === "/reports/stock") return p.startsWith("/reports/stock");
   if (href === "/reports/patron-flow") return p.startsWith("/reports/patron-flow");
   if (href === "/reports/cash") return p.startsWith("/reports/cash");
+  if (href === "/reports/personnel-held-cash") return p.startsWith("/reports/personnel-held-cash");
   if (href === "/reports/branches") return p.startsWith("/reports/branches");
   return p.startsWith(href);
 }
@@ -312,6 +313,12 @@ const reportsFinSystemSubNav: readonly ReportSidebarNavItem[] = [
     labelKey: "reports.tabCashPosition",
     icon: "reportCash",
     hintKey: "nav.tooltip.reportsHubCash",
+  },
+  {
+    href: "/reports/personnel-held-cash",
+    labelKey: "reports.sidebarPersonnelHeldCash",
+    icon: "reportTable",
+    hintKey: "reports.sidebarPersonnelHeldCash",
   },
 ];
 

@@ -6,6 +6,7 @@ import {
   createSupplierInvoice,
   createSupplierPayment,
   deleteSupplier,
+  deleteSupplierInvoicePhoto,
   fetchSupplierInvoice,
   fetchSupplierInvoiceLineBranchAllocations,
   fetchSupplierInvoices,
@@ -16,6 +17,7 @@ import {
   setSupplierInvoiceLineBranchAllocations,
   updateSupplier,
   updateSupplierInvoice,
+  uploadSupplierInvoicePhoto,
   type SupplierInvoiceListQuery,
 } from "@/modules/suppliers/api/suppliers-api";
 import { fetchAuditLogs } from "@/lib/api/audit-logs-api";
@@ -172,6 +174,28 @@ export function useCreateSupplierPayment() {
       void qc.invalidateQueries({ queryKey: branchKeys.all });
       void qc.invalidateQueries({ queryKey: reportsKeys.all });
       void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
+    },
+  });
+}
+
+export function useUploadSupplierInvoicePhoto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { id: number; file: File }) => uploadSupplierInvoicePhoto(input.id, input.file),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: supplierKeys.invoice(vars.id) });
+      void qc.invalidateQueries({ queryKey: supplierKeys.all });
+    },
+  });
+}
+
+export function useDeleteSupplierInvoicePhoto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => deleteSupplierInvoicePhoto(id),
+    onSuccess: (_data, id) => {
+      void qc.invalidateQueries({ queryKey: supplierKeys.invoice(id) });
+      void qc.invalidateQueries({ queryKey: supplierKeys.all });
     },
   });
 }

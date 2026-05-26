@@ -1,4 +1,5 @@
-import { apiRequest } from "@/shared/api/client";
+import { apiFetch, apiRequest, apiUrl } from "@/shared/api/client";
+import { MAX_IMAGE_UPLOAD_BYTES } from "@/shared/lib/image-upload-limits";
 
 export type Supplier = {
   id: number;
@@ -52,6 +53,8 @@ export type SupplierInvoiceListItem = {
   linesTotal: number;
   paidTotal: number;
   openAmount: number;
+  /** True if a stored invoice photo exists for this invoice. */
+  hasInvoicePhoto?: boolean;
 };
 
 export type SupplierInvoiceDetail = SupplierInvoiceListItem & {
@@ -366,4 +369,51 @@ export async function postSupplierInvoiceLineBranchAllocations(
       }),
     }
   );
+}
+
+export function supplierInvoicePhotoUrl(invoiceId: number): string {
+  return apiUrl(`/suppliers/invoices/${invoiceId}/invoice-photo`);
+}
+
+export async function uploadSupplierInvoicePhoto(
+  invoiceId: number,
+  file: File
+): Promise<SupplierInvoiceDetail> {
+  if (file.size <= 0) {
+    throw new Error("Empty file");
+  }
+  if (file.size > MAX_IMAGE_UPLOAD_BYTES) {
+    throw new Error("image too large");
+  }
+  const fd = new FormData();
+  fd.append("invoicePhoto", file);
+  return apiRequest<SupplierInvoiceDetail>(
+    `/suppliers/invoices/${invoiceId}/invoice-photo`,
+    { method: "POST", body: fd }
+  );
+}
+
+export async function deleteSupplierInvoicePhoto(invoiceId: number): Promise<void> {
+  await apiRequest<null>(`/suppliers/invoices/${invoiceId}/invoice-photo`, {
+    method: "DELETE",
+  });
+}
+
+export async function downloadSupplierInvoicePhoto(
+  invoiceId: number,
+  preferredFileName?: string
+): Promise<void> {
+  const res = await apiFetch(`/suppliers/invoices/${invoiceId}/invoice-photo`);
+  if (!res.ok) throw new Error("Invoice photo download failed");
+  const blob = await res.blob();
+  const mime = (res.headers.get("Content-Type") ?? "").toLowerCase();
+  const ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : "jpg";
+  const fileName = preferredFileName?.trim() || `supplier-invoice-${invoiceId}.${ext}`;
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = blobUrl;
+  a.download = fileName;
+  a.rel = "noopener";
+  a.click();
+  URL.revokeObjectURL(blobUrl);
 }

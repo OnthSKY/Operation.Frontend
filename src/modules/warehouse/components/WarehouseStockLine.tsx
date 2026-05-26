@@ -523,6 +523,7 @@ export function WarehouseStockLine({
   const depoInModal = (
     <Modal
       nested
+      bodyScroll
       open={depoInOpen}
       onClose={requestDepoInClose}
       titleId={depoInTitleId}
@@ -680,6 +681,7 @@ export function WarehouseStockLine({
   const transferModal = (
     <Modal
       nested
+      bodyScroll
       open={transferOpen}
       onClose={requestTransferClose}
       titleId={transferTitleId}

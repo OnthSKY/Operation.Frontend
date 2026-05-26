@@ -501,7 +501,6 @@ function NationalIdPreviewImg({
           <img
             src={href}
             alt=""
-            loading="lazy"
             decoding="async"
             onLoad={() => setImageReady(true)}
             onError={() => setImageFailed(true)}

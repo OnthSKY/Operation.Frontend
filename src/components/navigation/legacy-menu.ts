@@ -86,6 +86,7 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
                   ]
                 : []),
               { id: "reports-position", labelKey: "reports.tabCashPosition", route: "/reports/position", icon: "reports" },
+              { id: "reports-personnel-held-cash", labelKey: "reports.sidebarPersonnelHeldCash", route: "/reports/personnel-held-cash", icon: "reports" },
               { id: "reports-patron-flow", labelKey: "reports.finNavCashFlow", route: "/reports/patron-flow", icon: "reports" },
               { id: "reports-branches", labelKey: "reports.navBranchComparison", route: "/reports/branches", icon: "reports" },
               { id: "reports-stock", labelKey: "reports.tabStock", route: "/reports/stock", icon: "reports" },
