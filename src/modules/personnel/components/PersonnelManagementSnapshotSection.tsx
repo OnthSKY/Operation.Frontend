@@ -3,6 +3,7 @@
 import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
 import { cn } from "@/lib/cn";
+import { PersonnelHeldCashMovementsList } from "@/modules/personnel/components/PersonnelHeldCashMovementsList";
 import { fetchBranchPersonnelMoneySummaries } from "@/modules/branch/api/branches-api";
 import { branchKeys } from "@/modules/branch/hooks/useBranchQueries";
 import { txCategoryLine } from "@/modules/branch/lib/branch-transaction-options";
@@ -1507,6 +1508,9 @@ export function PersonnelManagementSnapshotSection({
                     )}
                   </div>
                 ) : null}
+
+                {/* Hareketler (banka ekstresi) — branch_transactions tabanlı, ledger backfill'inden bağımsız. */}
+                <PersonnelHeldCashMovementsList personnelId={personnel.id} open={open} />
 
                 {/* DEPRECATED — eski IN/OUT alt-sekme bloğu. Yeni banka ekstresi paneli üstte. Faz 5.4'te tamamen silinecek. */}
                 <div className="hidden overflow-hidden rounded-xl border border-zinc-200/90 bg-white shadow-sm shadow-zinc-900/5">

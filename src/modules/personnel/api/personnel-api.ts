@@ -700,6 +700,42 @@ export async function fetchPersonnelCashHandoverOutflowsPaged(
   };
 }
 
+// ─── Held-cash hareketleri (branch_transactions tabanlı banka ekstresi) ─────
+
+export type PersonnelHeldCashMovement = {
+  transactionId: number;
+  transactionDate: string;
+  classificationCode: string;
+  effectDirection: "IN" | "OUT";
+  amount: number;
+  runningBalance: number;
+  description: string | null;
+  counterpartyPersonnelId: number | null;
+  counterpartyName: string | null;
+  linkedAdvanceId: number | null;
+};
+
+export type PersonnelHeldCashMovementGroup = {
+  branchId: number;
+  branchName: string;
+  currencyCode: string;
+  netBalance: number;
+  movements: PersonnelHeldCashMovement[];
+};
+
+export type PersonnelHeldCashMovementsResponse = {
+  personnelId: number;
+  groups: PersonnelHeldCashMovementGroup[];
+};
+
+export async function fetchPersonnelHeldCashMovements(
+  personnelId: number
+): Promise<PersonnelHeldCashMovementsResponse> {
+  return apiRequest<PersonnelHeldCashMovementsResponse>(
+    `/personnel/${personnelId}/held-cash-movements`
+  );
+}
+
 // ─── Yeni ledger sistemi (Faz 4.1) ─────────────────────────────────────────
 
 export type PersonnelCashLedgerApiQuery = {

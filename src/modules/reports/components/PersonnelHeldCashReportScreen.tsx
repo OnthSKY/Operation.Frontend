@@ -9,6 +9,7 @@ import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { ModernSelect } from "@/shared/ui/ModernSelect";
 import { usePersonnelHeldCashReportQuery } from "@/modules/reports/hooks/usePersonnelHeldCashReportQuery";
+import { DataTable, type DataTableColumn } from "@/shared/tables";
 import type {
   PersonnelHeldCashReportDetailRow,
   PersonnelHeldCashReportPerBranchRow,
@@ -265,6 +266,77 @@ export function PersonnelHeldCashReportScreen() {
   );
 }
 
+function CountStrip({ shown, total, unit }: { shown: number; total: number; unit: string }) {
+  return (
+    <div className="text-xs text-zinc-500">
+      {shown} / {total} {unit}
+    </div>
+  );
+}
+
+function EmptyRows({ message }: { message: string }) {
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-white p-8 text-center text-sm text-zinc-500">
+      {message}
+    </div>
+  );
+}
+
+const perPersonnelColumns: DataTableColumn<PersonnelHeldCashReportPerPersonRow>[] = [
+  {
+    id: "fullName",
+    header: "Personel",
+    tdClassName: "font-medium text-zinc-900",
+    cell: (r) => r.fullName,
+  },
+  {
+    id: "currencyCode",
+    header: "Para",
+    tdClassName: "text-zinc-700",
+    cell: (r) => r.currencyCode,
+  },
+  {
+    id: "branchCount",
+    header: "Şube",
+    thClassName: "text-right",
+    tdClassName: "text-right tabular-nums text-zinc-500",
+    cell: (r) => r.branchCount,
+  },
+  {
+    id: "given",
+    header: "Verilen (alındı + devraldı)",
+    thClassName: "text-right",
+    tdClassName: "text-right tabular-nums text-zinc-700",
+    cell: (r) => formatAmount(r.received + r.transferredIn, r.currencyCode),
+  },
+  {
+    id: "spent",
+    header: "Harcadı",
+    thClassName: "text-right",
+    tdClassName: "text-right tabular-nums text-zinc-700",
+    cell: (r) => (r.spent > 0 ? `−${formatAmount(r.spent, r.currencyCode)}` : "—"),
+  },
+  {
+    id: "transferredOut",
+    header: "Devretti",
+    thClassName: "text-right",
+    tdClassName: "text-right tabular-nums text-rose-700",
+    cell: (r) =>
+      r.transferredOut > 0 ? `−${formatAmount(r.transferredOut, r.currencyCode)}` : "—",
+  },
+  {
+    id: "remaining",
+    header: "Kalan",
+    thClassName: "text-right",
+    tdClassName: "text-right font-semibold tabular-nums",
+    cell: (r) => (
+      <span className={cn(r.remaining < 0 ? "text-red-700" : "text-zinc-900")}>
+        {formatAmount(r.remaining, r.currencyCode)}
+      </span>
+    ),
+  },
+];
+
 function PerPersonnelTable({
   rows,
   totalCount,
@@ -272,60 +344,73 @@ function PerPersonnelTable({
   rows: PersonnelHeldCashReportPerPersonRow[];
   totalCount: number;
 }) {
-  if (rows.length === 0) {
-    return (
-      <div className="rounded-lg border border-zinc-200 bg-white p-8 text-center text-sm text-zinc-500">
-        Eşleşen personel yok.
-      </div>
-    );
-  }
   return (
-    <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
-      <div className="border-b border-zinc-100 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-500">
-        {rows.length} / {totalCount} personel
-      </div>
-      <table className="min-w-full text-sm">
-        <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-600">
-          <tr>
-            <th className="px-3 py-2 text-left">Personel</th>
-            <th className="px-3 py-2 text-left">Para</th>
-            <th className="px-3 py-2 text-right">Şube</th>
-            <th className="px-3 py-2 text-right">Verilen (alındı + devraldı)</th>
-            <th className="px-3 py-2 text-right">Harcadı</th>
-            <th className="px-3 py-2 text-right">Devretti</th>
-            <th className="px-3 py-2 text-right">Kalan</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-zinc-100">
-          {rows.map((r) => (
-            <tr key={`${r.personnelId}-${r.currencyCode}`}>
-              <td className="px-3 py-2 font-medium text-zinc-900">{r.fullName}</td>
-              <td className="px-3 py-2 text-zinc-700">{r.currencyCode}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-zinc-500">{r.branchCount}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-zinc-700">
-                {formatAmount(r.received + r.transferredIn, r.currencyCode)}
-              </td>
-              <td className="px-3 py-2 text-right tabular-nums text-zinc-700">
-                {r.spent > 0 ? `−${formatAmount(r.spent, r.currencyCode)}` : "—"}
-              </td>
-              <td className="px-3 py-2 text-right tabular-nums text-rose-700">
-                {r.transferredOut > 0 ? `−${formatAmount(r.transferredOut, r.currencyCode)}` : "—"}
-              </td>
-              <td
-                className={cn(
-                  "px-3 py-2 text-right font-semibold tabular-nums",
-                  r.remaining < 0 ? "text-red-700" : "text-zinc-900"
-                )}
-              >
-                {formatAmount(r.remaining, r.currencyCode)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-2">
+      <CountStrip shown={rows.length} total={totalCount} unit="personel" />
+      <DataTable
+        columns={perPersonnelColumns}
+        rows={rows}
+        getRowKey={(r) => `${r.personnelId}-${r.currencyCode}`}
+        emptyMessage={<EmptyRows message="Eşleşen personel yok." />}
+      />
     </div>
   );
 }
+
+const perBranchColumns: DataTableColumn<PersonnelHeldCashReportPerBranchRow>[] = [
+  {
+    id: "branchName",
+    header: "Şube",
+    tdClassName: "font-medium text-zinc-900",
+    cell: (r) => r.branchName,
+  },
+  {
+    id: "currencyCode",
+    header: "Para",
+    tdClassName: "text-zinc-700",
+    cell: (r) => r.currencyCode,
+  },
+  {
+    id: "personnelCount",
+    header: "Personel",
+    thClassName: "text-right",
+    tdClassName: "text-right tabular-nums text-zinc-500",
+    cell: (r) => r.personnelCount,
+  },
+  {
+    id: "given",
+    header: "Verilen (alındı + devraldı)",
+    thClassName: "text-right",
+    tdClassName: "text-right tabular-nums text-zinc-700",
+    cell: (r) => formatAmount(r.received + r.transferredIn, r.currencyCode),
+  },
+  {
+    id: "spent",
+    header: "Harcandı",
+    thClassName: "text-right",
+    tdClassName: "text-right tabular-nums text-zinc-700",
+    cell: (r) => (r.spent > 0 ? `−${formatAmount(r.spent, r.currencyCode)}` : "—"),
+  },
+  {
+    id: "transferredOut",
+    header: "Devredildi",
+    thClassName: "text-right",
+    tdClassName: "text-right tabular-nums text-rose-700",
+    cell: (r) =>
+      r.transferredOut > 0 ? `−${formatAmount(r.transferredOut, r.currencyCode)}` : "—",
+  },
+  {
+    id: "remaining",
+    header: "Kalan",
+    thClassName: "text-right",
+    tdClassName: "text-right font-semibold tabular-nums",
+    cell: (r) => (
+      <span className={cn(r.remaining < 0 ? "text-red-700" : "text-zinc-900")}>
+        {formatAmount(r.remaining, r.currencyCode)}
+      </span>
+    ),
+  },
+];
 
 function PerBranchTable({
   rows,
@@ -334,60 +419,80 @@ function PerBranchTable({
   rows: PersonnelHeldCashReportPerBranchRow[];
   totalCount: number;
 }) {
-  if (rows.length === 0) {
-    return (
-      <div className="rounded-lg border border-zinc-200 bg-white p-8 text-center text-sm text-zinc-500">
-        Eşleşen şube yok.
-      </div>
-    );
-  }
   return (
-    <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
-      <div className="border-b border-zinc-100 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-500">
-        {rows.length} / {totalCount} satır
-      </div>
-      <table className="min-w-full text-sm">
-        <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-600">
-          <tr>
-            <th className="px-3 py-2 text-left">Şube</th>
-            <th className="px-3 py-2 text-left">Para</th>
-            <th className="px-3 py-2 text-right">Personel</th>
-            <th className="px-3 py-2 text-right">Verilen (alındı + devraldı)</th>
-            <th className="px-3 py-2 text-right">Harcandı</th>
-            <th className="px-3 py-2 text-right">Devredildi</th>
-            <th className="px-3 py-2 text-right">Kalan</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-zinc-100">
-          {rows.map((r) => (
-            <tr key={`${r.branchId}-${r.currencyCode}`}>
-              <td className="px-3 py-2 font-medium text-zinc-900">{r.branchName}</td>
-              <td className="px-3 py-2 text-zinc-700">{r.currencyCode}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-zinc-500">{r.personnelCount}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-zinc-700">
-                {formatAmount(r.received + r.transferredIn, r.currencyCode)}
-              </td>
-              <td className="px-3 py-2 text-right tabular-nums text-zinc-700">
-                {r.spent > 0 ? `−${formatAmount(r.spent, r.currencyCode)}` : "—"}
-              </td>
-              <td className="px-3 py-2 text-right tabular-nums text-rose-700">
-                {r.transferredOut > 0 ? `−${formatAmount(r.transferredOut, r.currencyCode)}` : "—"}
-              </td>
-              <td
-                className={cn(
-                  "px-3 py-2 text-right font-semibold tabular-nums",
-                  r.remaining < 0 ? "text-red-700" : "text-zinc-900"
-                )}
-              >
-                {formatAmount(r.remaining, r.currencyCode)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-2">
+      <CountStrip shown={rows.length} total={totalCount} unit="satır" />
+      <DataTable
+        columns={perBranchColumns}
+        rows={rows}
+        getRowKey={(r) => `${r.branchId}-${r.currencyCode}`}
+        emptyMessage={<EmptyRows message="Eşleşen şube yok." />}
+      />
     </div>
   );
 }
+
+const detailColumns: DataTableColumn<PersonnelHeldCashReportDetailRow>[] = [
+  {
+    id: "fullName",
+    header: "Personel",
+    tdClassName: "font-medium text-zinc-900",
+    cell: (r) => r.fullName,
+  },
+  {
+    id: "branchName",
+    header: "Şube",
+    tdClassName: "text-zinc-700",
+    cell: (r) => r.branchName,
+  },
+  {
+    id: "currencyCode",
+    header: "Para",
+    tdClassName: "text-zinc-700",
+    cell: (r) => r.currencyCode,
+  },
+  {
+    id: "received",
+    header: "Aldı",
+    thClassName: "text-right",
+    tdClassName: "text-right tabular-nums text-zinc-700",
+    cell: (r) => formatAmount(r.received, r.currencyCode),
+  },
+  {
+    id: "transferredIn",
+    header: "Devraldı",
+    thClassName: "text-right",
+    tdClassName: "text-right tabular-nums text-emerald-700",
+    cell: (r) =>
+      r.transferredIn > 0 ? `+${formatAmount(r.transferredIn, r.currencyCode)}` : "—",
+  },
+  {
+    id: "spent",
+    header: "Harcadı",
+    thClassName: "text-right",
+    tdClassName: "text-right tabular-nums text-zinc-700",
+    cell: (r) => (r.spent > 0 ? `−${formatAmount(r.spent, r.currencyCode)}` : "—"),
+  },
+  {
+    id: "transferredOut",
+    header: "Devretti",
+    thClassName: "text-right",
+    tdClassName: "text-right tabular-nums text-rose-700",
+    cell: (r) =>
+      r.transferredOut > 0 ? `−${formatAmount(r.transferredOut, r.currencyCode)}` : "—",
+  },
+  {
+    id: "remaining",
+    header: "Kalan",
+    thClassName: "text-right",
+    tdClassName: "text-right font-semibold tabular-nums",
+    cell: (r) => (
+      <span className={cn(r.remaining < 0 ? "text-red-700" : "text-zinc-900")}>
+        {formatAmount(r.remaining, r.currencyCode)}
+      </span>
+    ),
+  },
+];
 
 function DetailTable({
   rows,
@@ -396,61 +501,15 @@ function DetailTable({
   rows: PersonnelHeldCashReportDetailRow[];
   totalCount: number;
 }) {
-  if (rows.length === 0) {
-    return (
-      <div className="rounded-lg border border-zinc-200 bg-white p-8 text-center text-sm text-zinc-500">
-        Eşleşen kayıt yok.
-      </div>
-    );
-  }
   return (
-    <div className="overflow-x-auto rounded-lg border border-zinc-200 bg-white">
-      <div className="border-b border-zinc-100 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-500">
-        {rows.length} / {totalCount} satır (personel × şube × para)
-      </div>
-      <table className="min-w-full text-sm">
-        <thead className="bg-zinc-50 text-xs uppercase tracking-wide text-zinc-600">
-          <tr>
-            <th className="px-3 py-2 text-left">Personel</th>
-            <th className="px-3 py-2 text-left">Şube</th>
-            <th className="px-3 py-2 text-left">Para</th>
-            <th className="px-3 py-2 text-right">Aldı</th>
-            <th className="px-3 py-2 text-right">Devraldı</th>
-            <th className="px-3 py-2 text-right">Harcadı</th>
-            <th className="px-3 py-2 text-right">Devretti</th>
-            <th className="px-3 py-2 text-right">Kalan</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-zinc-100">
-          {rows.map((r, idx) => (
-            <tr key={`${r.personnelId}-${r.branchId}-${r.currencyCode}-${idx}`}>
-              <td className="px-3 py-2 font-medium text-zinc-900">{r.fullName}</td>
-              <td className="px-3 py-2 text-zinc-700">{r.branchName}</td>
-              <td className="px-3 py-2 text-zinc-700">{r.currencyCode}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-zinc-700">
-                {formatAmount(r.received, r.currencyCode)}
-              </td>
-              <td className="px-3 py-2 text-right tabular-nums text-emerald-700">
-                {r.transferredIn > 0 ? `+${formatAmount(r.transferredIn, r.currencyCode)}` : "—"}
-              </td>
-              <td className="px-3 py-2 text-right tabular-nums text-zinc-700">
-                {r.spent > 0 ? `−${formatAmount(r.spent, r.currencyCode)}` : "—"}
-              </td>
-              <td className="px-3 py-2 text-right tabular-nums text-rose-700">
-                {r.transferredOut > 0 ? `−${formatAmount(r.transferredOut, r.currencyCode)}` : "—"}
-              </td>
-              <td
-                className={cn(
-                  "px-3 py-2 text-right font-semibold tabular-nums",
-                  r.remaining < 0 ? "text-red-700" : "text-zinc-900"
-                )}
-              >
-                {formatAmount(r.remaining, r.currencyCode)}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-2">
+      <CountStrip shown={rows.length} total={totalCount} unit="satır (personel × şube × para)" />
+      <DataTable
+        columns={detailColumns}
+        rows={rows}
+        getRowKey={(r) => `${r.personnelId}-${r.branchId}-${r.currencyCode}`}
+        emptyMessage={<EmptyRows message="Eşleşen kayıt yok." />}
+      />
     </div>
   );
 }

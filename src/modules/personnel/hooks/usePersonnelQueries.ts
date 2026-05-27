@@ -42,6 +42,7 @@ import {
   fetchPersonnelCashAccountLedger,
   fetchPersonnelCashHandoverLinesPaged,
   fetchPersonnelCashHandoverOutflowsPaged,
+  fetchPersonnelHeldCashMovements,
   fetchPersonnelManagementSnapshot,
   fetchPersonnel,
   softDeletePersonnel,
@@ -402,6 +403,20 @@ export function usePersonnelCashHandoverLinesPaged(
         search: searchKey || undefined,
       }),
     enabled: enabled && personnelId != null && personnelId > 0,
+  });
+}
+
+export function usePersonnelHeldCashMovements(
+  personnelId: number | null | undefined,
+  enabled: boolean
+) {
+  return useQuery({
+    queryKey: ["personnel", "held-cash-movements", personnelId ?? 0],
+    queryFn: () => fetchPersonnelHeldCashMovements(personnelId!),
+    enabled: enabled && personnelId != null && personnelId > 0,
+    staleTime: 20_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 }
 
