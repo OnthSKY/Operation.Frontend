@@ -170,6 +170,15 @@ export function branchTxNonPnl(row: BranchTransaction): boolean {
   return isNonPnlMemoClassificationMain(row.mainCategory);
 }
 
+/**
+ * P&L ekseni: işlem şube kâr/zararını etkiler mi? Patron-ödemeli tedarikçi faturası
+ * gibi kasa-dışı ama gerçek giderler burada `true` döner (kâra girer); yalnız memo /
+ * `excludedFromProfitAndLoss` satırları hariç tutulur. Bkz. txAffectsRegister / txFundedByPatron.
+ */
+export function txAffectsPnl(row: BranchTransaction): boolean {
+  return !branchTxNonPnl(row);
+}
+
 export function patronIncomeToPatronVisible(
   s: { total: number; cash: number; card: number; unspecified: number } | null | undefined
 ): boolean {

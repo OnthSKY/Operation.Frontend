@@ -3,7 +3,9 @@ import type {
   BranchScopeAssignment,
   CreateUserInput,
   PersonnelScopeAssignment,
+  UpdateUserProfileInput,
   UserDataScopesResponse,
+  UserDeleteResult,
   UserListItem,
   UserPermissionOverridesResponse,
   WarehouseScopeAssignment,
@@ -59,6 +61,37 @@ export async function patchUserAccountStatus(
     method: "PATCH",
     body: JSON.stringify({ active }),
   });
+}
+
+export async function updateUserProfile(
+  userId: number,
+  input: UpdateUserProfileInput
+): Promise<UserListItem> {
+  return apiRequest<UserListItem>(`/users/${userId}/profile`, {
+    method: "PUT",
+    body: JSON.stringify({
+      username: input.username.trim(),
+      fullName: input.fullName?.trim() || null,
+      email: input.email?.trim() || null,
+    }),
+  });
+}
+
+export async function resetUserPassword(userId: number, password: string): Promise<void> {
+  await apiRequest<unknown>(`/users/${userId}/reset-password`, {
+    method: "POST",
+    body: JSON.stringify({ password }),
+  });
+}
+
+/** Soft delete: kullanıcıyı listeden kaldırır (pasiften farklı, DB'de is_deleted). */
+export async function softDeleteUser(userId: number): Promise<UserDeleteResult> {
+  return apiRequest<UserDeleteResult>(`/users/${userId}`, { method: "DELETE" });
+}
+
+/** Hard delete: fiziksel siler; bağlı kaydı varsa sunucu soft delete'e düşer (mode = SOFT_FALLBACK). */
+export async function hardDeleteUser(userId: number): Promise<UserDeleteResult> {
+  return apiRequest<UserDeleteResult>(`/users/${userId}/permanent`, { method: "DELETE" });
 }
 
 export async function fetchUserPermissionOverrides(

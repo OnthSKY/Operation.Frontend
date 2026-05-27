@@ -89,6 +89,8 @@ export function fetchFinancialReport(
     byExpensePaymentSource: r.byExpensePaymentSource ?? [],
     supplierPayments: r.supplierPayments ?? [],
     vehicleExpensesOffRegister: r.vehicleExpensesOffRegister ?? [],
+    vehicleExpensesByPlate: r.vehicleExpensesByPlate ?? [],
+    branchExpenseResidualByCategory: r.branchExpenseResidualByCategory ?? [],
     incomeRegisterBreakdownByCurrency: r.incomeRegisterBreakdownByCurrency ?? [],
   }));
 }

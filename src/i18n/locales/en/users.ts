@@ -111,6 +111,40 @@ export const users = {
   accountStatusDialogDescriptionDeactivate:
     "Sign-in is blocked and “remember me” sessions end. The action is logged to audit. Continue?",
   statusChangeSelfDisabled: "You cannot deactivate your own account here.",
+  editUser: "Edit",
+  editDialogTitle: "Edit user",
+  editDialogDescription:
+    "Update the name, username and email. Reset the password below if needed.",
+  editUsernameLabel: "Username",
+  editUsernameRequired: "Username cannot be empty.",
+  editFullNameLabel: "Full name",
+  editEmailLabel: "Email",
+  editEmailPlaceholder: "name@company.com",
+  editProfileSaved: "User details updated",
+  editPasswordSectionTitle: "Reset password",
+  editPasswordSectionHint:
+    "Setting a new password ends the user's current sessions and forces a fresh sign-in.",
+  editNewPasswordLabel: "New password",
+  editNewPasswordPlaceholder: "At least 8 characters",
+  resetPasswordButton: "Reset password",
+  passwordResetSaved: "Password reset",
+  deleteUser: "Delete",
+  deleteUserHint:
+    "Removes the user (different from deactivating). Permanent delete is also possible if created by mistake.",
+  deleteSelfDisabled: "You cannot delete your own account.",
+  deleteDialogTitle: "Delete user",
+  deleteDialogDescription:
+    "Choose how you want to remove this user. The action is written to the audit log.",
+  deleteDialogSoftHint:
+    "Delete: the user is removed from the list and can no longer sign in; the username becomes reusable. Historical records (transactions, audit) are kept.",
+  deleteDialogHardHint:
+    "Permanent Delete: fully removes a user created by mistake. If the user has created or modified any records, it cannot be permanently deleted and automatically falls back to a normal delete.",
+  deleteSoftButton: "Delete",
+  deleteHardButton: "Permanent Delete",
+  deleteSoftToast: "User deleted",
+  deleteHardToast: "User permanently deleted",
+  deleteHardFallbackToast:
+    "The user has linked records, so it could not be permanently deleted; it was removed from the list instead.",
   tablePermissions: "Permissions",
   tableMfa: "MFA",
   mfaOnShort: "On",

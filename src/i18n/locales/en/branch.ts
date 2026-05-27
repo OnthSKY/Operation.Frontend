@@ -680,6 +680,11 @@ export const branch = {
     "Payment-source split within this total (amount and percentage).",
   expensesListExcludesHeldRegisterHint:
     "Held register cash handovers are not counted as expenses—only register, owner, and personnel-pocket payments. Filter by «Held register cash» to list those transfers.",
+  expensesAxisCashOut: "Paid from register (cash out)",
+  expensesAxisOffRegister: "Off-register (owner / personnel pocket)",
+  expensesAxisSplitHint:
+    "Register payments reduce drawer cash; off-register items (e.g. owner-paid invoices) are accounting expenses but do not affect the register or day-close.",
+  expensesOffRegisterPatronBadge: "Off-register · Owner paid",
   expensesListPeriodPatronTotal: "Owner-paid expense total",
   expensesListPeriodRowCount: "Matching rows",
   expensesListDayForPrefix: "Selected day:",

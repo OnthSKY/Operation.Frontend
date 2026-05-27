@@ -497,6 +497,29 @@ export function expensePaymentSourceLabelShort(
   return "";
 }
 
+/**
+ * Finans eksenleri (mercek mimarisi). Bir OUT işlemi tek "gider" değil; üç ortogonal
+ * soruyla değerlendirilir. P&L ekseni için `branchTxNonPnl` (BranchDetailTabs.shared)
+ * kullanılır — döngüsel import olmaması için burada tutulmaz.
+ *
+ * Kasa ekseni: çekmeceden nakit çıktı mı? Yalnız REGISTER kasayı düşürür; PATRON ve
+ * PERSONNEL_POCKET kasa-nötrdür. PERSONNEL_HELD_REGISTER_CASH ayrı ele alınır
+ * (Giderler sekmesindeki mevcut toggle yönetir), katı kasa toplamına dahil edilmez.
+ */
+export function txAffectsRegister(
+  row: Pick<BranchTransaction, "type" | "expensePaymentSource">
+): boolean {
+  if (String(row.type ?? "").trim().toUpperCase() !== "OUT") return false;
+  return String(row.expensePaymentSource ?? "").trim().toUpperCase() === "REGISTER";
+}
+
+/** Finansman ekseni: gideri patron mu fonladı? (kasa-dışı, şube → patron borcu). */
+export function txFundedByPatron(
+  row: Pick<BranchTransaction, "expensePaymentSource">
+): boolean {
+  return String(row.expensePaymentSource ?? "").trim().toUpperCase() === "PATRON";
+}
+
 /** Maaş / prim / avans: linked advance veya salary payment. */
 export const OUT_PERSONNEL_PAYROLL_SUBS = new Set([
   "PER_ADVANCE",

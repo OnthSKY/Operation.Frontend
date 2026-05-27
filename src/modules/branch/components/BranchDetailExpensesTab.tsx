@@ -13,6 +13,7 @@ import {
   branchTxUnpaidInvoice,
   expensePaymentSourceLabelShort,
   txCategoryLine,
+  txFundedByPatron,
 } from "@/modules/branch/lib/branch-transaction-options";
 import type { BranchRegisterSummary } from "@/types/branch";
 import type { BranchTransaction } from "@/types/branch-transaction";
@@ -244,17 +245,25 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
       register = Math.max(0, total - patron - pocket);
     }
     const pct = (amount: number) => (total > 0 ? (amount / total) * 100 : 0);
+    // Kasa ekseni ayrımı: REGISTER (+ görünürse HELD) çekmeceden çıkan nakit; PATRON ve
+    // personel cebi kasa-dışıdır (patron faturası kasa toplamına sızmamalı).
+    const cashOut = register + held;
+    const offRegister = patron + pocket;
     return {
       total,
       patron,
       register,
       pocket,
       held,
+      cashOut,
+      offRegister,
       showHeld: showHeldRegisterInExpenseTab,
       patronPct: pct(patron),
       registerPct: pct(register),
       pocketPct: pct(pocket),
       heldPct: pct(held),
+      cashOutPct: pct(cashOut),
+      offRegisterPct: pct(offRegister),
     };
   }, [
     expData?.registerExpenseTotal,
@@ -443,6 +452,33 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                             {showHeldRegisterInExpenseTab
                               ? t("branch.expensesListUnifiedBreakdownHint")
                               : t("branch.expensesListExcludesHeldRegisterHint")}
+                          </p>
+                          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                            <div className="rounded-lg border border-rose-200/90 bg-rose-50/50 px-2.5 py-2">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-rose-800">
+                                {t("branch.expensesAxisCashOut")}
+                              </p>
+                              <p className="mt-0.5 text-sm font-bold tabular-nums text-rose-900">
+                                {formatMoneyDash(expenseListSourceTotals.cashOut, t("personnel.dash"), locale, "TRY")}
+                              </p>
+                              <p className="text-[11px] tabular-nums text-rose-700/80">
+                                %{expenseListSourceTotals.cashOutPct.toFixed(1)}
+                              </p>
+                            </div>
+                            <div className="rounded-lg border border-amber-200/90 bg-amber-50/50 px-2.5 py-2">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">
+                                {t("branch.expensesAxisOffRegister")}
+                              </p>
+                              <p className="mt-0.5 text-sm font-bold tabular-nums text-amber-900">
+                                {formatMoneyDash(expenseListSourceTotals.offRegister, t("personnel.dash"), locale, "TRY")}
+                              </p>
+                              <p className="text-[11px] tabular-nums text-amber-700/80">
+                                %{expenseListSourceTotals.offRegisterPct.toFixed(1)}
+                              </p>
+                            </div>
+                          </div>
+                          <p className="mt-1.5 text-[11px] leading-snug text-zinc-500">
+                            {t("branch.expensesAxisSplitHint")}
                           </p>
                           <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
                             {[
@@ -745,6 +781,11 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                             : expensePaymentSourceLabelShort(row.expensePaymentSource, t)}
                         </p>
                       ) : null}
+                      {!branchTxNonPnl(row) && txFundedByPatron(row) ? (
+                        <span className="mt-0.5 inline-block rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
+                          {t("branch.expensesOffRegisterPatronBadge")}
+                        </span>
+                      ) : null}
                       {pocketLine ? (
                         <p className="mt-0.5 text-xs text-zinc-500">{pocketLine}</p>
                       ) : null}
@@ -892,6 +933,11 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                                     : expensePaymentSourceLabelShort(row.expensePaymentSource, t) ||
                                       "—"}
                             </div>
+                            {!branchTxNonPnl(row) && txFundedByPatron(row) ? (
+                              <span className="mt-0.5 inline-block rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-800">
+                                {t("branch.expensesOffRegisterPatronBadge")}
+                              </span>
+                            ) : null}
                             {pocketLine ? (
                               <p className="mt-0.5 text-xs text-zinc-500">{pocketLine}</p>
                             ) : null}

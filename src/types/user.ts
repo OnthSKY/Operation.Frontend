@@ -12,6 +12,7 @@ export type UserListItem = {
   id: number;
   username: string;
   fullName: string | null;
+  email?: string | null;
   role: string;
   status: string;
   personnelId: number | null;
@@ -80,4 +81,18 @@ export type CreateUserInput = {
   fullName?: string | null;
   role: AppUserRole;
   personnelId?: number | null;
+};
+
+export type UpdateUserProfileInput = {
+  username: string;
+  fullName?: string | null;
+  email?: string | null;
+};
+
+/** Silme sonucu: HARD = fiziksel silindi, SOFT = soft delete, SOFT_FALLBACK = bağlı kayıt nedeniyle soft delete'e düşüldü. */
+export type UserDeleteMode = "HARD" | "SOFT" | "SOFT_FALLBACK";
+
+export type UserDeleteResult = {
+  id: number;
+  mode: UserDeleteMode;
 };

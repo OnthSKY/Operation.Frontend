@@ -694,10 +694,15 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                               <span className="font-bold text-zinc-900">{formatMoneyDash(cardIncome, "—", locale, row.currencyCode)}</span>
                             </div>
                             {Math.abs(expense) > 0.005 && (
-                              <div className="flex justify-between border-t border-zinc-100 pt-1 text-orange-600">
-                                <span className="font-medium">Kasa Gideri:</span>
-                                <span className="font-bold">− {formatMoneyDash(expense, "—", locale, row.currencyCode)}</span>
-                              </div>
+                              <>
+                                <div className="flex justify-between border-t border-zinc-100 pt-1 text-orange-600">
+                                  <span className="font-medium">Kasadan Çıkan (gün içi):</span>
+                                  <span className="font-bold">− {formatMoneyDash(expense, "—", locale, row.currencyCode)}</span>
+                                </div>
+                                <p className="text-[10px] leading-snug text-zinc-400">
+                                  Yalnızca kasa nakdinden çıkan tutar. Patron-ödemeli kalemler buraya dahil değildir.
+                                </p>
+                              </>
                             )}
                           </div>,
                         ]
@@ -815,8 +820,11 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                                 </span>
                               </div>
                               {Math.abs(expense) > 0.005 && (
-                                <div className="flex items-center justify-between gap-4 text-[11px] border-t border-zinc-100 mt-0.5 pt-0.5 text-orange-600">
-                                  <span>Kasa Gideri:</span>
+                                <div
+                                  className="flex items-center justify-between gap-4 text-[11px] border-t border-zinc-100 mt-0.5 pt-0.5 text-orange-600"
+                                  title="Yalnızca kasa nakdinden çıkan tutar. Patron-ödemeli kalemler buraya dahil değildir."
+                                >
+                                  <span>Kasadan Çıkan (gün içi):</span>
                                   <span className="font-bold tabular-nums">
                                     − {formatMoneyDash(expense, "—", locale, row.currencyCode)}
                                   </span>

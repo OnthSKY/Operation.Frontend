@@ -85,6 +85,7 @@ export type PersonnelHeldCashDrillDownRow = {
   description: string | null;
   counterpartyPersonnelId: number | null;
   counterpartyName: string | null;
+  linkedAdvanceId: number | null;
 };
 
 export type PersonnelHeldCashDrillDownResponse = {

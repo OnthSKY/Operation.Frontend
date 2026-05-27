@@ -1054,4 +1054,31 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
     "Fills the form from the selected â€œSample contentâ€ option above: when custom is selected, it loads the default wholesale sample; other templates load their matching sample set.",
   orderAccountStatementReset: "Clear all",
   orderAccountStatementNoAccess: "You need reports access to open this page.",
+
+  // Income/expense summary tree (cash-flow view)
+  summaryTreeTitle: "Income & Expense Summary",
+  summaryTreeSubtitle: "Where the money came from and where it went — branch cash flow.",
+  summaryTreeIncome: "Income",
+  summaryTreeIncomeFromBranches: "Earned from branches",
+  summaryTreeCash: "Cash",
+  summaryTreeCard: "Card",
+  summaryTreeExpense: "Total expense",
+  summaryTreePersonnel: "To personnel",
+  summaryTreeAdvance: "Advance",
+  summaryTreePersonnelExpense: "Personnel expense",
+  summaryTreeBranchOther: "To branches (other)",
+  summaryTreeVehicle: "Vehicle expense",
+  summaryTreeGeneralOverhead: "General overhead",
+  summaryTreeSupplier: "Supplier invoices",
+  summaryTreeSupplierCash: "From register (cash)",
+  summaryTreeSupplierPatron: "From patron",
+  summaryTreeSupplierBank: "From bank",
+  summaryTreeNet: "Net",
+  summaryTreeSystemNetNote: "System register net",
+  summaryTreeOffRegisterNote:
+    "difference = off-register payments (patron/bank supplier, off-register vehicle) — not in system net",
+  summaryTreeNoData: "No data for this period.",
+  summaryTreeVehicleHint: "By plate, broken down by expense type.",
+  summaryTreeBranchOnlyAllBranches:
+    "Vehicle and other branch expenses are itemized only when “All branches” is selected.",
 } as const;

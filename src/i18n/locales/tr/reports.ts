@@ -1039,5 +1039,32 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
     "Üstteki «Örnek içerik» seçimine göre formu doldurur: özel seçiliyken varsayılan toptan örneği yüklenir; diğer şablonlarda ilgili örnek seti doldurulur.",
   orderAccountStatementReset: "Tümünü temizle",
   orderAccountStatementNoAccess: "Bu sayfayı görmek için raporlar erişimi gerekir.",
+
+  // Gelir-gider özeti ağacı (nakit akış görünümü)
+  summaryTreeTitle: "Gelir Gider Özeti",
+  summaryTreeSubtitle: "Para nereden geldi, nereye gitti — şube bazlı nakit akışı.",
+  summaryTreeIncome: "Gelir",
+  summaryTreeIncomeFromBranches: "Şubelerden kazanılan",
+  summaryTreeCash: "Nakit",
+  summaryTreeCard: "Kart",
+  summaryTreeExpense: "Toplam gider",
+  summaryTreePersonnel: "Personele giden",
+  summaryTreeAdvance: "Avans",
+  summaryTreePersonnelExpense: "Personel gideri",
+  summaryTreeBranchOther: "Şubeye giden (diğer)",
+  summaryTreeVehicle: "Araç gideri",
+  summaryTreeGeneralOverhead: "Genel gider",
+  summaryTreeSupplier: "Tedarikçi fatura",
+  summaryTreeSupplierCash: "Kasadan (nakit)",
+  summaryTreeSupplierPatron: "Patrondan",
+  summaryTreeSupplierBank: "Bankadan",
+  summaryTreeNet: "Net",
+  summaryTreeSystemNetNote: "Sistem kasa neti",
+  summaryTreeOffRegisterNote:
+    "fark = kasa dışı ödemeler (patron/banka tedarikçi, kasa dışı araç) — sistem netine dahil değil",
+  summaryTreeNoData: "Bu dönem için veri yok.",
+  summaryTreeVehicleHint: "Plaka bazlı, gider türüne göre kırılım.",
+  summaryTreeBranchOnlyAllBranches:
+    "Araç ve diğer şube giderleri yalnızca «Tüm şubeler» seçiliyken kırılımlı gösterilir.",
 } as const;
 

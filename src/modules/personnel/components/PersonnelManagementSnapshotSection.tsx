@@ -166,6 +166,8 @@ type Props = {
   onHandoverOpenExpenseRegister?: (ctx: PersonnelHandoverPoolActionContext) => void;
   /** Havuz toplamından kasadan patrona; formda IN # gerekir. */
   onHandoverOpenPatronRegisterRepay?: (ctx: PersonnelHandoverPoolActionContext) => void;
+  /** Reconciliation drill-down'dan: işaretlenecek (handover/outflow) transaction id. */
+  focusTransactionId?: number | null;
 };
 
 function emptyHandoverFilters(): PersonnelCashHandoverLinesFilterState {
@@ -265,10 +267,32 @@ export function PersonnelManagementSnapshotSection({
   onOpenCostsDetail,
   onHandoverOpenExpenseRegister,
   onHandoverOpenPatronRegisterRepay,
+  focusTransactionId = null,
 }: Props) {
   const { t, locale } = useI18n();
   const branchOverlay = useBranchDetailOverlayOptional();
   const dash = t("personnel.dash");
+
+  // Reconciliation drill-down'dan gelen "işaretlenecek" işlem; birkaç saniye vurgulanır.
+  const [highlightTxId, setHighlightTxId] = useState<number | null>(null);
+  useEffect(() => {
+    if (!open || !focusTransactionId || focusTransactionId <= 0) {
+      setHighlightTxId(null);
+      return;
+    }
+    setHighlightTxId(focusTransactionId);
+    const scrollTimer = window.setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(
+        `[data-cash-row="${focusTransactionId}"]`
+      );
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 350);
+    const clearTimer = window.setTimeout(() => setHighlightTxId(null), 4000);
+    return () => {
+      window.clearTimeout(scrollTimer);
+      window.clearTimeout(clearTimer);
+    };
+  }, [open, focusTransactionId]);
   // Yeni layout'ta sadece "Patrona devret" butonu var (gider butonu kaldırıldı).
   // Bu yüzden tek başına patron callback yeterli — iki callback şartı kaldırıldı.
   const handoverActionsEnabled =
@@ -1634,7 +1658,14 @@ export function PersonnelManagementSnapshotSection({
                                     {hovItems.map((row) => {
                                       const cat = txCategoryLine(row.mainCategory, row.category, t);
                                       return (
-                                        <TableRow key={row.transactionId}>
+                                        <TableRow
+                                          key={row.transactionId}
+                                          data-cash-row={row.transactionId}
+                                          className={cn(
+                                            highlightTxId === row.transactionId &&
+                                              "ring-2 ring-amber-400 ring-inset bg-amber-50"
+                                          )}
+                                        >
                                           <TableCell
                                             dataLabel={t("personnel.detailMgmtHandoverColDate")}
                                             className="whitespace-nowrap"
@@ -1803,7 +1834,14 @@ export function PersonnelManagementSnapshotSection({
                                           ? handoverInById.get(inId)
                                           : undefined;
                                       return (
-                                        <TableRow key={row.transactionId}>
+                                        <TableRow
+                                          key={row.transactionId}
+                                          data-cash-row={row.transactionId}
+                                          className={cn(
+                                            highlightTxId === row.transactionId &&
+                                              "ring-2 ring-amber-400 ring-inset bg-amber-50"
+                                          )}
+                                        >
                                           <TableCell
                                             dataLabel={t("personnel.detailMgmtHandoverColDate")}
                                             className="whitespace-nowrap"

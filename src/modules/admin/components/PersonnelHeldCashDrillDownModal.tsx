@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/cn";
 import { usePersonnelHeldCashDrillDownQuery } from "@/modules/admin/hooks/usePersonnelHeldCashReconciliationQuery";
+import { usePersonnelDetailOverlay } from "@/shared/personnel-detail";
 
 type Props = {
   open: boolean;
@@ -55,8 +56,40 @@ export function PersonnelHeldCashDrillDownModal({
   onClose,
 }: Props) {
   const query = usePersonnelHeldCashDrillDownQuery(personnelId, branchId, currency, open);
+  const { openPersonnelDetail } = usePersonnelDetailOverlay();
 
   if (!open) return null;
+
+  // Cep alacağı devir partneri → sadece personel detayını aç (işaretlenecek kayıt yok).
+  const goToPersonnelDetail = (pid: number) => {
+    onClose();
+    openPersonnelDetail(pid);
+  };
+
+  // Avans / personel gideri / maaş → personel kartı "costs" sekmesi + ilgili kaydı işaretle.
+  const goToPersonnelCosts = (
+    pid: number,
+    linkedAdvanceId: number | null,
+    transactionId: number
+  ) => {
+    onClose();
+    openPersonnelDetail(pid, {
+      initialTab: "costs",
+      focusAdvanceId: linkedAdvanceId,
+      focusExpenseTransactionId: linkedAdvanceId ? null : transactionId,
+    });
+  };
+
+  // Teslim alma / patrona devir / personele devir / şube gideri (held-cash hareketi) →
+  // focus personelin "Kasa nakit" (cash physical) sekmesi + ilgili işlemi işaretle.
+  const goToFocusCashPhysical = (transactionId: number) => {
+    if (!personnelId) return;
+    onClose();
+    openPersonnelDetail(personnelId, {
+      initialTab: "personnelCashPhysical",
+      focusCashTransactionId: transactionId,
+    });
+  };
 
   const data = query.data;
 
@@ -171,19 +204,72 @@ export function PersonnelHeldCashDrillDownModal({
                         <th className="px-3 py-2 text-right">Etki</th>
                         <th className="px-3 py-2 text-right">Bakiye</th>
                         <th className="px-3 py-2 text-left">Açıklama</th>
+                        <th className="px-3 py-2 text-right">Detay</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-zinc-100">
                       {data.transactions.map((tx) => {
                         const isIn = tx.effectDirection === "IN";
+                        const isClaim =
+                          tx.classificationCode === "OUT_POCKET_CLAIM_TRANSFER" ||
+                          tx.classificationCode === "OUT_POCKET_CLAIM_TO_PATRON";
+                        // Avans/maaş/personel gideri: kişiye ait, costs sekmesinde işaretlenebilir.
+                        const personnelCostTarget =
+                          tx.counterpartyPersonnelId != null && !isClaim;
+                        const handleRowClick = () => {
+                          if (personnelCostTarget) {
+                            goToPersonnelCosts(
+                              tx.counterpartyPersonnelId!,
+                              tx.linkedAdvanceId,
+                              tx.transactionId
+                            );
+                          } else {
+                            goToFocusCashPhysical(tx.transactionId);
+                          }
+                        };
                         return (
-                          <tr key={tx.transactionId} className={cn(tx.runningBalance < 0 && "bg-red-50/50")}>
+                          <tr
+                            key={tx.transactionId}
+                            onClick={handleRowClick}
+                            title={
+                              personnelCostTarget
+                                ? "Personel kartı maliyetlerine git (ilgili kayıt işaretlenir)"
+                                : "Personel kartı kasa nakit sekmesine git (ilgili işlem işaretlenir)"
+                            }
+                            className={cn(
+                              "cursor-pointer hover:bg-violet-50/60",
+                              tx.runningBalance < 0 && "bg-red-50/50"
+                            )}
+                          >
                             <td className="px-3 py-2 whitespace-nowrap text-zinc-700">
                               {new Date(tx.transactionDate).toLocaleDateString("tr-TR")}
                             </td>
                             <td className="px-3 py-2 text-zinc-800">{classificationLabel(tx.classificationCode)}</td>
                             <td className="px-3 py-2 text-zinc-600">
-                              {tx.counterpartyName ?? (tx.counterpartyPersonnelId ? `#${tx.counterpartyPersonnelId}` : "—")}
+                              {tx.counterpartyPersonnelId ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (personnelCostTarget) {
+                                      goToPersonnelCosts(
+                                        tx.counterpartyPersonnelId!,
+                                        tx.linkedAdvanceId,
+                                        tx.transactionId
+                                      );
+                                    } else {
+                                      goToPersonnelDetail(tx.counterpartyPersonnelId!);
+                                    }
+                                  }}
+                                  className="inline-flex items-center gap-1 rounded font-medium text-violet-700 underline-offset-2 hover:underline"
+                                  title="Personel detayını aç"
+                                >
+                                  {tx.counterpartyName ?? `#${tx.counterpartyPersonnelId}`}
+                                  <span aria-hidden className="text-[0.7rem]">↗</span>
+                                </button>
+                              ) : (
+                                tx.counterpartyName ?? "—"
+                              )}
                             </td>
                             <td
                               className={cn(
@@ -204,6 +290,11 @@ export function PersonnelHeldCashDrillDownModal({
                             </td>
                             <td className="max-w-[16rem] truncate px-3 py-2 text-zinc-500" title={tx.description ?? ""}>
                               {tx.description ?? "—"}
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              <span className="text-violet-700" aria-hidden>
+                                ↗
+                              </span>
                             </td>
                           </tr>
                         );

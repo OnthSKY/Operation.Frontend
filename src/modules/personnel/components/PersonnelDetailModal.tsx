@@ -553,6 +553,12 @@ type Props = {
   branchNameById: Map<number, string>;
   /** Açılışta seçilecek sekme (varsayılan: profile). */
   initialTab?: PersonnelDetailTabId;
+  /** Costs sekmesinde işaretlenecek avans id (reconciliation drill-down'dan gelir). */
+  focusAdvanceId?: number | null;
+  /** Costs sekmesinde işaretlenecek gider transaction id. */
+  focusExpenseTransactionId?: number | null;
+  /** Kasa nakit (cash physical) sekmesinde işaretlenecek handover/outflow transaction id. */
+  focusCashTransactionId?: number | null;
 };
 
 export function PersonnelDetailModal({
@@ -561,6 +567,9 @@ export function PersonnelDetailModal({
   personnel,
   branchNameById,
   initialTab = "profile",
+  focusAdvanceId = null,
+  focusExpenseTransactionId = null,
+  focusCashTransactionId = null,
 }: Props) {
   const { t, locale } = useI18n();
   const branchOverlay = useBranchDetailOverlayOptional();
@@ -814,9 +823,24 @@ export function PersonnelDetailModal({
     enabled: open && personnel != null && tab === "roles",
   });
 
+  // Reconciliation drill-down'dan gelen "işaretlenecek" kayıt anahtarı (a-<advanceId> | e-<txId>).
+  const focusCostKey = useMemo(() => {
+    if (focusAdvanceId && focusAdvanceId > 0) return `a-${focusAdvanceId}`;
+    if (focusExpenseTransactionId && focusExpenseTransactionId > 0) return `e-${focusExpenseTransactionId}`;
+    return null;
+  }, [focusAdvanceId, focusExpenseTransactionId]);
+  const [highlightCostKey, setHighlightCostKey] = useState<string | null>(null);
+
   useEffect(() => {
     if (!open || !personnel) return;
-    setTab(initialTab);
+    // Focus varsa ilgili sekmeye zorla: avans/gider -> costs, kasa nakit -> personnelCashPhysical.
+    setTab(
+      focusCostKey
+        ? "costs"
+        : focusCashTransactionId && focusCashTransactionId > 0
+          ? "personnelCashPhysical"
+          : initialTab
+    );
     setCostsListSeason("");
     setPdfScopeSeason("");
     setBranchFilter("");
@@ -831,7 +855,22 @@ export function PersonnelDetailModal({
     setCostsListSeasonModalOpen(false);
     setCostsFiltersDrawerOpen(false);
     setCostsActionsDrawerOpen(false);
-  }, [open, personnel?.id, initialTab]);
+    setHighlightCostKey(focusCostKey);
+  }, [open, personnel?.id, initialTab, focusCostKey, focusCashTransactionId]);
+
+  // İşaretlenen satıra kaydır + birkaç saniye sonra vurguyu kaldır.
+  useEffect(() => {
+    if (!open || !highlightCostKey || tab !== "costs") return;
+    const timer = window.setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(`[data-cost-row="${highlightCostKey}"]`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 250);
+    const clearTimer = window.setTimeout(() => setHighlightCostKey(null), 4000);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearTimeout(clearTimer);
+    };
+  }, [open, highlightCostKey, tab]);
 
   const seasonScopeSelectOptions = useMemo(
     () => settlementSeasonYearSelectOptions(t),
@@ -1577,6 +1616,7 @@ export function PersonnelDetailModal({
                       personnel={personnel}
                       open={open}
                       branchNameById={branchNameById}
+                      focusTransactionId={focusCashTransactionId}
                       onOpenCostsDetail={() => setTab("costs")}
                       onHandoverOpenExpenseRegister={(ctx) =>
                         setOrgBranchTx({
@@ -2161,7 +2201,12 @@ export function PersonnelDetailModal({
                               row.kind === "advance" ? (
                                 <article
                                   key={`a-${row.advance.id}`}
-                                  className="rounded-xl border border-zinc-200 bg-white p-3 text-sm shadow-sm"
+                                  data-cost-row={`a-${row.advance.id}`}
+                                  className={cn(
+                                    "rounded-xl border border-zinc-200 bg-white p-3 text-sm shadow-sm",
+                                    highlightCostKey === `a-${row.advance.id}` &&
+                                      "ring-2 ring-amber-400 ring-offset-1 bg-amber-50",
+                                  )}
                                 >
                                   <div className="flex flex-wrap items-center justify-between gap-2">
                                     <span
@@ -2251,7 +2296,12 @@ export function PersonnelDetailModal({
                               ) : (
                                 <article
                                   key={`e-${row.tx.id}`}
-                                  className="rounded-xl border border-zinc-200 bg-white p-3 text-sm shadow-sm"
+                                  data-cost-row={`e-${row.tx.id}`}
+                                  className={cn(
+                                    "rounded-xl border border-zinc-200 bg-white p-3 text-sm shadow-sm",
+                                    highlightCostKey === `e-${row.tx.id}` &&
+                                      "ring-2 ring-amber-400 ring-offset-1 bg-amber-50",
+                                  )}
                                 >
                                   <div className="flex flex-wrap items-center justify-between gap-2">
                                     <span
@@ -2395,7 +2445,14 @@ export function PersonnelDetailModal({
                               <TableBody>
                                 {costsSlice.map((row) =>
                                   row.kind === "advance" ? (
-                                    <TableRow key={`a-${row.advance.id}`}>
+                                    <TableRow
+                                      key={`a-${row.advance.id}`}
+                                      data-cost-row={`a-${row.advance.id}`}
+                                      className={cn(
+                                        highlightCostKey === `a-${row.advance.id}` &&
+                                          "ring-2 ring-amber-400 ring-inset bg-amber-50",
+                                      )}
+                                    >
                                       <TableCell className="align-middle">
                                         <span
                                           className={cn(
@@ -2487,7 +2544,14 @@ export function PersonnelDetailModal({
                                       ) : null}
                                     </TableRow>
                                   ) : (
-                                    <TableRow key={`e-${row.tx.id}`}>
+                                    <TableRow
+                                      key={`e-${row.tx.id}`}
+                                      data-cost-row={`e-${row.tx.id}`}
+                                      className={cn(
+                                        highlightCostKey === `e-${row.tx.id}` &&
+                                          "ring-2 ring-amber-400 ring-inset bg-amber-50",
+                                      )}
+                                    >
                                       <TableCell className="align-middle">
                                         <span
                                           className={cn(

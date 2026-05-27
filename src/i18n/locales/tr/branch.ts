@@ -687,6 +687,11 @@ export const branch = {
     "Toplam içindeki ödeme kaynağı dağılımı (TL ve yüzde).",
   expensesListExcludesHeldRegisterHint:
     "Personel cebindeki kasa nakdi devri gider sayılmaz; yalnızca kasa, patron ve personel cebinden ödemeler. Bu satırları görmek için ödeme kaynağı filtresinden «Cebdeki kasa»yı seçin.",
+  expensesAxisCashOut: "Kasadan ödenen (nakit çıkışı)",
+  expensesAxisOffRegister: "Kasa dışı (patron / personel cebi)",
+  expensesAxisSplitHint:
+    "Kasadan ödenenler çekmece nakdini düşürür; kasa dışı kalemler (ör. patron-ödemeli faturalar) muhasebe gideridir ama kasayı/gün sonunu etkilemez.",
+  expensesOffRegisterPatronBadge: "Kasa dışı · Patron ödedi",
   expensesListPeriodPatronTotal: "Patron ödemeli gider toplamı",
   expensesListPeriodRowCount: "Eşleşen satır",
   expensesListDayForPrefix: "Seçilen gün:",

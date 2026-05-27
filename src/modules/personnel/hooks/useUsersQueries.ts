@@ -6,18 +6,22 @@ import {
   fetchUserDataScopes,
   fetchUserPermissionOverrides,
   fetchUsersList,
+  hardDeleteUser,
   patchUserAccountStatus,
   patchUserRole,
   patchUserSelfFinancialsVisibility,
   putUserDataScopes,
   putUserPermissionOverrides,
+  resetUserPassword,
+  softDeleteUser,
+  updateUserProfile,
 } from "@/modules/personnel/api/users-api";
 import type {
   BranchScopeAssignment,
   PersonnelScopeAssignment,
   WarehouseScopeAssignment,
 } from "@/types/user";
-import type { CreateUserInput } from "@/types/user";
+import type { CreateUserInput, UpdateUserProfileInput } from "@/types/user";
 import { invalidateWarehousePeopleOptions } from "@/modules/warehouse/hooks/useWarehouseQueries";
 
 export const usersKeys = {
@@ -78,6 +82,47 @@ export function usePatchUserAccountStatus() {
       patchUserAccountStatus(args.userId, args.active),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: usersKeys.list() });
+    },
+  });
+}
+
+export function useUpdateUserProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { userId: number; input: UpdateUserProfileInput }) =>
+      updateUserProfile(args.userId, args.input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: usersKeys.list() });
+      invalidateWarehousePeopleOptions(qc);
+    },
+  });
+}
+
+export function useResetUserPassword() {
+  return useMutation({
+    mutationFn: (args: { userId: number; password: string }) =>
+      resetUserPassword(args.userId, args.password),
+  });
+}
+
+export function useSoftDeleteUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: number) => softDeleteUser(userId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: usersKeys.list() });
+      invalidateWarehousePeopleOptions(qc);
+    },
+  });
+}
+
+export function useHardDeleteUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: number) => hardDeleteUser(userId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: usersKeys.list() });
+      invalidateWarehousePeopleOptions(qc);
     },
   });
 }

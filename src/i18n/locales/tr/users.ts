@@ -113,6 +113,40 @@ export const users = {
   accountStatusDialogDescriptionDeactivate:
     "Giriş kapanır; «Beni hatırla» oturumları sonlanır ve işlem denetim kaydına yazılır. Onaylıyor musunuz?",
   statusChangeSelfDisabled: "Kendi hesabınızı buradan pasifleştiremezsiniz.",
+  editUser: "Düzenle",
+  editDialogTitle: "Kullanıcıyı düzenle",
+  editDialogDescription:
+    "Ad, kullanıcı adı ve e-posta bilgilerini güncelleyin. Gerekirse alttan şifre sıfırlayın.",
+  editUsernameLabel: "Kullanıcı adı",
+  editUsernameRequired: "Kullanıcı adı boş olamaz.",
+  editFullNameLabel: "Ad Soyad",
+  editEmailLabel: "E-posta",
+  editEmailPlaceholder: "ornek@firma.com",
+  editProfileSaved: "Kullanıcı bilgileri güncellendi",
+  editPasswordSectionTitle: "Şifre sıfırla",
+  editPasswordSectionHint:
+    "Yeni şifre belirlerseniz kullanıcının mevcut oturumları sonlanır ve yeniden giriş yapması gerekir.",
+  editNewPasswordLabel: "Yeni şifre",
+  editNewPasswordPlaceholder: "En az 8 karakter",
+  resetPasswordButton: "Şifreyi sıfırla",
+  passwordResetSaved: "Şifre sıfırlandı",
+  deleteUser: "Sil",
+  deleteUserHint:
+    "Kullanıcıyı kaldırır (pasiften farklı). Yanlışlıkla açıldıysa kalıcı silme de mümkün.",
+  deleteSelfDisabled: "Kendi hesabınızı silemezsiniz.",
+  deleteDialogTitle: "Kullanıcıyı sil",
+  deleteDialogDescription:
+    "Bu kullanıcıyı nasıl kaldırmak istediğinizi seçin. İşlem denetim kaydına yazılır.",
+  deleteDialogSoftHint:
+    "Sil: Kullanıcı listeden kaldırılır ve giriş yapamaz; kullanıcı adı yeniden kullanılabilir. Geçmiş kayıtlar (işlem, denetim) korunur.",
+  deleteDialogHardHint:
+    "Kalıcı Sil: Yanlışlıkla açılan kullanıcıyı tamamen siler. Kullanıcının oluşturduğu/değiştirdiği kayıt varsa kalıcı silinemez; otomatik olarak normal silmeye düşülür.",
+  deleteSoftButton: "Sil",
+  deleteHardButton: "Kalıcı Sil",
+  deleteSoftToast: "Kullanıcı silindi",
+  deleteHardToast: "Kullanıcı kalıcı olarak silindi",
+  deleteHardFallbackToast:
+    "Kullanıcının bağlı kayıtları olduğu için kalıcı silinemedi; listeden kaldırıldı.",
   tablePermissions: "Yetkiler",
   tableMfa: "MFA",
   mfaOnShort: "Açık",

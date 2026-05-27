@@ -11,10 +11,14 @@ import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
 import {
   usePutUserDataScopes,
   useCreateUser,
+  useHardDeleteUser,
   usePatchUserAccountStatus,
   usePatchUserRole,
   usePatchUserSelfFinancials,
   usePutUserPermissionOverrides,
+  useResetUserPassword,
+  useSoftDeleteUser,
+  useUpdateUserProfile,
   useUserDataScopes,
   useUserPermissionOverrides,
   useUsersList,
@@ -54,7 +58,7 @@ import type { PermissionDefinition } from "@/types/authorization-matrix";
 import { adminUsersRoleTitleOrFallback } from "@/modules/account/lib/role-label";
 import { cn } from "@/lib/cn";
 import { ToolbarGlyphUserPlus } from "@/shared/ui/ToolbarGlyph";
-import { Ban, Check, ChevronDown, KeyRound, Layers, MapPinned, UserCheck, UserX, X } from "lucide-react";
+import { Ban, Check, ChevronDown, KeyRound, Layers, MapPinned, Pencil, Trash2, UserCheck, UserX, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -219,6 +223,14 @@ export function UsersScreen() {
     target: UserListItem;
     wantActive: boolean;
   } | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<{ target: UserListItem } | null>(null);
+  const [editDialog, setEditDialog] = useState<{
+    target: UserListItem;
+    username: string;
+    fullName: string;
+    email: string;
+    newPassword: string;
+  } | null>(null);
   const [permissionSearch, setPermissionSearch] = useState("");
   const [permissionDraft, setPermissionDraft] = useState<Record<string, PermissionDraftValue>>({});
   const permHelpDetailsRef = useRef<HTMLDetailsElement>(null);
@@ -235,6 +247,10 @@ export function UsersScreen() {
   const patchSelfFin = usePatchUserSelfFinancials();
   const patchRole = usePatchUserRole();
   const patchAccountStatus = usePatchUserAccountStatus();
+  const softDeleteUser = useSoftDeleteUser();
+  const hardDeleteUser = useHardDeleteUser();
+  const updateProfile = useUpdateUserProfile();
+  const resetPassword = useResetUserPassword();
   const putUserPermissionOverrides = usePutUserPermissionOverrides();
   const putUserDataScopes = usePutUserDataScopes();
   const { data: matrixData } = useAuthorizationMatrix(Boolean(isReady && isAdminUser));
@@ -824,6 +840,143 @@ export function UsersScreen() {
     }
   }
 
+  function openEditDialog(r: UserListItem) {
+    setEditDialog({
+      target: r,
+      username: r.username,
+      fullName: r.fullName ?? "",
+      email: r.email ?? "",
+      newPassword: "",
+    });
+  }
+
+  function closeEditDialog() {
+    if (updateProfile.isPending || resetPassword.isPending) return;
+    setEditDialog(null);
+  }
+
+  async function confirmEditProfile() {
+    if (!editDialog) return;
+    const { target, username, fullName, email } = editDialog;
+    if (!username.trim()) {
+      notify.error(t("users.editUsernameRequired"));
+      return;
+    }
+    try {
+      await updateProfile.mutateAsync({
+        userId: target.id,
+        input: { username, fullName, email },
+      });
+      notify.success(t("users.editProfileSaved"));
+      setEditDialog(null);
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    }
+  }
+
+  async function confirmResetPassword() {
+    if (!editDialog) return;
+    const { target, newPassword } = editDialog;
+    if (newPassword.length < 8) {
+      notify.error(t("users.passwordTooShort"));
+      return;
+    }
+    try {
+      await resetPassword.mutateAsync({ userId: target.id, password: newPassword });
+      notify.success(t("users.passwordResetSaved"));
+      setEditDialog((prev) => (prev ? { ...prev, newPassword: "" } : prev));
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    }
+  }
+
+  function editAction(r: UserListItem) {
+    return (
+      <Tooltip content={t("users.editUser")} delayMs={200}>
+        <Button
+          type="button"
+          variant="secondary"
+          className={TABLE_TOOLBAR_ICON_BTN}
+          onClick={() => openEditDialog(r)}
+          aria-label={t("users.editUser")}
+        >
+          <Pencil className="h-5 w-5" aria-hidden />
+        </Button>
+      </Tooltip>
+    );
+  }
+
+  function closeDeleteDialog() {
+    if (softDeleteUser.isPending || hardDeleteUser.isPending) return;
+    setDeleteDialog(null);
+  }
+
+  async function confirmSoftDelete() {
+    if (!deleteDialog) return;
+    const r = deleteDialog.target;
+    if (user && r.id === user.id) {
+      notify.error(t("users.deleteSelfDisabled"));
+      closeDeleteDialog();
+      return;
+    }
+    try {
+      await softDeleteUser.mutateAsync(r.id);
+      notify.success(t("users.deleteSoftToast"));
+      setDeleteDialog(null);
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    }
+  }
+
+  async function confirmHardDelete() {
+    if (!deleteDialog) return;
+    const r = deleteDialog.target;
+    if (user && r.id === user.id) {
+      notify.error(t("users.deleteSelfDisabled"));
+      closeDeleteDialog();
+      return;
+    }
+    try {
+      const res = await hardDeleteUser.mutateAsync(r.id);
+      notify.success(
+        res.mode === "HARD"
+          ? t("users.deleteHardToast")
+          : t("users.deleteHardFallbackToast")
+      );
+      setDeleteDialog(null);
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    }
+  }
+
+  function deleteAction(r: UserListItem) {
+    const selfBlock = Boolean(user && r.id === user.id);
+    const pending =
+      (softDeleteUser.isPending && softDeleteUser.variables === r.id) ||
+      (hardDeleteUser.isPending && hardDeleteUser.variables === r.id);
+    return (
+      <Tooltip
+        content={selfBlock ? t("users.deleteSelfDisabled") : t("users.deleteUserHint")}
+        delayMs={200}
+      >
+        <Button
+          type="button"
+          variant="secondary"
+          className="inline-flex items-center gap-1.5 whitespace-nowrap !border-red-200 px-2.5 py-1.5 text-xs font-medium !text-red-700 hover:!bg-red-50"
+          disabled={selfBlock || pending}
+          onClick={() => {
+            if (selfBlock) return;
+            setDeleteDialog({ target: r });
+          }}
+          aria-label={t("users.deleteUser")}
+        >
+          <Trash2 className="h-4 w-4 shrink-0" aria-hidden />
+          <span>{t("users.deleteUser")}</span>
+        </Button>
+      </Tooltip>
+    );
+  }
+
   function accountStatusAction(r: UserListItem) {
     const isActive = r.status.toUpperCase() === "ACTIVE";
     const selfBlock = Boolean(user && r.id === user.id);
@@ -871,6 +1024,7 @@ export function UsersScreen() {
           : t("users.manageScopesForbidden");
     return (
       <div className="flex flex-wrap items-center gap-2">
+        {editAction(r)}
         <Tooltip
           content={
             canPerm ? t("users.managePermissions") : t("users.managePermissionsForbidden")
@@ -1093,6 +1247,7 @@ export function UsersScreen() {
                           : t("users.statusInactive")}
                       </StatusBadge>
                       {accountStatusAction(r)}
+                      {deleteAction(r)}
                     </div>
                   </div>
                   <dl className="mt-3 grid gap-2 border-t border-zinc-200/80 pt-3 text-sm">
@@ -1217,13 +1372,14 @@ export function UsersScreen() {
                         </StatusBadge>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
+                        <div className="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
                           <StatusBadge tone={appUserAccountStatusTone(r.status)}>
                             {r.status.toUpperCase() === "ACTIVE"
                               ? t("users.statusActive")
                               : t("users.statusInactive")}
                           </StatusBadge>
                           {accountStatusAction(r)}
+                          {deleteAction(r)}
                         </div>
                       </td>
                       <td className="max-w-[10rem] truncate px-4 py-3 text-zinc-600 lg:max-w-xs">
@@ -2313,6 +2469,140 @@ export function UsersScreen() {
                     ? t("users.activateUser")
                     : t("users.deactivateUser")}
               </Button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={deleteDialog !== null}
+        onClose={closeDeleteDialog}
+        titleId="user-delete-title"
+        title={t("users.deleteDialogTitle")}
+        description={t("users.deleteDialogDescription")}
+        closeButtonLabel={t("common.close")}
+        narrow
+        sheetMobile
+      >
+        {deleteDialog ? (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-1 pb-2 sm:px-0">
+            <div className="rounded-xl border border-zinc-200/90 bg-zinc-50/80 p-3 text-sm text-zinc-800">
+              <p className="font-semibold text-zinc-900">
+                {deleteDialog.target.fullName?.trim() || deleteDialog.target.username}
+              </p>
+              <p className="mt-0.5 text-xs text-zinc-600">@{deleteDialog.target.username}</p>
+            </div>
+            <div className="mt-3 space-y-1.5 rounded-xl border border-amber-200/80 bg-amber-50/70 p-3 text-xs leading-relaxed text-amber-900">
+              <p>{t("users.deleteDialogSoftHint")}</p>
+              <p>{t("users.deleteDialogHardHint")}</p>
+            </div>
+            <div className="mt-4 flex shrink-0 flex-col gap-2 border-t border-zinc-200 pt-3 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-12 w-full sm:min-h-11 sm:w-auto sm:min-w-[120px]"
+                disabled={softDeleteUser.isPending || hardDeleteUser.isPending}
+                onClick={() => void confirmSoftDelete()}
+              >
+                {softDeleteUser.isPending ? t("common.saving") : t("users.deleteSoftButton")}
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                className="min-h-12 w-full !bg-red-600 hover:!bg-red-700 sm:min-h-11 sm:w-auto sm:min-w-[120px]"
+                disabled={softDeleteUser.isPending || hardDeleteUser.isPending}
+                onClick={() => void confirmHardDelete()}
+              >
+                {hardDeleteUser.isPending ? t("common.saving") : t("users.deleteHardButton")}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={editDialog !== null}
+        onClose={closeEditDialog}
+        titleId="user-edit-title"
+        title={t("users.editDialogTitle")}
+        description={t("users.editDialogDescription")}
+        closeButtonLabel={t("common.close")}
+        narrow
+        sheetMobile
+      >
+        {editDialog ? (
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-1 pb-2 sm:px-0">
+            <div className="space-y-3">
+              <Input
+                label={t("users.editUsernameLabel")}
+                labelRequired
+                value={editDialog.username}
+                onChange={(e) =>
+                  setEditDialog((prev) => (prev ? { ...prev, username: e.target.value } : prev))
+                }
+                autoComplete="off"
+              />
+              <Input
+                label={t("users.editFullNameLabel")}
+                value={editDialog.fullName}
+                onChange={(e) =>
+                  setEditDialog((prev) => (prev ? { ...prev, fullName: e.target.value } : prev))
+                }
+                autoComplete="off"
+              />
+              <Input
+                label={t("users.editEmailLabel")}
+                type="email"
+                value={editDialog.email}
+                onChange={(e) =>
+                  setEditDialog((prev) => (prev ? { ...prev, email: e.target.value } : prev))
+                }
+                placeholder={t("users.editEmailPlaceholder")}
+                autoComplete="off"
+              />
+            </div>
+            <div className="flex shrink-0 justify-end border-t border-zinc-200 pt-3">
+              <Button
+                type="button"
+                variant="primary"
+                className="min-h-12 w-full sm:min-h-11 sm:w-auto sm:min-w-[140px]"
+                disabled={updateProfile.isPending}
+                onClick={() => void confirmEditProfile()}
+              >
+                {updateProfile.isPending ? t("common.saving") : t("common.save")}
+              </Button>
+            </div>
+
+            <div className="space-y-3 rounded-xl border border-zinc-200/90 bg-zinc-50/70 p-3">
+              <div>
+                <p className="text-sm font-semibold text-zinc-900">
+                  {t("users.editPasswordSectionTitle")}
+                </p>
+                <p className="mt-0.5 text-xs text-zinc-600">
+                  {t("users.editPasswordSectionHint")}
+                </p>
+              </div>
+              <Input
+                label={t("users.editNewPasswordLabel")}
+                type="password"
+                value={editDialog.newPassword}
+                onChange={(e) =>
+                  setEditDialog((prev) => (prev ? { ...prev, newPassword: e.target.value } : prev))
+                }
+                placeholder={t("users.editNewPasswordPlaceholder")}
+                autoComplete="new-password"
+              />
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="min-h-11 w-full sm:w-auto sm:min-w-[140px]"
+                  disabled={resetPassword.isPending || editDialog.newPassword.length < 8}
+                  onClick={() => void confirmResetPassword()}
+                >
+                  {resetPassword.isPending ? t("common.saving") : t("users.resetPasswordButton")}
+                </Button>
+              </div>
             </div>
           </div>
         ) : null}

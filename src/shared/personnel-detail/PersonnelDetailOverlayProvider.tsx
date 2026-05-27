@@ -24,11 +24,20 @@ import {
 
 export type OpenPersonnelDetailOptions = {
   initialTab?: PersonnelDetailTabId | null;
+  /** Costs sekmesinde işaretlenecek avans id (reconciliation drill-down'dan). */
+  focusAdvanceId?: number | null;
+  /** Costs sekmesinde işaretlenecek gider transaction id. */
+  focusExpenseTransactionId?: number | null;
+  /** Kasa nakit (cash physical) sekmesinde işaretlenecek handover/outflow transaction id. */
+  focusCashTransactionId?: number | null;
 };
 
 type ProgrammaticOpen = {
   personnelId: number;
   initialTab: PersonnelDetailTabId;
+  focusAdvanceId?: number | null;
+  focusExpenseTransactionId?: number | null;
+  focusCashTransactionId?: number | null;
 };
 
 export type PersonnelDetailOverlayContextValue = {
@@ -132,6 +141,9 @@ export function PersonnelDetailOverlayProvider({ children }: { children: ReactNo
       setProgrammaticOpen({
         personnelId,
         initialTab: options?.initialTab ?? "profile",
+        focusAdvanceId: options?.focusAdvanceId ?? null,
+        focusExpenseTransactionId: options?.focusExpenseTransactionId ?? null,
+        focusCashTransactionId: options?.focusCashTransactionId ?? null,
       });
     },
     [pathname, router, searchParams]
@@ -157,6 +169,9 @@ export function PersonnelDetailOverlayProvider({ children }: { children: ReactNo
         personnel={resolvedPersonnel}
         branchNameById={branchNameById}
         initialTab={overlayInitialTab}
+        focusAdvanceId={programmaticOpen?.focusAdvanceId ?? null}
+        focusExpenseTransactionId={programmaticOpen?.focusExpenseTransactionId ?? null}
+        focusCashTransactionId={programmaticOpen?.focusCashTransactionId ?? null}
       />
     </PersonnelDetailOverlayContext.Provider>
   );

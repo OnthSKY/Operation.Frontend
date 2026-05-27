@@ -118,6 +118,17 @@ export type FinancialGeneralOverheadAllocatedRow = {
   lineCount: number;
 };
 
+/** Araç gideri plaka + gider türü kırılımı (gelir-gider özeti «araç» kovası). */
+export type FinancialVehicleExpenseByPlateRow = {
+  plateNumber: string;
+  brand: string;
+  model: string;
+  expenseType: string;
+  currencyCode: string;
+  totalAmount: number;
+  recordCount: number;
+};
+
 export type FinancialReport = {
   dateFrom: string;
   dateTo: string;
@@ -134,7 +145,11 @@ export type FinancialReport = {
   advancesByCurrency: FinancialAdvanceSummaryRow[];
   supplierPayments?: FinancialSupplierPaymentBreakdownRow[];
   vehicleExpensesOffRegister?: FinancialVehicleExpenseOffRegisterRow[];
+  /** Araç giderleri plaka + tür bazlı (gelir-gider özeti «araç» kovası). */
+  vehicleExpensesByPlate?: FinancialVehicleExpenseByPlateRow[];
   generalOverheadAllocated?: FinancialGeneralOverheadAllocatedRow[];
+  /** «Şubeye giden para» kovası: operasyonel OUT kategori kırılımı (genel gider + araç hariç). */
+  branchExpenseResidualByCategory?: FinancialCategoryBreakdownRow[];
   incomeRegisterBreakdownByCurrency?: FinancialIncomeRegisterBreakdownRow[];
 };
 
