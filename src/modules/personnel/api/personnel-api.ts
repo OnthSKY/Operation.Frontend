@@ -6,6 +6,9 @@ import type {
   PersonnelCashHandoverOutflowKind,
   PersonnelCashHandoverOutflowsPagedResponse,
   PersonnelCashHandoverPoolRemaining,
+  PersonnelCashLedgerBranchBreakdown,
+  PersonnelCashLedgerEntry,
+  PersonnelCashLedgerPagedResponse,
   PersonnelManagementSnapshot,
 } from "@/types/personnel-management-snapshot";
 import type {
@@ -695,4 +698,126 @@ export async function fetchPersonnelCashHandoverOutflowsPaged(
     page: Number.isFinite(page) && page > 0 ? page : 1,
     pageSize: Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 25,
   };
+}
+
+// ─── Yeni ledger sistemi (Faz 4.1) ─────────────────────────────────────────
+
+export type PersonnelCashLedgerApiQuery = {
+  page: number;
+  pageSize: number;
+  currencyCode: string;
+  dateFrom?: string | null;
+  dateTo?: string | null;
+  counterpartyKind?: string | null;
+  classificationCode?: string | null;
+  categoryGroup?: string | null;
+  includeReversals?: boolean;
+};
+
+function mapCashLedgerEntry(x: Record<string, unknown>): PersonnelCashLedgerEntry {
+  const direction = String(x.direction ?? "OUT").toUpperCase();
+  return {
+    id: Number(x.id) || 0,
+    currencyCode: String(x.currencyCode ?? "TRY").trim().toUpperCase(),
+    entryDate: String(x.entryDate ?? "").slice(0, 10),
+    direction: direction === "IN" ? "IN" : "OUT",
+    amount: Number(x.amount ?? 0) || 0,
+    balanceBefore: Number(x.balanceBefore ?? 0) || 0,
+    balanceAfter: Number(x.balanceAfter ?? 0) || 0,
+    sourceBranchTransactionId: Number(x.sourceBranchTransactionId) || 0,
+    sourceBranchId: x.sourceBranchId == null ? null : Number(x.sourceBranchId),
+    sourceBranchName:
+      typeof x.sourceBranchName === "string" && x.sourceBranchName.trim() !== ""
+        ? x.sourceBranchName.trim()
+        : null,
+    classificationCode: String(x.classificationCode ?? "").trim(),
+    counterpartyKind: String(x.counterpartyKind ?? "").trim().toUpperCase(),
+    counterpartyPersonnelId:
+      x.counterpartyPersonnelId == null ? null : Number(x.counterpartyPersonnelId),
+    counterpartyLabel:
+      typeof x.counterpartyLabel === "string" && x.counterpartyLabel.trim() !== ""
+        ? x.counterpartyLabel.trim()
+        : null,
+    entryKind: String(x.entryKind ?? "").trim().toUpperCase(),
+    description:
+      typeof x.description === "string" && x.description.trim() !== ""
+        ? x.description.trim()
+        : null,
+    reversesLedgerId: x.reversesLedgerId == null ? null : Number(x.reversesLedgerId),
+    seqPerAccount: Number(x.seqPerAccount) || 0,
+  };
+}
+
+export async function fetchPersonnelCashAccountLedger(
+  personnelId: number,
+  q: PersonnelCashLedgerApiQuery,
+): Promise<PersonnelCashLedgerPagedResponse> {
+  const sp = new URLSearchParams();
+  sp.set("page", String(q.page));
+  sp.set("pageSize", String(q.pageSize));
+  sp.set("currencyCode", q.currencyCode.trim().toUpperCase());
+  if (q.dateFrom != null && q.dateFrom.trim() !== "") {
+    sp.set("dateFrom", q.dateFrom.trim().slice(0, 10));
+  }
+  if (q.dateTo != null && q.dateTo.trim() !== "") {
+    sp.set("dateTo", q.dateTo.trim().slice(0, 10));
+  }
+  if (q.counterpartyKind != null && q.counterpartyKind.trim() !== "") {
+    sp.set("counterpartyKind", q.counterpartyKind.trim().toUpperCase());
+  }
+  if (q.classificationCode != null && q.classificationCode.trim() !== "") {
+    sp.set("classificationCode", q.classificationCode.trim().toUpperCase());
+  }
+  if (q.categoryGroup != null && q.categoryGroup.trim() !== "") {
+    sp.set("categoryGroup", q.categoryGroup.trim().toUpperCase());
+  }
+  if (q.includeReversals === true) {
+    sp.set("includeReversals", "true");
+  }
+
+  const raw = await apiRequest<Record<string, unknown>>(
+    `/personnel/${personnelId}/cash-account/ledger?${sp.toString()}`,
+  );
+  const items: PersonnelCashLedgerEntry[] = Array.isArray(raw.items)
+    ? (raw.items as Record<string, unknown>[]).map(mapCashLedgerEntry)
+    : [];
+  const totalCount =
+    typeof raw.totalCount === "number"
+      ? raw.totalCount
+      : parseInt(String(raw.totalCount ?? "0"), 10);
+  const page =
+    typeof raw.page === "number" ? raw.page : parseInt(String(raw.page ?? "1"), 10);
+  const pageSize =
+    typeof raw.pageSize === "number"
+      ? raw.pageSize
+      : parseInt(String(raw.pageSize ?? "50"), 10);
+  return {
+    items,
+    totalCount: Number.isFinite(totalCount) ? totalCount : 0,
+    page: Number.isFinite(page) && page > 0 ? page : 1,
+    pageSize: Number.isFinite(pageSize) && pageSize > 0 ? pageSize : 50,
+  };
+}
+
+export async function fetchPersonnelCashAccountBranchBreakdown(
+  personnelId: number,
+  currencyCode: string,
+): Promise<PersonnelCashLedgerBranchBreakdown[]> {
+  const sp = new URLSearchParams();
+  sp.set("currencyCode", currencyCode.trim().toUpperCase());
+  const raw = await apiRequest<unknown>(
+    `/personnel/${personnelId}/cash-account/breakdown-by-branch?${sp.toString()}`,
+  );
+  if (!Array.isArray(raw)) return [];
+  return raw.map((x) => {
+    const r = x as Record<string, unknown>;
+    return {
+      branchId: r.branchId == null ? null : Number(r.branchId),
+      branchLabel: String(r.branchLabel ?? "").trim(),
+      totalIn: Number(r.totalIn ?? 0) || 0,
+      totalOut: Number(r.totalOut ?? 0) || 0,
+      netContribution: Number(r.netContribution ?? 0) || 0,
+      entryCount: Number(r.entryCount ?? 0) || 0,
+    };
+  });
 }

@@ -28,6 +28,10 @@ export type Advance = {
   heldRegisterSourcePersonnelId?: number | null;
   heldRegisterSourcePersonnelFullName?: string | null;
   linkedBranchTransactionId?: number | null;
+  /** Kaydı oluşturan kullanıcı (audit). */
+  createdByUserId?: number | null;
+  createdByName?: string | null;
+  createdAt?: string | null;
 };
 
 export type AdvanceListItem = Advance & {

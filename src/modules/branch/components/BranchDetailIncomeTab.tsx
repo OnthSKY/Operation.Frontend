@@ -2,6 +2,7 @@
 
 import { FilterDrawer } from "@/components/mobile/FilterDrawer";
 import { MobileCard } from "@/components/mobile/MobileCard";
+import { CreatedByMeta } from "@/shared/components/CreatedByMeta";
 import { MobileList } from "@/components/mobile/MobileList";
 import type { Locale } from "@/i18n/messages";
 import {
@@ -121,6 +122,7 @@ export type BranchDetailIncomeTabProps = {
   incPages: number;
   incTotal: number;
   INC_PAGE: number;
+  onOpenDetail: (row: BranchTransaction) => void;
 };
 
 export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
@@ -176,6 +178,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
     incPages,
     incTotal,
     INC_PAGE,
+    onOpenDetail,
   } = props;
 
   const [cashSettleDialog, setCashSettleDialog] = useState<
@@ -658,6 +661,8 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
 
                 return (
                   <MobileCard
+                    onSelect={() => onOpenDetail(row)}
+                    selectAriaLabel={t("branch.txDetailViewAria")}
                     title={txCategoryLine(row.mainCategory, row.category, t) || t("personnel.dash")}
                     primaryFields={[
                       <div key="head" className="flex items-start justify-between gap-2">
@@ -707,6 +712,16 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                         ]
                         : []),
                       ...(row.description ? [<p key="desc">{row.description}</p>] : []),
+                      <div key="createdby" className="flex items-center gap-2 pt-0.5">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+                          {t("branch.txColCreatedBy")}
+                        </span>
+                        <CreatedByMeta
+                          row={row}
+                          locale={locale}
+                          dash={t("personnel.dash")}
+                        />
+                      </div>,
                     ]}
                     actions={
                       <div className="flex flex-wrap items-center justify-end gap-2">
@@ -747,6 +762,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                     <TableHeader className="hidden lg:table-cell">{t("branch.txColCashSettlement")}</TableHeader>
                     <TableHeader className="hidden sm:table-cell">{t("branch.txColMainCategory")}</TableHeader>
                     <TableHeader className="hidden md:table-cell">{t("branch.txColNote")}</TableHeader>
+                    <TableHeader className="whitespace-nowrap">{t("branch.txColCreatedBy")}</TableHeader>
                     {canEditRegisterIncomeCashSettlement ? (
                       <TableHeader className="w-[7.5rem] text-center text-xs font-medium text-zinc-500">
                         {t("branch.registerCashSettlementColShort")}
@@ -769,7 +785,11 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                     const netGelir = netCash + cardIncome;
 
                     return (
-                      <TableRow key={row.id}>
+                      <TableRow
+                        key={row.id}
+                        onClick={() => onOpenDetail(row)}
+                        className="cursor-pointer transition-colors hover:bg-zinc-50"
+                      >
                         <TableCell className="whitespace-nowrap text-sm text-zinc-600">
                           {formatLocaleDate(row.transactionDate, locale)}
                         </TableCell>
@@ -814,8 +834,18 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                         <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 max-w-[14rem] truncate text-sm text-zinc-600 md:table-cell">
                           {row.description ?? "—"}
                         </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <CreatedByMeta
+                            row={row}
+                            locale={locale}
+                            dash={t("personnel.dash")}
+                          />
+                        </TableCell>
                         {canEditRegisterIncomeCashSettlement ? (
-                          <TableCell className="p-2 text-center">
+                          <TableCell
+                            className="p-2 text-center"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             {isRegisterIncomeCashSettlementRow(row) ? (
                               <Button
                                 type="button"
@@ -831,7 +861,10 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                           </TableCell>
                         ) : null}
                         {canDeleteBranchTx ? (
-                          <TableCell className="align-top p-2">
+                          <TableCell
+                            className="align-top p-2"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <BranchTxIncomeDeleteRow
                               transactionId={row.id}
                               busy={deleteTxMut.isPending}

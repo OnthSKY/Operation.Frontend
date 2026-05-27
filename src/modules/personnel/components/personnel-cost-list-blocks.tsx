@@ -13,6 +13,7 @@ import {
 import type { PersonnelCostRow } from "@/modules/personnel/lib/personnel-cost-unified";
 import { MobileListCard } from "@/shared/components/MobileListCard";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
+import { CreatedByMeta } from "@/shared/components/CreatedByMeta";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import type { DataTableColumn } from "@/shared/tables";
 import type { ReactNode } from "react";
@@ -110,6 +111,9 @@ export function PersonnelCostMobileCard({
               dash
             )}
           </Field>
+          <Field label={t("personnel.detailCostsCreatedBy")}>
+            <CreatedByMeta row={a} locale={locale} dash={dash} compact />
+          </Field>
         </div>
       </MobileListCard>
     );
@@ -159,6 +163,9 @@ export function PersonnelCostMobileCard({
           ) : (
             dash
           )}
+        </Field>
+        <Field label={t("personnel.detailCostsCreatedBy")}>
+          <CreatedByMeta row={e} locale={locale} dash={dash} compact />
         </Field>
       </div>
     </MobileListCard>
@@ -283,6 +290,17 @@ export function createPersonnelCostColumns(
         row.kind === "advance"
           ? row.advance.description?.trim() || dash
           : row.expense.description?.trim() || dash,
+    },
+    {
+      id: "createdBy",
+      header: t("personnel.detailCostsCreatedBy"),
+      tdClassName: "whitespace-nowrap",
+      cell: (row) =>
+        row.kind === "advance" ? (
+          <CreatedByMeta row={row.advance} locale={locale} dash={dash} />
+        ) : (
+          <CreatedByMeta row={row.expense} locale={locale} dash={dash} />
+        ),
     },
   ];
 }

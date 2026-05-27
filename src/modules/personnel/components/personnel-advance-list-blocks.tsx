@@ -4,6 +4,7 @@ import type { Locale } from "@/i18n/messages";
 import type { AdvanceListItem } from "@/types/advance";
 import { MobileListCard } from "@/shared/components/MobileListCard";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
+import { CreatedByMeta } from "@/shared/components/CreatedByMeta";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import type { DataTableColumn } from "@/shared/tables";
 import type { ReactNode } from "react";
@@ -90,6 +91,9 @@ export function AdvanceCard({
             dash
           )}
         </Field>
+        <Field label={t("personnel.detailCostsCreatedBy")}>
+          <CreatedByMeta row={row} locale={locale} dash={dash} compact />
+        </Field>
       </div>
     </MobileListCard>
   );
@@ -149,6 +153,12 @@ export function createAdvanceListColumns(
       header: t("personnel.note"),
       tdClassName: "max-w-[14rem] truncate text-sm text-zinc-600",
       cell: (row) => row.description?.trim() || dash,
+    },
+    {
+      id: "createdBy",
+      header: t("personnel.detailCostsCreatedBy"),
+      tdClassName: "whitespace-nowrap text-sm text-zinc-600",
+      cell: (row) => <CreatedByMeta row={row} locale={locale} dash={dash} />,
     },
   ];
 }

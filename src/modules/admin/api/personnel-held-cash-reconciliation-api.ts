@@ -74,3 +74,45 @@ export async function postPersonnelHeldCashAutoFix(
     body: JSON.stringify(body),
   });
 }
+
+export type PersonnelHeldCashDrillDownRow = {
+  transactionId: number;
+  transactionDate: string; // ISO date
+  classificationCode: string;
+  effectDirection: "IN" | "OUT";
+  amount: number;
+  runningBalance: number;
+  description: string | null;
+  counterpartyPersonnelId: number | null;
+  counterpartyName: string | null;
+};
+
+export type PersonnelHeldCashDrillDownResponse = {
+  personnelId: number;
+  fullName: string;
+  branchId: number;
+  branchName: string;
+  currencyCode: string;
+  totalReceived: number;
+  totalSpent: number;
+  totalTransferredIn: number;
+  totalTransferredOut: number;
+  netBalance: number;
+  transactions: PersonnelHeldCashDrillDownRow[];
+};
+
+export async function fetchPersonnelHeldCashDrillDown(
+  personnelId: number,
+  branchId: number,
+  currency: string
+): Promise<PersonnelHeldCashDrillDownResponse> {
+  const params = new URLSearchParams({
+    personnelId: String(personnelId),
+    branchId: String(branchId),
+    currency,
+  });
+  return apiRequest<PersonnelHeldCashDrillDownResponse>(
+    `/admin/personnel-held-cash-reconciliation/drill-down?${params.toString()}`,
+    { method: "GET" }
+  );
+}

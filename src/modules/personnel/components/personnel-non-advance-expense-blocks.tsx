@@ -8,6 +8,7 @@ import {
 import type { BranchTransaction } from "@/types/branch-transaction";
 import { MobileListCard } from "@/shared/components/MobileListCard";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
+import { CreatedByMeta } from "@/shared/components/CreatedByMeta";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import type { ReactNode } from "react";
 
@@ -141,6 +142,9 @@ export function ExpenseCard({
           ) : (
             dash
           )}
+        </Field>
+        <Field label={t("personnel.detailCostsCreatedBy")}>
+          <CreatedByMeta row={row} locale={locale} dash={dash} compact />
         </Field>
       </div>
     </MobileListCard>

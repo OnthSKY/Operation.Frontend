@@ -9,6 +9,8 @@ import { txCategoryLine } from "@/modules/branch/lib/branch-transaction-options"
 import { PersonnelHeldRegisterPersonLink } from "@/modules/personnel/components/PersonnelHeldRegisterPersonLink";
 import {
   defaultPersonnelListFilters,
+  usePersonnelCashAccountBranchBreakdown,
+  usePersonnelCashAccountLedger,
   usePersonnelCashHandoverLinesPaged,
   usePersonnelCashHandoverOutflowsPaged,
   usePersonnelList,
@@ -38,6 +40,7 @@ import { OVERLAY_Z_INDEX, OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
 import { Input } from "@/shared/ui/Input";
+import { RichCombobox, type RichComboboxOption } from "@/shared/ui/RichCombobox";
 import { Select } from "@/shared/ui/Select";
 import {
   Table,
@@ -266,9 +269,10 @@ export function PersonnelManagementSnapshotSection({
   const { t, locale } = useI18n();
   const branchOverlay = useBranchDetailOverlayOptional();
   const dash = t("personnel.dash");
+  // Yeni layout'ta sadece "Patrona devret" butonu var (gider butonu kaldırıldı).
+  // Bu yüzden tek başına patron callback yeterli — iki callback şartı kaldırıldı.
   const handoverActionsEnabled =
     !personnel.isDeleted &&
-    typeof onHandoverOpenExpenseRegister === "function" &&
     typeof onHandoverOpenPatronRegisterRepay === "function";
   const [hovPage, setHovPage] = useState(1);
   const [outPage, setOutPage] = useState(1);
@@ -277,6 +281,31 @@ export function PersonnelManagementSnapshotSection({
   const [hovApplied, setHovApplied] = useState<PersonnelCashHandoverLinesFilterState>(emptyHandoverFilters);
   const [hovDraft, setHovDraft] = useState<PersonnelCashHandoverLinesFilterState>(emptyHandoverFilters);
   const [hovFilterDrawerOpen, setHovFilterDrawerOpen] = useState(false);
+
+  // Yeni ledger banka ekstresi state'leri (Faz 5.2b).
+  const [ledgerPage, setLedgerPage] = useState(1);
+  const [ledgerPageSize] = useState(25);
+  const [ledgerCategoryFilter, setLedgerCategoryFilter] = useState("");
+  const [ledgerIncludeReversals, setLedgerIncludeReversals] = useState(false);
+  /**
+   * Üst seviye kategori grubu filtresi (UI dropdown). Backend uygun classification_code
+   * ve counterparty_kind kombinasyonlarına eşler. value=""  → tüm hareketler.
+   */
+  const ledgerCategoryOptions = useMemo<RichComboboxOption[]>(
+    () => [
+      { value: "", title: t("personnel.detailMgmtCashAccountLedgerFilterAll") },
+      { value: "INCOMING_CASH", title: t("personnel.detailMgmtCashAccountGroupIncomingCash") },
+      { value: "PERSONNEL_ADVANCE", title: t("personnel.detailMgmtCashAccountGroupPersonnelAdvance") },
+      { value: "PERSONNEL_EXPENSE", title: t("personnel.detailMgmtCashAccountGroupPersonnelExpense") },
+      { value: "BRANCH_EXPENSE", title: t("personnel.detailMgmtCashAccountGroupBranchExpense") },
+      { value: "SUPPLIER_INVOICE", title: t("personnel.detailMgmtCashAccountGroupSupplierInvoice") },
+      { value: "GENERAL_EXPENSE", title: t("personnel.detailMgmtCashAccountGroupGeneralExpense") },
+      { value: "VEHICLE_MAINTENANCE", title: t("personnel.detailMgmtCashAccountGroupVehicleMaintenance") },
+      { value: "PERSONNEL_TRANSFER", title: t("personnel.detailMgmtCashAccountGroupPersonnelTransfer") },
+      { value: "PATRON_TRANSFER", title: t("personnel.detailMgmtCashAccountGroupPatronTransfer") },
+    ],
+    [t],
+  );
   const { data, isPending, isError, error, refetch } = usePersonnelManagementSnapshot(
     personnel.id,
     open
@@ -285,6 +314,91 @@ export function PersonnelManagementSnapshotSection({
   const snap = data;
   const primary = useMemo(() => (snap ? pickPrimaryCurrency(snap) : null), [snap]);
   const handoverRow = useMemo(() => (snap ? pickHandoverCurrencyRow(snap) : null), [snap]);
+  /**
+   * Yeni ledger sisteminden gelen kasa hesabı özeti.
+   * 3 kart (Toplam giren / Mevcut bakiye / Toplam çıkan) bundan beslenir.
+   * Eski `handoverRow` sadece manager-view metrikleri için kullanılmaya devam ediyor.
+   */
+  const cashAccountSummary = useMemo(() => {
+    const list = snap?.cashAccountSummaries ?? [];
+    if (list.length === 0) return null;
+    const pc = (snap?.primaryCurrencyCode ?? "TRY").trim().toUpperCase() || "TRY";
+    return (
+      list.find((r) => r.currencyCode.trim().toUpperCase() === pc) ??
+      list[0] ??
+      null
+    );
+  }, [snap?.cashAccountSummaries, snap?.primaryCurrencyCode]);
+
+  /**
+   * "Patrona devret" aksiyonu için ctx. Havuz tek (cashAccountSummary) ama backend
+   * dialog'u hâlâ branchId istiyor — personelin ana şubesini önceler, yoksa
+   * linkedBranchIds[0]. Yeni ledger sisteminde kaynak şube kavramı arka planda kalır.
+   */
+  // Şube kırılımı: yeni ledger sisteminin `cash-account/breakdown-by-branch` endpoint'i.
+  // Sadece kasa hesabı sekmesi açıkken + currency belirlendiyse çekilir.
+  const branchBreakdownEnabled =
+    open && viewMode === "cashPhysicalHandover" && cashAccountSummary != null;
+  const branchBreakdownQuery = usePersonnelCashAccountBranchBreakdown(
+    personnel.id,
+    cashAccountSummary?.currencyCode ?? "TRY",
+    branchBreakdownEnabled,
+  );
+  /**
+   * Hero card'da gösterilecek "kişiye giren para — şube kırılımı". NetContribution > 0
+   * olan şubeler, en yüksek katkıdan düşüğe sıralı. Veriler gerçek ledger üzerinden
+   * (`personnel_cash_ledger`'ın source_branch_id'lerine göre GROUP BY).
+   */
+  const cashAccountBranchBreakdown = useMemo(() => {
+    const rows = branchBreakdownQuery.data ?? [];
+    return rows
+      .filter((r) => r.netContribution > 0.009)
+      .map((r) => ({
+        branchId: r.branchId ?? 0,
+        branchName: r.branchLabel || (r.branchId ? `#${r.branchId}` : "—"),
+        amount: r.netContribution,
+      }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [branchBreakdownQuery.data]);
+
+  /**
+   * Patron devret aksiyonu için branchId seçimi:
+   *   1) Personel ana şubesinde gerçek bakiye varsa onu kullan (en doğal seçim)
+   *   2) Yoksa şube kırılımında EN YÜKSEK bakiyeli şube (gerçek IN açık olan)
+   *   3) Hiçbiri olmazsa linkedBranchIds[0]
+   *
+   * Backend dialog kendi içinde o şubedeki FIFO IN'leri kapatır. Çoklu şubeye
+   * dağılmış bakiyede tek istek tek şubeye gider — backend havuz-dağıtım endpoint'i
+   * (Faz 4.2) yazıldığında bu kısıt kalkacak.
+   */
+  const cashAccountPatronAction = useMemo<PersonnelHandoverPoolActionContext | null>(() => {
+    if (!cashAccountSummary || cashAccountSummary.currentBalance <= 0.009) return null;
+
+    const primaryBranchHasBalance =
+      personnel.branchId != null &&
+      personnel.branchId > 0 &&
+      cashAccountBranchBreakdown.some((b) => b.branchId === personnel.branchId);
+
+    const topBranchFromBreakdown = cashAccountBranchBreakdown[0]?.branchId ?? null;
+    const fallbackBranchId =
+      snap?.linkedBranchIds?.find((id) => Number.isFinite(id) && id > 0) ?? null;
+
+    const branchId = primaryBranchHasBalance
+      ? personnel.branchId!
+      : (topBranchFromBreakdown ?? fallbackBranchId ?? 0);
+
+    if (branchId <= 0) return null;
+    return {
+      branchId,
+      currencyCode: cashAccountSummary.currencyCode,
+      suggestedAmount: cashAccountSummary.currentBalance,
+    };
+  }, [
+    cashAccountSummary,
+    cashAccountBranchBreakdown,
+    personnel.branchId,
+    snap?.linkedBranchIds,
+  ]);
   const handoverPoolRows = useMemo(
     () =>
       (snap?.cashHandoverPoolRemainingByBranch ?? []).filter(
@@ -383,6 +497,24 @@ export function PersonnelManagementSnapshotSection({
     500,
     hovApplied,
     handoverListEnabled
+  );
+
+  // Yeni ledger banka ekstresi — Faz 4.1 endpoint'inden besleniyor.
+  const ledgerCurrency = (cashAccountSummary?.currencyCode ?? "TRY").trim().toUpperCase() || "TRY";
+  const ledgerQuery = usePersonnelCashAccountLedger(
+    personnel.id,
+    ledgerPage,
+    ledgerPageSize,
+    {
+      currency: ledgerCurrency,
+      dateFrom: "",
+      dateTo: "",
+      counterpartyKind: "",
+      classificationCode: "",
+      categoryGroup: ledgerCategoryFilter,
+      includeReversals: ledgerIncludeReversals,
+    },
+    handoverListEnabled && cashAccountSummary != null,
   );
 
   const labelPersonnelFilters = useMemo(
@@ -896,49 +1028,95 @@ export function PersonnelManagementSnapshotSection({
                     {t("personnel.detailCashPhysicalPassiveNotice")}
                   </p>
                 ) : null}
-                {handoverRow ? (
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
-                    <MetricTile
-                      label={t("personnel.detailMgmtHandoverHeroIncomingTotal")}
-                      value={formatMoneyDash(
-                        handoverHeroIncomingTotal,
-                        dash,
-                        locale,
-                        handoverPoolHeroMetrics.ccy
-                      )}
-                      hint={t("personnel.detailMgmtHandoverSubTabHintGross").replace(
-                        "{gross}",
-                        formatMoneyDash(
-                          handoverHeroIncomingTotal,
+                {cashAccountSummary ? (
+                  <div className="space-y-3">
+                    {/* HERO: Mevcut bakiye + şube kırılımı + Patrona devret butonu */}
+                    <article className="rounded-2xl border border-sky-200/90 bg-gradient-to-br from-sky-50/80 to-white p-4 shadow-sm shadow-sky-900/5 sm:p-5">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-sky-700">
+                            {t("personnel.detailMgmtCashAccountCurrentBalance")}
+                          </p>
+                          <p className="mt-1 font-mono text-3xl font-bold tabular-nums leading-none text-zinc-900 sm:text-4xl">
+                            {formatMoneyDash(
+                              cashAccountSummary.currentBalance,
+                              dash,
+                              locale,
+                              cashAccountSummary.currencyCode,
+                            )}
+                          </p>
+                          <p className="mt-2 text-xs text-sky-900/70">
+                            {t("personnel.detailMgmtCashAccountCurrentBalanceHint").replace(
+                              "{count}",
+                              String(cashAccountSummary.entryCount),
+                            )}
+                          </p>
+                        </div>
+                        {handoverActionsEnabled && cashAccountPatronAction ? (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="min-h-[44px] shrink-0 self-start px-4 text-sm font-semibold sm:self-center"
+                            onClick={() =>
+                              onHandoverOpenPatronRegisterRepay?.(cashAccountPatronAction)
+                            }
+                          >
+                            {t("personnel.detailMgmtCashAccountPatronTransferButton")}
+                          </Button>
+                        ) : null}
+                      </div>
+                      {cashAccountBranchBreakdown.length > 0 ? (
+                        <div className="mt-4 border-t border-sky-100 pt-3">
+                          <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-zinc-600">
+                            {t("personnel.detailMgmtCashAccountBranchBreakdownTitle")}
+                          </p>
+                          <ul className="mt-2 space-y-1">
+                            {cashAccountBranchBreakdown.map((b) => (
+                              <li
+                                key={b.branchId}
+                                className="flex items-center justify-between gap-3 rounded-md border border-sky-100/80 bg-white/80 px-3 py-1.5 text-sm"
+                              >
+                                <span className="truncate text-zinc-800">{b.branchName}</span>
+                                <span className="shrink-0 font-mono font-semibold tabular-nums text-zinc-900">
+                                  {formatMoneyDash(
+                                    b.amount,
+                                    dash,
+                                    locale,
+                                    cashAccountSummary.currencyCode,
+                                  )}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                    </article>
+
+                    {/* 2 kart: cebe gelen toplam + cebinden harcanan toplam */}
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+                      <MetricTile
+                        label={t("personnel.detailMgmtCashAccountTotalIn")}
+                        value={formatMoneyDash(
+                          cashAccountSummary.totalIn,
                           dash,
                           locale,
-                          handoverPoolHeroMetrics.ccy
-                        )
-                      )}
-                      emphasis="neutral"
-                    />
-                    <MetricTile
-                      label={t("personnel.detailMgmtHandoverSubTabHeroRemaining")}
-                      value={formatMoneyDash(
-                        handoverPoolHeroMetrics.heroValue,
-                        dash,
-                        locale,
-                        handoverPoolHeroMetrics.ccy
-                      )}
-                      hint={handoverSubTabHeroHint}
-                      emphasis="sky"
-                    />
-                    <MetricTile
-                      label={t("personnel.detailMgmtHandoverHeroSpentTotal")}
-                      value={formatMoneyDash(
-                        handoverHeroSpentTotal,
-                        dash,
-                        locale,
-                        handoverPoolHeroMetrics.ccy
-                      )}
-                      hint={t("personnel.detailMgmtHandoverHeroSpentHint")}
-                      emphasis="negative"
-                    />
+                          cashAccountSummary.currencyCode,
+                        )}
+                        hint={t("personnel.detailMgmtCashAccountTotalInHint")}
+                        emphasis="neutral"
+                      />
+                      <MetricTile
+                        label={t("personnel.detailMgmtCashAccountTotalOut")}
+                        value={formatMoneyDash(
+                          cashAccountSummary.totalOut,
+                          dash,
+                          locale,
+                          cashAccountSummary.currencyCode,
+                        )}
+                        hint={t("personnel.detailMgmtCashAccountTotalOutHint")}
+                        emphasis="negative"
+                      />
+                    </div>
                   </div>
                 ) : null}
 
@@ -1001,6 +1179,206 @@ export function PersonnelManagementSnapshotSection({
                     )}
                   </div>
                 ) : null}
+
+                {cashAccountSummary ? (
+                  <section className="overflow-hidden rounded-xl border border-zinc-200/90 bg-white shadow-sm shadow-zinc-900/5">
+                    <div className="flex flex-col gap-2 border-b border-zinc-200/80 bg-gradient-to-b from-zinc-50 to-white px-3 py-2.5 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-zinc-600">
+                            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                              <path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z" />
+                            </svg>
+                            {t("personnel.detailMgmtCashAccountLedgerFilterLabel")}
+                          </span>
+                          <div className="min-w-[12rem]">
+                            <RichCombobox
+                              value={ledgerCategoryFilter}
+                              onChange={(v) => {
+                                setLedgerCategoryFilter(v);
+                                setLedgerPage(1);
+                              }}
+                              options={ledgerCategoryOptions}
+                              placeholder={t("personnel.detailMgmtCashAccountLedgerFilterAll")}
+                              searchPlaceholder={t("personnel.detailMgmtCashAccountLedgerFilterSearch")}
+                              emptyText={t("personnel.detailMgmtCashAccountLedgerFilterEmpty")}
+                            />
+                          </div>
+                        </div>
+                        <label className="flex items-center gap-1.5 text-xs text-zinc-700">
+                          <input
+                            type="checkbox"
+                            checked={ledgerIncludeReversals}
+                            onChange={(e) => {
+                              setLedgerIncludeReversals(e.target.checked);
+                              setLedgerPage(1);
+                            }}
+                            className="h-3.5 w-3.5"
+                          />
+                          {t("personnel.detailMgmtCashAccountLedgerIncludeReversals")}
+                        </label>
+                      </div>
+                    </div>
+                    {ledgerQuery.isError ? (
+                      <div className="px-3 py-3">
+                        <p className="text-sm text-red-600">{toErrorMessage(ledgerQuery.error)}</p>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="mt-2 min-h-[44px]"
+                          onClick={() => ledgerQuery.refetch()}
+                        >
+                          {t("common.retry")}
+                        </Button>
+                      </div>
+                    ) : ledgerQuery.isPending && !ledgerQuery.data ? (
+                      <div className="space-y-2 p-3" aria-busy="true">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <div key={i} className="h-12 animate-pulse rounded-md bg-zinc-100" />
+                        ))}
+                      </div>
+                    ) : (ledgerQuery.data?.items.length ?? 0) === 0 ? (
+                      <p className="px-3 py-4 text-sm text-zinc-500">
+                        {t("personnel.detailMgmtCashAccountLedgerEmpty")}
+                      </p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <Table className="w-full min-w-0 lg:min-w-[60rem]">
+                          <TableHead>
+                            <TableRow>
+                              <TableHeader>
+                                {t("personnel.detailMgmtCashAccountLedgerColDate")}
+                              </TableHeader>
+                              <TableHeader className="text-right">
+                                {t("personnel.detailMgmtCashAccountLedgerColAmount")}
+                              </TableHeader>
+                              <TableHeader className="text-right">
+                                {t("personnel.detailMgmtCashAccountLedgerColBalanceAfter")}
+                              </TableHeader>
+                              <TableHeader>
+                                {t("personnel.detailMgmtCashAccountLedgerColCounterparty")}
+                              </TableHeader>
+                              <TableHeader>
+                                {t("personnel.detailMgmtCashAccountLedgerColBranch")}
+                              </TableHeader>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {ledgerQuery.data!.items.map((row) => {
+                              const isReversal = row.entryKind === "REVERSAL";
+                              const isIn = row.direction === "IN";
+                              const sign = isIn ? "+" : "−";
+                              const amtClass = isIn
+                                ? "text-emerald-700"
+                                : "text-rose-700";
+                              return (
+                                <TableRow
+                                  key={row.id}
+                                  className={isReversal ? "opacity-60" : undefined}
+                                >
+                                  <TableCell
+                                    dataLabel={t("personnel.detailMgmtCashAccountLedgerColDate")}
+                                    className="whitespace-nowrap"
+                                  >
+                                    {formatLocaleDate(row.entryDate, locale, dash)}
+                                  </TableCell>
+                                  <TableCell
+                                    dataLabel={t("personnel.detailMgmtCashAccountLedgerColAmount")}
+                                    className={cn(
+                                      "text-right font-mono font-semibold tabular-nums",
+                                      amtClass,
+                                    )}
+                                  >
+                                    <span className="mr-0.5">{sign}</span>
+                                    {formatMoneyDash(row.amount, dash, locale, row.currencyCode)}
+                                  </TableCell>
+                                  <TableCell
+                                    dataLabel={t("personnel.detailMgmtCashAccountLedgerColBalanceAfter")}
+                                    className="text-right font-mono tabular-nums text-zinc-900"
+                                  >
+                                    {formatMoneyDash(
+                                      row.balanceAfter,
+                                      dash,
+                                      locale,
+                                      row.currencyCode,
+                                    )}
+                                  </TableCell>
+                                  <TableCell
+                                    dataLabel={t("personnel.detailMgmtCashAccountLedgerColCounterparty")}
+                                    className="max-w-[14rem]"
+                                  >
+                                    <div className="text-sm text-zinc-800">
+                                      {row.counterpartyLabel ||
+                                        t(
+                                          `personnel.detailMgmtCashAccountKind${
+                                            {
+                                              BRANCH_REGISTER: "BranchRegister",
+                                              OTHER_PERSONNEL: "OtherPersonnel",
+                                              BRANCH_EXPENSE: "BranchExpense",
+                                              GENERAL_EXPENSE: "GeneralExpense",
+                                              PERSONNEL_PAYOUT: "PersonnelPayout",
+                                              PATRON: "Patron",
+                                            }[row.counterpartyKind] ?? "Patron"
+                                          }`,
+                                        )}
+                                    </div>
+                                    {isReversal ? (
+                                      <span className="mt-0.5 inline-block rounded bg-zinc-200 px-1.5 text-[0.65rem] font-semibold uppercase text-zinc-700">
+                                        {t("personnel.detailMgmtCashAccountLedgerReversalBadge")}
+                                      </span>
+                                    ) : null}
+                                  </TableCell>
+                                  <TableCell
+                                    dataLabel={t("personnel.detailMgmtCashAccountLedgerColBranch")}
+                                  >
+                                    {row.sourceBranchName || dash}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                    {(ledgerQuery.data?.totalCount ?? 0) > ledgerPageSize ? (
+                      <div className="flex items-center justify-between gap-2 border-t border-zinc-200/80 bg-zinc-50/60 px-3 py-2">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="min-h-[40px]"
+                          disabled={ledgerPage <= 1 || ledgerQuery.isFetching}
+                          onClick={() => setLedgerPage((p) => Math.max(1, p - 1))}
+                        >
+                          {t("personnel.detailMgmtHandoverPrev")}
+                        </Button>
+                        <span className="text-xs text-zinc-600">
+                          {ledgerPage} /{" "}
+                          {Math.max(
+                            1,
+                            Math.ceil(
+                              (ledgerQuery.data?.totalCount ?? 0) / ledgerPageSize,
+                            ),
+                          )}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="min-h-[40px]"
+                          disabled={
+                            ledgerPage >=
+                              Math.ceil(
+                                (ledgerQuery.data?.totalCount ?? 0) / ledgerPageSize,
+                              ) || ledgerQuery.isFetching
+                          }
+                          onClick={() => setLedgerPage((p) => p + 1)}
+                        >
+                          {t("personnel.detailMgmtHandoverNext")}
+                        </Button>
+                      </div>
+                    ) : null}
+                  </section>
+                ) : null}
+
 
                 {!personnel.isDeleted &&
                 (pocketMoneyPending || pocketMoneyByBranch.length > 0) ? (
@@ -1106,7 +1484,8 @@ export function PersonnelManagementSnapshotSection({
                   </div>
                 ) : null}
 
-                <div className="overflow-hidden rounded-xl border border-zinc-200/90 bg-white shadow-sm shadow-zinc-900/5">
+                {/* DEPRECATED — eski IN/OUT alt-sekme bloğu. Yeni banka ekstresi paneli üstte. Faz 5.4'te tamamen silinecek. */}
+                <div className="hidden overflow-hidden rounded-xl border border-zinc-200/90 bg-white shadow-sm shadow-zinc-900/5">
                   <div className="border-b border-zinc-200/80 bg-gradient-to-b from-zinc-50 to-white px-2 py-2 sm:px-3 sm:py-2.5">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch sm:justify-between sm:gap-3">
                       <div
@@ -1203,95 +1582,6 @@ export function PersonnelManagementSnapshotSection({
                           </p>
                         ) : null}
                       </div>
-
-                      {handoverActionsEnabled && handoverPoolCurrencyRows.length > 0 ? (
-                        <div className="mt-3 space-y-2 rounded-lg border border-sky-300/50 bg-white/60 p-3">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-sky-950/90">
-                            {t("personnel.detailMgmtHandoverPoolTitle")}
-                          </p>
-                          <ul className="space-y-2">
-                            {handoverPoolCurrencyRows.map((r) => {
-                              const ctx = {
-                                branchId: r.actionBranchId,
-                                currencyCode: r.currencyCode,
-                                suggestedAmount: r.totalRemainingHandover,
-                              };
-                              return (
-                                <li
-                                  key={r.currencyCode}
-                                  className="flex flex-col gap-2 rounded-md border border-sky-200/70 bg-white/90 p-2.5 sm:flex-row sm:items-center sm:justify-between"
-                                >
-                                  <div className="min-w-0 text-sm">
-                                    <span className="font-medium text-zinc-900">
-                                      {t("personnel.detailMgmtHandoverPoolRemainingLabel")}
-                                    </span>
-                                    <span className="text-zinc-600"> · {r.currencyCode}</span>
-                                    <div className="mt-0.5 font-mono text-sm font-semibold text-zinc-900">
-                                      {formatMoneyDash(
-                                        r.totalRemainingHandover,
-                                        dash,
-                                        locale,
-                                        r.currencyCode
-                                      )}
-                                    </div>
-                                    {r.branchBreakdown.length > 0 ? (
-                                      <div className="mt-1.5 space-y-0.5 text-xs text-zinc-700">
-                                        {r.branchBreakdown.map((b) => (
-                                          <div
-                                            key={`${r.currencyCode}-${b.branchId}`}
-                                            className="flex items-center justify-between gap-3"
-                                          >
-                                            <span className="truncate">{b.branchName}</span>
-                                            <span className="shrink-0 font-mono">
-                                              {formatMoneyDash(
-                                                b.amount,
-                                                dash,
-                                                locale,
-                                                r.currencyCode
-                                              )}
-                                            </span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    ) : null}
-                                    {r.branchCount > 1 ? (
-                                      <div className="mt-0.5 text-xs text-zinc-600">
-                                        {t("personnel.detailMgmtHandoverHeroAllBranchesFootnote").replace(
-                                          "{amount}",
-                                          formatMoneyDash(
-                                            r.totalRemainingHandover,
-                                            dash,
-                                            locale,
-                                            r.currencyCode
-                                          )
-                                        )}
-                                      </div>
-                                    ) : null}
-                                  </div>
-                                  <div className="flex flex-wrap gap-2 max-md:w-full">
-                                    <Button
-                                      type="button"
-                                      variant="secondary"
-                                      className="min-h-[44px] min-w-[44px] px-3 text-xs font-semibold max-md:w-full"
-                                      onClick={() => onHandoverOpenExpenseRegister?.(ctx)}
-                                    >
-                                      {t("personnel.detailMgmtHandoverActionExpenseShort")}
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      variant="secondary"
-                                      className="min-h-[44px] min-w-[44px] px-3 text-xs font-semibold max-md:w-full"
-                                      onClick={() => onHandoverOpenPatronRegisterRepay?.(ctx)}
-                                    >
-                                      {t("personnel.detailMgmtHandoverActionPatronShort")}
-                                    </Button>
-                                  </div>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        </div>
-                      ) : null}
 
                       {handoverList.isError ? (
                         <div className="mt-3 flex flex-col gap-2">
@@ -1502,10 +1792,6 @@ export function PersonnelManagementSnapshotSection({
                                       <TableHeader>{t("personnel.detailMgmtOutflowsColParty")}</TableHeader>
                                       <TableHeader>{t("personnel.detailMgmtOutflowsColInRef")}</TableHeader>
                                       <TableHeader>{t("personnel.detailMgmtHandoverColCategory")}</TableHeader>
-                                      <TableHeader>{t("personnel.detailMgmtHandoverColNote")}</TableHeader>
-                                      <TableHeader className="w-[1%] whitespace-nowrap">
-                                        {t("personnel.detailMgmtOutflowsColDetail")}
-                                      </TableHeader>
                                     </TableRow>
                                   </TableHead>
                                   <TableBody>
@@ -1598,26 +1884,6 @@ export function PersonnelManagementSnapshotSection({
                                             className="max-w-[12rem] text-zinc-600"
                                           >
                                             {cat || dash}
-                                          </TableCell>
-                                          <TableCell
-                                            dataLabel={t("personnel.detailMgmtHandoverColNote")}
-                                            className="max-w-[14rem] text-zinc-600"
-                                          >
-                                            <CashHandoverOutflowNote row={row} dash={dash} />
-                                          </TableCell>
-                                          <TableCell dataLabel={t("personnel.detailMgmtOutflowsColDetail")}>
-                                            {branchOverlay && row.branchId > 0 ? (
-                                              <Button
-                                                type="button"
-                                                variant="secondary"
-                                                className="min-h-[44px] whitespace-nowrap px-2.5 text-xs font-semibold"
-                                                onClick={() => openOutflowDetail(row)}
-                                              >
-                                                {t("personnel.detailMgmtOutflowViewDetail")}
-                                              </Button>
-                                            ) : (
-                                              dash
-                                            )}
                                           </TableCell>
                                         </TableRow>
                                       );

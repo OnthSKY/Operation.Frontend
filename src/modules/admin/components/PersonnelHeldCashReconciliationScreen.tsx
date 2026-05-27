@@ -8,6 +8,7 @@ import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import { usePersonnelHeldCashReconciliationQuery } from "@/modules/admin/hooks/usePersonnelHeldCashReconciliationQuery";
 import type { PersonnelHeldCashReconciliationRow } from "@/modules/admin/api/personnel-held-cash-reconciliation-api";
 import { PersonnelHeldCashAutoFixWizard } from "@/modules/admin/components/PersonnelHeldCashAutoFixWizard";
+import { PersonnelHeldCashDrillDownModal } from "@/modules/admin/components/PersonnelHeldCashDrillDownModal";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
@@ -39,6 +40,7 @@ export function PersonnelHeldCashReconciliationScreen() {
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [searchText, setSearchText] = useState("");
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [drillDown, setDrillDown] = useState<PersonnelHeldCashReconciliationRow | null>(null);
 
   const filteredRows = useMemo<PersonnelHeldCashReconciliationRow[]>(() => {
     const rows = query.data?.rows ?? [];
@@ -238,7 +240,10 @@ export function PersonnelHeldCashReconciliationScreen() {
                   {filteredRows.map((r, idx) => (
                     <tr
                       key={`${r.personnelId}-${r.branchId}-${r.currencyCode}-${idx}`}
+                      onClick={() => setDrillDown(r)}
+                      title="Hareket dökümünü gör"
                       className={cn(
+                        "cursor-pointer hover:bg-violet-50/60",
                         r.isNegative && "bg-red-50/40",
                         r.difference !== 0 && !r.isNegative && "bg-amber-50/40"
                       )}
@@ -301,6 +306,16 @@ export function PersonnelHeldCashReconciliationScreen() {
             open={wizardOpen}
             rows={query.data?.rows ?? []}
             onClose={() => setWizardOpen(false)}
+          />
+
+          <PersonnelHeldCashDrillDownModal
+            open={drillDown !== null}
+            personnelId={drillDown?.personnelId ?? null}
+            branchId={drillDown?.branchId ?? null}
+            currency={drillDown?.currencyCode ?? null}
+            personnelName={drillDown?.fullName}
+            branchName={drillDown?.branchName}
+            onClose={() => setDrillDown(null)}
           />
         </div>
       }

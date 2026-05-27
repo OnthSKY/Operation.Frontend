@@ -12,6 +12,10 @@ type MobileCardProps = {
   actions?: ReactNode;
   defaultExpanded?: boolean;
   className?: string;
+  /** Set: kart yüzeyi tıklanabilir olur (detay görüntüleme). Aksiyonlar/expand buton dahili stopPropagation ile korunur. */
+  onSelect?: () => void;
+  /** onSelect ile birlikte: erişilebilirlik etiketi. */
+  selectAriaLabel?: string;
 };
 
 function MobileCardImpl({
@@ -21,6 +25,8 @@ function MobileCardImpl({
   actions,
   defaultExpanded = false,
   className,
+  onSelect,
+  selectAriaLabel,
 }: MobileCardProps) {
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -39,8 +45,23 @@ function MobileCardImpl({
         MOBILE_TOKENS.LIST_CARD.PX,
         MOBILE_TOKENS.LIST_CARD.PY,
         "flex flex-col gap-3",
+        onSelect && "cursor-pointer transition-colors hover:bg-zinc-50/80 active:bg-zinc-100/80",
         className
       )}
+      {...(onSelect
+        ? {
+            role: "button",
+            tabIndex: 0,
+            "aria-label": selectAriaLabel,
+            onClick: () => onSelect(),
+            onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect();
+              }
+            },
+          }
+        : {})}
     >
       {title ? (
         <h3 className="min-w-0 break-words text-base font-semibold leading-snug text-zinc-900">
@@ -70,7 +91,10 @@ function MobileCardImpl({
                 ? t("common.mobileCardDetailsHide")
                 : t("common.mobileCardDetailsShow")
             }
-            onClick={() => setExpanded((v) => !v)}
+            onClick={(e) => {
+              if (onSelect) e.stopPropagation();
+              setExpanded((v) => !v);
+            }}
           >
             {expanded
               ? t("common.mobileCardDetailsHide")
@@ -91,7 +115,14 @@ function MobileCardImpl({
         </div>
       ) : null}
 
-      {actions ? <div className="border-t border-zinc-100 pt-3">{actions}</div> : null}
+      {actions ? (
+        <div
+          className="border-t border-zinc-100 pt-3"
+          onClick={onSelect ? (e) => e.stopPropagation() : undefined}
+        >
+          {actions}
+        </div>
+      ) : null}
     </article>
   );
 }

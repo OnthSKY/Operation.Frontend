@@ -178,6 +178,17 @@ function normalizeBranchTxRow(r: BranchTxApiRow): BranchTransaction {
     settlesCashHandoverTransactionId: normalizeOptionalPositiveId(
       (r as { settlesCashHandoverTransactionId?: unknown }).settlesCashHandoverTransactionId
     ),
+    createdByUserId: normalizeOptionalPositiveId(
+      (r as { createdByUserId?: unknown }).createdByUserId
+    ),
+    createdByName: (() => {
+      const v = (r as { createdByDisplayName?: unknown }).createdByDisplayName;
+      return typeof v === "string" && v.trim() ? v.trim() : null;
+    })(),
+    createdAt: (() => {
+      const v = (r as { createdAt?: unknown }).createdAt;
+      return v != null && String(v).trim() ? String(v) : null;
+    })(),
   };
 }
 

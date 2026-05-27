@@ -69,6 +69,24 @@ export type PersonnelCurrencySnapshot = {
   totalPersonnelExpenseYearToDate: number;
 };
 
+/**
+ * Personel nakit kasa hesabı özeti — yeni ledger sistemi (personnel_cash_ledger) projeksiyonu.
+ * "Kasa parası" sekmesindeki 3 kart için kaynak. CurrentBalance = TotalIn − TotalOut.
+ * REVERSAL satırları (soft-delete sonrası ters girişler) sayılmaz.
+ */
+export type PersonnelCashAccountSummary = {
+  currencyCode: string;
+  /** Persisted projeksiyon cache; sapma şüphesinde recompute edilir. */
+  currentBalance: number;
+  /** IN entry'leri toplamı (handover + başka personelden devir). */
+  totalIn: number;
+  /** OUT entry'leri toplamı (şube/merkez/personel giderleri + patrona iade + başka personele devir). */
+  totalOut: number;
+  entryCount: number;
+  /** ISO yyyy-MM-dd; satır yoksa null. */
+  lastEntryDate: string | null;
+};
+
 export type PersonnelManagementSnapshot = {
   personnelId: number;
   primaryCurrencyCode: string;
@@ -88,6 +106,11 @@ export type PersonnelManagementSnapshot = {
   cashHandoverPoolRemainingByBranch: PersonnelCashHandoverPoolRemaining[];
   /** Kasadan / devri kapatan OUT örnekleri (en fazla 50). Tam liste: cash-handover-outflows API. */
   cashHandoverOutflows: PersonnelCashHandoverOutflow[];
+  /**
+   * Personel nakit kasa hesabı özeti — currency başına. Yeni ledger sisteminden gelir.
+   * "Kasa parası" sekmesindeki 3 kart bu alandan beslenir.
+   */
+  cashAccountSummaries: PersonnelCashAccountSummary[];
 };
 
 export type PersonnelCashHandoverLinesPagedResponse = {
@@ -95,6 +118,48 @@ export type PersonnelCashHandoverLinesPagedResponse = {
   totalCount: number;
   page: number;
   pageSize: number;
+};
+
+/** Yeni ledger sistemi: banka ekstresi satırı. */
+export type PersonnelCashLedgerEntry = {
+  id: number;
+  currencyCode: string;
+  /** ISO yyyy-MM-dd */
+  entryDate: string;
+  direction: "IN" | "OUT";
+  amount: number;
+  balanceBefore: number;
+  balanceAfter: number;
+  sourceBranchTransactionId: number;
+  sourceBranchId: number | null;
+  sourceBranchName: string | null;
+  classificationCode: string;
+  /** BRANCH_REGISTER | OTHER_PERSONNEL | BRANCH_EXPENSE | GENERAL_EXPENSE | PERSONNEL_PAYOUT | PATRON */
+  counterpartyKind: string;
+  counterpartyPersonnelId: number | null;
+  counterpartyLabel: string | null;
+  /** HANDOVER_IN | HELD_REGISTER_OUT | SETTLES_HANDOVER_IN | POCKET_CLAIM_TO_PATRON | POCKET_CLAIM_TRANSFER_OUT | POCKET_CLAIM_TRANSFER_IN | REVERSAL */
+  entryKind: string;
+  description: string | null;
+  reversesLedgerId: number | null;
+  seqPerAccount: number;
+};
+
+export type PersonnelCashLedgerPagedResponse = {
+  items: PersonnelCashLedgerEntry[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+};
+
+export type PersonnelCashLedgerBranchBreakdown = {
+  branchId: number | null;
+  branchLabel: string;
+  totalIn: number;
+  totalOut: number;
+  /** TotalIn − TotalOut */
+  netContribution: number;
+  entryCount: number;
 };
 
 export type PersonnelCashHandoverOutflowsPagedResponse = {

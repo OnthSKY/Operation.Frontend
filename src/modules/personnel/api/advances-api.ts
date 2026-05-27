@@ -7,6 +7,23 @@ function normalizeCurrency(v: unknown): string {
   return /^[A-Z]{3}$/.test(s) ? s : "TRY";
 }
 
+/** Audit «yazan kişi» alanlarını camel/Pascal toleranslı çözer. */
+function extractCreatedByMeta(raw: Record<string, unknown>): {
+  createdByUserId: number | null;
+  createdByName: string | null;
+  createdAt: string | null;
+} {
+  const uid = raw.createdByUserId ?? raw.CreatedByUserId;
+  const name = raw.createdByDisplayName ?? raw.CreatedByDisplayName;
+  const at = raw.createdAt ?? raw.CreatedAt;
+  return {
+    createdByUserId: uid != null && Number(uid) > 0 ? Number(uid) : null,
+    createdByName:
+      name != null && String(name).trim() ? String(name).trim() : null,
+    createdAt: at != null && String(at).trim() ? String(at) : null,
+  };
+}
+
 export async function fetchAdvancesByPersonnel(
   personnelId: number,
   effectiveYear?: number
@@ -34,6 +51,7 @@ export async function fetchAdvancesByPersonnel(
         heldName != null && String(heldName).trim() ? String(heldName).trim() : null,
       linkedBranchTransactionId:
         linkedTx != null && Number(linkedTx) > 0 ? Number(linkedTx) : null,
+      ...extractCreatedByMeta(raw),
     };
   });
 }
@@ -91,6 +109,7 @@ export async function fetchAllAdvances(
         heldName != null && String(heldName).trim() ? String(heldName).trim() : null,
       linkedBranchTransactionId:
         linkedTx != null && Number(linkedTx) > 0 ? Number(linkedTx) : null,
+      ...extractCreatedByMeta(raw),
     };
   });
 }

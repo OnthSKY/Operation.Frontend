@@ -45,6 +45,10 @@ export type BranchTransaction = {
   excludedFromProfitAndLoss?: boolean;
   /** Genel gider havuzundan paylaştırılmış şube satırı. */
   generalOverheadPoolId?: number | null;
+  /** Kaydı oluşturan kullanıcı (audit). */
+  createdByUserId?: number | null;
+  createdByName?: string | null;
+  createdAt?: string | null;
 };
 
 export type CreateBranchTransactionInput = {

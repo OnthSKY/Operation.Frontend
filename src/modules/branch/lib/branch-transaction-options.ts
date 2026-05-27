@@ -380,6 +380,72 @@ export function branchTxGeneralOverheadLine(
   return `${t("branch.txGeneralOverheadPool")} #${id}`;
 }
 
+/** Şube gider satırının türü (liste rozeti). Öncelik sırası önemli. */
+export type BranchExpenseKind =
+  | "advance"
+  | "personnel"
+  | "overhead"
+  | "invoice"
+  | "branch";
+
+export function branchExpenseKind(
+  row: Pick<
+    BranchTransaction,
+    | "type"
+    | "mainCategory"
+    | "category"
+    | "linkedAdvanceId"
+    | "linkedSalaryPaymentId"
+    | "linkedPersonnelId"
+    | "generalOverheadPoolId"
+    | "linkedSupplierInvoiceLineId"
+  >
+): BranchExpenseKind {
+  const m = String(row.mainCategory ?? "").trim().toUpperCase();
+  const c = String(row.category ?? "").trim().toUpperCase();
+  const has = (v: number | null | undefined) => v != null && v > 0;
+
+  // Genel gider havuzu paylaşımı her ana kategoriyi geçersiz kılar.
+  if (has(row.generalOverheadPoolId)) return "overhead";
+  // Avans (bağlı avans veya PER_ADVANCE sınıfı).
+  if (has(row.linkedAdvanceId) || c === "PER_ADVANCE" || m === "OUT_PER_ADVANCE")
+    return "advance";
+  // Tedarikçi / işletme faturası.
+  if (
+    has(row.linkedSupplierInvoiceLineId) ||
+    m === "OUT_OPS_INVOICE" ||
+    (m === "OUT_OPS" && c === "OPS_INVOICE")
+  )
+    return "invoice";
+  // Personel gideri (maaş/prim/diğer personel — avans hariç).
+  if (
+    has(row.linkedSalaryPaymentId) ||
+    has(row.linkedPersonnelId) ||
+    m === "OUT_PERSONNEL" ||
+    m.startsWith("OUT_PER")
+  )
+    return "personnel";
+  return "branch";
+}
+
+export function branchExpenseKindLabel(
+  kind: BranchExpenseKind,
+  t: (key: string) => string
+): string {
+  switch (kind) {
+    case "advance":
+      return t("branch.expenseKindAdvance");
+    case "personnel":
+      return t("branch.expenseKindPersonnel");
+    case "overhead":
+      return t("branch.expenseKindOverhead");
+    case "invoice":
+      return t("branch.expenseKindInvoice");
+    default:
+      return t("branch.expenseKindBranch");
+  }
+}
+
 export function expensePaymentSourceLabel(
   code: string | null | undefined,
   t: (key: string) => string

@@ -38,6 +38,8 @@ import {
   createPersonnel,
   fetchPersonnelInsurancePeriods,
   fetchPersonnelList,
+  fetchPersonnelCashAccountBranchBreakdown,
+  fetchPersonnelCashAccountLedger,
   fetchPersonnelCashHandoverLinesPaged,
   fetchPersonnelCashHandoverOutflowsPaged,
   fetchPersonnelManagementSnapshot,
@@ -163,6 +165,30 @@ export const personnelKeys = {
       dateTo,
       search,
     ] as const,
+  cashAccountLedger: (
+    personnelId: number,
+    currency: string,
+    page: number,
+    pageSize: number,
+    dateFrom: string,
+    dateTo: string,
+    counterpartyKind: string,
+    includeReversals: boolean,
+  ) =>
+    [
+      ...personnelKeys.all,
+      "cash-account-ledger",
+      personnelId,
+      currency,
+      page,
+      pageSize,
+      dateFrom,
+      dateTo,
+      counterpartyKind,
+      includeReversals,
+    ] as const,
+  cashAccountBranchBreakdown: (personnelId: number, currency: string) =>
+    [...personnelKeys.all, "cash-account-branch-breakdown", personnelId, currency] as const,
   /** @param effectiveYear calendar year — filters API by effectiveYear; omit for all years */
   advances: (personnelId: number, effectiveYear?: number) =>
     [...personnelKeys.all, "advances", personnelId, effectiveYear ?? "all"] as const,
@@ -414,6 +440,72 @@ export function usePersonnelCashHandoverOutflowsPaged(
         dateTo: dateToKey || undefined,
         search: searchKey || undefined,
       }),
+    enabled: enabled && personnelId != null && personnelId > 0,
+  });
+}
+
+/** Yeni ledger sistemi — banka ekstresi formatında sayfalı liste. */
+export type PersonnelCashLedgerFilterState = {
+  currency: string;
+  dateFrom: string;
+  dateTo: string;
+  counterpartyKind: string;
+  classificationCode: string;
+  categoryGroup: string;
+  includeReversals: boolean;
+};
+
+export function usePersonnelCashAccountLedger(
+  personnelId: number | null | undefined,
+  page: number,
+  pageSize: number,
+  filters: PersonnelCashLedgerFilterState,
+  enabled: boolean,
+) {
+  const currencyKey = filters.currency.trim().toUpperCase() || "TRY";
+  const dateFromKey = filters.dateFrom.trim();
+  const dateToKey = filters.dateTo.trim();
+  const counterpartyKindKey = filters.counterpartyKind.trim().toUpperCase();
+  const classificationCodeKey = filters.classificationCode.trim().toUpperCase();
+  const categoryGroupKey = filters.categoryGroup.trim().toUpperCase();
+  const includeReversals = filters.includeReversals === true;
+
+  return useQuery({
+    queryKey: personnelKeys.cashAccountLedger(
+      personnelId ?? 0,
+      currencyKey,
+      page,
+      pageSize,
+      dateFromKey,
+      dateToKey,
+      counterpartyKindKey || classificationCodeKey || categoryGroupKey,
+      includeReversals,
+    ),
+    queryFn: () =>
+      fetchPersonnelCashAccountLedger(personnelId!, {
+        page,
+        pageSize,
+        currencyCode: currencyKey,
+        dateFrom: dateFromKey || undefined,
+        dateTo: dateToKey || undefined,
+        counterpartyKind: counterpartyKindKey || undefined,
+        classificationCode: classificationCodeKey || undefined,
+        categoryGroup: categoryGroupKey || undefined,
+        includeReversals,
+      }),
+    enabled: enabled && personnelId != null && personnelId > 0,
+  });
+}
+
+export function usePersonnelCashAccountBranchBreakdown(
+  personnelId: number | null | undefined,
+  currencyCode: string,
+  enabled: boolean,
+) {
+  const ccy = (currencyCode ?? "TRY").trim().toUpperCase() || "TRY";
+  return useQuery({
+    queryKey: personnelKeys.cashAccountBranchBreakdown(personnelId ?? 0, ccy),
+    queryFn: () => fetchPersonnelCashAccountBranchBreakdown(personnelId!, ccy),
     enabled: enabled && personnelId != null && personnelId > 0,
   });
 }

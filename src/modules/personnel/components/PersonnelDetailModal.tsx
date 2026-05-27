@@ -68,6 +68,7 @@ import type { BranchTransaction } from "@/types/branch-transaction";
 import type { Personnel, PersonnelInsurancePeriod } from "@/types/personnel";
 import type { PersonnelYearAccountClosureListItem } from "@/types/personnel-account-closure";
 import { formatLocaleDate, formatLocaleDateTime } from "@/shared/lib/locale-date";
+import { CreatedByMeta } from "@/shared/components/CreatedByMeta";
 import { formatLocaleAmount, formatMoneyDash } from "@/shared/lib/locale-amount";
 import { useDebouncedValue } from "@/shared/lib/use-debounced-value";
 import { openPersonnelSettlementPrintWindow } from "@/modules/personnel/lib/personnel-settlement-print";
@@ -2210,6 +2211,16 @@ export function PersonnelDetailModal({
                                         `#${row.advance.branchId}`)
                                       : dash}
                                   </p>
+                                  <div className="mt-2 flex items-center gap-2 border-t border-zinc-100 pt-2">
+                                    <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+                                      {t("personnel.detailCostsCreatedBy")}
+                                    </span>
+                                    <CreatedByMeta
+                                      row={row.advance}
+                                      locale={locale}
+                                      dash={dash}
+                                    />
+                                  </div>
                                   <div className="mt-2 flex justify-end">
                                     <button
                                       type="button"
@@ -2309,6 +2320,16 @@ export function PersonnelDetailModal({
                                         `#${row.tx.branchId}`)
                                       : t("personnel.detailExpenseBranchNone")}
                                   </p>
+                                  <div className="mt-2 flex items-center gap-2 border-t border-zinc-100 pt-2">
+                                    <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+                                      {t("personnel.detailCostsCreatedBy")}
+                                    </span>
+                                    <CreatedByMeta
+                                      row={row.tx}
+                                      locale={locale}
+                                      dash={dash}
+                                    />
+                                  </div>
                                   <div className="mt-2 flex justify-end">
                                     <button
                                       type="button"
@@ -2360,6 +2381,9 @@ export function PersonnelDetailModal({
                                   </TableHeader>
                                   <TableHeader>
                                     {t("personnel.advanceCurrency")}
+                                  </TableHeader>
+                                  <TableHeader className="min-w-[9rem]">
+                                    {t("personnel.detailCostsCreatedBy")}
                                   </TableHeader>
                                   {!personnel.isDeleted ? (
                                     <TableHeader className="w-[1%] text-center text-xs font-medium text-zinc-500">
@@ -2436,6 +2460,13 @@ export function PersonnelDetailModal({
                                       </TableCell>
                                       <TableCell>
                                         {row.advance.currencyCode}
+                                      </TableCell>
+                                      <TableCell>
+                                        <CreatedByMeta
+                                          row={row.advance}
+                                          locale={locale}
+                                          dash={dash}
+                                        />
                                       </TableCell>
                                       {!personnel.isDeleted ? (
                                         <TableCell className="p-2 text-center align-middle">
@@ -2535,6 +2566,13 @@ export function PersonnelDetailModal({
                                       </TableCell>
                                       <TableCell>
                                         {row.tx.currencyCode}
+                                      </TableCell>
+                                      <TableCell>
+                                        <CreatedByMeta
+                                          row={row.tx}
+                                          locale={locale}
+                                          dash={dash}
+                                        />
                                       </TableCell>
                                       {!personnel.isDeleted ? (
                                         <TableCell className="p-2 text-center align-middle">

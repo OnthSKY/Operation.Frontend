@@ -36,6 +36,7 @@ import {
   TableRow,
 } from "@/shared/ui/Table";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
+import { CreatedByMeta } from "@/shared/components/CreatedByMeta";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import Link from "next/link";
@@ -273,6 +274,9 @@ export function AllNonAdvancePersonnelExpensesScreen() {
                     <TableHeader className="max-w-[14rem]">
                       {t("personnel.note")}
                     </TableHeader>
+                    <TableHeader className="whitespace-nowrap">
+                      {t("personnel.detailCostsCreatedBy")}
+                    </TableHeader>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -311,6 +315,9 @@ export function AllNonAdvancePersonnelExpensesScreen() {
                         </TableCell>
                         <TableCell className="max-w-[14rem] truncate text-sm text-zinc-600">
                           {row.description?.trim() || dash}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap">
+                          <CreatedByMeta row={row} locale={locale} dash={dash} />
                         </TableCell>
                       </TableRow>
                     );

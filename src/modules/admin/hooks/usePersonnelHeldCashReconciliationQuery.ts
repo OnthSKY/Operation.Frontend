@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  fetchPersonnelHeldCashDrillDown,
   fetchPersonnelHeldCashReconciliation,
   postPersonnelHeldCashAutoFix,
 } from "@/modules/admin/api/personnel-held-cash-reconciliation-api";
@@ -25,5 +26,24 @@ export function usePersonnelHeldCashAutoFixMutation() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: personnelHeldCashReconciliationKeys.all });
     },
+  });
+}
+
+export function usePersonnelHeldCashDrillDownQuery(
+  personnelId: number | null,
+  branchId: number | null,
+  currency: string | null,
+  enabled: boolean
+) {
+  const ready = Boolean(enabled && personnelId && branchId && currency);
+  return useQuery({
+    queryKey: ready
+      ? personnelHeldCashReconciliationKeys.drillDown(personnelId!, branchId!, currency!)
+      : ["admin", "personnel-held-cash-reconciliation", "drill-down", "disabled"],
+    queryFn: () => fetchPersonnelHeldCashDrillDown(personnelId!, branchId!, currency!),
+    enabled: ready,
+    staleTime: 15_000,
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
 }

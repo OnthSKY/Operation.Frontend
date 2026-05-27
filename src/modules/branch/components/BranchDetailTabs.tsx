@@ -26,12 +26,14 @@ import { cn } from "@/lib/cn";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
+import { notifyBranchIncomeDeleteConfirm } from "@/shared/lib/notify-branch-income-delete";
 import { useI18n } from "@/i18n/context";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TX_MAIN_IN, TX_MAIN_OUT } from "@/modules/branch/lib/branch-transaction-options";
 import { AddBranchTransactionModal } from "./AddBranchTransactionModal";
 import { AssignPersonnelToBranchModal } from "./AssignPersonnelToBranchModal";
+import { BranchTransactionDetailDialog } from "./BranchTransactionDetailDialog";
 import { InvoiceSettleModal } from "./InvoiceSettleModal";
 import { BranchTourismSeasonTab } from "./BranchTourismSeasonTab";
 import { BranchZReportAccountingTab } from "./BranchZReportAccountingTab";
@@ -136,6 +138,7 @@ export function BranchDetailTabs({
   }>({});
   const [txDeletePendingId, setTxDeletePendingId] = useState<number | null>(null);
   const [invoiceSettleRow, setInvoiceSettleRow] = useState<BranchTransaction | null>(null);
+  const [detailRow, setDetailRow] = useState<BranchTransaction | null>(null);
   const [personnelSubTab, setPersonnelSubTab] = useState<PersonnelSubTabId>("people");
   const [assignPersonnelOpen, setAssignPersonnelOpen] = useState(false);
 
@@ -626,6 +629,25 @@ export function BranchDetailTabs({
     }
   };
 
+  const handleDetailDelete = useCallback(
+    (id: number) => {
+      const isIncomeRow = String(detailRow?.type ?? "").trim().toUpperCase() === "IN";
+      const message = isIncomeRow
+        ? t("branch.txDeleteIncomeToastMessage")
+        : t("branch.txDeleteSure");
+      setDetailRow(null);
+      notifyBranchIncomeDeleteConfirm({
+        message,
+        cancelLabel: t("branch.txDeleteCancel"),
+        confirmLabel: t("branch.txDeleteConfirm"),
+        onConfirm: () => confirmDeleteBranchTx(id),
+      });
+    },
+    // confirmDeleteBranchTx is a stable closure over deleteTxMut/refetchers; intentionally omitted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [detailRow, t]
+  );
+
   const incParams = useMemo(
     () => ({
       page: incPage,
@@ -874,6 +896,7 @@ export function BranchDetailTabs({
             incPages={incPages}
             incTotal={incTotal}
             INC_PAGE={INC_PAGE}
+            onOpenDetail={setDetailRow}
           />
         )}
 
@@ -930,6 +953,7 @@ export function BranchDetailTabs({
             expPages={expPages}
             expTotal={expTotal}
             EXP_PAGE={EXP_PAGE}
+            onOpenDetail={setDetailRow}
           />
         )}
 
@@ -980,6 +1004,15 @@ export function BranchDetailTabs({
         onClose={() => setInvoiceSettleRow(null)}
         row={invoiceSettleRow}
         branchStaff={staff}
+      />
+
+      <BranchTransactionDetailDialog
+        open={detailRow != null}
+        onClose={() => setDetailRow(null)}
+        row={detailRow}
+        canDelete={canDeleteBranchTx}
+        onDelete={handleDetailDelete}
+        deletePending={deleteTxMut.isPending}
       />
 
       {!employeeSelfService ? (

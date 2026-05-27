@@ -1,6 +1,8 @@
 "use client";
 
 import { RightDrawer } from "@/shared/components/RightDrawer";
+import { CreatedByMeta } from "@/shared/components/CreatedByMeta";
+import { BranchExpenseKindBadge } from "@/modules/branch/components/BranchExpenseKindBadge";
 import type { Locale } from "@/i18n/messages";
 import { branchTransactionReceiptPhotoUrl } from "@/modules/branch/api/branch-transactions-api";
 import {
@@ -129,6 +131,7 @@ export type BranchDetailExpensesTabProps = {
   expPages: number;
   expTotal: number;
   EXP_PAGE: number;
+  onOpenDetail: (row: BranchTransaction) => void;
 };
 
 export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
@@ -184,6 +187,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
     expPages,
     expTotal,
     EXP_PAGE,
+    onOpenDetail,
   } = props;
 
   const todayIso = localIsoDate();
@@ -686,15 +690,29 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                     const repayLine = expensePocketRepaySubline(row, t);
                     const pocketRepayMain = branchTxIsPocketRepayMain(row);
                     return (
-                    <li key={row.id} className="rounded-xl border border-zinc-200 bg-white px-3 py-3 shadow-sm">
-                      <div className="flex items-start justify-between gap-2">
-                        <span className="text-xs text-zinc-500">
-                          {formatLocaleDate(row.transactionDate, locale)}
-                        </span>
+                    <li
+                      key={row.id}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={t("branch.txDetailViewAria")}
+                      onClick={() => onOpenDetail(row)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onOpenDetail(row);
+                        }
+                      }}
+                      className="cursor-pointer rounded-xl border border-zinc-200 bg-white px-3 py-3 shadow-sm transition-colors hover:bg-zinc-50/80 active:bg-zinc-100/80"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <BranchExpenseKindBadge row={row} t={t} />
                         <span className="shrink-0 font-mono text-sm font-semibold text-red-800">
                           {formatMoneyDash(row.amount, t("personnel.dash"), locale, row.currencyCode)}
                         </span>
                       </div>
+                      <p className="mt-1 text-xs text-zinc-500">
+                        {formatLocaleDate(row.transactionDate, locale)}
+                      </p>
                       <p className="mt-1 text-sm text-zinc-800">
                         {txCategoryLine(row.mainCategory, row.category, t) || t("personnel.dash")}
                       </p>
@@ -736,8 +754,18 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                       {row.description ? (
                         <p className="mt-1 text-xs text-zinc-500">{row.description}</p>
                       ) : null}
+                      <div className="mt-2 flex items-center gap-2 border-t border-zinc-100 pt-2">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
+                          {t("branch.txColCreatedBy")}
+                        </span>
+                        <CreatedByMeta
+                          row={row}
+                          locale={locale}
+                          dash={t("personnel.dash")}
+                        />
+                      </div>
                       {row.hasReceiptPhoto ? (
-                        <p className="mt-2">
+                        <p className="mt-2" onClick={(e) => e.stopPropagation()}>
                           <a
                             href={branchTransactionReceiptPhotoUrl(row.id)}
                             target="_blank"
@@ -753,13 +781,19 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                           type="button"
                           variant="secondary"
                           className="mt-2 w-full min-h-[44px] text-sm"
-                          onClick={() => setInvoiceSettleRow(row)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setInvoiceSettleRow(row);
+                          }}
                         >
                           {t("branch.invoiceSettleSubmit")}
                         </Button>
                       ) : null}
                       {canDeleteBranchTx ? (
-                        <div className="mt-2 border-t border-zinc-100 pt-2">
+                        <div
+                          className="mt-2 border-t border-zinc-100 pt-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <BranchTxDeleteRow
                             transactionId={row.id}
                             pendingId={txDeletePendingId}
@@ -779,10 +813,12 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                     <TableHead>
                       <TableRow>
                         <TableHeader>{t("branch.advColDate")}</TableHeader>
+                        <TableHeader className="whitespace-nowrap">{t("branch.txColKind")}</TableHeader>
                         <TableHeader>{t("branch.txColAmount")}</TableHeader>
                         <TableHeader className="hidden sm:table-cell">{t("branch.txColMainCategory")}</TableHeader>
                         <TableHeader className="hidden lg:table-cell">{t("branch.txColExpensePayment")}</TableHeader>
                         <TableHeader className="hidden md:table-cell">{t("branch.txColNote")}</TableHeader>
+                        <TableHeader className="whitespace-nowrap">{t("branch.txColCreatedBy")}</TableHeader>
                         <TableHeader className="w-[1%] whitespace-nowrap">{t("branch.txColReceipt")}</TableHeader>
                         {canDeleteBranchTx ? (
                           <TableHeader className="w-12 text-center text-xs font-medium text-zinc-500">
@@ -801,9 +837,16 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                         const repayLine = expensePocketRepaySubline(row, t);
                         const pocketRepayMain = branchTxIsPocketRepayMain(row);
                         return (
-                        <TableRow key={row.id}>
+                        <TableRow
+                          key={row.id}
+                          onClick={() => onOpenDetail(row)}
+                          className="cursor-pointer transition-colors hover:bg-zinc-50"
+                        >
                           <TableCell className="whitespace-nowrap text-sm">
                             {formatLocaleDate(row.transactionDate, locale)}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            <BranchExpenseKindBadge row={row} t={t} />
                           </TableCell>
                           <TableCell className="font-mono text-sm text-red-800">
                             {formatMoneyDash(
@@ -856,7 +899,19 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                           <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 max-w-[14rem] truncate text-sm text-zinc-600 md:table-cell">
                             {row.description ?? "—"}
                           </TableCell>
-                          <TableCell className="whitespace-nowrap text-xs">
+                          <TableCell className="whitespace-nowrap">
+                            <CreatedByMeta
+                              row={row}
+                              locale={locale}
+                              dash={t("personnel.dash")}
+                            />
+                          </TableCell>
+                          <TableCell
+                            className="whitespace-nowrap text-xs"
+                            onClick={(e) => {
+                              if (row.hasReceiptPhoto) e.stopPropagation();
+                            }}
+                          >
                             {row.hasReceiptPhoto ? (
                               <a
                                 href={branchTransactionReceiptPhotoUrl(row.id)}
@@ -871,7 +926,10 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                             )}
                           </TableCell>
                           {canDeleteBranchTx ? (
-                            <TableCell className="align-top p-2">
+                            <TableCell
+                              className="align-top p-2"
+                              onClick={(e) => e.stopPropagation()}
+                            >
                               {branchTxUnpaidInvoice(row) ? (
                                 <Button
                                   type="button"
