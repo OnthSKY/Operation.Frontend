@@ -24,6 +24,25 @@ function settleLayout(): Promise<void> {
   });
 }
 
+/**
+ * toPng içeriği bir SVG foreignObject'e klonlayıp raster'a çevirir; bu sırada <img>
+ * (ör. firma logosu/amblemi) henüz decode olmamışsa PNG'de boş çıkar — önizlemede görünse de.
+ * Yakalamadan önce tüm görselleri decode etmeyi bekleyerek logonun PDF'e düşmesini garanti ederiz.
+ */
+async function waitForImagesToDecode(node: HTMLElement): Promise<void> {
+  const images = Array.from(node.querySelectorAll("img"));
+  await Promise.all(
+    images.map(async (img) => {
+      if (img.complete && img.naturalWidth > 0) return;
+      try {
+        await img.decode();
+      } catch {
+        // Bozuk/erişilemeyen görseli atla; yakalama yine de devam etsin.
+      }
+    })
+  );
+}
+
 export async function downloadHtmlNodeAsSinglePagePdf(node: HTMLElement, fileName: string): Promise<void> {
   const pdf = await buildHtmlNodeSinglePagePdf(node);
   pdf.save(fileName.endsWith(".pdf") ? fileName : `${fileName}.pdf`);
@@ -34,6 +53,7 @@ const PDF_CAPTURE_MIN_WIDTH_PX = 794;
 
 async function buildHtmlNodeSinglePagePdf(node: HTMLElement): Promise<jsPDF> {
   await document.fonts.ready.catch(() => {});
+  await waitForImagesToDecode(node);
   await settleLayout();
 
   const prevWidth = node.style.width;
