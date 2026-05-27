@@ -70,6 +70,16 @@ async function buildHtmlNodeSinglePagePdf(node: HTMLElement): Promise<jsPDF> {
       await settleLayout();
     }
 
+    // Isınma yakalaması: html-to-image, data-URL <img> (firma logosu) öğelerini
+    // foreignObject içine gömerken ilk seferde çoğu zaman boş raster üretir; ilk çağrı
+    // tarayıcının görsel önbelleğini doldurur, ikincisi logoyu eksiksiz çizer.
+    await toPng(node, {
+      pixelRatio: 1,
+      backgroundColor: "#ffffff",
+      style: { transform: "none" },
+    }).catch(() => "");
+    await settleLayout();
+
     dataUrl = await toPng(node, {
       pixelRatio: 2,
       backgroundColor: "#ffffff",
