@@ -1,7 +1,7 @@
 "use client";
 
 import { jsPDF } from "jspdf";
-import { toPng } from "html-to-image";
+import { toCanvas } from "html-to-image";
 
 function sanitizeFileNameBase(raw: string): string {
   const t = raw.replace(/[<>:"/\\|?*\u0000-\u001f]+/g, "_").replace(/\s+/g, "_").slice(0, 120);
@@ -24,23 +24,67 @@ function settleLayout(): Promise<void> {
   });
 }
 
+function loadImageFromSrc(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("image-load-failed"));
+    img.src = src;
+  });
+}
+
 /**
- * toPng içeriği bir SVG foreignObject'e klonlayıp raster'a çevirir; bu sırada <img>
- * (ör. firma logosu/amblemi) henüz decode olmamışsa PNG'de boş çıkar — önizlemede görünse de.
- * Yakalamadan önce tüm görselleri decode etmeyi bekleyerek logonun PDF'e düşmesini garanti ederiz.
+ * html-to-image düğümü bir SVG foreignObject'e klonlayıp raster'a çeviriyor; bazı tarayıcılar
+ * (özellikle Chrome) foreignObject içindeki <img> öğelerini — data-URL firma logosu dahil —
+ * hiç çizmiyor: kutu/çerçeve geliyor ama görsel boş kalıyor. Bu yüzden yakalanan canvas üzerine
+ * görselleri kendimiz, DOM'daki konum/boyutla (object-fit: contain) yeniden çiziyoruz.
  */
-async function waitForImagesToDecode(node: HTMLElement): Promise<void> {
-  const images = Array.from(node.querySelectorAll("img"));
-  await Promise.all(
-    images.map(async (img) => {
-      if (img.complete && img.naturalWidth > 0) return;
-      try {
-        await img.decode();
-      } catch {
-        // Bozuk/erişilemeyen görseli atla; yakalama yine de devam etsin.
-      }
-    })
-  );
+async function compositeImagesOntoCanvas(node: HTMLElement, canvas: HTMLCanvasElement): Promise<void> {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  const nodeRect = node.getBoundingClientRect();
+  if (nodeRect.width <= 0 || nodeRect.height <= 0) return;
+  const scaleX = canvas.width / nodeRect.width;
+  const scaleY = canvas.height / nodeRect.height;
+
+  for (const img of Array.from(node.querySelectorAll("img"))) {
+    const src = img.currentSrc || img.src;
+    if (!src) continue;
+
+    let loaded: HTMLImageElement;
+    try {
+      loaded = await loadImageFromSrc(src);
+    } catch {
+      continue;
+    }
+    const naturalW = loaded.naturalWidth || loaded.width;
+    const naturalH = loaded.naturalHeight || loaded.height;
+    if (naturalW <= 0 || naturalH <= 0) continue;
+
+    const rect = img.getBoundingClientRect();
+    const cs = getComputedStyle(img);
+    const insetLeft = (parseFloat(cs.borderLeftWidth) || 0) + (parseFloat(cs.paddingLeft) || 0);
+    const insetRight = (parseFloat(cs.borderRightWidth) || 0) + (parseFloat(cs.paddingRight) || 0);
+    const insetTop = (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.paddingTop) || 0);
+    const insetBottom = (parseFloat(cs.borderBottomWidth) || 0) + (parseFloat(cs.paddingBottom) || 0);
+
+    // <img> içerik kutusu (CSS px), düğüme göreli.
+    const boxLeft = rect.left - nodeRect.left + insetLeft;
+    const boxTop = rect.top - nodeRect.top + insetTop;
+    const boxW = rect.width - insetLeft - insetRight;
+    const boxH = rect.height - insetTop - insetBottom;
+    if (boxW <= 0 || boxH <= 0) continue;
+
+    // object-fit: contain — en-boy oranını koruyarak kutuya sığdır ve ortala.
+    const fit = Math.min(boxW / naturalW, boxH / naturalH);
+    const drawW = naturalW * fit;
+    const drawH = naturalH * fit;
+    const drawX = boxLeft + (boxW - drawW) / 2;
+    const drawY = boxTop + (boxH - drawH) / 2;
+
+    ctx.drawImage(loaded, drawX * scaleX, drawY * scaleY, drawW * scaleX, drawH * scaleY);
+  }
 }
 
 export async function downloadHtmlNodeAsSinglePagePdf(node: HTMLElement, fileName: string): Promise<void> {
@@ -53,7 +97,6 @@ const PDF_CAPTURE_MIN_WIDTH_PX = 794;
 
 async function buildHtmlNodeSinglePagePdf(node: HTMLElement): Promise<jsPDF> {
   await document.fonts.ready.catch(() => {});
-  await waitForImagesToDecode(node);
   await settleLayout();
 
   const prevWidth = node.style.width;
@@ -70,22 +113,15 @@ async function buildHtmlNodeSinglePagePdf(node: HTMLElement): Promise<jsPDF> {
       await settleLayout();
     }
 
-    // Isınma yakalaması: html-to-image, data-URL <img> (firma logosu) öğelerini
-    // foreignObject içine gömerken ilk seferde çoğu zaman boş raster üretir; ilk çağrı
-    // tarayıcının görsel önbelleğini doldurur, ikincisi logoyu eksiksiz çizer.
-    await toPng(node, {
-      pixelRatio: 1,
-      backgroundColor: "#ffffff",
-      style: { transform: "none" },
-    }).catch(() => "");
-    await settleLayout();
-
-    dataUrl = await toPng(node, {
+    const canvas = await toCanvas(node, {
       pixelRatio: 2,
       backgroundColor: "#ffffff",
       cacheBust: true,
       style: { transform: "none" },
     });
+    // html-to-image foreignObject içindeki <img>'leri çizemediği için logoyu canvas'a biz basıyoruz.
+    await compositeImagesOntoCanvas(node, canvas);
+    dataUrl = canvas.toDataURL("image/png");
   } finally {
     node.style.width = prevWidth;
     node.style.maxWidth = prevMaxWidth;
