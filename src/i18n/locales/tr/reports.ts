@@ -1050,6 +1050,7 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   summaryTreeExpense: "Toplam gider",
   summaryTreePersonnel: "Personele giden",
   summaryTreeAdvance: "Avans",
+  summaryTreeSalary: "Maaş",
   summaryTreePersonnelExpense: "Personel gideri",
   summaryTreeBranchOther: "Şubeye giden (diğer)",
   summaryTreeVehicle: "Araç gideri",
@@ -1061,7 +1062,7 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   summaryTreeNet: "Net",
   summaryTreeSystemNetNote: "Sistem kasa neti",
   summaryTreeOffRegisterNote:
-    "fark = kasa dışı ödemeler (patron/banka tedarikçi, kasa dışı araç) — sistem netine dahil değil",
+    "fark = sistem kasa netine girmeyen kalemler (personel OUT_PER, patron/banka tedarikçi, kasa dışı araç)",
   summaryTreeNoData: "Bu dönem için veri yok.",
   summaryTreeVehicleHint: "Plaka bazlı, gider türüne göre kırılım.",
   summaryTreeBranchOnlyAllBranches:

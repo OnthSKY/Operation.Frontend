@@ -150,6 +150,8 @@ export type FinancialReport = {
   generalOverheadAllocated?: FinancialGeneralOverheadAllocatedRow[];
   /** «Şubeye giden para» kovası: operasyonel OUT kategori kırılımı (genel gider + araç hariç). */
   branchExpenseResidualByCategory?: FinancialCategoryBreakdownRow[];
+  /** «Personel gideri» kovası: OUT_PER_* (avans + maaş hariç) kategori kırılımı. */
+  personnelExpenseByCategory?: FinancialCategoryBreakdownRow[];
   incomeRegisterBreakdownByCurrency?: FinancialIncomeRegisterBreakdownRow[];
 };
 

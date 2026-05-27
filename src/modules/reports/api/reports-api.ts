@@ -91,6 +91,7 @@ export function fetchFinancialReport(
     vehicleExpensesOffRegister: r.vehicleExpensesOffRegister ?? [],
     vehicleExpensesByPlate: r.vehicleExpensesByPlate ?? [],
     branchExpenseResidualByCategory: r.branchExpenseResidualByCategory ?? [],
+    personnelExpenseByCategory: r.personnelExpenseByCategory ?? [],
     incomeRegisterBreakdownByCurrency: r.incomeRegisterBreakdownByCurrency ?? [],
   }));
 }

@@ -4,7 +4,7 @@ import { useI18n } from "@/i18n/context";
 import { financialBreakdownMainLabel } from "@/modules/reports/lib/financial-breakdown-labels";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import type { FinancialReport } from "@/types/reports";
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 
 type Props = {
   data: FinancialReport;
@@ -26,6 +26,8 @@ function supplierSourceLabel(sourceType: string, t: (k: string) => string): stri
   return sourceType || "—";
 }
 
+type DetailItem = { label: string; amount: number };
+
 /** Bir para birimi için ağacı kuran türetilmiş model. */
 function buildCurrencyTree(data: FinancialReport, cc: string) {
   const norm = (s: string) => s.trim().toUpperCase();
@@ -42,9 +44,13 @@ function buildCurrencyTree(data: FinancialReport, cc: string) {
 
   const advance = totals?.totalAdvanceGiven ?? 0;
   const salary = totals?.totalSalaryPaid ?? 0;
-  const personnelTotal = advance + salary;
+  const personnelExpenseRows = (data.personnelExpenseByCategory ?? []).filter(
+    (r) => norm(r.currencyCode) === ccu
+  );
+  const personnelExpenseExtra = personnelExpenseRows.reduce((s, r) => s + r.totalAmount, 0);
+  const personnelTotal = advance + salary + personnelExpenseExtra;
 
-  // Tedarikçi ödemeleri kaynak bazında (CASH=kasa / PATRON / BANK); kaynak tipinde topla.
+  // Tedarikçi ödemeleri kaynak bazında (CASH=kasa / PATRON / BANK).
   const supplierBySource = new Map<string, { sourceType: string; total: number }>();
   for (const r of (data.supplierPayments ?? []).filter((x) => norm(x.currencyCode) === ccu)) {
     const key = norm(r.sourceType);
@@ -54,12 +60,11 @@ function buildCurrencyTree(data: FinancialReport, cc: string) {
   }
   const supplierRows = [...supplierBySource.values()].sort((a, b) => b.total - a.total);
   const supplier = supplierRows.reduce((s, r) => s + r.total, 0);
-  // Net'e (kasa) yansıyan kısım — yalnızca şube kasasından nakit ödenen.
-  const supplierRegisterCash = totals?.totalSupplierRegisterCashPaid ?? 0;
 
-  const overhead = (data.generalOverheadAllocated ?? [])
-    .filter((r) => norm(r.currencyCode) === ccu)
-    .reduce((s, r) => s + r.totalAmount, 0);
+  const overheadRows = (data.generalOverheadAllocated ?? []).filter(
+    (r) => norm(r.currencyCode) === ccu
+  );
+  const overhead = overheadRows.reduce((s, r) => s + r.totalAmount, 0);
 
   const residualRows = (data.branchExpenseResidualByCategory ?? []).filter(
     (r) => norm(r.currencyCode) === ccu
@@ -70,21 +75,6 @@ function buildCurrencyTree(data: FinancialReport, cc: string) {
     (r) => norm(r.currencyCode) === ccu
   );
   const vehicleTotal = vehicleRows.reduce((s, r) => s + r.totalAmount, 0);
-
-  // Araç satırlarını plaka altında grupla.
-  const vehicleByPlate = new Map<
-    string,
-    { plate: string; brand: string; model: string; total: number; items: { type: string; amount: number }[] }
-  >();
-  for (const r of vehicleRows) {
-    const key = r.plateNumber || "—";
-    const g =
-      vehicleByPlate.get(key) ??
-      { plate: key, brand: r.brand, model: r.model, total: 0, items: [] };
-    g.total += r.totalAmount;
-    g.items.push({ type: r.expenseType, amount: r.totalAmount });
-    vehicleByPlate.set(key, g);
-  }
 
   const expenseTotal = personnelTotal + supplier + overhead + residualTotal + vehicleTotal;
   const treeNet = incomeTotal - expenseTotal;
@@ -97,14 +87,15 @@ function buildCurrencyTree(data: FinancialReport, cc: string) {
     incomeCard,
     advance,
     salary,
+    personnelExpenseRows,
     personnelTotal,
-    supplier,
     supplierRows,
-    supplierRegisterCash,
+    supplier,
+    overheadRows,
     overhead,
     residualRows,
     residualTotal,
-    vehicleGroups: [...vehicleByPlate.values()].sort((a, b) => b.total - a.total),
+    vehicleRows,
     vehicleTotal,
     expenseTotal,
     treeNet,
@@ -112,6 +103,15 @@ function buildCurrencyTree(data: FinancialReport, cc: string) {
     hasAny: incomeTotal !== 0 || expenseTotal !== 0,
   };
 }
+
+/** Kova renk paleti (accent + bar dolgu). */
+const BUCKET_COLORS = {
+  personnel: { dot: "bg-violet-500", bar: "bg-violet-500/70" },
+  branch: { dot: "bg-sky-500", bar: "bg-sky-500/70" },
+  vehicle: { dot: "bg-amber-500", bar: "bg-amber-500/70" },
+  overhead: { dot: "bg-slate-400", bar: "bg-slate-400/70" },
+  supplier: { dot: "bg-teal-500", bar: "bg-teal-500/70" },
+} as const;
 
 export function FinancialSummaryTree({
   data,
@@ -144,133 +144,163 @@ export function FinancialSummaryTree({
   }
 
   return (
-    <div className={`space-y-6 ${className ?? ""}`}>
+    <div className={`space-y-5 ${className ?? ""}`}>
       {trees.map((tree) => {
         const fmt = (n: number) => formatLocaleAmount(n, locale, tree.cc);
         const netDelta = tree.systemNet - tree.treeNet;
+        const denom = tree.expenseTotal || 1;
+
+        // Personel alt kalemleri
+        const personnelItems: DetailItem[] = [
+          { label: t("reports.summaryTreeAdvance"), amount: tree.advance },
+          ...(tree.salary > EPS ? [{ label: t("reports.summaryTreeSalary"), amount: tree.salary }] : []),
+          ...tree.personnelExpenseRows.map((r) => ({
+            label: financialBreakdownMainLabel(r.mainCategory, t),
+            amount: r.totalAmount,
+          })),
+        ].filter((i) => Math.abs(i.amount) > EPS);
+
+        const branchItems: DetailItem[] = tree.residualRows.map((r) => ({
+          label: financialBreakdownMainLabel(r.mainCategory, t),
+          amount: r.totalAmount,
+        }));
+
+        const vehicleItems: DetailItem[] = tree.vehicleRows.map((r) => ({
+          label: `${r.plateNumber || "—"} · ${r.expenseType || "—"}`,
+          amount: r.totalAmount,
+        }));
+
+        const overheadItems: DetailItem[] = tree.overheadRows.map((r) => ({
+          label: r.title || "—",
+          amount: r.totalAmount,
+        }));
+
+        const supplierItems: DetailItem[] = tree.supplierRows.map((r) => ({
+          label: supplierSourceLabel(r.sourceType, t),
+          amount: r.total,
+        }));
+
+        const buckets = [
+          {
+            key: "personnel" as const,
+            label: t("reports.summaryTreePersonnel"),
+            amount: tree.personnelTotal,
+            items: personnelItems,
+          },
+          {
+            key: "branch" as const,
+            label: t("reports.summaryTreeBranchOther"),
+            amount: tree.residualTotal,
+            items: branchItems,
+          },
+          {
+            key: "vehicle" as const,
+            label: t("reports.summaryTreeVehicle"),
+            amount: tree.vehicleTotal,
+            items: vehicleItems,
+          },
+          {
+            key: "overhead" as const,
+            label: t("reports.summaryTreeGeneralOverhead"),
+            amount: tree.overhead,
+            items: overheadItems,
+          },
+          {
+            key: "supplier" as const,
+            label: t("reports.summaryTreeSupplier"),
+            amount: tree.supplier,
+            items: supplierItems,
+          },
+        ];
+
         return (
           <section
             key={tree.cc}
-            className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900"
+            className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5 dark:border-zinc-800 dark:bg-zinc-900"
           >
-            <header className="mb-3 flex items-baseline justify-between">
-              <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
-                {t("reports.summaryTreeTitle")}
-              </h2>
-              <span className="text-xs font-medium text-zinc-400">{tree.cc.toUpperCase()}</span>
+            <header className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
+                  {t("reports.summaryTreeTitle")}
+                </h2>
+                <p className="mt-0.5 text-xs text-zinc-500">{t("reports.summaryTreeSubtitle")}</p>
+              </div>
+              <span className="shrink-0 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-500 dark:bg-zinc-800">
+                {tree.cc.toUpperCase()}
+              </span>
             </header>
 
-            {/* GELİR */}
-            <Row
-              label={t("reports.summaryTreeIncome")}
-              amount={fmt(tree.incomeTotal)}
-              tone="income"
-              level={0}
-            />
-            <Row
-              label={t("reports.summaryTreeIncomeFromBranches")}
-              amount={fmt(tree.incomeCash + tree.incomeCard)}
-              level={1}
-            />
-            <Row label={t("reports.summaryTreeCash")} amount={fmt(tree.incomeCash)} level={2} muted />
-            <Row label={t("reports.summaryTreeCard")} amount={fmt(tree.incomeCard)} level={2} muted />
-
-            <div className="my-3 border-t border-dashed border-zinc-200 dark:border-zinc-800" />
-
-            {/* GİDER */}
-            <Row
-              label={t("reports.summaryTreeExpense")}
-              amount={fmt(tree.expenseTotal)}
-              tone="expense"
-              level={0}
-            />
-
-            {/* Personel */}
-            <Row label={t("reports.summaryTreePersonnel")} amount={fmt(tree.personnelTotal)} level={1} />
-            <Row label={t("reports.summaryTreeAdvance")} amount={fmt(tree.advance)} level={2} muted />
-            <Row
-              label={t("reports.summaryTreePersonnelExpense")}
-              amount={fmt(tree.salary)}
-              level={2}
-              muted
-            />
-
-            {/* Şubeye giden (diğer) — kategori bazlı */}
-            <Row
-              label={t("reports.summaryTreeBranchOther")}
-              amount={fmt(tree.residualTotal)}
-              level={1}
-            />
-            {tree.residualRows.map((r) => (
-              <Row
-                key={`res-${r.mainCategory ?? r.category}`}
-                label={financialBreakdownMainLabel(r.mainCategory, t)}
-                amount={fmt(r.totalAmount)}
-                level={2}
-                muted
+            {/* KPI tiles */}
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+              <Kpi
+                label={t("reports.summaryTreeIncome")}
+                amount={fmt(tree.incomeTotal)}
+                tone="income"
               />
-            ))}
+              <Kpi
+                label={t("reports.summaryTreeExpense")}
+                amount={fmt(tree.expenseTotal)}
+                tone="expense"
+              />
+              <Kpi
+                label={t("reports.summaryTreeNet")}
+                amount={fmt(tree.treeNet)}
+                tone={tree.treeNet >= 0 ? "income" : "expense"}
+                emphasize
+              />
+            </div>
 
-            {/* Araç — plaka bazlı */}
-            <Row label={t("reports.summaryTreeVehicle")} amount={fmt(tree.vehicleTotal)} level={1} />
-            {tree.vehicleGroups.map((g) => (
-              <div key={`veh-${g.plate}`}>
-                <Row
-                  label={`${g.plate}${g.brand ? ` · ${g.brand} ${g.model}` : ""}`}
-                  amount={fmt(g.total)}
-                  level={2}
-                />
-                {g.items.map((it, i) => (
-                  <Row
-                    key={`veh-${g.plate}-${it.type}-${i}`}
-                    label={it.type || "—"}
-                    amount={fmt(it.amount)}
-                    level={3}
-                    muted
+            {/* Gelir kırılımı */}
+            <div className="mt-4">
+              <SectionLabel>{t("reports.summaryTreeIncomeFromBranches")}</SectionLabel>
+              <div className="mt-1.5 grid grid-cols-2 gap-2">
+                <MiniStat label={t("reports.summaryTreeCash")} value={fmt(tree.incomeCash)} />
+                <MiniStat label={t("reports.summaryTreeCard")} value={fmt(tree.incomeCard)} />
+              </div>
+            </div>
+
+            {/* Gider kovaları */}
+            <div className="mt-4">
+              <SectionLabel>{t("reports.summaryTreeExpense")}</SectionLabel>
+              <div className="mt-1.5 divide-y divide-zinc-100 dark:divide-zinc-800">
+                {buckets.map((b) => (
+                  <ExpenseBucket
+                    key={b.key}
+                    label={b.label}
+                    amount={fmt(b.amount)}
+                    share={b.amount / denom}
+                    colors={BUCKET_COLORS[b.key]}
+                    items={b.items.map((it) => ({ label: it.label, amount: fmt(it.amount) }))}
                   />
                 ))}
               </div>
-            ))}
+            </div>
 
-            {/* Genel gider */}
-            <Row
-              label={t("reports.summaryTreeGeneralOverhead")}
-              amount={fmt(tree.overhead)}
-              level={1}
-            />
-
-            {/* Tedarikçi — ödeme kaynağı bazında (kasa / patron / banka) */}
-            <Row label={t("reports.summaryTreeSupplier")} amount={fmt(tree.supplier)} level={1} />
-            {tree.supplierRows.map((r) => (
-              <Row
-                key={`sup-${r.sourceType}`}
-                label={supplierSourceLabel(r.sourceType, t)}
-                amount={fmt(r.total)}
-                level={2}
-                muted
-              />
-            ))}
-
-            <div className="my-3 border-t border-zinc-300 dark:border-zinc-700" />
-
-            {/* NET */}
-            <Row
-              label={t("reports.summaryTreeNet")}
-              amount={fmt(tree.treeNet)}
-              tone={tree.treeNet >= 0 ? "income" : "expense"}
-              level={0}
-              strong
-            />
+            {/* Net + notlar */}
+            <div className="mt-4 flex items-baseline justify-between border-t border-zinc-200 pt-3 dark:border-zinc-800">
+              <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                {t("reports.summaryTreeNet")}
+              </span>
+              <span
+                className={`text-lg font-bold tabular-nums ${
+                  tree.treeNet >= 0
+                    ? "text-emerald-600 dark:text-emerald-400"
+                    : "text-rose-600 dark:text-rose-400"
+                }`}
+              >
+                {fmt(tree.treeNet)}
+              </span>
+            </div>
 
             {Math.abs(netDelta) > EPS && (
-              <p className="mt-2 text-[11px] text-zinc-400">
+              <p className="mt-2 text-[11px] leading-relaxed text-zinc-400">
                 {t("reports.summaryTreeSystemNetNote")}: {fmt(tree.systemNet)} ·{" "}
                 {t("reports.summaryTreeOffRegisterNote")}
               </p>
             )}
 
             {branchScoped && (
-              <p className="mt-2 text-[11px] text-amber-600 dark:text-amber-500">
+              <p className="mt-2 text-[11px] leading-relaxed text-amber-600 dark:text-amber-500">
                 {t("reports.summaryTreeBranchOnlyAllBranches")}
               </p>
             )}
@@ -281,48 +311,119 @@ export function FinancialSummaryTree({
   );
 }
 
-function Row({
+function Kpi({
   label,
   amount,
-  level,
   tone,
-  muted,
-  strong,
+  emphasize,
 }: {
   label: string;
   amount: string;
-  level: 0 | 1 | 2 | 3;
-  tone?: "income" | "expense";
-  muted?: boolean;
-  strong?: boolean;
+  tone: "income" | "expense";
+  emphasize?: boolean;
 }) {
-  // Mobilde dar, sm+ ekranda geniş girinti; alt seviyeler ayrıca sol çizgiyle vurgulanır.
-  const padByLevel = [
-    "pl-0",
-    "pl-2 sm:pl-4",
-    "pl-3 sm:pl-8 border-l border-zinc-100 dark:border-zinc-800",
-    "pl-4 sm:pl-12 border-l border-zinc-100 dark:border-zinc-800",
-  ] as const;
   const toneClass =
     tone === "income"
       ? "text-emerald-600 dark:text-emerald-400"
-      : tone === "expense"
-        ? "text-rose-600 dark:text-rose-400"
-        : muted
-          ? "text-zinc-500 dark:text-zinc-400"
-          : "text-zinc-800 dark:text-zinc-200";
-  const weight = strong || level === 0 ? "font-semibold" : "font-normal";
-  const size = level >= 2 ? "text-[13px]" : "text-sm";
+      : "text-rose-600 dark:text-rose-400";
   return (
     <div
-      className={`flex items-baseline justify-between gap-2 py-0.5 sm:gap-3 ${padByLevel[level]} ${size}`}
+      className={`rounded-xl border px-3 py-2.5 ${
+        emphasize
+          ? "border-zinc-300 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800/60"
+          : "border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+      }`}
     >
-      <span className={`${toneClass} ${weight} min-w-0 truncate`} title={label}>
-        {label}
-      </span>
-      <span className={`${toneClass} ${weight} shrink-0 tabular-nums whitespace-nowrap`}>
-        {amount}
-      </span>
+      <div className="text-[11px] font-medium uppercase tracking-wide text-zinc-400">{label}</div>
+      <div className={`mt-1 text-lg font-bold tabular-nums ${toneClass}`}>{amount}</div>
     </div>
+  );
+}
+
+function SectionLabel({ children }: { children: ReactNode }) {
+  return (
+    <div className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+      {children}
+    </div>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-800/50">
+      <div className="text-[11px] text-zinc-400">{label}</div>
+      <div className="text-sm font-semibold tabular-nums text-zinc-700 dark:text-zinc-200">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function ExpenseBucket({
+  label,
+  amount,
+  share,
+  colors,
+  items,
+}: {
+  label: string;
+  amount: string;
+  share: number;
+  colors: { dot: string; bar: string };
+  items: { label: string; amount: string }[];
+}) {
+  const pct = Math.max(0, Math.min(100, share * 100));
+  const header = (
+    <div className="flex items-center gap-2.5 py-2.5">
+      <span className={`size-2 shrink-0 rounded-full ${colors.dot}`} aria-hidden />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-200">
+            {label}
+          </span>
+          <span className="shrink-0 text-sm font-semibold tabular-nums text-zinc-800 dark:text-zinc-200">
+            {amount}
+          </span>
+        </div>
+        <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+          <div className={`h-full rounded-full ${colors.bar}`} style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+    </div>
+  );
+
+  if (items.length === 0) {
+    return header;
+  }
+
+  return (
+    <details className="group">
+      <summary className="flex cursor-pointer list-none items-center [&::-webkit-details-marker]:hidden">
+        <div className="flex-1">{header}</div>
+        <svg
+          className="ml-1 size-4 shrink-0 text-zinc-400 transition-transform group-open:rotate-90"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          aria-hidden
+        >
+          <path d="M7 5l6 5-6 5V5z" />
+        </svg>
+      </summary>
+      <div className="mb-2 ml-[1.125rem] space-y-1 border-l border-zinc-100 pl-3 dark:border-zinc-800">
+        {items.map((it, i) => (
+          <div
+            key={`${it.label}-${i}`}
+            className="flex items-baseline justify-between gap-2 text-[13px]"
+          >
+            <span className="min-w-0 truncate text-zinc-500 dark:text-zinc-400" title={it.label}>
+              {it.label}
+            </span>
+            <span className="shrink-0 tabular-nums text-zinc-500 dark:text-zinc-400">
+              {it.amount}
+            </span>
+          </div>
+        ))}
+      </div>
+    </details>
   );
 }

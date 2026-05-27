@@ -1065,6 +1065,7 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   summaryTreeExpense: "Total expense",
   summaryTreePersonnel: "To personnel",
   summaryTreeAdvance: "Advance",
+  summaryTreeSalary: "Salary",
   summaryTreePersonnelExpense: "Personnel expense",
   summaryTreeBranchOther: "To branches (other)",
   summaryTreeVehicle: "Vehicle expense",
@@ -1076,7 +1077,7 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   summaryTreeNet: "Net",
   summaryTreeSystemNetNote: "System register net",
   summaryTreeOffRegisterNote:
-    "difference = off-register payments (patron/bank supplier, off-register vehicle) — not in system net",
+    "difference = items outside system register net (personnel OUT_PER, patron/bank supplier, off-register vehicle)",
   summaryTreeNoData: "No data for this period.",
   summaryTreeVehicleHint: "By plate, broken down by expense type.",
   summaryTreeBranchOnlyAllBranches:
