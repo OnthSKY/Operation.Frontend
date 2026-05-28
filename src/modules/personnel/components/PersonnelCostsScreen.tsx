@@ -23,11 +23,9 @@ import {
   filterRowsByMonth,
   groupRowsByCategory,
   groupRowsByMonth,
-  sumRowsByCurrency,
   type CategoryBucket,
   type CostsTab,
   type MonthBucket,
-  type PersonnelCostRow,
   sortPersonnelCostRows,
 } from "@/modules/personnel/lib/personnel-cost-unified";
 import { PersonnelCostsExpenseModal } from "@/modules/personnel/components/PersonnelCostsExpenseModal";
@@ -1226,11 +1224,11 @@ export function PersonnelCostsScreen() {
 
   const displayRowsFiltered = useMemo(() => {
     const k = costsRowKindFilter.trim().toLowerCase();
-    let rows: PersonnelCostRow[] = displayRows;
-    if (k === "advance" || k === "expense") {
-      rows = rows.filter((r) => r.kind === k);
-    }
-    return filterRowsByMonth(rows, monthFilter || null);
+    const kindFiltered =
+      k === "advance" || k === "expense"
+        ? displayRows.filter((r) => r.kind === k)
+        : displayRows;
+    return filterRowsByMonth(kindFiltered, monthFilter || null);
   }, [displayRows, costsRowKindFilter, monthFilter]);
 
   const personnelAmountStats = useMemo(() => {
