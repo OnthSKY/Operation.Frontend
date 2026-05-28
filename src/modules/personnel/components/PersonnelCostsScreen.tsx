@@ -20,7 +20,14 @@ import {
   buildPersonnelCostRows,
   clampSortForTab,
   expenseApiSortForTab,
+  filterRowsByMonth,
+  groupRowsByCategory,
+  groupRowsByMonth,
+  sumRowsByCurrency,
+  type CategoryBucket,
   type CostsTab,
+  type MonthBucket,
+  type PersonnelCostRow,
   sortPersonnelCostRows,
 } from "@/modules/personnel/lib/personnel-cost-unified";
 import { PersonnelCostsExpenseModal } from "@/modules/personnel/components/PersonnelCostsExpenseModal";
@@ -292,6 +299,339 @@ type PaymentSourceSplitSummary = {
   sourceBuckets: SourceBucketSummary[];
 };
 
+type KpiCardProps = {
+  label: string;
+  totals: Map<string, number>;
+  hint: string;
+  emphasis?: boolean;
+  pending: boolean;
+  t: (key: string) => string;
+  locale: Locale;
+};
+
+function KpiCard({
+  label,
+  totals,
+  hint,
+  emphasis,
+  pending,
+  t,
+  locale,
+}: KpiCardProps) {
+  const dash = t("personnel.costsKpiEmpty");
+  const keys = [...totals.keys()].sort((a, b) => {
+    if (a === "TRY") return -1;
+    if (b === "TRY") return 1;
+    return a.localeCompare(b);
+  });
+  const primaryKey = keys[0];
+  const primaryAmount = primaryKey ? totals.get(primaryKey) ?? 0 : 0;
+  const others = keys.slice(1);
+
+  return (
+    <div
+      className={cn(
+        "rounded-xl border p-4 shadow-sm",
+        emphasis
+          ? "border-violet-200 bg-violet-50/60"
+          : "border-zinc-200 bg-white"
+      )}
+    >
+      <p
+        className={cn(
+          "text-xs font-medium uppercase tracking-wide",
+          emphasis ? "text-violet-700" : "text-zinc-500"
+        )}
+      >
+        {label}
+      </p>
+      <p
+        className={cn(
+          "mt-1.5 text-2xl font-semibold tabular-nums leading-tight sm:text-[1.6rem]",
+          emphasis ? "text-violet-950" : "text-zinc-900"
+        )}
+      >
+        {pending
+          ? t("common.loading")
+          : primaryKey
+            ? formatMoneyDash(primaryAmount, dash, locale, primaryKey)
+            : dash}
+      </p>
+      {!pending && others.length > 0 ? (
+        <p className="mt-1 text-xs text-zinc-500">
+          {others
+            .map((k) => formatMoneyDash(totals.get(k) ?? 0, dash, locale, k))
+            .join(" · ")}
+        </p>
+      ) : null}
+      <p
+        className={cn(
+          "mt-2 text-xs",
+          emphasis ? "text-violet-700/80" : "text-zinc-500"
+        )}
+      >
+        {hint}
+      </p>
+    </div>
+  );
+}
+
+function CurrencyTotalsRight({
+  totals,
+  dash,
+  locale,
+  emptyLabel,
+}: {
+  totals: Map<string, number>;
+  dash: string;
+  locale: Locale;
+  emptyLabel: string;
+}) {
+  const keys = [...totals.keys()].sort((a, b) => {
+    if (a === "TRY") return -1;
+    if (b === "TRY") return 1;
+    return a.localeCompare(b);
+  });
+  if (keys.length === 0) {
+    return <span className="text-xs text-zinc-500">{emptyLabel}</span>;
+  }
+  return (
+    <span className="flex flex-col items-end text-right">
+      {keys.map((ccy) => (
+        <span
+          key={ccy}
+          className={cn(
+            "tabular-nums",
+            ccy === "TRY"
+              ? "text-sm font-semibold text-zinc-900"
+              : "text-xs text-zinc-500"
+          )}
+        >
+          {formatMoneyDash(totals.get(ccy) ?? 0, dash, locale, ccy)}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+type PersonnelCostsTopSummaryProps = {
+  t: (key: string) => string;
+  locale: Locale;
+  pending: boolean;
+  advSums: Map<string, number>;
+  expSums: Map<string, number>;
+  combinedSums: Map<string, number>;
+  advanceCount: number;
+  expenseCount: number;
+  categoryBuckets: CategoryBucket[];
+  sourceBuckets: SourceBucketSummary[];
+  monthlyBuckets: MonthBucket[];
+  monthFilter: string;
+  onMonthFilterChange: (ym: string) => void;
+  formatMonthLabel: (ym: string) => string;
+};
+
+function PersonnelCostsTopSummary({
+  t,
+  locale,
+  pending,
+  advSums,
+  expSums,
+  combinedSums,
+  advanceCount,
+  expenseCount,
+  categoryBuckets,
+  sourceBuckets,
+  monthlyBuckets,
+  monthFilter,
+  onMonthFilterChange,
+  formatMonthLabel,
+}: PersonnelCostsTopSummaryProps) {
+  const dash = t("personnel.dash");
+  const empty = t("personnel.costsSummaryEmpty");
+  const countTpl = t("personnel.costsCategoryCount");
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <KpiCard
+          label={t("personnel.costsKpiTotalAdvance")}
+          totals={advSums}
+          hint={countTpl.replace("{count}", String(advanceCount))}
+          pending={pending}
+          t={t}
+          locale={locale}
+        />
+        <KpiCard
+          label={t("personnel.costsKpiTotalExpense")}
+          totals={expSums}
+          hint={countTpl.replace("{count}", String(expenseCount))}
+          pending={pending}
+          t={t}
+          locale={locale}
+        />
+        <KpiCard
+          label={t("personnel.costsKpiTotalPersonnel")}
+          totals={combinedSums}
+          hint={t("personnel.costsKpiTotalPersonnelHint")}
+          emphasis
+          pending={pending}
+          t={t}
+          locale={locale}
+        />
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <Card
+          title={t("personnel.costsCategoryCardTitle")}
+          description={t("personnel.costsCategoryCardDesc")}
+        >
+          {pending ? (
+            <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+          ) : categoryBuckets.length === 0 ? (
+            <p className="text-sm text-zinc-600">{empty}</p>
+          ) : (
+            <ul className="space-y-2">
+              {categoryBuckets.map((b) => (
+                <li
+                  key={b.key}
+                  className="flex items-start justify-between gap-3 border-b border-zinc-100 pb-2 last:border-0 last:pb-0"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={cn(
+                        "truncate text-sm font-medium",
+                        b.isAdvance ? "text-violet-900" : "text-zinc-900"
+                      )}
+                    >
+                      {b.label}
+                    </p>
+                    <p className="text-xs text-zinc-500">
+                      {countTpl.replace("{count}", String(b.count))}
+                    </p>
+                  </div>
+                  <CurrencyTotalsRight
+                    totals={b.totals}
+                    dash={dash}
+                    locale={locale}
+                    emptyLabel={empty}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card
+          title={t("personnel.costsPaymentMethodCardTitle")}
+          description={t("personnel.costsPaymentMethodCardDesc")}
+        >
+          {pending ? (
+            <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+          ) : (
+            <ul className="space-y-2">
+              {sourceBuckets.map((bucket) => {
+                const label =
+                  bucket.key === "PATRON"
+                    ? t("personnel.costsSourceBucketPatron")
+                    : bucket.key === "PERSONNEL_POCKET"
+                      ? t("personnel.costsSourceBucketPersonnelPocket")
+                      : t("personnel.costsSourceBucketRegister");
+                return (
+                  <li
+                    key={bucket.key}
+                    className="flex items-start justify-between gap-3 border-b border-zinc-100 pb-2 last:border-0 last:pb-0"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-zinc-900">
+                        {label}
+                      </p>
+                      <p className="text-xs text-zinc-500">
+                        {countTpl.replace("{count}", String(bucket.count))}
+                      </p>
+                    </div>
+                    <CurrencyTotalsRight
+                      totals={bucket.totals}
+                      dash={dash}
+                      locale={locale}
+                      emptyLabel={empty}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
+      </div>
+
+      <Card
+        title={t("personnel.costsMonthlyCardTitle")}
+        description={t("personnel.costsMonthlyCardDesc")}
+        headerActions={
+          monthFilter ? (
+            <button
+              type="button"
+              onClick={() => onMonthFilterChange("")}
+              className="rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-800 hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70"
+            >
+              {t("personnel.costsMonthlyClearFilter")}
+            </button>
+          ) : undefined
+        }
+      >
+        {pending ? (
+          <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+        ) : monthlyBuckets.length === 0 ? (
+          <p className="text-sm text-zinc-600">
+            {t("personnel.costsMonthlyEmpty")}
+          </p>
+        ) : (
+          <div
+            role="group"
+            aria-label={t("personnel.costsMonthlyCardTitle")}
+            className="space-y-1.5"
+          >
+            {monthlyBuckets.map((bucket) => {
+              const active = bucket.ym === monthFilter;
+              return (
+                <button
+                  key={bucket.ym}
+                  type="button"
+                  onClick={() =>
+                    onMonthFilterChange(active ? "" : bucket.ym)
+                  }
+                  aria-pressed={active}
+                  className={cn(
+                    "flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70",
+                    active
+                      ? "border-violet-300 bg-violet-50 text-violet-900"
+                      : "border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50"
+                  )}
+                >
+                  <span className="min-w-0 flex-1 truncate font-medium">
+                    {formatMonthLabel(bucket.ym)}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-3 text-xs">
+                    <span className="text-zinc-500">
+                      {countTpl.replace("{count}", String(bucket.count))}
+                    </span>
+                    <CurrencyTotalsRight
+                      totals={bucket.totals}
+                      dash={dash}
+                      locale={locale}
+                      emptyLabel={empty}
+                    />
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 type PersonnelCostsSummaryPanelsProps = {
   t: (key: string) => string;
   locale: Locale;
@@ -518,6 +858,8 @@ export function PersonnelCostsScreen() {
   const [paymentFromValue, setPaymentFromValue] = useState("");
   /** Filtre: boş | yalnız avans | yalnız gider (birleşik liste). */
   const [costsRowKindFilter, setCostsRowKindFilter] = useState("");
+  /** YYYY-MM drill-down filter; "" disables. */
+  const [monthFilter, setMonthFilter] = useState("");
   const [settlementPrintOpen, setSettlementPrintOpen] = useState(false);
   const [expenseTxOpen, setExpenseTxOpen] = useState(false);
   const [advanceOpen, setAdvanceOpen] = useState(false);
@@ -537,6 +879,7 @@ export function PersonnelCostsScreen() {
 
   useEffect(() => {
     setCostsRowKindFilter("");
+    setMonthFilter("");
   }, [tab]);
 
   useEffect(() => {
@@ -744,6 +1087,53 @@ export function PersonnelCostsScreen() {
     [expensesFiltered]
   );
 
+  const combinedSums = useMemo(() => {
+    const m = new Map<string, number>(advSums);
+    for (const [k, v] of expSums) m.set(k, (m.get(k) ?? 0) + v);
+    return m;
+  }, [advSums, expSums]);
+
+  /** Filtreler uygulanmış, tab/kind/month'tan bağımsız tüm satırlar. */
+  const allFilteredRows = useMemo(
+    () => buildPersonnelCostRows(advancesFiltered, expensesFiltered, "all"),
+    [advancesFiltered, expensesFiltered]
+  );
+
+  const advanceCategoryLabel = t("personnel.costsCategoryAdvanceLabel");
+  const uncategorizedLabel = t("personnel.costsCategoryUncategorized");
+  const categoryBuckets = useMemo(
+    () =>
+      groupRowsByCategory(allFilteredRows, advanceCategoryLabel, uncategorizedLabel),
+    [allFilteredRows, advanceCategoryLabel, uncategorizedLabel]
+  );
+
+  const monthlyBuckets = useMemo(
+    () => groupRowsByMonth(allFilteredRows),
+    [allFilteredRows]
+  );
+
+  const monthLabelFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale === "tr" ? "tr-TR" : "en-US", {
+        year: "numeric",
+        month: "long",
+      }),
+    [locale]
+  );
+
+  const formatMonthLabel = useCallback(
+    (ym: string) => {
+      const [yStr, mStr] = ym.split("-");
+      const y = Number(yStr);
+      const m = Number(mStr);
+      if (!Number.isFinite(y) || !Number.isFinite(m) || m < 1 || m > 12) {
+        return ym;
+      }
+      return monthLabelFormatter.format(new Date(y, m - 1, 1));
+    },
+    [monthLabelFormatter]
+  );
+
   const branchOptions = useMemo(
     () => [
       { value: "", label: t("personnel.allAdvancesAnyBranch") },
@@ -836,9 +1226,12 @@ export function PersonnelCostsScreen() {
 
   const displayRowsFiltered = useMemo(() => {
     const k = costsRowKindFilter.trim().toLowerCase();
-    if (k !== "advance" && k !== "expense") return displayRows;
-    return displayRows.filter((r) => r.kind === k);
-  }, [displayRows, costsRowKindFilter]);
+    let rows: PersonnelCostRow[] = displayRows;
+    if (k === "advance" || k === "expense") {
+      rows = rows.filter((r) => r.kind === k);
+    }
+    return filterRowsByMonth(rows, monthFilter || null);
+  }, [displayRows, costsRowKindFilter, monthFilter]);
 
   const personnelAmountStats = useMemo(() => {
     const dash = t("personnel.dash");
@@ -966,49 +1359,52 @@ export function PersonnelCostsScreen() {
           eyebrow={t("common.pageSectionSummary")}
           sectionLabelId="personnel-costs-section-summary"
         >
-          <div className="md:hidden">
-            <details className="group rounded-xl border border-zinc-200/90 bg-white/85 shadow-sm">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-3 text-sm font-semibold text-zinc-900 [&::-webkit-details-marker]:hidden">
-                <span className="min-w-0 leading-snug">{t("personnel.costsMobileSummaryToggle")}</span>
-                <svg
-                  className="h-4 w-4 shrink-0 text-zinc-400 transition-transform duration-200 group-open:rotate-180"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  aria-hidden
-                >
-                  <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </summary>
-              <div className="border-t border-zinc-100 px-3 pb-4 pt-3">
-                <PersonnelCostsSummaryPanels
-                  t={t}
-                  locale={locale}
-                  advancesPending={advancesPending}
-                  expensesPending={expensesQuery.isPending}
-                  patronByBranchRows={patronByBranchRows}
-                  paymentSourceSplit={paymentSourceSplit}
-                  advSums={advSums}
-                  expSums={expSums}
-                  personnelAmountStats={personnelAmountStats}
-                />
-              </div>
-            </details>
-          </div>
-          <div className="hidden md:block">
-            <PersonnelCostsSummaryPanels
-              t={t}
-              locale={locale}
-              advancesPending={advancesPending}
-              expensesPending={expensesQuery.isPending}
-              patronByBranchRows={patronByBranchRows}
-              paymentSourceSplit={paymentSourceSplit}
-              advSums={advSums}
-              expSums={expSums}
-              personnelAmountStats={personnelAmountStats}
-            />
-          </div>
+          <PersonnelCostsTopSummary
+            t={t}
+            locale={locale}
+            pending={advancesPending || expensesQuery.isPending}
+            advSums={advSums}
+            expSums={expSums}
+            combinedSums={combinedSums}
+            advanceCount={advancesFiltered.length}
+            expenseCount={expensesFiltered.length}
+            categoryBuckets={categoryBuckets}
+            sourceBuckets={paymentSourceSplit.sourceBuckets}
+            monthlyBuckets={monthlyBuckets}
+            monthFilter={monthFilter}
+            onMonthFilterChange={setMonthFilter}
+            formatMonthLabel={formatMonthLabel}
+          />
+          <details className="group mt-4 rounded-xl border border-zinc-200/90 bg-white/85 shadow-sm">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-3 text-sm font-semibold text-zinc-900 sm:px-4 [&::-webkit-details-marker]:hidden">
+              <span className="min-w-0 leading-snug">
+                {t("personnel.costsDetailSectionToggle")}
+              </span>
+              <svg
+                className="h-4 w-4 shrink-0 text-zinc-400 transition-transform duration-200 group-open:rotate-180"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                aria-hidden
+              >
+                <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </summary>
+            <div className="border-t border-zinc-100 px-3 pb-4 pt-3 sm:px-4">
+              <PersonnelCostsSummaryPanels
+                t={t}
+                locale={locale}
+                advancesPending={advancesPending}
+                expensesPending={expensesQuery.isPending}
+                patronByBranchRows={patronByBranchRows}
+                paymentSourceSplit={paymentSourceSplit}
+                advSums={advSums}
+                expSums={expSums}
+                personnelAmountStats={personnelAmountStats}
+              />
+            </div>
+          </details>
         </PageContentSection>
       ) : null}
 
@@ -1064,7 +1460,7 @@ export function PersonnelCostsScreen() {
                 id="personnel-costs-table-title"
                 className="min-w-0 text-base font-semibold leading-snug tracking-tight text-zinc-900 sm:text-[1.0625rem]"
               >
-                {t("personnel.costsUnifiedTableTitle")}
+                {t("personnel.costsTableHeading")}
               </h2>
               <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-2">
                 <Tooltip content={t("personnel.allAdvancesFilters")} delayMs={200}>
@@ -1130,6 +1526,23 @@ export function PersonnelCostsScreen() {
           </div>
 
           <div className="min-w-0 space-y-3 p-4 sm:p-5">
+            {monthFilter ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-violet-200 bg-violet-50/70 px-3 py-2 text-sm text-violet-900">
+                <span>
+                  {t("personnel.costsMonthlyActiveLine").replace(
+                    "{label}",
+                    formatMonthLabel(monthFilter)
+                  )}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setMonthFilter("")}
+                  className="rounded-md border border-violet-300 bg-white px-2 py-1 text-xs font-medium text-violet-800 hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70"
+                >
+                  {t("personnel.costsMonthlyClearFilter")}
+                </button>
+              </div>
+            ) : null}
             <NonAdvanceExpenseSortBar
               value={displaySort}
               onChange={setCostsSort}

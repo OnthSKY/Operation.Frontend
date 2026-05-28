@@ -86,3 +86,153 @@ export function expenseApiSortForTab(
   if (tab === "expenses") return clampSortForTab(tab, sort);
   return DEFAULT_NON_ADVANCE_EXPENSE_SORT;
 }
+
+function normalizeCcy(ccy: string | null | undefined): string {
+  return String(ccy ?? "TRY").trim().toUpperCase() || "TRY";
+}
+
+function rowCurrency(row: PersonnelCostRow): string {
+  return normalizeCcy(
+    row.kind === "advance" ? row.advance.currencyCode : row.expense.currencyCode
+  );
+}
+
+export type CategoryBucket = {
+  /** Stable key (kind + category text). */
+  key: string;
+  /** Display label. */
+  label: string;
+  /** True when bucket represents advance rows. */
+  isAdvance: boolean;
+  count: number;
+  totals: Map<string, number>;
+};
+
+/**
+ * Avans satırlarını "Avans" altında toplar; gider satırlarını mainCategory →
+ * category fallback ile gruplar. Tutarsız sınıflandırılmış satırlar
+ * `uncategorizedLabel` altında toplanır.
+ */
+export function groupRowsByCategory(
+  rows: PersonnelCostRow[],
+  advanceLabel: string,
+  uncategorizedLabel: string
+): CategoryBucket[] {
+  const buckets = new Map<string, CategoryBucket>();
+
+  const touch = (key: string, label: string, isAdvance: boolean) => {
+    let b = buckets.get(key);
+    if (!b) {
+      b = { key, label, isAdvance, count: 0, totals: new Map() };
+      buckets.set(key, b);
+    }
+    return b;
+  };
+
+  for (const row of rows) {
+    if (row.kind === "advance") {
+      const b = touch("advance", advanceLabel, true);
+      const n = Number(row.advance.amount);
+      if (Number.isFinite(n)) {
+        const ccy = normalizeCcy(row.advance.currencyCode);
+        b.totals.set(ccy, (b.totals.get(ccy) ?? 0) + n);
+        b.count += 1;
+      }
+      continue;
+    }
+    const raw =
+      row.expense.mainCategory?.trim() ||
+      row.expense.category?.trim() ||
+      "";
+    const label = raw || uncategorizedLabel;
+    const key = `expense:${raw || "__none__"}`;
+    const b = touch(key, label, false);
+    const n = Number(row.expense.amount);
+    if (Number.isFinite(n)) {
+      const ccy = normalizeCcy(row.expense.currencyCode);
+      b.totals.set(ccy, (b.totals.get(ccy) ?? 0) + n);
+      b.count += 1;
+    }
+  }
+
+  const arr = [...buckets.values()];
+  arr.sort((a, b) => {
+    const tryA = a.totals.get("TRY") ?? 0;
+    const tryB = b.totals.get("TRY") ?? 0;
+    if (tryA !== tryB) return tryB - tryA;
+    return a.label.localeCompare(b.label, undefined, { sensitivity: "base" });
+  });
+  return arr;
+}
+
+export type MonthBucket = {
+  /** YYYY-MM */
+  ym: string;
+  count: number;
+  advanceTotals: Map<string, number>;
+  expenseTotals: Map<string, number>;
+  totals: Map<string, number>;
+};
+
+function ymOfRow(row: PersonnelCostRow): string | null {
+  const iso = rowDateIso(row);
+  if (typeof iso !== "string" || iso.length < 7) return null;
+  const ym = iso.slice(0, 7);
+  return /^\d{4}-\d{2}$/.test(ym) ? ym : null;
+}
+
+/**
+ * Satırları YYYY-AA dönemlerine böler. Sonuç en yeni dönem önde gelecek
+ * şekilde sıralanır. Tarih ayrıştırılamayan satırlar atlanır.
+ */
+export function groupRowsByMonth(rows: PersonnelCostRow[]): MonthBucket[] {
+  const map = new Map<string, MonthBucket>();
+  for (const row of rows) {
+    const ym = ymOfRow(row);
+    if (!ym) continue;
+    let b = map.get(ym);
+    if (!b) {
+      b = {
+        ym,
+        count: 0,
+        advanceTotals: new Map(),
+        expenseTotals: new Map(),
+        totals: new Map(),
+      };
+      map.set(ym, b);
+    }
+    const amount = Number(rowAmount(row));
+    if (!Number.isFinite(amount)) continue;
+    const ccy = rowCurrency(row);
+    const target = row.kind === "advance" ? b.advanceTotals : b.expenseTotals;
+    target.set(ccy, (target.get(ccy) ?? 0) + amount);
+    b.totals.set(ccy, (b.totals.get(ccy) ?? 0) + amount);
+    b.count += 1;
+  }
+  const arr = [...map.values()];
+  arr.sort((a, b) => b.ym.localeCompare(a.ym));
+  return arr;
+}
+
+export function filterRowsByMonth(
+  rows: PersonnelCostRow[],
+  ym: string | null
+): PersonnelCostRow[] {
+  if (!ym) return rows;
+  return rows.filter((r) => ymOfRow(r) === ym);
+}
+
+export function sumRowsByCurrency(
+  rows: PersonnelCostRow[]
+): { totals: Map<string, number>; count: number } {
+  const totals = new Map<string, number>();
+  let count = 0;
+  for (const row of rows) {
+    const n = Number(rowAmount(row));
+    if (!Number.isFinite(n)) continue;
+    const ccy = rowCurrency(row);
+    totals.set(ccy, (totals.get(ccy) ?? 0) + n);
+    count += 1;
+  }
+  return { totals, count };
+}
