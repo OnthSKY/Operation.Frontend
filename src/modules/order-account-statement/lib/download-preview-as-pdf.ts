@@ -28,7 +28,12 @@ function loadImageFromSrc(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.decoding = "async";
-    img.onload = () => resolve(img);
+    // onload tek başına yetmiyor: Chrome, foreignObject akışında henüz decode
+    // olmamış <img>'i canvas'a boş çiziyor (logo PDF'te boş çıkıyor). decode()
+    // beklenince görsel eksiksiz düşüyor — eski waitForImagesToDecode davranışı.
+    img.onload = () => {
+      img.decode().then(() => resolve(img)).catch(() => resolve(img));
+    };
     img.onerror = () => reject(new Error("image-load-failed"));
     img.src = src;
   });
@@ -58,9 +63,6 @@ async function compositeImagesOntoCanvas(node: HTMLElement, canvas: HTMLCanvasEl
     } catch {
       continue;
     }
-    const naturalW = loaded.naturalWidth || loaded.width;
-    const naturalH = loaded.naturalHeight || loaded.height;
-    if (naturalW <= 0 || naturalH <= 0) continue;
 
     const rect = img.getBoundingClientRect();
     const cs = getComputedStyle(img);
@@ -76,10 +78,17 @@ async function compositeImagesOntoCanvas(node: HTMLElement, canvas: HTMLCanvasEl
     const boxH = rect.height - insetTop - insetBottom;
     if (boxW <= 0 || boxH <= 0) continue;
 
+    // SVG / boyut bildirmeyen data-URL görseller naturalWidth=0 döndürebilir;
+    // böyle durumda görseli atlamak yerine içerik kutusunun oranını kullan.
+    const naturalW = loaded.naturalWidth || loaded.width;
+    const naturalH = loaded.naturalHeight || loaded.height;
+    const ratioW = naturalW > 0 ? naturalW : boxW;
+    const ratioH = naturalH > 0 ? naturalH : boxH;
+
     // object-fit: contain — en-boy oranını koruyarak kutuya sığdır ve ortala.
-    const fit = Math.min(boxW / naturalW, boxH / naturalH);
-    const drawW = naturalW * fit;
-    const drawH = naturalH * fit;
+    const fit = Math.min(boxW / ratioW, boxH / ratioH);
+    const drawW = ratioW * fit;
+    const drawH = ratioH * fit;
     const drawX = boxLeft + (boxW - drawW) / 2;
     const drawY = boxTop + (boxH - drawH) / 2;
 

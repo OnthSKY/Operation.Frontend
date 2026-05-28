@@ -418,12 +418,8 @@ export function WarehouseDetailMovementHistoryTab({
         )
       );
       if (validMovementIds.length === 0) return;
-      const primaryMovementId = validMovementIds[0]!;
-      const query = [
-        `shipmentPrimaryMovementId=${primaryMovementId}`,
-        `shipmentMovementIds=${validMovementIds.join(",")}`,
-      ].join(" ");
-      router.push(`/documents?q=${encodeURIComponent(query)}`);
+      const params = new URLSearchParams({ shipmentMovementIds: validMovementIds.join(",") });
+      router.push(`/documents?${params.toString()}`);
     },
     [router]
   );

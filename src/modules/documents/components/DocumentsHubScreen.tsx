@@ -35,6 +35,38 @@ function sanitizeUrlSearchQuery(raw: string | null | undefined): string {
   return s;
 }
 
+function parseShipmentMovementIds(raw: string | null | undefined): Set<number> {
+  return new Set(
+    String(raw ?? "")
+      .split(",")
+      .map((x) => Number(x.trim()))
+      .filter((n) => Number.isFinite(n) && n > 0)
+  );
+}
+
+/**
+ * Matches a branch document's notes against a set of requested shipment movement ids,
+ * mirroring the detection used on the warehouse movements screen. The notes store the
+ * shipment metadata as ` · `-separated `key=value` parts; the movement id list there is
+ * truncated, so we match on the primary id or any overlapping linked id rather than via
+ * brittle full-text substring search.
+ */
+function documentMatchesShipmentMovements(notes: string | null | undefined, ids: Set<number>): boolean {
+  if (ids.size === 0) return false;
+  const meta: Record<string, string> = {};
+  for (const part of String(notes ?? "").split("·").map((x) => x.trim()).filter(Boolean)) {
+    const eqIdx = part.indexOf("=");
+    if (eqIdx <= 0) continue;
+    meta[part.slice(0, eqIdx).trim()] = part.slice(eqIdx + 1).trim();
+  }
+  const primary = Number(meta.shipmentPrimaryMovementId ?? 0);
+  if (Number.isFinite(primary) && primary > 0 && ids.has(primary)) return true;
+  return String(meta.shipmentMovementIds ?? "")
+    .split(",")
+    .map((x) => Number(x.trim()))
+    .some((n) => Number.isFinite(n) && n > 0 && ids.has(n));
+}
+
 function inferRasterKind(previewUrl: string): "png" | "jpeg" | "webp" | "generic" {
   const raw = String(previewUrl ?? "").trim();
   if (!raw) return "generic";
@@ -409,6 +441,12 @@ export function DocumentsHubScreen() {
   useEffect(() => {
     setQuery(sanitizeUrlSearchQuery(qParam));
   }, [qParam]);
+
+  const shipmentMovementIdsParam = searchParams.get("shipmentMovementIds");
+  const requestedShipmentMovementIds = useMemo(
+    () => parseShipmentMovementIds(shipmentMovementIdsParam),
+    [shipmentMovementIdsParam]
+  );
   const [openError, setOpenError] = useState<string | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -446,12 +484,17 @@ export function DocumentsHubScreen() {
 
   const filteredRows = useMemo<DocumentsHubRow[]>(() => {
     const q = query.trim().toLocaleLowerCase("tr-TR");
+    const hasShipmentFilter = requestedShipmentMovementIds.size > 0;
     return unifiedRows.filter((r) => {
       if (category !== "ALL" && r.category !== category) return false;
+      if (hasShipmentFilter) {
+        if (r.category !== "BRANCH_DOCUMENT") return false;
+        if (!documentMatchesShipmentMovements(r.detail, requestedShipmentMovementIds)) return false;
+      }
       if (!q) return true;
       return r.searchText.toLocaleLowerCase("tr-TR").includes(q);
     });
-  }, [unifiedRows, query, category]);
+  }, [unifiedRows, query, category, requestedShipmentMovementIds]);
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
   const effectivePage = Math.min(Math.max(1, page), totalPages);
   const pageStart = (effectivePage - 1) * pageSize;

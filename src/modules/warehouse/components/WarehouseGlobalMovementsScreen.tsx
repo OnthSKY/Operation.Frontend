@@ -556,12 +556,8 @@ export function WarehouseGlobalMovementsScreen() {
       )
     );
     if (movementIds.length === 0) return;
-    const primaryMovementId = movementIds[0]!;
-    const query = [
-      `shipmentPrimaryMovementId=${primaryMovementId}`,
-      `shipmentMovementIds=${movementIds.join(",")}`,
-    ].join(" ");
-    router.push(`/documents?q=${encodeURIComponent(query)}`);
+    const params = new URLSearchParams({ shipmentMovementIds: movementIds.join(",") });
+    router.push(`/documents?${params.toString()}`);
   };
   const shipmentGroups = useMemo<ShipmentGroupSummary[]>(() => {
     const grouped = new Map<string, WarehouseGlobalMovementRow[]>();
