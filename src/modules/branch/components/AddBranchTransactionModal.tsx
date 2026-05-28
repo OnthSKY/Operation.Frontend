@@ -49,7 +49,7 @@ import {
   parseLocaleAmount,
 } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
-import { defaultDateTimeFromInput } from "@/shared/lib/local-iso-date";
+import { defaultDateTimeFromInput, localIsoDate } from "@/shared/lib/local-iso-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { notifyErrorWithAction } from "@/shared/lib/notify-error-with-action";
@@ -194,6 +194,15 @@ function formatHandoverAmountPrefill(n: number): string {
   return (Math.round(n * 100) / 100).toFixed(2);
 }
 
+/** Gün sonu için tarih: girdi tarihinin (yoksa bugünün) saatini 23:59'a sabitler. Kullanıcı sonradan değiştirebilir. */
+function dayCloseDateTimeFromInput(s: string | undefined | null, now = new Date()): string {
+  const raw = String(s ?? "").trim();
+  let datePart = localIsoDate(now);
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(raw)) datePart = raw.slice(0, 10);
+  else if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) datePart = raw;
+  return `${datePart}T23:59`;
+}
+
 type DayCloseBundledConfirmedLine = {
   id: string;
   amount: number;
@@ -304,7 +313,10 @@ export function AddBranchTransactionModal({
       amountCash: "",
       amountCard: "",
       currencyCode: DEFAULT_CURRENCY,
-      transactionDate: defaultDateTimeFromInput(defaultTransactionDate),
+      transactionDate:
+        String(defaultMainCategory ?? "").trim().toUpperCase() === "IN_DAY_CLOSE"
+          ? dayCloseDateTimeFromInput(defaultTransactionDate)
+          : defaultDateTimeFromInput(defaultTransactionDate),
       description: "",
       cashSettlementParty: "",
       cashSettlementPersonnelId: "",
@@ -463,7 +475,9 @@ export function AddBranchTransactionModal({
       amountCash: "",
       amountCard: "",
       currencyCode: handoverPrefill ? handoverCur : currencyForReset,
-      transactionDate: defaultDateTimeFromInput(defaultTransactionDate),
+      transactionDate: dayClosePrefill
+        ? dayCloseDateTimeFromInput(defaultTransactionDate)
+        : defaultDateTimeFromInput(defaultTransactionDate),
       description: "",
       cashSettlementParty: "",
       cashSettlementPersonnelId: "",
@@ -1002,16 +1016,6 @@ export function AddBranchTransactionModal({
     return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : "";
   }, [transactionDateWatch]);
 
-  const expensePayUForHandover = String(expensePayWatch ?? "").trim().toUpperCase();
-  const cashHandoverSettleFieldVisible =
-    txType.toUpperCase() === "OUT" &&
-    !isPocketRepayMain &&
-    !isPocketClaimTransferMain &&
-    !isPatronDebtRepayMain &&
-    !isNonPnlMemoMain &&
-    !isInvoiceUnpaid &&
-    (expensePayUForHandover === "REGISTER" || expensePayUForHandover === "PATRON");
-
   useEffect(() => {
     void trigger("personnelExpenseBranchId");
   }, [expensePayWatch, resolvedBranchId, trigger]);
@@ -1149,6 +1153,15 @@ export function AddBranchTransactionModal({
       setDayCloseBundledConfirmedLines([]);
     }
   }, [registerDayClose, orgMode]);
+
+  useEffect(() => {
+    if (!registerDayClose) return;
+    const current = String(getValues("transactionDate") ?? "");
+    const datePart = current.slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return;
+    const target = `${datePart}T23:59`;
+    if (current.slice(0, 16) !== target) setValue("transactionDate", target);
+  }, [registerDayClose, getValues, setValue]);
 
   const parsedCashPositive = useMemo(() => {
     if (txType.toUpperCase() !== "IN") return false;
@@ -2236,6 +2249,32 @@ export function AddBranchTransactionModal({
       }
     }
 
+    // Önce gün sonu ile birlikte girilen aynı güne ait giderleri yaz; ardından gün sonunu kapat.
+    // Aksi takdirde gün sonu kilidi (EnsureRegisterDayNotClosedForExpenseAsync) sonradan girilen
+    // REGISTER kaynaklı bundled giderleri reddeder ve devredilen nakit ile çift sayım oluşur.
+    for (const pl of dayCloseBundledExpensePayloads) {
+      try {
+        await createTx.mutateAsync({
+          branchId: effBranchId,
+          type: "OUT",
+          mainCategory: pl.mainCategory,
+          category: pl.category,
+          amount: pl.amount,
+          currencyCode: cur,
+          transactionDate: values.transactionDate,
+          description: pl.description,
+          expensePaymentSource: pl.paymentSource,
+        });
+      } catch (be) {
+        if (!tryTourismSeasonClosedRedirect(be, effBranchId)) {
+          notify.error(
+            `${t("branch.txDayCloseBundledExpenseFailedBeforeIncome")} ${toErrorMessage(be)}`
+          );
+        }
+        return;
+      }
+    }
+
     try {
       await createTx.mutateAsync({
         branchId: effBranchId,
@@ -2278,32 +2317,15 @@ export function AddBranchTransactionModal({
           ? { settlesCashHandoverTransactionId }
           : {}),
       });
-      for (const pl of dayCloseBundledExpensePayloads) {
-        try {
-          await createTx.mutateAsync({
-            branchId: effBranchId,
-            type: "OUT",
-            mainCategory: pl.mainCategory,
-            category: pl.category,
-            amount: pl.amount,
-            currencyCode: cur,
-            transactionDate: values.transactionDate,
-            description: pl.description,
-            expensePaymentSource: pl.paymentSource,
-          });
-        } catch (be) {
-          if (!tryTourismSeasonClosedRedirect(be, effBranchId)) {
-            notify.error(
-              `${t("branch.txDayCloseBundledExpenseFailedAfterIncome")} ${toErrorMessage(be)}`
-            );
-          }
-        }
-      }
       notify.success(t("toast.branchTxCreated"));
       onClose();
     } catch (e) {
       if (!tryTourismSeasonClosedRedirect(e, effBranchId)) {
-        notify.error(toErrorMessage(e));
+        notify.error(
+          dayCloseBundledExpensePayloads.length > 0
+            ? `${t("branch.txDayCloseIncomeFailedAfterBundledExpense")} ${toErrorMessage(e)}`
+            : toErrorMessage(e)
+        );
       }
     }
   });
@@ -2313,6 +2335,75 @@ export function AddBranchTransactionModal({
     confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
     onClose,
   });
+
+  const launchContext = useMemo(() => {
+    const mc = String(defaultMainCategory ?? "").trim().toUpperCase();
+    const branchScoped = !orgMode;
+    if (branchScoped && mc === "IN_DAY_CLOSE") return "dayClose" as const;
+    if (branchScoped && mc === "OUT_PERSONNEL_POCKET_CLAIM_TRANSFER") return "pocketClaimTransfer" as const;
+    if (
+      branchScoped &&
+      defaultPocketRepayPersonnelId != null &&
+      defaultPocketRepayPersonnelId > 0
+    )
+      return "pocketRepay" as const;
+    if (branchScoped && defaultHandoverSettleKind === "patron_register_debt_repay")
+      return "handoverPatron" as const;
+    if (branchScoped && defaultHandoverSettleKind === "expense_register")
+      return "handoverExpense" as const;
+    const dt = String(defaultType ?? "").trim().toUpperCase();
+    if (branchScoped && dt === "IN") return "newIncome" as const;
+    if (branchScoped && dt === "OUT") return "newExpense" as const;
+    return "generic" as const;
+  }, [
+    defaultMainCategory,
+    defaultPocketRepayPersonnelId,
+    defaultHandoverSettleKind,
+    defaultType,
+    orgMode,
+  ]);
+
+  const dynamicTitle = (() => {
+    switch (launchContext) {
+      case "dayClose":
+        return t("branch.txModalTitleDayClose");
+      case "pocketRepay":
+        return t("branch.txModalTitlePocketRepay");
+      case "pocketClaimTransfer":
+        return t("branch.txModalTitlePocketClaimTransfer");
+      case "handoverPatron":
+        return t("branch.txModalTitleHandoverPatron");
+      case "handoverExpense":
+        return t("branch.txModalTitleHandoverExpense");
+      case "newIncome":
+        return t("branch.txModalTitleNewIncome");
+      case "newExpense":
+        return t("branch.txModalTitleNewExpense");
+      default:
+        return t("branch.txModalTitle");
+    }
+  })();
+
+  const dynamicHint = (() => {
+    switch (launchContext) {
+      case "dayClose":
+        return t("branch.txModalHintDayClose");
+      case "pocketRepay":
+        return t("branch.txModalHintPocketRepay");
+      case "pocketClaimTransfer":
+        return t("branch.txModalHintPocketClaimTransfer");
+      case "handoverPatron":
+        return t("branch.txModalHintHandoverPatron");
+      case "handoverExpense":
+        return t("branch.txModalHintHandoverExpense");
+      case "newIncome":
+        return t("branch.txModalHintNewIncome");
+      case "newExpense":
+        return t("branch.txModalHintNewExpense");
+      default:
+        return t("branch.txModalHintShort");
+    }
+  })();
 
   return (
     <Modal
@@ -2324,14 +2415,14 @@ export function AddBranchTransactionModal({
           ? personnelExpenseFlow
             ? t("branch.txOrgPersonnelModalTitle")
             : t("branch.txOrgModalTitle")
-          : t("branch.txModalTitle")
+          : dynamicTitle
       }
       description={
         propBranchId == null && resolvedBranchId == null
           ? personnelExpenseFlow
             ? t("branch.txOrgPersonnelModalHintShort")
             : t("branch.txOrgModalHintShort")
-          : t("branch.txModalHintShort")
+          : dynamicHint
       }
       closeButtonLabel={t("common.close")}
       wide
@@ -2934,7 +3025,54 @@ export function AddBranchTransactionModal({
                     <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                       {t("branch.txDayCloseBundledExpenseListTitle")}
                     </p>
-                    <div className="overflow-x-auto rounded-xl border border-zinc-200/90 bg-white shadow-sm">
+                    <ul className="space-y-2 sm:hidden">
+                      {dayCloseBundledTableDisplay.map((row) => (
+                        <li
+                          key={row.id}
+                          className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="break-words text-sm font-medium text-zinc-900">
+                                {row.mainLabel}
+                              </p>
+                              <p className="mt-0.5 break-words text-xs text-zinc-500">
+                                {row.subLabel}
+                              </p>
+                            </div>
+                            <span className="shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700">
+                              {row.payLabel}
+                            </span>
+                          </div>
+                          <div className="mt-2 flex items-center justify-between gap-2 border-t border-zinc-100 pt-2">
+                            <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+                              {t("branch.txDayCloseBundledExpenseTableAmount")}
+                            </span>
+                            <span className="font-mono text-base font-semibold tabular-nums text-zinc-900">
+                              {row.amountFmt}
+                            </span>
+                          </div>
+                          {row.description ? (
+                            <p className="mt-1.5 break-words text-xs leading-relaxed text-zinc-500">
+                              {row.description}
+                            </p>
+                          ) : null}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="mt-2 min-h-[44px] w-full text-sm text-red-700 hover:bg-red-50 hover:text-red-800"
+                            onClick={() =>
+                              setDayCloseBundledConfirmedLines((prev) =>
+                                prev.filter((x) => x.id !== row.id)
+                              )
+                            }
+                          >
+                            {t("branch.txDayCloseBundledExpenseRemove")}
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="hidden overflow-x-auto rounded-xl border border-zinc-200/90 bg-white shadow-sm sm:block">
                       <table className="w-full min-w-[32rem] border-collapse text-left text-sm">
                         <thead>
                           <tr className="border-b border-zinc-200 bg-zinc-50/95 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
@@ -3124,27 +3262,6 @@ export function AddBranchTransactionModal({
                   ref={expensePayField.ref}
                   error={errors.expensePaymentSource?.message}
                 />
-                {cashHandoverSettleFieldVisible ? (
-                  <div className="mt-3 min-w-0">
-                    <label
-                      htmlFor="branch-tx-settles-handover-id"
-                      className="mb-1 block text-sm font-medium text-zinc-700"
-                    >
-                      {t("branch.txSettlesCashHandoverLabel")}
-                    </label>
-                    <input
-                      id="branch-tx-settles-handover-id"
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="off"
-                      className="block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                      {...register("settlesCashHandoverTransactionId")}
-                    />
-                    <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-                      {t("branch.txSettlesCashHandoverHint")}
-                    </p>
-                  </div>
-                ) : null}
                 {String(expensePayWatch ?? "").trim().toUpperCase() === "PERSONNEL_POCKET" ? (
                   <>
                     <div className="min-w-0 lg:col-span-2">

@@ -974,6 +974,10 @@ export const branch = {
     "Kasa: nakit kasadan çıkar. Patron: ödemeyi patron karşılar (kasadan düşmez).",
   txDayCloseBundledExpenseFailedAfterIncome:
     "Gelir kaydedildi; aynı güne bağlı gider eklenemedi:",
+  txDayCloseBundledExpenseFailedBeforeIncome:
+    "Aynı güne bağlı gider eklenemediği için gün sonu açılmadı:",
+  txDayCloseIncomeFailedAfterBundledExpense:
+    "Aynı güne bağlı gider kaydedildi; gün sonu kapatılamadı:",
   cashSettlementHintSplit:
     "Bu satırda nakit tutarı var; fiziksel nakdin patrona mı gittiği, genel/şube sorumlusunda mı olduğu yoksa şube kasasında mı kaldığı seçilebilir. Kart/POS tutarı için seçim gerekmez.",
   cashSettlementLabel: "Fiziksel nakit nerede / kime devredildi?",
@@ -1072,7 +1076,21 @@ export const branch = {
   totalAdvancesBranch: "Şube toplam avans",
   totalAdvancesBranchPeriod:
     "Seçilen günün ayına göre mali dönem avansları (bu şube)",
-  txModalTitle: "Şube kasa kaydı",
+  txModalTitle: "Yeni gelir / gider",
+  txModalTitleNewIncome: "Yeni gelir",
+  txModalTitleNewExpense: "Yeni gider",
+  txModalTitleDayClose: "Gün sonu kapat",
+  txModalTitlePocketRepay: "Personel cebi: borç ödeme",
+  txModalTitlePocketClaimTransfer: "Cep alacağı devri",
+  txModalTitleHandoverPatron: "Patron borcu ödeme (kasa devri)",
+  txModalTitleHandoverExpense: "Kasa devrinden gider",
+  txModalHintNewIncome: "Bu şubeye gelir satırı ekleyin.",
+  txModalHintNewExpense: "Bu şubeye gider satırı ekleyin.",
+  txModalHintDayClose: "Bu güne kasa kapanışı (gün sonu) yazın.",
+  txModalHintPocketRepay: "Personelin kasaya olan cep borcunu kapatın.",
+  txModalHintPocketClaimTransfer: "Cep alacağını başka personele veya patrona devredin.",
+  txModalHintHandoverPatron: "Kasa devrinden patron borcunu kapatın.",
+  txModalHintHandoverExpense: "Kasaya devredilmiş nakitten gider yazın.",
   txOrgModalTitle: "Merkez gideri (şubesiz)",
   txOrgModalHintShort:
     "Şube kasasına bağlı olmayan gider. Ödeme kaynağı patron (PATRON) veya personel cebi (kasaya borç) olmalıdır.",

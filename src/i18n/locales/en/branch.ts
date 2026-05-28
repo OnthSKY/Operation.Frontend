@@ -966,6 +966,10 @@ export const branch = {
     "Register: cash leaves the drawer. Owner: paid by the owner (not from register cash).",
   txDayCloseBundledExpenseFailedAfterIncome:
     "Income was saved, but the same-day expense could not be added:",
+  txDayCloseBundledExpenseFailedBeforeIncome:
+    "Day close was not opened because a same-day expense could not be added:",
+  txDayCloseIncomeFailedAfterBundledExpense:
+    "Same-day expense was saved, but the day close could not be completed:",
   cashSettlementHintSplit:
     "This line includes a cash amount; you can record whether physical cash was remitted to the owner, held by a general or branch lead, or left in the branch register. Card/POS amounts do not need this.",
   cashSettlementLabel: "Where is physical cash / who holds it?",
@@ -1063,7 +1067,21 @@ export const branch = {
   totalAdvancesBranch: "Total advances (this branch)",
   totalAdvancesBranchPeriod:
     "Advances for effective period (month of selected day, this branch)",
-  txModalTitle: "Branch register entry",
+  txModalTitle: "New income / expense",
+  txModalTitleNewIncome: "New income",
+  txModalTitleNewExpense: "New expense",
+  txModalTitleDayClose: "Close day (register)",
+  txModalTitlePocketRepay: "Staff pocket: settle debt",
+  txModalTitlePocketClaimTransfer: "Pocket claim transfer",
+  txModalTitleHandoverPatron: "Settle owner debt (from cash handover)",
+  txModalTitleHandoverExpense: "Expense from cash handover",
+  txModalHintNewIncome: "Add an income line to this branch.",
+  txModalHintNewExpense: "Add an expense line to this branch.",
+  txModalHintDayClose: "Record this day's register close.",
+  txModalHintPocketRepay: "Settle a staff member's pocket debt to the register.",
+  txModalHintPocketClaimTransfer: "Transfer a pocket claim to another staff member or to the owner.",
+  txModalHintHandoverPatron: "Settle an owner debt from cash handover.",
+  txModalHintHandoverExpense: "Record an expense paid from a cash handover.",
   txOrgModalTitle: "Organization expense (no branch)",
   txOrgModalHintShort:
     "Expense not tied to a branch register. Payment source must be owner (PATRON) or staff pocket (register debt).",
