@@ -82,6 +82,8 @@ export const suppliers = {
   lineAmount: "Satır tutarı",
   quantity: "Miktar",
   unitPrice: "Birim fiyat",
+  vatRate: "KDV (%)",
+  vatIncludedTotal: "KDV dahil",
   product: "Ürün (isteğe bağlı)",
   noProduct: "—",
   warehouseMovementId: "Depo GİRİŞ hareket no (isteğe bağlı)",

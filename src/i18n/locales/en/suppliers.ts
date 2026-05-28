@@ -82,6 +82,8 @@ export const suppliers = {
   lineAmount: "Line amount",
   quantity: "Qty",
   unitPrice: "Unit price",
+  vatRate: "VAT (%)",
+  vatIncludedTotal: "VAT included",
   product: "Product (optional)",
   noProduct: "—",
   warehouseMovementId: "Warehouse IN movement ID (optional)",

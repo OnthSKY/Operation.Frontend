@@ -18,10 +18,12 @@ import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
+import { Checkbox } from "@/shared/ui/Checkbox";
 import { DateField } from "@/shared/ui/DateField";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
+import type { ProductCostHistoryRow, ProductCostSource } from "@/types/product-cost";
 import {
   Table,
   TableBody,
@@ -41,6 +43,54 @@ function todayIso() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function isInvoiceRow(row: Pick<ProductCostHistoryRow, "source">): boolean {
+  return row.source === "INVOICE";
+}
+
+function CostSourceBadge({
+  row,
+  t,
+}: {
+  row: Pick<ProductCostHistoryRow, "source" | "isInformational" | "sourceSupplierInvoiceId">;
+  t: (k: string) => string;
+}) {
+  if (row.source === "INVOICE") {
+    return (
+      <span className="inline-flex items-center rounded-md bg-sky-100 px-1.5 py-0.5 text-[11px] font-medium text-sky-700">
+        {t("products.costHistory.sourceBadgeInvoice").replace(
+          "{{id}}",
+          String(row.sourceSupplierInvoiceId ?? "?")
+        )}
+      </span>
+    );
+  }
+  if (row.isInformational) {
+    return (
+      <span className="inline-flex items-center rounded-md bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium italic text-amber-700">
+        {t("products.costHistory.sourceBadgeNote")}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-md bg-zinc-100 px-1.5 py-0.5 text-[11px] font-medium text-zinc-700">
+      {t("products.costHistory.sourceBadgeManual")}
+    </span>
+  );
+}
+
+function ValidToBadge({ validTo, t }: { validTo?: string | null; t: (k: string) => string }) {
+  if (!validTo) return null;
+  const date = validTo.slice(0, 10);
+  return (
+    <span
+      className="ml-1.5 inline-flex items-center rounded bg-zinc-100 px-1 py-0.5 text-[10px] font-medium text-zinc-500"
+      title={t("products.costHistory.validToTooltip")}
+    >
+      {t("products.costHistory.validToBadge").replace("{{date}}", date)}
+    </span>
+  );
+}
+
 export function ProductCostHistoryScreen() {
   const { t, locale } = useI18n();
   const { data: catalog = [], isPending: isCatalogPending } = useProductsCatalog();
@@ -51,11 +101,14 @@ export function ProductCostHistoryScreen() {
   const [filterProductId, setFilterProductId] = useState(0);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<ProductCostSource | "">("");
+  const [informationalFilter, setInformationalFilter] = useState<"all" | "notes-only" | "official-only">("all");
   const [filterOpen, setFilterOpen] = useState(false);
 
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingSource, setEditingSource] = useState<ProductCostSource>("MANUAL");
   const [productId, setProductId] = useState(0);
   const [effectiveDate, setEffectiveDate] = useState(todayIso());
   const [unit, setUnit] = useState("");
@@ -64,6 +117,7 @@ export function ProductCostHistoryScreen() {
   const [unitCostExVat, setUnitCostExVat] = useState("");
   const [unitCostIncVat, setUnitCostIncVat] = useState("");
   const [note, setNote] = useState("");
+  const [isInformational, setIsInformational] = useState(false);
   const [lastEditedCostField, setLastEditedCostField] = useState<"ex" | "inc" | null>(null);
 
   const params = useMemo(
@@ -71,8 +125,15 @@ export function ProductCostHistoryScreen() {
       productId: filterProductId > 0 ? filterProductId : undefined,
       dateFrom: dateFrom || undefined,
       dateTo: dateTo || undefined,
+      source: sourceFilter || undefined,
+      isInformational:
+        informationalFilter === "notes-only"
+          ? true
+          : informationalFilter === "official-only"
+          ? false
+          : undefined,
     }),
-    [filterProductId, dateFrom, dateTo]
+    [filterProductId, dateFrom, dateTo, sourceFilter, informationalFilter]
   );
 
   const { data: rows = [], isPending, isError, error, refetch } = useProductCostHistory(
@@ -168,11 +229,13 @@ export function ProductCostHistoryScreen() {
         unitCostExcludingVat: ex,
         unitCostIncludingVat: inc,
         note: note.trim() || null,
+        isInformational,
       });
       notify.success(t("products.costHistory.createSuccess"));
       setUnitCostExVat("");
       setUnitCostIncVat("");
       setNote("");
+      setIsInformational(false);
       setAddDialogOpen(false);
       void refetch();
     } catch (e) {
@@ -184,6 +247,7 @@ export function ProductCostHistoryScreen() {
     const row = rows.find((x) => x.id === rowId);
     if (!row) return;
     setEditingId(row.id);
+    setEditingSource(row.source);
     setProductId(row.productId);
     setEffectiveDate(row.effectiveDate);
     setUnit(row.unit);
@@ -192,6 +256,7 @@ export function ProductCostHistoryScreen() {
     setUnitCostExVat(String(row.unitCostExcludingVat));
     setUnitCostIncVat(String(row.unitCostIncludingVat));
     setNote(row.note ?? "");
+    setIsInformational(row.isInformational);
     setLastEditedCostField(null);
     setEditDialogOpen(true);
   };
@@ -209,6 +274,10 @@ export function ProductCostHistoryScreen() {
       notify.error(t("products.costHistory.validationVat"));
       return;
     }
+    if (editingSource === "INVOICE") {
+      notify.error(t("products.costHistory.invoiceLockedError"));
+      return;
+    }
     try {
       await updateEntry.mutateAsync({
         id,
@@ -219,6 +288,7 @@ export function ProductCostHistoryScreen() {
         unitCostExcludingVat: ex,
         unitCostIncludingVat: inc,
         note: note.trim() || null,
+        isInformational,
       });
       notify.success(t("products.costHistory.updateSuccess"));
       setEditDialogOpen(false);
@@ -230,6 +300,11 @@ export function ProductCostHistoryScreen() {
   };
 
   const onDelete = async (id: number) => {
+    const row = rows.find((x) => x.id === id);
+    if (row && isInvoiceRow(row)) {
+      notify.error(t("products.costHistory.invoiceLockedError"));
+      return;
+    }
     if (!window.confirm(t("products.costHistory.deleteConfirm"))) return;
     try {
       await deleteEntry.mutateAsync(id);
@@ -244,6 +319,8 @@ export function ProductCostHistoryScreen() {
     setFilterProductId(0);
     setDateFrom("");
     setDateTo("");
+    setSourceFilter("");
+    setInformationalFilter("all");
   };
 
   return (
@@ -301,39 +378,52 @@ export function ProductCostHistoryScreen() {
               ) : (
                 <>
                   <div className="flex flex-col gap-4 md:hidden">
-                    {rows.map((r) => (
-                      <MobileListCard
-                        key={r.id}
-                        as="div"
-                        className="flex flex-col gap-1 shadow-zinc-900/5"
-                      >
-                        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                          {r.effectiveDate}
-                        </p>
-                        <p className="truncate text-sm font-semibold text-zinc-900">{r.productName}</p>
-                        <p className="mt-1 text-sm text-zinc-700">
-                          {t("products.costHistory.unitCostExVatLabel")}:{" "}
-                          {formatLocaleAmount(r.unitCostExcludingVat, locale, r.currencyCode)}
-                        </p>
-                        <p className="text-sm text-zinc-700">
-                          {t("products.costHistory.unitCostIncVatLabel")}:{" "}
-                          {formatLocaleAmount(r.unitCostIncludingVat, locale, r.currencyCode)}
-                        </p>
-                        <p className="text-sm text-zinc-700">{t("products.costHistory.unitLabel")}: {r.unit}</p>
-                        <p className="text-sm text-zinc-700">
-                          {t("products.costHistory.vatRateShort")}: %{r.vatRate}
-                        </p>
-                        <p className="mt-1 break-words text-xs text-zinc-500">{r.note?.trim() || "—"}</p>
-                        <div className="mt-2 flex justify-end gap-2">
-                          <Button type="button" variant="secondary" onClick={() => onEditOpen(r.id)}>
-                            {t("common.edit")}
-                          </Button>
-                          <Button type="button" variant="ghost" onClick={() => void onDelete(r.id)}>
-                            {t("common.delete")}
-                          </Button>
-                        </div>
-                      </MobileListCard>
-                    ))}
+                    {rows.map((r) => {
+                      const locked = isInvoiceRow(r);
+                      return (
+                        <MobileListCard
+                          key={r.id}
+                          as="div"
+                          className="flex flex-col gap-1 shadow-zinc-900/5"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-1.5">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                              {r.effectiveDate}
+                              <ValidToBadge validTo={r.validTo} t={t} />
+                            </p>
+                            <CostSourceBadge row={r} t={t} />
+                          </div>
+                          <p className="truncate text-sm font-semibold text-zinc-900">{r.productName}</p>
+                          <p className="mt-1 text-sm text-zinc-700">
+                            {t("products.costHistory.unitCostExVatLabel")}:{" "}
+                            {formatLocaleAmount(r.unitCostExcludingVat, locale, r.currencyCode)}
+                          </p>
+                          <p className="text-sm text-zinc-700">
+                            {t("products.costHistory.unitCostIncVatLabel")}:{" "}
+                            {formatLocaleAmount(r.unitCostIncludingVat, locale, r.currencyCode)}
+                          </p>
+                          <p className="text-sm text-zinc-700">{t("products.costHistory.unitLabel")}: {r.unit}</p>
+                          <p className="text-sm text-zinc-700">
+                            {t("products.costHistory.vatRateShort")}: %{r.vatRate}
+                          </p>
+                          <p className="mt-1 break-words text-xs text-zinc-500">{r.note?.trim() || "—"}</p>
+                          {!locked ? (
+                            <div className="mt-2 flex justify-end gap-2">
+                              <Button type="button" variant="secondary" onClick={() => onEditOpen(r.id)}>
+                                {t("common.edit")}
+                              </Button>
+                              <Button type="button" variant="ghost" onClick={() => void onDelete(r.id)}>
+                                {t("common.delete")}
+                              </Button>
+                            </div>
+                          ) : (
+                            <p className="mt-2 text-right text-[11px] italic text-zinc-400">
+                              {t("products.costHistory.invoiceLockedHint")}
+                            </p>
+                          )}
+                        </MobileListCard>
+                      );
+                    })}
                   </div>
 
                   <div className="-mx-1 hidden overflow-x-auto md:block">
@@ -341,6 +431,7 @@ export function ProductCostHistoryScreen() {
                       <TableHead>
                         <TableRow>
                           <TableHeader>{t("products.costHistory.colDate")}</TableHeader>
+                          <TableHeader>{t("products.costHistory.colSource")}</TableHeader>
                           <TableHeader>{t("products.costHistory.colProduct")}</TableHeader>
                           <TableHeader>{t("products.costHistory.colUnit")}</TableHeader>
                           <TableHeader>{t("products.costHistory.colCurrency")}</TableHeader>
@@ -352,42 +443,61 @@ export function ProductCostHistoryScreen() {
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {rows.map((r) => (
-                          <TableRow key={r.id}>
-                            <TableCell>{r.effectiveDate}</TableCell>
-                            <TableCell>{r.productName}</TableCell>
-                            <TableCell>{r.unit}</TableCell>
-                            <TableCell>{r.currencyCode}</TableCell>
-                            <TableCell className="text-right tabular-nums">
-                              {formatLocaleAmount(r.unitCostExcludingVat, locale, r.currencyCode)}
-                            </TableCell>
-                            <TableCell className="text-right tabular-nums">
-                              {formatLocaleAmount(r.unitCostIncludingVat, locale, r.currencyCode)}
-                            </TableCell>
-                            <TableCell className="text-right tabular-nums">%{r.vatRate}</TableCell>
-                            <TableCell>{r.note?.trim() || "—"}</TableCell>
-                            <TableCell className="text-right">
-                              <div className="inline-flex items-center gap-2">
-                                <Button
-                                  type="button"
-                                  variant="secondary"
-                                  className="min-h-8 px-2.5 py-1 text-xs"
-                                  onClick={() => onEditOpen(r.id)}
-                                >
-                                  {t("common.edit")}
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  className="min-h-8 px-2.5 py-1 text-xs"
-                                  onClick={() => void onDelete(r.id)}
-                                >
-                                  {t("common.delete")}
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {rows.map((r) => {
+                          const locked = isInvoiceRow(r);
+                          const muted = r.isInformational || r.validTo != null;
+                          return (
+                            <TableRow key={r.id} className={muted ? "text-zinc-500" : undefined}>
+                              <TableCell>
+                                {r.effectiveDate}
+                                <ValidToBadge validTo={r.validTo} t={t} />
+                              </TableCell>
+                              <TableCell>
+                                <CostSourceBadge row={r} t={t} />
+                              </TableCell>
+                              <TableCell>{r.productName}</TableCell>
+                              <TableCell>{r.unit}</TableCell>
+                              <TableCell>{r.currencyCode}</TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                {formatLocaleAmount(r.unitCostExcludingVat, locale, r.currencyCode)}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">
+                                {formatLocaleAmount(r.unitCostIncludingVat, locale, r.currencyCode)}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums">%{r.vatRate}</TableCell>
+                              <TableCell>{r.note?.trim() || "—"}</TableCell>
+                              <TableCell className="text-right">
+                                {locked ? (
+                                  <span
+                                    className="text-[11px] italic text-zinc-400"
+                                    title={t("products.costHistory.invoiceLockedHint")}
+                                  >
+                                    {t("products.costHistory.invoiceLockedShort")}
+                                  </span>
+                                ) : (
+                                  <div className="inline-flex items-center gap-2">
+                                    <Button
+                                      type="button"
+                                      variant="secondary"
+                                      className="min-h-8 px-2.5 py-1 text-xs"
+                                      onClick={() => onEditOpen(r.id)}
+                                    >
+                                      {t("common.edit")}
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      className="min-h-8 px-2.5 py-1 text-xs"
+                                      onClick={() => void onDelete(r.id)}
+                                    >
+                                      {t("common.delete")}
+                                    </Button>
+                                  </div>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>
@@ -407,6 +517,11 @@ export function ProductCostHistoryScreen() {
         closeButtonLabel={t("common.close")}
       >
         <div className="space-y-3 px-4 pb-4 pt-1 sm:px-6 sm:pb-6">
+          {editingSource === "INVOICE" ? (
+            <div className="rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900">
+              {t("products.costHistory.invoiceLockedBanner")}
+            </div>
+          ) : null}
           <div className="grid gap-3 md:grid-cols-2">
             <Input
               name="productReadonly"
@@ -452,6 +567,20 @@ export function ProductCostHistoryScreen() {
               onChange={(e) => setNote(e.target.value)}
               maxLength={250}
             />
+            <label className="flex items-start gap-2 self-end pb-2 text-sm text-zinc-700">
+              <Checkbox
+                checked={isInformational}
+                onCheckedChange={setIsInformational}
+                disabled={editingSource === "INVOICE"}
+                aria-label={t("products.costHistory.isInformationalLabel")}
+              />
+              <span className="leading-tight">
+                {t("products.costHistory.isInformationalLabel")}
+                <span className="block text-[11px] text-zinc-500">
+                  {t("products.costHistory.isInformationalHint")}
+                </span>
+              </span>
+            </label>
             <Input
               name="unitCostExVatEdit"
               label={t("products.costHistory.unitCostExVatLabel")}
@@ -493,7 +622,11 @@ export function ProductCostHistoryScreen() {
             <Button type="button" variant="secondary" onClick={() => setEditDialogOpen(false)}>
               {t("common.cancel")}
             </Button>
-            <Button type="button" onClick={() => void onUpdate()} disabled={updateEntry.isPending}>
+            <Button
+              type="button"
+              onClick={() => void onUpdate()}
+              disabled={updateEntry.isPending || editingSource === "INVOICE"}
+            >
               {updateEntry.isPending ? t("common.saving") : t("common.save")}
             </Button>
           </div>
@@ -558,6 +691,19 @@ export function ProductCostHistoryScreen() {
               onChange={(e) => setNote(e.target.value)}
               maxLength={250}
             />
+            <label className="flex items-start gap-2 self-end pb-2 text-sm text-zinc-700">
+              <Checkbox
+                checked={isInformational}
+                onCheckedChange={setIsInformational}
+                aria-label={t("products.costHistory.isInformationalLabel")}
+              />
+              <span className="leading-tight">
+                {t("products.costHistory.isInformationalLabel")}
+                <span className="block text-[11px] text-zinc-500">
+                  {t("products.costHistory.isInformationalHint")}
+                </span>
+              </span>
+            </label>
             <Input
               name="unitCostExVat"
               label={t("products.costHistory.unitCostExVatLabel")}
@@ -643,6 +789,34 @@ export function ProductCostHistoryScreen() {
                 label={t("products.costHistory.dateToLabel")}
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
+              />
+              <Select
+                name="filterSource"
+                label={t("products.costHistory.filterSourceLabel")}
+                value={sourceFilter}
+                options={[
+                  { value: "", label: t("products.costHistory.filterSourceAll") },
+                  { value: "INVOICE", label: t("products.costHistory.filterSourceInvoice") },
+                  { value: "MANUAL", label: t("products.costHistory.filterSourceManual") },
+                ]}
+                onBlur={() => undefined}
+                onChange={(e) =>
+                  setSourceFilter((e.target.value as ProductCostSource | "") || "")
+                }
+              />
+              <Select
+                name="filterInformational"
+                label={t("products.costHistory.filterInformationalLabel")}
+                value={informationalFilter}
+                options={[
+                  { value: "all", label: t("products.costHistory.filterInformationalAll") },
+                  { value: "official-only", label: t("products.costHistory.filterInformationalOfficialOnly") },
+                  { value: "notes-only", label: t("products.costHistory.filterInformationalNotesOnly") },
+                ]}
+                onBlur={() => undefined}
+                onChange={(e) =>
+                  setInformationalFilter(e.target.value as "all" | "notes-only" | "official-only")
+                }
               />
             </div>
             <div className="mt-4 flex items-center justify-end gap-2">

@@ -48,6 +48,10 @@ export function useProductsCatalog(enabled = true) {
     queryKey: productKeys.catalog(),
     queryFn: fetchProductsCatalog,
     enabled,
+    // Stale cache kullanıcıyı eksik liste görmüş gibi gösterebiliyor — modal/dropdown her açılışta
+    // taze veri çek (catalog küçük, maliyeti düşük; mutation'lardan sonra invalidasyon zaten var).
+    staleTime: 0,
+    refetchOnMount: "always",
   });
 }
 

@@ -22,6 +22,9 @@ export const productCostKeys = {
       params.productId ?? 0,
       params.dateFrom ?? "",
       params.dateTo ?? "",
+      params.source ?? "",
+      params.isInformational ?? null,
+      params.activeOnly ?? false,
     ] as const,
 };
 

@@ -34,6 +34,8 @@ export type SupplierInvoiceLine = {
   quantity: number | null;
   unitPrice: number | null;
   lineAmount: number;
+  /** KDV oranı yüzde (0–100). null = belirtilmemiş (eski satırlar). */
+  vatRate: number | null;
   warehouseMovementId: number | null;
   receiveBranchId: number | null;
   receiveBranchName: string | null;
@@ -209,6 +211,7 @@ export async function createSupplierInvoice(body: {
     quantity?: number | null;
     unitPrice?: number | null;
     lineAmount: number;
+    vatRate?: number | null;
     warehouseMovementId?: number | null;
     receiveWarehouseId?: number | null;
     receiveBranchId?: number | null;
@@ -233,6 +236,7 @@ export async function createSupplierInvoice(body: {
         quantity: l.quantity ?? null,
         unitPrice: l.unitPrice ?? null,
         lineAmount: l.lineAmount,
+        vatRate: l.vatRate ?? null,
         warehouseMovementId: l.warehouseMovementId ?? null,
         receiveWarehouseId: l.receiveWarehouseId ?? null,
         receiveBranchId: l.receiveBranchId ?? null,

@@ -98,6 +98,7 @@ type InvoiceLineDraft = {
   lineAmount: string;
   quantity: string;
   unitPrice: string;
+  vatRate: string;
   productId: string;
 };
 
@@ -111,8 +112,21 @@ function emptyLine(): InvoiceLineDraft {
     lineAmount: "",
     quantity: "",
     unitPrice: "",
+    vatRate: "",
     productId: "",
   };
+}
+
+/**
+ * Miktar ve birim fiyat doluysa Satır tutarı'nı otomatik doldurur (lineAmount = qty × unitPrice).
+ * Eksik veya geçersizse draft'a dokunmaz — kullanıcının manuel girişini ezmez.
+ */
+function autoFillLineAmount(d: InvoiceLineDraft, locale: Locale): InvoiceLineDraft {
+  const qty = parseDec(d.quantity);
+  const up = parseDec(d.unitPrice);
+  if (qty == null || qty <= 0 || up == null || up < 0) return d;
+  const total = Math.round(qty * up * 100) / 100;
+  return { ...d, lineAmount: formatAmountInputOnBlur(String(total), locale) };
 }
 
 function parseDec(s: string): number | null {
@@ -970,11 +984,13 @@ export function SupplierInvoicesScreen() {
         const bid = l.receiveTarget === "branch" ? parseIntId(l.receiveBranchId) : null;
         const qty = parseDec(l.quantity);
         const up = parseDec(l.unitPrice);
+        const vat = parseDec(l.vatRate);
         return {
           description: l.description.trim() || null,
           lineAmount: amt,
           quantity: qty != null && qty > 0 ? qty : null,
           unitPrice: up != null && up >= 0 ? up : null,
+          vatRate: vat != null && vat >= 0 && vat <= 100 ? vat : null,
           productId: pid,
           receiveWarehouseId: rwid,
           receiveBranchId: bid,
@@ -985,6 +1001,7 @@ export function SupplierInvoicesScreen() {
       lineAmount: number;
       quantity: number | null;
       unitPrice: number | null;
+      vatRate: number | null;
       productId: number | null;
       receiveWarehouseId: number | null;
       receiveBranchId: number | null;
@@ -1805,7 +1822,7 @@ export function SupplierInvoicesScreen() {
                   </MobileListCard>
                 ))}
               </div>
-              <div className="hidden overflow-x-auto rounded-xl border border-zinc-200/90 sm:block">
+              <div className="hidden overflow-x-auto rounded-xl border border-zinc-200/90 lg:block">
                 <Table>
                   <TableHead>
                     <TableRow className="bg-zinc-50/90">
@@ -1920,12 +1937,47 @@ export function SupplierInvoicesScreen() {
                   error={invLineEditDraft.receiveTarget === "warehouse" ? invLineEditErrors.product : undefined}
                   className="min-h-12 text-base sm:min-h-10 sm:text-sm"
                 />
+                {/*
+                  Doğal veri girişi sırası: Miktar → Birim fiyat → KDV → (Satır tutarı otomatik).
+                  Miktar veya Birim fiyat'tan ayrılınca, ikisi de doluysa Satır tutarı otomatik hesaplanır.
+                  Kullanıcı Satır tutarını manuel girerse o değer korunur (faturada yuvarlama varsa).
+                */}
                 <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-3">
+                  <Input
+                    label={t("suppliers.quantity")}
+                    inputMode="decimal"
+                    value={invLineEditDraft.quantity}
+                    onChange={(e) =>
+                      setInvLineEditDraft((d) => (d ? { ...d, quantity: e.target.value } : d))
+                    }
+                    onBlur={() => setInvLineEditDraft((d) => (d ? autoFillLineAmount(d, locale) : d))}
+                    error={invLineEditDraft.receiveTarget === "warehouse" ? invLineEditErrors.quantity : undefined}
+                  />
+                  <Input
+                    label={t("suppliers.unitPrice")}
+                    inputMode="decimal"
+                    value={invLineEditDraft.unitPrice}
+                    onChange={(e) =>
+                      setInvLineEditDraft((d) => (d ? { ...d, unitPrice: e.target.value } : d))
+                    }
+                    onBlur={() => setInvLineEditDraft((d) => (d ? autoFillLineAmount(d, locale) : d))}
+                  />
+                  <Input
+                    label={t("suppliers.vatRate")}
+                    inputMode="decimal"
+                    placeholder="0–100"
+                    value={invLineEditDraft.vatRate}
+                    onChange={(e) =>
+                      setInvLineEditDraft((d) => (d ? { ...d, vatRate: e.target.value } : d))
+                    }
+                  />
+                </div>
+                <div>
                   <Input
                     label={t("suppliers.lineAmount")}
                     labelRequired
-                    value={invLineEditDraft.lineAmount}
                     inputMode="decimal"
+                    value={invLineEditDraft.lineAmount}
                     onChange={(e) =>
                       setInvLineEditDraft((d) => (d ? { ...d, lineAmount: e.target.value } : d))
                     }
@@ -1936,21 +1988,21 @@ export function SupplierInvoicesScreen() {
                     }
                     error={invLineEditErrors.lineAmount}
                   />
-                  <Input
-                    label={t("suppliers.quantity")}
-                    value={invLineEditDraft.quantity}
-                    onChange={(e) =>
-                      setInvLineEditDraft((d) => (d ? { ...d, quantity: e.target.value } : d))
-                    }
-                    error={invLineEditDraft.receiveTarget === "warehouse" ? invLineEditErrors.quantity : undefined}
-                  />
-                  <Input
-                    label={t("suppliers.unitPrice")}
-                    value={invLineEditDraft.unitPrice}
-                    onChange={(e) =>
-                      setInvLineEditDraft((d) => (d ? { ...d, unitPrice: e.target.value } : d))
-                    }
-                  />
+                  {(() => {
+                    const amt = parseLocaleAmount(invLineEditDraft.lineAmount, locale);
+                    const vat = parseDec(invLineEditDraft.vatRate);
+                    if (!Number.isFinite(amt) || amt <= 0) return null;
+                    const vatPct = Number.isFinite(vat) && vat! >= 0 && vat! <= 100 ? vat! : 0;
+                    const incl = amt * (1 + vatPct / 100);
+                    return (
+                      <p className="mt-1 text-xs text-zinc-500">
+                        {t("suppliers.vatIncludedTotal")}:{" "}
+                        <span className="font-medium tabular-nums text-zinc-700">
+                          {formatLocaleAmount(incl, locale, invCur.trim() || "TRY")}
+                        </span>
+                      </p>
+                    );
+                  })()}
                 </div>
                 <Input
                   label={t("suppliers.lineDescription")}

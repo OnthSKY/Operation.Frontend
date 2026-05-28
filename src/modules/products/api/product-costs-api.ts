@@ -15,6 +15,9 @@ export async function fetchProductCostHistory(
   }
   if (params.dateFrom?.length === 10) q.set("dateFrom", params.dateFrom);
   if (params.dateTo?.length === 10) q.set("dateTo", params.dateTo);
+  if (params.source) q.set("source", params.source);
+  if (params.isInformational != null) q.set("isInformational", String(params.isInformational));
+  if (params.activeOnly) q.set("activeOnly", "true");
   return apiRequest<ProductCostHistoryRow[]>(`/products/cost-history?${q.toString()}`);
 }
 
@@ -30,6 +33,7 @@ export async function createProductCostEntry(input: CreateProductCostInput): Pro
       unitCostExcludingVat: input.unitCostExcludingVat,
       unitCostIncludingVat: input.unitCostIncludingVat,
       note: input.note?.trim() || null,
+      isInformational: input.isInformational ?? false,
     }),
   });
 }
@@ -45,6 +49,7 @@ export async function updateProductCostEntry(input: UpdateProductCostInput): Pro
       unitCostExcludingVat: input.unitCostExcludingVat,
       unitCostIncludingVat: input.unitCostIncludingVat,
       note: input.note?.trim() || null,
+      isInformational: input.isInformational ?? false,
     }),
   });
 }
