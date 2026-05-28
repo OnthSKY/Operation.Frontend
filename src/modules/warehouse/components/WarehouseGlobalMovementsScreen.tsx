@@ -497,31 +497,36 @@ export function WarehouseGlobalMovementsScreen() {
     () => new Set(data.filter((x) => x.type === "OUT").map((x) => shipmentGroupKeyForRow(x))).size,
     [data]
   );
-  /** Çıkış satırlarındaki sevkiyat anahtarı (batch/tekil) başına; ana ürün grubu → kaç ayrı çıkış sevkiyatı. */
-  const outboundShipmentCountByMainProduct = useMemo(() => {
-    const outRows = data.filter((r) => r.type === "OUT");
-    const mainKeyToShipments = new Map<string, Set<string>>();
-    const mainKeyToLabel = new Map<string, string>();
-    for (const r of outRows) {
-      const sk = shipmentGroupKeyForRow(r);
+  /** Ana ürün bazında, filtreli aralıktaki toplam giriş ve çıkış miktarları. */
+  const inOutTotalsByMainProduct = useMemo(() => {
+    const map = new Map<
+      string,
+      { key: string; name: string; inQty: number; outQty: number; unit: string | null }
+    >();
+    for (const r of data) {
       const mk = movementMainProductKey(r);
-      if (!mainKeyToShipments.has(mk)) {
-        mainKeyToShipments.set(mk, new Set());
-        mainKeyToLabel.set(mk, movementMainProductName(r));
+      const qty = Number(r.quantity) || 0;
+      const unit = r.unit?.trim() || null;
+      const existing = map.get(mk);
+      if (existing) {
+        if (r.type === "IN") existing.inQty += qty;
+        else existing.outQty += qty;
+        if (!existing.unit && unit) existing.unit = unit;
+        continue;
       }
-      mainKeyToShipments.get(mk)!.add(sk);
+      map.set(mk, {
+        key: mk,
+        name: movementMainProductName(r),
+        inQty: r.type === "IN" ? qty : 0,
+        outQty: r.type === "OUT" ? qty : 0,
+        unit,
+      });
     }
-    return Array.from(mainKeyToShipments.entries())
-      .map(([key, shSet]) => ({
-        key,
-        name: mainKeyToLabel.get(key) ?? key,
-        outboundShipmentCount: shSet.size,
-      }))
-      .sort(
-        (a, b) =>
-          b.outboundShipmentCount - a.outboundShipmentCount ||
-          a.name.localeCompare(b.name, locale, { sensitivity: "base" })
-      );
+    return Array.from(map.values()).sort(
+      (a, b) =>
+        b.inQty + b.outQty - (a.inQty + a.outQty) ||
+        a.name.localeCompare(b.name, locale, { sensitivity: "base" })
+    );
   }, [data, locale]);
   const movementFiltersActive = useMemo(() => {
     if (scope.mainCategoryId != null || scope.subCategoryId != null || scope.parentProductId != null || scope.productId != null) return true;
@@ -1062,39 +1067,53 @@ export function WarehouseGlobalMovementsScreen() {
         </div>
       </RightDrawer>
 
-      {outboundShipmentCountByMainProduct.length > 0 ? (
-        <div className="rounded-lg border border-rose-200 bg-gradient-to-br from-rose-50/90 to-white px-3 py-3 shadow-sm ring-1 ring-rose-950/[0.04] sm:px-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-rose-900">
-            {t("warehouse.globalOutboundByMainProductTitle")}
+      {inOutTotalsByMainProduct.length > 0 ? (
+        <div className="rounded-lg border border-zinc-200 bg-gradient-to-br from-zinc-50/80 to-white px-3 py-3 shadow-sm ring-1 ring-zinc-950/[0.03] sm:px-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-700">
+            {t("warehouse.globalInOutByMainProductTitle")}
           </p>
-          <p className="mt-1 text-xs leading-relaxed text-rose-800/90">{t("warehouse.globalOutboundByMainProductHint")}</p>
-          <div className="mt-3 max-h-52 overflow-auto rounded-md border border-rose-100 bg-white">
-            <table className="w-full min-w-[260px] border-collapse text-left text-sm">
-              <thead>
-                <tr className="border-b border-rose-100 bg-rose-50/80">
-                  <th className="px-3 py-2 text-xs font-semibold text-rose-950">
-                    {t("warehouse.globalOutboundByMainProductColGroup")}
-                  </th>
-                  <th className="whitespace-nowrap px-3 py-2 text-right text-xs font-semibold text-rose-950">
-                    {t("warehouse.globalOutboundByMainProductColShipments")}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {outboundShipmentCountByMainProduct.map((row) => (
-                  <tr key={row.key} className="border-b border-rose-50 last:border-0">
-                    <td className="max-w-[min(100vw-8rem,28rem)] px-3 py-2">
-                      <span className="line-clamp-2 font-medium text-zinc-900" title={row.name}>
-                        {row.name}
-                      </span>
-                    </td>
-                    <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-base font-semibold text-rose-950">
-                      {formatLocaleAmount(row.outboundShipmentCount, locale)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+            {t("warehouse.globalInOutByMainProductHint")}
+          </p>
+          <div className="mt-3 grid max-h-[60vh] grid-cols-1 gap-2 overflow-auto sm:grid-cols-2 lg:grid-cols-3">
+            {inOutTotalsByMainProduct.map((row) => {
+              const unitSuffix = row.unit ? ` ${row.unit}` : "";
+              return (
+                <div
+                  key={row.key}
+                  className="rounded-lg border border-zinc-200 bg-white px-3 py-2.5 shadow-sm"
+                >
+                  <p
+                    className="line-clamp-2 text-sm font-semibold leading-snug text-zinc-900"
+                    title={row.name}
+                  >
+                    {row.name}
+                  </p>
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <div className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
+                        {t("products.typeIn")}
+                      </p>
+                      <p className="mt-0.5 text-base font-semibold tabular-nums text-emerald-900">
+                        {row.inQty > 0 ? "+" : ""}
+                        {formatLocaleAmount(row.inQty, locale)}
+                        {unitSuffix}
+                      </p>
+                    </div>
+                    <div className="rounded-md border border-rose-200 bg-rose-50 px-2 py-1.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-700">
+                        {t("products.typeOut")}
+                      </p>
+                      <p className="mt-0.5 text-base font-semibold tabular-nums text-rose-900">
+                        {row.outQty > 0 ? "−" : ""}
+                        {formatLocaleAmount(row.outQty, locale)}
+                        {unitSuffix}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       ) : null}

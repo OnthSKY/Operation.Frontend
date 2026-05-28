@@ -22,11 +22,9 @@ export const warehouse = {
   globalFilterWarehouseAll: "Tüm depolar",
   globalInboundShipmentCount: "Toplam giriş sevkiyat sayısı",
   globalOutboundShipmentCount: "Toplam çıkış sevkiyat sayısı",
-  globalOutboundByMainProductTitle: "Ana ürün grubuna göre çıkış sevkiyatı",
-  globalOutboundByMainProductHint:
-    "Sayılar, seçili filtrelere göre gelen listede her ana ürün için kaç ayrı çıkış sevkiyatı (grup) olduğunu gösterir.",
-  globalOutboundByMainProductColGroup: "Ana ürün grubu",
-  globalOutboundByMainProductColShipments: "Çıkış sevkiyatı",
+  globalInOutByMainProductTitle: "Ana ürün bazlı toplam giriş / çıkış",
+  globalInOutByMainProductHint:
+    "Seçili filtrelerle gelen hareketlerin ana ürün bazında toplam giriş ve çıkış miktarları.",
   globalViewMovements: "Hareketler",
   globalViewShipments: "Sevkiyat grupları",
   globalShipmentGroupsEmpty: "Bu filtrelerle eşleşen sevkiyat grubu yok.",

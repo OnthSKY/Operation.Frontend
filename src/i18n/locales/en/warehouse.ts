@@ -22,11 +22,9 @@ export const warehouse = {
   globalFilterWarehouseAll: "All warehouses",
   globalInboundShipmentCount: "Total inbound shipment count",
   globalOutboundShipmentCount: "Total outbound shipment count",
-  globalOutboundByMainProductTitle: "Outbound shipments by main product group",
-  globalOutboundByMainProductHint:
-    "Counts show how many distinct outbound shipment groups in the filtered list include each main product.",
-  globalOutboundByMainProductColGroup: "Main product group",
-  globalOutboundByMainProductColShipments: "Outbound shipments",
+  globalInOutByMainProductTitle: "Total inbound / outbound by main product",
+  globalInOutByMainProductHint:
+    "Aggregated inbound and outbound quantities per main product across movements that match the active filters.",
   globalViewMovements: "Movements",
   globalViewShipments: "Shipment groups",
   globalShipmentGroupsEmpty: "No shipment groups match these filters.",
