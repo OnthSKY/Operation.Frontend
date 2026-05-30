@@ -64,7 +64,7 @@ export function ShipmentListScreen() {
           <p className="mt-1 max-w-3xl text-sm text-zinc-600">{t("shipments.list.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
-          {user?.role === "ADMIN" ? (
+          {hasPermissionCode(user, PERM.systemAdmin) ? (
             <Link href="/shipments/assignments">
               <Button type="button" variant="secondary">{t("shipments.list.assignments")}</Button>
             </Link>

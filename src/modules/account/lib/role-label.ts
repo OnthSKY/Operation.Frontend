@@ -69,3 +69,39 @@ export function adminUsersRoleTitleOrFallback(
   const code = String(roleCode ?? "").trim().toUpperCase();
   return code || t("profile.roleUnknown");
 }
+
+/**
+ * Rol için tam açıklama metni (matris kartı, rol değiştirme modalı vb.).
+ * Çevirisi yoksa boş döner.
+ */
+export function adminUsersRoleDescription(
+  roleCode: string,
+  t: (key: string) => string
+): string {
+  const code = String(roleCode ?? "").trim().toUpperCase();
+  const key = (() => {
+    switch (code) {
+      case "ADMIN":
+        return "users.roleDetailAdmin";
+      case "STAFF":
+        return "users.roleDetailStaff";
+      case "PERSONNEL":
+        return "users.roleDetailPersonnel";
+      case "DRIVER":
+        return "users.roleDetailDriver";
+      case "VIEWER":
+        return "users.roleDetailViewer";
+      case "FINANCE":
+        return "users.roleDetailFinance";
+      case "PROCUREMENT":
+        return "users.roleDetailProcurement";
+      case "BRANCH_DAY_REGISTER":
+        return "users.roleDetailBranchDayRegister";
+      default:
+        return "";
+    }
+  })();
+  if (!key) return "";
+  const value = t(key);
+  return value === key ? "" : value;
+}

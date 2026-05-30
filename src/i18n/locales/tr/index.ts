@@ -18,6 +18,7 @@ import { products } from "./products";
 import { reminders } from "./reminders";
 import { reports } from "./reports";
 import { users } from "./users";
+import { userRoles } from "./userRoles";
 import { search } from "./search";
 import { settings } from "./settings";
 import { shipments } from "./shipments";
@@ -42,6 +43,7 @@ export const tr = {
   personnel,
   profile,
   users,
+  userRoles,
   settings,
   shipments,
   branch,

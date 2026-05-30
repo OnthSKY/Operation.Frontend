@@ -30,6 +30,13 @@ export const settings = {
     "Toggle permissions and save. This updates only the selected role; users with that role pick up changes on their next request.",
   authzRolePermissionCount: "{current} of {total} permissions",
   authzExpandRoleAria: "Edit permissions for {role}",
+  authzImpliedBy: "Covered by: {code}",
+  authzImpliedByLabel: "Covered by",
+  authzCoversN: "Covers {n} perms",
+  authzSearchPlaceholder: "Search permissions (code, screen, or description)…",
+  authzSearchNoMatch: "No permissions matched your search.",
+  authzBulkAll: "All",
+  authzBulkNone: "None",
   notificationsCardTitle: "Notifications",
   notificationsCardDesc:
     "Turn operational reminders on or off for the whole organization (bell, API, daily toast).",

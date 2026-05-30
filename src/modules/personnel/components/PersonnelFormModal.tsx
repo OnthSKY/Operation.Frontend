@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth/AuthContext";
+import { PERM, hasPermissionCode } from "@/lib/auth/permissions";
 import { useI18n } from "@/i18n/context";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import {
@@ -116,7 +117,7 @@ function hireDateForInput(iso: string): string {
 export function PersonnelFormModal({ open, onClose, initial }: Props) {
   const { t, locale } = useI18n();
   const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
+  const isAdmin = hasPermissionCode(user, PERM.systemAdmin);
   const isEdit = initial != null;
   const titleId = isEdit ? "edit-personnel-title" : "add-personnel-title";
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth/AuthContext";
+import { PERM, hasPermissionCode } from "@/lib/auth/permissions";
 import { isPersonnelPortalRole } from "@/lib/auth/roles";
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
@@ -79,7 +80,7 @@ export default function GuidePage() {
   const router = useRouter();
   const pathname = usePathname();
   const personnelPortal = isPersonnelPortalRole(user?.role);
-  const isAdmin = user?.role === "ADMIN";
+  const isAdmin = hasPermissionCode(user, PERM.systemAdmin);
 
   const tabIds = useMemo(
     () =>

@@ -290,24 +290,22 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
           >
             {t("branch.addIncomeTx")}
           </Button>
-          {!employeeSelfService ? (
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11 w-full sm:w-auto"
-              onClick={() => {
-                const d = incFrom.length === 10 && incFrom === incTo ? incFrom : localIsoDate();
-                setTxModalLaunch({
-                  defaultType: "IN",
-                  defaultMainCategory: "IN_DAY_CLOSE",
-                  defaultTransactionDate: d,
-                });
-                setTxModalOpen(true);
-              }}
-            >
-              {t("branch.quickAddDayClose")}
-            </Button>
-          ) : null}
+          <Button
+            type="button"
+            variant="secondary"
+            className="min-h-11 w-full sm:w-auto"
+            onClick={() => {
+              const d = incFrom.length === 10 && incFrom === incTo ? incFrom : localIsoDate();
+              setTxModalLaunch({
+                defaultType: "IN",
+                defaultMainCategory: "IN_DAY_CLOSE",
+                defaultTransactionDate: d,
+              });
+              setTxModalOpen(true);
+            }}
+          >
+            {t("branch.quickAddDayClose")}
+          </Button>
           {canEditRegisterIncomeCashSettlement ? (
             <Button
               type="button"

@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth/AuthContext";
+import { PERM, hasPermissionCode } from "@/lib/auth/permissions";
 import type { BrandingSettingsPayload } from "@/modules/admin/api/system-branding-api";
 import {
   useDeleteSystemBrandingLogoMutation,
@@ -41,7 +42,7 @@ export function BrandingSettingsScreen() {
   const { user, isReady } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
   const { data, isPending, isError, error, refetch } = useSystemBrandingQuery(
-    Boolean(user && user.role === "ADMIN")
+    hasPermissionCode(user, PERM.systemAdmin)
   );
   const putMut = usePutSystemBrandingMutation();
   const postLogoMut = usePostSystemBrandingLogoMutation();
@@ -50,7 +51,7 @@ export function BrandingSettingsScreen() {
   const [bankAccountsDraft, setBankAccountsDraft] = useState<InstitutionBankAccountDraft[]>([]);
 
   useEffect(() => {
-    if (isReady && user && user.role !== "ADMIN") router.replace("/personnel");
+    if (isReady && user && !hasPermissionCode(user, PERM.systemAdmin)) router.replace("/personnel");
   }, [isReady, user, router]);
 
   useEffect(() => {
@@ -77,7 +78,7 @@ export function BrandingSettingsScreen() {
     );
   }
 
-  if (user.role !== "ADMIN") {
+  if (!hasPermissionCode(user, PERM.systemAdmin)) {
     return (
       <div className="flex flex-1 items-center justify-center p-8 text-zinc-500">
         {t("common.loading")}

@@ -13,6 +13,7 @@ import {
   putUserDataScopes,
   putUserPermissionOverrides,
   resetUserPassword,
+  setUserMfaEnabled,
   softDeleteUser,
   updateUserProfile,
 } from "@/modules/personnel/api/users-api";
@@ -102,6 +103,17 @@ export function useResetUserPassword() {
   return useMutation({
     mutationFn: (args: { userId: number; password: string }) =>
       resetUserPassword(args.userId, args.password),
+  });
+}
+
+export function useSetUserMfaEnabled() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { userId: number; enabled: boolean }) =>
+      setUserMfaEnabled(args.userId, args.enabled),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: usersKeys.list() });
+    },
   });
 }
 

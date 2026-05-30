@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth/AuthContext";
+import { PERM, hasPermissionCode } from "@/lib/auth/permissions";
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
 import { Card } from "@/shared/components/Card";
@@ -16,7 +17,7 @@ export function SystemSettingsScreen() {
   const { user, isReady } = useAuth();
 
   useEffect(() => {
-    if (isReady && user && user.role !== "ADMIN") router.replace("/personnel");
+    if (isReady && user && !hasPermissionCode(user, PERM.systemAdmin)) router.replace("/personnel");
   }, [isReady, user, router]);
 
   if (!isReady || !user) {
@@ -27,7 +28,7 @@ export function SystemSettingsScreen() {
     );
   }
 
-  if (user.role !== "ADMIN") {
+  if (!hasPermissionCode(user, PERM.systemAdmin)) {
     return (
       <div className="flex flex-1 items-center justify-center p-8 text-zinc-500">
         {t("common.loading")}

@@ -23,6 +23,7 @@ import { suppliers } from "./suppliers";
 import { vehicles } from "./vehicles";
 import { toast } from "./toast";
 import { users } from "./users";
+import { userRoles } from "./userRoles";
 import { warehouse } from "./warehouse";
 
 export const en = {
@@ -41,6 +42,7 @@ export const en = {
   personnel,
   profile,
   users,
+  userRoles,
   settings,
   shipments,
   branch,

@@ -104,8 +104,6 @@ type LineDraft = OrderAccountLine & {
 type PaidDraft = PaidOnBehalfLine & { amountText: string };
 type PromoDraft = PromoDeductionLine & { amountText: string };
 
-type ProductPricingTab = "summary" | "salesHistory" | "costHistory";
-
 type ShipmentOption = {
   key: string;
   warehouseId: number;
@@ -1469,7 +1467,6 @@ export function OrderAccountStatementScreen() {
   const [productPricingLineId, setProductPricingLineId] = useState<string | null>(null);
   const [productPricingProductId, setProductPricingProductId] = useState(0);
   const [productPricingTitle, setProductPricingTitle] = useState("");
-  const [productPricingTab, setProductPricingTab] = useState<ProductPricingTab>("summary");
   const [priceHistoryRows, setPriceHistoryRows] = useState<SalesPriceHistoryRow[]>([]);
   const [priceHistoryBusy, setPriceHistoryBusy] = useState(false);
   const [applyBranchOpenBalanceBusy, setApplyBranchOpenBalanceBusy] = useState(false);
@@ -2170,20 +2167,18 @@ export function OrderAccountStatementScreen() {
   );
   const closeProductPricingPanel = useCallback(() => {
     setProductPricingOpen(false);
-    setProductPricingTab("summary");
     setProductPricingLineId(null);
     setProductPricingProductId(0);
     setPriceHistoryRows([]);
   }, []);
 
   const openProductPricingPanel = useCallback(
-    (line: LineDraft, tab: ProductPricingTab = "summary") => {
+    (line: LineDraft) => {
       const productId = line.selectedProductId ?? 0;
       if (productId <= 0) return;
       setProductPricingLineId(line.id);
       setProductPricingProductId(productId);
       setProductPricingTitle(line.description?.trim() || t("reports.orderAccountStatementPickProduct"));
-      setProductPricingTab(tab);
       setPriceHistoryRows([]);
       setProductPricingOpen(true);
     },
@@ -2191,7 +2186,7 @@ export function OrderAccountStatementScreen() {
   );
 
   useEffect(() => {
-    if (!productPricingOpen || productPricingTab !== "salesHistory") return;
+    if (!productPricingOpen) return;
     if (!activeCounterparty || productPricingProductId <= 0) return;
     let cancelled = false;
     setPriceHistoryBusy(true);
@@ -2214,7 +2209,7 @@ export function OrderAccountStatementScreen() {
     return () => {
       cancelled = true;
     };
-  }, [productPricingOpen, productPricingTab, productPricingProductId, activeCounterparty]);
+  }, [productPricingOpen, productPricingProductId, activeCounterparty]);
 
   useEffect(() => {
     if (!activeCounterparty) return;
@@ -4806,197 +4801,211 @@ export function OrderAccountStatementScreen() {
         titleId="order-account-product-pricing-title"
         title={`Ürün · ${productPricingTitle || "—"}`}
         closeButtonLabel={t("common.close")}
-        className="w-full max-w-2xl"
+        wide
+        wideFullScreenMobile
       >
-        <div className="mt-1">
-          <div className="flex gap-1 rounded-lg bg-zinc-100 p-1">
-            {(
-              [
-                { id: "summary" as const, label: "Özet" },
-                { id: "salesHistory" as const, label: "Fiyat geçmişi" },
-                { id: "costHistory" as const, label: "Maliyet geçmişi" },
-              ] as const
-            ).map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                className={cn(
-                  "min-h-9 flex-1 rounded-md px-1.5 py-1.5 text-[11px] font-semibold transition-colors sm:px-2 sm:text-xs",
-                  productPricingTab === tab.id ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-600 hover:text-zinc-900"
-                )}
-                onClick={() => setProductPricingTab(tab.id)}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {productPricingTab === "summary" ? (
-            <div className="mt-4 space-y-3 text-sm text-zinc-800">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                {t("reports.orderAccountStatementPricingInfoTitle")}
-              </p>
-              {(() => {
-                const cost =
-                  productPricingProductId > 0 ? latestCostByProductId.get(productPricingProductId) : undefined;
-                const sales =
-                  productPricingLineId != null ? linePriceSuggestionByLineId[productPricingLineId] : undefined;
-                return (
-                  <>
-                    <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 px-3 py-2.5">
-                      <p className="text-xs font-semibold text-zinc-600">
-                        {t("reports.orderAccountStatementSuggestedCostShort")}
+        {(() => {
+          const cost =
+            productPricingProductId > 0 ? latestCostByProductId.get(productPricingProductId) : undefined;
+          const sales =
+            productPricingLineId != null ? linePriceSuggestionByLineId[productPricingLineId] : undefined;
+          const canRefreshSales =
+            !!activeCounterparty && !!productPricingLineId && productPricingProductId > 0;
+          return (
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto bg-zinc-50/40 px-3 py-4 sm:gap-5 sm:px-5 sm:py-5">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <article className="relative overflow-hidden rounded-2xl border border-amber-200/70 bg-gradient-to-br from-amber-50 via-white to-white p-4 shadow-sm sm:p-5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                      <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
+                      {t("reports.orderAccountStatementSuggestedCostShort")}
+                    </span>
+                  </div>
+                  {cost ? (
+                    <>
+                      <p className="mt-3 text-2xl font-semibold leading-tight tabular-nums text-zinc-950 sm:text-3xl">
+                        {formatLocaleAmount(Number(cost.unitCostExcludingVat || 0), locale, cost.currencyCode)}
                       </p>
-                      {cost ? (
-                        <p className="mt-1 text-sm">
-                          <span className="tabular-nums font-medium text-zinc-950">
-                            {formatLocaleAmount(Number(cost.unitCostExcludingVat || 0), locale, cost.currencyCode)}
-                          </span>
-                          <span className="text-zinc-400"> · </span>
-                          <span className="text-xs text-zinc-600">
-                            {t("reports.orderAccountStatementCostIncVatShort")}{" "}
-                          </span>
-                          <span className="tabular-nums font-medium text-zinc-950">
-                            {formatLocaleAmount(Number(cost.unitCostIncludingVat || 0), locale, cost.currencyCode)}
-                          </span>
-                        </p>
-                      ) : (
-                        <p className="mt-1 text-sm text-amber-800">
-                          {t("reports.orderAccountStatementCostSuggestionMissing")}
-                        </p>
-                      )}
-                    </div>
-                    <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 px-3 py-2.5">
-                      <p className="text-xs font-semibold text-zinc-600">
-                        {t("reports.orderAccountStatementSalesSuggestShort")}
+                      <p className="mt-1 text-[11px] uppercase tracking-wide text-zinc-500">
+                        KDV hariç
                       </p>
-                      {!activeCounterparty ? (
-                        <p className="mt-1 text-sm text-zinc-600">
-                          {t("reports.orderAccountStatementPricingInfoNoCounterparty")}
-                        </p>
-                      ) : sales ? (
-                        <p className="mt-1 text-sm">
-                          <span className="tabular-nums font-medium text-zinc-950">
-                            {formatLocaleAmount(Number(sales.suggestedUnitPrice || 0), locale, sales.currencyCode)}
-                          </span>
-                          <span className="text-xs text-zinc-500">
-                            {" "}
-                            ({sales.basis}, n={sales.sampleCount})
-                          </span>
-                        </p>
-                      ) : (
-                        <p className="mt-1 text-sm text-zinc-600">
-                          {t("reports.orderAccountStatementPricingInfoSalesPending")}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="min-h-9 text-xs"
-                        disabled={!activeCounterparty || !productPricingLineId || productPricingProductId <= 0}
-                        onClick={() => {
-                          if (productPricingLineId) {
-                            void loadSalesSuggestionForLine(
-                              productPricingLineId,
-                              productPricingProductId,
-                              true
-                            );
-                          }
-                        }}
-                      >
-                        Satış önerisini yenile
-                      </Button>
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          ) : null}
+                      <div className="mt-3 flex items-baseline gap-2 border-t border-amber-100 pt-2.5">
+                        <span className="text-[11px] uppercase tracking-wide text-zinc-500">
+                          {t("reports.orderAccountStatementCostIncVatShort")}
+                        </span>
+                        <span className="tabular-nums text-sm font-semibold text-zinc-800">
+                          {formatLocaleAmount(Number(cost.unitCostIncludingVat || 0), locale, cost.currencyCode)}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="mt-4 text-sm text-amber-800">
+                      {t("reports.orderAccountStatementCostSuggestionMissing")}
+                    </p>
+                  )}
+                </article>
+                <article className="relative overflow-hidden rounded-2xl border border-violet-200/70 bg-gradient-to-br from-violet-50 via-white to-white p-4 shadow-sm sm:p-5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-100/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800">
+                      <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-violet-500" />
+                      {t("reports.orderAccountStatementSalesSuggestShort")}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={!canRefreshSales}
+                      onClick={() => {
+                        if (productPricingLineId) {
+                          void loadSalesSuggestionForLine(
+                            productPricingLineId,
+                            productPricingProductId,
+                            true
+                          );
+                        }
+                      }}
+                      className="inline-flex h-7 items-center gap-1 rounded-full border border-violet-200 bg-white/80 px-2 text-[11px] font-medium text-violet-700 transition hover:bg-violet-50 disabled:pointer-events-none disabled:opacity-40"
+                      aria-label="Satış önerisini yenile"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                        <path d="M21 12a9 9 0 1 1-3-6.7" />
+                        <path d="M21 4v5h-5" />
+                      </svg>
+                      Yenile
+                    </button>
+                  </div>
+                  {!activeCounterparty ? (
+                    <p className="mt-4 text-sm text-zinc-600">
+                      {t("reports.orderAccountStatementPricingInfoNoCounterparty")}
+                    </p>
+                  ) : sales ? (
+                    <>
+                      <p className="mt-3 text-2xl font-semibold leading-tight tabular-nums text-zinc-950 sm:text-3xl">
+                        {formatLocaleAmount(Number(sales.suggestedUnitPrice || 0), locale, sales.currencyCode)}
+                      </p>
+                      <p className="mt-1 text-[11px] uppercase tracking-wide text-zinc-500">
+                        Bu cariye önerilen
+                      </p>
+                      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-violet-100 pt-2.5 text-[11px] text-zinc-600">
+                        <span className="inline-flex items-center gap-1">
+                          <span className="text-zinc-400">Yöntem:</span>
+                          <span className="font-medium text-zinc-700">{sales.basis}</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                          <span className="text-zinc-400">Örneklem:</span>
+                          <span className="font-medium text-zinc-700">n={sales.sampleCount}</span>
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="mt-4 text-sm text-zinc-600">
+                      {t("reports.orderAccountStatementPricingInfoSalesPending")}
+                    </p>
+                  )}
+                </article>
+              </div>
 
-          {productPricingTab === "salesHistory" ? (
-            <div className="mt-4">
-              {!activeCounterparty ? (
-                <p className="text-sm text-zinc-600">
-                  {t("reports.orderAccountStatementPricingInfoNoCounterparty")}
-                </p>
-              ) : priceHistoryBusy ? (
-                <p className="text-sm text-zinc-600">{t("common.loading")}</p>
-              ) : priceHistoryRows.length === 0 ? (
-                <p className="text-sm text-zinc-500">Kayıt bulunamadı.</p>
-              ) : (
-                <div className="max-h-[55vh] overflow-auto rounded-md border border-zinc-200">
-                  <table className="w-full min-w-[640px] border-collapse text-xs">
-                    <thead>
-                      <tr className="border-b border-zinc-200 bg-zinc-50 text-zinc-700">
-                        <th className="px-2 py-2 text-left">Tarih</th>
-                        <th className="px-2 py-2 text-left">Cari</th>
-                        <th className="px-2 py-2 text-right">Birim fiyat</th>
-                        <th className="px-2 py-2 text-left">Birim</th>
-                        <th className="px-2 py-2 text-left">Kaynak fatura</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {priceHistoryRows.map((row) => (
-                        <tr key={row.id} className="border-b border-zinc-100 text-zinc-800 last:border-0">
-                          <td className="px-2 py-1.5">{row.issueDate}</td>
-                          <td className="px-2 py-1.5">{row.counterpartyName}</td>
-                          <td className="px-2 py-1.5 text-right tabular-nums">
-                            {formatLocaleAmount(Number(row.unitPrice || 0), locale, row.currencyCode)}
-                          </td>
-                          <td className="px-2 py-1.5">{row.unit || "—"}</td>
-                          <td className="px-2 py-1.5">
-                            {row.sourceOutboundInvoiceId ? `#${row.sourceOutboundInvoiceId}` : "—"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          ) : null}
+              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4">
+                <section className="flex min-h-[14rem] flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+                  <header className="flex items-center justify-between gap-2 border-b border-zinc-100 px-3 py-2.5 sm:px-4">
+                    <div className="flex items-center gap-2">
+                      <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-violet-500" />
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-700">
+                        Önceki satışlar
+                      </h3>
+                    </div>
+                    {activeCounterparty && priceHistoryRows.length > 0 ? (
+                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-600">
+                        {priceHistoryRows.length}
+                      </span>
+                    ) : null}
+                  </header>
+                  <div className="min-h-0 flex-1 overflow-auto">
+                    {!activeCounterparty ? (
+                      <p className="px-4 py-6 text-sm text-zinc-500">
+                        {t("reports.orderAccountStatementPricingInfoNoCounterparty")}
+                      </p>
+                    ) : priceHistoryBusy ? (
+                      <p className="px-4 py-6 text-sm text-zinc-500">{t("common.loading")}</p>
+                    ) : priceHistoryRows.length === 0 ? (
+                      <p className="px-4 py-6 text-sm text-zinc-500">Kayıt bulunamadı.</p>
+                    ) : (
+                      <ul className="divide-y divide-zinc-100">
+                        {priceHistoryRows.map((row) => (
+                          <li key={row.id} className="px-3 py-2.5 transition hover:bg-zinc-50 sm:px-4">
+                            <div className="flex items-baseline justify-between gap-3">
+                              <span className="text-xs font-medium text-zinc-500">{row.issueDate}</span>
+                              <span className="tabular-nums text-sm font-semibold text-zinc-950">
+                                {formatLocaleAmount(Number(row.unitPrice || 0), locale, row.currencyCode)}
+                                {row.unit ? (
+                                  <span className="ml-1 text-[10px] font-normal text-zinc-500">/{row.unit}</span>
+                                ) : null}
+                              </span>
+                            </div>
+                            <div className="mt-0.5 flex items-center justify-between gap-3 text-[11px] text-zinc-600">
+                              <span className="truncate">{row.counterpartyName}</span>
+                              {row.sourceOutboundInvoiceId ? (
+                                <span className="shrink-0 rounded bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-600">
+                                  #{row.sourceOutboundInvoiceId}
+                                </span>
+                              ) : null}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </section>
 
-          {productPricingTab === "costHistory" ? (
-            <div className="mt-4">
-              {productPricingCostRows.length === 0 ? (
-                <p className="text-sm text-zinc-500">Maliyet kaydı bulunamadı.</p>
-              ) : (
-                <div className="max-h-[55vh] overflow-auto rounded-md border border-zinc-200">
-                  <table className="w-full min-w-[520px] border-collapse text-xs">
-                    <thead>
-                      <tr className="border-b border-zinc-200 bg-zinc-50 text-zinc-700">
-                        <th className="px-2 py-2 text-left">Geçerlilik</th>
-                        <th className="px-2 py-2 text-left">Birim</th>
-                        <th className="px-2 py-2 text-right">KDV hariç</th>
-                        <th className="px-2 py-2 text-right">KDV dahil</th>
-                        <th className="px-2 py-2 text-left">Not</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {productPricingCostRows.map((row) => (
-                        <tr key={row.id} className="border-b border-zinc-100 text-zinc-800 last:border-0">
-                          <td className="px-2 py-1.5">{row.effectiveDate}</td>
-                          <td className="px-2 py-1.5">{row.unit || "—"}</td>
-                          <td className="px-2 py-1.5 text-right tabular-nums">
-                            {formatLocaleAmount(Number(row.unitCostExcludingVat || 0), locale, row.currencyCode)}
-                          </td>
-                          <td className="px-2 py-1.5 text-right tabular-nums">
-                            {formatLocaleAmount(Number(row.unitCostIncludingVat || 0), locale, row.currencyCode)}
-                          </td>
-                          <td className="max-w-[10rem] truncate px-2 py-1.5 text-zinc-600" title={row.note ?? ""}>
-                            {(row.note ?? "").trim() || "—"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                <section className="flex min-h-[14rem] flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+                  <header className="flex items-center justify-between gap-2 border-b border-zinc-100 px-3 py-2.5 sm:px-4">
+                    <div className="flex items-center gap-2">
+                      <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
+                      <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-700">
+                        Maliyet geçmişi
+                      </h3>
+                    </div>
+                    {productPricingCostRows.length > 0 ? (
+                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-600">
+                        {productPricingCostRows.length}
+                      </span>
+                    ) : null}
+                  </header>
+                  <div className="min-h-0 flex-1 overflow-auto">
+                    {productPricingCostRows.length === 0 ? (
+                      <p className="px-4 py-6 text-sm text-zinc-500">Maliyet kaydı bulunamadı.</p>
+                    ) : (
+                      <ul className="divide-y divide-zinc-100">
+                        {productPricingCostRows.map((row) => (
+                          <li key={row.id} className="px-3 py-2.5 transition hover:bg-zinc-50 sm:px-4">
+                            <div className="flex items-baseline justify-between gap-3">
+                              <span className="text-xs font-medium text-zinc-500">{row.effectiveDate}</span>
+                              <span className="tabular-nums text-sm font-semibold text-zinc-950">
+                                {formatLocaleAmount(Number(row.unitCostExcludingVat || 0), locale, row.currencyCode)}
+                                {row.unit ? (
+                                  <span className="ml-1 text-[10px] font-normal text-zinc-500">/{row.unit}</span>
+                                ) : null}
+                              </span>
+                            </div>
+                            <div className="mt-0.5 flex items-center justify-between gap-3 text-[11px] text-zinc-600">
+                              <span className="truncate">
+                                {(row.note ?? "").trim() || (
+                                  <span className="text-zinc-400">Not yok</span>
+                                )}
+                              </span>
+                              <span className="shrink-0 tabular-nums text-zinc-500">
+                                <span className="text-zinc-400">KDV dahil </span>
+                                {formatLocaleAmount(Number(row.unitCostIncludingVat || 0), locale, row.currencyCode)}
+                              </span>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </section>
+              </div>
             </div>
-          ) : null}
-        </div>
+          );
+        })()}
       </Modal>
     </div>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth/AuthContext";
+import { PERM, hasPermissionCode } from "@/lib/auth/permissions";
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
 import { Card } from "@/shared/components/Card";
@@ -29,7 +30,7 @@ export function PersonnelHeldCashReconciliationScreen() {
   const { t } = useI18n();
   const router = useRouter();
   const { user, isReady } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
+  const isAdmin = hasPermissionCode(user, PERM.systemAdmin);
 
   useEffect(() => {
     if (isReady && user && !isAdmin) router.replace("/personnel");

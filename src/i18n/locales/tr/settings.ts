@@ -30,6 +30,13 @@ export const settings = {
     "Kutuları işaretleyip kaydedin. Kayıt yalnız bu rol için geçerlidir; aynı role sahip kullanıcılar bir sonraki istekte güncellenmiş paketi alır.",
   authzRolePermissionCount: "{current} / {total} izin",
   authzExpandRoleAria: "{role} rolü için izinleri düzenle",
+  authzImpliedBy: "Kapsanır: {code}",
+  authzImpliedByLabel: "Kapsanır",
+  authzCoversN: "{n} izni kapsar",
+  authzSearchPlaceholder: "İzin ara (kod, ekran veya açıklamada)…",
+  authzSearchNoMatch: "Aramayla eşleşen izin bulunamadı.",
+  authzBulkAll: "Hepsi",
+  authzBulkNone: "Hiçbiri",
   notificationsCardTitle: "Bildirimler",
   notificationsCardDesc:
     "Kurum genelinde operasyon hatırlatıcılarını (zil, API, günlük toast) açıp kapatabilirsiniz.",

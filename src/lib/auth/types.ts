@@ -6,8 +6,11 @@ export type AuthUser = {
   id: number;
   username: string;
   fullName: string;
+  /** Primary role (sort_order'da ilk) — geriye dönük uyum için. Yeni kod `roles` kullanır. */
   role: string;
-  /** DB role_permissions; matris ile yönetilir. */
+  /** Kullanıcının atanmış TÜM rolleri (multi-role destekli). */
+  roles?: string[] | null;
+  /** DB role_permissions; matris ile yönetilir. Çoklu rolün union'ı + user_permissions override. */
   permissionCodes?: string[] | null;
   personnelId: number | null;
   /** personnel.branch_id — PERSONNEL kapsamı için */

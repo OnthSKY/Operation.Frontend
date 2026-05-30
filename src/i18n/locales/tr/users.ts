@@ -22,30 +22,30 @@ export const users = {
   fieldRole: "Rol",
   fieldPersonnel: "Personel (isteğe bağlı)",
   personnelPlaceholder: "Bağlama",
-  roleAdmin: "Yönetici",
-  roleStaff: "Operasyon personeli",
-  rolePersonnel: "Şube personeli (sınırlı erişim)",
-  roleDriver: "Depo şoförü (yalnız sevkiyat)",
-  roleViewer: "Salt okunur (özet ve raporlar)",
-  roleFinance: "Muhasebe ve finans",
-  roleProcurement: "Satınalma ve depo",
-  roleBranchDayRegister: "Şube gün sonu kasiyeri (yalnız bugün + atanmış avans)",
+  roleAdmin: "Sistem Yöneticisi",
+  roleStaff: "Operasyon Personeli",
+  rolePersonnel: "Şube Personeli",
+  roleDriver: "Depo Şoförü",
+  roleViewer: "Salt Okunur Görüntüleyici",
+  roleFinance: "Muhasebe / Finans Sorumlusu",
+  roleProcurement: "Satınalma ve Depo Sorumlusu",
+  roleBranchDayRegister: "Şube Gün Sonu Kasiyeri",
   roleDetailAdmin:
-    "Tüm menüler (şube, personel, depo, ürün, tedarikçi, raporlar, kullanıcılar, yetkilendirme matrisi). Varsayılan olarak en geniş API erişimi; ince ayar matristen ve isteğe bağlı kullanıcı düzeyi geçersiz kılmalarla yapılır.",
+    "Tüm sistem ayarları, kullanıcı/rol yönetimi, yetki matrisi ve veri kapsamlarını düzenler. system.admin jokeri sayesinde tüm modül ve API'lere açıktır; admin.users.data_scopes hariç hiçbir kapsamla kısıtlanamaz.",
   roleDetailStaff:
-    "Operasyon paketi: şubeler, personel, depo hareketleri, ürünler, raporlar ve çoğu günlük iş ekranı. Tam izin seti Yetkilendirme matrisindeki «Operasyon personeli» satırına göredir.",
+    "Operasyon paketi: şube kasası, personel, depo hareketleri, ürünler, tedarikçiler, raporlar ve sevkiyat akışları. operations.staff jokeri tüm ui.* modüllerini açar; ince-grenli operasyon kodları (silme, ters çevirme, bordro yazımı) açıkça matristen verilmedikçe kapalıdır.",
   roleDetailPersonnel:
-    "Daraltılmış menü (tipik olarak şubeler, avanslarım vb.). Atandığı şubenin kartı ve kendisiyle ilgili veriler. Rol için şubeli bir personel kaydı gerekir.",
+    "Şube kartına bağlı personel. Yalnız atandığı şubede gelir/gider girer, şube stoku işler ve kendi avansını/cep özetini görür. Finansal toplamlar gizlidir (branch.financials.view yok), birden fazla şube görmez (branch.cross_branch.view yok). Hesabın personel kaydına ve şubesi atanmış olmasına bağlıdır.",
   roleDetailDriver:
-    "Şubeler ve depo; size atanan sevkiyatları görme ve imzalama. Personel bağlantısı zorunludur. İstenirse «kendi mali görünümü» ile kendi avans ve gider özetini açabilirsiniz.",
+    "Depodan şubeye sevkiyat yapan şoför. Yalnızca kendisine atanmış sevkiyatları görür ve tamamlar, depoda yalnız kendi oluşturduğu hareketleri listeler (warehouse.cross_user.view yok). İstenirse «kendi mali görünümü» ile kendi avans/gider özetini açabilir. Personel kaydı zorunludur.",
   roleDetailViewer:
-    "Özet, raporlar ve günlük şube kasası gibi salt okunur ekranlar; veri oluşturma veya onaylama yoktur.",
+    "Salt okunur özet, raporlar ve günlük şube kasası ekranları. Hiçbir yazma/onay işlemi yok; finansal raporlar (ui.reports.financial) ve şube finansal toplamları (branch.financials.view) görüntülenebilir. Yetki matrisinden okuma izinleri daraltılabilir.",
   roleDetailFinance:
-    "Özet, raporlar, personel maliyetleri, şubeler, genel gider, ürün ve tedarikçi; muhasebe ve maliyet odaklı görünümler. Ayrıntılar matristeki «Muhasebe ve finans» satırına göredir.",
+    "Muhasebe ve merkez finans odaklı rol. Şube finansal toplamları, personel maaş/avans verileri ve finans rapor hubı (/reports/financial) açıktır. operations.staff jokeriyle çoğu ofis modülüne yazma erişimi de varsayılan açıktır.",
   roleDetailProcurement:
-    "Özet, raporlar, şubeler, depo, ürün ve tedarikçi; satınalma, stok ve tedarik iş akışları. Ayrıntılar matristeki «Satınalma ve depo» satırına göredir.",
+    "Satınalma, depo ve sevkiyat odaklı rol. Şubeler, depo hareketleri, ürünler ve tedarikçi modülleri açıktır; warehouse.driver kapsamı ile şoför akışlarına da erişebilir. Genel gider ve sigorta modülleri kapalıdır.",
   roleDetailBranchDayRegister:
-    "Yalnızca atanan şubeler: bugünkü kasa hareketleri ve veri kapsamında «Avans hedefi» olarak işaretlenen personellere kasadan avans. Tam şube modülü yok; başkalarının geçmiş avanslarını görmez.",
+    "Atanmış şubelerde gün sonu kasası tutar. Yalnız bugünün kasa kayıtlarını görüp/yazıp/siler (branch.transactions.today_only). Sadece veri kapsamında «Avans hedefi» (ADVANCE_DELEGATE_TARGET) işaretli personellere kasadan avans verebilir. Tam Şubeler modülü açık değildir; user_branch_scopes ile atanmış şubeler dışına çıkamaz.",
   branchDayRegisterSetupTitle: "Bu rol için kurulumu tamamlayın",
   branchDayRegisterSetupIntro:
     "Şube ve (isteğe bağlı) avans hedefi satırları «Veri kapsamları»nda tanımlanmadan hesap çalışmaz.",
@@ -151,6 +151,25 @@ export const users = {
   tableMfa: "MFA",
   mfaOnShort: "Açık",
   mfaOffShort: "Kapalı",
+  mfaAdminDisableButton: "MFA'yı kapat",
+  mfaAdminEnableButton: "MFA'yı tekrar aç",
+  mfaAdminDisableTooltip:
+    "Kullanıcının MFA'sini pasif yapar (kayıtlı authenticator kodu silinmez). Daha sonra aynı yerden geri açtığınızda kullanıcı eski koduyla devam eder. Açık oturumları sonlandırır. Yalnız Sistem Yöneticisi.",
+  mfaAdminEnableTooltip:
+    "Daha önce kapatılan MFA'yı geri açar. Kullanıcının kayıtlı authenticator kodu değişmediği için aynı kodla giriş yapabilir. Açık oturumları sonlandırır. Yalnız Sistem Yöneticisi.",
+  mfaAdminUnavailableTooltip:
+    "Kullanıcı henüz MFA kurmamış (ya da kendisi kapatıp temizlemiş). Geri açılamaz; kullanıcının profilinden sıfırdan kurması gerekir.",
+  mfaAdminForbidden: "MFA durumunu yalnız Sistem Yöneticisi değiştirebilir.",
+  mfaAdminToggleDialogTitleDisable: "MFA'yı kapat",
+  mfaAdminToggleDialogTitleEnable: "MFA'yı tekrar aç",
+  mfaAdminToggleDialogDescriptionDisable:
+    "«{username}» hesabının MFA'sini kapatmak üzeresiniz. Authenticator kodu sunucuda korunacak; istediğinizde aynı yerden geri açabilirsiniz. Kullanıcının açık oturumları sonlanacak. Onaylıyor musunuz?",
+  mfaAdminToggleDialogDescriptionEnable:
+    "«{username}» hesabının MFA'sini tekrar açmak üzeresiniz. Kullanıcı, daha önce kurduğu authenticator kodu ile giriş yapabilecek (kod değişmedi). Açık oturumlar sonlanır ve bir sonraki girişte tekrar doğrulama isteyecek. Onaylıyor musunuz?",
+  mfaAdminToggleConfirmDisable: "MFA'yı kapat",
+  mfaAdminToggleConfirmEnable: "MFA'yı tekrar aç",
+  mfaAdminDisabledToast: "MFA kapatıldı. Kullanıcı tekrar giriş yapmalı.",
+  mfaAdminEnabledToast: "MFA tekrar açıldı. Kullanıcı eski kodu ile devam edebilir.",
   listOverrideNone: "Özel izin satırı yok",
   listOverrideSome: "{count} özel izin",
   listScopeNone: "Özel veri kapsamı yok",

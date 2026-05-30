@@ -52,7 +52,11 @@ import { useHashScroll } from "@/shared/lib/use-hash-scroll";
 import type { Personnel, PersonnelJobTitle } from "@/types/personnel";
 import { ToolbarGlyphUserPlus } from "@/shared/ui/ToolbarGlyph";
 import Link from "next/link";
-import { canManageUserDataScopes } from "@/lib/auth/permissions";
+import {
+  canManageUserDataScopes,
+  hasPermissionCode,
+  PERM,
+} from "@/lib/auth/permissions";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -605,7 +609,8 @@ export function PersonnelScreen() {
   const { openPersonnelDetail: openPersonnelDetailOverlay } = usePersonnelDetailOverlay();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const isAdmin = user?.role === "ADMIN";
+  // Capability tabanlı kontrol: system.admin'i override ile alan biri de "sistem yöneticisi" sayılır.
+  const isAdmin = hasPermissionCode(user, PERM.systemAdmin);
   const personnelPortal = isPersonnelPortalRole(user?.role);
   useHashScroll();
   useEffect(() => {

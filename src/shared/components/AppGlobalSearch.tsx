@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth/AuthContext";
-import { isPersonnelPortalRole } from "@/lib/auth/roles";
+import { canViewAllBranches, hasPermissionCode, PERM } from "@/lib/auth/permissions";
 import { useI18n } from "@/i18n/context";
 import { fetchGlobalSearch, type GlobalSearchHit } from "@/shared/api/global-search-api";
 import { cn } from "@/lib/cn";
@@ -26,6 +26,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 
 const DEBOUNCE_MS = 320;
 const MIN_ENTITY_QUERY_LEN = 2;
@@ -66,11 +67,13 @@ type SearchKindOption = {
 export function AppGlobalSearch() {
   const { t, locale } = useI18n();
   const { user } = useAuth();
-  const personnelPortal = isPersonnelPortalRole(user?.role);
+  const restrictToOwnBranchSearch = !canViewAllBranches(user);
+  const canSearchUsers = hasPermissionCode(user, PERM.systemAdmin);
   const router = useRouter();
   const { openBranchDetail } = useBranchDetailOverlay();
   const { openPersonnelDetail } = usePersonnelDetailOverlay();
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -102,10 +105,9 @@ export function AppGlobalSearch() {
     [t]
   );
   const availableKindOptions = useMemo(() => {
-    const admin = user?.role === "ADMIN";
     return kindOptions.filter((opt) => {
-      if (!admin && opt.kind === "user") return false;
-      if (personnelPortal) {
+      if (!canSearchUsers && opt.kind === "user") return false;
+      if (restrictToOwnBranchSearch) {
         return (
           opt.kind === "branch" ||
           opt.kind === "vehicle" ||
@@ -114,7 +116,7 @@ export function AppGlobalSearch() {
       }
       return true;
     });
-  }, [kindOptions, user?.role, personnelPortal]);
+  }, [kindOptions, restrictToOwnBranchSearch, canSearchUsers]);
 
   useEffect(() => {
     if (!entityQueryOk) {
@@ -152,7 +154,7 @@ export function AppGlobalSearch() {
   }, [availableKindOptions]);
 
   const navFiltered = useMemo(() => {
-    const base = personnelPortal
+    const base = restrictToOwnBranchSearch
       ? GLOBAL_SEARCH_ITEMS.filter((i) => !GLOBAL_SEARCH_DENY_FOR_PERSONNEL.has(i.id))
       : [...GLOBAL_SEARCH_ITEMS];
     const q = norm(query.trim(), loc);
@@ -164,7 +166,7 @@ export function AppGlobalSearch() {
       const hay = `${title} ${sub} ${extra}`;
       return hay.includes(q);
     });
-  }, [query, t, loc, personnelPortal]);
+  }, [query, t, loc, restrictToOwnBranchSearch]);
 
   const rows: Row[] = useMemo(() => {
     const navRows = navFiltered.map((nav) => ({ type: "nav" as const, nav }));
@@ -234,6 +236,10 @@ export function AppGlobalSearch() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const onOpen = () => setOpen(true);
@@ -317,17 +323,18 @@ export function AppGlobalSearch() {
         </button>
       </Tooltip>
 
-      {open ? (
-        <div
-          className={`fixed inset-0 ${OVERLAY_Z_TW.globalSearch} flex items-stretch justify-center bg-transparent p-2 pt-[max(0.5rem,env(safe-area-inset-top,0px))] pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:items-start sm:p-3 sm:pt-16 sm:pb-3`}
-          role="presentation"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) {
-              setOpen(false);
-              setQuery("");
-            }
-          }}
-        >
+      {open && mounted
+        ? createPortal(
+            <div
+              className={`fixed inset-0 ${OVERLAY_Z_TW.globalSearch} flex items-stretch justify-center bg-transparent p-2 pt-[max(0.5rem,env(safe-area-inset-top,0px))] pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] sm:items-start sm:p-3 sm:pt-16 sm:pb-3`}
+              role="presentation"
+              onMouseDown={(e) => {
+                if (e.target === e.currentTarget) {
+                  setOpen(false);
+                  setQuery("");
+                }
+              }}
+            >
           <div
             role="dialog"
             aria-label={t("search.open")}
@@ -559,8 +566,10 @@ export function AppGlobalSearch() {
               )}
             </div>
           </div>
-        </div>
-      ) : null}
+        </div>,
+            document.body,
+          )
+        : null}
     </>
   );
 }

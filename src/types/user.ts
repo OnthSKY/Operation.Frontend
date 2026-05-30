@@ -19,6 +19,12 @@ export type UserListItem = {
   allowPersonnelSelfFinancials: boolean;
   /** Sunucu: TOTP / MFA etkin mi */
   totpEnabled?: boolean;
+  /**
+   * Sunucu: kullanıcının TOTP secret'ı kayıtlı mı.
+   * `totpEnabled=false` + `totpSecretPresent=true` = admin kapatmış, geri açılabilir (kullanıcı eski kodu kullanır).
+   * `totpSecretPresent=false` = hiç kurulmamış veya kullanıcı kendisi kapatmış (secret silinmiş).
+   */
+  totpSecretPresent?: boolean;
   /** `user_permissions` satır sayısı */
   permissionOverrideCount?: number;
   /** Şube + depo + personel kapsam ataması satırları toplamı */

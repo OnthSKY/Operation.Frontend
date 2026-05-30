@@ -21,30 +21,30 @@ export const users = {
   fieldRole: "Role",
   fieldPersonnel: "Personnel (optional)",
   personnelPlaceholder: "No link",
-  roleAdmin: "Administrator",
-  roleStaff: "Operations staff",
-  rolePersonnel: "Branch staff (limited access)",
-  roleDriver: "Warehouse driver (shipments only)",
-  roleViewer: "Read-only (dashboard & reports)",
-  roleFinance: "Finance & accounting",
-  roleProcurement: "Procurement & warehouse",
-  roleBranchDayRegister: "Branch day register (today only + delegated advances)",
+  roleAdmin: "System Administrator",
+  roleStaff: "Operations Staff",
+  rolePersonnel: "Branch Personnel",
+  roleDriver: "Warehouse Driver",
+  roleViewer: "Read-only Viewer",
+  roleFinance: "Finance / Accounting Lead",
+  roleProcurement: "Procurement & Warehouse Lead",
+  roleBranchDayRegister: "Branch Day Register Clerk",
   roleDetailAdmin:
-    "All menus (branches, personnel, warehouse, products, suppliers, reports, users, authorization matrix). Broadest default API access; fine‑tuning is done in the matrix and optional per-user overrides.",
+    "Full control over system settings, user/role management, the authorization matrix, and per-user data scopes. The system.admin wildcard grants access to every module and API; only admin.users.data_scopes still requires an explicit grant.",
   roleDetailStaff:
-    "Operations bundle: branches, personnel, warehouse movements, products, reports, and most day‑to‑day screens. The full permission set follows the “Operations staff” row in the Authorization matrix.",
+    "Broad operations role: branch register, personnel, warehouse movements, products, suppliers, reports, and shipment workflows. The operations.staff wildcard opens every ui.* module; fine-grained codes (delete/reverse, payroll write, etc.) must still be granted explicitly in the matrix.",
   roleDetailPersonnel:
-    "A reduced sidebar (typically branches, my advances, etc.). The assigned branch card and self-related data. Requires a personnel record with a branch before assigning this role.",
+    "Branch personnel tied to a personnel card. May only operate on their assigned branch (no branch.cross_branch.view) and sees no financial totals (no branch.financials.view). Sees own advances and pocket summaries. Requires a personnel record with a branch assignment.",
   roleDetailDriver:
-    "Branches and warehouse; view and sign shipments assigned to you. A personnel link is required. “Own finances” can expose the driver’s own advances and attributed expenses when enabled.",
+    "Warehouse driver completing branch shipments. Sees only their own warehouse movements/transfers (no warehouse.cross_user.view) and shipment assignments. With «own financials» enabled, may see their own advances and attributed expenses. A personnel link is required.",
   roleDetailViewer:
-    "Read-only areas such as dashboard, reports, and daily branch register views; no creating or approving data.",
+    "Read-only access to dashboard, reports, and daily branch register views. No write/approve actions. Has branch.financials.view and ui.reports.financial by default; the matrix can narrow specific reads.",
   roleDetailFinance:
-    "Dashboard, reports, personnel costs, branches, general overhead, products, and suppliers — finance-focused views. Details follow the “Finance & accounting” row in the matrix.",
+    "Finance / accounting focused role. Sees branch financial totals, personnel payroll/advance data, and the financial analysis hub (/reports/financial). operations.staff wildcard also grants write access to most office modules by default.",
   roleDetailProcurement:
-    "Dashboard, reports, branches, warehouse, products, and suppliers — procurement and stock workflows. Details follow the “Procurement & warehouse” row in the matrix.",
+    "Procurement, warehouse, and shipment focused role. Branches, warehouse movements, products, and suppliers are open; warehouse.driver code also grants access to driver flows. General overhead and insurance modules are closed.",
   roleDetailBranchDayRegister:
-    "Assigned branches only: enter today’s register movements, and cash advances only for personnel explicitly marked in data scopes (ADVANCE_DELEGATE_TARGET). No full branch module, no historical advances created by others.",
+    "Day-end cashier for assigned branches. Limited to today's register entries (branch.transactions.today_only). Can only create register-cash advances for personnel marked as ADVANCE_DELEGATE_TARGET in data scopes. No full Branches module access; cannot leave the branches assigned via user_branch_scopes.",
   branchDayRegisterSetupTitle: "Finish setup for this role",
   branchDayRegisterSetupIntro:
     "The account cannot work until you assign branches (and optional advance targets) in Data scopes.",
@@ -149,6 +149,25 @@ export const users = {
   tableMfa: "MFA",
   mfaOnShort: "On",
   mfaOffShort: "Off",
+  mfaAdminDisableButton: "Disable MFA",
+  mfaAdminEnableButton: "Re-enable MFA",
+  mfaAdminDisableTooltip:
+    "Disable the user's MFA without clearing the secret. You can re-enable it later from the same place and the user keeps using their existing authenticator code. Open sessions are ended. System administrator only.",
+  mfaAdminEnableTooltip:
+    "Re-enable a previously disabled MFA. The user's authenticator code is preserved so they can sign in with the same code. Open sessions are ended. System administrator only.",
+  mfaAdminUnavailableTooltip:
+    "The user has not set up MFA yet (or cleared it themselves). It cannot be re-enabled here; they must enroll again from their profile.",
+  mfaAdminForbidden: "Only the System Administrator can change MFA state.",
+  mfaAdminToggleDialogTitleDisable: "Disable MFA",
+  mfaAdminToggleDialogTitleEnable: "Re-enable MFA",
+  mfaAdminToggleDialogDescriptionDisable:
+    "You are about to disable MFA for «{username}». The authenticator secret will be preserved so you can re-enable from the same place. Their open sessions will end. Proceed?",
+  mfaAdminToggleDialogDescriptionEnable:
+    "You are about to re-enable MFA for «{username}». The user can sign in with their previously enrolled authenticator code (it has not changed). Open sessions end and MFA will be requested on next login. Proceed?",
+  mfaAdminToggleConfirmDisable: "Disable MFA",
+  mfaAdminToggleConfirmEnable: "Re-enable MFA",
+  mfaAdminDisabledToast: "MFA disabled. The user must sign in again.",
+  mfaAdminEnabledToast: "MFA re-enabled. The user can continue with their existing code.",
   listOverrideNone: "No per-user permission rows",
   listOverrideSome: "{count} permission override(s)",
   listScopeNone: "No custom data scope rows",

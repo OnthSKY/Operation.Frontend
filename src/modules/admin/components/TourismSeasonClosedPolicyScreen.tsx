@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/auth/AuthContext";
+import { PERM, hasPermissionCode } from "@/lib/auth/permissions";
 import type { UpdateTourismSeasonClosedPolicyBody } from "@/modules/admin/api/tourism-season-closed-policy-api";
 import {
   useTourismSeasonClosedPolicyQuery,
@@ -30,13 +31,13 @@ export function TourismSeasonClosedPolicyScreen() {
   const router = useRouter();
   const { user, isReady } = useAuth();
   const { data, isPending, isError, error, refetch } = useTourismSeasonClosedPolicyQuery(
-    Boolean(user && user.role === "ADMIN")
+    hasPermissionCode(user, PERM.systemAdmin)
   );
   const mut = useUpdateTourismSeasonClosedPolicyMutation();
   const [draft, setDraft] = useState<UpdateTourismSeasonClosedPolicyBody>({});
 
   useEffect(() => {
-    if (isReady && user && user.role !== "ADMIN") router.replace("/personnel");
+    if (isReady && user && !hasPermissionCode(user, PERM.systemAdmin)) router.replace("/personnel");
   }, [isReady, user, router]);
 
   if (!isReady || !user) {
@@ -47,7 +48,7 @@ export function TourismSeasonClosedPolicyScreen() {
     );
   }
 
-  if (user.role !== "ADMIN") {
+  if (!hasPermissionCode(user, PERM.systemAdmin)) {
     return (
       <div className="flex flex-1 items-center justify-center p-8 text-zinc-500">
         {t("common.loading")}

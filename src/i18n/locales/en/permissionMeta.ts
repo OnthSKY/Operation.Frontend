@@ -39,17 +39,16 @@ export const permissionMeta = {
   screen_ui_import: "Menu: Data import (when enabled in your build)",
 
   screen_branch_transactions_today_only: "Branch register: limit edits to “today only” for this user",
-  screen_branch_view: "Branches module: open branch screens",
-  screen_branch_summary_view: "Branch cards: summary / operational overview",
   screen_branch_operations_write: "Branch register: add or change cash / income / expense lines",
   screen_branch_stock_write: "Branch: stock and transfer actions from branch UI",
   screen_branch_all_data_view: "Branch detail: full financial / HR / stock visibility",
   screen_branch_delete_or_reverse: "Branch: delete, reverse, or reopen register records",
+  screen_branch_cross_branch_view: "Branches: list multiple branches; absence = restricted to assigned branch",
+  screen_branch_financials_view: "Branch summaries: see cash / income / expense totals",
 
   screen_advances_delegated_branch:
     "Advances: list delegate targets and create register-cash advances for scoped personnel (day clerk)",
 
-  screen_personnel_self_view: "Personnel: view own profile card",
   screen_personnel_self_financials_view: "Personnel: own advances / pocket summaries",
   screen_personnel_branch_summary_view: "Personnel: list & summary for a branch",
   screen_personnel_branch_all_data_view: "Personnel: detailed HR/finance for people in a branch",
@@ -57,17 +56,27 @@ export const permissionMeta = {
   screen_personnel_write: "Personnel: create or edit personnel cards",
   screen_personnel_payroll_write: "Personnel: payroll parameters and payouts",
 
-  screen_warehouse_view: "Warehouse module: open warehouse screens",
   screen_warehouse_movement_write: "Warehouse: create in/out movements",
+  screen_warehouse_delete_or_reverse: "Warehouse: delete or reverse movement records (separate from write)",
   screen_warehouse_transfer_write: "Warehouse: transfers to branches",
   screen_warehouse_all_data_view: "Warehouse: costing and full movement detail",
   screen_warehouse_inbound_view: "Warehouse: inbound (IN) movement views",
   screen_warehouse_outbound_view: "Warehouse: outbound (OUT) movement views",
   screen_warehouse_aggregates_view: "Warehouse: totals, on-hand grid, summaries",
+  screen_warehouse_cross_user_view: "Warehouse: see other users' records; absence = own records only (driver)",
 
   screen_shipment_own_view: "Shipments: see assignments for this user",
   screen_shipment_own_write: "Shipments: complete own assigned lines",
   screen_shipment_start: "Shipments: start flow (submit draft to approval)",
+
+  // Risk 2 — master data write codes
+  screen_branch_master_write: "Branches: create / update / delete branch master records",
+  screen_products_write: "Products: create / update / delete products, categories, cost history",
+  screen_suppliers_write: "Suppliers: write supplier cards, invoices, payments, photos",
+  screen_vehicles_write: "Vehicles: write vehicles, insurance, expenses, maintenance",
+  screen_advances_write: "Personnel advances: create / update / delete (non-delegated)",
+  screen_outbound_invoices_write: "Sales invoices: create, post, receipts, customer accounts",
+  screen_insurances_write: "Insurance tracking: create / update / delete branch + vehicle insurance",
 
   desc_system_admin: "User accounts, roles, and the authorization matrix — administration screens and edits.",
   desc_admin_users_permission_overrides:
@@ -97,32 +106,52 @@ export const permissionMeta = {
   desc_ui_import: "Expose bulk data import (when enabled in your build).",
   desc_branch_transactions_today_only:
     "For this user, branch register transactions are limited to the current day only (no edits to past days).",
-  desc_branch_view: "Open branch screens inside the Branches module.",
-  desc_branch_summary_view: "Read branch cards summary and operational overview.",
   desc_branch_operations_write: "Add or change branch cash, income, and expense lines.",
   desc_branch_stock_write: "Perform branch-side stock actions and transfers to warehouse.",
   desc_branch_all_data_view: "View full financial, HR, and stock detail on a branch.",
   desc_branch_delete_or_reverse: "Delete, reverse, or reopen branch register records.",
+  desc_branch_cross_branch_view:
+    "List multiple branches and operate across branch screens; without this the user is scoped to their assigned PersonnelBranchId (PERSONNEL behaviour).",
+  desc_branch_financials_view:
+    "See cash, income, and expense totals on branch summary screens; absence hides financial figures (HideFinancialTotals).",
   desc_advances_delegated_branch:
     "List ADVANCE_DELEGATE_TARGET personnel for a branch and create register-cash advances for them; personnel advance history is limited to rows this user created.",
-  desc_personnel_self_view: "View the signed-in user’s own personnel card and basic profile.",
   desc_personnel_self_financials_view: "View own advances and expenses attributed to the user.",
   desc_personnel_branch_summary_view: "View personnel list and summary for a branch.",
   desc_personnel_branch_all_data_view: "View detailed HR/finance data for people in a branch.",
   desc_personnel_all_data_view: "View company-wide detailed personnel records.",
   desc_personnel_write: "Create or update personnel cards.",
   desc_personnel_payroll_write: "Write payroll parameters and payout records.",
-  desc_warehouse_view: "Open warehouse module screens and baseline warehouse data.",
   desc_warehouse_movement_write: "Create and update warehouse inbound/outbound movement records.",
+  desc_warehouse_delete_or_reverse:
+    "Soft-delete or reverse warehouse movement records; separate from write so drivers can register movements but not delete them (fraud surface reduction).",
   desc_warehouse_transfer_write: "Create and manage warehouse-to-branch transfer records.",
   desc_warehouse_all_data_view: "View detailed warehouse costing and full movement history.",
   desc_warehouse_inbound_view: "View inbound (IN) warehouse movements and related screens.",
   desc_warehouse_outbound_view: "View outbound (OUT) warehouse movements and related screens.",
   desc_warehouse_aggregates_view: "View movement totals, on-hand grid, and warehouse rollups.",
+  desc_warehouse_cross_user_view:
+    "See warehouse movements and transfers created by other users; without this the user is scoped to their own records (DRIVER behaviour).",
   desc_shipment_own_view: "View shipment lines assigned to this user.",
   desc_shipment_own_write: "Complete assigned shipment lines (driver signing flow).",
   desc_shipment_start:
     "Allows starting shipment workflow from draft to approval (for branch manager/master users).",
+
+  // Risk 2 — master data write codes
+  desc_branch_master_write:
+    "Create, update, and soft-delete branch master records. Separate from branch operations (cash / income / expense write).",
+  desc_products_write:
+    "Create, update, and soft-delete products, categories, and product cost history records.",
+  desc_suppliers_write:
+    "Write supplier cards, supplier invoices and payments, and invoice photos. Invoice flows that cascade to warehouse use system-internal methods (no extra permission needed).",
+  desc_vehicles_write:
+    "Write vehicle records and their related insurance, expense, and maintenance entries.",
+  desc_advances_write:
+    "Write personnel advances directly (non-delegated path). Delegated branch advances use a separate code.",
+  desc_outbound_invoices_write:
+    "Create and post sales invoices, manage receipts, link shipments, and write customer account records.",
+  desc_insurances_write:
+    "Write branch and vehicle insurance tracking records (policy, dates, amounts).",
 
   roleVsUserMatrixIntro:
     "This page sets the default permission bundle for each role. It is the baseline for every user with that role.",

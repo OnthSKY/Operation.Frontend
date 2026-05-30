@@ -32,12 +32,60 @@ export const PERM = {
   uiProducts: "ui.products",
   uiSuppliers: "ui.suppliers",
   uiVehicles: "ui.vehicles",
+  /** Birden fazla şubeyi listeleyebilir; yokluğu = yalnız PersonnelBranchId'ye sınırlı (PERSONNEL). */
+  branchCrossBranchView: "branch.cross_branch.view",
+  /** Şube finansal toplamlarını (kasa/gelir/gider) görebilir; yokluğu = HideFinancialTotals (PERSONNEL). */
+  branchFinancialsView: "branch.financials.view",
+  /** Şube tam detay (mali + özlük + stok). Seed'de branch.financials.view ile birlikte verilir. */
+  branchAllDataView: "branch.all_data.view",
+  /** Başkalarının depo kayıtlarını görebilir; yokluğu = yalnız kendi kayıtları (DRIVER). */
+  warehouseCrossUserView: "warehouse.cross_user.view",
+
+  // ---------- Faz B: ince-grenli yazma kabiliyetleri ----------
+  /** Şube kasa/gelir/gider satırı yazma. */
+  branchOperationsWrite: "branch.operations.write",
+  /** Şube stok hareketi yazma. */
+  branchStockWrite: "branch.stock.write",
+  /** Şube kaydını silme / ters çevirme / yeniden açma. */
+  branchDeleteOrReverse: "branch.delete_or_reverse",
+  /** Personel kartı yazma. */
+  personnelWrite: "personnel.write",
+  /** Bordro parametre seti + ödeme yazma. */
+  personnelPayrollWrite: "personnel.payroll.write",
+  /** Depo giriş/çıkış hareketi yazma (IN/OUT). */
+  warehouseMovementWrite: "warehouse.movement.write",
+  /** Depo → şube transfer yazma. */
+  warehouseTransferWrite: "warehouse.transfer.write",
+  /** Depo hareket/sevkiyat kaydını silme/ters çevirme (write'tan ayrı; DRIVER yazar ama silemez). */
+  warehouseDeleteOrReverse: "warehouse.delete_or_reverse",
+
+  // ---------- Risk 2: defense-in-depth master data write kodları ----------
+  /** Şube kartı CRUD (master data). */
+  branchMasterWrite: "branch.master.write",
+  /** Ürün + kategori + maliyet geçmişi yazma. */
+  productsWrite: "products.write",
+  /** Tedarikçi kartı + fatura + ödeme + foto yazma. */
+  suppliersWrite: "suppliers.write",
+  /** Araç + sigorta + gider + bakım yazma. */
+  vehiclesWrite: "vehicles.write",
+  /** Personel avans yazma (delegated path ayrı). */
+  advancesWrite: "advances.write",
+  /** Outbound (satış) faturası + makbuz + müşteri hesabı yazma. */
+  outboundInvoicesWrite: "outbound_invoices.write",
+  /** Sigorta (şube + araç sigortası) yazma. */
+  insurancesWrite: "insurances.write",
 } as const;
+
+/** <c>system.admin</c> bile açıkça verilmeden kapsamaz: kullanıcı override'lı kodlar. */
+const EXPLICIT_GRANT_ONLY = new Set<string>([PERM.adminUserDataScopes]);
+
+const UI_PREFIX = "ui.";
 
 function norm(c: string): string {
   return String(c ?? "").trim().toLowerCase();
 }
 
+/** Literal kontrol — verilen kullanıcı setinde tam o kod var mı (joker uygulamaz). */
 export function hasPermissionCode(
   user: Pick<AuthUser, "permissionCodes" | "role"> | null | undefined,
   code: string
@@ -46,6 +94,28 @@ export function hasPermissionCode(
   const codes = user?.permissionCodes;
   if (!codes?.length) return false;
   return codes.some((c) => norm(c) === want);
+}
+
+/**
+ * Backend <c>PermissionGrantResolver</c>'ın aynısı. Bunu kullan:
+ *  - <c>system.admin</c> = <see cref="EXPLICIT_GRANT_ONLY"/> hariç tüm kodları kapsar.
+ *  - <c>operations.staff</c> = yalnızca <c>ui.*</c> prefix'li kodları kapsar (least-privilege).
+ * Davranışsal kabiliyet kontrolleri için <c>hasPermissionCode</c> yerine bunu çağır.
+ */
+export function hasEffectivePermission(
+  user: Pick<AuthUser, "permissionCodes" | "role"> | null | undefined,
+  code: string
+): boolean {
+  const codes = user?.permissionCodes;
+  if (!codes?.length) return false;
+  const want = norm(code);
+  const set = new Set(codes.map((c) => norm(c)));
+
+  if (set.has(want)) return true;
+  if (EXPLICIT_GRANT_ONLY.has(want)) return false;
+  if (set.has(PERM.systemAdmin)) return true;
+  if (want.startsWith(UI_PREFIX) && set.has(PERM.operationsStaff)) return true;
+  return false;
 }
 
 /** Kullanıcılar → kullanıcıya özel izin satırları modalı. */
@@ -82,13 +152,134 @@ export function getUserDataScopesBlockReason(
   return "none";
 }
 
+// =============================
+// Capability helpers (backend AccessPolicies yansıması)
+// =============================
+
+/** Kullanıcı birden fazla şubeyi listeleyebilir/üzerinde işlem yapabilir mi (cross-branch). */
+export function canViewAllBranches(user: AuthUser | null | undefined): boolean {
+  return hasEffectivePermission(user, PERM.branchCrossBranchView);
+}
+
+/** Kullanıcı şube finansal toplamlarını (kasa, gelir, gider) görebilir mi. */
+export function canSeeBranchFinancials(user: AuthUser | null | undefined): boolean {
+  return hasEffectivePermission(user, PERM.branchFinancialsView);
+}
+
+/** Kullanıcı başkalarının oluşturduğu depo kayıtlarını görebilir mi (cross-user). */
+export function canSeeOtherUsersWarehouseRecords(user: AuthUser | null | undefined): boolean {
+  return hasEffectivePermission(user, PERM.warehouseCrossUserView);
+}
+
+/** Genel gider yönetimine erişimi var mı (modül izni ya da staff jokeri). */
+export function canManageGeneralOverhead(user: AuthUser | null | undefined): boolean {
+  return (
+    hasEffectivePermission(user, PERM.uiGeneralOverhead) ||
+    hasEffectivePermission(user, PERM.operationsStaff)
+  );
+}
+
+/** Kullanıcı şube tam detay görünümünü (mali + özlük + stok) görebilir mi. */
+export function canSeeBranchAllData(user: AuthUser | null | undefined): boolean {
+  return hasEffectivePermission(user, PERM.branchAllDataView);
+}
+
+// =============================
+// Faz B: ince-grenli yazma capability'leri (backend AccessPolicies.EnsureX yansıması)
+// =============================
+// Her capability backend'deki tek bir permission code'u sorgular. Eksiklik → backend 403,
+// frontend tarafı bu helper'larla edit/delete butonlarını önceden gizler (kullanıcıya 403 göstermemek için).
+
+/** Şube kasa/gelir/gider satırı yazabilir mi. */
+export function canWriteBranchOperations(user: AuthUser | null | undefined): boolean {
+  return hasEffectivePermission(user, PERM.branchOperationsWrite);
+}
+
+/** Şube stok hareketi yazabilir mi (şube ↔ depo, vb.). */
+export function canWriteBranchStock(user: AuthUser | null | undefined): boolean {
+  return hasEffectivePermission(user, PERM.branchStockWrite);
+}
+
+/** Şube kayıtlarını silebilir/ters çevirebilir mi. */
+export function canDeleteOrReverseBranchRecords(user: AuthUser | null | undefined): boolean {
+  return hasEffectivePermission(user, PERM.branchDeleteOrReverse);
+}
+
+/** Personel kartı oluşturup/güncelleyebilir mi. */
+export function canWritePersonnel(user: AuthUser | null | undefined): boolean {
+  return hasEffectivePermission(user, PERM.personnelWrite);
+}
+
+/** Bordro parametre seti veya ödeme yazabilir mi. */
+export function canWritePersonnelPayroll(user: AuthUser | null | undefined): boolean {
+  return hasEffectivePermission(user, PERM.personnelPayrollWrite);
+}
+
+/** Depo giriş/çıkış hareket kaydı yazabilir mi. */
+export function canWriteWarehouseMovement(user: AuthUser | null | undefined): boolean {
+  return hasEffectivePermission(user, PERM.warehouseMovementWrite);
+}
+
+/** Depo → şube transfer kaydı yazabilir mi. */
+export function canWriteWarehouseTransfer(user: AuthUser | null | undefined): boolean {
+  return hasEffectivePermission(user, PERM.warehouseTransferWrite);
+}
+
+/** Depo hareket/sevkiyat kaydını silebilir/ters çevirebilir mi (write'tan ayrı; DRIVER yazar ama silemez). */
+export function canDeleteOrReverseWarehouseRecords(user: AuthUser | null | undefined): boolean {
+  return hasEffectivePermission(user, PERM.warehouseDeleteOrReverse);
+}
+
+// =============================
+// Risk 2: master data write capability'leri
+// =============================
+
+/** Şube kartı CRUD yapabilir mi (master data). */
+export function canWriteBranchMaster(user: AuthUser | null | undefined): boolean {
+  return hasEffectivePermission(user, PERM.branchMasterWrite);
+}
+
+/** Ürün/kategori/maliyet geçmişi yazabilir mi. */
+export function canWriteProducts(user: AuthUser | null | undefined): boolean {
+  return hasEffectivePermission(user, PERM.productsWrite);
+}
+
+/** Tedarikçi kartı + fatura + ödeme yazabilir mi. */
+export function canWriteSuppliers(user: AuthUser | null | undefined): boolean {
+  return hasEffectivePermission(user, PERM.suppliersWrite);
+}
+
+/** Araç + sigorta + gider + bakım yazabilir mi. */
+export function canWriteVehicles(user: AuthUser | null | undefined): boolean {
+  return hasEffectivePermission(user, PERM.vehiclesWrite);
+}
+
+/** Personel avans yazabilir mi (delegated path ayrı). */
+export function canWriteAdvances(user: AuthUser | null | undefined): boolean {
+  return hasEffectivePermission(user, PERM.advancesWrite);
+}
+
+/** Outbound (satış) faturası yazabilir mi. */
+export function canWriteOutboundInvoices(user: AuthUser | null | undefined): boolean {
+  return hasEffectivePermission(user, PERM.outboundInvoicesWrite);
+}
+
+/** Sigorta takip kaydı yazabilir mi (şube + araç). */
+export function canWriteInsurances(user: AuthUser | null | undefined): boolean {
+  return hasEffectivePermission(user, PERM.insurancesWrite);
+}
+
+// =============================
+// Mevcut helper'lar
+// =============================
+
 /**
- * Menü / sayfa görünürlüğü. API `perm.any:ui.*|operations.staff` ile uyumlu:
- * `operations.staff` yalnızca DB’de hiç `ui.*` yoksa (eski kurulum) tam menü jokeri sayılır.
+ * Menü / sayfa görünürlüğü. Backend resolver semantiği ile aynı: <c>hasEffectivePermission</c>
+ * <c>system.admin</c> jokeri ve <c>operations.staff</c>'in <c>ui.*</c> jokerini uygular.
+ * Legacy: kullanıcının hiç <c>permissionCodes</c>'u yoksa rol bazlı varsayılan menü gösterilir.
  */
 export function canSeeUiModule(user: AuthUser | null | undefined, uiCode: string): boolean {
   if (!user) return false;
-  if (hasPermissionCode(user, PERM.systemAdmin)) return true;
   const codes = user.permissionCodes ?? [];
   if (codes.length === 0) {
     const r = String(user.role ?? "").toUpperCase();
@@ -127,13 +318,7 @@ export function canSeeUiModule(user: AuthUser | null | undefined, uiCode: string
       return uiCode === PERM.uiBranchDayClerk || uiCode === PERM.uiDailyBranchRegister;
     return false;
   }
-  if (
-    hasPermissionCode(user, PERM.operationsStaff) &&
-    !codes.some((c) => String(c).startsWith("ui."))
-  ) {
-    return true;
-  }
-  return hasPermissionCode(user, uiCode);
+  return hasEffectivePermission(user, uiCode);
 }
 
 export function canSeeDailyBranchRegister(user: AuthUser | null | undefined): boolean {
@@ -152,23 +337,16 @@ export function canOpenBranchesWorkspace(user: AuthUser | null | undefined): boo
 
 /**
  * Gelir/gider KPI, finans tabloları ve finans özeti API’leri (`/reports/financial`).
- * Matriste ayrı izin; `operations.staff` jokeri (hiç `ui.*` yokken) tam erişim sayılır.
+ * Backend resolver semantiği: system.admin joker + operations.staff ui.* jokeri.
  */
 export function canSeeFinancialReports(user: AuthUser | null | undefined): boolean {
   if (!user) return false;
-  if (hasPermissionCode(user, PERM.systemAdmin)) return true;
   const codes = user.permissionCodes ?? [];
   if (codes.length === 0) {
     const r = String(user.role ?? "").toUpperCase();
     return r === "ADMIN" || r === "STAFF" || r === "FINANCE";
   }
-  if (
-    hasPermissionCode(user, PERM.operationsStaff) &&
-    !codes.some((c) => String(c).startsWith("ui."))
-  ) {
-    return true;
-  }
-  return hasPermissionCode(user, PERM.uiReportsFinancial);
+  return hasEffectivePermission(user, PERM.uiReportsFinancial);
 }
 
 export function hasStaffOperationsNotifications(user: AuthUser | null | undefined): boolean {

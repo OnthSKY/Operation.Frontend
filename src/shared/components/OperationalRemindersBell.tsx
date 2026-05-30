@@ -2,7 +2,7 @@
 
 import { useI18n } from "@/i18n/context";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { isPersonnelPortalRole } from "@/lib/auth/roles";
+import { canViewAllBranches } from "@/lib/auth/permissions";
 import { cn } from "@/lib/cn";
 import { OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
 import {
@@ -70,7 +70,7 @@ export function OperationalRemindersBell() {
   const today = localIsoDate();
   const rootRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
-  const personnelPortal = isPersonnelPortalRole(user?.role);
+  const canMarkZReport = canViewAllBranches(user);
 
   const { data, isPending, isError } = useQuery({
     queryKey: remindersKeys.today(today),
@@ -249,7 +249,7 @@ export function OperationalRemindersBell() {
                               </span>
                             ) : null}
                           </div>
-                          {!personnelPortal ? (
+                          {canMarkZReport ? (
                             <MarkZButton
                               busy={
                                 markM.isPending &&

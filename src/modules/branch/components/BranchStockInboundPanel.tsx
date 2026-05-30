@@ -10,6 +10,7 @@ import {
 } from "@/modules/warehouse/components/WarehouseProductScopeFilters";
 import { warehouseScopeEffectiveCategoryId } from "@/modules/warehouse/lib/warehouse-scope-filters";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { PERM, hasPermissionCode } from "@/lib/auth/permissions";
 import { useI18n } from "@/i18n/context";
 import { useWarehouseDetailOverlayOptional } from "@/shared/warehouse-detail";
 import { cn } from "@/lib/cn";
@@ -196,7 +197,7 @@ export function BranchStockInboundPanel({ branchId }: Props) {
   const { t, locale } = useI18n();
   const { user } = useAuth();
   const warehouseDetailOverlay = useWarehouseDetailOverlayOptional();
-  const isAdmin = user?.role === "ADMIN";
+  const isAdmin = hasPermissionCode(user, PERM.systemAdmin);
   const [scope, setScope] = useState<WarehouseScopeFiltersValue>({ ...EMPTY_SCOPE });
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");

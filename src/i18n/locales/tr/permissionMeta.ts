@@ -42,17 +42,16 @@ export const permissionMeta = {
   screen_ui_import: "Menü: Veri içe aktarma (kurulumda açıksa)",
 
   screen_branch_transactions_today_only: "Şube kasası: bu kullanıcı için işlemler yalnızca «bugün» ile sınırlı",
-  screen_branch_view: "Şubeler modülü: şube ekranlarına giriş",
-  screen_branch_summary_view: "Şube kartları: özet ve operasyonel görünüm",
   screen_branch_operations_write: "Şube kasası: gelir/gider/nakit satırları ekleme ve değiştirme",
   screen_branch_stock_write: "Şube: şube üzerinden stok ve transfer işlemleri",
   screen_branch_all_data_view: "Şube detayı: mali / özlük / stokun tam görünümü",
   screen_branch_delete_or_reverse: "Şube: kayıt silme, ters çevirme veya yeniden açma",
+  screen_branch_cross_branch_view: "Şubeler: birden fazla şubeyi listeleme; yokluğu = yalnız atanmış şube",
+  screen_branch_financials_view: "Şube özetleri: kasa / gelir / gider toplamlarını görme",
 
   screen_advances_delegated_branch:
     "Avans: kapsamda hedef personelleri listeleme ve kasadan avans oluşturma (gün sonu kasiyeri)",
 
-  screen_personnel_self_view: "Personel: kendi personel kartını görüntüleme",
   screen_personnel_self_financials_view: "Personel: kendi avans / cep özetleri",
   screen_personnel_branch_summary_view: "Personel: şubedeki personel listesi ve özet",
   screen_personnel_branch_all_data_view: "Personel: şubedeki kişilerin ayrıntılı özlük/mali verisi",
@@ -60,17 +59,27 @@ export const permissionMeta = {
   screen_personnel_write: "Personel: kart oluşturma ve güncelleme",
   screen_personnel_payroll_write: "Personel: bordro parametreleri ve ödemeler",
 
-  screen_warehouse_view: "Depo modülü: depo ekranları",
   screen_warehouse_movement_write: "Depo: giriş/çıkış hareketi kaydetme",
+  screen_warehouse_delete_or_reverse: "Depo: hareket kaydını silme veya ters çevirme (yazma'dan ayrı)",
   screen_warehouse_transfer_write: "Depo: şubeye transfer kayıtları",
   screen_warehouse_all_data_view: "Depo: maliyet ve hareket ayrıntısının tamamı",
   screen_warehouse_inbound_view: "Depo: giriş (IN) hareket görünümleri",
   screen_warehouse_outbound_view: "Depo: çıkış (OUT) hareket görünümleri",
   screen_warehouse_aggregates_view: "Depo: toplamlar, eldeki stok ızgarası, özetler",
+  screen_warehouse_cross_user_view: "Depo: başkalarının kayıtlarını görme; yokluğu = yalnız kendi kayıtları (şoför)",
 
   screen_shipment_own_view: "Sevkiyat: bu kullanıcıya atananları görme",
   screen_shipment_own_write: "Sevkiyat: atanan satırları tamamlama",
   screen_shipment_start: "Sevkiyat: akışı başlatma (taslağı onaya gönderme)",
+
+  // Risk 2 — master data write kodları
+  screen_branch_master_write: "Şubeler: şube kartı oluşturma / güncelleme / silme",
+  screen_products_write: "Ürünler: ürün, kategori, maliyet geçmişi oluşturma / güncelleme / silme",
+  screen_suppliers_write: "Tedarikçiler: tedarikçi kartı, fatura, ödeme, fotoğraf yazma",
+  screen_vehicles_write: "Araçlar: araç, sigorta, gider, bakım yazma",
+  screen_advances_write: "Personel avansı: oluşturma / güncelleme / silme (delegated path ayrı)",
+  screen_outbound_invoices_write: "Satış faturası: oluşturma, posta, makbuz, müşteri hesabı",
+  screen_insurances_write: "Sigorta takibi: şube + araç sigortası yazma",
 
   desc_system_admin:
     "Kullanıcı hesapları, roller ve yetkilendirme matrisi gibi yönetim ekranlarına erişim; ayrıca bu ayarları değiştirme.",
@@ -101,16 +110,17 @@ export const permissionMeta = {
   desc_ui_import: "Kurulumda açıksa toplu veri içe aktarma aracının menüde görünmesi.",
   desc_branch_transactions_today_only:
     "Bu kullanıcı için şube kasası işlemlerinin yalnızca içinde bulunulan günle sınırlanması (geçmişe müdahale engeli).",
-  desc_branch_view: "Şubeler modülünde şube kartlarına ve şube ekranlarına giriş izni.",
-  desc_branch_summary_view: "Şube kartlarında özet ve operasyonel özet görünümlerinin okunması.",
   desc_branch_operations_write: "Şube kasasında gelir, gider ve nakit satırlarının eklenmesi ve güncellenmesi.",
   desc_branch_stock_write: "Şube üzerinden stok ve depoya transfer gibi stok hareketlerinin yapılması.",
   desc_branch_all_data_view:
     "Şube detayında mali, özlük ve stok verilerinin tam ayrıntı düzeyinde görüntülenmesi.",
   desc_branch_delete_or_reverse: "Şube kayıtlarının silinmesi, ters çevrilmesi veya yeniden açılması.",
+  desc_branch_cross_branch_view:
+    "Birden fazla şubeyi listeleme ve şube ekranlarında çapraz görüntüleme; yokluğu kullanıcıyı yalnızca atanmış kendi şubesine sınırlar (PERSONNEL davranışı).",
+  desc_branch_financials_view:
+    "Şube özet ekranlarında kasa, gelir ve gider toplamlarını görme; yokluğu finansal tutarları gizler (HideFinancialTotals).",
   desc_advances_delegated_branch:
     "Şube için «Avans hedefi» kapsamındaki personelleri listelemek ve onlara kasadan avans girmek; personel avans geçmişinde yalnızca bu kullanıcının oluşturduğu satırlar.",
-  desc_personnel_self_view: "Kullanıcının kendi personel kartını ve temel profil bilgilerini görüntülemesi.",
   desc_personnel_self_financials_view: "Kullanıcının kendi avans ve kendisine yazılan gider özetlerini görmesi.",
   desc_personnel_branch_summary_view: "Bir şubedeki personel listesi ve özet bilgilerin görüntülenmesi.",
   desc_personnel_branch_all_data_view:
@@ -118,19 +128,38 @@ export const permissionMeta = {
   desc_personnel_all_data_view: "Şirket genelinde tüm personel ayrıntılı kayıtlarına erişim.",
   desc_personnel_write: "Personel kartlarının oluşturulması ve güncellenmesi.",
   desc_personnel_payroll_write: "Bordro parametreleri ve ödeme kayıtları üzerinde yazma işlemleri.",
-  desc_warehouse_view: "Depo modülü ekranlarına giriş ve depo verilerinin temel görüntülenmesi.",
   desc_warehouse_movement_write:
     "Depoda mal girişi ve çıkışı için hareket kayıtlarının oluşturulması ve güncellenmesi (IN/OUT hareketleri).",
+  desc_warehouse_delete_or_reverse:
+    "Depo hareket ve sevkiyat kayıtlarını silme veya ters çevirme; yazma'dan ayrı tutulur (DRIVER kayıt yazar ama silemez — fraud surface azaltma).",
   desc_warehouse_transfer_write: "Depodan şubelere stok transferi kayıtlarının oluşturulması ve yönetilmesi.",
   desc_warehouse_all_data_view: "Depo maliyeti ve tüm hareket ayrıntılarının tam düzeyde görüntülenmesi.",
   desc_warehouse_inbound_view: "Depo giriş (IN) hareketlerinin listelenmesi ve ilgili görünümlere erişim.",
   desc_warehouse_outbound_view: "Depo çıkış (OUT) hareketlerinin listelenmesi ve ilgili görünümlere erişim.",
   desc_warehouse_aggregates_view:
     "Hareket toplamları, eldeki stok ızgarası ve özetler gibi birleşik depo özet verilerinin görüntülenmesi.",
+  desc_warehouse_cross_user_view:
+    "Başka kullanıcıların oluşturduğu depo hareket ve transfer kayıtlarını görme; yokluğu kullanıcıyı yalnızca kendi oluşturduğu kayıtlara sınırlar (DRIVER davranışı).",
   desc_shipment_own_view: "Bu kullanıcıya atanmış sevkiyat satırlarının görüntülenmesi.",
   desc_shipment_own_write: "Atanan sevkiyat satırlarının tamamlanması ve imzalanması akışı.",
   desc_shipment_start:
     "Taslak sevkiyatı onay akışına başlatma yetkisi verir (şube sorumlusu/usta için).",
+
+  // Risk 2 — master data write kodları
+  desc_branch_master_write:
+    "Şube kartını oluşturma, güncelleme ve silme. Şube içi operasyonel yazmadan (kasa/gelir/gider) ayrı tutulur.",
+  desc_products_write:
+    "Ürünler, kategoriler ve ürün maliyet geçmişi kayıtlarının oluşturulması, güncellenmesi ve silinmesi.",
+  desc_suppliers_write:
+    "Tedarikçi kartları, tedarikçi faturaları/ödemeleri ve fatura fotoğraflarının yazılması. Fatura akışlarının depoya cascade'i sistem-internal method'lar üzerinden yapılır (ek izin gerekmez).",
+  desc_vehicles_write:
+    "Araç kartları + ilişkili sigorta, gider ve bakım kayıtlarının yazılması.",
+  desc_advances_write:
+    "Personel avansının doğrudan yazılması (delegated branch path ayrı kod kullanır).",
+  desc_outbound_invoices_write:
+    "Satış faturalarının oluşturulması ve postlanması, makbuz yönetimi, sevkiyat bağlantısı, müşteri hesabı yazımı.",
+  desc_insurances_write:
+    "Şube ve araç sigortası takip kayıtlarının yazılması (poliçe, tarihler, tutarlar).",
 
   roleVsUserMatrixIntro:
     "Bu sayfa her rol için varsayılan izin paketini tanımlar. O role sahip her kullanıcının çıkış noktası burasıdır.",

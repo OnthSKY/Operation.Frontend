@@ -2,13 +2,19 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  createCustomRole,
+  deleteCustomRole,
   fetchAuthorizationMatrix,
+  fetchUserRoles,
   putRolePermissions,
+  putUserRoles,
 } from "@/modules/admin/api/authorization-admin-api";
 
 export const authorizationAdminKeys = {
   all: ["admin", "authorization"] as const,
   matrix: () => [...authorizationAdminKeys.all, "matrix"] as const,
+  userRoles: (userId: number) =>
+    [...authorizationAdminKeys.all, "userRoles", userId] as const,
 };
 
 export function useAuthorizationMatrix(enabled = true) {
@@ -26,6 +32,52 @@ export function usePutRolePermissions() {
       putRolePermissions(args.roleCode, args.permissionCodes),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: authorizationAdminKeys.matrix() });
+    },
+  });
+}
+
+// ---------- Multi-role + custom role yönetimi ----------
+
+export function useCreateCustomRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { code: string; displayName?: string; sortOrder?: number }) =>
+      createCustomRole(args.code, args.displayName, args.sortOrder),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: authorizationAdminKeys.matrix() });
+    },
+  });
+}
+
+export function useDeleteCustomRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (roleCode: string) => deleteCustomRole(roleCode),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: authorizationAdminKeys.matrix() });
+    },
+  });
+}
+
+export function useUserRoles(userId: number | null, enabled = true) {
+  return useQuery({
+    queryKey: authorizationAdminKeys.userRoles(userId ?? 0),
+    queryFn: () => fetchUserRoles(userId as number),
+    enabled: enabled && typeof userId === "number" && userId > 0,
+  });
+}
+
+export function usePutUserRoles() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { userId: number; roleCodes: string[] }) =>
+      putUserRoles(args.userId, args.roleCodes),
+    onSuccess: (_, vars) => {
+      void qc.invalidateQueries({
+        queryKey: authorizationAdminKeys.userRoles(vars.userId),
+      });
+      // Users listesi de etkilenebilir
+      void qc.invalidateQueries({ queryKey: ["personnel", "users"] });
     },
   });
 }

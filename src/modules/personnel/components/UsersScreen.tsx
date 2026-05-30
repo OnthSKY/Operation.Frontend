@@ -5,6 +5,8 @@ import {
   canManageUserDataScopes,
   canManageUserPermissionOverrides,
   getUserDataScopesBlockReason,
+  hasPermissionCode,
+  PERM,
 } from "@/lib/auth/permissions";
 import { useI18n } from "@/i18n/context";
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
@@ -17,6 +19,7 @@ import {
   usePatchUserSelfFinancials,
   usePutUserPermissionOverrides,
   useResetUserPassword,
+  useSetUserMfaEnabled,
   useSoftDeleteUser,
   useUpdateUserProfile,
   useUserDataScopes,
@@ -55,10 +58,13 @@ import type {
   WarehouseScopeAssignment,
 } from "@/types/user";
 import type { PermissionDefinition } from "@/types/authorization-matrix";
-import { adminUsersRoleTitleOrFallback } from "@/modules/account/lib/role-label";
+import {
+  adminUsersRoleDescription,
+  adminUsersRoleTitleOrFallback,
+} from "@/modules/account/lib/role-label";
 import { cn } from "@/lib/cn";
 import { ToolbarGlyphUserPlus } from "@/shared/ui/ToolbarGlyph";
-import { Ban, Check, ChevronDown, KeyRound, Layers, MapPinned, Pencil, Trash2, UserCheck, UserX, X } from "lucide-react";
+import { Ban, Check, ChevronDown, KeyRound, Layers, MapPinned, Pencil, ShieldCheck, ShieldOff, Trash2, UserCheck, UserX, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -155,37 +161,7 @@ function formatUserListCountMessage(template: string, count: number): string {
   return template.replace(/\{count\}/g, String(count));
 }
 
-function resolveUserRoleDetailDescription(
-  roleCode: string,
-  t: (key: string) => string
-): string {
-  const k = roleCode.trim().toUpperCase();
-  const key = (() => {
-    switch (k) {
-      case "ADMIN":
-        return "users.roleDetailAdmin";
-      case "STAFF":
-        return "users.roleDetailStaff";
-      case "PERSONNEL":
-        return "users.roleDetailPersonnel";
-      case "DRIVER":
-        return "users.roleDetailDriver";
-      case "VIEWER":
-        return "users.roleDetailViewer";
-      case "FINANCE":
-        return "users.roleDetailFinance";
-      case "PROCUREMENT":
-        return "users.roleDetailProcurement";
-      case "BRANCH_DAY_REGISTER":
-        return "users.roleDetailBranchDayRegister";
-      default:
-        return "";
-    }
-  })();
-  if (!key) return "";
-  const value = t(key);
-  return value === key ? "" : value;
-}
+// Yerine `adminUsersRoleDescription` paylaşılan helper'ı kullanılıyor (@/modules/account/lib/role-label).
 
 function userPermissionSummaryLines(
   r: UserListItem,
@@ -224,6 +200,10 @@ export function UsersScreen() {
     wantActive: boolean;
   } | null>(null);
   const [deleteDialog, setDeleteDialog] = useState<{ target: UserListItem } | null>(null);
+  const [mfaToggleDialog, setMfaToggleDialog] = useState<{
+    target: UserListItem;
+    wantEnabled: boolean;
+  } | null>(null);
   const [editDialog, setEditDialog] = useState<{
     target: UserListItem;
     username: string;
@@ -237,7 +217,7 @@ export function UsersScreen() {
   const [branchScopeDraft, setBranchScopeDraft] = useState<BranchScopeAssignment[]>([]);
   const [warehouseScopeDraft, setWarehouseScopeDraft] = useState<WarehouseScopeAssignment[]>([]);
   const [personnelScopeDraft, setPersonnelScopeDraft] = useState<PersonnelScopeAssignment[]>([]);
-  const isAdminUser = user?.role === "ADMIN";
+  const isAdminUser = hasPermissionCode(user, PERM.systemAdmin);
   const { data: rows = [], isLoading, isError, refetch } = useUsersList(
     Boolean(isReady && isAdminUser)
   );
@@ -251,6 +231,7 @@ export function UsersScreen() {
   const hardDeleteUser = useHardDeleteUser();
   const updateProfile = useUpdateUserProfile();
   const resetPassword = useResetUserPassword();
+  const setMfaEnabled = useSetUserMfaEnabled();
   const putUserPermissionOverrides = usePutUserPermissionOverrides();
   const putUserDataScopes = usePutUserDataScopes();
   const { data: matrixData } = useAuthorizationMatrix(Boolean(isReady && isAdminUser));
@@ -273,7 +254,8 @@ export function UsersScreen() {
   }, [personnel]);
 
   useEffect(() => {
-    if (isReady && user && user.role !== "ADMIN") router.replace("/personnel");
+    if (isReady && user && !hasPermissionCode(user, PERM.systemAdmin))
+      router.replace("/personnel");
   }, [isReady, user, router]);
 
   useEffect(() => {
@@ -421,7 +403,7 @@ export function UsersScreen() {
   });
 
   const createUserRoleDetailText = useMemo(
-    () => resolveUserRoleDetailDescription(String(roleField.value ?? "STAFF"), t),
+    () => adminUsersRoleDescription(String(roleField.value ?? "STAFF"), t),
     [roleField.value, t]
   );
 
@@ -599,7 +581,7 @@ export function UsersScreen() {
     );
   }
 
-  if (user.role !== "ADMIN") {
+  if (!hasPermissionCode(user, PERM.systemAdmin)) {
     return (
       <div className="flex flex-1 items-center justify-center p-8 text-zinc-500">
         {t("common.loading")}
@@ -949,11 +931,75 @@ export function UsersScreen() {
     }
   }
 
-  function deleteAction(r: UserListItem) {
+  function closeMfaToggleDialog() {
+    if (setMfaEnabled.isPending) return;
+    setMfaToggleDialog(null);
+  }
+
+  async function confirmMfaToggle() {
+    if (!mfaToggleDialog) return;
+    const { target: r, wantEnabled } = mfaToggleDialog;
+    try {
+      await setMfaEnabled.mutateAsync({ userId: r.id, enabled: wantEnabled });
+      notify.success(
+        wantEnabled ? t("users.mfaAdminEnabledToast") : t("users.mfaAdminDisabledToast")
+      );
+      setMfaToggleDialog(null);
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    }
+  }
+
+  function mfaToggleAction(r: UserListItem) {
+    const isSystemAdmin = hasPermissionCode(user, PERM.systemAdmin);
+    if (!isSystemAdmin) return null;
+
+    const isEnabled = Boolean(r.totpEnabled);
+    const secretPresent = Boolean(r.totpSecretPresent);
+
+    // Hiç MFA kurulmamış kullanıcı için buton göstermek karışıklık yaratır — gizle.
+    if (!isEnabled && !secretPresent) return null;
+
+    const wantEnabled = !isEnabled;
+    const tooltip = isEnabled
+      ? t("users.mfaAdminDisableTooltip")
+      : t("users.mfaAdminEnableTooltip");
+    const label = isEnabled
+      ? t("users.mfaAdminDisableButton")
+      : t("users.mfaAdminEnableButton");
+
+    return (
+      <Tooltip content={tooltip} delayMs={200}>
+        <Button
+          type="button"
+          variant="secondary"
+          className={cn(
+            "inline-flex h-8 w-8 shrink-0 items-center justify-center p-0",
+            isEnabled
+              ? "!border-amber-200 !text-amber-800 hover:!bg-amber-50"
+              : "!border-emerald-200 !text-emerald-800 hover:!bg-emerald-50"
+          )}
+          disabled={setMfaEnabled.isPending}
+          onClick={() => setMfaToggleDialog({ target: r, wantEnabled })}
+          aria-label={label}
+        >
+          {isEnabled ? (
+            <ShieldOff className="h-4 w-4 shrink-0" aria-hidden />
+          ) : (
+            <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden />
+          )}
+        </Button>
+      </Tooltip>
+    );
+  }
+
+  function deleteAction(r: UserListItem, opts?: { compact?: boolean }) {
+    const compact = opts?.compact === true;
     const selfBlock = Boolean(user && r.id === user.id);
     const pending =
       (softDeleteUser.isPending && softDeleteUser.variables === r.id) ||
       (hardDeleteUser.isPending && hardDeleteUser.variables === r.id);
+    const label = t("users.deleteUser");
     return (
       <Tooltip
         content={selfBlock ? t("users.deleteSelfDisabled") : t("users.deleteUserHint")}
@@ -962,22 +1008,26 @@ export function UsersScreen() {
         <Button
           type="button"
           variant="secondary"
-          className="inline-flex items-center gap-1.5 whitespace-nowrap !border-red-200 px-2.5 py-1.5 text-xs font-medium !text-red-700 hover:!bg-red-50"
+          className={cn(
+            "inline-flex shrink-0 items-center whitespace-nowrap !border-red-200 font-medium !text-red-700 hover:!bg-red-50",
+            compact ? "h-8 w-8 justify-center p-0" : "gap-1.5 px-2.5 py-1.5 text-xs"
+          )}
           disabled={selfBlock || pending}
           onClick={() => {
             if (selfBlock) return;
             setDeleteDialog({ target: r });
           }}
-          aria-label={t("users.deleteUser")}
+          aria-label={label}
         >
           <Trash2 className="h-4 w-4 shrink-0" aria-hidden />
-          <span>{t("users.deleteUser")}</span>
+          {compact ? null : <span>{label}</span>}
         </Button>
       </Tooltip>
     );
   }
 
-  function accountStatusAction(r: UserListItem) {
+  function accountStatusAction(r: UserListItem, opts?: { compact?: boolean }) {
+    const compact = opts?.compact === true;
     const isActive = r.status.toUpperCase() === "ACTIVE";
     const selfBlock = Boolean(user && r.id === user.id);
     const pending =
@@ -993,7 +1043,10 @@ export function UsersScreen() {
         <Button
           type="button"
           variant={isActive ? "secondary" : "primary"}
-          className="inline-flex items-center gap-1.5 whitespace-nowrap px-2.5 py-1.5 text-xs font-medium"
+          className={cn(
+            "inline-flex shrink-0 items-center whitespace-nowrap font-medium",
+            compact ? "h-8 w-8 justify-center p-0" : "gap-1.5 px-2.5 py-1.5 text-xs"
+          )}
           disabled={selfBlock || pending}
           onClick={() => {
             if (selfBlock) return;
@@ -1006,7 +1059,7 @@ export function UsersScreen() {
           ) : (
             <UserCheck className="h-4 w-4 shrink-0" aria-hidden />
           )}
-          <span>{label}</span>
+          {compact ? null : <span>{label}</span>}
         </Button>
       </Tooltip>
     );
@@ -1052,6 +1105,18 @@ export function UsersScreen() {
             aria-label={t("users.manageScopes")}
           >
             <MapPinned className="h-5 w-5" aria-hidden />
+          </Button>
+        </Tooltip>
+        <Tooltip content={t("userRoles.manageButton")} delayMs={200}>
+          <Button
+            type="button"
+            variant="secondary"
+            className={TABLE_TOOLBAR_ICON_BTN}
+            disabled={!isAdminUser}
+            onClick={() => router.push(`/admin/users/${r.id}/roles`)}
+            aria-label={t("userRoles.manageButton")}
+          >
+            <Layers className="h-5 w-5" aria-hidden />
           </Button>
         </Tooltip>
       </div>
@@ -1238,6 +1303,7 @@ export function UsersScreen() {
                             ? t("users.mfaOnShort")
                             : t("users.mfaOffShort")}
                         </StatusBadge>
+                        {mfaToggleAction(r)}
                       </div>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-2">
@@ -1361,25 +1427,30 @@ export function UsersScreen() {
                       </td>
                       <td className="max-w-[14rem] px-4 py-3">{renderUserRoleControl(r)}</td>
                       <td className="whitespace-nowrap px-4 py-3">
-                        <StatusBadge
-                          tone={Boolean(r.totpEnabled) ? "success" : "muted"}
-                          className="normal-case tracking-normal"
-                          size="md"
-                        >
-                          {Boolean(r.totpEnabled)
-                            ? t("users.mfaOnShort")
-                            : t("users.mfaOffShort")}
-                        </StatusBadge>
+                        <div className="flex items-center gap-2">
+                          <StatusBadge
+                            tone={Boolean(r.totpEnabled) ? "success" : "muted"}
+                            className="normal-case tracking-normal"
+                            size="md"
+                          >
+                            {Boolean(r.totpEnabled)
+                              ? t("users.mfaOnShort")
+                              : t("users.mfaOffShort")}
+                          </StatusBadge>
+                          {mfaToggleAction(r)}
+                        </div>
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex flex-col items-start gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+                        <div className="flex flex-wrap items-center gap-2">
                           <StatusBadge tone={appUserAccountStatusTone(r.status)}>
                             {r.status.toUpperCase() === "ACTIVE"
                               ? t("users.statusActive")
                               : t("users.statusInactive")}
                           </StatusBadge>
-                          {accountStatusAction(r)}
-                          {deleteAction(r)}
+                          <div className="flex items-center gap-1">
+                            {accountStatusAction(r, { compact: true })}
+                            {deleteAction(r, { compact: true })}
+                          </div>
                         </div>
                       </td>
                       <td className="max-w-[10rem] truncate px-4 py-3 text-zinc-600 lg:max-w-xs">
@@ -2318,7 +2389,7 @@ export function UsersScreen() {
                   {roleOptions.map((opt) => {
                     const v = opt.value as AppUserRole;
                     const selected = roleEditor.draftRole === v;
-                    const roleDesc = resolveUserRoleDetailDescription(v, t);
+                    const roleDesc = adminUsersRoleDescription(v, t);
                     return (
                       <label
                         key={opt.value}
@@ -2468,6 +2539,55 @@ export function UsersScreen() {
                   : accountStatusDialog.wantActive
                     ? t("users.activateUser")
                     : t("users.deactivateUser")}
+              </Button>
+            </div>
+          </div>
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={mfaToggleDialog !== null}
+        onClose={closeMfaToggleDialog}
+        titleId="user-mfa-toggle-title"
+        title={
+          mfaToggleDialog?.wantEnabled
+            ? t("users.mfaAdminToggleDialogTitleEnable")
+            : t("users.mfaAdminToggleDialogTitleDisable")
+        }
+        description={(mfaToggleDialog?.wantEnabled
+          ? t("users.mfaAdminToggleDialogDescriptionEnable")
+          : t("users.mfaAdminToggleDialogDescriptionDisable")
+        ).replace("{username}", mfaToggleDialog?.target.username ?? "")}
+        closeButtonLabel={t("common.close")}
+        narrow
+        sheetMobile
+      >
+        {mfaToggleDialog ? (
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-1 pb-2 sm:px-0">
+            <div className="rounded-xl border border-zinc-200/90 bg-zinc-50/80 p-3 text-sm text-zinc-800">
+              <p className="font-semibold text-zinc-900">
+                {mfaToggleDialog.target.fullName?.trim() || mfaToggleDialog.target.username}
+              </p>
+              <p className="mt-0.5 text-xs text-zinc-600">@{mfaToggleDialog.target.username}</p>
+            </div>
+            <div className="mt-4 flex shrink-0 justify-stretch border-t border-zinc-200 pt-3 sm:justify-end">
+              <Button
+                type="button"
+                variant="primary"
+                className={cn(
+                  "min-h-12 w-full sm:min-h-11 sm:w-auto sm:min-w-[140px]",
+                  mfaToggleDialog.wantEnabled
+                    ? "!bg-emerald-600 hover:!bg-emerald-700"
+                    : "!bg-amber-600 hover:!bg-amber-700"
+                )}
+                disabled={setMfaEnabled.isPending}
+                onClick={() => void confirmMfaToggle()}
+              >
+                {setMfaEnabled.isPending
+                  ? t("common.saving")
+                  : mfaToggleDialog.wantEnabled
+                    ? t("users.mfaAdminToggleConfirmEnable")
+                    : t("users.mfaAdminToggleConfirmDisable")}
               </Button>
             </div>
           </div>

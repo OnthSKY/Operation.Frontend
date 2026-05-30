@@ -84,6 +84,17 @@ export async function resetUserPassword(userId: number, password: string): Promi
   });
 }
 
+/**
+ * Admin MFA toggle: yalnız `totp_enabled` bayrağı çevrilir, secret korunur. Geri açıldığında
+ * kullanıcının authenticator kodu değişmediği için aynı kodla giriş yapar. Her değişimde oturumlar sonlanır.
+ */
+export async function setUserMfaEnabled(userId: number, enabled: boolean): Promise<UserListItem> {
+  return apiRequest<UserListItem>(`/users/${userId}/mfa`, {
+    method: "PATCH",
+    body: JSON.stringify({ enabled }),
+  });
+}
+
 /** Soft delete: kullanıcıyı listeden kaldırır (pasiften farklı, DB'de is_deleted). */
 export async function softDeleteUser(userId: number): Promise<UserDeleteResult> {
   return apiRequest<UserDeleteResult>(`/users/${userId}`, { method: "DELETE" });
