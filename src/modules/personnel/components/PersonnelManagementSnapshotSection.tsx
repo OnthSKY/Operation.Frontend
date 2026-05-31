@@ -28,6 +28,7 @@ import type { BranchPersonnelMoneySummaryItem } from "@/types/branch-personnel-m
 import type {
   PersonnelCashHandoverLine,
   PersonnelCashHandoverOutflow,
+  PersonnelCashLedgerEntry,
   PersonnelCurrencySnapshot,
 } from "@/types/personnel-management-snapshot";
 import type { Personnel } from "@/types/personnel";
@@ -755,6 +756,24 @@ export function PersonnelManagementSnapshotSection({
     [branchOverlay, handoverInById]
   );
 
+  // Ledger satırını kaynağına götür: yazıldığı şube kasası gününü aç.
+  const ledgerEntryHasSource = useCallback(
+    (row: PersonnelCashLedgerEntry) =>
+      branchOverlay != null && row.sourceBranchId != null && row.sourceBranchId > 0,
+    [branchOverlay]
+  );
+  const openLedgerEntryDetail = useCallback(
+    (row: PersonnelCashLedgerEntry) => {
+      if (!branchOverlay || row.sourceBranchId == null || row.sourceBranchId <= 0) return;
+      const day = row.entryDate.slice(0, 10);
+      branchOverlay.openBranchDetail(row.sourceBranchId, {
+        initialTab: row.direction === "IN" ? "income" : "expenses",
+        initialRegisterDay: day.length === 10 ? day : null,
+      });
+    },
+    [branchOverlay]
+  );
+
   const branchIdsForPocket = useMemo(() => {
     if (!personnel || personnel.isDeleted) return [];
     const ids = new Set<number>();
@@ -1285,6 +1304,9 @@ export function PersonnelManagementSnapshotSection({
                               <TableHeader>
                                 {t("personnel.detailMgmtCashAccountLedgerColBranch")}
                               </TableHeader>
+                              <TableHeader>
+                                {t("personnel.detailMgmtCashAccountLedgerColDescription")}
+                              </TableHeader>
                             </TableRow>
                           </TableHead>
                           <TableBody>
@@ -1295,10 +1317,40 @@ export function PersonnelManagementSnapshotSection({
                               const amtClass = isIn
                                 ? "text-emerald-700"
                                 : "text-rose-700";
+                              const clickable = ledgerEntryHasSource(row);
                               return (
                                 <TableRow
                                   key={row.id}
-                                  className={isReversal ? "opacity-60" : undefined}
+                                  onClick={
+                                    clickable ? () => openLedgerEntryDetail(row) : undefined
+                                  }
+                                  role={clickable ? "button" : undefined}
+                                  tabIndex={clickable ? 0 : undefined}
+                                  title={
+                                    clickable
+                                      ? t("personnel.detailMgmtCashAccountLedgerRowOpenHint")
+                                      : undefined
+                                  }
+                                  aria-label={
+                                    clickable
+                                      ? t("personnel.detailMgmtCashAccountLedgerRowOpenHint")
+                                      : undefined
+                                  }
+                                  onKeyDown={
+                                    clickable
+                                      ? (e) => {
+                                          if (e.key === "Enter" || e.key === " ") {
+                                            e.preventDefault();
+                                            openLedgerEntryDetail(row);
+                                          }
+                                        }
+                                      : undefined
+                                  }
+                                  className={cn(
+                                    isReversal && "opacity-60",
+                                    clickable &&
+                                      "cursor-pointer transition-colors hover:bg-sky-50/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500",
+                                  )}
                                 >
                                   <TableCell
                                     dataLabel={t("personnel.detailMgmtCashAccountLedgerColDate")}
@@ -1356,6 +1408,17 @@ export function PersonnelManagementSnapshotSection({
                                     dataLabel={t("personnel.detailMgmtCashAccountLedgerColBranch")}
                                   >
                                     {row.sourceBranchName || dash}
+                                  </TableCell>
+                                  <TableCell
+                                    dataLabel={t("personnel.detailMgmtCashAccountLedgerColDescription")}
+                                    className="max-w-[16rem] text-zinc-600"
+                                  >
+                                    <span
+                                      className="block truncate md:max-w-[16rem]"
+                                      title={row.description ?? undefined}
+                                    >
+                                      {row.description || dash}
+                                    </span>
                                   </TableCell>
                                 </TableRow>
                               );
