@@ -6,12 +6,14 @@ import { useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useI18n } from "@/i18n/context";
 import { PERM, hasEffectivePermission, hasPermissionCode } from "@/lib/auth/permissions";
-import { useShipmentList } from "@/modules/shipments/hooks/useShipmentQueries";
+import { useShipmentList, useRegenerateDeliverySlip } from "@/modules/shipments/hooks/useShipmentQueries";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { useWarehousesList } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 import { Select, type SelectOption } from "@/shared/ui/Select";
+import { notify } from "@/shared/lib/notify";
+import { toErrorMessage } from "@/shared/lib/error-message";
 import type { ShipmentNextActorRole, ShipmentStatus } from "@/types/shipment";
 
 const SHIPMENT_STATUSES = [
@@ -19,6 +21,7 @@ const SHIPMENT_STATUSES = [
   "PENDING_APPROVAL",
   "PREPARING",
   "ON_THE_WAY",
+  "ARRIVED",
   "DELIVERED",
   "CANCELLED",
 ] as const satisfies readonly ShipmentStatus[];
@@ -29,6 +32,7 @@ const STATUS_TONE: Record<ShipmentStatus, string> = {
   REVISION_REQUESTED: "bg-orange-100 text-orange-900 ring-orange-300",
   PREPARING: "bg-sky-100 text-sky-800 ring-sky-200",
   ON_THE_WAY: "bg-violet-100 text-violet-800 ring-violet-200",
+  ARRIVED: "bg-teal-100 text-teal-800 ring-teal-200",
   DELIVERED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
   CANCELLED: "bg-rose-100 text-rose-800 ring-rose-200",
 };
@@ -37,6 +41,40 @@ function replaceVars(template: string, vars: Record<string, string | number>) {
   return Object.entries(vars).reduce(
     (acc, [key, value]) => acc.replaceAll(`{{${key}}}`, String(value)),
     template
+  );
+}
+
+/**
+ * Liste satırında DELIVERED sevkiyatlar için admin'e açık "PDF oluştur" düğmesi.
+ * Satır bir <Link> içinde olduğundan tıklama detaya yönlenmesin diye event'i senkron durdurur.
+ * Kendi mutation örneğini tutar → her satırın busy durumu bağımsız.
+ */
+function RegenerateSlipButton({ id, t }: { id: number; t: (k: string) => string }) {
+  const regenerate = useRegenerateDeliverySlip();
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (regenerate.isPending) return;
+        regenerate.mutate(id, {
+          onSuccess: () => notify.success(t("shipments.detail.deliverySlipRegenerateSuccess")),
+          onError: (err) => notify.error(toErrorMessage(err)),
+        });
+      }}
+      disabled={regenerate.isPending}
+      title={t("shipments.list.regeneratePdfHint")}
+      className="inline-flex h-7 shrink-0 items-center gap-1 rounded-lg bg-white px-2 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-300 transition hover:bg-emerald-50 disabled:opacity-60"
+    >
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+        <path d="M4 4v6h6M20 20v-6h-6" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M20 9a8 8 0 0 0-14.9-3M4 15a8 8 0 0 0 14.9 3" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+      {regenerate.isPending
+        ? t("shipments.detail.deliverySlipRegenerating")
+        : t("shipments.list.regeneratePdf")}
+    </button>
   );
 }
 
@@ -90,6 +128,8 @@ export function ShipmentListScreen() {
   // ile birebir: system.admin joker kapsar, operations.staff YALNIZ ui.* kodlarını kapsar (shipment.create
   // değil). `hasEffectivePermission` aynı semantiği uygular — operations.staff'a yanlış buton göstermeyiz.
   const canCreateDraft = hasEffectivePermission(user, PERM.shipmentCreate);
+  // Teslim irsaliyesini anlık oluştur (eski/eksik PDF'ler) — yalnız sistem yöneticisi (backend: system.admin).
+  const canRegenerateSlip = hasPermissionCode(user, PERM.systemAdmin);
 
   const hasActiveFilter =
     status || branchId || warehouseId || dateFrom || dateTo;
@@ -251,11 +291,16 @@ export function ShipmentListScreen() {
                     ) : null}
                   </div>
                 </div>
-                <span
-                  className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${STATUS_TONE[x.status]}`}
-                >
-                  {t(`shipments.status.${x.status}`)}
-                </span>
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${STATUS_TONE[x.status]}`}
+                  >
+                    {t(`shipments.status.${x.status}`)}
+                  </span>
+                  {canRegenerateSlip && x.status === "DELIVERED" ? (
+                    <RegenerateSlipButton id={x.id} t={t} />
+                  ) : null}
+                </div>
               </div>
               {pendingText ? (
                 <div className="mt-2.5 inline-flex items-center gap-1.5 text-xs text-zinc-700">

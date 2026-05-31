@@ -4,6 +4,8 @@ export type ShipmentStatus =
   | "REVISION_REQUESTED"
   | "PREPARING"
   | "ON_THE_WAY"
+  /** Sürücü sevkiyatı tamamladı; talep edenin "doğru aldım" onayı bekleniyor. */
+  | "ARRIVED"
   | "DELIVERED"
   | "CANCELLED";
 
@@ -12,6 +14,8 @@ export type ShipmentNextActorRole =
   | "REQUESTER"
   | "APPROVER"
   | "WAREHOUSE"
+  /** Şoför — ON_THE_WAY (yolda) adımında malı taşıyan; akış göstergesinde gösterilir. */
+  | "DRIVER"
   // Legacy — backend artık döndürmüyor ama eski state lar veya admin tools için tutulur:
   | "STARTER"
   | "COMPLETER";

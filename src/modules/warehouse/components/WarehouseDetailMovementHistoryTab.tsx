@@ -54,7 +54,18 @@ import { PlusIcon, detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { fetchWarehouseMovementsPage } from "@/modules/warehouse/api/warehouse-stock-api";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, FilePlus2, Info, Pencil } from "lucide-react";
+import {
+  ArrowRight,
+  Calendar,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  FilePlus2,
+  Info,
+  Pencil,
+  Store,
+  Warehouse as WarehouseIcon,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -638,14 +649,24 @@ export function WarehouseDetailMovementHistoryTab({
     ? shipmentGroups.find((g) => g.key === detailsGroupKey) ?? null
     : null;
   const selectedDetailType = selectedDetailGroup?.movements[0]?.type ?? null;
+  const selectedDetailIsDepotToBranch =
+    selectedDetailGroup != null &&
+    selectedDetailGroup.movements.length > 0 &&
+    selectedDetailGroup.movements.every((m) => m.type === "OUT" && m.isDepotToBranchShipment);
   const selectedDetailTypeLabel =
     selectedDetailType === "IN"
       ? t("warehouse.movementDetailTypeInbound")
       : selectedDetailType === "OUT"
-        ? t("warehouse.movementDetailTypeOutbound")
+        ? selectedDetailIsDepotToBranch
+          ? t("warehouse.movementDetailTypeDepotToBranch")
+          : t("warehouse.movementDetailTypeOutbound")
         : "—";
   const selectedDetailDestinationBranch = selectedDetailGroup
     ? shipmentBranchSummary(selectedDetailGroup.movements)
+    : null;
+  const selectedDetailSample = selectedDetailGroup?.movements[0] ?? null;
+  const selectedDetailBatchCell = selectedDetailSample
+    ? formatWarehouseShipmentDisplay(selectedDetailSample.inBatchGroupId, selectedDetailSample.id)
     : null;
   const selectedDetailInvoiceMovements = selectedDetailGroup
     ? selectedDetailGroup.movements.filter((m) => m.hasInvoicePhoto)
@@ -1179,23 +1200,50 @@ export function WarehouseDetailMovementHistoryTab({
               const batchCell = formatWarehouseShipmentDisplay(sample.inBatchGroupId, sample.id);
               const typeSet = new Set(movements.map((x) => x.type));
               const singleType = typeSet.size === 1 ? sample.type : null;
+              const isDepotToBranchGroup =
+                singleType === "OUT" && movements.every((x) => x.isDepotToBranchShipment);
               const typeLabel =
                 singleType === "IN"
                   ? t("products.typeIn")
                   : singleType === "OUT"
-                    ? t("products.typeOut")
+                    ? isDepotToBranchGroup
+                      ? t("warehouse.movementDetailTypeDepotToBranch")
+                      : t("products.typeOut")
                     : `${t("products.typeIn")}/${t("products.typeOut")}`;
               const preview = shipmentListPreview(movements);
-              const mainTotals = shipmentMainProductTotals(movements);
-              const entryTotal = mainTotals.reduce((acc, row) => acc + row.quantity, 0);
               const branchSummary = shipmentBranchSummary(movements);
-              const mainAuditRows = (groupBalanceSummaryByKey.get(key) ?? []).filter(
-                (row) => row.scope === "MAIN"
+              const balanceRows = groupBalanceSummaryByKey.get(key) ?? [];
+              const mainAuditRows = balanceRows.filter((row) => row.scope === "MAIN");
+              const productAuditRows = balanceRows.filter((row) => row.scope === "PRODUCT");
+              const balanceRowCount = mainAuditRows.length + productAuditRows.length;
+              const balanceDeltaTotal = mainAuditRows.reduce((acc, row) => acc + row.delta, 0);
+              const renderBalanceFlowRow = (row: GroupBalanceSummary) => (
+                <div
+                  key={row.id}
+                  className="flex items-center gap-2 rounded-lg bg-zinc-50 px-2 py-1"
+                >
+                  <span
+                    className="min-w-0 flex-1 truncate text-xs font-medium text-zinc-800"
+                    title={row.name}
+                  >
+                    {row.name}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1 text-xs tabular-nums">
+                    <span className="text-zinc-500">{formatLocaleAmount(row.previous, locale)}</span>
+                    <ArrowRight className="h-3 w-3 shrink-0 text-zinc-300" aria-hidden />
+                    <span className="font-bold text-zinc-900">{formatLocaleAmount(row.next, locale)}</span>
+                    <span
+                      className={cn(
+                        "ml-0.5 rounded px-1 py-px text-[10px] font-semibold",
+                        row.delta >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                      )}
+                    >
+                      {row.delta >= 0 ? "+" : ""}
+                      {formatLocaleAmount(row.delta, locale)}
+                    </span>
+                  </span>
+                </div>
               );
-              const totalPrevious = mainAuditRows.reduce((acc, row) => acc + row.previous, 0);
-              const totalNext = mainAuditRows.reduce((acc, row) => acc + row.next, 0);
-              const unitSet = new Set(mainTotals.map((m) => m.unit).filter((u): u is string => Boolean(u)));
-              const displayUnit = unitSet.size === 1 ? Array.from(unitSet)[0] : null;
               return (
                 <div
                   key={key}
@@ -1252,70 +1300,98 @@ export function WarehouseDetailMovementHistoryTab({
                       </button>
 
                       <div className="flex min-w-0 flex-col gap-2">
-                        <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/80 px-2.5 py-2.5 sm:px-3 sm:py-3">
-                          <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-600 sm:text-xs">
-                            {t("warehouse.movementMainTotalsInline")
-                              .replace("{{count}}", String(mainTotals.length))}
-                          </p>
-                          <div className="mt-2 grid grid-cols-3 gap-1.5 rounded-lg border border-zinc-200/80 bg-white p-1.5">
-                            <div className="rounded bg-zinc-50 px-1.5 py-1">
-                              <p className="text-xs uppercase tracking-wide text-zinc-500">
-                                {t("warehouse.movementMainBalancesPrev")}
-                              </p>
-                              <p className="text-right text-xs font-medium tabular-nums text-zinc-700 sm:text-sm">
-                                {formatLocaleAmount(totalPrevious, locale)}
-                              </p>
-                            </div>
-                            <div className="rounded bg-zinc-50 px-1.5 py-1">
-                              <p className="text-xs uppercase tracking-wide text-zinc-500">
-                                {t("warehouse.movementMainBalancesThisEntry")}
-                              </p>
-                              <p
-                                className={cn(
-                                  "text-right text-xs font-semibold tabular-nums sm:text-sm",
-                                  entryTotal >= 0 ? "text-emerald-700" : "text-red-700"
-                                )}
-                              >
-                                {entryTotal >= 0 ? "+" : ""}
-                                {formatLocaleAmount(entryTotal, locale)}
-                              </p>
-                            </div>
-                            <div className="rounded border border-zinc-200 bg-zinc-100 px-1.5 py-1">
-                              <p className="text-xs uppercase tracking-wide text-zinc-600">
-                                {t("warehouse.movementMainBalancesNext")}
-                              </p>
-                              <p className="text-right text-sm font-bold tabular-nums text-zinc-900">
-                                {formatLocaleAmount(totalNext, locale)}
-                              </p>
-                            </div>
-                          </div>
-                          {displayUnit ? (
-                            <p className="mt-1 text-right text-xs font-medium text-zinc-500">{displayUnit}</p>
-                          ) : null}
-                        </div>
-                        {singleType === "IN" ? (
-                          <div className="min-w-0 rounded-lg border border-emerald-200/70 bg-emerald-50/40 p-2.5 sm:border-0 sm:bg-transparent sm:p-0">
-                            <p className="mb-2 text-[0.65rem] font-semibold uppercase tracking-wide text-emerald-900 sm:hidden">
-                              {t("warehouse.movementsTypeSegmentInbound")}
-                            </p>
-                            <p className="min-w-0 break-words text-sm leading-snug text-zinc-700 [overflow-wrap:anywhere]">
-                              {preview}
+                        <div
+                          className={cn(
+                            "min-w-0 rounded-xl border px-2.5 py-2",
+                            singleType === "IN" && "border-emerald-200/70 bg-emerald-50/40",
+                            singleType === "OUT" && "border-red-200/70 bg-red-50/40",
+                            singleType === null && "border-zinc-200 bg-zinc-50/60"
+                          )}
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <span
+                              className={cn(
+                                "h-2 w-2 shrink-0 rounded-full",
+                                singleType === "IN" && "bg-emerald-500",
+                                singleType === "OUT" && "bg-red-500",
+                                singleType === null && "bg-zinc-400"
+                              )}
+                              aria-hidden
+                            />
+                            <p
+                              className={cn(
+                                "text-[10px] font-semibold uppercase tracking-wide",
+                                singleType === "IN" && "text-emerald-800",
+                                singleType === "OUT" && "text-red-800",
+                                singleType === null && "text-zinc-500"
+                              )}
+                            >
+                              {singleType === "IN"
+                                ? t("warehouse.movementsTypeSegmentInbound")
+                                : singleType === "OUT"
+                                  ? t("warehouse.movementsTypeSegmentOutbound")
+                                  : `${t("warehouse.movementsTypeSegmentInbound")} / ${t("warehouse.movementsTypeSegmentOutbound")}`}
                             </p>
                           </div>
-                        ) : singleType === "OUT" ? (
-                          <div className="min-w-0 rounded-lg border border-red-200/70 bg-red-50/35 p-2.5 sm:border-0 sm:bg-transparent sm:p-0">
-                            <p className="mb-2 text-[0.65rem] font-semibold uppercase tracking-wide text-red-900 sm:hidden">
-                              {t("warehouse.movementsTypeSegmentOutbound")}
-                            </p>
-                            <p className="min-w-0 break-words text-sm leading-snug text-zinc-700 [overflow-wrap:anywhere]">
-                              {preview}
-                            </p>
-                          </div>
-                        ) : (
-                          <p className="min-w-0 rounded-lg border border-zinc-100 bg-zinc-50/50 px-3 py-2 text-sm leading-snug text-zinc-700">
+                          <p className="mt-1 min-w-0 break-words text-sm font-medium leading-snug text-zinc-800 [overflow-wrap:anywhere]">
                             {preview}
                           </p>
-                        )}
+                        </div>
+                        {balanceRowCount > 0 ? (
+                          <details className="group rounded-xl border border-zinc-200/80 bg-white">
+                            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 touch-manipulation sm:px-3">
+                              <span className="flex min-w-0 items-center gap-2">
+                                <ChevronDown
+                                  className="h-4 w-4 shrink-0 text-zinc-400 transition-transform group-open:rotate-180"
+                                  aria-hidden
+                                />
+                                <span className="truncate text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                                  {t("warehouse.movementBalancesToggleTitle")}
+                                </span>
+                                <span className="shrink-0 tabular-nums text-[11px] text-zinc-400">
+                                  {balanceRowCount}
+                                </span>
+                              </span>
+                              <span
+                                className={cn(
+                                  "shrink-0 rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums",
+                                  balanceDeltaTotal >= 0
+                                    ? "bg-emerald-100 text-emerald-700"
+                                    : "bg-red-100 text-red-700"
+                                )}
+                              >
+                                {balanceDeltaTotal >= 0 ? "+" : ""}
+                                {formatLocaleAmount(balanceDeltaTotal, locale)}
+                              </span>
+                            </summary>
+                            <div className="space-y-2 border-t border-zinc-100 px-2.5 py-2 sm:px-3">
+                              <div className="flex items-center gap-2 text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+                                <span className="shrink-0">{t("warehouse.movementMainBalancesPrev")}</span>
+                                <ArrowRight className="h-3 w-3 shrink-0" aria-hidden />
+                                <span className="shrink-0">{t("warehouse.movementMainBalancesNext")}</span>
+                                <span className="ml-auto shrink-0 normal-case tracking-normal">Δ</span>
+                              </div>
+                              {mainAuditRows.length > 0 ? (
+                                <div>
+                                  <p className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-violet-700">
+                                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-500" aria-hidden />
+                                    {t("warehouse.movementMainBalancesScopeMain")}
+                                  </p>
+                                  <div className="space-y-1">{mainAuditRows.map(renderBalanceFlowRow)}</div>
+                                </div>
+                              ) : null}
+                              {productAuditRows.length > 0 ? (
+                                <div>
+                                  <p className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700">
+                                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-sky-500" aria-hidden />
+                                    {t("warehouse.movementMainBalancesScopeProduct")}
+                                  </p>
+                                  <div className="space-y-1">{productAuditRows.map(renderBalanceFlowRow)}</div>
+                                </div>
+                              ) : null}
+                            </div>
+                          </details>
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -1600,24 +1676,52 @@ export function WarehouseDetailMovementHistoryTab({
                   </div>
                 </div>
                 <p className="mt-2 text-xs leading-relaxed text-zinc-500 sm:mt-1.5">{t("warehouse.movementHeaderInfoHint")}</p>
-                <div className="mt-2 rounded-md border border-zinc-200 bg-zinc-50/60">
-                  <div className="border-b border-zinc-200 px-3 py-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                          {t("warehouse.quickMovementDate")}
-                        </p>
-                        <p className="mt-1 text-base font-semibold text-zinc-900">
-                          {fmtDate(selectedDetailGroup.movements[0]?.movementDate ?? "")}
-                        </p>
-                      </div>
-                      <span className="inline-flex min-h-[44px] min-w-[44px] items-center rounded-full border border-zinc-300 bg-white px-2.5 text-xs font-semibold text-zinc-800">
+                <div className="mt-2 space-y-2">
+                  <div className="rounded-xl border border-zinc-200 bg-white p-2.5 shadow-sm sm:p-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {selectedDetailBatchCell ? (
+                        <span className={cn(shipmentIdLabelClassName, "min-w-0 max-w-full truncate")}>
+                          {selectedDetailBatchCell.text}
+                        </span>
+                      ) : null}
+                      <span
+                        className={cn(
+                          "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset",
+                          selectedDetailType === "IN" && "bg-emerald-50 text-emerald-700 ring-emerald-100",
+                          selectedDetailType === "OUT" && "bg-red-50 text-red-700 ring-red-100",
+                          selectedDetailType !== "IN" &&
+                            selectedDetailType !== "OUT" &&
+                            "bg-zinc-100 text-zinc-700 ring-zinc-200"
+                        )}
+                      >
                         {selectedDetailTypeLabel}
                       </span>
                     </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700 ring-1 ring-inset ring-zinc-200">
+                        <Calendar className="h-3 w-3 shrink-0" aria-hidden />
+                        {fmtDate(selectedDetailGroup.movements[0]?.movementDate ?? "")}
+                      </span>
+                      <span
+                        className="inline-flex min-w-0 items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 ring-1 ring-inset ring-sky-100"
+                        title={warehouseName?.trim() || undefined}
+                      >
+                        <WarehouseIcon className="h-3 w-3 shrink-0" aria-hidden />
+                        <span className="truncate max-w-[10rem]">{warehouseName?.trim() || "—"}</span>
+                      </span>
+                      {selectedDetailType === "OUT" && selectedDetailDestinationBranch ? (
+                        <span
+                          className="inline-flex min-w-0 items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-700 ring-1 ring-inset ring-violet-100"
+                          title={selectedDetailDestinationBranch}
+                        >
+                          <Store className="h-3 w-3 shrink-0" aria-hidden />
+                          <span className="truncate max-w-[10rem]">{selectedDetailDestinationBranch}</span>
+                        </span>
+                      ) : null}
+                    </div>
                     {selectedDetailType === "IN" ? (
-                      <div className="mt-2 rounded-md border border-zinc-200 bg-white px-2.5 py-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                      <div className="mt-2 rounded-lg border border-zinc-200 bg-zinc-50/70 px-2.5 py-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                           {t("warehouse.movementInvoicesDialogTitle")}
                         </p>
                         <div className="mt-1 flex flex-wrap items-center gap-1.5">
@@ -1627,14 +1731,14 @@ export function WarehouseDetailMovementHistoryTab({
                             selectedDetailInvoiceMovements.map((m) => (
                               <div
                                 key={`header-invoice-row-${m.id}`}
-                                className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-zinc-50 px-1.5 py-1"
+                                className="inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-1.5 py-1"
                               >
                                 <span className="max-w-[11rem] truncate px-1 text-xs font-medium text-zinc-800" title={m.productName}>
                                   {m.productName}
                                 </span>
                                 <button
                                   type="button"
-                                  className="inline-flex min-h-[44px] min-w-[44px] items-center rounded-md border border-zinc-200 bg-white px-1.5 text-xs font-semibold text-zinc-900 hover:bg-zinc-100"
+                                  className="inline-flex min-h-[44px] min-w-[44px] items-center rounded-md border border-zinc-200 bg-zinc-50 px-1.5 text-xs font-semibold text-zinc-900 hover:bg-zinc-100"
                                   onClick={() =>
                                     setInvoicePreviewTarget({
                                       movementId: m.id,
@@ -1652,63 +1756,48 @@ export function WarehouseDetailMovementHistoryTab({
                       </div>
                     ) : null}
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2">
-                    <div className="border-b border-zinc-200 px-3 py-2 md:border-r">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                        {selectedDetailType === "OUT"
-                          ? t("warehouse.movementSourceWarehouseLabel")
-                          : t("warehouse.movementWarehouseLabel")}
-                      </p>
-                      <p className="mt-1 text-sm font-semibold text-zinc-900">
-                        {warehouseName?.trim() || "—"}
-                      </p>
-                    </div>
-                    {selectedDetailType === "OUT" ? (
-                      <div className="border-b border-zinc-200 px-3 py-2">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                          {t("warehouse.movementOutBranch")}
-                        </p>
-                        <p className="mt-1 text-sm font-semibold text-zinc-900">
-                          {selectedDetailDestinationBranch || "—"}
-                        </p>
-                      </div>
-                    ) : null}
-                    <div className="border-b border-zinc-200 px-3 py-2 md:border-r">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{t("warehouse.movementNote")}</p>
-                      <p className="mt-1 line-clamp-2 text-sm font-medium text-zinc-900">
+                  <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+                    <div className="min-w-0 rounded-lg border border-zinc-200 bg-zinc-50/60 px-2.5 py-1.5 sm:col-span-1">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{t("warehouse.movementNote")}</p>
+                      <p className="mt-0.5 line-clamp-2 text-xs font-medium text-zinc-900">
                         {selectedDetailGroup.movements[0]?.description?.trim() || "—"}
                       </p>
                     </div>
-                    <div className="border-b border-zinc-200 px-3 py-2 md:border-r">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{t("warehouse.movementCheckedBy")}</p>
-                      <p className="mt-1 text-sm font-semibold text-zinc-900">
+                    <div className="min-w-0 rounded-lg border border-zinc-200 bg-zinc-50/60 px-2.5 py-1.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{t("warehouse.movementCheckedBy")}</p>
+                      <p className="mt-0.5 truncate text-xs font-semibold text-zinc-900">
                         {compactPeopleList(selectedDetailGroup.movements.map((m) => m.checkedByPersonnelName))}
                       </p>
                     </div>
-                    <div className="border-b border-zinc-200 px-3 py-2">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{t("warehouse.movementApprovedBy")}</p>
-                      <p className="mt-1 text-sm font-semibold text-zinc-900">
+                    <div className="min-w-0 rounded-lg border border-zinc-200 bg-zinc-50/60 px-2.5 py-1.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{t("warehouse.movementApprovedBy")}</p>
+                      <p className="mt-0.5 truncate text-xs font-semibold text-zinc-900">
                         {compactPeopleList(selectedDetailGroup.movements.map((m) => m.approvedByPersonnelName))}
                       </p>
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-2.5">
-                <p className="text-xs font-semibold text-zinc-800">
+              <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-2.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                   {t("warehouse.movementSummaryDialogTitle")}
                 </p>
                 <div className="mt-2 space-y-1.5">
                   {shipmentMainProductTotals(selectedDetailGroup.movements).map((row) => (
                     <div
                       key={`dlg-main-${row.key}`}
-                      className="flex items-center justify-between gap-2 rounded-md bg-white px-2 py-1.5"
+                      className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5"
                     >
-                      <span className="truncate text-xs font-medium text-zinc-800">{row.name}</span>
+                      <span className="h-2 w-2 shrink-0 rounded-full bg-violet-500" aria-hidden />
+                      <span className="min-w-0 flex-1 truncate text-sm font-semibold text-zinc-900" title={row.name}>
+                        {row.name}
+                      </span>
                       <span
                         className={cn(
-                          "shrink-0 text-xs font-semibold tabular-nums",
-                          row.quantity >= 0 ? "text-emerald-700" : "text-red-700"
+                          "shrink-0 rounded-full px-2 py-0.5 text-xs font-bold tabular-nums ring-1 ring-inset",
+                          row.quantity >= 0
+                            ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+                            : "bg-red-50 text-red-700 ring-red-100"
                         )}
                       >
                         {row.quantity >= 0 ? "+" : ""}
@@ -1765,6 +1854,7 @@ export function WarehouseDetailMovementHistoryTab({
                         hideShipmentGroup
                         hideAuditMeta
                         hideInvoiceSection
+                        hideOutBranch
                         warehouseId={warehouseId}
                         onEditInboundFull={(row) => {
                           if (row.type === "IN") setInboundFullMovementId(row.id);
@@ -1790,30 +1880,58 @@ export function WarehouseDetailMovementHistoryTab({
                 ) : (
                   <div className="mt-2 space-y-2">
                     {(groupBalanceSummaryByKey.get(selectedDetailGroup.key) ?? []).map((row) => (
-                      <div key={`dlg-audit-${row.id}`} className="rounded-md border border-zinc-200 bg-white p-2">
-                        <p className="truncate text-xs font-semibold text-zinc-800">
-                          {row.name}
-                          <span className="ml-1 text-zinc-500">
+                      <div key={`dlg-audit-${row.id}`} className="rounded-xl border border-zinc-200 bg-white p-2.5 shadow-sm">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={cn(
+                              "h-2 w-2 shrink-0 rounded-full",
+                              row.scope === "MAIN" ? "bg-violet-500" : "bg-sky-500"
+                            )}
+                            aria-hidden
+                          />
+                          <p className="min-w-0 flex-1 truncate text-sm font-semibold text-zinc-900" title={row.name}>
+                            {row.name}
+                          </p>
+                          <span
+                            className={cn(
+                              "shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset",
+                              row.scope === "MAIN"
+                                ? "bg-violet-50 text-violet-700 ring-violet-100"
+                                : "bg-sky-50 text-sky-700 ring-sky-100"
+                            )}
+                          >
                             {row.scope === "MAIN"
                               ? t("warehouse.movementMainBalancesScopeMain")
                               : t("warehouse.movementMainBalancesScopeProduct")}
                           </span>
-                        </p>
-                        <div className="mt-1 grid grid-cols-3 gap-1">
-                          <div className="rounded bg-zinc-50 px-1.5 py-1 text-right">
-                            <p className="text-xs uppercase text-zinc-500">{t("warehouse.movementMainBalancesPrev")}</p>
-                            <p className="text-xs tabular-nums text-zinc-700">{formatLocaleAmount(row.previous, locale)}</p>
-                          </div>
-                          <div className="rounded bg-zinc-50 px-1.5 py-1 text-right">
-                            <p className="text-xs uppercase text-zinc-500">{t("warehouse.movementMainBalancesThisEntry")}</p>
-                            <p className={cn("text-xs font-semibold tabular-nums", row.delta >= 0 ? "text-emerald-700" : "text-red-700")}>
-                              {row.delta >= 0 ? "+" : ""}
-                              {formatLocaleAmount(row.delta, locale)}
+                        </div>
+                        <div className="mt-2 flex items-center gap-1">
+                          <div className="min-w-0 flex-1 rounded-lg bg-zinc-50 px-2 py-1.5 text-center">
+                            <p className="text-[10px] uppercase tracking-wide text-zinc-500">
+                              {t("warehouse.movementMainBalancesPrev")}
+                            </p>
+                            <p className="mt-0.5 truncate text-sm font-semibold tabular-nums text-zinc-700">
+                              {formatLocaleAmount(row.previous, locale)}
                             </p>
                           </div>
-                          <div className="rounded border border-zinc-200 bg-zinc-100 px-1.5 py-1 text-right">
-                            <p className="text-xs uppercase text-zinc-500">{t("warehouse.movementMainBalancesNext")}</p>
-                            <p className="text-xs font-semibold tabular-nums text-zinc-900">{formatLocaleAmount(row.next, locale)}</p>
+                          <ArrowRight className="h-3.5 w-3.5 shrink-0 text-zinc-300" aria-hidden />
+                          <span
+                            className={cn(
+                              "shrink-0 rounded-full px-1.5 py-1 text-xs font-bold tabular-nums",
+                              row.delta >= 0 ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                            )}
+                          >
+                            {row.delta >= 0 ? "+" : ""}
+                            {formatLocaleAmount(row.delta, locale)}
+                          </span>
+                          <ArrowRight className="h-3.5 w-3.5 shrink-0 text-zinc-300" aria-hidden />
+                          <div className="min-w-0 flex-1 rounded-lg bg-zinc-900 px-2 py-1.5 text-center">
+                            <p className="text-[10px] uppercase tracking-wide text-zinc-400">
+                              {t("warehouse.movementMainBalancesNext")}
+                            </p>
+                            <p className="mt-0.5 truncate text-sm font-bold tabular-nums text-white">
+                              {formatLocaleAmount(row.next, locale)}
+                            </p>
                           </div>
                         </div>
                       </div>

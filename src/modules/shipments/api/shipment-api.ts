@@ -120,3 +120,15 @@ export async function fetchWarehouseReservations(
     `/shipment-requests/warehouse-reservations/${warehouseId}`,
   );
 }
+
+/**
+ * Admin: DELIVERED sevkiyat için teslim irsaliyesi PDF'ini (yeniden) üretip branch_documents'a yazar.
+ * İlk DELIVERED sırasında PDF generation hata aldıysa (ör. eski kayıtlar) manuel tetik. Backend
+ * policy yalnızca system.admin. Başarıda kaydedilen belge id'sini döner; ardından GET /delivery-slip çalışır.
+ */
+export async function regenerateDeliverySlip(id: number): Promise<{ documentId: number }> {
+  return apiRequest<{ documentId: number }>(
+    `/shipment-requests/${id}/delivery-slip/regenerate`,
+    { method: "POST" },
+  );
+}

@@ -7,6 +7,7 @@ import type { Locale } from "@/i18n/messages";
 import { PERM, hasPermissionCode } from "@/lib/auth/permissions";
 import {
   useAcceptShipmentRevision,
+  useRegenerateDeliverySlip,
   useRequestShipmentRevision,
   useShipmentDetail,
   useTransitionShipment,
@@ -22,11 +23,15 @@ import { cn } from "@/lib/cn";
 import { apiFetch } from "@/lib/api/base-api";
 import type { ShipmentNextActorRole, ShipmentRequest, ShipmentStatus } from "@/types/shipment";
 
+// Akış göstergesi: her statünün sorumlu rolü (backend ShipmentWorkflowService akışına göre).
+// DRAFT=talep eden → onaycı → depo sorumlusu → ON_THE_WAY=şoför (malı taşır) →
+// DELIVERED=talep eden (teslim alındı onayını talep edenin kendisi verir).
 const FLOW_STEPS: { status: ShipmentStatus; role: ShipmentNextActorRole | null }[] = [
-  { status: "DRAFT", role: "STARTER" },
+  { status: "DRAFT", role: "REQUESTER" },
   { status: "PENDING_APPROVAL", role: "APPROVER" },
   { status: "PREPARING", role: "WAREHOUSE" },
-  { status: "ON_THE_WAY", role: "COMPLETER" },
+  { status: "ON_THE_WAY", role: "DRIVER" },
+  { status: "ARRIVED", role: "REQUESTER" },
   { status: "DELIVERED", role: null },
 ];
 
@@ -36,6 +41,7 @@ const STATUS_TONE: Record<ShipmentStatus, string> = {
   REVISION_REQUESTED: "bg-orange-100 text-orange-900 ring-orange-300",
   PREPARING: "bg-sky-100 text-sky-800 ring-sky-200",
   ON_THE_WAY: "bg-violet-100 text-violet-800 ring-violet-200",
+  ARRIVED: "bg-teal-100 text-teal-800 ring-teal-200",
   DELIVERED: "bg-emerald-100 text-emerald-800 ring-emerald-200",
   CANCELLED: "bg-rose-100 text-rose-800 ring-rose-200",
 };
@@ -64,6 +70,7 @@ type PermissionsSnapshot = {
   canApprove: boolean;
   canWarehouse: boolean;
   canDispatch: boolean;
+  canDrive: boolean;
   canComplete: boolean;
 };
 
@@ -76,6 +83,8 @@ function readPermissions(user: ReturnType<typeof useAuth>["user"]): PermissionsS
     canApprove: admin || hasPermissionCode(user, PERM.shipmentApprove),
     canWarehouse: admin || hasPermissionCode(user, PERM.shipmentWarehousePrepare),
     canDispatch: admin || hasPermissionCode(user, PERM.shipmentDispatch),
+    // Şoför: ON_THE_WAY → ARRIVED ("sevkiyatı tamamladım"). Backend ayrıca driverId eşleşmesini doğrular.
+    canDrive: admin || hasPermissionCode(user, PERM.warehouseDriver),
     canComplete: admin || hasPermissionCode(user, PERM.shipmentComplete),
   };
 }
@@ -175,6 +184,22 @@ function availableActions(
         canCancel: perms.canStart,
       };
     case "ON_THE_WAY":
+      // Şoför "sevkiyatı tamamladım" der → ARRIVED. Backend ayrıca driverId eşleşmesini doğrular.
+      return {
+        actions: perms.canDrive
+          ? [
+              {
+                key: "arrive",
+                label: t("shipments.detail.actionArrive"),
+                toStatus: "ARRIVED",
+                variant: "primary",
+              },
+            ]
+          : [],
+        canCancel: false,
+      };
+    case "ARRIVED":
+      // Talep eden "doğru aldım" onayı → DELIVERED (PDF önizleme akışı + stok transferi).
       return {
         actions: perms.canComplete
           ? [
@@ -207,7 +232,64 @@ function assigneeForRole(role: ShipmentNextActorRole | null, a: ShipmentRequest[
     case "APPROVER": return a.approverFullName;
     case "WAREHOUSE": return a.warehouseFullName;
     case "COMPLETER": return a.completerFullName;
+    // REQUESTER (dinamik: talep eden) ve DRIVER (şoför metadata) şube ataması değildir → isim kaynağı yok.
     default: return null;
+  }
+}
+
+/** Şube ataması olan (ve atanmadığında "Atanmamış" gösterilebilecek) roller. REQUESTER/DRIVER dinamiktir. */
+function roleIsAssignable(role: ShipmentNextActorRole | null): boolean {
+  return role === "APPROVER" || role === "WAREHOUSE" || role === "STARTER" || role === "COMPLETER";
+}
+
+/**
+ * Timeline'da gösterilecek EYLEM etiketinin i18n anahtarı. Ham hedef-statü ("Onay bekliyor") değil,
+ * "ne yapıldı"yı anlatır (talep eden başlangıçta ONAYA GÖNDERİR, onay beklemez). fromStatus → toStatus
+ * geçişine bakar; aynı toStatus farklı eylem olabilir (örн. DRAFT→PENDING = gönderildi,
+ * REVISION_REQUESTED→PENDING = yeniden gönderildi).
+ */
+function timelineEventKey(fromStatus: string | null, toStatus: string): string {
+  switch (toStatus) {
+    case "DRAFT":
+      return "shipments.detail.timelineEventCreated";
+    case "PENDING_APPROVAL":
+      return fromStatus === "REVISION_REQUESTED"
+        ? "shipments.detail.timelineEventResubmitted"
+        : "shipments.detail.timelineEventSubmitted";
+    case "REVISION_REQUESTED":
+      return "shipments.detail.timelineEventRevision";
+    case "PREPARING":
+      return "shipments.detail.timelineEventApproved";
+    case "ON_THE_WAY":
+      return "shipments.detail.timelineEventDispatched";
+    case "ARRIVED":
+      return "shipments.detail.timelineEventArrived";
+    case "DELIVERED":
+      return "shipments.detail.timelineEventDelivered";
+    case "CANCELLED":
+      return "shipments.detail.timelineEventCancelled";
+    default:
+      return `shipments.status.${toStatus}`;
+  }
+}
+
+/**
+ * Bir transition'ı MEŞRU olarak yapan aktör rolü (backend ShipmentWorkflowService akışıyla birebir).
+ * DİKKAT: Bu, akış göstergesindeki "adım rolü"nden farklı olabilir — örн. ON_THE_WAY adımı görselde
+ * ŞOFÖR'ündür ama ON_THE_WAY→DELIVERED transition'ını TALEP EDEN onaylar. Bu yüzden FLOW_STEPS'e
+ * değil, doğrudan transition→aktör eşlemesine bağlıdır.
+ * Hem timeline'da "kim yaptı" rozetinde, hem admin atlatmada "kimin yerine" metninde kullanılır.
+ * Belirsiz/akış-dışı geçişlerde (DRAFT başlangıç, CANCELLED) null döner.
+ */
+function transitionActorRole(toStatus: ShipmentStatus): ShipmentNextActorRole | null {
+  switch (toStatus) {
+    case "PENDING_APPROVAL": return "REQUESTER";  // DRAFT submit / revizyon kabul → talep eden
+    case "REVISION_REQUESTED": return "APPROVER"; // onaycı değişiklik ister
+    case "PREPARING": return "APPROVER";          // onaycı onaylar
+    case "ON_THE_WAY": return "WAREHOUSE";         // depo sorumlusu yola çıkarır
+    case "ARRIVED": return "DRIVER";               // şoför "sevkiyatı tamamladım" der
+    case "DELIVERED": return "REQUESTER";          // talep eden "doğru aldım" onaylar
+    default: return null;                          // DRAFT (başlangıç), CANCELLED (belirsiz)
   }
 }
 
@@ -306,7 +388,7 @@ function StepIndicator({
                     >
                       {assignee}
                     </p>
-                  ) : step.role ? (
+                  ) : roleIsAssignable(step.role) ? (
                     <p className="mt-0.5 text-[10px] italic leading-tight text-zinc-400">
                       {t("shipments.detail.stepUnassigned")}
                     </p>
@@ -389,7 +471,7 @@ function StepIndicator({
                       >
                         {assignee}
                       </p>
-                    ) : step.role ? (
+                    ) : roleIsAssignable(step.role) ? (
                       <p className="mt-0.5 truncate text-[10px] italic leading-tight text-zinc-400">
                         {t("shipments.detail.stepUnassigned")}
                       </p>
@@ -445,6 +527,7 @@ export function ShipmentDetailScreen({ id }: { id: number }) {
   const transition = useTransitionShipment();
   const requestRevision = useRequestShipmentRevision();
   const acceptRevision = useAcceptShipmentRevision();
+  const regenerateSlip = useRegenerateDeliverySlip();
   const [note, setNote] = useState("");
   const [noteError, setNoteError] = useState<string | null>(null);
   const [revisionModalOpen, setRevisionModalOpen] = useState(false);
@@ -461,6 +544,9 @@ export function ShipmentDetailScreen({ id }: { id: number }) {
   );
 
   const perms = useMemo(() => readPermissions(user), [user]);
+  // Teslim irsaliyesini "yeniden oluştur" yalnız sistem yöneticisine açık (backend policy: system.admin).
+  // operations.staff yalnız ui.* joker olduğundan bu endpoint'i kapsamaz → 403 görmesinler diye literal kontrol.
+  const canRegenerateSlip = hasPermissionCode(user, PERM.systemAdmin);
 
   // Object URL leak guard — modal kapanmadan unmount olursa temizle.
   // Erken return'lerden ÖNCE çağrılmalı (Rules of Hooks).
@@ -723,6 +809,71 @@ export function ShipmentDetailScreen({ id }: { id: number }) {
         <StepIndicator status={data.status} assignees={data.stepAssignees} t={t} />
       </div>
 
+      {/* Teslim İrsaliyesi — DELIVERED iken tam genişlikte yatay bar.
+          Responsive: dar/orta ekranda metin üstte + butonlar tam genişlik alt alta;
+          geniş ekranda (lg+) metin solda, butonlar sağda yan yana. */}
+      {data.status === "DELIVERED" ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 shadow-sm">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-emerald-900">
+                {t("shipments.detail.deliverySlipTitle")}
+              </h2>
+              <p className="mt-0.5 text-xs text-emerald-800/80">
+                {t("shipments.detail.deliverySlipHint")}
+              </p>
+            </div>
+            <div className="grid w-full shrink-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:w-auto lg:items-center">
+              <Button
+                type="button"
+                variant="secondary"
+                className="!w-full lg:!w-auto"
+                onClick={async () => {
+                  try {
+                    const res = await apiFetch(`/shipment-requests/${id}/delivery-slip`);
+                    if (!res.ok) throw new Error(`Download failed (${res.status})`);
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `sevkiyat-teslim-irsaliye-${id}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    URL.revokeObjectURL(url);
+                  } catch (e) {
+                    notify.error(toErrorMessage(e));
+                  }
+                }}
+              >
+                {t("shipments.detail.deliverySlipDownload")}
+              </Button>
+              {/* Admin: eski/eksik PDF'leri anlık üretip kalıcı kaydeder. Sonra "İndir" çalışır. */}
+              {canRegenerateSlip ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="!w-full lg:!w-auto"
+                  disabled={regenerateSlip.isPending}
+                  onClick={async () => {
+                    try {
+                      await regenerateSlip.mutateAsync(id);
+                      notify.success(t("shipments.detail.deliverySlipRegenerateSuccess"));
+                    } catch (e) {
+                      notify.error(toErrorMessage(e));
+                    }
+                  }}
+                >
+                  {regenerateSlip.isPending
+                    ? t("shipments.detail.deliverySlipRegenerating")
+                    : t("shipments.detail.deliverySlipRegenerate")}
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* Two-column layout: items on left, action + timeline on right */}
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <section className="min-w-0 space-y-4">
@@ -744,10 +895,13 @@ export function ShipmentDetailScreen({ id }: { id: number }) {
                       {parentTotals.map((b) => (
                         <li
                           key={`${b.name}-${b.unit ?? ""}`}
-                          className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
+                          className="flex items-center justify-between gap-2.5 px-2.5 py-1.5 text-sm"
                         >
-                          <span className="truncate font-semibold text-zinc-900">{b.name}</span>
-                          <span className="shrink-0 tabular-nums font-semibold text-emerald-900">
+                          <span className="flex min-w-0 items-center gap-2">
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />
+                            <span className="truncate font-semibold text-zinc-900">{b.name}</span>
+                          </span>
+                          <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold tabular-nums text-emerald-800 ring-1 ring-inset ring-emerald-200/70">
                             {formatLocaleAmount(b.quantity, locale)}
                             {b.unit ? ` ${b.unit}` : ""}
                           </span>
@@ -780,26 +934,42 @@ export function ShipmentDetailScreen({ id }: { id: number }) {
                           <li
                             key={item.id}
                             className={cn(
-                              "flex items-baseline justify-between gap-3 px-3 py-2 transition-colors",
+                              "flex items-center justify-between gap-2.5 px-2.5 py-1.5 transition-colors",
                               hasProposal
                                 ? "bg-amber-50/80 ring-1 ring-inset ring-amber-200/60"
                                 : ""
                             )}
                           >
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium text-zinc-900">
-                                {product
-                                  ? product.parentProductName?.trim() &&
-                                    product.parentProductName.trim() !== product.name.trim()
-                                    ? `${product.parentProductName} › ${product.name}`
-                                    : product.name
-                                  : `#${item.productId}`}
-                              </p>
-                              {item.note ? (
-                                <p className="truncate text-[11px] text-zinc-500">{item.note}</p>
-                              ) : null}
+                            <div className="flex min-w-0 items-center gap-2">
+                              <span
+                                className={cn(
+                                  "h-1.5 w-1.5 shrink-0 rounded-full",
+                                  hasProposal ? "bg-amber-400" : "bg-zinc-300"
+                                )}
+                                aria-hidden
+                              />
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-medium text-zinc-900">
+                                  {product ? (
+                                    product.parentProductName?.trim() &&
+                                    product.parentProductName.trim() !== product.name.trim() ? (
+                                      <>
+                                        <span className="text-zinc-400">{product.parentProductName} › </span>
+                                        {product.name}
+                                      </>
+                                    ) : (
+                                      product.name
+                                    )
+                                  ) : (
+                                    `#${item.productId}`
+                                  )}
+                                </p>
+                                {item.note ? (
+                                  <p className="truncate text-[11px] text-zinc-500">{item.note}</p>
+                                ) : null}
+                              </div>
                             </div>
-                            <div className="flex shrink-0 items-baseline gap-2">
+                            <div className="flex shrink-0 items-center gap-1.5">
                               {hasProposal ? (
                                 <>
                                   <span
@@ -809,7 +979,7 @@ export function ShipmentDetailScreen({ id }: { id: number }) {
                                     {unit ? `${requestedQty} ${unit}` : requestedQty}
                                   </span>
                                   <span
-                                    className="inline-flex items-center gap-1 rounded-md bg-amber-200/70 px-1.5 py-0.5 text-sm font-bold tabular-nums text-amber-950 ring-1 ring-amber-300/80"
+                                    className="inline-flex items-center gap-1 rounded-full bg-amber-200/70 px-2 py-0.5 text-sm font-bold tabular-nums text-amber-950 ring-1 ring-inset ring-amber-300/80"
                                     title={t("shipments.detail.proposedQty")}
                                   >
                                     <span aria-hidden>✎</span>
@@ -817,7 +987,7 @@ export function ShipmentDetailScreen({ id }: { id: number }) {
                                   </span>
                                 </>
                               ) : (
-                                <span className="tabular-nums text-sm font-semibold text-zinc-900">
+                                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-sm font-semibold tabular-nums text-zinc-900 ring-1 ring-inset ring-zinc-200">
                                   {unit ? `${requestedQty} ${unit}` : requestedQty}
                                 </span>
                               )}
@@ -904,44 +1074,6 @@ export function ShipmentDetailScreen({ id }: { id: number }) {
             </div>
           ) : null}
 
-          {data.status === "DELIVERED" ? (
-            <div className="rounded-2xl border border-emerald-200 bg-emerald-50/40 p-4 shadow-sm">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div className="min-w-0">
-                  <h2 className="text-sm font-semibold text-emerald-900">
-                    {t("shipments.detail.deliverySlipTitle")}
-                  </h2>
-                  <p className="mt-0.5 text-xs text-emerald-800/80">
-                    {t("shipments.detail.deliverySlipHint")}
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={async () => {
-                    try {
-                      const res = await apiFetch(`/shipment-requests/${id}/delivery-slip`);
-                      if (!res.ok) throw new Error(`Download failed (${res.status})`);
-                      const blob = await res.blob();
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement("a");
-                      a.href = url;
-                      a.download = `sevkiyat-teslim-irsaliye-${id}.pdf`;
-                      document.body.appendChild(a);
-                      a.click();
-                      a.remove();
-                      URL.revokeObjectURL(url);
-                    } catch (e) {
-                      notify.error(toErrorMessage(e));
-                    }
-                  }}
-                >
-                  {t("shipments.detail.deliverySlipDownload")}
-                </Button>
-              </div>
-            </div>
-          ) : null}
-
           {/* Timeline — bounded, scrollable inside the card so the page height stays stable */}
           <div className="flex min-w-0 flex-col rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
             <h2 className="text-sm font-semibold text-zinc-950">
@@ -950,21 +1082,60 @@ export function ShipmentDetailScreen({ id }: { id: number }) {
             {data.timeline.length === 0 ? (
               <p className="mt-2 text-xs text-zinc-500">—</p>
             ) : (
-              <ol className="mt-3 max-h-[28rem] space-y-3 overflow-y-auto overscroll-contain pr-1">
-                {data.timeline.map((h) => {
+              // Modern dikey zaman çizelgesi: sol kenarda sürekli çizgi + her adımda renkli nokta.
+              // Scroll YOK — kart içeriği kadar uzar; sayfa doğal akışında kaydırılır.
+              <ol className="mt-4 space-y-0">
+                {data.timeline.map((h, idx) => {
                   const meta = parseTimelineMeta(h.metadataJson);
                   const isAdminBypass = meta?.adminBypass === true;
+                  // Bu adımı MEŞRU yapan aktör rolü (backend transition→aktör eşlemesi).
+                  const actorRole = transitionActorRole(h.toStatus as ShipmentStatus);
+                  // Admin atlatmasında "kimin yerine": aynı meşru aktör; ismi yalnız atanabilir rollerde var.
+                  const bypassRole = isAdminBypass ? actorRole : null;
+                  const bypassName = bypassRole
+                    ? assigneeForRole(bypassRole, data.stepAssignees)
+                    : null;
+                  // Gelme (talep edilen teslim) tarihi sevkiyat geneline ait; yoksa oluşturulma tarihine düş.
+                  // İşlem tarihi = bu adımın gerçekleştiği an (changedAt).
+                  const requestedDateLabel = data.requestedDeliveryDate
+                    ? new Date(data.requestedDeliveryDate).toLocaleString()
+                    : new Date(data.createdAt).toLocaleString();
+                  const actionDateLabel = new Date(h.changedAt).toLocaleString();
+                  const isLast = idx === data.timeline.length - 1;
+                  const dotTone =
+                    h.toStatus === "DELIVERED"
+                      ? "bg-emerald-500"
+                      : h.toStatus === "CANCELLED"
+                        ? "bg-rose-500"
+                        : isAdminBypass
+                          ? "bg-amber-500"
+                          : "bg-indigo-500";
                   return (
-                    <li
-                      key={h.id}
-                      className={cn(
-                        "border-l-2 pl-3",
-                        isAdminBypass
-                          ? "border-amber-400 bg-amber-50/40 -ml-px rounded-r-md py-1 pr-2 ring-1 ring-inset ring-amber-200/70"
-                          : "border-zinc-200",
-                      )}
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                    <li key={h.id} className="relative flex gap-3 pb-4 last:pb-0">
+                      {/* Bağlantı çizgisi (son öğede çizilmez) */}
+                      {!isLast ? (
+                        <span
+                          aria-hidden
+                          className="absolute left-[5px] top-3 bottom-0 w-px bg-zinc-200"
+                        />
+                      ) : null}
+                      {/* Nokta */}
+                      <span
+                        aria-hidden
+                        className={cn(
+                          "relative z-10 mt-1 h-[11px] w-[11px] shrink-0 rounded-full ring-4 ring-white",
+                          dotTone,
+                        )}
+                      />
+                      {/* İçerik */}
+                      <div
+                        className={cn(
+                          "min-w-0 flex-1 rounded-xl px-3 py-2",
+                          isAdminBypass
+                            ? "bg-amber-50/50 ring-1 ring-inset ring-amber-200/70"
+                            : "bg-zinc-50/60",
+                        )}
+                      >
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span
                             className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset ${
@@ -972,11 +1143,11 @@ export function ShipmentDetailScreen({ id }: { id: number }) {
                               "bg-zinc-100 text-zinc-700 ring-zinc-200"
                             }`}
                           >
-                            {t(`shipments.status.${h.toStatus}`)}
+                            {t(timelineEventKey(h.fromStatus, h.toStatus))}
                           </span>
                           {isAdminBypass ? (
                             <span
-                              className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-200/80 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950 ring-1 ring-inset ring-amber-300/80 sm:text-[11px]"
+                              className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-200/80 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-950 ring-1 ring-inset ring-amber-300/80"
                               title={t("shipments.detail.timelineBypassTooltip")}
                             >
                               <span aria-hidden>⚡</span>
@@ -984,33 +1155,72 @@ export function ShipmentDetailScreen({ id }: { id: number }) {
                             </span>
                           ) : null}
                         </div>
-                        <span className="text-[11px] text-zinc-500 tabular-nums">
-                          {new Date(h.changedAt).toLocaleString()}
-                        </span>
+                        {/* Tarihler: kompakt, ikon + değer; mobilde alt alta, sm+ yan yana sarar. */}
+                        <dl className="mt-1.5 flex flex-col gap-x-4 gap-y-1 sm:flex-row sm:flex-wrap">
+                          <div className="flex items-center gap-1.5">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-zinc-400" aria-hidden>
+                              <rect x="3" y="5" width="18" height="16" rx="2" />
+                              <path d="M3 9h18M8 3v4M16 3v4" strokeLinecap="round" />
+                            </svg>
+                            <dt className="sr-only">{t("shipments.detail.timelineRequestedDate")}</dt>
+                            <dd className="text-[11px] tabular-nums text-zinc-500">{requestedDateLabel}</dd>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-emerald-500" aria-hidden>
+                              <circle cx="12" cy="12" r="9" />
+                              <path d="M12 7v5l3 2" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                            <dt className="sr-only">{t("shipments.detail.timelineActionDate")}</dt>
+                            <dd className="text-[11px] font-medium tabular-nums text-emerald-700">{actionDateLabel}</dd>
+                          </div>
+                        </dl>
+                        {h.note ? (
+                          <p className="mt-1.5 break-words text-xs text-zinc-600">
+                            {replaceVars(t("shipments.detail.timelineNote"), { note: h.note })}
+                          </p>
+                        ) : null}
+                        {h.changedByFullName?.trim() ? (
+                          // Eylemi yapan kişi bloğu: ince üst çizgiyle tarih satırından ayrılır.
+                          // Rozet = bu eylemi yapan rolün tipi (sonraki sorumlu değil), yanında kişi adı.
+                          <div className="mt-2 border-t border-zinc-100 pt-2">
+                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              {actorRole ? (
+                                <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-indigo-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-700 ring-1 ring-inset ring-indigo-200">
+                                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" className="shrink-0" aria-hidden>
+                                    <circle cx="12" cy="8" r="4" />
+                                    <path d="M4 21c0-4 4-6 8-6s8 2 8 6" strokeLinecap="round" />
+                                  </svg>
+                                  {t(`shipments.roles.${actorRole}`)}
+                                </span>
+                              ) : null}
+                              <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-800">
+                                {h.changedByFullName.trim()}
+                              </span>
+                            </div>
+                            {isAdminBypass && bypassRole ? (
+                              <p className="mt-1 text-[10px] font-normal italic text-amber-800">
+                                {replaceVars(
+                                  t(
+                                    bypassName
+                                      ? "shipments.detail.timelineBypassInsteadOfNamed"
+                                      : "shipments.detail.timelineBypassInsteadOfRole",
+                                  ),
+                                  {
+                                    role: t(`shipments.roles.${bypassRole}`),
+                                    name: bypassName ?? "",
+                                  },
+                                )}
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : h.changedBy ? (
+                          <p className="mt-2 border-t border-zinc-100 pt-2 text-[10px] text-zinc-400">
+                            {replaceVars(t("shipments.detail.timelineAuthor"), {
+                              userId: h.changedBy,
+                            })}
+                          </p>
+                        ) : null}
                       </div>
-                      {h.note ? (
-                        <p className="mt-1 break-words text-xs text-zinc-600">
-                          {replaceVars(t("shipments.detail.timelineNote"), { note: h.note })}
-                        </p>
-                      ) : null}
-                      {h.changedByFullName?.trim() ? (
-                        <p className="mt-0.5 text-[11px] font-medium text-zinc-600">
-                          {replaceVars(t("shipments.detail.timelineActor"), {
-                            name: h.changedByFullName.trim(),
-                          })}
-                          {isAdminBypass ? (
-                            <span className="ml-1 text-[10px] font-normal italic text-amber-800">
-                              · {t("shipments.detail.timelineBypassActorSuffix")}
-                            </span>
-                          ) : null}
-                        </p>
-                      ) : h.changedBy ? (
-                        <p className="mt-0.5 text-[10px] text-zinc-400">
-                          {replaceVars(t("shipments.detail.timelineAuthor"), {
-                            userId: h.changedBy,
-                          })}
-                        </p>
-                      ) : null}
                     </li>
                   );
                 })}

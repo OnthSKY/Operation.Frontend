@@ -10,6 +10,7 @@ import {
   fetchShipmentRequest,
   fetchShipmentRequests,
   fetchWarehouseReservations,
+  regenerateDeliverySlip,
   requestShipmentRevision,
   saveShipmentBranchAssignment,
   transitionShipment,
@@ -136,6 +137,20 @@ export function useAcceptShipmentRevision() {
         qc.invalidateQueries({ queryKey: shipmentKeys.detail(data.id) }),
         qc.invalidateQueries({ queryKey: shipmentKeys.all }),
       ]);
+    },
+  });
+}
+
+/**
+ * Admin: teslim irsaliyesi PDF'ini (yeniden) oluştur. Eski DELIVERED kayıtlarda PDF hiç yazılmadıysa
+ * ya da generation hata aldıysa kullanılır. Başarıda detayı invalidate eder (download butonu çalışsın).
+ */
+export function useRegenerateDeliverySlip() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => regenerateDeliverySlip(id),
+    onSuccess: (_data, id) => {
+      void qc.invalidateQueries({ queryKey: shipmentKeys.detail(id) });
     },
   });
 }

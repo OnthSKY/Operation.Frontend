@@ -3,7 +3,6 @@
 import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
 import { cn } from "@/lib/cn";
-import { PersonnelHeldCashMovementsList } from "@/modules/personnel/components/PersonnelHeldCashMovementsList";
 import { fetchBranchPersonnelMoneySummaries } from "@/modules/branch/api/branches-api";
 import { branchKeys } from "@/modules/branch/hooks/useBranchQueries";
 import { txCategoryLine } from "@/modules/branch/lib/branch-transaction-options";
@@ -309,7 +308,7 @@ export function PersonnelManagementSnapshotSection({
 
   // Yeni ledger banka ekstresi state'leri (Faz 5.2b).
   const [ledgerPage, setLedgerPage] = useState(1);
-  const [ledgerPageSize] = useState(25);
+  const [ledgerPageSize] = useState(50);
   const [ledgerCategoryFilter, setLedgerCategoryFilter] = useState("");
   const [ledgerIncludeReversals, setLedgerIncludeReversals] = useState(false);
   /**
@@ -1509,10 +1508,7 @@ export function PersonnelManagementSnapshotSection({
                   </div>
                 ) : null}
 
-                {/* Hareketler (banka ekstresi) — branch_transactions tabanlı, ledger backfill'inden bağımsız. */}
-                <PersonnelHeldCashMovementsList personnelId={personnel.id} open={open} />
-
-                {/* DEPRECATED — eski IN/OUT alt-sekme bloğu. Yeni banka ekstresi paneli üstte. Faz 5.4'te tamamen silinecek. */}
+                {/* DEPRECATED — eski IN/OUT alt-sekme bloğu. Faz 5.4'te tamamen silinecek. */}
                 <div className="hidden overflow-hidden rounded-xl border border-zinc-200/90 bg-white shadow-sm shadow-zinc-900/5">
                   <div className="border-b border-zinc-200/80 bg-gradient-to-b from-zinc-50 to-white px-2 py-2 sm:px-3 sm:py-2.5">
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch sm:justify-between sm:gap-3">

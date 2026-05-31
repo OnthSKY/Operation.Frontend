@@ -820,12 +820,12 @@ export function CounterpartySummaryReportScreen() {
               emptyText={t("reports.counterpartySummaryBranchFilterEmpty")}
             />
           </div>
-          <div className="flex min-w-0 w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-stretch sm:justify-end lg:w-auto lg:max-w-none lg:flex-initial">
-            <label className="inline-flex min-h-11 w-full cursor-pointer items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs leading-snug text-zinc-700 sm:w-auto sm:max-w-[min(100%,20rem)] sm:self-center sm:py-0">
+          <div className="flex min-w-0 w-full flex-row flex-wrap items-center gap-2 sm:items-stretch sm:justify-end lg:w-auto lg:max-w-none lg:flex-initial">
+            <label className="inline-flex min-h-11 w-auto min-w-0 flex-initial cursor-pointer items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs leading-snug text-zinc-700 sm:w-auto sm:max-w-[min(100%,20rem)] sm:self-center sm:py-0">
               <Checkbox checked={showInvoiceRows} onCheckedChange={(v) => setShowInvoiceRows(v === true)} />
               <span className="min-w-0">Fatura bazli liste</span>
             </label>
-            <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 sm:flex-initial">
               <Tooltip content={t("common.filters")} delayMs={200}>
                 <button
                   type="button"
@@ -870,7 +870,7 @@ export function CounterpartySummaryReportScreen() {
               <Button
                 type="button"
                 variant="secondary"
-                className="h-11 min-h-[44px] flex-1 px-3 sm:flex-initial sm:min-w-[9rem]"
+                className="h-11 min-h-[44px] flex-initial px-3 sm:min-w-[9rem]"
                 onClick={() => void downloadSummaryPdf()}
                 disabled={busy || exportBusy}
               >
