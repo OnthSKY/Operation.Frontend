@@ -761,6 +761,10 @@ function mapCashLedgerEntry(x: Record<string, unknown>): PersonnelCashLedgerEntr
     balanceBefore: Number(x.balanceBefore ?? 0) || 0,
     balanceAfter: Number(x.balanceAfter ?? 0) || 0,
     sourceBranchTransactionId: Number(x.sourceBranchTransactionId) || 0,
+    linkedAdvanceId:
+      x.linkedAdvanceId == null || Number(x.linkedAdvanceId) <= 0
+        ? null
+        : Number(x.linkedAdvanceId),
     sourceBranchId: x.sourceBranchId == null ? null : Number(x.sourceBranchId),
     sourceBranchName:
       typeof x.sourceBranchName === "string" && x.sourceBranchName.trim() !== ""

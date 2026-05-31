@@ -34,7 +34,7 @@ import {
 } from "@/shared/ui/Table";
 import { Check, ChevronLeft, ChevronRight, Wallet } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { useMemo, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import type { UseMutationResult } from "@tanstack/react-query";
 import {
   BranchSectionTitleWithInfo,
@@ -57,6 +57,8 @@ export type BranchDetailExpensesTabProps = {
   employeeSelfService: boolean;
   branchIdForTourismLink?: number | null;
   tabIsActive: boolean;
+  /** İşaretlenecek branch_transaction id (cep kasası ledger'ından gelir). */
+  focusTransactionId?: number | null;
   expenseOverviewDetail: {
     periodTitle: string;
     breakdown: ExpenseTabPeriodBreakdown;
@@ -142,6 +144,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
     employeeSelfService,
     branchIdForTourismLink,
     tabIsActive,
+    focusTransactionId,
     expenseOverviewDetail,
     setExpenseOverviewDetail,
     expSummaryShowErr,
@@ -190,6 +193,29 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
     EXP_PAGE,
     onOpenDetail,
   } = props;
+
+  // Cep kasası ledger'ından gelen "kaynağa git" → ilgili gider satırını işaretle + kaydır.
+  const [highlightTxId, setHighlightTxId] = useState<number | null>(null);
+  useEffect(() => {
+    if (!tabIsActive || !focusTransactionId || focusTransactionId <= 0) {
+      setHighlightTxId(null);
+      return;
+    }
+    setHighlightTxId(focusTransactionId);
+  }, [tabIsActive, focusTransactionId]);
+  useEffect(() => {
+    if (!highlightTxId) return;
+    const scrollTimer = window.setTimeout(() => {
+      document
+        .querySelector<HTMLElement>(`[data-tx-row="${highlightTxId}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 250);
+    const clearTimer = window.setTimeout(() => setHighlightTxId(null), 4000);
+    return () => {
+      window.clearTimeout(scrollTimer);
+      window.clearTimeout(clearTimer);
+    };
+  }, [highlightTxId, expData]);
 
   const todayIso = localIsoDate();
   const expMainLabel =
@@ -728,6 +754,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                     return (
                     <li
                       key={row.id}
+                      data-tx-row={row.id}
                       role="button"
                       tabIndex={0}
                       aria-label={t("branch.txDetailViewAria")}
@@ -738,7 +765,11 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                           onOpenDetail(row);
                         }
                       }}
-                      className="cursor-pointer rounded-xl border border-zinc-200 bg-white px-3 py-3 shadow-sm transition-colors hover:bg-zinc-50/80 active:bg-zinc-100/80"
+                      className={cn(
+                        "cursor-pointer rounded-xl border border-zinc-200 bg-white px-3 py-3 shadow-sm transition-colors hover:bg-zinc-50/80 active:bg-zinc-100/80",
+                        highlightTxId === row.id &&
+                          "border-sky-400 bg-sky-50/80 ring-2 ring-sky-400/70",
+                      )}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <BranchExpenseKindBadge row={row} t={t} />
@@ -880,8 +911,13 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                         return (
                         <TableRow
                           key={row.id}
+                          data-tx-row={row.id}
                           onClick={() => onOpenDetail(row)}
-                          className="cursor-pointer transition-colors hover:bg-zinc-50"
+                          className={cn(
+                            "cursor-pointer transition-colors hover:bg-zinc-50",
+                            highlightTxId === row.id &&
+                              "bg-sky-50 ring-2 ring-inset ring-sky-400/70",
+                          )}
                         >
                           <TableCell className="whitespace-nowrap text-sm">
                             {formatLocaleDate(row.transactionDate, locale)}

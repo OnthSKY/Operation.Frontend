@@ -1009,7 +1009,7 @@ export const personnel = {
   detailMgmtCashAccountLedgerColCounterparty: "Counterparty",
   detailMgmtCashAccountLedgerColBranch: "Branch",
   detailMgmtCashAccountLedgerColDescription: "Note",
-  detailMgmtCashAccountLedgerRowOpenHint: "Open source (go to branch register day)",
+  detailMgmtCashAccountLedgerRowOpenHint: "Open source (highlight advance/expense)",
   detailMgmtCashAccountKindBranchRegister: "Branch register",
   detailMgmtCashAccountKindOtherPersonnel: "Other personnel",
   detailMgmtCashAccountKindBranchExpense: "Branch expense",

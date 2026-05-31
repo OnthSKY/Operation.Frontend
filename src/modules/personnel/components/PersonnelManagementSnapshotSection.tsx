@@ -24,6 +24,7 @@ import {
   type HandoverOutflowSpendBucket,
 } from "@/modules/personnel/lib/personnel-cash-handover-ui";
 import { useBranchDetailOverlayOptional } from "@/shared/branch-detail";
+import { usePersonnelDetailOverlay } from "@/shared/personnel-detail";
 import type { BranchPersonnelMoneySummaryItem } from "@/types/branch-personnel-money";
 import type {
   PersonnelCashHandoverLine,
@@ -272,6 +273,7 @@ export function PersonnelManagementSnapshotSection({
 }: Props) {
   const { t, locale } = useI18n();
   const branchOverlay = useBranchDetailOverlayOptional();
+  const personnelOverlay = usePersonnelDetailOverlay();
   const dash = t("personnel.dash");
 
   // Reconciliation drill-down'dan gelen "işaretlenecek" işlem; birkaç saniye vurgulanır.
@@ -756,22 +758,54 @@ export function PersonnelManagementSnapshotSection({
     [branchOverlay, handoverInById]
   );
 
-  // Ledger satırını kaynağına götür: yazıldığı şube kasası gününü aç.
-  const ledgerEntryHasSource = useCallback(
-    (row: PersonnelCashLedgerEntry) =>
-      branchOverlay != null && row.sourceBranchId != null && row.sourceBranchId > 0,
+  // Ledger satırını kaynağına götür:
+  //  • Avans / maaş / prim (PERSONNEL_PAYOUT) → ALICI personelin kartı, Maliyetler sekmesi,
+  //    avansı/gideri işaretle.
+  //  • Şube gideri vb. → şube kasası, Giderler sekmesi, o işlemi işaretle.
+  const ledgerEntryTarget = useCallback(
+    (row: PersonnelCashLedgerEntry): "personnel" | "branch" | null => {
+      if (
+        row.counterpartyKind === "PERSONNEL_PAYOUT" &&
+        row.counterpartyPersonnelId != null &&
+        row.counterpartyPersonnelId > 0
+      ) {
+        return "personnel";
+      }
+      if (branchOverlay != null && row.sourceBranchId != null && row.sourceBranchId > 0) {
+        return "branch";
+      }
+      return null;
+    },
     [branchOverlay]
+  );
+  const ledgerEntryHasSource = useCallback(
+    (row: PersonnelCashLedgerEntry) => ledgerEntryTarget(row) != null,
+    [ledgerEntryTarget]
   );
   const openLedgerEntryDetail = useCallback(
     (row: PersonnelCashLedgerEntry) => {
-      if (!branchOverlay || row.sourceBranchId == null || row.sourceBranchId <= 0) return;
-      const day = row.entryDate.slice(0, 10);
-      branchOverlay.openBranchDetail(row.sourceBranchId, {
-        initialTab: row.direction === "IN" ? "income" : "expenses",
-        initialRegisterDay: day.length === 10 ? day : null,
-      });
+      const target = ledgerEntryTarget(row);
+      if (target === "personnel" && row.counterpartyPersonnelId) {
+        const isAdvance = row.linkedAdvanceId != null && row.linkedAdvanceId > 0;
+        personnelOverlay.openPersonnelDetail(row.counterpartyPersonnelId, {
+          initialTab: "costs",
+          focusAdvanceId: isAdvance ? row.linkedAdvanceId : null,
+          focusExpenseTransactionId: isAdvance ? null : row.sourceBranchTransactionId,
+        });
+        return;
+      }
+      if (target === "branch" && branchOverlay && row.sourceBranchId) {
+        const day = row.entryDate.slice(0, 10);
+        const isOut = row.direction === "OUT";
+        branchOverlay.openBranchDetail(row.sourceBranchId, {
+          initialTab: isOut ? "expenses" : "income",
+          initialRegisterDay: day.length === 10 ? day : null,
+          // Highlight yalnız giderler ekranında destekli; gelir tarafında günü açmak yeterli.
+          focusTransactionId: isOut ? row.sourceBranchTransactionId : null,
+        });
+      }
     },
-    [branchOverlay]
+    [ledgerEntryTarget, personnelOverlay, branchOverlay]
   );
 
   const branchIdsForPocket = useMemo(() => {

@@ -1022,7 +1022,7 @@ export const personnel = {
   detailMgmtCashAccountLedgerColCounterparty: "Karşı taraf",
   detailMgmtCashAccountLedgerColBranch: "Şube",
   detailMgmtCashAccountLedgerColDescription: "Not",
-  detailMgmtCashAccountLedgerRowOpenHint: "Kaynağı aç (şube kasası gününe git)",
+  detailMgmtCashAccountLedgerRowOpenHint: "Kaynağı aç (avans/gideri işaretle)",
   detailMgmtCashAccountKindBranchRegister: "Şube kasası",
   detailMgmtCashAccountKindOtherPersonnel: "Başka personel",
   detailMgmtCashAccountKindBranchExpense: "Şube gideri",

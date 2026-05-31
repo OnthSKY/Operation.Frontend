@@ -131,6 +131,8 @@ export type PersonnelCashLedgerEntry = {
   balanceBefore: number;
   balanceAfter: number;
   sourceBranchTransactionId: number;
+  /** Kaynak bt'nin bağlı avansı (varsa) — costs sekmesinde avansı işaretlemek için. */
+  linkedAdvanceId: number | null;
   sourceBranchId: number | null;
   sourceBranchName: string | null;
   classificationCode: string;

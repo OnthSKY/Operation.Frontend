@@ -28,6 +28,8 @@ type Props = {
   initialRegisterDay?: string | null;
   /** Expense payment source filter from URL (?expSource=). */
   initialExpensePaymentSource?: string | null;
+  /** Giderler sekmesinde işaretlenecek branch_transaction id (programmatic). */
+  focusTransactionId?: number | null;
 };
 
 function BranchEditIcon({ className }: { className?: string }) {
@@ -61,6 +63,7 @@ export function BranchDetailSheet({
   initialTab = null,
   initialRegisterDay = null,
   initialExpensePaymentSource = null,
+  focusTransactionId = null,
 }: Props) {
   const { t } = useI18n();
   const [backdropConfirmOpen, setBackdropConfirmOpen] = useState(false);
@@ -166,6 +169,7 @@ export function BranchDetailSheet({
             initialTab={initialTab}
             initialRegisterDay={initialRegisterDay}
             initialExpensePaymentSource={initialExpensePaymentSource}
+            focusTransactionId={focusTransactionId}
           />
         </div>
       </div>

@@ -32,6 +32,8 @@ export type OpenBranchDetailOptions = {
   initialTab?: BranchDetailTabId | null;
   initialRegisterDay?: string | null;
   initialExpensePaymentSource?: string | null;
+  /** Giderler sekmesinde işaretlenecek branch_transaction id (programmatic-only). */
+  focusTransactionId?: number | null;
 };
 
 type ProgrammaticOpen = {
@@ -39,6 +41,7 @@ type ProgrammaticOpen = {
   initialTab?: BranchDetailTabId | null;
   initialRegisterDay?: string | null;
   initialExpensePaymentSource?: string | null;
+  focusTransactionId?: number | null;
 };
 
 export type BranchDetailOverlayContextValue = {
@@ -134,6 +137,8 @@ export function BranchDetailOverlayProvider({ children }: { children: ReactNode 
     return urlExpSource;
   }, [programmaticOpen, urlExpSource]);
 
+  const overlayFocusTxId = programmaticOpen?.focusTransactionId ?? null;
+
   const closeBranchDetail = useCallback(() => {
     setProgrammaticOpen(null);
     setEditOpen(false);
@@ -183,6 +188,7 @@ export function BranchDetailOverlayProvider({ children }: { children: ReactNode 
         initialTab: options?.initialTab ?? null,
         initialRegisterDay: options?.initialRegisterDay ?? null,
         initialExpensePaymentSource: options?.initialExpensePaymentSource ?? null,
+        focusTransactionId: options?.focusTransactionId ?? null,
       });
     },
     [pathname, router, searchParams]
@@ -212,6 +218,7 @@ export function BranchDetailOverlayProvider({ children }: { children: ReactNode 
           initialTab={overlayInitialTab}
           initialRegisterDay={overlayRegisterDay}
           initialExpensePaymentSource={overlayExpSource}
+          focusTransactionId={overlayFocusTxId}
           canEditBranch={!personnelPortal && !branchDayClerkMode}
           onEditBranch={
             !personnelPortal

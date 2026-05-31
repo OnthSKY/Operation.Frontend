@@ -74,6 +74,8 @@ type Props = {
   initialTab?: BranchDetailTabId | null;
   initialRegisterDay?: string | null;
   initialExpensePaymentSource?: string | null;
+  /** Giderler sekmesinde işaretlenecek branch_transaction id (programmatic). */
+  focusTransactionId?: number | null;
 };
 
 const EXP_PAGE = 15;
@@ -87,6 +89,7 @@ export function BranchDetailTabs({
   initialTab = null,
   initialRegisterDay = null,
   initialExpensePaymentSource = null,
+  focusTransactionId = null,
 }: Props) {
   const { t, locale } = useI18n();
   const showStaffOnlyFeatures = !employeeSelfService && !branchDayClerkMode;
@@ -908,6 +911,7 @@ export function BranchDetailTabs({
             employeeSelfService={employeeSelfService}
             branchIdForTourismLink={branch.id}
             tabIsActive={tab === "expenses"}
+            focusTransactionId={focusTransactionId}
             expenseOverviewDetail={expenseOverviewDetail}
             setExpenseOverviewDetail={setExpenseOverviewDetail}
             expSummaryShowErr={expSummaryShowErr}
