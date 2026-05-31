@@ -786,6 +786,7 @@ export function BranchDetailTabs({
           <BranchDetailDashboardTab
             t={t}
             locale={locale as Locale}
+            branchId={branch.id}
             txDay={txDay}
             setTxDay={setTxDay}
             setTxModalLaunch={setTxModalLaunch}
@@ -957,7 +958,13 @@ export function BranchDetailTabs({
           />
         )}
 
-        {tab === "stock" && showStaffOnlyFeatures ? <BranchDetailStockTab branchId={branch.id} /> : null}
+        {tab === "stock" ? (
+          <BranchDetailStockTab
+            branchId={branch.id}
+            active={tab === "stock"}
+            staffMode={showStaffOnlyFeatures}
+          />
+        ) : null}
 
         {tab === "tourismSeason" && showStaffOnlyFeatures ? (
           <BranchTourismSeasonTab branchId={branch.id} active={tab === "tourismSeason"} />

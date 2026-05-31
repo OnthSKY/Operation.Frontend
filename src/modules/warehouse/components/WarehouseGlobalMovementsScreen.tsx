@@ -37,8 +37,6 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ResponsiveTableFrame } from "@/shared/tables/ResponsiveTableFrame";
 
-type MovementDetailListMode = "lines" | "mainProduct";
-
 const PAGE_SIZE = 25;
 const DRAWER_SELECT_Z = 280;
 
@@ -48,6 +46,112 @@ const EMPTY_SCOPE: WarehouseScopeFiltersValue = {
   parentProductId: null,
   productId: null,
 };
+
+/** Sevkiyat aksiyon barında PDF/belge eylemleri için ince çizgili belge ikonu. */
+function ShipmentDocIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+      <path d="M14 3v5h5" />
+    </svg>
+  );
+}
+
+/** Sevkiyat kartı başlığında tarihi "tarih gibi" göstermek için ince çizgili takvim ikonu. */
+function ShipmentCalendarIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="3" y="4.5" width="18" height="16" rx="2" />
+      <path d="M3 9h18M8 2.5v4M16 2.5v4" />
+    </svg>
+  );
+}
+
+/** İki sevkiyat PDF'i (satış formu / irsaliye) için var-yok + erişim chip'i. Modern, kompakt. */
+function ShipmentPdfChip({
+  label,
+  exists,
+  loading,
+  actionHint,
+  onClick,
+  compact,
+}: {
+  label: string;
+  exists: boolean;
+  loading?: boolean;
+  actionHint?: string;
+  onClick?: () => void;
+  compact?: boolean;
+}) {
+  const clickable = typeof onClick === "function";
+  const cls = cn(
+    "inline-flex items-center gap-1.5 border transition",
+    compact ? "rounded-full px-2 py-0.5 text-[11px]" : "rounded-lg px-2.5 py-1.5 text-xs",
+    exists ? "border-emerald-200 bg-emerald-50" : "border-zinc-200 bg-white",
+    clickable && (exists ? "hover:bg-emerald-100" : "hover:bg-zinc-50"),
+    clickable && "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60"
+  );
+  const content = (
+    <>
+      <ShipmentDocIcon
+        className={cn(compact ? "h-3.5 w-3.5" : "h-4 w-4", "shrink-0", exists ? "text-emerald-600" : "text-zinc-400")}
+      />
+      <span className={cn("font-semibold", exists ? "text-zinc-900" : "text-zinc-700")}>{label}</span>
+      {!compact && actionHint ? (
+        <>
+          <span className="text-zinc-300">·</span>
+          <span className={exists ? "font-medium text-emerald-700" : "text-zinc-500"}>
+            {loading ? "…" : actionHint}
+          </span>
+        </>
+      ) : null}
+      {loading ? (
+        <span className="text-zinc-400">…</span>
+      ) : exists ? (
+        <svg
+          className={cn(compact ? "h-3 w-3" : "h-3.5 w-3.5", "shrink-0 text-emerald-600")}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+        >
+          <path d="M20 6 9 17l-5-5" />
+        </svg>
+      ) : (
+        <span aria-hidden className="text-zinc-300">
+          —
+        </span>
+      )}
+    </>
+  );
+  if (!clickable) return <span className={cls}>{content}</span>;
+  return (
+    <button type="button" onClick={onClick} className={cls}>
+      {content}
+    </button>
+  );
+}
 
 function shipmentGroupKeyForRow(row: WarehouseGlobalMovementRow): string {
   return row.inBatchGroupId?.trim() ? `batch:${row.inBatchGroupId.trim()}` : `single:${row.id}`;
@@ -79,10 +183,6 @@ function shipmentOutboundBranchSummary(rows: WarehouseGlobalMovementRow[]): stri
   return names[0] ?? null;
 }
 
-function movementSignedQuantity(m: WarehouseGlobalMovementRow): number {
-  return m.type === "IN" ? Number(m.quantity) : -Number(m.quantity);
-}
-
 function movementMainProductKey(m: WarehouseGlobalMovementRow): string {
   if (m.parentProductId != null && m.parentProductId > 0) return `parent:${m.parentProductId}`;
   return `product:${m.productId}`;
@@ -92,30 +192,32 @@ function movementMainProductName(m: WarehouseGlobalMovementRow): string {
   return m.parentProductName?.trim() || m.productName;
 }
 
-function shipmentMainProductTotals(
+type ShipmentMainProductGroup = {
+  key: string;
+  name: string;
+  /** Kalemlerin ham miktar toplamı (yön kart başlığındaki tip rozetinden okunur). */
+  quantity: number;
+  unit: string | null;
+  rows: WarehouseGlobalMovementRow[];
+};
+
+/** Ana ürün -> altındaki kalemler. Tek düzen liste için: başlık (ana ürün + toplam) + alt kalemler. */
+function shipmentMainProductGroups(
   movements: WarehouseGlobalMovementRow[]
-): Array<{ key: string; name: string; quantity: number; unit: string | null; lineCount: number }> {
-  const map = new Map<
-    string,
-    { key: string; name: string; quantity: number; unit: string | null; lineCount: number }
-  >();
+): ShipmentMainProductGroup[] {
+  const map = new Map<string, ShipmentMainProductGroup>();
   for (const m of movements) {
     const key = movementMainProductKey(m);
-    const signed = movementSignedQuantity(m);
-    const prev = map.get(key);
-    if (prev) {
-      prev.quantity += signed;
-      prev.lineCount += 1;
-      if (!prev.unit && m.unit?.trim()) prev.unit = m.unit.trim();
+    const qty = Number(m.quantity) || 0;
+    const unit = m.unit?.trim() || null;
+    const existing = map.get(key);
+    if (existing) {
+      existing.quantity += qty;
+      if (!existing.unit && unit) existing.unit = unit;
+      existing.rows.push(m);
       continue;
     }
-    map.set(key, {
-      key,
-      name: movementMainProductName(m),
-      quantity: signed,
-      unit: m.unit?.trim() || null,
-      lineCount: 1,
-    });
+    map.set(key, { key, name: movementMainProductName(m), quantity: qty, unit, rows: [m] });
   }
   return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -203,117 +305,78 @@ function resolveRelatedShipmentFromRows(
   return null;
 }
 
-/** Sevkiyat kartı `<details>` içi: modal ile aynı «kalem / ana ürün» görünümü. */
+/** Notes metadata'sından ilgili sevkiyat talebinin ham id'si (aday listesinden bağımsız, irsaliye eşleştirmesi için). */
+function resolveShipmentRequestIdFromRows(rows: WarehouseGlobalMovementRow[]): number | null {
+  for (const row of rows) {
+    const meta = parseShipmentMetadataFromNotes(row.description);
+    const id = Number(
+      meta.shipmentRequestId ?? meta.shipment_request_id ?? meta.shipmentId ?? meta.shipment_id ?? 0
+    );
+    if (Number.isFinite(id) && id > 0) return id;
+  }
+  return null;
+}
+
+/** Sevkiyat kartı `<details>` içi: ana ürün başlığı + altında alt kalemler (tek düzen, toggle yok). */
 function ShipmentGroupExpandedLineBlock({ group }: { group: ShipmentGroupSummary }) {
   const { t, locale } = useI18n();
-  const [listMode, setListMode] = useState<MovementDetailListMode>("lines");
-  const mainTotals = useMemo(() => shipmentMainProductTotals(group.rows), [group.rows]);
+  const isOut = group.representative.type === "OUT";
+  const mainGroups = useMemo(() => shipmentMainProductGroups(group.rows), [group.rows]);
 
   return (
     <div className="space-y-2">
-      <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-2.5">
-        <p className="text-xs font-semibold text-zinc-700">{t("warehouse.globalMovementDetailViewHint")}</p>
-        <div
-          className="mt-2 inline-flex rounded-lg border border-zinc-200 bg-white p-1"
-          role="tablist"
-          aria-label={t("warehouse.globalMovementDetailViewAria")}
-        >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={listMode === "lines"}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-xs font-medium",
-              listMode === "lines" ? "bg-zinc-900 text-white" : "text-zinc-700 hover:bg-zinc-100"
-            )}
-            onClick={() => setListMode("lines")}
+      {mainGroups.map((mg) => {
+        const onlyChild =
+          mg.rows.length === 1 && mg.rows[0]?.productName?.trim() === mg.name.trim();
+        return (
+          <div
+            key={`ship-main-${group.key}-${mg.key}`}
+            className="overflow-hidden rounded-lg border border-zinc-200 bg-white"
           >
-            {t("warehouse.globalMovementDetailViewLines")}
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={listMode === "mainProduct"}
-            className={cn(
-              "rounded-md px-3 py-1.5 text-xs font-medium",
-              listMode === "mainProduct" ? "bg-zinc-900 text-white" : "text-zinc-700 hover:bg-zinc-100"
-            )}
-            onClick={() => setListMode("mainProduct")}
-          >
-            {t("warehouse.globalMovementDetailViewMainProduct")}
-          </button>
-        </div>
-      </div>
-      {listMode === "mainProduct" ? (
-        <div className="rounded-md bg-zinc-50 p-2 text-xs text-zinc-600">
-          <p className="mb-2 text-[11px] leading-relaxed text-zinc-500">
-            {t("warehouse.globalMovementDetailMainProductFootnote")}
-          </p>
-          <div className="grid gap-1">
-            {mainTotals.map((row) => (
-              <div
-                key={`ship-main-${group.key}-${row.key}`}
-                className="flex items-center justify-between gap-2 rounded border border-zinc-200 bg-white px-2 py-1.5"
+            <div className="flex items-center justify-between gap-3 border-b border-zinc-100 bg-zinc-50 px-3 py-2">
+              <span className="min-w-0 flex-1 truncate text-sm font-bold text-zinc-900">
+                {mg.name}
+              </span>
+              <span
+                className={cn(
+                  "shrink-0 text-sm font-bold tabular-nums",
+                  isOut ? "text-rose-700" : "text-emerald-700"
+                )}
               >
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-zinc-800">{row.name}</p>
-                  <p className="truncate text-[11px] text-zinc-500">
-                    {row.lineCount} {t("warehouse.shipmentLineCountSuffix")}
-                  </p>
-                </div>
-                <span
-                  className={cn(
-                    "shrink-0 tabular-nums font-semibold",
-                    row.quantity >= 0 ? "text-emerald-700" : "text-red-700"
-                  )}
-                >
-                  {row.quantity >= 0 ? "+" : ""}
-                  {formatLocaleAmount(row.quantity, locale)}
-                  {row.unit ? ` ${row.unit}` : ""}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="grid gap-1 rounded-md bg-zinc-50 p-2 text-xs text-zinc-600">
-          {group.rows.map((x) => (
-            <div
-              key={`g-row-${group.key}-${x.id}`}
-              className="flex items-center justify-between gap-2 rounded border border-zinc-200 bg-white px-2 py-1.5"
-            >
-              <div className="min-w-0">
-                <p className="truncate font-medium text-zinc-800">{x.productName}</p>
-                <p
-                  className={cn(
-                    "truncate text-[11px]",
-                    x.type === "OUT" && (x.outDestinationBranchName?.trim().length ?? 0) > 0
-                      ? "font-semibold text-rose-900"
-                      : "text-zinc-500"
-                  )}
-                >
-                  {x.outDestinationBranchName || "—"} · {x.type === "IN" ? t("products.typeIn") : t("products.typeOut")}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <span className="tabular-nums">{x.quantity}</span>
-                {x.type === "IN" && x.hasInvoicePhoto ? (
-                  <a
-                    href={warehouseMovementInvoicePhotoUrl(x.id)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={detailOpenIconButtonClass}
-                    aria-label={t("warehouse.openInvoicePhoto")}
-                    title={t("warehouse.openInvoicePhoto")}
-                  >
-                    <EyeIcon className="h-4 w-4" />
-                  </a>
-                ) : null}
-              </div>
+                {formatLocaleAmount(mg.quantity, locale)}
+                {mg.unit ? ` ${mg.unit}` : ""}
+              </span>
             </div>
-          ))}
-        </div>
-      )}
+            {onlyChild ? null : (
+              <div className="divide-y divide-zinc-50">
+                {mg.rows.map((x) => (
+                  <div
+                    key={`g-row-${group.key}-${x.id}`}
+                    className="flex items-center justify-between gap-3 py-1.5 pl-5 pr-3 text-sm"
+                  >
+                    <span className="min-w-0 flex-1 truncate text-zinc-600">{x.productName}</span>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="tabular-nums font-medium text-zinc-800">{x.quantity}</span>
+                      {x.type === "IN" && x.hasInvoicePhoto ? (
+                        <a
+                          href={warehouseMovementInvoicePhotoUrl(x.id)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={detailOpenIconButtonClass}
+                          aria-label={t("warehouse.openInvoicePhoto")}
+                          title={t("warehouse.openInvoicePhoto")}
+                        >
+                          <EyeIcon className="h-4 w-4" />
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -339,18 +402,11 @@ export function WarehouseGlobalMovementsScreen() {
   const [viewMode, setViewMode] = useState<"movements" | "shipments">("shipments");
   const [filtersDrawerOpen, setFiltersDrawerOpen] = useState(false);
   const [detailSummaryGroup, setDetailSummaryGroup] = useState<ShipmentGroupSummary | null>(null);
-  const [movementDetailListMode, setMovementDetailListMode] =
-    useState<MovementDetailListMode>("lines");
   const [invoicePreviewTarget, setInvoicePreviewTarget] = useState<{
     movementId: number;
     title: string;
     subtitle?: string;
   } | null>(null);
-
-  useEffect(() => {
-    const k = detailSummaryGroup?.key;
-    if (k) setMovementDetailListMode("lines");
-  }, [detailSummaryGroup?.key]);
 
   const openFiltersDrawer = useCallback(() => {
     setDraftScope({
@@ -593,8 +649,10 @@ export function WarehouseGlobalMovementsScreen() {
       return docsByBranch.flatMap((x) =>
         x.docs.map((doc) => ({
           branchId: x.branchId,
+          kind: doc.kind,
           contentType: String(doc.contentType ?? "").toLocaleLowerCase(),
           notes: doc.notes,
+          shipmentRequestId: doc.shipmentRequestId,
         }))
       );
     },
@@ -628,6 +686,16 @@ export function WarehouseGlobalMovementsScreen() {
     }
     return map;
   }, [shipmentGroups, shipmentPdfDocsQ.data]);
+  /** İrsaliye (SHIPMENT_DELIVERY_SLIP) PDF'i bulunan sevkiyat talebi id'leri. */
+  const deliverySlipShipmentRequestIds = useMemo(() => {
+    const set = new Set<number>();
+    for (const doc of shipmentPdfDocsQ.data ?? []) {
+      if (doc.kind !== "SHIPMENT_DELIVERY_SLIP") continue;
+      if (!doc.contentType.includes("pdf")) continue;
+      if (doc.shipmentRequestId && doc.shipmentRequestId > 0) set.add(doc.shipmentRequestId);
+    }
+    return set;
+  }, [shipmentPdfDocsQ.data]);
   const activeItemCount = viewMode === "movements" ? totalCount : shipmentGroups.length;
   const totalPages = Math.max(1, Math.ceil(activeItemCount / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -642,9 +710,14 @@ export function WarehouseGlobalMovementsScreen() {
     const destBranch = shipmentOutboundBranchSummary(g.rows);
     const detailType = rep.type;
     const typeLabel = detailType === "IN" ? t("products.typeIn") : t("products.typeOut");
-    const mainTotals = shipmentMainProductTotals(g.rows);
+    const isOut = rep.type === "OUT";
+    const mainGroups = shipmentMainProductGroups(g.rows);
     const hasPdfActions = rep.type === "OUT";
     const hasSystemPdf = hasSystemPdfByShipmentGroupKey.get(g.key) === true;
+    const shipmentRequestId = resolveShipmentRequestIdFromRows(g.rows);
+    const hasDeliverySlip =
+      shipmentRequestId != null && deliverySlipShipmentRequestIds.has(shipmentRequestId);
+    const pdfStatusLoading = shipmentPdfDocsQ.isFetching && !shipmentPdfDocsQ.data;
     const invoiceRows = g.rows.filter((x) => x.type === "IN" && x.hasInvoicePhoto);
     return (
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto px-3 pb-3 pr-2 sm:mt-4 sm:px-4 sm:pb-4 sm:pr-3">
@@ -748,206 +821,114 @@ export function WarehouseGlobalMovementsScreen() {
           </div>
           {hasPdfActions ? (
             <div className="rounded-lg border border-zinc-200 bg-white p-3 shadow-sm">
-              <p className="text-xs font-semibold text-zinc-800">
-                {t("warehouse.globalShipmentOpenDetail")}
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                {t("warehouse.shipmentPdfsLabel")}
               </p>
-              <p className="mt-1 text-xs text-zinc-500">
-                {hasSystemPdf
-                  ? t("warehouse.globalShipmentPdfAlreadyExists")
-                  : t("warehouse.globalShipmentSystemPdfMissing")}
-              </p>
-              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                {!hasSystemPdf ? (
-                  <Button
-                    type="button"
-                    className="min-h-11 w-full sm:w-auto"
-                    onClick={() => openOrderAccountStatement(g)}
-                  >
-                    {t("warehouse.globalShipmentCreatePdf")}
-                  </Button>
-                ) : null}
-                {hasSystemPdf ? (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="min-h-11 w-full sm:w-auto"
-                    onClick={() => openShipmentPdfDocuments(g)}
-                  >
-                    {t("warehouse.globalShipmentOpenExistingPdf")}
-                  </Button>
-                ) : null}
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <ShipmentPdfChip
+                  label={t("warehouse.shipmentPdfSalesForm")}
+                  exists={hasSystemPdf}
+                  loading={pdfStatusLoading}
+                  actionHint={
+                    hasSystemPdf ? t("warehouse.shipmentPdfView") : t("warehouse.shipmentPdfCreate")
+                  }
+                  onClick={
+                    hasSystemPdf ? () => openShipmentPdfDocuments(g) : () => openOrderAccountStatement(g)
+                  }
+                />
+                <ShipmentPdfChip
+                  label={t("warehouse.shipmentPdfDeliverySlip")}
+                  exists={hasDeliverySlip}
+                  loading={pdfStatusLoading}
+                  actionHint={
+                    hasDeliverySlip ? t("warehouse.shipmentPdfView") : t("warehouse.shipmentPdfNotYet")
+                  }
+                  onClick={
+                    hasDeliverySlip && shipmentRequestId != null
+                      ? () => router.push(`/shipments/${shipmentRequestId}`)
+                      : undefined
+                  }
+                />
               </div>
             </div>
           ) : null}
-          <div className="rounded-lg border border-zinc-200 bg-zinc-50/80 p-2.5">
-            <p className="text-xs font-semibold text-zinc-700">{t("warehouse.globalMovementDetailViewHint")}</p>
-            <div
-              className="mt-2 inline-flex rounded-lg border border-zinc-200 bg-white p-1"
-              role="tablist"
-              aria-label={t("warehouse.globalMovementDetailViewAria")}
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={movementDetailListMode === "lines"}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-xs font-medium",
-                  movementDetailListMode === "lines"
-                    ? "bg-zinc-900 text-white"
-                    : "text-zinc-700 hover:bg-zinc-100"
-                )}
-                onClick={() => setMovementDetailListMode("lines")}
-              >
-                {t("warehouse.globalMovementDetailViewLines")}
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={movementDetailListMode === "mainProduct"}
-                className={cn(
-                  "rounded-md px-3 py-1.5 text-xs font-medium",
-                  movementDetailListMode === "mainProduct"
-                    ? "bg-zinc-900 text-white"
-                    : "text-zinc-700 hover:bg-zinc-100"
-                )}
-                onClick={() => setMovementDetailListMode("mainProduct")}
-              >
-                {t("warehouse.globalMovementDetailViewMainProduct")}
-              </button>
+          <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-2.5">
+            <p className="text-xs font-semibold text-zinc-800">
+              {t("warehouse.movementLinesDialogTitle")} ({g.rows.length})
+            </p>
+            <div className="mt-2 space-y-2">
+              {mainGroups.map((mg) => {
+                const onlyChild =
+                  mg.rows.length === 1 && mg.rows[0]?.productName?.trim() === mg.name.trim();
+                return (
+                  <div
+                    key={`dlg-main-${g.key}-${mg.key}`}
+                    className="overflow-hidden rounded-lg border border-zinc-200 bg-white"
+                  >
+                    <div className="flex items-center justify-between gap-3 border-b border-zinc-100 bg-zinc-50 px-3 py-2">
+                      <span className="min-w-0 flex-1 truncate text-sm font-bold text-zinc-900">
+                        {mg.name}
+                      </span>
+                      <span
+                        className={cn(
+                          "shrink-0 text-sm font-bold tabular-nums",
+                          isOut ? "text-rose-700" : "text-emerald-700"
+                        )}
+                      >
+                        {formatLocaleAmount(mg.quantity, locale)}
+                        {mg.unit ? ` ${mg.unit}` : ""}
+                      </span>
+                    </div>
+                    {onlyChild ? null : (
+                      <div className="divide-y divide-zinc-50">
+                        {mg.rows.map((x) => (
+                          <div
+                            key={`dlg-line-${g.key}-${x.id}`}
+                            className="flex items-center justify-between gap-3 py-1.5 pl-5 pr-3 text-sm"
+                          >
+                            <span className="min-w-0 flex-1 truncate text-zinc-600">{x.productName}</span>
+                            <div className="flex shrink-0 items-center gap-2">
+                              <span className="tabular-nums font-medium text-zinc-800">{x.quantity}</span>
+                              {x.type === "IN" && x.hasInvoicePhoto ? (
+                                <button
+                                  type="button"
+                                  className={detailOpenIconButtonClass}
+                                  aria-label={t("warehouse.openInvoicePhoto")}
+                                  title={t("warehouse.openInvoicePhoto")}
+                                  onClick={() =>
+                                    setInvoicePreviewTarget({
+                                      movementId: x.id,
+                                      title: t("warehouse.movementInvoicePreviewTitle"),
+                                      subtitle: x.productName,
+                                    })
+                                  }
+                                >
+                                  <EyeIcon className="h-4 w-4" />
+                                </button>
+                              ) : null}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
-          {movementDetailListMode === "mainProduct" ? (
-            <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-2.5">
-              <p className="text-xs font-semibold text-zinc-800">
-                {t("warehouse.movementMainTotalsDialogTitle")} ({mainTotals.length})
-              </p>
-              <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
-                {t("warehouse.globalMovementDetailMainProductFootnote")}
-              </p>
-              <div className="mt-2 md:hidden">
-                <div className="space-y-2">
-                  {mainTotals.map((row) => (
-                    <div
-                      key={`dlg-main-m-${row.key}`}
-                      className="rounded-md border border-zinc-200 bg-white px-2 py-2"
-                    >
-                      <p className="text-xs font-medium text-zinc-900">{row.name}</p>
-                      <p className="mt-1 text-[11px] text-zinc-500">
-                        {row.lineCount}{" "}
-                        {t("warehouse.shipmentLineCountSuffix")}
-                      </p>
-                      <p
-                        className={cn(
-                          "mt-1 text-sm font-semibold tabular-nums",
-                          row.quantity >= 0 ? "text-emerald-700" : "text-red-700"
-                        )}
-                      >
-                        {row.quantity >= 0 ? "+" : ""}
-                        {formatLocaleAmount(row.quantity, locale)}
-                        {row.unit ? ` ${row.unit}` : ""}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div className="mt-2 hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[320px] border-collapse text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-zinc-200 bg-white">
-                      <th className="px-2 py-2 text-xs font-semibold text-zinc-700">
-                        {t("warehouse.movementMainBalancesProduct")}
-                      </th>
-                      <th className="px-2 py-2 text-xs font-semibold text-zinc-700">
-                        {t("warehouse.movementsOutboundByBranchColLines")}
-                      </th>
-                      <th className="px-2 py-2 text-right text-xs font-semibold text-zinc-700">
-                        {t("warehouse.movementQuantity")}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {mainTotals.map((row) => (
-                      <tr key={`dlg-main-d-${row.key}`} className="border-b border-zinc-100 bg-white last:border-0">
-                        <td className="max-w-[14rem] truncate px-2 py-2 text-xs font-medium text-zinc-900">
-                          {row.name}
-                        </td>
-                        <td className="px-2 py-2 tabular-nums text-xs text-zinc-600">{row.lineCount}</td>
-                        <td
-                          className={cn(
-                            "px-2 py-2 text-right text-xs font-semibold tabular-nums",
-                            row.quantity >= 0 ? "text-emerald-700" : "text-red-700"
-                          )}
-                        >
-                          {row.quantity >= 0 ? "+" : ""}
-                          {formatLocaleAmount(row.quantity, locale)}
-                          {row.unit ? ` ${row.unit}` : ""}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-2.5">
-              <p className="text-xs font-semibold text-zinc-800">
-                {t("warehouse.movementLinesDialogTitle")} ({g.rows.length})
-              </p>
-              <div className="mt-2 space-y-2">
-                {g.rows.map((x) => (
-                  <div
-                    key={`dlg-line-${g.key}-${x.id}`}
-                    className="flex items-center justify-between gap-2 rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-zinc-800">{x.productName}</p>
-                      <p
-                        className={cn(
-                          "truncate text-[11px]",
-                          x.type === "OUT" && (x.outDestinationBranchName?.trim().length ?? 0) > 0
-                            ? "font-semibold text-rose-900"
-                            : "text-zinc-500"
-                        )}
-                      >
-                        {x.warehouseName} · {x.outDestinationBranchName || "—"} ·{" "}
-                        {x.type === "IN" ? t("products.typeIn") : t("products.typeOut")}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <span className="tabular-nums font-semibold text-zinc-900">{x.quantity}</span>
-                      {x.type === "IN" && x.hasInvoicePhoto ? (
-                        <button
-                          type="button"
-                          className={detailOpenIconButtonClass}
-                          aria-label={t("warehouse.openInvoicePhoto")}
-                          title={t("warehouse.openInvoicePhoto")}
-                          onClick={() =>
-                            setInvoicePreviewTarget({
-                              movementId: x.id,
-                              title: t("warehouse.movementInvoicePreviewTitle"),
-                              subtitle: x.productName,
-                            })
-                          }
-                        >
-                          <EyeIcon className="h-4 w-4" />
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     );
   }, [
+    deliverySlipShipmentRequestIds,
     detailSummaryGroup,
     hasSystemPdfByShipmentGroupKey,
     locale,
-    movementDetailListMode,
     openOrderAccountStatement,
     openShipmentPdfDocuments,
+    router,
+    shipmentPdfDocsQ.data,
+    shipmentPdfDocsQ.isFetching,
     t,
   ]);
 
@@ -1075,45 +1056,32 @@ export function WarehouseGlobalMovementsScreen() {
           <p className="mt-1 text-xs leading-relaxed text-zinc-500">
             {t("warehouse.globalInOutByMainProductHint")}
           </p>
-          <div className="mt-3 grid max-h-[60vh] grid-cols-1 gap-2 overflow-auto sm:grid-cols-2 lg:grid-cols-3">
-            {inOutTotalsByMainProduct.map((row) => {
-              const unitSuffix = row.unit ? ` ${row.unit}` : "";
-              return (
-                <div
-                  key={row.key}
-                  className="rounded-lg border border-zinc-200 bg-white px-3 py-2.5 shadow-sm"
-                >
-                  <p
-                    className="line-clamp-2 text-sm font-semibold leading-snug text-zinc-900"
-                    title={row.name}
-                  >
-                    {row.name}
-                  </p>
-                  <div className="mt-2 grid grid-cols-2 gap-2">
-                    <div className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1.5">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">
-                        {t("products.typeIn")}
-                      </p>
-                      <p className="mt-0.5 text-base font-semibold tabular-nums text-emerald-900">
-                        {row.inQty > 0 ? "+" : ""}
-                        {formatLocaleAmount(row.inQty, locale)}
-                        {unitSuffix}
-                      </p>
-                    </div>
-                    <div className="rounded-md border border-rose-200 bg-rose-50 px-2 py-1.5">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-rose-700">
-                        {t("products.typeOut")}
-                      </p>
-                      <p className="mt-0.5 text-base font-semibold tabular-nums text-rose-900">
-                        {row.outQty > 0 ? "−" : ""}
-                        {formatLocaleAmount(row.outQty, locale)}
-                        {unitSuffix}
-                      </p>
-                    </div>
-                  </div>
+          <div className="mt-3 grid max-h-[60vh] grid-cols-1 gap-1.5 overflow-auto sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {inOutTotalsByMainProduct.map((row) => (
+              <div
+                key={row.key}
+                className="rounded-lg border border-zinc-200 bg-white px-2.5 py-2 shadow-sm"
+              >
+                <p className="truncate text-xs font-semibold text-zinc-900" title={row.name}>
+                  {row.name}
+                </p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs font-semibold tabular-nums">
+                  <span className="inline-flex items-center gap-0.5 rounded-md bg-emerald-50 px-1.5 py-0.5 text-emerald-700">
+                    <span aria-hidden>↑</span>
+                    {row.inQty > 0 ? "+" : ""}
+                    {formatLocaleAmount(row.inQty, locale)}
+                  </span>
+                  <span className="inline-flex items-center gap-0.5 rounded-md bg-rose-50 px-1.5 py-0.5 text-rose-700">
+                    <span aria-hidden>↓</span>
+                    {row.outQty > 0 ? "−" : ""}
+                    {formatLocaleAmount(row.outQty, locale)}
+                  </span>
+                  {row.unit ? (
+                    <span className="text-[11px] font-medium text-zinc-500">{row.unit}</span>
+                  ) : null}
                 </div>
-              );
-            })}
+              </div>
+            ))}
           </div>
         </div>
       ) : null}
@@ -1320,6 +1288,9 @@ export function WarehouseGlobalMovementsScreen() {
             {shipmentGroups.slice(pageStart, pageStart + PAGE_SIZE).map((group) => {
               const row = group.representative;
               const batchCell = formatWarehouseShipmentDisplay(row.inBatchGroupId, row.id);
+              const idBadge = batchCell.text.includes("-")
+                ? `#${batchCell.text.split("-")[0]}`
+                : batchCell.text;
               const hasPdfActions = row.type === "OUT";
               const hasSystemPdf = hasSystemPdfByShipmentGroupKey.get(group.key) === true;
               const outboundBranchSummary = shipmentOutboundBranchSummary(group.rows);
@@ -1328,115 +1299,144 @@ export function WarehouseGlobalMovementsScreen() {
                 relatedShipmentById,
                 relatedShipmentByNo
               );
+              const shipmentRequestId =
+                relatedShipment?.id ?? resolveShipmentRequestIdFromRows(group.rows);
+              const hasDeliverySlip =
+                shipmentRequestId != null && deliverySlipShipmentRequestIds.has(shipmentRequestId);
+              const pdfStatusLoading = shipmentPdfDocsQ.isFetching && !shipmentPdfDocsQ.data;
               return (
                 <details key={group.key} className="rounded-lg border border-zinc-200 bg-white p-3">
                   <summary className="cursor-pointer list-none">
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1 space-y-2">
-                        <div>
-                          <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
-                            {t("products.mColDate")}
-                          </p>
-                          <p
-                            className={cn(
-                              "mt-0.5 tabular-nums text-zinc-900",
-                              row.type === "OUT"
-                                ? "text-xl font-bold tracking-tight sm:text-2xl"
-                                : "text-lg font-bold sm:text-xl"
-                            )}
-                          >
-                            {formatLocaleDate(row.movementDate, locale)}
-                          </p>
-                          <p className="mt-1 text-sm font-medium text-zinc-600">{row.warehouseName}</p>
-                        </div>
-                        {row.type === "OUT" ? (
-                          <div className="rounded-lg border border-rose-200 bg-gradient-to-br from-rose-50 to-rose-50/30 px-3 py-2.5 shadow-sm ring-1 ring-rose-950/[0.04]">
-                            <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-rose-800">
-                              {t("warehouse.movementOutBranch")}
-                            </p>
-                            <p className="mt-1 text-base font-bold leading-snug text-rose-950 sm:text-lg">
-                              {outboundBranchSummary || "—"}
-                            </p>
-                          </div>
-                        ) : null}
-                        <p className="text-xs text-zinc-500">
-                          {t("warehouse.movementBatchGroup")}: {batchCell.text} ·{" "}
-                          {t("warehouse.globalShipmentLineCount").replace("{count}", String(group.lineCount))}
-                        </p>
+                    <div className="flex items-center justify-between gap-x-3 gap-y-2">
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <span
+                          className="inline-flex shrink-0 items-center rounded-md bg-zinc-100 px-2 py-0.5 font-mono text-[0.7rem] font-semibold tracking-tight text-zinc-600"
+                          title={batchCell.text}
+                        >
+                          {idBadge}
+                        </span>
+                        <span className="inline-flex shrink-0 items-center gap-1 tabular-nums text-sm font-semibold text-zinc-900">
+                          <ShipmentCalendarIcon className="h-3.5 w-3.5 text-zinc-400" />
+                          {formatLocaleDate(row.movementDate, locale)}
+                        </span>
                       </div>
                       <span
                         className={cn(
-                          "rounded-full px-2 py-0.5 text-xs font-semibold",
+                          "shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold",
                           row.type === "IN" ? "bg-emerald-100 text-emerald-900" : "bg-red-100 text-red-900"
                         )}
                       >
                         {row.type === "IN" ? t("products.typeIn") : t("products.typeOut")}
                       </span>
                     </div>
-                    {hasPdfActions ? (
-                      <div className="mt-1.5">
-                        <span
-                          className={cn(
-                            "inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium",
-                            hasSystemPdf
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                              : "border-zinc-200 bg-zinc-50 text-zinc-600"
-                          )}
-                        >
-                          {hasSystemPdf
-                            ? t("warehouse.globalShipmentSystemPdfExists")
-                            : shipmentPdfDocsQ.isFetching
-                              ? t("common.loading")
-                              : t("warehouse.globalShipmentSystemPdfMissing")}
+                    <div className="mt-2 flex flex-wrap items-end gap-x-2 gap-y-1.5">
+                      <span className="inline-flex min-w-0 flex-col">
+                        <span className="text-[0.6rem] font-semibold uppercase tracking-wide text-zinc-400">
+                          {row.type === "OUT"
+                            ? t("warehouse.movementSourceWarehouseLabel")
+                            : t("warehouse.movementWarehouseLabel")}
                         </span>
+                        <span className="truncate text-sm font-medium text-zinc-700">
+                          {row.warehouseName}
+                        </span>
+                      </span>
+                      {row.type === "OUT" ? (
+                        <>
+                          <span aria-hidden className="pb-0.5 text-base text-zinc-300">
+                            →
+                          </span>
+                          <span className="inline-flex min-w-0 flex-col">
+                            <span className="text-[0.6rem] font-semibold uppercase tracking-wide text-rose-500">
+                              {t("warehouse.movementOutBranch")}
+                            </span>
+                            <span className="truncate text-sm font-bold text-rose-900">
+                              {outboundBranchSummary || "—"}
+                            </span>
+                          </span>
+                        </>
+                      ) : null}
+                    </div>
+                    {hasPdfActions ? (
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        <ShipmentPdfChip
+                          compact
+                          label={t("warehouse.shipmentPdfSalesForm")}
+                          exists={hasSystemPdf}
+                          loading={pdfStatusLoading}
+                        />
+                        <ShipmentPdfChip
+                          compact
+                          label={t("warehouse.shipmentPdfDeliverySlip")}
+                          exists={hasDeliverySlip}
+                          loading={pdfStatusLoading}
+                        />
                       </div>
                     ) : null}
                   </summary>
                   <div className="mt-3 space-y-2 border-t border-zinc-100 pt-2">
-                    <p className="text-xs text-zinc-700">
-                      {t("warehouse.globalShipmentSummary")
-                        .replace("{qty}", String(group.totalQuantity))
-                        .replace("{lines}", String(group.lineCount))}
-                    </p>
-                    <div className="rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-2">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-md bg-zinc-50 px-2.5 py-1.5">
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                         {t("warehouse.relatedShipmentRequestLabel")}
-                      </p>
+                      </span>
                       {relatedShipment ? (
                         <button
                           type="button"
-                          className="mt-1 text-left text-sm font-semibold text-violet-700 underline decoration-violet-300 underline-offset-2 hover:decoration-violet-700"
+                          className="text-left text-sm font-semibold text-violet-700 underline decoration-violet-300 underline-offset-2 hover:decoration-violet-700"
                           onClick={() => router.push(`/shipments/${relatedShipment.id}`)}
                         >
                           {relatedShipment.shipmentNo} · {relatedShipment.status}
                         </button>
                       ) : (
-                        <p className="mt-1 text-sm text-zinc-500">{t("warehouse.relatedShipmentRequestEmpty")}</p>
+                        <span className="text-sm text-zinc-400">{t("warehouse.relatedShipmentRequestEmpty")}</span>
                       )}
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button type="button" variant="secondary" className="min-h-9 text-xs" onClick={() => setDetailSummaryGroup(group)}>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                      <Button
+                        type="button"
+                        className="h-10 min-h-10 gap-2 px-3.5 text-sm md:h-10 md:px-3.5 md:text-sm sm:flex-none"
+                        onClick={() => setDetailSummaryGroup(group)}
+                      >
+                        <EyeIcon className="h-4 w-4 shrink-0" />
                         {t("warehouse.globalShipmentOpenDetail")}
                       </Button>
                       {hasPdfActions ? (
-                        <>
-                          {!hasSystemPdf ? (
-                            <Button type="button" className="min-h-9 text-xs" onClick={() => openOrderAccountStatement(group)}>
-                              {t("warehouse.globalShipmentCreatePdf")}
-                            </Button>
-                          ) : (
-                            <span className="inline-flex min-h-9 items-center rounded-md border border-emerald-200 bg-emerald-50 px-3 text-xs font-medium text-emerald-800">
-                              {t("warehouse.globalShipmentPdfAlreadyExists")}
-                            </span>
-                          )}
-                          {hasSystemPdf ? (
-                            <Button type="button" variant="ghost" className="min-h-9 text-xs" onClick={() => openShipmentPdfDocuments(group)}>
-                              {t("warehouse.globalShipmentOpenExistingPdf")}
-                            </Button>
-                          ) : null}
-                        </>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <ShipmentPdfChip
+                            label={t("warehouse.shipmentPdfSalesForm")}
+                            exists={hasSystemPdf}
+                            loading={pdfStatusLoading}
+                            actionHint={
+                              hasSystemPdf
+                                ? t("warehouse.shipmentPdfView")
+                                : t("warehouse.shipmentPdfCreate")
+                            }
+                            onClick={
+                              hasSystemPdf
+                                ? () => openShipmentPdfDocuments(group)
+                                : () => openOrderAccountStatement(group)
+                            }
+                          />
+                          <ShipmentPdfChip
+                            label={t("warehouse.shipmentPdfDeliverySlip")}
+                            exists={hasDeliverySlip}
+                            loading={pdfStatusLoading}
+                            actionHint={
+                              hasDeliverySlip ? t("warehouse.shipmentPdfView") : t("warehouse.shipmentPdfNotYet")
+                            }
+                            onClick={
+                              hasDeliverySlip && shipmentRequestId != null
+                                ? () => router.push(`/shipments/${shipmentRequestId}`)
+                                : undefined
+                            }
+                          />
+                        </div>
                       ) : null}
                     </div>
+                    <p className="pt-1 text-xs text-zinc-700">
+                      {t("warehouse.globalShipmentSummary")
+                        .replace("{qty}", String(group.totalQuantity))
+                        .replace("{lines}", String(group.lineCount))}
+                    </p>
                     <ShipmentGroupExpandedLineBlock group={group} />
                   </div>
                 </details>

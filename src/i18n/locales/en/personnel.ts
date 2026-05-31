@@ -733,7 +733,7 @@ export const personnel = {
     "Updates the record. Hire date is historical — change only when correcting data.",
   tableAdvances: "Advances",
   tableCostsAdvancesExpenses: "Advances & expenses",
-  listCashHandoverPoolLabel: "Register cash pool (remaining):",
+  listCashHandoverPoolLabel: "Pocket register cash (current):",
   listCashHandoverPoolLoading: "Loading register cash pool…",
   listCashHandoverPoolError: "Could not load register cash pool.",
   advanceQuickAria: "Give advance to this person",

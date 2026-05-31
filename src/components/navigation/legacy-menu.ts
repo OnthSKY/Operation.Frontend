@@ -5,6 +5,7 @@ import {
   canOpenBranchesWorkspace,
   canSeeDailyBranchRegister,
   canSeeFinancialReports,
+  canSeeShipmentsModule,
   canSeeUiModule,
   hasPermissionCode,
 } from "@/lib/auth/permissions";
@@ -43,7 +44,7 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
     !personnelPortal && !driverPortal && canSeeUiModule(user, PERM.uiGeneralOverhead);
   const showInsurances = !personnelPortal && !driverPortal && canSeeUiModule(user, PERM.uiInsurances);
   const showWarehouseLink = driverPortal || canSeeUiModule(user, PERM.uiWarehouse);
-  const showShipments = !personnelPortal && canSeeUiModule(user, PERM.uiShipments);
+  const showShipments = !personnelPortal && canSeeShipmentsModule(user);
   const showProducts = !driverPortal && canSeeUiModule(user, PERM.uiProducts);
   const showProcurement = !personnelPortal && !driverPortal && canSeeUiModule(user, PERM.uiSuppliers);
   const showFleet = !personnelPortal && !driverPortal && canSeeUiModule(user, PERM.uiVehicles);
@@ -81,6 +82,14 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
                       id: "reports-financial",
                       labelKey: "reports.sidebarFinances",
                       route: "/reports/financial",
+                      icon: "reports",
+                    },
+                    {
+                      // Operasyonel /personnel/costs ekranı Personel'de kalır; bu yalnızca
+                      // analitik (salt-okunur) personel-gideri raporuna kısayol — keşfedilebilirlik.
+                      id: "reports-personnel-costs",
+                      labelKey: "reports.sidebarPersonnelCosts",
+                      route: "/reports/financial/tables/advances",
                       icon: "reports",
                     },
                   ]
@@ -171,28 +180,56 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
       icon: "warehouse",
       mobileVisible: true,
       children: [
+        // Depo (alt menü): fiziksel stok ve hareketler
         ...(showWarehouseLink
           ? [
-              { id: "warehouses", labelKey: "nav.warehouse", route: "/warehouses", icon: "warehouse" },
               {
-                id: "warehouse-global-movements",
-                labelKey: "nav.warehouseGlobalMovements",
-                route: "/warehouses/movements",
-                icon: "movements",
+                id: "warehouse-sub",
+                labelKey: "nav.subWarehouse",
+                route: "/warehouses",
+                icon: "warehouse",
+                children: [
+                  { id: "warehouses", labelKey: "nav.warehouse", route: "/warehouses", icon: "warehouse" },
+                  {
+                    id: "warehouse-global-movements",
+                    labelKey: "nav.warehouseGlobalMovements",
+                    route: "/warehouses/movements",
+                    icon: "movements",
+                  },
+                ],
               },
             ]
           : []),
+        // Sevkiyat: kendi workflow'u olan ayrı bir akış (tek satır)
         ...(showShipments
           ? [{ id: "shipments", labelKey: "nav.shipments", route: "/shipments", icon: "warehouse" }]
           : []),
+        // Ürünler & Fiyat (alt menü): katalog + fiyat/maliyet analitiği
         ...(showProducts
           ? [
-              { id: "products", labelKey: "nav.products", route: "/products", icon: "products" },
-              { id: "product-categories", labelKey: "nav.productCategories", route: "/products/categories", icon: "categories" },
-              { id: "product-cost-history", labelKey: "nav.productCostHistory", route: "/products/cost-history", icon: "cost" },
-              { id: "product-sales-price-history", labelKey: "nav.productSalesPriceHistory", route: "/products/sales-price-history", icon: "cost" },
-              { id: "order-account-statement", labelKey: "reports.sidebarOrderAccountStatement", route: "/products/order-account-statement", icon: "invoices" },
-              { id: "counterparty-summary", labelKey: "reports.sidebarCounterpartySummary", route: "/products/order-account-statement/summary", icon: "reports" },
+              {
+                id: "products-sub",
+                labelKey: "nav.subProducts",
+                route: "/products",
+                icon: "products",
+                children: [
+                  { id: "products", labelKey: "nav.products", route: "/products", icon: "products" },
+                  { id: "product-categories", labelKey: "nav.productCategories", route: "/products/categories", icon: "categories" },
+                  { id: "product-cost-history", labelKey: "nav.productCostHistory", route: "/products/cost-history", icon: "cost" },
+                  { id: "product-sales-price-history", labelKey: "nav.productSalesPriceHistory", route: "/products/sales-price-history", icon: "cost" },
+                ],
+              },
+              // Cari & Sipariş (alt menü): cari hesaplar + PDF hesap dökümü
+              {
+                id: "commercial-sub",
+                labelKey: "nav.subCommercial",
+                route: "/products/order-account-statement",
+                icon: "invoices",
+                children: [
+                  { id: "order-account-statement", labelKey: "reports.sidebarOrderAccountStatement", route: "/products/order-account-statement", icon: "invoices" },
+                  { id: "counterparty-summary", labelKey: "reports.sidebarCounterpartySummary", route: "/products/order-account-statement/summary", icon: "reports" },
+                ],
+              },
             ]
           : []),
       ],

@@ -66,6 +66,13 @@ export const users = {
     "Rol güncellendi. Bu kullanıcı için şube veri kapsamlarını (ve isteğe bağlı avans hedefi personellerini) atayın — hesabınızla kapsam düzenleyicisi açılamıyor.",
   branchDayRegisterUserCreatedNeedScopesPermission:
     "Kullanıcı oluşturuldu. Bu hesap için şube kapsamlarını (ve isteğe bağlı avans hedefi personellerini) atayın — oturumunuzla kapsam düzenleyicisi açılamıyor.",
+  scopeRequiredRoleSavedNeedScopesPermission:
+    "Rol güncellendi. Bu rol veri kapsamı gerektiriyor — «admin.users.data_scopes» yetkili bir yöneticiden bu kullanıcı için kapsam (şube/depo/personel) satırlarını atamasını isteyin.",
+  scopeRequiredUserCreatedNeedScopesPermission:
+    "Kullanıcı oluşturuldu. Atanan rol veri kapsamı gerektiriyor — «admin.users.data_scopes» yetkili bir yöneticiden bu hesap için kapsam satırlarını atamasını isteyin.",
+  scopeMissingBadge: "Kapsam eksik",
+  scopeMissingHint:
+    "Bu kullanıcının rolü veri kapsamı gerektiriyor ama hiç kapsam tanımlanmamış; işlemler eksik/hatalı olabilir. Kapsam ekranından şube/depo/personel satırı ekleyin.",
   statusActive: "Aktif",
   statusInactive: "Pasif",
   passwordMismatch: "Şifreler eşleşmiyor.",
@@ -82,23 +89,39 @@ export const users = {
   selfFinancialsUpdated: "Görünürlük güncellendi",
   roleUpdated: "Rol güncellendi. Kullanıcı tekrar giriş yapmalıdır (oturumlar sonlandırıldı).",
   roleChangeSelfDisabled: "Kendi rolünüzü buradan değiştiremezsiniz.",
-  roleChangeModalTitle: "Rolü değiştir",
+  roleChangeModalTitle: "Rolleri düzenle",
   roleChangeModalDescription:
-    "Aşağıdan yeni rolü seçin. Kaydettiğinizde bu hesabın açık oturumları sonlanır; kullanıcı yeniden giriş yapmalıdır.",
+    "Aşağıdan bu hesabın rollerini seçin (birden fazla seçebilirsiniz). Kaydettiğinizde açık oturumlar sonlanır; kullanıcı yeniden giriş yapmalıdır.",
   roleChangeAccountHeading: "Hesap",
-  roleChangeCurrentBadge: "Şu anki rol",
-  roleChangePickHeading: "Yeni rol",
+  roleChangeCurrentBadge: "Mevcut roller",
+  roleChangePickHeading: "Roller",
   roleChangePickSubhint:
     "Her seçenekte tipik menü ve veri erişimi özeti yer alır; kesin izin listesi Yetkilendirme matrisindedir.",
+  rolesPickMultiSubhint:
+    "Birden fazla rol seçebilirsiniz; kullanıcı seçili tüm rollerin izinlerini birleşik olarak alır. Kesin izin listesi Yetkilendirme matrisindedir.",
+  rolesNoneSelectedError: "En az bir rol seçin.",
+  rolePersonnelRequiredBadge: "Personel gerekli",
+  personnelRequiredForRoleHint:
+    "Bu rol bir personel kaydına bağlanmayı gerektirir; aksi halde hesap çalışmaz (şube/şoför kimliği, sevkiyat teslim imzası).",
+  personnelRequiredError: "Bu rol için bir personel seçin.",
+  rolesNoneSelectedTitle: "Hiç rol seçili değil",
+  rolesNoneSelectedHint:
+    "Kaydetmek için en az bir rol seçmelisiniz; rolsüz hesap hiçbir ekrana erişemez.",
   roleChangePreviewHeading: "Özet",
   roleChangeConfirm: "Rolü güncelle",
   roleChangeOpenAria: "Rol seç ve güncelle",
+  roleEditButton: "Rol düzenle",
   roleChangeSessionHint: "Onayladığınızda oturumlar sonlanır.",
-  roleChangePersonnelFieldLabel: "Personel bağlantısı",
+  roleChangePersonnelFieldLabel: "Bir personele bağla",
   roleChangePersonnelFieldHint:
-    "Şube personeli veya şoför rolü için bu giriş hesabının hangi personel kartına bağlı olacağını seçin. Hesapta zaten personel varsa aynı kaydı bırakabilirsiniz.",
+    "Bu giriş hesabını bir personel kartına bağlayabilirsiniz. Bağladığınızda kullanıcı, listede ve tüm ekranlarda bağlı personelin adıyla görünür. Şube personeli ve şoför rolü için bu bağlantı zorunludur.",
   roleChangePersonnelRequired:
     "Bu rol için listeden bir personel seçin (şube personelinde şubesi atanmış kayıt gerekir).",
+  roleChangeUnlinkPersonnelTitle: "Personel bağını kaldır",
+  roleChangeUnlinkPersonnelHint:
+    "Bu hesap şu an “{name}” personeline bağlı; bu yüzden listede ve ekranlarda personelin adıyla görünüyor. Portal rolü (şube personeli/şoför) kaldırıldığı için bağı çözebilirsiniz.",
+  roleChangeUnlinkPersonnelCheckbox:
+    "Personel bağını kaldır — kullanıcı bundan sonra kendi kullanıcı/görünen adıyla görünsün.",
   activateUser: "Aktif yap",
   deactivateUser: "Pasif yap",
   activateUserHint: "Kullanıcı tekrar giriş yapabilir.",

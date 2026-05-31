@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { PERM, hasPermissionCode } from "@/lib/auth/permissions";
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
+import { BranchStockBalancePolicyToggleCard } from "@/modules/admin/components/BranchStockBalancePolicyToggleCard";
 import { Card } from "@/shared/components/Card";
 import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
@@ -146,6 +147,8 @@ export function SystemSettingsScreen() {
             </span>
           </Card>
         </Link>
+
+        <BranchStockBalancePolicyToggleCard />
         </div>
       }
     />

@@ -15,7 +15,6 @@ import {
   useCreateUser,
   useHardDeleteUser,
   usePatchUserAccountStatus,
-  usePatchUserRole,
   usePatchUserSelfFinancials,
   usePutUserPermissionOverrides,
   useResetUserPassword,
@@ -26,7 +25,7 @@ import {
   useUserPermissionOverrides,
   useUsersList,
 } from "@/modules/personnel/hooks/useUsersQueries";
-import { useAuthorizationMatrix } from "@/modules/admin/hooks/useAuthorizationAdminQueries";
+import { useAuthorizationMatrix, usePutUserRoles } from "@/modules/admin/hooks/useAuthorizationAdminQueries";
 import {
   groupPermissionsForMatrix,
   resolvePermissionGroupTitle,
@@ -64,7 +63,7 @@ import {
 } from "@/modules/account/lib/role-label";
 import { cn } from "@/lib/cn";
 import { ToolbarGlyphUserPlus } from "@/shared/ui/ToolbarGlyph";
-import { Ban, Check, ChevronDown, KeyRound, Layers, MapPinned, Pencil, ShieldCheck, ShieldOff, Trash2, UserCheck, UserX, X } from "lucide-react";
+import { AlertTriangle, Ban, Check, ChevronDown, KeyRound, Layers, MapPinned, Pencil, ShieldCheck, ShieldOff, Trash2, UserCheck, UserX, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -161,6 +160,28 @@ function formatUserListCountMessage(template: string, count: number): string {
   return template.replace(/\{count\}/g, String(count));
 }
 
+/** Kullanıcının atanmış rolleri (UPPER, sıralı). `roles` boşsa birincil role düşer. */
+function userRolesUpper(r: UserListItem): string[] {
+  const list =
+    Array.isArray(r.roles) && r.roles.length > 0
+      ? r.roles
+      : r.role
+        ? [r.role]
+        : [];
+  return list.map((c) => String(c).trim().toUpperCase()).filter((c) => c.length > 0);
+}
+
+function userHasRole(r: UserListItem, code: string): boolean {
+  return userRolesUpper(r).includes(code.toUpperCase());
+}
+
+// Bir personel kaydına bağlanması ZORUNLU roller (portal rolleri): hesap bu kayıt üzerinden
+// kimliklenir (şube/şoför kimliği, kendi mali görünümü, sevkiyat teslim imzası vb.).
+const ROLES_REQUIRING_PERSONNEL = new Set(["PERSONNEL", "DRIVER"]);
+function roleRequiresPersonnel(code: string): boolean {
+  return ROLES_REQUIRING_PERSONNEL.has(String(code).trim().toUpperCase());
+}
+
 // Yerine `adminUsersRoleDescription` paylaşılan helper'ı kullanılıyor (@/modules/account/lib/role-label).
 
 function userPermissionSummaryLines(
@@ -192,8 +213,9 @@ export function UsersScreen() {
   const [scopesModalUser, setScopesModalUser] = useState<UserListItem | null>(null);
   const [roleEditor, setRoleEditor] = useState<{
     user: UserListItem;
-    draftRole: AppUserRole;
+    draftRoles: Set<string>;
     draftPersonnelId: string;
+    draftUnlinkPersonnel: boolean;
   } | null>(null);
   const [accountStatusDialog, setAccountStatusDialog] = useState<{
     target: UserListItem;
@@ -225,7 +247,7 @@ export function UsersScreen() {
   const personnel = personnelListResult?.items ?? [];
   const createUser = useCreateUser();
   const patchSelfFin = usePatchUserSelfFinancials();
-  const patchRole = usePatchUserRole();
+  const putRoles = usePutUserRoles();
   const patchAccountStatus = usePatchUserAccountStatus();
   const softDeleteUser = useSoftDeleteUser();
   const hardDeleteUser = useHardDeleteUser();
@@ -371,6 +393,45 @@ export function UsersScreen() {
       return adminUsersRoleTitleOrFallback(ro, ro, t);
     },
     [t]
+  );
+
+  // ---- Kapsam (scope) gerektiren rol tespiti ----
+  // Backend tek doğruluk kaynağı: matrix `scopeRequiringPermissionCodes` döner. Bir rol setinin
+  // izin birleşimi bu kümeyle kesişiyorsa, o roller kapsam tanımlanmadan eksik/hatalı çalışır.
+  const scopeRequiringCodeSet = useMemo(
+    () => new Set((matrixData?.scopeRequiringPermissionCodes ?? []).map((c) => c.toUpperCase())),
+    [matrixData]
+  );
+
+  const rolePermsByCode = useMemo(() => {
+    const m = new Map<string, string[]>();
+    for (const row of matrixData?.roles ?? []) {
+      m.set(String(row.roleCode).toUpperCase(), row.permissionCodes ?? []);
+    }
+    return m;
+  }, [matrixData]);
+
+  // Verilen rol kodları kümesi kapsam gerektiriyor mu? (izin birleşimi ∩ scopeRequiringCodeSet)
+  const rolesRequireScope = useCallback(
+    (roleCodes: string[]) => {
+      if (scopeRequiringCodeSet.size === 0) return false;
+      for (const rc of roleCodes) {
+        const perms = rolePermsByCode.get(rc.toUpperCase());
+        if (!perms) continue;
+        for (const p of perms) {
+          if (scopeRequiringCodeSet.has(p.toUpperCase())) return true;
+        }
+      }
+      return false;
+    },
+    [scopeRequiringCodeSet, rolePermsByCode]
+  );
+
+  // Kullanıcı kapsam-gerektiren bir role sahip ama hiç kapsam tanımı yoksa → eksik (uyarı göster).
+  const userIsMissingScope = useCallback(
+    (r: UserListItem) =>
+      (r.customDataScopeCount ?? 0) === 0 && rolesRequireScope(userRolesUpper(r)),
+    [rolesRequireScope]
   );
 
   const {
@@ -590,21 +651,35 @@ export function UsersScreen() {
   }
 
   function closeRoleEditor() {
-    if (patchRole.isPending) return;
+    if (putRoles.isPending) return;
     setRoleEditor(null);
+  }
+
+  function toggleDraftRole(code: string) {
+    const C = code.toUpperCase();
+    setRoleEditor((prev) => {
+      if (!prev) return prev;
+      const next = new Set(prev.draftRoles);
+      if (next.has(C)) next.delete(C);
+      else next.add(C);
+      return { ...prev, draftRoles: next };
+    });
   }
 
   async function confirmRoleEditor() {
     if (!roleEditor) return;
-    const { user: ru, draftRole, draftPersonnelId } = roleEditor;
+    const { user: ru, draftRoles, draftPersonnelId, draftUnlinkPersonnel } = roleEditor;
     if (user && ru.id === user.id) return;
-    const cur = ru.role.toUpperCase() as AppUserRole;
-    if (cur === draftRole) {
-      closeRoleEditor();
+
+    const codes = [...draftRoles].map((c) => c.toUpperCase());
+    if (codes.length === 0) {
+      notify.error(t("users.rolesNoneSelectedError"));
       return;
     }
+
+    const wantsPortal = draftRoles.has("PERSONNEL") || draftRoles.has("DRIVER");
     let personnelId: number | undefined;
-    if (draftRole === "PERSONNEL" || draftRole === "DRIVER") {
+    if (wantsPortal) {
       const sel = draftPersonnelId.trim();
       if (sel) {
         const id = Number.parseInt(sel, 10);
@@ -618,20 +693,29 @@ export function UsersScreen() {
         return;
       }
     }
+
+    // Bağı kaldır yalnızca portal rolü yokken ve kullanıcı zaten bir personele bağlıyken geçerli.
+    const unlinkPersonnel = !wantsPortal && draftUnlinkPersonnel && ru.personnelId != null;
+
+    // Kapsam gerektiren rol atandı ve kullanıcının henüz hiç kapsamı yoksa → admini yönlendir (zorlamaz).
+    const needsScopeGuidance =
+      rolesRequireScope(codes) && (ru.customDataScopeCount ?? 0) === 0;
+
     try {
-      await patchRole.mutateAsync({
+      await putRoles.mutateAsync({
         userId: ru.id,
-        role: draftRole,
+        roleCodes: codes,
         ...(personnelId != null ? { personnelId } : {}),
+        ...(unlinkPersonnel ? { unlinkPersonnel: true } : {}),
       });
       notify.success(t("users.roleUpdated"));
       setRoleEditor(null);
-      if (draftRole === "BRANCH_DAY_REGISTER") {
-        const row: UserListItem = { ...ru, role: draftRole };
+      if (needsScopeGuidance) {
+        const row: UserListItem = { ...ru, role: codes[0], roles: codes };
         if (canManageUserDataScopes(user)) {
           queueMicrotask(() => openScopesModal(row));
         } else {
-          notify.info(t("users.branchDayRegisterRoleSavedNeedScopesPermission"), {
+          notify.info(t("users.scopeRequiredRoleSavedNeedScopesPermission"), {
             autoClose: 9000,
           });
         }
@@ -641,39 +725,95 @@ export function UsersScreen() {
     }
   }
 
-  function renderUserRoleControl(r: UserListItem) {
-    const curUpper = r.role.toUpperCase() as AppUserRole;
-    const selfBlock = Boolean(user && r.id === user.id);
-    const pending = patchRole.isPending && patchRole.variables?.userId === r.id;
-    if (selfBlock) {
-      return (
-        <Tooltip content={t("users.roleChangeSelfDisabled")} delayMs={200}>
-          <div className="flex w-full min-w-0 items-center rounded-lg border border-zinc-100 bg-zinc-50 px-3 py-2.5 text-sm text-zinc-500">
-            <span className="min-w-0 flex-1 truncate font-medium">{getRoleLabel(curUpper)}</span>
-          </div>
-        </Tooltip>
-      );
+  function renderUserRoleBadges(r: UserListItem) {
+    const codes = userRolesUpper(r);
+    if (codes.length === 0) {
+      return <span className="text-sm text-zinc-400">{t("personnel.dash")}</span>;
     }
     return (
-      <Button
+      <span className="flex min-w-0 flex-wrap items-center gap-1">
+        {codes.map((c) => (
+          <StatusBadge
+            key={c}
+            tone="neutral"
+            className="!rounded-full !px-2 !py-0.5 !text-[10px] normal-case leading-tight tracking-normal"
+            size="sm"
+          >
+            {getRoleLabel(c)}
+          </StatusBadge>
+        ))}
+      </span>
+    );
+  }
+
+  // Kapsam-gerektiren rol var ama kapsam tanımlı değil → kalıcı uyarı (engelleme yok).
+  function renderScopeMissingWarning(r: UserListItem) {
+    if (!userIsMissingScope(r)) return null;
+    const canScope = getUserDataScopesBlockReason(user) === "none";
+    return (
+      <button
         type="button"
-        variant="secondary"
-        disabled={pending}
-        className="!w-full justify-between gap-2 !rounded-lg !px-3 !py-2.5 !text-sm !font-medium !min-h-10 !h-auto sm:!min-h-10"
-        onClick={() =>
-          setRoleEditor({
-            user: r,
-            draftRole: curUpper,
-            draftPersonnelId: r.personnelId != null ? String(r.personnelId) : "",
-          })
-        }
-        aria-label={t("users.roleChangeOpenAria")}
+        disabled={!canScope}
+        onClick={() => canScope && openScopesModal(r)}
+        className={cn(
+          "inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2 py-1 text-left text-[11px] font-medium leading-snug text-amber-900",
+          canScope ? "hover:bg-amber-100 cursor-pointer" : "cursor-default"
+        )}
+        title={t("users.scopeMissingHint")}
+        aria-label={t("users.scopeMissingHint")}
       >
-        <span className="min-w-0 flex-1 truncate text-left text-zinc-900">
-          {getRoleLabel(curUpper)}
-        </span>
-        <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
-      </Button>
+        <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600" aria-hidden />
+        <span>{t("users.scopeMissingBadge")}</span>
+      </button>
+    );
+  }
+
+  function renderUserRoleControl(r: UserListItem) {
+    const selfBlock = Boolean(user && r.id === user.id);
+    const pending = putRoles.isPending && putRoles.variables?.userId === r.id;
+    // Roller artık düz badge olarak gösterilir; düzenleme yanlarındaki ayrı bir
+    // "Rol düzenle" dropdown-tetikleyici butonla yapılır (badge'in kendisi tıklanabilir değil).
+    return (
+      <div className="flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-1.5">
+        <div className="min-w-0">{renderUserRoleBadges(r)}</div>
+        {selfBlock ? (
+          <Tooltip content={t("users.roleChangeSelfDisabled")} delayMs={200}>
+            <span className="inline-flex shrink-0">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled
+                className="inline-flex h-8 w-8 items-center justify-center p-0"
+                aria-label={t("users.roleChangeSelfDisabled")}
+              >
+                <Pencil className="h-4 w-4" aria-hidden />
+              </Button>
+            </span>
+          </Tooltip>
+        ) : (
+          <Tooltip content={t("users.roleEditButton")} delayMs={200}>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={pending}
+              className="inline-flex h-8 shrink-0 items-center gap-1.5 !rounded-lg !px-2.5 !text-xs !font-medium"
+              onClick={() =>
+                setRoleEditor({
+                  user: r,
+                  draftRoles: new Set(userRolesUpper(r)),
+                  draftPersonnelId: r.personnelId != null ? String(r.personnelId) : "",
+                  draftUnlinkPersonnel: false,
+                })
+              }
+              aria-label={t("users.roleEditButton")}
+            >
+              <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span className="hidden sm:inline">{t("users.roleEditButton")}</span>
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-zinc-400" aria-hidden />
+            </Button>
+          </Tooltip>
+        )}
+      </div>
     );
   }
 
@@ -1165,11 +1305,12 @@ export function UsersScreen() {
       notify.success(t("toast.userCreated"));
       reset();
       setModalOpen(false);
-      if (values.role === "BRANCH_DAY_REGISTER") {
+      // Yeni kullanıcının (tek) rolü kapsam gerektiriyorsa → kapsam tanımlamaya yönlendir.
+      if (rolesRequireScope([values.role])) {
         if (canManageUserDataScopes(user)) {
           queueMicrotask(() => openScopesModal(created));
         } else {
-          notify.info(t("users.branchDayRegisterUserCreatedNeedScopesPermission"), {
+          notify.info(t("users.scopeRequiredUserCreatedNeedScopesPermission"), {
             autoClose: 9000,
           });
         }
@@ -1335,6 +1476,7 @@ export function UsersScreen() {
                         <p>{permSummary.overrides}</p>
                         <p>{permSummary.scopes}</p>
                       </dd>
+                      {renderScopeMissingWarning(r)}
                       <div className="flex flex-col gap-1.5">
                         <div className="flex items-center gap-2">{renderUserAuthIconButtons(r)}</div>
                         {!canManageUserDataScopes(user) ? (
@@ -1347,7 +1489,7 @@ export function UsersScreen() {
                         ) : null}
                       </div>
                     </div>
-                    {r.role.toUpperCase() === "DRIVER" ? (
+                    {userHasRole(r, "DRIVER") ? (
                       <div className="flex flex-col gap-1 border-t border-zinc-200/60 pt-2">
                         <div className="flex items-center justify-between gap-2">
                           <dt className="shrink-0 text-zinc-500">
@@ -1425,7 +1567,7 @@ export function UsersScreen() {
                       <td className="max-w-[12rem] truncate px-4 py-3 text-zinc-600 lg:max-w-none">
                         {r.fullName?.trim() || t("personnel.dash")}
                       </td>
-                      <td className="max-w-[14rem] px-4 py-3">{renderUserRoleControl(r)}</td>
+                      <td className="max-w-[20rem] px-4 py-3">{renderUserRoleControl(r)}</td>
                       <td className="whitespace-nowrap px-4 py-3">
                         <div className="flex items-center gap-2">
                           <StatusBadge
@@ -1457,7 +1599,7 @@ export function UsersScreen() {
                         {personnelCell(r)}
                       </td>
                       <td className="px-4 py-3">
-                        {r.role.toUpperCase() === "DRIVER" ? (
+                        {userHasRole(r, "DRIVER") ? (
                           <input
                             type="checkbox"
                             className="h-4 w-4 accent-violet-600"
@@ -1480,6 +1622,7 @@ export function UsersScreen() {
                             <p>{permSummary.overrides}</p>
                             <p>{permSummary.scopes}</p>
                           </div>
+                          {renderScopeMissingWarning(r)}
                           <div className="flex flex-col gap-1.5">
                             <div className="flex flex-wrap items-center gap-2">
                               {renderUserAuthIconButtons(r)}
@@ -2358,6 +2501,28 @@ export function UsersScreen() {
         sheetMobile
       >
         {roleEditor ? (
+          (() => {
+            const originalRoles = new Set(userRolesUpper(roleEditor.user));
+            const draftRoles = roleEditor.draftRoles;
+            const wantsPortal = draftRoles.has("PERSONNEL") || draftRoles.has("DRIVER");
+            const originalPersonnel =
+              roleEditor.user.personnelId != null ? String(roleEditor.user.personnelId) : "";
+            const rolesChanged =
+              originalRoles.size !== draftRoles.size ||
+              [...draftRoles].some((c) => !originalRoles.has(c));
+            const personnelChanged =
+              wantsPortal && roleEditor.draftPersonnelId.trim() !== originalPersonnel;
+            // Portal rolü kalmadıysa ve kullanıcı zaten bir personele bağlıysa "bağı kaldır" sunulur.
+            const canUnlinkPersonnel = !wantsPortal && roleEditor.user.personnelId != null;
+            const unlinkChanged = canUnlinkPersonnel && roleEditor.draftUnlinkPersonnel;
+            // Personel-gerektiren rol seçili ama ne yeni seçim ne de mevcut bağ var → zorunlu alan eksik.
+            const personnelMissing =
+              wantsPortal &&
+              roleEditor.draftPersonnelId.trim() === "" &&
+              roleEditor.user.personnelId == null;
+            const dirty = rolesChanged || personnelChanged || unlinkChanged;
+            const canSave = dirty && draftRoles.size > 0 && !personnelMissing;
+            return (
           <div className="flex min-h-0 flex-1 flex-col overflow-visible sm:overflow-hidden">
             <div className="space-y-4 px-1 py-2 sm:min-h-0 sm:flex-1 sm:overflow-y-auto sm:overscroll-contain sm:px-0 sm:[-webkit-overflow-scrolling:touch]">
               <div className="rounded-xl border border-zinc-200/90 bg-gradient-to-br from-zinc-50 to-white p-4 shadow-sm">
@@ -2370,25 +2535,36 @@ export function UsersScreen() {
                 <p className="truncate text-sm text-zinc-500">@{roleEditor.user.username}</p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <span className="text-xs text-zinc-500">{t("users.roleChangeCurrentBadge")}</span>
-                  <StatusBadge tone="neutral" className="normal-case tracking-normal" size="md">
-                    {getRoleLabel(roleEditor.user.role)}
-                  </StatusBadge>
+                  {originalRoles.size > 0 ? (
+                    [...originalRoles].map((c) => (
+                      <StatusBadge
+                        key={c}
+                        tone="neutral"
+                        className="normal-case tracking-normal"
+                        size="md"
+                      >
+                        {getRoleLabel(c)}
+                      </StatusBadge>
+                    ))
+                  ) : (
+                    <span className="text-sm text-zinc-400">{t("personnel.dash")}</span>
+                  )}
                 </div>
               </div>
 
               <div>
                 <p className="text-xs font-semibold text-zinc-700">{t("users.roleChangePickHeading")}</p>
                 <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-                  {t("users.roleChangePickSubhint")}
+                  {t("users.rolesPickMultiSubhint")}
                 </p>
                 <div
                   className="mt-2 grid gap-2"
-                  role="radiogroup"
+                  role="group"
                   aria-label={t("users.roleChangePickHeading")}
                 >
                   {roleOptions.map((opt) => {
-                    const v = opt.value as AppUserRole;
-                    const selected = roleEditor.draftRole === v;
+                    const v = String(opt.value).toUpperCase();
+                    const selected = draftRoles.has(v);
                     const roleDesc = adminUsersRoleDescription(v, t);
                     return (
                       <label
@@ -2401,19 +2577,21 @@ export function UsersScreen() {
                         )}
                       >
                         <input
-                          type="radio"
-                          name="user-role-draft"
-                          className="mt-1 h-4 w-4 shrink-0 accent-violet-600"
+                          type="checkbox"
+                          className="mt-1 h-4 w-4 shrink-0 rounded accent-violet-600"
                           checked={selected}
-                          onChange={() =>
-                            setRoleEditor((prev) =>
-                              prev ? { ...prev, draftRole: v } : prev
-                            )
-                          }
+                          onChange={() => toggleDraftRole(v)}
                         />
                         <span className="min-w-0 flex-1">
-                          <span className="block text-sm font-semibold leading-snug text-zinc-900">
-                            {opt.label}
+                          <span className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-sm font-semibold leading-snug text-zinc-900">
+                              {opt.label}
+                            </span>
+                            {roleRequiresPersonnel(v) ? (
+                              <span className="inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200">
+                                {t("users.rolePersonnelRequiredBadge")}
+                              </span>
+                            ) : null}
                           </span>
                           {roleDesc ? (
                             <span className="mt-1 block text-xs leading-relaxed text-zinc-600">
@@ -2427,24 +2605,37 @@ export function UsersScreen() {
                 </div>
               </div>
 
-              {roleEditor.draftRole === "PERSONNEL" || roleEditor.draftRole === "DRIVER" ? (
-                <div className="rounded-xl border border-zinc-200/90 bg-white p-4 shadow-sm">
-                  <p className="text-xs font-semibold text-zinc-800">
+              {wantsPortal ? (
+                <div
+                  className={cn(
+                    "rounded-xl border p-4 shadow-sm",
+                    personnelMissing
+                      ? "border-amber-300 bg-amber-50/70"
+                      : "border-zinc-200/90 bg-white"
+                  )}
+                >
+                  <p className="flex items-center gap-1.5 text-xs font-semibold text-zinc-800">
                     {t("users.roleChangePersonnelFieldLabel")}
+                    <span className="text-red-600" aria-hidden>*</span>
+                    <span className="inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200">
+                      {t("users.rolePersonnelRequiredBadge")}
+                    </span>
                   </p>
                   <p className="mt-1 text-xs leading-relaxed text-zinc-600">
-                    {t("users.roleChangePersonnelFieldHint")}
+                    {t("users.personnelRequiredForRoleHint")}
                   </p>
                   <Select
                     className="mt-3"
                     label={t("users.fieldPersonnel")}
+                    labelRequired
                     options={
-                      roleEditor.draftRole === "PERSONNEL"
+                      draftRoles.has("PERSONNEL")
                         ? personnelOptionsForPersonnelRole
                         : personnelOptionsForDriverRole
                     }
                     name="roleEditorPersonnel"
                     value={roleEditor.draftPersonnelId}
+                    error={personnelMissing ? t("users.personnelRequiredError") : undefined}
                     onChange={(e) =>
                       setRoleEditor((prev) =>
                         prev ? { ...prev, draftPersonnelId: e.target.value } : prev
@@ -2455,23 +2646,70 @@ export function UsersScreen() {
                 </div>
               ) : null}
 
-              {roleEditor.draftRole === "BRANCH_DAY_REGISTER" ? (
+              {canUnlinkPersonnel ? (
+                <div className="rounded-xl border border-zinc-200/90 bg-white p-4 shadow-sm">
+                  <p className="text-xs font-semibold text-zinc-800">
+                    {t("users.roleChangeUnlinkPersonnelTitle")}
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-zinc-600">
+                    {t("users.roleChangeUnlinkPersonnelHint").replace(
+                      "{name}",
+                      (roleEditor.user.personnelId != null
+                        ? personnelNameById.get(roleEditor.user.personnelId)
+                        : undefined) ??
+                        roleEditor.user.fullName?.trim() ??
+                        roleEditor.user.username
+                    )}
+                  </p>
+                  <label className="mt-3 flex cursor-pointer items-start gap-3 rounded-lg border border-amber-200 bg-amber-50/80 p-3">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 shrink-0 rounded accent-amber-600"
+                      checked={roleEditor.draftUnlinkPersonnel}
+                      onChange={(e) =>
+                        setRoleEditor((prev) =>
+                          prev ? { ...prev, draftUnlinkPersonnel: e.target.checked } : prev
+                        )
+                      }
+                    />
+                    <span className="text-xs leading-relaxed text-amber-900">
+                      {t("users.roleChangeUnlinkPersonnelCheckbox")}
+                    </span>
+                  </label>
+                </div>
+              ) : null}
+
+              {draftRoles.has("BRANCH_DAY_REGISTER") ? (
                 <BranchDayRegisterAdminSetupCallout
                   t={t}
                   canOpenScopesAfterSave={canManageUserDataScopes(user)}
                 />
               ) : null}
 
-              {roleEditor.draftRole !== roleEditor.user.role.toUpperCase() ? (
+              {draftRoles.size === 0 ? (
+                <div className="rounded-xl border border-amber-200/90 bg-amber-50/90 p-3 text-sm text-amber-950">
+                  <p className="font-semibold">{t("users.rolesNoneSelectedTitle")}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-amber-900/90">
+                    {t("users.rolesNoneSelectedHint")}
+                  </p>
+                </div>
+              ) : dirty ? (
                 <div className="rounded-xl border border-amber-200/90 bg-amber-50/90 p-3 text-sm text-amber-950">
                   <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800/90">
                     {t("users.roleChangePreviewHeading")}
                   </p>
-                  <p className="mt-2 font-medium">
-                    <span className="text-zinc-600">{getRoleLabel(roleEditor.user.role)}</span>
-                    <span className="mx-2 text-amber-700">→</span>
-                    <span className="text-zinc-900">{getRoleLabel(roleEditor.draftRole)}</span>
-                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    {[...draftRoles].map((c) => (
+                      <StatusBadge
+                        key={c}
+                        tone="neutral"
+                        className="normal-case tracking-normal"
+                        size="md"
+                      >
+                        {getRoleLabel(c)}
+                      </StatusBadge>
+                    ))}
+                  </div>
                   <p className="mt-2 text-xs leading-relaxed text-amber-900/90">
                     {t("users.roleChangeSessionHint")}
                   </p>
@@ -2484,16 +2722,15 @@ export function UsersScreen() {
                 type="button"
                 variant="primary"
                 className="min-h-12 w-full sm:min-h-11 sm:w-auto sm:min-w-[140px]"
-                disabled={
-                  patchRole.isPending ||
-                  roleEditor.draftRole === roleEditor.user.role.toUpperCase()
-                }
+                disabled={putRoles.isPending || !canSave}
                 onClick={() => void confirmRoleEditor()}
               >
-                {patchRole.isPending ? t("common.saving") : t("users.roleChangeConfirm")}
+                {putRoles.isPending ? t("common.saving") : t("users.roleChangeConfirm")}
               </Button>
             </div>
           </div>
+            );
+          })()
         ) : null}
       </Modal>
 
@@ -2797,6 +3034,7 @@ export function UsersScreen() {
                 ) : null}
                 <Select
                   label={t("users.fieldPersonnel")}
+                  labelRequired={roleRequiresPersonnel(String(roleField.value ?? ""))}
                   options={personnelOptions}
                   name={personnelField.name}
                   value={String(personnelField.value ?? "")}
@@ -2804,6 +3042,14 @@ export function UsersScreen() {
                   onBlur={personnelField.onBlur}
                   ref={personnelField.ref}
                 />
+                {roleRequiresPersonnel(String(roleField.value ?? "")) ? (
+                  <p className="-mt-1 flex items-start gap-1.5 text-xs leading-relaxed text-amber-800">
+                    <span className="mt-0.5 inline-flex shrink-0 items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 ring-1 ring-amber-200">
+                      {t("users.rolePersonnelRequiredBadge")}
+                    </span>
+                    <span>{t("users.personnelRequiredForRoleHint")}</span>
+                  </p>
+                ) : null}
               </FormSection>
             }
             footer={

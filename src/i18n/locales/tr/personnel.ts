@@ -744,7 +744,7 @@ export const personnel = {
     "Kayıt güncellenir. İşe başlama tarihi geçmiş dönem bilgisidir; gerektiğinde dikkatli değiştirin.",
   tableAdvances: "Avans",
   tableCostsAdvancesExpenses: "Avans / gider",
-  listCashHandoverPoolLabel: "Kasa devri (kalan):",
+  listCashHandoverPoolLabel: "Cebindeki kasa parası (mevcut):",
   listCashHandoverPoolLoading: "Kasa devri yükleniyor…",
   listCashHandoverPoolError: "Kasa devri özeti yüklenemedi.",
   advanceQuickAria: "Bu personele avans ver",

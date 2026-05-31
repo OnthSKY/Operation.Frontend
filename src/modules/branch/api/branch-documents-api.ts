@@ -14,6 +14,7 @@ type ApiRow = {
   notes?: string | null;
   createdAt?: string;
   updatedAt?: string;
+  shipmentRequestId?: number | null;
 };
 
 const KINDS: ReadonlySet<string> = new Set([
@@ -21,6 +22,7 @@ const KINDS: ReadonlySet<string> = new Set([
   "WORK_PERMIT",
   "AGRICULTURE_CERT",
   "OTHER",
+  "SHIPMENT_DELIVERY_SLIP",
 ]);
 
 function normalizeKind(raw: string): BranchDocumentKind {
@@ -42,6 +44,10 @@ function mapRow(r: ApiRow): BranchDocument {
       r.notes != null && String(r.notes).trim() !== "" ? String(r.notes).trim() : null,
     createdAt: String(r.createdAt ?? ""),
     updatedAt: String(r.updatedAt ?? ""),
+    shipmentRequestId:
+      r.shipmentRequestId != null && Number(r.shipmentRequestId) > 0
+        ? Number(r.shipmentRequestId)
+        : null,
   };
 }
 

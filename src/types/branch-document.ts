@@ -2,7 +2,9 @@ export type BranchDocumentKind =
   | "TAX_BASE"
   | "WORK_PERMIT"
   | "AGRICULTURE_CERT"
-  | "OTHER";
+  | "OTHER"
+  /** Sistem üretir: DELIVERED transition'ında oluşan sevkiyat teslim irsaliyesi. */
+  | "SHIPMENT_DELIVERY_SLIP";
 
 export type BranchDocument = {
   id: number;
@@ -13,6 +15,8 @@ export type BranchDocument = {
   notes: string | null;
   createdAt: string;
   updatedAt: string;
+  /** SHIPMENT_DELIVERY_SLIP belgelerinde dolu; ilgili sevkiyat talebine bağlar. */
+  shipmentRequestId: number | null;
 };
 
 export type UploadBranchDocumentInput = {

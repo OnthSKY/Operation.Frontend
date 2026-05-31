@@ -12,6 +12,10 @@ export const toast = {
   branchSoftDeleted: "Şube silindi (yumuşak)",
   branchTxCreated: "Kasa kaydı kaydedildi",
   branchTxDeleted: "Kasa satırı silindi",
+  branchStockConsumptionSaved: "Stok kullanımı kaydedildi",
+  branchStockAdjustmentSaved: "Stok düzeltmesi kaydedildi",
+  branchStockConsumptionDeleted: "Stok kaydı silindi",
+  branchStockConsumptionRestored: "Stok kaydı geri alındı",
   branchInvoiceSettled: "Fatura ödemesi kaydedildi",
   advanceCreatedRegister: "Avans kaydedildi; kasa gideri otomatik oluşturuldu",
   advancePocketRegistered:

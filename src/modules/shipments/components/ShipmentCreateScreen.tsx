@@ -5,13 +5,19 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { cn } from "@/lib/cn";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { PERM, hasEffectivePermission } from "@/lib/auth/permissions";
 import { useI18n } from "@/i18n/context";
+import type { Locale } from "@/i18n/messages";
+import { notify } from "@/shared/lib/notify";
+import { toErrorMessage } from "@/shared/lib/error-message";
 
 import { useProductsCatalogPaged } from "@/modules/products/hooks/useProductQueries";
 
 import {
   useCreateShipmentDraft,
   useShipmentCreatableBranches,
+  useWarehouseReservations,
 } from "@/modules/shipments/hooks/useShipmentQueries";
 
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
@@ -133,10 +139,160 @@ function chooseWarehouseId(
     : FALLBACK_WAREHOUSE_ID;
 }
 
+type SummaryEntry = {
+  productId: number;
+  product: ProductListItem;
+  quantity: number;
+};
+
+function collectSummary(
+  lines: DraftLine[],
+  productsById: Map<number, ProductListItem>
+): SummaryEntry[] {
+  const out: SummaryEntry[] = [];
+  for (const line of lines) {
+    const productId = Number(line.productId);
+    const quantity = Number(line.quantity);
+    if (!Number.isFinite(productId) || productId <= 0) continue;
+    if (!Number.isFinite(quantity) || quantity <= 0) continue;
+    const product = productsById.get(productId);
+    if (!product) continue;
+    out.push({ productId, product, quantity });
+  }
+  return out;
+}
+
+function formatQty(qty: number, unit: string | null | undefined, locale: Locale, t: (k: string) => string) {
+  const cleanUnit = unit?.trim();
+  const amount = formatLocaleAmount(qty, locale);
+  return cleanUnit
+    ? replaceVars(t("shipments.create.summaryQuantity"), { quantity: amount, unit: cleanUnit })
+    : replaceVars(t("shipments.create.summaryQuantityNoUnit"), { quantity: amount });
+}
+
+function SummaryLineItems({
+  lines,
+  productsById,
+  locale,
+  t,
+}: {
+  lines: DraftLine[];
+  productsById: Map<number, ProductListItem>;
+  locale: Locale;
+  t: (k: string) => string;
+}) {
+  const entries = useMemo(() => collectSummary(lines, productsById), [lines, productsById]);
+  return (
+    <div className="mt-5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
+        {t("shipments.create.summaryLineItems")}
+      </p>
+      {entries.length === 0 ? (
+        <p className="mt-2 rounded-2xl bg-white/70 px-3 py-2 text-xs text-indigo-900/60">
+          {t("shipments.create.summaryEmpty")}
+        </p>
+      ) : (
+        <ul className="mt-2 divide-y divide-indigo-100 overflow-hidden rounded-2xl bg-white/80">
+          {entries.map((entry, idx) => (
+            <li key={`${entry.productId}-${idx}`} className="flex items-start justify-between gap-3 px-3 py-2 text-xs">
+              <div className="min-w-0">
+                <p className="truncate font-medium text-zinc-900">{productTitle(entry.product)}</p>
+                {entry.product.parentProductName?.trim() &&
+                entry.product.parentProductName.trim() !== entry.product.name.trim() ? (
+                  <p className="truncate text-[10px] text-zinc-500">
+                    {entry.product.parentProductName}
+                  </p>
+                ) : null}
+              </div>
+              <span className="shrink-0 tabular-nums font-semibold text-indigo-900">
+                {formatQty(entry.quantity, entry.product.unit, locale, t)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function resolveParentName(product: ProductListItem, productsById: Map<number, ProductListItem>): string {
+  // 1) parentProductId → look up the parent product in the catalog and use its name
+  const parentId = product.parentProductId;
+  if (parentId && parentId > 0) {
+    const parent = productsById.get(parentId);
+    if (parent) return parent.name.trim();
+  }
+  // 2) Fallback to parentProductName if backend populated it
+  const fromField = product.parentProductName?.trim();
+  if (fromField) return fromField;
+  // 3) Root product — group it under itself
+  return product.name.trim();
+}
+
+function SummaryParentTotals({
+  lines,
+  productsById,
+  locale,
+  t,
+}: {
+  lines: DraftLine[];
+  productsById: Map<number, ProductListItem>;
+  locale: Locale;
+  t: (k: string) => string;
+}) {
+  const totals = useMemo(() => {
+    const entries = collectSummary(lines, productsById);
+    type Bucket = { name: string; unit: string | null | undefined; quantity: number };
+    const map = new Map<string, Bucket>();
+    for (const entry of entries) {
+      const parentName = resolveParentName(entry.product, productsById);
+      const unit = entry.product.unit;
+      // Group by parent name AND unit — different units stay split (cannot sum kg + adet).
+      const key = `${parentName}::${unit ?? ""}`;
+      const existing = map.get(key);
+      if (existing) {
+        existing.quantity += entry.quantity;
+      } else {
+        map.set(key, { name: parentName, unit, quantity: entry.quantity });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [lines, productsById]);
+
+  return (
+    <div className="mt-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
+        {t("shipments.create.summaryParentTotals")}
+      </p>
+      {totals.length === 0 ? (
+        <p className="mt-2 rounded-2xl bg-white/70 px-3 py-2 text-xs text-indigo-900/60">
+          {t("shipments.create.summaryEmpty")}
+        </p>
+      ) : (
+        <ul className="mt-2 divide-y divide-indigo-100 overflow-hidden rounded-2xl bg-white/80">
+          {totals.map((bucket) => (
+            <li key={`${bucket.name}-${bucket.unit ?? ""}`} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
+              <span className="truncate font-medium text-zinc-900">{bucket.name}</span>
+              <span className="shrink-0 tabular-nums font-semibold text-indigo-900">
+                {formatQty(bucket.quantity, bucket.unit, locale, t)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function ShipmentCreateScreen() {
   const router = useRouter();
 
   const { locale, t } = useI18n();
+  const { user, isReady } = useAuth();
+
+  // Defense-in-depth: liste ekranındaki buton zaten `shipment.create` ister, ama doğrudan
+  // /shipments/create URL'ine gelen yetkisiz kullanıcıyı da burada engelle (backend ile aynı semantik).
+  const canCreate = hasEffectivePermission(user, PERM.shipmentCreate);
 
   const createDraft =
     useCreateShipmentDraft();
@@ -184,6 +340,51 @@ export function ShipmentCreateScreen() {
       new Map(products.map((x) => [x.id, x])),
     [products]
   );
+
+  // Şu anki satırlardan optimal depo seçimi — reservations sorgusunu da bu key'le hook'larız.
+  const chosenWarehouseId = useMemo(
+    () => chooseWarehouseId(lines, productsById),
+    [lines, productsById],
+  );
+
+  // Rezervasyonlar (PREPARING + ON_THE_WAY sevkiyatlardan): productId → reserved qty.
+  // Effective stock = product.byWarehouse[chosen].quantity - reservations[productId]
+  const { data: reservations } = useWarehouseReservations(
+    chosenWarehouseId > 0 ? chosenWarehouseId : null,
+  );
+
+  function effectiveAvailableForLine(productId: number): {
+    rawStock: number;
+    reserved: number;
+    effective: number;
+  } {
+    const product = productsById.get(productId);
+    const rawStock = product
+      ? Number(
+          product.byWarehouse?.find((w) => Number(w.warehouseId) === chosenWarehouseId)
+            ?.quantity ?? 0,
+        ) || 0
+      : 0;
+    const reserved = reservations?.[productId] ?? 0;
+    const effective = Math.max(0, rawStock - reserved);
+    return { rawStock, reserved, effective };
+  }
+
+  // Stok entegrasyonu: herhangi bir satırda kullanıcı EFEKTİF stoktan fazla istediyse
+  // (mevcut - rezerve) veya hiç stoğu olmayan ürün seçtiyse submit'i blokla.
+  const hasStockError = useMemo(() => {
+    return lines.some((line) => {
+      const productId = Number(line.productId);
+      if (!Number.isFinite(productId) || productId <= 0) return false;
+      const product = productsById.get(productId);
+      if (!product) return false;
+      if (Number(product.totalQuantity ?? 0) === 0) return true;
+      const { effective } = effectiveAvailableForLine(productId);
+      const requested = Number(line.quantity) || 0;
+      return requested > 0 && requested > effective;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lines, productsById, reservations]);
 
   const branchOptions = useMemo(
     () =>
@@ -335,6 +536,26 @@ export function ShipmentCreateScreen() {
     );
   };
 
+  if (isReady && !canCreate) {
+    return (
+      <div className={SCREEN_CLASS_NAME}>
+        <div className="mx-auto mt-10 max-w-lg rounded-3xl border border-amber-200 bg-amber-50 p-6 text-center shadow-sm">
+          <h1 className="text-lg font-semibold text-amber-900">
+            {t("shipments.create.noPermissionTitle")}
+          </h1>
+          <p className="mt-2 text-sm leading-6 text-amber-900/80">
+            {t("shipments.create.noPermissionHint")}
+          </p>
+          <div className="mt-5">
+            <Button type="button" variant="secondary" onClick={() => router.push("/shipments")}>
+              {t("shipments.create.noPermissionBack")}
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={SCREEN_CLASS_NAME}>
       <div className={HERO_CARD_CLASS_NAME}>
@@ -434,81 +655,56 @@ export function ShipmentCreateScreen() {
 
         <aside className="rounded-3xl border border-indigo-100 bg-indigo-50/70 p-4 text-sm text-indigo-950 shadow-sm sm:p-5 xl:row-span-2 xl:p-6">
           <h2 className="font-semibold">
-            {t(
-              "shipments.create.summaryTitle"
-            )}
+            {t("shipments.create.summaryTitle")}
           </h2>
 
           <dl className="mt-4 space-y-3">
             <div className="flex items-center justify-between gap-3">
               <dt className="text-indigo-800/75">
-                {t(
-                  "shipments.create.summaryBranch"
-                )}
+                {t("shipments.create.summaryBranch")}
               </dt>
-
               <dd className="truncate font-semibold">
                 {creatableBranches.find(
-                  (x) =>
-                    String(x.id) ===
-                    effectiveBranchId
+                  (x) => String(x.id) === effectiveBranchId
                 )?.name ?? "—"}
               </dd>
             </div>
-
             <div className="flex items-center justify-between gap-3">
               <dt className="text-indigo-800/75">
-                {t(
-                  "shipments.create.summaryLines"
-                )}
+                {t("shipments.create.summaryLines")}
               </dt>
-
-              <dd className="font-semibold">
-                {normalizedLines.length}
-              </dd>
+              <dd className="font-semibold">{normalizedLines.length}</dd>
             </div>
           </dl>
 
+          <SummaryLineItems
+            lines={lines}
+            productsById={productsById}
+            locale={locale}
+            t={t}
+          />
+
+          <SummaryParentTotals
+            lines={lines}
+            productsById={productsById}
+            locale={locale}
+            t={t}
+          />
+
           <p className="mt-5 rounded-2xl bg-white/70 p-3 text-xs leading-5 text-indigo-900/80">
-            {t(
-              "shipments.create.autoWarehouseHint"
-            )}
+            {t("shipments.create.autoWarehouseHint")}
           </p>
         </aside>
 
         <section className="space-y-4 rounded-3xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-6 xl:p-7">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <h2 className="text-base font-semibold text-zinc-950 sm:text-lg">
-                {t(
-                  "shipments.create.productsSection"
-                )}
-              </h2>
+          <div>
+            <h2 className="text-base font-semibold text-zinc-950 sm:text-lg">
+              {t("shipments.create.productsSection")}
+            </h2>
 
-              <p className="mt-1 text-sm text-zinc-500">
-                {t(
-                  "shipments.create.productsHint"
-                )}
-              </p>
-            </div>
-
-            <Button
-              type="button"
-              variant="secondary"
-              className="gap-2 sm:w-auto"
-              onClick={addLine}
-            >
-              <Plus
-                className="h-4 w-4"
-                aria-hidden
-              />
-
-              <span>
-                {t(
-                  "shipments.create.addProduct"
-                )}
-              </span>
-            </Button>
+            <p className="mt-1 text-sm text-zinc-500">
+              {t("shipments.create.productsHint")}
+            </p>
           </div>
 
           {showLineError ? (
@@ -529,17 +725,39 @@ export function ShipmentCreateScreen() {
               const unit =
                 product?.unit?.trim();
 
+              // Efektif stok = depodaki ham stok - başka onaylı sevkiyatlarda rezerve.
+              // chosenWarehouseId tüm satırlardan en optimal depoyu döner; rezervasyonlar
+              // useWarehouseReservations ile bu deponun productId→reserved haritası.
+              const productIdNum = Number(line.productId);
+              const stockInfo = product
+                ? effectiveAvailableForLine(productIdNum)
+                : { rawStock: 0, reserved: 0, effective: 0 };
+              const availableInChosen = stockInfo.effective;
+              const requestedNum = Number(line.quantity) || 0;
+              const overRequest =
+                product && requestedNum > 0 && requestedNum > availableInChosen;
+              const zeroStockEverywhere =
+                product && Number(product.totalQuantity ?? 0) === 0;
+              // "Rezerve nedeniyle azaldı" görsel ipucu — ham stok > 0 ama efektif < ham.
+              const reducedByReservation =
+                product && stockInfo.reserved > 0 && stockInfo.rawStock > 0;
+
               return (
                 <div
                   key={line.key}
                   className={cn(
-                    "rounded-2xl border bg-zinc-50/70 p-3 sm:p-4 xl:p-5",
+                    "rounded-2xl border bg-zinc-50/70 p-3 sm:p-4 xl:p-5 transition-colors",
                     showLineError
                       ? "border-red-200"
-                      : "border-zinc-200"
+                      : overRequest || zeroStockEverywhere
+                        ? "border-red-300 bg-red-50/40"
+                        : "border-zinc-200",
                   )}
                 >
-                  <div className="grid gap-3 lg:grid-cols-[minmax(20rem,1fr)_12rem_2.75rem] lg:items-end 2xl:grid-cols-[minmax(28rem,1fr)_14rem_2.75rem]">
+                  {/* Üç sütun: ürün + miktar + sil. lg+: label'lar üstte hizalı (items-start),
+                      Combobox / Input / Sil butonu altta sabit yükseklikte. Delete button'un üstüne
+                      görünmez label spacer konularak labels satırında boşluk bırakılır. */}
+                  <div className="grid gap-3 lg:grid-cols-[minmax(20rem,1fr)_12rem_2.75rem] lg:items-start 2xl:grid-cols-[minmax(28rem,1fr)_14rem_2.75rem]">
                     <div className="flex min-w-0 flex-col gap-1">
                       <label className="text-sm font-medium text-zinc-700">
                         {replaceVars(
@@ -587,32 +805,84 @@ export function ShipmentCreateScreen() {
                       />
                     </div>
 
-                    <Input
-                      name={`quantity-${line.key}`}
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      inputMode="decimal"
-                      label={t(
-                        "shipments.create.quantityLabel"
-                      )}
-                      placeholder="0"
-                      value={line.quantity}
-                      onChange={(e) =>
-                        updateLine(
-                          line.key,
-                          {
-                            quantity:
-                              e.target
-                                .value,
-                          }
-                        )
-                      }
-                    />
+                    <div className="flex flex-col gap-1">
+                      <Input
+                        name={`quantity-${line.key}`}
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        // Stok entegrasyonu: input max'i seçilen depodaki mevcut miktarla sınırlı.
+                        // Native HTML max + JS validation birlikte çalışır (mobile keyboards step uyar).
+                        max={product ? availableInChosen : undefined}
+                        inputMode="decimal"
+                        label={t("shipments.create.quantityLabel")}
+                        className="md:h-11"
+                        placeholder="0"
+                        value={line.quantity}
+                        disabled={Boolean(zeroStockEverywhere)}
+                        error={
+                          overRequest
+                            ? replaceVars(t("shipments.create.qtyExceedsStock"), {
+                                available: formatLocaleAmount(availableInChosen, locale),
+                              })
+                            : undefined
+                        }
+                        onChange={(e) =>
+                          updateLine(line.key, { quantity: e.target.value })
+                        }
+                      />
+                      {product ? (
+                        <div className="space-y-0.5">
+                          <p
+                            className={cn(
+                              "text-[11px] tabular-nums",
+                              zeroStockEverywhere
+                                ? "font-semibold text-red-700"
+                                : overRequest
+                                  ? "font-medium text-red-700"
+                                  : availableInChosen <= 0
+                                    ? "text-amber-700"
+                                    : "text-zinc-600",
+                            )}
+                          >
+                            {zeroStockEverywhere
+                              ? t("shipments.create.zeroStockEverywhere")
+                              : availableInChosen <= 0
+                                ? t("shipments.create.zeroStockHere")
+                                : replaceVars(
+                                    t("shipments.create.availableInWarehouse"),
+                                    {
+                                      quantity: `${formatLocaleAmount(availableInChosen, locale)}${unit ? ` ${unit}` : ""}`,
+                                    },
+                                  )}
+                          </p>
+                          {/* Rezervasyon detayı — kullanıcıya neden düştüğünü açıklar */}
+                          {reducedByReservation ? (
+                            <p className="text-[10px] tabular-nums text-amber-700">
+                              {replaceVars(
+                                t("shipments.create.reservationDetail"),
+                                {
+                                  rawStock: `${formatLocaleAmount(stockInfo.rawStock, locale)}${unit ? ` ${unit}` : ""}`,
+                                  reserved: `${formatLocaleAmount(stockInfo.reserved, locale)}${unit ? ` ${unit}` : ""}`,
+                                },
+                              )}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
 
-                    <button
-                      type="button"
-                      className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl text-sm font-medium text-zinc-500 transition hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:cursor-not-allowed disabled:opacity-40 lg:w-11"
+                    {/* lg+: ürün ve miktar label'larıyla aynı satırda kalmak için görünmez label spacer */}
+                    <div className="flex flex-col gap-1">
+                      <span
+                        className="hidden select-none text-sm font-medium lg:block lg:opacity-0"
+                        aria-hidden
+                      >
+                        &nbsp;
+                      </span>
+                      <button
+                        type="button"
+                        className="inline-flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl text-sm font-medium text-zinc-500 transition hover:bg-red-50 hover:text-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300 disabled:cursor-not-allowed disabled:opacity-40 lg:w-11"
                       onClick={() =>
                         removeLine(
                           line.key
@@ -635,7 +905,8 @@ export function ShipmentCreateScreen() {
                           "common.remove"
                         )}
                       </span>
-                    </button>
+                      </button>
+                    </div>
                   </div>
 
                   {product ? (
@@ -694,6 +965,20 @@ export function ShipmentCreateScreen() {
                 </div>
               );
             })}
+
+            {/* Ürün ekle: satırların hemen altında, tam genişlikte modern "dashed add-row".
+                Yeni satır burada belirir; kullanıcı yukarı kaydırmadan ekleme yapar. */}
+            <button
+              type="button"
+              onClick={addLine}
+              className="group flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-zinc-300 bg-zinc-50/40 px-4 py-3 text-sm font-semibold text-zinc-600 transition-colors hover:border-indigo-400 hover:bg-indigo-50/60 hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+            >
+              <Plus
+                className="h-5 w-5 transition-transform duration-200 group-hover:scale-110"
+                aria-hidden
+              />
+              <span>{t("shipments.create.addProduct")}</span>
+            </button>
           </div>
         </section>
       </div>
@@ -719,32 +1004,39 @@ export function ShipmentCreateScreen() {
 
               if (!canSubmit) return;
 
-              const created =
-                await createDraft.mutateAsync(
-                  {
-                    branchId: Number(
-                      effectiveBranchId
-                    ),
+              try {
+                const created =
+                  await createDraft.mutateAsync(
+                    {
+                      branchId: Number(
+                        effectiveBranchId
+                      ),
 
-                    warehouseId:
-                      selectedWarehouseId,
+                      warehouseId:
+                        selectedWarehouseId,
 
-                    priority: "NORMAL",
+                      priority: "NORMAL",
 
-                    items:
-                      normalizedLines,
-                  }
+                      items:
+                        normalizedLines,
+                    }
+                  );
+
+                router.push(
+                  `/shipments/${created.id}`
                 );
-
-              router.push(
-                `/shipments/${created.id}`
-              );
+              } catch (e) {
+                // Backend iş kuralı/yetki hataları (ör. shipment.create eksikse 403) sessiz
+                // kalmamalı — kullanıcıya backend mesajını göster.
+                notify.error(toErrorMessage(e));
+              }
             }}
             disabled={
               createDraft.isPending ||
               branchesPending ||
               productsPending ||
-              !effectiveBranchId
+              !effectiveBranchId ||
+              hasStockError
             }
           >
             {createDraft.isPending

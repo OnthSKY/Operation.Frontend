@@ -21,6 +21,8 @@ export const PERM = {
   uiInsurances: "ui.insurances",
   uiWarehouse: "ui.warehouse",
   uiShipments: "ui.shipments",
+  /** Sevkiyat modülü kısıtlı: yalnızca sorumlu şubeler. Liste/oluştur backend'de scope'lanır. */
+  uiShipmentsOwnBranch: "ui.shipments.own_branch",
   shipmentCreate: "shipment.create",
   shipmentStart: "shipment.start",
   shipmentApprove: "shipment.approve",
@@ -48,6 +50,12 @@ export const PERM = {
   branchStockWrite: "branch.stock.write",
   /** Şube kaydını silme / ters çevirme / yeniden açma. */
   branchDeleteOrReverse: "branch.delete_or_reverse",
+  /** Tek tek düşüm/kullanım girişi (OUT, consumption ledger). */
+  branchStockConsume: "branch.stock.consume",
+  /** Toplu kalan/sayım girişi; sistem bakiye diff'ini SNAPSHOT olarak yazar. */
+  branchStockSnapshot: "branch.stock.snapshot",
+  /** Fire/manuel düzeltme + consumption satır soft-delete/restore yetkisi. */
+  branchStockAdjust: "branch.stock.adjust",
   /** Personel kartı yazma. */
   personnelWrite: "personnel.write",
   /** Bordro parametre seti + ödeme yazma. */
@@ -205,6 +213,30 @@ export function canDeleteOrReverseBranchRecords(user: AuthUser | null | undefine
   return hasEffectivePermission(user, PERM.branchDeleteOrReverse);
 }
 
+/** Şube stok kullanım/tüketim satırı girebilir mi (OUT). */
+export function canConsumeBranchStock(user: AuthUser | null | undefined): boolean {
+  return hasEffectivePermission(user, PERM.branchStockConsume);
+}
+
+/** Şube stok sayımı (snapshot) girebilir mi; sistem diff'i otomatik yazar. */
+export function canSnapshotBranchStock(user: AuthUser | null | undefined): boolean {
+  return hasEffectivePermission(user, PERM.branchStockSnapshot);
+}
+
+/** Şube stok manuel düzeltme + consumption satırını soft-delete/restore edebilir mi. */
+export function canAdjustBranchStock(user: AuthUser | null | undefined): boolean {
+  return hasEffectivePermission(user, PERM.branchStockAdjust);
+}
+
+/** "Kullanım & Kalan" alt-sekmesinin görünebilmesi için herhangi biri yeterli. */
+export function canSeeBranchStockConsumption(user: AuthUser | null | undefined): boolean {
+  return (
+    canConsumeBranchStock(user) ||
+    canSnapshotBranchStock(user) ||
+    canAdjustBranchStock(user)
+  );
+}
+
 /** Personel kartı oluşturup/güncelleyebilir mi. */
 export function canWritePersonnel(user: AuthUser | null | undefined): boolean {
   return hasEffectivePermission(user, PERM.personnelWrite);
@@ -351,4 +383,26 @@ export function canSeeFinancialReports(user: AuthUser | null | undefined): boole
 
 export function hasStaffOperationsNotifications(user: AuthUser | null | undefined): boolean {
   return hasPermissionCode(user, PERM.systemAdmin) || hasPermissionCode(user, PERM.operationsStaff);
+}
+
+/**
+ * Sevkiyat menüsü/sayfa görünürlüğü: tam <c>ui.shipments</c> ya da sorumlu-şube kısıtlı
+ * <c>ui.shipments.own_branch</c>. Resolver semantiği `hasEffectivePermission` üzerinden işler
+ * (system.admin + operations.staff jokerleri dahil).
+ */
+export function canSeeShipmentsModule(user: AuthUser | null | undefined): boolean {
+  return (
+    hasEffectivePermission(user, PERM.uiShipments) ||
+    hasEffectivePermission(user, PERM.uiShipmentsOwnBranch)
+  );
+}
+
+/**
+ * Sevkiyat onay/aksiyon bildirim rozeti hangi kullanıcıya gösterilsin:
+ * modül perm'i olsun olmasın, kullanıcı bir sevkiyat akışında actor olarak atanmış olabilir
+ * (bildirim deep-link senaryosu). Endpoint backend'de [Authorize] (kimlik doğrulanmış); yanıt
+ * boş olabilir, polling pahalı değil. Burada sadece "bell'i mount edelim mi" kararı.
+ */
+export function shouldMountShipmentActionableBell(user: AuthUser | null | undefined): boolean {
+  return Boolean(user);
 }

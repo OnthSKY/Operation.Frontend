@@ -10,6 +10,7 @@ import { flattenNavItems, getVisibleNavItems, resolveRouteTitle } from "./naviga
 import { useI18n } from "@/i18n/context";
 import { hasStaffOperationsNotifications } from "@/lib/auth/permissions";
 import { StaffHeaderNotifications } from "@/shared/components/StaffHeaderNotifications";
+import { ShipmentActionableBell } from "@/modules/shipments/components/ShipmentActionableBell";
 import { AppGlobalSearch } from "@/shared/components/AppGlobalSearch";
 import { accountRoleLabel } from "@/modules/account/lib/role-label";
 import { useIsMobile } from "@/shared/lib/use-is-mobile";
@@ -83,6 +84,7 @@ export function TopNavbar({ onOpenMenu, breadcrumbs }: TopNavbarProps) {
               </svg>
             </button>
             {user && showStaffNotifications ? <StaffHeaderNotifications /> : null}
+            {user ? <ShipmentActionableBell /> : null}
           </div>
           {user ? (
             <span className="hidden items-center gap-1 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs font-medium text-zinc-600 sm:inline-flex">

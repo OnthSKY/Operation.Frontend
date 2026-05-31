@@ -44,6 +44,9 @@ export const permissionMeta = {
   screen_branch_transactions_today_only: "Şube kasası: bu kullanıcı için işlemler yalnızca «bugün» ile sınırlı",
   screen_branch_operations_write: "Şube kasası: gelir/gider/nakit satırları ekleme ve değiştirme",
   screen_branch_stock_write: "Şube: şube üzerinden stok ve transfer işlemleri",
+  screen_branch_stock_consume: "Şube: tek tek stok kullanımı (düşüm) girişi",
+  screen_branch_stock_snapshot: "Şube: kalan sayımı; sistem farkı otomatik yazar",
+  screen_branch_stock_adjust: "Şube: manuel stok düzeltme + kullanım satırı sil/geri al",
   screen_branch_all_data_view: "Şube detayı: mali / özlük / stokun tam görünümü",
   screen_branch_delete_or_reverse: "Şube: kayıt silme, ters çevirme veya yeniden açma",
   screen_branch_cross_branch_view: "Şubeler: birden fazla şubeyi listeleme; yokluğu = yalnız atanmış şube",
@@ -112,6 +115,12 @@ export const permissionMeta = {
     "Bu kullanıcı için şube kasası işlemlerinin yalnızca içinde bulunulan günle sınırlanması (geçmişe müdahale engeli).",
   desc_branch_operations_write: "Şube kasasında gelir, gider ve nakit satırlarının eklenmesi ve güncellenmesi.",
   desc_branch_stock_write: "Şube üzerinden stok ve depoya transfer gibi stok hareketlerinin yapılması.",
+  desc_branch_stock_consume:
+    "Şube stoğunda tek bir ürün için kullanım/düşüm satırı yazma. Şube çalışanının en sık yaptığı işlem.",
+  desc_branch_stock_snapshot:
+    "Anlık «kalan» değeri girip sistemin mevcut bakiye ile farkı tek satır olarak yazmasını sağlama (sayım modu).",
+  desc_branch_stock_adjust:
+    "Fire / manuel pozitif veya negatif düzeltme satırı yazma. Kullanım satırlarını silme ve geri alma da bu izinle yapılır.",
   desc_branch_all_data_view:
     "Şube detayında mali, özlük ve stok verilerinin tam ayrıntı düzeyinde görüntülenmesi.",
   desc_branch_delete_or_reverse: "Şube kayıtlarının silinmesi, ters çevrilmesi veya yeniden açılması.",

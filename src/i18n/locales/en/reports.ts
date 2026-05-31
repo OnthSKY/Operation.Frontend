@@ -555,6 +555,7 @@
   navBackToReportsHub: "All reports",
   sidebarFinances: "Income & expense",
   sidebarPersonnelHeldCash: "Cash with personnel",
+  sidebarPersonnelCosts: "Personnel costs",
   sidebarOrderAccountStatement: "Order / account statement",
   sidebarCounterpartySummary: "Counterparty Summary",
   hubOpenCashFullTable: "Full cash table (sort & export)",

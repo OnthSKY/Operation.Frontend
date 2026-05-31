@@ -41,6 +41,9 @@ export const permissionMeta = {
   screen_branch_transactions_today_only: "Branch register: limit edits to “today only” for this user",
   screen_branch_operations_write: "Branch register: add or change cash / income / expense lines",
   screen_branch_stock_write: "Branch: stock and transfer actions from branch UI",
+  screen_branch_stock_consume: "Branch: record single-item stock usage (consumption)",
+  screen_branch_stock_snapshot: "Branch: record stock count; system writes the diff",
+  screen_branch_stock_adjust: "Branch: manual stock adjustment + delete / restore consumption rows",
   screen_branch_all_data_view: "Branch detail: full financial / HR / stock visibility",
   screen_branch_delete_or_reverse: "Branch: delete, reverse, or reopen register records",
   screen_branch_cross_branch_view: "Branches: list multiple branches; absence = restricted to assigned branch",
@@ -108,6 +111,12 @@ export const permissionMeta = {
     "For this user, branch register transactions are limited to the current day only (no edits to past days).",
   desc_branch_operations_write: "Add or change branch cash, income, and expense lines.",
   desc_branch_stock_write: "Perform branch-side stock actions and transfers to warehouse.",
+  desc_branch_stock_consume:
+    "Record a single-product consumption (decrease) against branch stock. Most common branch-employee action.",
+  desc_branch_stock_snapshot:
+    "Record an on-hand snapshot/count; the system writes the difference vs the current balance as a single row.",
+  desc_branch_stock_adjust:
+    "Record a manual fire/correction (positive or negative). Also required to soft-delete or restore consumption rows.",
   desc_branch_all_data_view: "View full financial, HR, and stock detail on a branch.",
   desc_branch_delete_or_reverse: "Delete, reverse, or reopen branch register records.",
   desc_branch_cross_branch_view:

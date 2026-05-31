@@ -14,7 +14,12 @@ type Props = {
   className?: string;
 };
 
-/** Personel listesinde kasa devri (IN kalan havuz) — avans/gider özetinden ayrı. */
+/**
+ * Personel listesinde cebindeki kasa parası — yeni ledger'ın MEVCUT BAKİYESİ
+ * (`cashAccountSummaries.currentBalance`). Eski FIFO "kalan devir havuzu"
+ * (`cashHandoverPoolRemainingByBranch`) tüm geçen parayı yansıtabildiği için
+ * artık kullanılmıyor; tek doğru kaynak persisted ledger bakiyesidir.
+ */
 export function PersonnelListCashHandoverPoolLine({
   personnelId,
   currencyCode,
@@ -31,10 +36,10 @@ export function PersonnelListCashHandoverPoolLine({
   });
 
   const total = useMemo(() => {
-    if (!data?.cashHandoverPoolRemainingByBranch?.length) return 0;
-    return data.cashHandoverPoolRemainingByBranch
+    if (!data?.cashAccountSummaries?.length) return 0;
+    return data.cashAccountSummaries
       .filter((r) => r.currencyCode.trim().toUpperCase() === ccy)
-      .reduce((s, r) => s + (Number(r.totalRemainingHandover) || 0), 0);
+      .reduce((s, r) => s + (Number(r.currentBalance) || 0), 0);
   }, [data, ccy]);
 
   if (isPending) {

@@ -70,14 +70,18 @@ export function useUserRoles(userId: number | null, enabled = true) {
 export function usePutUserRoles() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (args: { userId: number; roleCodes: string[] }) =>
-      putUserRoles(args.userId, args.roleCodes),
+    mutationFn: (args: {
+      userId: number;
+      roleCodes: string[];
+      personnelId?: number | null;
+      unlinkPersonnel?: boolean;
+    }) => putUserRoles(args.userId, args.roleCodes, args.personnelId, args.unlinkPersonnel),
     onSuccess: (_, vars) => {
       void qc.invalidateQueries({
         queryKey: authorizationAdminKeys.userRoles(vars.userId),
       });
-      // Users listesi de etkilenebilir
-      void qc.invalidateQueries({ queryKey: ["personnel", "users"] });
+      // Kullanıcı listesi (rol rozetleri + personel bağı) tazelensin.
+      void qc.invalidateQueries({ queryKey: ["users"] });
     },
   });
 }

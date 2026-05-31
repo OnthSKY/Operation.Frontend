@@ -12,6 +12,10 @@ export const toast = {
   branchSoftDeleted: "Branch removed (soft delete)",
   branchTxCreated: "Register entry saved",
   branchTxDeleted: "Register line deleted",
+  branchStockConsumptionSaved: "Stock usage recorded",
+  branchStockAdjustmentSaved: "Stock adjustment recorded",
+  branchStockConsumptionDeleted: "Stock entry removed",
+  branchStockConsumptionRestored: "Stock entry restored",
   branchInvoiceSettled: "Invoice marked paid",
   advanceCreatedRegister: "Advance saved; register expense was recorded automatically",
   advancePocketRegistered:

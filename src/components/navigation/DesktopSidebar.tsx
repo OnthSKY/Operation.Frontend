@@ -4,7 +4,7 @@ import { Z_INDEX } from "@/config/z-index";
 import { NavIcon } from "./nav-icons";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useI18n } from "@/i18n/context";
 import {
@@ -82,6 +82,84 @@ export function DesktopSidebar({ badgeState }: { badgeState: NavBadgeState }) {
   const toggleGroup = (groupId: string) => {
     setOpenGroups((prev) =>
       prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId]
+    );
+  };
+
+  // Bir grup çocuğunu render eder. Çocuğun kendi `children`'ı varsa iç içe (alt menü) açılır;
+  // yoksa normal link. `depth` girinti seviyesini ayarlar (alt menü öğeleri daha içeride).
+  const renderChild = (child: NavigationItem, depth: number): ReactNode => {
+    if (child.children?.length) {
+      // Daraltılmış kenar çubuğunda alt-başlık göstermek yerine düz (ikonlu) liste.
+      if (collapsed) return child.children.map((g) => renderChild(g, depth));
+      const isOpen = openGroups.includes(child.id);
+      return (
+        <div key={child.id} className="pl-3">
+          <button
+            type="button"
+            onClick={() => toggleGroup(child.id)}
+            aria-expanded={isOpen}
+            className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-400 transition-colors duration-200 hover:bg-zinc-100/80"
+          >
+            <span className="inline-flex min-w-0 items-center gap-2">
+              <NavIcon icon={child.icon} />
+              <span className="truncate">{child.label}</span>
+            </span>
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              aria-hidden
+              className={`transition-transform duration-200 ease-in-out ${isOpen ? "rotate-180" : ""}`}
+            >
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+          <div className={`grid transition-all duration-200 ease-in-out ${isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+            <div className="min-h-0 overflow-hidden">
+              {isOpen ? <div className="space-y-1 pt-1">{child.children.map((g) => renderChild(g, depth + 1))}</div> : null}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const active = activeRoute === child.route;
+    const badge = resolveBadge(child, badgeState);
+    const leftPad = collapsed ? "justify-center pl-3" : depth >= 2 ? "pl-9" : "pl-6";
+    return (
+      <Tooltip key={`tip-${child.id}`} content={child.label} side="right" disabled={!collapsed}>
+        <Link
+          href={child.route}
+          prefetch
+          onClick={() => trackNavClick(child.route)}
+          className={`group relative flex min-h-10 items-center gap-2.5 rounded-xl pr-3 text-sm font-medium transition-all duration-200 ${leftPad} ${
+            active
+              ? "border border-indigo-100 bg-indigo-50 text-indigo-700"
+              : "text-zinc-600 hover:bg-zinc-100/80 hover:text-zinc-900"
+          }`}
+        >
+          <span
+            className={`absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-indigo-500 transition-all duration-200 ${
+              active ? "scale-y-100 opacity-100" : "scale-y-0 opacity-0"
+            }`}
+            aria-hidden
+          />
+          <NavIcon icon={child.icon} />
+          <span className={`min-w-0 flex-1 truncate ${collapsed ? "hidden" : ""}`}>{child.label}</span>
+          {badge ? (
+            <span
+              className={`rounded-full px-1.5 text-[10px] leading-4 ${
+                active ? "bg-indigo-600 text-white" : "bg-zinc-900 text-white"
+              } ${collapsed ? "absolute -right-0.5 -top-0.5" : ""}`}
+            >
+              {badge > 99 ? "99+" : badge}
+            </span>
+          ) : null}
+        </Link>
+      </Tooltip>
     );
   };
 
@@ -209,42 +287,7 @@ export function DesktopSidebar({ badgeState }: { badgeState: NavBadgeState }) {
                   <div className="min-h-0 overflow-hidden">
                     {isOpen ? (
                       <div className="space-y-1 pt-1">
-                        {item.children.map((child: NavigationItem) => {
-                          const active = activeRoute === child.route;
-                          const badge = resolveBadge(child, badgeState);
-                          return (
-                            <Tooltip key={`tip-${child.id}`} content={child.label} side="right" disabled={!collapsed}>
-                            <Link
-                              href={child.route}
-                              prefetch
-                              onClick={() => trackNavClick(child.route)}
-                              className={`group relative flex min-h-10 items-center gap-2.5 rounded-xl pr-3 text-sm font-medium transition-all duration-200 ${
-                                collapsed ? "justify-center pl-3" : "pl-6"
-                              } ${
-                                active
-                                  ? "border border-indigo-100 bg-indigo-50 text-indigo-700"
-                                  : "text-zinc-600 hover:bg-zinc-100/80 hover:text-zinc-900"
-                              }`}
-                            >
-                              <span
-                                className={`absolute left-0 top-2 bottom-2 w-0.5 rounded-full bg-indigo-500 transition-all duration-200 ${
-                                  active ? "scale-y-100 opacity-100" : "scale-y-0 opacity-0"
-                                }`}
-                                aria-hidden
-                              />
-                              <NavIcon icon={child.icon} />
-                              <span className={`min-w-0 flex-1 truncate ${collapsed ? "hidden" : ""}`}>{child.label}</span>
-                              {badge ? (
-                                <span className={`rounded-full px-1.5 text-[10px] leading-4 ${
-                                  active ? "bg-indigo-600 text-white" : "bg-zinc-900 text-white"
-                                } ${collapsed ? "absolute -right-0.5 -top-0.5" : ""}`}>
-                                  {badge > 99 ? "99+" : badge}
-                                </span>
-                              ) : null}
-                            </Link>
-                            </Tooltip>
-                          );
-                        })}
+                        {item.children.map((child: NavigationItem) => renderChild(child, 1))}
                       </div>
                     ) : null}
                   </div>

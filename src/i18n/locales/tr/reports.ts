@@ -557,6 +557,7 @@
   navBackToReportsHub: "Tüm raporlar",
   sidebarFinances: "Gelir-gider özeti",
   sidebarPersonnelHeldCash: "Personeldeki kasa",
+  sidebarPersonnelCosts: "Personel maliyetleri",
   sidebarOrderAccountStatement: "Sipariş / hesap dökümü",
   sidebarCounterpartySummary: "Cari Hesaplar",
   hubOpenCashFullTable: "Tam kasa tablosu (sıralama, dışa aktarma)",

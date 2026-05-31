@@ -1,5 +1,6 @@
 "use client";
 
+import { apiFetch } from "@/shared/api/client";
 import { useI18n } from "@/i18n/context";
 import { useDocumentsHubQuery } from "@/modules/documents/hooks/useDocumentsHubQuery";
 import type { DocumentsHubRow } from "@/modules/documents/types";
@@ -33,6 +34,67 @@ function sanitizeUrlSearchQuery(raw: string | null | undefined): string {
   const lower = s.toLowerCase();
   if (lower === "null" || lower === "undefined") return "";
   return s;
+}
+
+/**
+ * PDF dosya endpoint'i `Content-Disposition: attachment` ile sunulduğundan `<iframe src>`
+ * doğrudan gösteremez (indirir). Dosyayı kimlik-doğrulamalı blob olarak çekip object URL ile
+ * iframe'e veririz; bu disposition'ı atlar ve satır içi önizleme sağlar.
+ */
+function PdfBlobPreview({
+  url,
+  title,
+  className,
+  loadingLabel,
+  errorLabel,
+}: {
+  url: string;
+  title: string;
+  className?: string;
+  loadingLabel: string;
+  errorLabel: string;
+}) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl: string | null = null;
+    setBlobUrl(null);
+    setFailed(false);
+    (async () => {
+      try {
+        const res = await apiFetch(url);
+        if (!res.ok) throw new Error(String(res.status));
+        const blob = await res.blob();
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setBlobUrl(objectUrl);
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [url]);
+
+  if (failed) {
+    return (
+      <div className="flex h-full w-full items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600">
+        {errorLabel}
+      </div>
+    );
+  }
+  if (!blobUrl) {
+    return (
+      <div className="flex h-full w-full items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
+        {loadingLabel}
+      </div>
+    );
+  }
+  return <iframe src={blobUrl} title={title} className={className} />;
 }
 
 function parseShipmentMovementIds(raw: string | null | undefined): Set<number> {
@@ -680,10 +742,12 @@ export function DocumentsHubScreen() {
       />
     </div>
   ) : previewRow.previewMode === "pdf" ? (
-    <iframe
-      src={previewRow.previewUrl}
+    <PdfBlobPreview
+      url={previewRow.previewUrl}
       title={previewRow.subtitle}
       className="h-full w-full rounded-lg border border-zinc-200"
+      loadingLabel={t("common.loading")}
+      errorLabel={t("documents.previewNotSupported")}
     />
   ) : (
     <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600">
@@ -705,10 +769,12 @@ export function DocumentsHubScreen() {
       />
     </div>
   ) : previewRow.previewMode === "pdf" ? (
-    <iframe
-      src={previewRow.previewUrl}
+    <PdfBlobPreview
+      url={previewRow.previewUrl}
       title={previewRow.subtitle}
       className="h-[52vh] w-full rounded-lg border border-zinc-200"
+      loadingLabel={t("common.loading")}
+      errorLabel={t("documents.previewNotSupported")}
     />
   ) : (
     <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600">

@@ -39,10 +39,12 @@ import {
   expensePocketSubline,
   registerCashSettlementLabel,
 } from "./BranchDetailTabs.shared";
+import { BranchDashboardConsumptionCta } from "./BranchDashboardConsumptionCta";
 
 export type BranchDetailDashboardTabProps = {
   t: (key: string) => string;
   locale: Locale;
+  branchId: number;
   txDay: string;
   setTxDay: (v: string) => void;
   setTxModalLaunch: Dispatch<
@@ -80,6 +82,7 @@ export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
   const {
     t,
     locale,
+    branchId,
     txDay,
     setTxDay,
     setTxModalLaunch,
@@ -166,6 +169,10 @@ export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
                     >
                       {t("branch.refreshTx")}
                     </Button>
+                    <BranchDashboardConsumptionCta
+                      branchId={branchId}
+                      className="min-h-12 w-full sm:w-auto"
+                    />
                   </div>
                 </div>
               </div>

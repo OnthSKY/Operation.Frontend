@@ -55,13 +55,25 @@ export async function fetchUserRoles(userId: number): Promise<UserRolesResponse>
   return apiRequest<UserRolesResponse>(`/admin/authorization/users/${userId}/roles`);
 }
 
-/** Kullanıcının rol setini whole-set replace et — aktif session'lar iptal edilir. */
+/**
+ * Kullanıcının rol setini whole-set replace et — aktif session'lar iptal edilir.
+ * `personnelId`: PERSONNEL/DRIVER rolü atanırken personel kartı bağlamak için (opsiyonel).
+ */
 export async function putUserRoles(
   userId: number,
   roleCodes: string[],
+  personnelId?: number | null,
+  unlinkPersonnel?: boolean,
 ): Promise<UserRolesResponse> {
+  const body: Record<string, unknown> = { roleCodes };
+  if (personnelId != null && personnelId > 0) {
+    body.personnelId = personnelId;
+  } else if (unlinkPersonnel) {
+    // Portal rolü yokken mevcut personel bağını açıkça kaldır (kullanıcı kendi adıyla görünsün).
+    body.unlinkPersonnel = true;
+  }
   return apiRequest<UserRolesResponse>(`/admin/authorization/users/${userId}/roles`, {
     method: "PUT",
-    body: JSON.stringify({ roleCodes }),
+    body: JSON.stringify(body),
   });
 }

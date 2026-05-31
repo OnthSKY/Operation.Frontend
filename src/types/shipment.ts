@@ -1,16 +1,20 @@
 export type ShipmentStatus =
   | "DRAFT"
   | "PENDING_APPROVAL"
-  | "APPROVED"
-  | "REJECTED"
-  | "WAITING_WAREHOUSE"
+  | "REVISION_REQUESTED"
   | "PREPARING"
-  | "READY_FOR_DISPATCH"
   | "ON_THE_WAY"
   | "DELIVERED"
-  | "COMPLETED"
-  | "COMPLETED_WITH_ISSUE"
   | "CANCELLED";
+
+export type ShipmentNextActorRole =
+  /** Talep eden (dinamik: shipment.requestedBy). DRAFT submit, REVISION accept, DELIVERED confirm. */
+  | "REQUESTER"
+  | "APPROVER"
+  | "WAREHOUSE"
+  // Legacy — backend artık döndürmüyor ama eski state lar veya admin tools için tutulur:
+  | "STARTER"
+  | "COMPLETER";
 
 export type ShipmentItem = {
   id: number;
@@ -21,6 +25,8 @@ export type ShipmentItem = {
   deliveredQuantity: number;
   unitId: number | null;
   note: string | null;
+  /** Onaylayıcının önerdiği miktar (REVISION_REQUESTED iken). null = bu satırda değişiklik istenmemiş. */
+  proposedQuantity: number | null;
 };
 
 export type ShipmentHistory = {
@@ -28,6 +34,7 @@ export type ShipmentHistory = {
   fromStatus: string | null;
   toStatus: string;
   changedBy: number | null;
+  changedByFullName: string | null;
   changedAt: string;
   note: string | null;
   metadataJson: string | null;
@@ -37,7 +44,9 @@ export type ShipmentRequest = {
   id: number;
   shipmentNo: string;
   branchId: number;
+  branchName: string;
   warehouseId: number;
+  warehouseName: string;
   requestedBy: number;
   approvedBy: number | null;
   driverId: number | null;
@@ -50,6 +59,33 @@ export type ShipmentRequest = {
   updatedAt: string;
   items: ShipmentItem[];
   timeline: ShipmentHistory[];
+  nextActorRole: ShipmentNextActorRole | null;
+  nextActorUserId: number | null;
+  nextActorFullName: string | null;
+  stepAssignees: ShipmentStepAssignees | null;
+  /** REVISION_REQUESTED iken onaylayıcının notu (UI'da amber paneldedyösterilir). */
+  revisionNote: string | null;
+  revisionRequestedAt: string | null;
+  revisionRequestedBy: number | null;
+  revisionRequestedByFullName: string | null;
+};
+
+/** Onaylayıcı "değişiklik iste" body'si. */
+export type RequestShipmentRevisionPayload = {
+  proposedLines: Array<{ itemId: number; proposedQuantity: number }>;
+  note?: string | null;
+};
+
+/** Talep eden "öneriyi kabul et" body'si. */
+export type AcceptShipmentRevisionPayload = {
+  note?: string | null;
+};
+
+export type ShipmentStepAssignees = {
+  starterFullName: string | null;
+  approverFullName: string | null;
+  warehouseFullName: string | null;
+  completerFullName: string | null;
 };
 
 export type ShipmentPagedResponse = {
@@ -84,4 +120,15 @@ export type ShipmentBranchAssignment = {
 export type ShipmentAssignmentCatalog = {
   assignments: ShipmentBranchAssignment[];
   users: ShipmentAssignableUser[];
+};
+
+export type ShipmentActionable = {
+  shipmentId: number;
+  shipmentNo: string;
+  branchId: number;
+  branchName: string;
+  status: ShipmentStatus;
+  actorRole: "STARTER" | "APPROVER" | "WAREHOUSE" | "DRIVER_ASSIGNER" | "DISPATCHER" | "COMPLETER";
+  createdAt: string;
+  requestedDeliveryDate: string | null;
 };

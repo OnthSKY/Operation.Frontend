@@ -1,6 +1,7 @@
 import { apiErrors } from "./api-errors";
 import { auth } from "./auth";
 import { branch } from "./branch";
+import { branchStockConsumption } from "./branch-stock-consumption";
 import { common } from "./common";
 import { dashboard } from "./dashboard";
 import { documents } from "./documents";
@@ -46,6 +47,7 @@ export const en = {
   settings,
   shipments,
   branch,
+  branchStockConsumption,
   warehouse,
   products,
   reminders,

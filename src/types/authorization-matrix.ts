@@ -16,4 +16,7 @@ export type AuthorizationMatrix = {
   /** Broader code → kapsadığı narrower kodların listesi (scope hierarchy).
    * UI checkbox mutex'i ve "kapsanır" hint'leri bu maple kurulur. */
   implications?: Record<string, string[]>;
+  /** Veri kapsamı (scope) gerektiren izin kodları. Bu izinlerden birini içeren rol
+   * atanınca admin kapsam tanımlamaya yönlendirilir (backend tek doğruluk kaynağı). */
+  scopeRequiringPermissionCodes?: string[];
 };

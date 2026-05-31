@@ -65,6 +65,13 @@ export const users = {
     "Role updated. Assign branch data scopes (and optional advance-delegate personnel) for this user — your account cannot open the scopes editor.",
   branchDayRegisterUserCreatedNeedScopesPermission:
     "User created. Assign branch data scopes (and optional advance-delegate personnel) for this account — your login cannot open the scopes editor.",
+  scopeRequiredRoleSavedNeedScopesPermission:
+    "Role updated. This role requires data scopes — ask an administrator with «admin.users.data_scopes» to assign scope (branch/warehouse/personnel) rows for this user.",
+  scopeRequiredUserCreatedNeedScopesPermission:
+    "User created. The assigned role requires data scopes — ask an administrator with «admin.users.data_scopes» to assign scope rows for this account.",
+  scopeMissingBadge: "Scope missing",
+  scopeMissingHint:
+    "This user's role requires data scopes but none are defined; operations may be incomplete or fail. Add branch/warehouse/personnel rows from the Scopes screen.",
   statusActive: "Active",
   statusInactive: "Inactive",
   passwordMismatch: "Passwords do not match.",
@@ -80,23 +87,39 @@ export const users = {
   selfFinancialsUpdated: "Visibility updated",
   roleUpdated: "Role updated. That user must sign in again (sessions ended).",
   roleChangeSelfDisabled: "You cannot change your own role here.",
-  roleChangeModalTitle: "Change role",
+  roleChangeModalTitle: "Edit roles",
   roleChangeModalDescription:
-    "Pick the new role below. Saving ends this account’s active sessions; the user must sign in again.",
+    "Pick this account’s roles below (you can select more than one). Saving ends active sessions; the user must sign in again.",
   roleChangeAccountHeading: "Account",
-  roleChangeCurrentBadge: "Current role",
-  roleChangePickHeading: "New role",
+  roleChangeCurrentBadge: "Current roles",
+  roleChangePickHeading: "Roles",
   roleChangePickSubhint:
     "Each option summarizes typical menus and data access; the exact permission list lives in the Authorization matrix.",
+  rolesPickMultiSubhint:
+    "You can select multiple roles; the user gets the combined permissions of all selected roles. The exact permission list lives in the Authorization matrix.",
+  rolesNoneSelectedError: "Select at least one role.",
+  rolePersonnelRequiredBadge: "Personnel required",
+  personnelRequiredForRoleHint:
+    "This role must be linked to a personnel record; otherwise the account won't work (branch/driver identity, shipment delivery signature).",
+  personnelRequiredError: "Select a personnel for this role.",
+  rolesNoneSelectedTitle: "No roles selected",
+  rolesNoneSelectedHint:
+    "You must select at least one role to save; an account with no roles cannot access any screen.",
   roleChangePreviewHeading: "Summary",
   roleChangeConfirm: "Update role",
   roleChangeOpenAria: "Choose role and update",
+  roleEditButton: "Edit roles",
   roleChangeSessionHint: "Confirming ends active sessions.",
-  roleChangePersonnelFieldLabel: "Personnel link",
+  roleChangePersonnelFieldLabel: "Link to a personnel",
   roleChangePersonnelFieldHint:
-    "For branch staff or driver, pick which personnel card this login is tied to. If the account already has a link, you can keep it or choose another.",
+    "You can link this login to a personnel card. Once linked, the user appears with that personnel's name across the list and every screen. The link is required for branch staff and driver roles.",
   roleChangePersonnelRequired:
     "Select a personnel record for this role (branch staff requires a person with an assigned branch).",
+  roleChangeUnlinkPersonnelTitle: "Unlink personnel",
+  roleChangeUnlinkPersonnelHint:
+    "This account is currently linked to personnel “{name}”, so it shows that person's name in the list and screens. Since the portal role (branch staff/driver) is removed, you can unlink it.",
+  roleChangeUnlinkPersonnelCheckbox:
+    "Unlink personnel — the user will appear with its own username/display name from now on.",
   activateUser: "Activate",
   deactivateUser: "Deactivate",
   activateUserHint: "User can sign in again.",

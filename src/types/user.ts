@@ -13,7 +13,10 @@ export type UserListItem = {
   username: string;
   fullName: string | null;
   email?: string | null;
+  /** Birincil rol (sort_order'a göre ilk) — geri uyum / tekil gösterim için. */
   role: string;
+  /** Kullanıcının atanmış TÜM rolleri (sort_order ASC). Çoklu-rol UI bunu kullanır. */
+  roles: string[];
   status: string;
   personnelId: number | null;
   allowPersonnelSelfFinancials: boolean;
