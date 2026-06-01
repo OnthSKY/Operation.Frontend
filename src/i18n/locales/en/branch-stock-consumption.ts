@@ -41,6 +41,11 @@ export const branchStockConsumption = {
   errorDateRequired: "Please choose a valid date.",
   errorNoSnapshotRows: "Add at least one product and enter a count value.",
 
+  // IN (increase) adjustment — shipment cap: stock can only be raised to offset what was shipped in
+  adjustInMaxHint: "Shipment limit, most you can add:",
+  adjustInNoRoom: "This product is at its shipped-in limit; cannot increase (an outflow/consumption must come first).",
+  errorAdjustInExceedsShippedIn: "This increase exceeds the shipped-in stock. Most you can add:",
+
   // Snapshot panel
   snapshotEntryTitle: "Count remaining stock",
   snapshotEntryHeading: "Add the products you are counting",

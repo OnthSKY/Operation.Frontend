@@ -29,6 +29,8 @@ export type BranchProductBalanceRow = {
   productName: string;
   productUnit: string | null;
   balance: number;
+  /** Şubeye sevkiyatla net giren miktar (depo→şube IN − şube→depo OUT). IN düzeltme tavanı: netShippedIn − balance. */
+  netShippedIn: number;
 };
 
 export type BranchStockConsumptionListPage = {
@@ -112,6 +114,7 @@ function normalizeBalance(r: Record<string, unknown>): BranchProductBalanceRow {
         ? String(r.productUnit).trim()
         : null,
     balance: Number(r.balance ?? r.Balance ?? 0) || 0,
+    netShippedIn: Number(r.netShippedIn ?? r.NetShippedIn ?? 0) || 0,
   };
 }
 

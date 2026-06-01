@@ -41,6 +41,11 @@ export const branchStockConsumption = {
   errorDateRequired: "Lütfen geçerli bir tarih seçin.",
   errorNoSnapshotRows: "En az bir ürün ekleyip kalan değerini girin.",
 
+  // IN (artır) düzeltme — sevkiyat tavanı: stok yalnız sevkiyatla geleni telafi edecek kadar artırılabilir
+  adjustInMaxHint: "Sevkiyat sınırı, en fazla eklenebilir:",
+  adjustInNoRoom: "Bu ürün sevkiyatla gelen stok sınırında; artırım yapılamaz (önce çıkış/tüketim olmalı).",
+  errorAdjustInExceedsShippedIn: "Bu artırım sevkiyatla gelen stoğu aşıyor. En fazla eklenebilir:",
+
   // Sayım paneli
   snapshotEntryTitle: "Kalan stoğu say",
   snapshotEntryHeading: "Sayacağınız ürünleri ekleyin",
