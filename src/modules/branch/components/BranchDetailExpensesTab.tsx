@@ -22,6 +22,7 @@ import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
+import { TablePagination } from "@/shared/ui/TablePagination";
 import { DateField } from "@/shared/ui/DateField";
 import { Select } from "@/shared/ui/Select";
 import {
@@ -32,7 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/Table";
-import { Check, ChevronLeft, ChevronRight, Wallet } from "lucide-react";
+import { Check, Wallet } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import type { UseMutationResult } from "@tanstack/react-query";
@@ -131,7 +132,6 @@ export type BranchDetailExpensesTabProps = {
   deleteTxMut: Pick<UseMutationResult<unknown, unknown, number, unknown>, "isPending">;
   setInvoiceSettleRow: (row: BranchTransaction | null) => void;
   expPage: number;
-  expPages: number;
   expTotal: number;
   EXP_PAGE: number;
   onOpenDetail: (row: BranchTransaction) => void;
@@ -188,7 +188,6 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
     deleteTxMut,
     setInvoiceSettleRow,
     expPage,
-    expPages,
     expTotal,
     EXP_PAGE,
     onOpenDetail,
@@ -1038,39 +1037,12 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                     </TableBody>
                   </Table>
                 </div>
-                <div className="flex flex-col gap-2 border-t border-zinc-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-zinc-600">
-                    {(expPage - 1) * EXP_PAGE + 1}–{Math.min(expPage * EXP_PAGE, expTotal)} · {t("branch.pagingTotal")}{" "}
-                    {expTotal}
-                  </p>
-                  <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:flex sm:flex-wrap sm:items-center">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-11 min-w-[44px] px-3"
-                      disabled={expPage <= 1}
-                      onClick={() => setExpPage((p) => Math.max(1, p - 1))}
-                      aria-label={t("branch.pagingPrev")}
-                    >
-                      <ChevronLeft className="h-4 w-4" aria-hidden />
-                      <span className="sr-only">{t("branch.pagingPrev")}</span>
-                    </Button>
-                    <span className="flex min-h-11 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm tabular-nums text-zinc-700 sm:min-h-0 sm:rounded-none sm:border-0 sm:bg-transparent">
-                      {expPage} / {expPages}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-11 min-w-[44px] px-3"
-                      disabled={expPage >= expPages}
-                      onClick={() => setExpPage((p) => Math.min(expPages, p + 1))}
-                      aria-label={t("branch.pagingNext")}
-                    >
-                      <ChevronRight className="h-4 w-4" aria-hidden />
-                      <span className="sr-only">{t("branch.pagingNext")}</span>
-                    </Button>
-                  </div>
-                </div>
+                <TablePagination
+                  page={expPage}
+                  pageSize={EXP_PAGE}
+                  totalCount={expTotal}
+                  onPageChange={setExpPage}
+                />
               </>
             )}
             </div>

@@ -36,6 +36,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/Table";
+import { TablePagination } from "@/shared/ui/TablePagination";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import type { ProductListItem } from "@/types/product";
 import { ToolbarGlyphPackage, ToolbarGlyphReceipt } from "@/shared/ui/ToolbarGlyph";
@@ -232,44 +233,6 @@ function MobileCatalogCategoryBlock({
 }
 
 const CATALOG_PAGE_SIZE = 25;
-
-function CatalogChevronLeft({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="m15 18-6-6 6-6" />
-    </svg>
-  );
-}
-
-function CatalogChevronRight({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="m9 18 6-6-6-6" />
-    </svg>
-  );
-}
 
 function ProductWarehouseChips({
   r,
@@ -693,7 +656,7 @@ export function ProductsScreen() {
           </div>
 
           <div className="hidden min-w-0 w-full md:block">
-            <Table className="w-full min-w-0 lg:min-w-[44rem] xl:min-w-[720px]">
+            <Table mobileCards={false} className="w-full min-w-0 lg:min-w-[44rem] xl:min-w-[720px]">
               <TableHead>
                 <TableRow>
                   <TableHeader>{t("products.colName")}</TableHeader>
@@ -821,45 +784,12 @@ export function ProductsScreen() {
           </div>
 
               {!isPending && !isError && totalCount > 0 ? (
-                <div className="flex flex-col gap-3 border-t border-zinc-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-zinc-600">
-                    {(listPage - 1) * CATALOG_PAGE_SIZE + 1}
-                    {"–"}
-                    {Math.min(listPage * CATALOG_PAGE_SIZE, totalCount)} · {t("products.pagingTotal")}{" "}
-                    {totalCount}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-11 min-w-11 px-0 sm:min-w-[6.75rem] sm:px-3"
-                      aria-label={t("products.pagingPrev")}
-                      disabled={listPage <= 1}
-                      onClick={() => setListPage((p) => Math.max(1, p - 1))}
-                    >
-                      <span className="inline-flex items-center gap-1.5">
-                        <CatalogChevronLeft className="h-4 w-4" />
-                        <span className="hidden sm:inline">{t("products.pagingPrev")}</span>
-                      </span>
-                    </Button>
-                    <span className="min-w-[4.5rem] text-center text-sm tabular-nums text-zinc-700">
-                      {listPage} / {listPageTotal}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-11 min-w-11 px-0 sm:min-w-[6.75rem] sm:px-3"
-                      aria-label={t("products.pagingNext")}
-                      disabled={listPage >= listPageTotal}
-                      onClick={() => setListPage((p) => Math.min(listPageTotal, p + 1))}
-                    >
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className="hidden sm:inline">{t("products.pagingNext")}</span>
-                        <CatalogChevronRight className="h-4 w-4" />
-                      </span>
-                    </Button>
-                  </div>
-                </div>
+                <TablePagination
+                  page={listPage}
+                  pageSize={CATALOG_PAGE_SIZE}
+                  totalCount={totalCount}
+                  onPageChange={setListPage}
+                />
               ) : null}
             </>
           ) : null}

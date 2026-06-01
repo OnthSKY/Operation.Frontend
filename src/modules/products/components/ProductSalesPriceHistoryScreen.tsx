@@ -15,6 +15,7 @@ import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
+import { TablePagination } from "@/shared/ui/TablePagination";
 import { DateField } from "@/shared/ui/DateField";
 import { Input } from "@/shared/ui/Input";
 import { Select } from "@/shared/ui/Select";
@@ -349,24 +350,14 @@ export function ProductSalesPriceHistoryScreen() {
                   </Table>
                 </div>
 
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-4">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={pageIndex <= 0 || busy}
-                    onClick={() => setPageIndex((p) => Math.max(0, p - 1))}
-                  >
-                    {t("products.pagingPrev")}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={pageIndex >= totalPages - 1 || busy}
-                    onClick={() => setPageIndex((p) => p + 1)}
-                  >
-                    {t("products.pagingNext")}
-                  </Button>
-                </div>
+                <TablePagination
+                  className="mt-1"
+                  page={pageIndex + 1}
+                  pageSize={pageSize}
+                  totalCount={totalCount}
+                  disabled={busy}
+                  onPageChange={(p) => setPageIndex(p - 1)}
+                />
               </>
             )}
           </Card>

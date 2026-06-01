@@ -27,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/Table";
+import { TablePagination } from "@/shared/ui/TablePagination";
 import { notify } from "@/shared/lib/notify";
 import { notifyWarehouseDeleteConfirm } from "@/shared/lib/notify-warehouse-delete";
 import { detailOpenIconButtonClass, EyeIcon, PlusIcon } from "@/shared/ui/EyeIcon";
@@ -55,6 +56,7 @@ function warehouseResponsiblesLine(w: WarehouseListItem): string | null {
 }
 
 const WAREHOUSE_DEEP_LINK_KEYS = ["openWarehouse", "openWarehouseTab", "openMovementId"] as const;
+const WAREHOUSE_LIST_PAGE_SIZE = 25;
 
 export function WarehouseScreen() {
   const { t, locale } = useI18n();
@@ -73,6 +75,7 @@ export function WarehouseScreen() {
     null
   );
   const [listSearch, setListSearch] = useState("");
+  const [listPage, setListPage] = useState(1);
 
   const { data: warehouses = [], isPending: whLoading, isError: whError, error: whErr } =
     useWarehousesList();
@@ -94,6 +97,20 @@ export function WarehouseScreen() {
       return hay.includes(q);
     });
   }, [warehouses, listSearch]);
+
+  const listPageTotal = Math.max(1, Math.ceil(displayWarehouses.length / WAREHOUSE_LIST_PAGE_SIZE));
+  const pagedWarehouses = useMemo(() => {
+    const start = (listPage - 1) * WAREHOUSE_LIST_PAGE_SIZE;
+    return displayWarehouses.slice(start, start + WAREHOUSE_LIST_PAGE_SIZE);
+  }, [displayWarehouses, listPage]);
+
+  // Arama değişince başa dön; sayfa sayısı düşerse taşmayı düzelt.
+  useEffect(() => {
+    setListPage(1);
+  }, [listSearch]);
+  useEffect(() => {
+    if (listPage > listPageTotal) setListPage(listPageTotal);
+  }, [listPage, listPageTotal]);
 
   useEffect(() => {
     if (detailWarehouseId == null) return;
@@ -263,7 +280,7 @@ export function WarehouseScreen() {
           ) : (
             <>
           <div className="-mx-1 hidden overflow-x-auto px-1 lg:mx-0 lg:block lg:overflow-visible lg:px-0">
-            <Table>
+            <Table mobileCards={false}>
               <TableHead>
                 <TableRow>
                   <TableHeader>{t("warehouse.fieldName")}</TableHeader>
@@ -284,7 +301,7 @@ export function WarehouseScreen() {
                 </TableRow>
               </TableHead>
               <TableBody>
-                {displayWarehouses.map((w) => {
+                {pagedWarehouses.map((w) => {
                   const loc = warehouseLocationLine(w);
                   const qty = w.totalOnHandQuantity ?? 0;
                   const qtyLabel = formatLocaleAmount(qty, locale);
@@ -408,7 +425,7 @@ export function WarehouseScreen() {
           </div>
 
           <ul className="grid grid-cols-1 gap-4 lg:hidden">
-            {displayWarehouses.map((w) => {
+            {pagedWarehouses.map((w) => {
               const loc = warehouseLocationLine(w);
               const resp = warehouseResponsiblesLine(w);
               const qty = w.totalOnHandQuantity ?? 0;
@@ -433,12 +450,12 @@ export function WarehouseScreen() {
                       }
                     }}
                     className={cn(
-                      "flex w-full cursor-pointer flex-col items-start gap-3 text-left transition-colors active:bg-zinc-50 sm:flex-row",
+                      "flex w-full cursor-pointer flex-col gap-3 text-left transition-colors active:bg-zinc-50",
                       active && "border-zinc-300 bg-zinc-50"
                     )}
                   >
-                    <div className="min-w-0 flex-1 overflow-hidden">
-                      <p className="truncate text-base font-semibold leading-snug text-zinc-900">
+                    <div className="min-w-0">
+                      <p className="line-clamp-2 break-words text-base font-semibold leading-snug text-zinc-900">
                         {w.name}
                       </p>
                       {loc ? (
@@ -451,7 +468,7 @@ export function WarehouseScreen() {
                           {resp}
                         </p>
                       ) : null}
-                      <p className="mt-1 text-sm tabular-nums text-zinc-700">
+                      <p className="mt-1 break-words text-sm tabular-nums text-zinc-700">
                         {t("warehouse.listColTotalOnHand")}: {qtyLabel}
                       </p>
                       {created ? (
@@ -461,7 +478,7 @@ export function WarehouseScreen() {
                       ) : null}
                     </div>
                     <div
-                      className="flex w-full shrink-0 flex-row flex-wrap items-start justify-start gap-1 pt-0.5 sm:w-auto sm:justify-end"
+                      className="flex w-full flex-row flex-wrap items-center justify-end gap-2 border-t border-zinc-100 pt-3"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Tooltip className="shrink-0" content={t("warehouse.listActionDepoProductIn")} delayMs={200}>
@@ -531,6 +548,14 @@ export function WarehouseScreen() {
               );
             })}
           </ul>
+
+          <TablePagination
+            className="mt-4"
+            page={listPage}
+            pageSize={WAREHOUSE_LIST_PAGE_SIZE}
+            totalCount={displayWarehouses.length}
+            onPageChange={setListPage}
+          />
             </>
           )}
         </Card>

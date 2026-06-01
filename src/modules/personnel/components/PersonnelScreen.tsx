@@ -43,6 +43,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/Table";
+import { TablePagination } from "@/shared/ui/TablePagination";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { useBranchDetailOverlay } from "@/shared/branch-detail";
@@ -277,44 +278,6 @@ function PencilIcon({ className }: { className?: string }) {
       aria-hidden
     >
       <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-    </svg>
-  );
-}
-
-function ChevronLeftIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="m15 18-6-6 6-6" />
-    </svg>
-  );
-}
-
-function ChevronRightIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="m9 18 6-6-6-6" />
     </svg>
   );
 }
@@ -1336,7 +1299,7 @@ export function PersonnelScreen() {
 
               {/* Tablo: md ve üstü */}
               <div className="-mx-1 hidden overflow-x-auto px-1 md:block sm:mx-0 sm:overflow-visible sm:px-0">
-                <Table>
+                <Table mobileCards={false}>
                   <TableHead>
                     <TableRow>
                       <TableHeader>{t("personnel.tableName")}</TableHeader>
@@ -1541,58 +1504,12 @@ export function PersonnelScreen() {
               </div>
 
               {!isPending && !isError && totalCount > 0 ? (
-                <div className="flex flex-col gap-3 border-t border-zinc-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-zinc-600">
-                    {(listPage - 1) * PERSONNEL_LIST_PAGE_SIZE + 1}
-                    {"–"}
-                    {Math.min(
-                      listPage * PERSONNEL_LIST_PAGE_SIZE,
-                      totalCount
-                    )}{" "}
-                    · {t("products.pagingTotal")} {totalCount}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-11 min-w-11 w-11 px-0 sm:min-w-[6.75rem] sm:w-auto sm:px-3"
-                      aria-label={t("products.pagingPrev")}
-                      disabled={listPage <= 1}
-                      onClick={() =>
-                        setListPage((p) => Math.max(1, p - 1))
-                      }
-                    >
-                      <span className="inline-flex items-center gap-1.5">
-                        <ChevronLeftIcon className="h-4 w-4" />
-                        <span className="hidden sm:inline">
-                          {t("products.pagingPrev")}
-                        </span>
-                      </span>
-                    </Button>
-                    <span className="min-w-[4.5rem] text-center text-sm tabular-nums text-zinc-700">
-                      {listPage} / {listPageTotal}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-11 min-w-11 w-11 px-0 sm:min-w-[6.75rem] sm:w-auto sm:px-3"
-                      aria-label={t("products.pagingNext")}
-                      disabled={listPage >= listPageTotal}
-                      onClick={() =>
-                        setListPage((p) =>
-                          Math.min(listPageTotal, p + 1)
-                        )
-                      }
-                    >
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className="hidden sm:inline">
-                          {t("products.pagingNext")}
-                        </span>
-                        <ChevronRightIcon className="h-4 w-4" />
-                      </span>
-                    </Button>
-                  </div>
-                </div>
+                <TablePagination
+                  page={listPage}
+                  pageSize={PERSONNEL_LIST_PAGE_SIZE}
+                  totalCount={totalCount}
+                  onPageChange={setListPage}
+                />
               ) : null}
             </>
           )}

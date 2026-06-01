@@ -19,6 +19,7 @@ import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
+import { TablePagination } from "@/shared/ui/TablePagination";
 import { DateField } from "@/shared/ui/DateField";
 import { Select } from "@/shared/ui/Select";
 import {
@@ -29,7 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/Table";
-import { Check, ChevronLeft, ChevronRight, Receipt } from "lucide-react";
+import { Check, Receipt } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { BranchMobileInsightJumpRail } from "@/modules/branch/components/BranchMobileInsightJumpRail";
 import { useMediaMinWidth } from "@/shared/lib/use-media-min-width";
@@ -119,7 +120,6 @@ export type BranchDetailIncomeTabProps = {
   deleteTxMut: Pick<UseMutationResult<unknown, unknown, number, unknown>, "isPending">;
   confirmDeleteBranchTx: (id: number) => void | Promise<void>;
   incPage: number;
-  incPages: number;
   incTotal: number;
   INC_PAGE: number;
   onOpenDetail: (row: BranchTransaction) => void;
@@ -175,7 +175,6 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
     deleteTxMut,
     confirmDeleteBranchTx,
     incPage,
-    incPages,
     incTotal,
     INC_PAGE,
     onOpenDetail,
@@ -886,39 +885,12 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                 </TableBody>
               </Table>
             </div>
-            <div className="flex flex-col gap-2 border-t border-zinc-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-zinc-600">
-                {(incPage - 1) * INC_PAGE + 1}–{Math.min(incPage * INC_PAGE, incTotal)} · {t("branch.pagingTotal")}{" "}
-                {incTotal}
-              </p>
-              <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:flex sm:flex-wrap sm:items-center">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="min-h-11 min-w-[44px] px-3"
-                  disabled={incPage <= 1}
-                  onClick={() => setIncPage((p) => Math.max(1, p - 1))}
-                  aria-label={t("branch.pagingPrev")}
-                >
-                  <ChevronLeft className="h-4 w-4" aria-hidden />
-                  <span className="sr-only">{t("branch.pagingPrev")}</span>
-                </Button>
-                <span className="flex min-h-11 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm tabular-nums text-zinc-700 sm:min-h-0 sm:rounded-none sm:border-0 sm:bg-transparent">
-                  {incPage} / {incPages}
-                </span>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="min-h-11 min-w-[44px] px-3"
-                  disabled={incPage >= incPages}
-                  onClick={() => setIncPage((p) => Math.min(incPages, p + 1))}
-                  aria-label={t("branch.pagingNext")}
-                >
-                  <ChevronRight className="h-4 w-4" aria-hidden />
-                  <span className="sr-only">{t("branch.pagingNext")}</span>
-                </Button>
-              </div>
-            </div>
+            <TablePagination
+              page={incPage}
+              pageSize={INC_PAGE}
+              totalCount={incTotal}
+              onPageChange={setIncPage}
+            />
           </>
         )}
       </div>

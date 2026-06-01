@@ -17,6 +17,7 @@ import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayou
 import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
+import { TablePagination } from "@/shared/ui/TablePagination";
 import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
 import type { BranchDocumentKind } from "@/types/branch-document";
@@ -1013,39 +1014,12 @@ export function DocumentsHubScreen() {
               })()
             ))}
           </ul>
-          <div className="flex flex-col gap-2 border-t border-zinc-100 pt-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-zinc-600 sm:text-sm">
-              {pageStart + 1}–{Math.min(pageStart + pageSize, filteredRows.length)} / {filteredRows.length}
-            </p>
-            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
-              <Button
-                type="button"
-                variant="secondary"
-                className="min-h-[44px] min-w-[44px] px-3"
-                disabled={effectivePage <= 1}
-                onClick={() => setPage(effectivePage - 1)}
-                aria-label={t("products.pagingPrev")}
-                title={t("products.pagingPrev")}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <path d="m15 18-6-6 6-6" />
-                </svg>
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                className="min-h-[44px] min-w-[44px] px-3"
-                disabled={effectivePage >= totalPages}
-                onClick={() => setPage(effectivePage + 1)}
-                aria-label={t("products.pagingNext")}
-                title={t("products.pagingNext")}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <path d="m9 18 6-6-6-6" />
-                </svg>
-              </Button>
-            </div>
-          </div>
+          <TablePagination
+            page={effectivePage}
+            pageSize={pageSize}
+            totalCount={filteredRows.length}
+            onPageChange={setPage}
+          />
           </div>
         )}
       </div>

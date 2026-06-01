@@ -26,6 +26,7 @@ import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { MobileListCard } from "@/shared/components/MobileListCard";
 import { RightDrawer } from "@/shared/components/RightDrawer";
 import { Button } from "@/shared/ui/Button";
+import { TablePagination } from "@/shared/ui/TablePagination";
 import { DateField } from "@/shared/ui/DateField";
 import { Modal } from "@/shared/ui/Modal";
 import type { BranchStockReceiptRow } from "@/types/branch";
@@ -296,7 +297,6 @@ export function BranchStockInboundPanel({ branchId }: Props) {
 
   const items = data?.items ?? [];
   const totalCount = data?.totalCount ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const filteredTotalQty = Number(summaryData?.filteredTotalQuantity ?? data?.filteredTotalQuantity ?? 0) || 0;
   const mainProductBreakdown = summaryData?.parentBreakdown ?? [];
   const mainProductBreakdownTotal = useMemo(
@@ -991,36 +991,12 @@ export function BranchStockInboundPanel({ branchId }: Props) {
               </div>
 
               {totalCount > 0 ? (
-                <div className="flex min-w-0 flex-col gap-3 rounded-xl border border-zinc-100 bg-zinc-50/50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="min-w-0 text-sm text-zinc-600">
-                    {(page - 1) * PAGE_SIZE + 1}
-                    {"–"}
-                    {Math.min(page * PAGE_SIZE, totalCount)} · {t("branch.pagingTotal")} {totalCount}
-                  </p>
-                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-11 w-full touch-manipulation sm:w-auto"
-                      disabled={page <= 1}
-                      onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    >
-                      {t("branch.pagingPrev")}
-                    </Button>
-                    <span className="col-span-2 flex min-h-11 items-center justify-center rounded-lg border border-zinc-200 bg-white text-sm tabular-nums text-zinc-700 sm:col-span-1 sm:min-h-0 sm:rounded-none sm:border-0 sm:bg-transparent">
-                      {page} / {totalPages}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-11 w-full touch-manipulation sm:w-auto"
-                      disabled={page >= totalPages}
-                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                    >
-                      {t("branch.pagingNext")}
-                    </Button>
-                  </div>
-                </div>
+                <TablePagination
+                  page={page}
+                  pageSize={PAGE_SIZE}
+                  totalCount={totalCount}
+                  onPageChange={setPage}
+                />
               ) : null}
             </>
           )}

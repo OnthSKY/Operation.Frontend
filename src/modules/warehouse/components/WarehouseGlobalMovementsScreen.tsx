@@ -27,6 +27,7 @@ import {
 } from "@/shared/lib/in-batch-group-label";
 import { OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
 import { Button } from "@/shared/ui/Button";
+import { TablePagination } from "@/shared/ui/TablePagination";
 import { DateField } from "@/shared/ui/DateField";
 import { EyeIcon, detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
 import { Modal } from "@/shared/ui/Modal";
@@ -1446,40 +1447,13 @@ export function WarehouseGlobalMovementsScreen() {
         )
       ) : null}
 
-      {!isPending && (viewMode === "movements" ? totalCount : shipmentGroups.length) > 0 ? (
-        <div className="flex flex-col gap-3 border-t border-zinc-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-zinc-600">
-            {pageStart + 1}
-            {"–"}
-            {Math.min(pageStart + PAGE_SIZE, viewMode === "movements" ? totalCount : shipmentGroups.length)} · {t("products.pagingTotal")}{" "}
-            {viewMode === "movements" ? totalCount : shipmentGroups.length}
-          </p>
-          <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11 min-w-11 px-0"
-              aria-label={t("products.pagingPrev")}
-              disabled={safePage <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              <span aria-hidden className="text-lg leading-none">‹</span>
-            </Button>
-            <span className="min-w-[3.5rem] text-center text-sm tabular-nums text-zinc-700">
-              {safePage} / {totalPages}
-            </span>
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11 min-w-11 px-0"
-              aria-label={t("products.pagingNext")}
-              disabled={safePage >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              <span aria-hidden className="text-lg leading-none">›</span>
-            </Button>
-          </div>
-        </div>
+      {!isPending && activeItemCount > 0 ? (
+        <TablePagination
+          page={safePage}
+          pageSize={PAGE_SIZE}
+          totalCount={activeItemCount}
+          onPageChange={setPage}
+        />
       ) : null}
 
       <Modal

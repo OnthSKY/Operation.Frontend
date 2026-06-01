@@ -39,6 +39,7 @@ import { DateField } from "@/shared/ui/DateField";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select, type SelectOption } from "@/shared/ui/Select";
+import { TablePagination } from "@/shared/ui/TablePagination";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import { CatalogProductWarehouseStockCombobox } from "@/modules/products/components/CatalogProductWarehouseStockCombobox";
 import type { WarehouseMovementItem, WarehouseMovementsPageParams } from "@/types/warehouse";
@@ -58,8 +59,6 @@ import {
   ArrowRight,
   Calendar,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   FilePlus2,
   Info,
   Pencil,
@@ -1420,40 +1419,12 @@ export function WarehouseDetailMovementHistoryTab({
       ) : null}
 
       {!isPending && totalCount > 0 && (
-        <div className="flex min-w-0 flex-col gap-3 border-t border-zinc-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="min-w-0 text-sm text-zinc-600">
-            {(page - 1) * GROUP_PAGE_SIZE + 1}
-            {"–"}
-            {Math.min(page * GROUP_PAGE_SIZE, groupTotalCount)} · {t("products.pagingTotal")} {groupTotalCount}
-          </p>
-          <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-end">
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11 min-w-[44px] px-3 touch-manipulation"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              aria-label={t("products.pagingPrev")}
-            >
-              <ChevronLeft className="h-4 w-4" aria-hidden />
-              <span className="sr-only">{t("products.pagingPrev")}</span>
-            </Button>
-            <span className="flex min-h-11 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 px-3 text-sm tabular-nums text-zinc-700 sm:min-h-0 sm:rounded-none sm:border-0 sm:bg-transparent">
-              {page} / {totalPages}
-            </span>
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11 min-w-[44px] px-3 touch-manipulation"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              aria-label={t("products.pagingNext")}
-            >
-              <ChevronRight className="h-4 w-4" aria-hidden />
-              <span className="sr-only">{t("products.pagingNext")}</span>
-            </Button>
-          </div>
-        </div>
+        <TablePagination
+          page={page}
+          pageSize={GROUP_PAGE_SIZE}
+          totalCount={groupTotalCount}
+          onPageChange={setPage}
+        />
       )}
       {editInboundTarget ? (
         <EditWarehouseInboundBatchModal

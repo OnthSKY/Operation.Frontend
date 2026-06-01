@@ -6,6 +6,7 @@ import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
+import { TablePagination } from "@/shared/ui/TablePagination";
 import { DateField } from "@/shared/ui/DateField";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import {
@@ -93,7 +94,6 @@ export function ProductDetailMovementsTab({ productId, enabled }: Props) {
   );
 
   const totalCount = data?.totalCount ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const items = data?.items ?? [];
 
   return (
@@ -222,37 +222,12 @@ export function ProductDetailMovementsTab({ productId, enabled }: Props) {
       )}
 
       {!isPending && totalCount > 0 && (
-        <div className="flex flex-col gap-3 border-t border-zinc-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-zinc-600">
-            {(page - 1) * PAGE_SIZE + 1}
-            {"–"}
-            {Math.min(page * PAGE_SIZE, totalCount)} · {t("products.pagingTotal")}{" "}
-            {totalCount}
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-            >
-              {t("products.pagingPrev")}
-            </Button>
-            <span className="text-sm tabular-nums text-zinc-700">
-              {page} / {totalPages}
-            </span>
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            >
-              {t("products.pagingNext")}
-            </Button>
-          </div>
-        </div>
+        <TablePagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          totalCount={totalCount}
+          onPageChange={setPage}
+        />
       )}
     </div>
   );

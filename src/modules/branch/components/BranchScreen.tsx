@@ -32,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/shared/ui/Table";
+import { TablePagination } from "@/shared/ui/TablePagination";
 import { useBranchDetailOverlay } from "@/shared/branch-detail";
 import { useSearchParams } from "next/navigation";
 import type { MouseEvent } from "react";
@@ -200,25 +201,6 @@ function BranchEditIcon({ className }: { className?: string }) {
       aria-hidden
     >
       <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-    </svg>
-  );
-}
-
-function ChevronLeftIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d="m15 18-6-6 6-6" />
     </svg>
   );
 }
@@ -774,7 +756,7 @@ export function BranchScreen() {
             </div>
 
             <div className="-mx-1 hidden overflow-x-auto px-1 md:block sm:mx-0 sm:overflow-visible sm:px-0">
-              <Table>
+              <Table mobileCards={false}>
                 <TableHead>
                   <TableRow>
                     <TableHeader
@@ -919,41 +901,13 @@ export function BranchScreen() {
             </div>
 
               {!isPending && !isError && totalCount > 0 ? (
-                <div className="mt-3 flex flex-col gap-2 border-t border-zinc-100 pt-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                  <p className="text-center text-sm text-zinc-600 sm:min-w-0 sm:flex-1 sm:text-left">
-                    {(listPage - 1) * BRANCH_LIST_PAGE_SIZE + 1}
-                    {"–"}
-                    {Math.min(listPage * BRANCH_LIST_PAGE_SIZE, totalCount)}{" "}
-                    · {t("products.pagingTotal")} {totalCount}
-                  </p>
-                  <div className="mx-auto flex w-auto max-w-full shrink-0 items-center justify-center gap-1.5 sm:mx-0 sm:ml-auto sm:justify-end">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="!h-11 !w-11 !min-h-11 !min-w-11 shrink-0 !px-0 !py-0 sm:!h-11 sm:!w-11 sm:!min-h-11 sm:!px-0 sm:!py-0 sm:!text-sm md:!px-0"
-                      aria-label={t("products.pagingPrev")}
-                      disabled={listPage <= 1}
-                      onClick={() => setListPage((p) => Math.max(1, p - 1))}
-                    >
-                      <ChevronLeftIcon className="h-4 w-4 shrink-0" />
-                    </Button>
-                    <span className="min-w-[4.75rem] text-center text-sm tabular-nums text-zinc-800">
-                      {listPage} / {listPageTotal}
-                    </span>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="!h-11 !w-11 !min-h-11 !min-w-11 shrink-0 !px-0 !py-0 sm:!h-11 sm:!w-11 sm:!min-h-11 sm:!px-0 sm:!py-0 sm:!text-sm md:!px-0"
-                      aria-label={t("products.pagingNext")}
-                      disabled={listPage >= listPageTotal}
-                      onClick={() =>
-                        setListPage((p) => Math.min(listPageTotal, p + 1))
-                      }
-                    >
-                      <ChevronRightIcon className="h-4 w-4 shrink-0" />
-                    </Button>
-                  </div>
-                </div>
+                <TablePagination
+                  className="mt-3"
+                  page={listPage}
+                  pageSize={BRANCH_LIST_PAGE_SIZE}
+                  totalCount={totalCount}
+                  onPageChange={setListPage}
+                />
               ) : null}
           </>
         )}

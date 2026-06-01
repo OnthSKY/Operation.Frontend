@@ -719,9 +719,7 @@ export function BranchDetailTabs({
   };
 
   const expTotal = expData?.totalCount ?? 0;
-  const expPages = Math.max(1, Math.ceil(expTotal / EXP_PAGE));
   const incTotal = incData?.totalCount ?? 0;
-  const incPages = Math.max(1, Math.ceil(incTotal / INC_PAGE));
 
   const tabs: { id: BranchDetailTabId; label: string }[] = useMemo(() => {
       const all: { id: BranchDetailTabId; label: string }[] = [
@@ -897,7 +895,6 @@ export function BranchDetailTabs({
             deleteTxMut={deleteTxMut}
             confirmDeleteBranchTx={confirmDeleteBranchTx}
             incPage={incPage}
-            incPages={incPages}
             incTotal={incTotal}
             INC_PAGE={INC_PAGE}
             onOpenDetail={setDetailRow}
@@ -955,7 +952,6 @@ export function BranchDetailTabs({
             deleteTxMut={deleteTxMut}
             setInvoiceSettleRow={setInvoiceSettleRow}
             expPage={expPage}
-            expPages={expPages}
             expTotal={expTotal}
             EXP_PAGE={EXP_PAGE}
             onOpenDetail={setDetailRow}
