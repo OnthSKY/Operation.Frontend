@@ -63,8 +63,10 @@ import {
   FilePlus2,
   Info,
   Pencil,
+  Search,
   Store,
   Warehouse as WarehouseIcon,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -249,6 +251,7 @@ export function WarehouseDetailMovementHistoryTab({
   const [outboundShipmentMovementId, setOutboundShipmentMovementId] = useState<number | null>(null);
   const [detailsGroupKey, setDetailsGroupKey] = useState<string | null>(null);
   const [detailsContentTab, setDetailsContentTab] = useState<"LINES" | "AUDIT">("LINES");
+  const [detailLineQuery, setDetailLineQuery] = useState("");
   const [headerEditOpen, setHeaderEditOpen] = useState(false);
   const [headerEditBusinessDate, setHeaderEditBusinessDate] = useState("");
   const [headerEditDescription, setHeaderEditDescription] = useState("");
@@ -452,6 +455,7 @@ export function WarehouseDetailMovementHistoryTab({
     setOutboundShipmentMovementId(null);
     setDetailsGroupKey(null);
     setDetailsContentTab("LINES");
+    setDetailLineQuery("");
     setAppendInboundLineOpen(false);
     setAppendInboundProductId("");
     setAppendInboundQty("1");
@@ -487,6 +491,7 @@ export function WarehouseDetailMovementHistoryTab({
   useEffect(() => {
     if (detailsGroupKey) setDetailsContentTab("LINES");
     if (!detailsGroupKey) setHeaderEditOpen(false);
+    setDetailLineQuery("");
   }, [detailsGroupKey]);
 
   const movementFiltersActive = useMemo(() => {
@@ -648,6 +653,16 @@ export function WarehouseDetailMovementHistoryTab({
   const selectedDetailGroup = detailsGroupKey
     ? shipmentGroups.find((g) => g.key === detailsGroupKey) ?? null
     : null;
+  const detailLineFilteredMovements = useMemo(() => {
+    const all = selectedDetailGroup?.movements ?? [];
+    const q = detailLineQuery.trim().toLocaleLowerCase("tr-TR");
+    if (!q) return all;
+    return all.filter((m) =>
+      `${m.productName} ${m.parentProductName ?? ""} ${m.unit ?? ""}`
+        .toLocaleLowerCase("tr-TR")
+        .includes(q)
+    );
+  }, [selectedDetailGroup, detailLineQuery]);
   const selectedDetailType = selectedDetailGroup?.movements[0]?.type ?? null;
   const selectedDetailIsDepotToBranch =
     selectedDetailGroup != null &&
@@ -1845,37 +1860,84 @@ export function WarehouseDetailMovementHistoryTab({
                 </p>
                 {detailsContentTab === "LINES" ? (
                   <div className="mt-2 space-y-2">
-                    {selectedDetailGroup.movements.map((m) => (
-                      <WarehouseMovementRowCard
-                        key={`detail-${m.id}`}
-                        m={m}
-                        fmtDate={fmtDate}
-                        t={t}
-                        hideShipmentGroup
-                        hideAuditMeta
-                        hideInvoiceSection
-                        hideOutBranch
-                        warehouseId={warehouseId}
-                        onEditInboundFull={(row) => {
-                          if (row.type === "IN") setInboundFullMovementId(row.id);
-                        }}
-                        onDeleteInbound={confirmDeleteInboundFromRow}
-                        onEditOutboundShipment={(row) => {
-                          if (row.type === "OUT" && row.isDepotToBranchShipment) {
-                            setOutboundShipmentMovementId(row.id);
-                          }
-                        }}
-                        onDeleteOutboundShipment={confirmDeleteOutboundShipmentFromRow}
-                        onPreviewInvoice={(row) => {
-                          if (row.type !== "IN" || !row.hasInvoicePhoto) return;
-                          setInvoicePreviewTarget({
-                            movementId: row.id,
-                            title: t("warehouse.movementInvoicePreviewTitle"),
-                            subtitle: row.productName,
-                          });
-                        }}
-                      />
-                    ))}
+                    {selectedDetailGroup.movements.length > 1 ? (
+                      <div className="sticky top-0 z-10 -mx-0.5 bg-zinc-50/95 px-0.5 pb-1 pt-0.5 backdrop-blur supports-[backdrop-filter]:bg-zinc-50/80">
+                        <div className="relative">
+                          <Search
+                            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+                            aria-hidden
+                          />
+                          <input
+                            type="text"
+                            inputMode="search"
+                            enterKeyHint="search"
+                            autoComplete="off"
+                            autoCapitalize="none"
+                            autoCorrect="off"
+                            spellCheck={false}
+                            value={detailLineQuery}
+                            onChange={(e) => setDetailLineQuery(e.target.value)}
+                            placeholder={t("warehouse.movementLineSearchPlaceholder")}
+                            aria-label={t("warehouse.movementLineSearchPlaceholder")}
+                            className="h-10 min-h-[44px] w-full rounded-xl border border-zinc-300 bg-white pl-9 pr-10 text-base text-zinc-900 outline-none ring-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 sm:h-11 sm:text-sm"
+                          />
+                          {detailLineQuery ? (
+                            <button
+                              type="button"
+                              onClick={() => setDetailLineQuery("")}
+                              aria-label={t("warehouse.movementLineSearchClear")}
+                              className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+                            >
+                              <X className="h-4 w-4" aria-hidden />
+                            </button>
+                          ) : null}
+                        </div>
+                        {detailLineQuery ? (
+                          <p className="mt-1 px-1 text-[0.65rem] leading-snug text-zinc-500 sm:text-xs">
+                            {t("warehouse.movementLineSearchCount")
+                              .replace("{{shown}}", String(detailLineFilteredMovements.length))
+                              .replace("{{total}}", String(selectedDetailGroup.movements.length))}
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
+                    {detailLineFilteredMovements.length === 0 ? (
+                      <p className="rounded-xl border border-dashed border-zinc-300 bg-white px-3 py-6 text-center text-sm text-zinc-500">
+                        {t("warehouse.movementLineSearchEmpty")}
+                      </p>
+                    ) : (
+                      detailLineFilteredMovements.map((m) => (
+                        <WarehouseMovementRowCard
+                          key={`detail-${m.id}`}
+                          m={m}
+                          fmtDate={fmtDate}
+                          t={t}
+                          hideShipmentGroup
+                          hideAuditMeta
+                          hideInvoiceSection
+                          hideOutBranch
+                          warehouseId={warehouseId}
+                          onEditInboundFull={(row) => {
+                            if (row.type === "IN") setInboundFullMovementId(row.id);
+                          }}
+                          onDeleteInbound={confirmDeleteInboundFromRow}
+                          onEditOutboundShipment={(row) => {
+                            if (row.type === "OUT" && row.isDepotToBranchShipment) {
+                              setOutboundShipmentMovementId(row.id);
+                            }
+                          }}
+                          onDeleteOutboundShipment={confirmDeleteOutboundShipmentFromRow}
+                          onPreviewInvoice={(row) => {
+                            if (row.type !== "IN" || !row.hasInvoicePhoto) return;
+                            setInvoicePreviewTarget({
+                              movementId: row.id,
+                              title: t("warehouse.movementInvoicePreviewTitle"),
+                              subtitle: row.productName,
+                            });
+                          }}
+                        />
+                      ))
+                    )}
                   </div>
                 ) : (
                   <div className="mt-2 space-y-2">
