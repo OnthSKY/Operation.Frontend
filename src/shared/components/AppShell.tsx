@@ -300,8 +300,12 @@ type ReportSidebarNavItem = {
   readonly hintKey: string;
 };
 
-/** Şirket / kasa — tek finans girişi (sayfa içi sekmeler); kasa özeti ayrı. */
-const reportsFinSystemSubNav: readonly ReportSidebarNavItem[] = [
+// Raporlar alt grupları: ana grup = domain (Finans / Ürün & Stok / Personel /
+// Şube), grup içi linkler = mercek (Kâr-P&L / Kasa / Finansman). Bkz.
+// reports-taxonomy planı. Para merceği link bazında sayfa içi sekmelerde ayrışır.
+
+/** Finans: Kâr/P&L (financial), Kasa (position), Finansman (patron-flow). */
+const reportsFinanceSubNav: readonly ReportSidebarNavItem[] = [
   {
     href: "/reports/financial",
     labelKey: "reports.sidebarFinances",
@@ -315,15 +319,6 @@ const reportsFinSystemSubNav: readonly ReportSidebarNavItem[] = [
     hintKey: "nav.tooltip.reportsHubCash",
   },
   {
-    href: "/reports/personnel-held-cash",
-    labelKey: "reports.sidebarPersonnelHeldCash",
-    icon: "reportTable",
-    hintKey: "reports.sidebarPersonnelHeldCash",
-  },
-];
-
-const reportsPatronSubNav: readonly ReportSidebarNavItem[] = [
-  {
     href: "/reports/patron-flow",
     labelKey: "reports.finNavCashFlow",
     icon: "reportFlow",
@@ -331,7 +326,8 @@ const reportsPatronSubNav: readonly ReportSidebarNavItem[] = [
   },
 ];
 
-const reportsStockSubNav: readonly ReportSidebarNavItem[] = [
+/** Ürün & Stok: ham veri — öngörünün temeli, para yorumu yok. */
+const reportsProductSubNav: readonly ReportSidebarNavItem[] = [
   {
     href: "/reports/stock",
     labelKey: "reports.tabStock",
@@ -340,7 +336,18 @@ const reportsStockSubNav: readonly ReportSidebarNavItem[] = [
   },
 ];
 
-const reportsOtherSubNav: readonly ReportSidebarNavItem[] = [
+/** Personel: personel cebindeki kasa (+ ileride maliyet kısayolları). */
+const reportsPersonnelSubNav: readonly ReportSidebarNavItem[] = [
+  {
+    href: "/reports/personnel-held-cash",
+    labelKey: "reports.sidebarPersonnelHeldCash",
+    icon: "reportTable",
+    hintKey: "reports.sidebarPersonnelHeldCash",
+  },
+];
+
+/** Şube: performans karşılaştırma + gün sonları (nakit pozisyonu). */
+const reportsBranchSubNav: readonly ReportSidebarNavItem[] = [
   {
     href: "/reports/branches",
     labelKey: "reports.navBranchComparison",
@@ -824,33 +831,33 @@ export function AppShell({ children }: { children: ReactNode }) {
               contentClassName="flex flex-col gap-0.5 pt-1"
             >
               <ReportsNavSubgroup
-                subgroupId="fin-system"
-                titleKey="nav.reportsFinSystemSection"
-                items={reportsFinSystemSubNav}
+                subgroupId="finance"
+                titleKey="nav.reportsFinanceSection"
+                items={reportsFinanceSubNav}
                 pathname={pathname}
                 user={u}
                 onItemClick={() => setMobileNavOpen(false)}
               />
               <ReportsNavSubgroup
-                subgroupId="patron"
-                titleKey="nav.reportsPatronSection"
-                items={reportsPatronSubNav}
+                subgroupId="product"
+                titleKey="nav.reportsProductSection"
+                items={reportsProductSubNav}
                 pathname={pathname}
                 user={u}
                 onItemClick={() => setMobileNavOpen(false)}
               />
               <ReportsNavSubgroup
-                subgroupId="stock"
-                titleKey="nav.reportsStockSection"
-                items={reportsStockSubNav}
+                subgroupId="personnel"
+                titleKey="nav.reportsPersonnelSection"
+                items={reportsPersonnelSubNav}
                 pathname={pathname}
                 user={u}
                 onItemClick={() => setMobileNavOpen(false)}
               />
               <ReportsNavSubgroup
-                subgroupId="other"
-                titleKey="nav.reportsOtherSection"
-                items={reportsOtherSubNav}
+                subgroupId="branch"
+                titleKey="nav.reportsBranchSection"
+                items={reportsBranchSubNav}
                 pathname={pathname}
                 user={u}
                 onItemClick={() => setMobileNavOpen(false)}

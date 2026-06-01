@@ -840,14 +840,14 @@ export function DailyBranchRegisterScreen() {
           ) : null}
 
           {state.kind === "ok" && visibleRows.length > 0 ? (
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,20rem),1fr))] gap-3">
               {visibleRows.map((row) => {
                 const expensePayBuckets = expenseBucketsFromDailyRegisterRow(row);
                 const expenseDetails = branchExpenseDetailItems(row);
                 return (
                   <article
                     key={row.branchId}
-                    className="group relative flex flex-col overflow-hidden rounded-[2.5rem] border border-zinc-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-zinc-300"
+                    className="group relative flex min-w-0 flex-col overflow-hidden rounded-[2.5rem] border border-zinc-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:border-zinc-300"
                   >
                     {/* Status Gradient Background */}
                     {(() => {
@@ -862,22 +862,22 @@ export function DailyBranchRegisterScreen() {
                       );
                     })()}
 
-                    <div className="relative flex items-center justify-between border-b border-zinc-100/80 bg-zinc-50/40 px-6 py-5">
-                      <div className="flex flex-col">
-                        <h2 className="text-lg font-black text-zinc-900 tracking-tight group-hover:text-zinc-950 transition-colors">
+                    <div className="relative flex items-center justify-between gap-3 border-b border-zinc-100/80 bg-zinc-50/40 px-5 py-5">
+                      <div className="flex min-w-0 flex-col">
+                        <h2 className="break-words text-lg font-black text-zinc-900 tracking-tight group-hover:text-zinc-950 transition-colors">
                           {row.branchName}
                         </h2>
                       </div>
-                      
+
                       {/* Profit/Loss Badge */}
                       {(() => {
                         const netVal = row.income - row.expenseFromRegister;
                         const isGood = netVal >= -0.005;
                         return (
                           <div className={cn(
-                            "flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest shadow-sm border",
-                            isGood 
-                              ? "bg-emerald-50 border-emerald-100 text-emerald-700" 
+                            "flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest shadow-sm border",
+                            isGood
+                              ? "bg-emerald-50 border-emerald-100 text-emerald-700"
                               : "bg-rose-50 border-rose-100 text-rose-700"
                           )}>
                             <div className={cn("h-1.5 w-1.5 rounded-full animate-pulse", isGood ? "bg-emerald-500" : "bg-rose-500")} />
