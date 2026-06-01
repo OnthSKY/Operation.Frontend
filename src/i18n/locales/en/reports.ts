@@ -1075,6 +1075,9 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   summaryTreeSupplierCash: "From register (cash)",
   summaryTreeSupplierPatron: "From patron",
   summaryTreeSupplierBank: "From bank",
+  summaryTreeSupplierPaymentsSection: "Supplier payments",
+  summaryTreeSupplierPaymentsNote:
+    "Financing/cash movement — not included in the expense total. The invoice expense is counted once in the “Branch” bucket via branch distribution.",
   summaryTreeNet: "Net",
   summaryTreeSystemNetNote: "System register net",
   summaryTreeOffRegisterNote:

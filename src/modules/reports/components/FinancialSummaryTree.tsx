@@ -81,7 +81,11 @@ function buildCurrencyTree(data: FinancialReport, cc: string) {
   );
   const vehicleTotal = vehicleRows.reduce((s, r) => s + r.totalAmount, 0);
 
-  const expenseTotal = personnelTotal + supplier + overhead + residualTotal + vehicleTotal;
+  // NOT: Tedarikçi ÖDEMELERİ (supplier_payments) gider toplamına DAHİL DEĞİL.
+  // Faturanın P&L gideri zaten şube dağıtımında (branch_transactions → residual)
+  // bir kez sayılıyor; ödeme bir finansman/kasa olayı, takas. İkisini toplamak
+  // çiftleme yaratıyordu. Ödemeler ayrı "Tedarikçi ödemeleri" bölümünde gösterilir.
+  const expenseTotal = personnelTotal + overhead + residualTotal + vehicleTotal;
   const treeNet = incomeTotal - expenseTotal;
   const systemNet = totals?.netCash ?? treeNet;
 
@@ -106,7 +110,7 @@ function buildCurrencyTree(data: FinancialReport, cc: string) {
     expenseTotal,
     treeNet,
     systemNet,
-    hasAny: incomeTotal !== 0 || expenseTotal !== 0,
+    hasAny: incomeTotal !== 0 || expenseTotal !== 0 || supplier !== 0,
   };
 }
 
@@ -227,12 +231,9 @@ export function FinancialSummaryTree({
             amount: tree.overhead,
             items: overheadItems,
           },
-          {
-            key: "supplier" as const,
-            label: t("reports.summaryTreeSupplier"),
-            amount: tree.supplier,
-            items: supplierItems,
-          },
+          // Tedarikçi ödemeleri burada YOK — gider değil; aşağıda ayrı finansman
+          // bölümünde gösterilir (çiftleme önlemi). Faturanın gideri "Şubeye giden"
+          // (residual) kovasında, şube dağıtımı üzerinden bir kez sayılıyor.
         ];
 
         return (
@@ -240,8 +241,8 @@ export function FinancialSummaryTree({
             key={tree.cc}
             className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5"
           >
-            <header className="mb-4 flex items-center justify-between">
-              <div>
+            <header className="mb-4 flex items-start justify-between gap-3">
+              <div className="min-w-0">
                 <h2 className="text-base font-semibold text-zinc-900">
                   {t("reports.summaryTreeTitle")}
                 </h2>
@@ -297,6 +298,34 @@ export function FinancialSummaryTree({
                 ))}
               </div>
             </div>
+
+            {/* Tedarikçi ödemeleri — finansman/kasa; gider toplamına DAHİL DEĞİL */}
+            {tree.supplier > EPS && (
+              <div className="mt-4 rounded-xl border border-dashed border-zinc-200 bg-zinc-50/50 p-3">
+                <div className="flex items-baseline justify-between gap-2">
+                  <SectionLabel>{t("reports.summaryTreeSupplierPaymentsSection")}</SectionLabel>
+                  <span className="shrink-0 text-sm font-semibold tabular-nums text-zinc-600">
+                    {fmt(tree.supplier)}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[11px] leading-relaxed text-zinc-400">
+                  {t("reports.summaryTreeSupplierPaymentsNote")}
+                </p>
+                <div className="mt-2 space-y-1">
+                  {supplierItems.map((it) => (
+                    <div
+                      key={it.label}
+                      className="flex items-baseline justify-between gap-2 text-[13px] text-zinc-500"
+                    >
+                      <span className="min-w-0 truncate" title={it.label}>
+                        {it.label}
+                      </span>
+                      <span className="shrink-0 tabular-nums">{fmt(it.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Net + notlar */}
             <div className="mt-4 flex items-baseline justify-between border-t border-zinc-200 pt-3">

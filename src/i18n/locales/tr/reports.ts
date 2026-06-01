@@ -1060,6 +1060,9 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   summaryTreeSupplierCash: "Kasadan (nakit)",
   summaryTreeSupplierPatron: "Patrondan",
   summaryTreeSupplierBank: "Bankadan",
+  summaryTreeSupplierPaymentsSection: "Tedarikçi ödemeleri",
+  summaryTreeSupplierPaymentsNote:
+    "Finansman/kasa hareketi — gider toplamına dahil değil. Faturanın gideri «Şubeye giden» kovasında, şube dağıtımı üzerinden bir kez sayılır.",
   summaryTreeNet: "Net",
   summaryTreeSystemNetNote: "Sistem kasa neti",
   summaryTreeOffRegisterNote:
