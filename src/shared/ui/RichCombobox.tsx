@@ -325,7 +325,10 @@ export function RichCombobox({
           aria-autocomplete="list"
           disabled={disabled}
           autoComplete="off"
-          readOnly={!open}
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          enterKeyHint="search"
           value={displayValue}
           title={!open && selected ? `${selected.title}${selected.detail ? ` · ${selected.detail}` : ""}` : undefined}
           placeholder={
@@ -344,7 +347,8 @@ export function RichCombobox({
           }}
           onKeyDown={onKeyDown}
           className={cn(
-            "h-10 min-h-[44px] w-full rounded-xl border border-zinc-300 bg-white py-2 pl-3 pr-10 text-sm text-zinc-900 outline-none ring-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 read-only:cursor-pointer sm:h-11 sm:text-base",
+            "h-10 min-h-[44px] w-full rounded-xl border border-zinc-300 bg-white py-2 pl-3 pr-10 text-sm text-zinc-900 outline-none ring-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 sm:h-11 sm:text-base",
+            !open && "cursor-pointer",
             disabled && "cursor-not-allowed bg-zinc-50 opacity-70"
           )}
         />

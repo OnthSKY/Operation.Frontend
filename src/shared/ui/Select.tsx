@@ -317,13 +317,16 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
               }
               disabled={disabled}
               autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="search"
               value={displayValue}
               placeholder={
                 open && query === "" && selectedLabel
                   ? selectedLabel
                   : undefined
               }
-              readOnly={!open}
               onChange={(e) => onInputChange(e.target.value)}
               onClick={() => {
                 if (!disabled && !open) openList();
@@ -344,7 +347,8 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
               }}
               onKeyDown={onKeyDown}
               className={cn(
-                "h-10 min-h-[44px] w-full rounded-xl border border-zinc-300 bg-white py-2 pl-3 pr-10 text-sm text-zinc-900 outline-none ring-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 read-only:cursor-pointer sm:h-11 sm:text-base md:h-12",
+                "h-10 min-h-[44px] w-full rounded-xl border border-zinc-300 bg-white py-2 pl-3 pr-10 text-sm text-zinc-900 outline-none ring-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 sm:h-11 sm:text-base md:h-12",
+                !open && "cursor-pointer",
                 hasError && "border-red-500 focus:border-red-500 focus:ring-red-500",
                 disabled && "cursor-not-allowed bg-zinc-50 opacity-70",
                 className
