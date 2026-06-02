@@ -1,5 +1,6 @@
 import { fetchBranchDocumentBlob, fetchBranchDocuments } from "@/modules/branch/api/branch-documents-api";
 import { fetchBranches } from "@/modules/branch/api/branches-api";
+import { fetchCompanyDocumentBlob, fetchCompanyDocuments } from "@/modules/company/api/company-documents-api";
 import {
   fetchPersonnelList,
   personnelNationalIdPhotoUrl,
@@ -57,10 +58,11 @@ async function fetchAllWarehouseMovementsWithInvoices(warehouseId: number) {
 }
 
 export async function fetchDocumentsHubRows(t: TranslateFn): Promise<DocumentsHubRow[]> {
-  const [branches, personnelList, supplierInvoices] = await Promise.all([
+  const [branches, personnelList, supplierInvoices, companyDocuments] = await Promise.all([
     fetchBranches(),
     fetchPersonnelList({ status: "all" }),
     fetchSupplierInvoices({}),
+    fetchCompanyDocuments().catch(() => []),
   ]);
   const warehouses = await fetchWarehouses();
   const vehicles = await fetchVehicles();
@@ -217,6 +219,44 @@ export async function fetchDocumentsHubRows(t: TranslateFn): Promise<DocumentsHu
         },
       });
     }
+  }
+
+  for (const d of companyDocuments) {
+    rows.push({
+      id: `company-doc-${d.id}`,
+      category: "COMPANY_GENERAL_DOCUMENT",
+      title: d.originalFileName ?? t("documents.categoryCompanyGeneral"),
+      subtitle: t("documents.categoryCompanyGeneral"),
+      detail: d.notes ?? t("documents.noDetail"),
+      searchText: `${d.originalFileName ?? ""} ${d.kind} ${d.notes ?? ""} company general sirket genel belge`,
+      previewUrl: apiUrl(`/company-documents/${d.id}/file`),
+      previewMode:
+        d.contentType === "application/pdf"
+          ? "pdf"
+          : d.contentType.startsWith("image/")
+            ? "image"
+            : "other",
+      download: async () => {
+        const { blob, contentType } = await fetchCompanyDocumentBlob(d.id);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const ext =
+          contentType === "application/pdf"
+            ? "pdf"
+            : contentType.includes("png")
+              ? "png"
+              : contentType.includes("webp")
+                ? "webp"
+                : contentType.startsWith("image/")
+                  ? "jpg"
+                  : "bin";
+        a.download = d.originalFileName ?? `company-doc-${d.id}.${ext}`;
+        a.rel = "noopener";
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+    });
   }
 
   for (const group of vehicleDocumentsByVehicle) {

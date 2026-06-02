@@ -5,6 +5,10 @@ import { useI18n } from "@/i18n/context";
 import { useDocumentsHubQuery } from "@/modules/documents/hooks/useDocumentsHubQuery";
 import type { DocumentsHubRow } from "@/modules/documents/types";
 import { useBranchesList, useUploadBranchDocument } from "@/modules/branch/hooks/useBranchQueries";
+import { useUploadCompanyDocument } from "@/modules/company/hooks/useCompanyDocumentQueries";
+import { useVehicles, useUploadVehicleDocument } from "@/modules/vehicles/hooks/useVehicleQueries";
+import type { CompanyDocumentKind } from "@/types/company-document";
+import type { VehicleDocumentKind } from "@/types/vehicle-document";
 import {
   defaultPersonnelListFilters,
   usePersonnelList,
@@ -27,6 +31,20 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type FocusEventHandler, type ReactNode } from "react";
 
 const NOOP_BLUR: FocusEventHandler<HTMLInputElement> = () => {};
+
+/**
+ * Categories that cannot be created via the quick-add modal: the "ALL" pseudo-filter, the
+ * insurance-policy view (its files are uploaded as a regular vehicle document with an
+ * INSURANCE_POLICY kind), and the invoice categories (those rows are system-generated from
+ * warehouse movements / supplier invoices, not uploaded here).
+ */
+const NON_UPLOAD_CATEGORIES: ReadonlySet<string> = new Set([
+  "ALL",
+  "VEHICLE_INSURANCE_POLICY",
+  "WAREHOUSE_INBOUND_INVOICE",
+  "WAREHOUSE_OUTBOUND_INVOICE",
+  "OTHER_INVOICE",
+]);
 
 /** URL `q` sometimes contains literal "null"/"undefined"; treat as empty so the input stays clean. */
 function sanitizeUrlSearchQuery(raw: string | null | undefined): string {
@@ -154,6 +172,8 @@ function moduleGlyphBadgeClass(category: DocumentsHubRow["category"]): string {
   switch (category) {
     case "BRANCH_DOCUMENT":
       return "bg-violet-600 text-white";
+    case "COMPANY_GENERAL_DOCUMENT":
+      return "bg-fuchsia-600 text-white";
     case "VEHICLE_DOCUMENT":
       return "bg-sky-600 text-white";
     case "VEHICLE_INSURANCE_POLICY":
@@ -193,6 +213,17 @@ function ModuleGlyphIcon({
           <path d="M9 9v0" />
           <path d="M9 13v0" />
           <path d="M9 17v0" />
+        </svg>
+      );
+    case "COMPANY_GENERAL_DOCUMENT":
+      return (
+        <svg viewBox="0 0 24 24" className={cn} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <rect x="4" y="3" width="16" height="18" rx="1.5" />
+          <path d="M9 7h.01" />
+          <path d="M15 7h.01" />
+          <path d="M9 11h.01" />
+          <path d="M15 11h.01" />
+          <path d="M10 21v-3a2 2 0 0 1 4 0v3" />
         </svg>
       );
     case "VEHICLE_DOCUMENT":
@@ -363,6 +394,8 @@ function documentBadgeClass(category: DocumentsHubRow["category"]): string {
   switch (category) {
     case "BRANCH_DOCUMENT":
       return "border-violet-200 bg-violet-50 text-violet-800";
+    case "COMPANY_GENERAL_DOCUMENT":
+      return "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-800";
     case "VEHICLE_DOCUMENT":
     case "VEHICLE_INSURANCE_POLICY":
       return "border-sky-200 bg-sky-50 text-sky-800";
@@ -456,6 +489,12 @@ function buildDocumentCardLines(
         subtitle: subtitle || "Belge dosyasi",
         detail: detail || categoryLabel,
       };
+    case "COMPANY_GENERAL_DOCUMENT":
+      return {
+        title: row.title,
+        subtitle: subtitle || categoryLabel,
+        detail: detail || categoryLabel,
+      };
     case "VEHICLE_DOCUMENT":
     case "VEHICLE_INSURANCE_POLICY":
       return {
@@ -518,6 +557,9 @@ export function DocumentsHubScreen() {
   const [uploadCategory, setUploadCategory] = useState("BRANCH_DOCUMENT");
   const [uploadBranchId, setUploadBranchId] = useState("");
   const [uploadBranchKind, setUploadBranchKind] = useState<BranchDocumentKind>("OTHER");
+  const [uploadCompanyKind, setUploadCompanyKind] = useState<CompanyDocumentKind>("GENERAL");
+  const [uploadVehicleId, setUploadVehicleId] = useState("");
+  const [uploadVehicleKind, setUploadVehicleKind] = useState<VehicleDocumentKind>("REGISTRATION");
   const [uploadPersonnelId, setUploadPersonnelId] = useState("");
   const [uploadNationalIdSide, setUploadNationalIdSide] = useState<"front" | "back">("front");
   const [uploadProfileSlot, setUploadProfileSlot] = useState<"1" | "2">("1");
@@ -529,9 +571,14 @@ export function DocumentsHubScreen() {
   const pageSize = 24;
   const { data: unifiedRows = [], isPending: loading } = useDocumentsHubQuery();
   const { data: branches = [] } = useBranchesList();
+  const { data: vehicles = [] } = useVehicles();
   const { data: personnelList } = usePersonnelList(defaultPersonnelListFilters);
   const branchUploadMut = useUploadBranchDocument(
     Number.parseInt(uploadBranchId, 10) || 0,
+  );
+  const companyUploadMut = useUploadCompanyDocument();
+  const vehicleUploadMut = useUploadVehicleDocument(
+    Number.parseInt(uploadVehicleId, 10) || 0,
   );
   const nationalIdUploadMut = useUploadNationalIdPhotos();
   const profileUploadMut = useUploadProfilePhotos();
@@ -541,6 +588,8 @@ export function DocumentsHubScreen() {
 
   const uploadBusy =
     branchUploadMut.isPending ||
+    companyUploadMut.isPending ||
+    vehicleUploadMut.isPending ||
     nationalIdUploadMut.isPending ||
     profileUploadMut.isPending ||
     yearClosureUploadMut.isPending;
@@ -605,12 +654,7 @@ export function DocumentsHubScreen() {
   );
   const orderPdfQuickFilter = "Sipariş-hesap dökümü PDF";
   const uploadCategoryOptions = categoryOptions.filter(
-    (opt) =>
-      opt.value !== "ALL" &&
-      opt.value !== "COMPANY_GENERAL_DOCUMENT" &&
-      opt.value !== "WAREHOUSE_INBOUND_INVOICE" &&
-      opt.value !== "WAREHOUSE_OUTBOUND_INVOICE" &&
-      opt.value !== "OTHER_INVOICE"
+    (opt) => !NON_UPLOAD_CATEGORIES.has(opt.value)
   );
   const branchKindOptions: { value: BranchDocumentKind; label: string }[] = [
     { value: "TAX_BASE", label: t("documents.branchKindTaxBase") },
@@ -619,22 +663,33 @@ export function DocumentsHubScreen() {
     { value: "OTHER", label: t("documents.branchKindOther") },
   ];
 
+  const companyKindOptions: { value: CompanyDocumentKind; label: string }[] = [
+    { value: "GENERAL", label: t("documents.companyKindGeneral") },
+    { value: "OTHER", label: t("documents.companyKindOther") },
+  ];
+  const vehicleKindOptions: { value: VehicleDocumentKind; label: string }[] = [
+    { value: "REGISTRATION", label: t("documents.vehicleKindRegistration") },
+    { value: "INSPECTION", label: t("documents.vehicleKindInspection") },
+    { value: "INSURANCE_POLICY", label: t("documents.vehicleKindInsurancePolicy") },
+    { value: "OTHER", label: t("documents.vehicleKindOther") },
+  ];
+
   const branchOptions = branches.map((b) => ({ value: String(b.id), label: b.name }));
+  const vehicleOptions = vehicles.map((v) => ({
+    value: String(v.id),
+    label: `${v.plateNumber}${v.brand || v.model ? ` · ${`${v.brand} ${v.model}`.trim()}` : ""}`,
+  }));
   const personnelOptions = (personnelList?.items ?? []).map((p) => ({
     value: String(p.id),
     label: p.fullName,
   }));
 
   const openQuickAdd = () => {
-    const initialCategory =
-      category !== "ALL" &&
-      category !== "WAREHOUSE_INBOUND_INVOICE" &&
-      category !== "WAREHOUSE_OUTBOUND_INVOICE" &&
-      category !== "OTHER_INVOICE"
-        ? category
-        : "BRANCH_DOCUMENT";
+    const initialCategory = !NON_UPLOAD_CATEGORIES.has(category) ? category : "BRANCH_DOCUMENT";
     setUploadCategory(initialCategory);
     setUploadBranchKind("OTHER");
+    setUploadCompanyKind("GENERAL");
+    setUploadVehicleKind("REGISTRATION");
     setUploadNationalIdSide("front");
     setUploadProfileSlot("1");
     setUploadYear(String(new Date().getFullYear()));
@@ -647,6 +702,9 @@ export function DocumentsHubScreen() {
     uploadCategory !== "BRANCH_DOCUMENT" ||
     uploadBranchId.trim() !== "" ||
     uploadBranchKind !== "OTHER" ||
+    uploadCompanyKind !== "GENERAL" ||
+    uploadVehicleId.trim() !== "" ||
+    uploadVehicleKind !== "REGISTRATION" ||
     uploadPersonnelId.trim() !== "" ||
     uploadNationalIdSide !== "front" ||
     uploadProfileSlot !== "1" ||
@@ -676,6 +734,23 @@ export function DocumentsHubScreen() {
         await branchUploadMut.mutateAsync({
           file: uploadFile,
           kind: uploadBranchKind,
+          notes: uploadNotes.trim() || null,
+        });
+      } else if (uploadCategory === "COMPANY_GENERAL_DOCUMENT") {
+        await companyUploadMut.mutateAsync({
+          file: uploadFile,
+          kind: uploadCompanyKind,
+          notes: uploadNotes.trim() || null,
+        });
+      } else if (uploadCategory === "VEHICLE_DOCUMENT") {
+        const vehicleId = Number.parseInt(uploadVehicleId, 10);
+        if (!Number.isFinite(vehicleId) || vehicleId <= 0) {
+          setUploadError(t("documents.uploadVehicleRequired"));
+          return;
+        }
+        await vehicleUploadMut.mutateAsync({
+          file: uploadFile,
+          kind: uploadVehicleKind,
           notes: uploadNotes.trim() || null,
         });
       } else if (uploadCategory === "PERSONNEL_NATIONAL_ID") {
@@ -710,6 +785,9 @@ export function DocumentsHubScreen() {
           return;
         }
         await yearClosureUploadMut.mutateAsync({ year, file: uploadFile });
+      } else {
+        // Unhandled category — never surfaces in uploadCategoryOptions; guard against false success.
+        return;
       }
 
       await queryClient.invalidateQueries({ queryKey: ["documents-hub"] });
@@ -1086,6 +1164,67 @@ export function DocumentsHubScreen() {
                   placeholder={t("documents.uploadNotesPlaceholder")}
                 />
               </div>
+                  </>
+                ) : null}
+
+                {uploadCategory === "COMPANY_GENERAL_DOCUMENT" ? (
+                  <>
+                    <Select
+                      name="documentsUploadCompanyKind"
+                      label={t("documents.uploadCompanyKindLabel")}
+                      value={uploadCompanyKind}
+                      onChange={(e) => setUploadCompanyKind(e.target.value as CompanyDocumentKind)}
+                      onBlur={NOOP_BLUR}
+                      options={companyKindOptions}
+                      menuZIndex={320}
+                    />
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-zinc-700">
+                        {t("documents.uploadNotesLabel")}
+                      </label>
+                      <textarea
+                        className="min-h-[72px] w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+                        value={uploadNotes}
+                        onChange={(e) => setUploadNotes(e.target.value)}
+                        maxLength={500}
+                        placeholder={t("documents.uploadNotesPlaceholder")}
+                      />
+                    </div>
+                  </>
+                ) : null}
+
+                {uploadCategory === "VEHICLE_DOCUMENT" ? (
+                  <>
+                    <Select
+                      name="documentsUploadVehicle"
+                      label={t("documents.uploadVehicleLabel")}
+                      value={uploadVehicleId}
+                      onChange={(e) => setUploadVehicleId(e.target.value)}
+                      onBlur={NOOP_BLUR}
+                      options={vehicleOptions}
+                      menuZIndex={320}
+                    />
+                    <Select
+                      name="documentsUploadVehicleKind"
+                      label={t("documents.uploadVehicleKindLabel")}
+                      value={uploadVehicleKind}
+                      onChange={(e) => setUploadVehicleKind(e.target.value as VehicleDocumentKind)}
+                      onBlur={NOOP_BLUR}
+                      options={vehicleKindOptions}
+                      menuZIndex={320}
+                    />
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-zinc-700">
+                        {t("documents.uploadNotesLabel")}
+                      </label>
+                      <textarea
+                        className="min-h-[72px] w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+                        value={uploadNotes}
+                        onChange={(e) => setUploadNotes(e.target.value)}
+                        maxLength={500}
+                        placeholder={t("documents.uploadNotesPlaceholder")}
+                      />
+                    </div>
                   </>
                 ) : null}
 

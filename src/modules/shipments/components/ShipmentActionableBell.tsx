@@ -9,7 +9,16 @@ import { OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import type { ShipmentActionable } from "@/types/shipment";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+
+const ACTOR_ORDER: ShipmentActionable["actorRole"][] = [
+  "APPROVER",
+  "WAREHOUSE",
+  "DRIVER_ASSIGNER",
+  "DISPATCHER",
+  "COMPLETER",
+  "STARTER",
+];
 
 const ACTOR_LABEL_TR: Record<ShipmentActionable["actorRole"], string> = {
   STARTER: "Başlatıcı",
@@ -48,6 +57,21 @@ export function ShipmentActionableBell() {
   const [open, setOpen] = useState(false);
 
   const { data, isPending, isError } = useMyActionableShipmentsQuery(mounted);
+
+  // actorRole'e göre grupla; 5+ sevkiyatta panel uzayıp mobilde aşağı kaymasın diye katlanabilir gösteriyoruz.
+  const groups = useMemo(() => {
+    const items = data ?? [];
+    const byRole = new Map<ShipmentActionable["actorRole"], ShipmentActionable[]>();
+    for (const row of items) {
+      const list = byRole.get(row.actorRole);
+      if (list) list.push(row);
+      else byRole.set(row.actorRole, [row]);
+    }
+    return ACTOR_ORDER.filter((role) => byRole.has(role)).map((role) => ({
+      role,
+      rows: byRole.get(role)!,
+    }));
+  }, [data]);
 
   useEffect(() => {
     if (!open) return;
@@ -169,38 +193,98 @@ export function ShipmentActionableBell() {
               ) : total === 0 ? (
                 <p className="px-1 py-3 text-sm text-zinc-500">{emptyText}</p>
               ) : (
-                <ul className="space-y-2">
-                  {items.map((row) => {
-                    const delivery = formatDateShort(row.requestedDeliveryDate, locale);
-                    return (
-                      <li
-                        key={row.shipmentId}
-                        className="rounded-lg bg-indigo-50/80 px-2.5 py-2 text-sm text-indigo-950 ring-1 ring-indigo-200/80"
-                      >
-                        <Link
-                          href={`/shipments/${row.shipmentId}`}
-                          onClick={() => setOpen(false)}
-                          className="block break-words font-semibold text-indigo-950 underline decoration-indigo-300 underline-offset-2 hover:decoration-indigo-600"
-                        >
-                          {row.shipmentNo}
-                        </Link>
-                        <span className="mt-0.5 block text-xs text-indigo-900/80">
-                          {row.branchName} · {actorLabels[row.actorRole]}
-                        </span>
-                        {delivery ? (
-                          <span className="mt-0.5 block text-[11px] text-indigo-800/75">
-                            {isTr ? "Teslim:" : "Delivery:"} {delivery}
-                          </span>
-                        ) : null}
-                      </li>
-                    );
-                  })}
-                </ul>
+                <div className="flex flex-col gap-2">
+                  {groups.map((group, gi) => (
+                    <AccordionSection
+                      key={group.role}
+                      title={actorLabels[group.role]}
+                      count={group.rows.length}
+                      defaultOpen={gi === 0}
+                    >
+                      <ul className="space-y-2 pt-1">
+                        {group.rows.map((row) => {
+                          const delivery = formatDateShort(row.requestedDeliveryDate, locale);
+                          return (
+                            <li
+                              key={row.shipmentId}
+                              className="rounded-lg bg-indigo-50/80 px-2.5 py-2 text-sm text-indigo-950 ring-1 ring-indigo-200/80"
+                            >
+                              <Link
+                                href={`/shipments/${row.shipmentId}`}
+                                onClick={() => setOpen(false)}
+                                className="block break-words font-semibold text-indigo-950 underline decoration-indigo-300 underline-offset-2 hover:decoration-indigo-600"
+                              >
+                                {row.shipmentNo}
+                              </Link>
+                              <span className="mt-0.5 block text-xs text-indigo-900/80">
+                                {row.branchName}
+                              </span>
+                              {delivery ? (
+                                <span className="mt-0.5 block text-[11px] text-indigo-800/75">
+                                  {isTr ? "Teslim:" : "Delivery:"} {delivery}
+                                </span>
+                              ) : null}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </AccordionSection>
+                  ))}
+                </div>
               )}
             </div>
           </div>
         </>
       ) : null}
     </div>
+  );
+}
+
+function AccordionSection({
+  title,
+  count,
+  defaultOpen,
+  children,
+}: {
+  title: string;
+  count: number;
+  defaultOpen: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className="overflow-hidden rounded-lg border border-zinc-200/80 bg-zinc-50/40">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={cn(
+          "flex min-h-11 w-full items-center justify-between gap-2 px-2.5 py-2 text-left transition-colors",
+          "hover:bg-zinc-100/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-300",
+          open && "bg-zinc-100/60"
+        )}
+        aria-expanded={open}
+      >
+        <span className="min-w-0 flex-1 truncate text-[0.65rem] font-bold uppercase tracking-wide text-zinc-500">
+          {title}
+        </span>
+        <span className="flex shrink-0 items-center gap-1.5">
+          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-indigo-100 px-1.5 text-[0.65rem] font-bold text-indigo-700">
+            {count}
+          </span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className={cn("h-4 w-4 text-zinc-400 transition-transform", open && "rotate-180")}
+            aria-hidden
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </span>
+      </button>
+      {open ? <div className="px-1.5 pb-2.5">{children}</div> : null}
+    </section>
   );
 }

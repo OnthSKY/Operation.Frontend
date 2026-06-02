@@ -19,7 +19,7 @@ import { Button } from "@/shared/ui/Button";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 
 function formatDay(iso: string, locale: string) {
   const p = iso.split("-").map(Number);
@@ -90,6 +90,19 @@ export function OperationalRemindersBell() {
 
   const total = countReminders(data);
   const showBadge = total > 0;
+
+  // İlk dolu bölümü açık başlat ki mobilde tüm gruplar üst üste uzamasın.
+  const sectionCounts = {
+    dayClose: data?.missingDayClose.length ?? 0,
+    zReport: data?.zReportNotSentToAccounting.length ?? 0,
+    noInsurance: data?.vehiclesWithoutValidInsurance?.length ?? 0,
+    insuranceSoon: data?.vehiclesInsuranceExpiringWithin30Days?.length ?? 0,
+    maintenance: data?.vehiclesMaintenanceDueSoon?.length ?? 0,
+  } as const;
+  const firstOpenKey =
+    (["dayClose", "zReport", "noInsurance", "insuranceSoon", "maintenance"] as const).find(
+      (k) => sectionCounts[k] > 0
+    ) ?? null;
 
   useEffect(() => {
     if (!open) return;
@@ -200,13 +213,14 @@ export function OperationalRemindersBell() {
             ) : !data || total === 0 ? (
               <p className="px-1 py-3 text-sm text-zinc-500">{t("reminders.empty")}</p>
             ) : (
-              <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
                 {data.missingDayClose.length > 0 ? (
-                  <section>
-                    <h3 className="px-1 text-[0.65rem] font-bold uppercase tracking-wide text-zinc-400">
-                      {t("reminders.sectionDayClose")}
-                    </h3>
-                    <p className="mt-1 px-1 text-xs text-zinc-500">{t("reminders.dayCloseHint")}</p>
+                  <AccordionSection
+                    title={t("reminders.sectionDayClose")}
+                    count={data.missingDayClose.length}
+                    defaultOpen={firstOpenKey === "dayClose"}
+                  >
+                    <p className="px-1 text-xs text-zinc-500">{t("reminders.dayCloseHint")}</p>
                     <ul className="mt-2 space-y-2">
                       {data.missingDayClose.map((r) => (
                         <li
@@ -220,14 +234,15 @@ export function OperationalRemindersBell() {
                         </li>
                       ))}
                     </ul>
-                  </section>
+                  </AccordionSection>
                 ) : null}
                 {data.zReportNotSentToAccounting.length > 0 ? (
-                  <section>
-                    <h3 className="px-1 text-[0.65rem] font-bold uppercase tracking-wide text-zinc-400">
-                      {t("reminders.sectionZReport")}
-                    </h3>
-                    <p className="mt-1 px-1 text-xs text-zinc-500">{t("reminders.zReportHint")}</p>
+                  <AccordionSection
+                    title={t("reminders.sectionZReport")}
+                    count={data.zReportNotSentToAccounting.length}
+                    defaultOpen={firstOpenKey === "zReport"}
+                  >
+                    <p className="px-1 text-xs text-zinc-500">{t("reminders.zReportHint")}</p>
                     <ul className="mt-2 space-y-2">
                       {data.zReportNotSentToAccounting.map((r) => (
                         <li
@@ -264,14 +279,15 @@ export function OperationalRemindersBell() {
                         </li>
                       ))}
                     </ul>
-                  </section>
+                  </AccordionSection>
                 ) : null}
                 {(data.vehiclesWithoutValidInsurance?.length ?? 0) > 0 ? (
-                  <section>
-                    <h3 className="px-1 text-[0.65rem] font-bold uppercase tracking-wide text-zinc-400">
-                      {t("reminders.sectionVehicleNoInsurance")}
-                    </h3>
-                    <p className="mt-1 px-1 text-xs text-zinc-500">{t("reminders.vehicleNoInsuranceHint")}</p>
+                  <AccordionSection
+                    title={t("reminders.sectionVehicleNoInsurance")}
+                    count={data.vehiclesWithoutValidInsurance?.length ?? 0}
+                    defaultOpen={firstOpenKey === "noInsurance"}
+                  >
+                    <p className="px-1 text-xs text-zinc-500">{t("reminders.vehicleNoInsuranceHint")}</p>
                     <ul className="mt-2 space-y-2">
                       {(data.vehiclesWithoutValidInsurance ?? []).map((r) => (
                         <li
@@ -287,14 +303,15 @@ export function OperationalRemindersBell() {
                         </li>
                       ))}
                     </ul>
-                  </section>
+                  </AccordionSection>
                 ) : null}
                 {(data.vehiclesInsuranceExpiringWithin30Days?.length ?? 0) > 0 ? (
-                  <section>
-                    <h3 className="px-1 text-[0.65rem] font-bold uppercase tracking-wide text-zinc-400">
-                      {t("reminders.sectionVehicleInsuranceSoon")}
-                    </h3>
-                    <p className="mt-1 px-1 text-xs text-zinc-500">{t("reminders.vehicleInsuranceSoonHint")}</p>
+                  <AccordionSection
+                    title={t("reminders.sectionVehicleInsuranceSoon")}
+                    count={data.vehiclesInsuranceExpiringWithin30Days?.length ?? 0}
+                    defaultOpen={firstOpenKey === "insuranceSoon"}
+                  >
+                    <p className="px-1 text-xs text-zinc-500">{t("reminders.vehicleInsuranceSoonHint")}</p>
                     <ul className="mt-2 space-y-2">
                       {(data.vehiclesInsuranceExpiringWithin30Days ?? []).map((r) => (
                         <li
@@ -313,14 +330,15 @@ export function OperationalRemindersBell() {
                         </li>
                       ))}
                     </ul>
-                  </section>
+                  </AccordionSection>
                 ) : null}
                 {(data.vehiclesMaintenanceDueSoon?.length ?? 0) > 0 ? (
-                  <section>
-                    <h3 className="px-1 text-[0.65rem] font-bold uppercase tracking-wide text-zinc-400">
-                      {t("reminders.sectionVehicleMaintenance")}
-                    </h3>
-                    <p className="mt-1 px-1 text-xs text-zinc-500">{t("reminders.vehicleMaintenanceHint")}</p>
+                  <AccordionSection
+                    title={t("reminders.sectionVehicleMaintenance")}
+                    count={data.vehiclesMaintenanceDueSoon?.length ?? 0}
+                    defaultOpen={firstOpenKey === "maintenance"}
+                  >
+                    <p className="px-1 text-xs text-zinc-500">{t("reminders.vehicleMaintenanceHint")}</p>
                     <ul className="mt-2 space-y-2">
                       {(data.vehiclesMaintenanceDueSoon ?? []).map((r) => (
                         <li
@@ -339,7 +357,7 @@ export function OperationalRemindersBell() {
                         </li>
                       ))}
                     </ul>
-                  </section>
+                  </AccordionSection>
                 ) : null}
               </div>
             )}
@@ -348,6 +366,55 @@ export function OperationalRemindersBell() {
         </>
       ) : null}
     </div>
+  );
+}
+
+function AccordionSection({
+  title,
+  count,
+  defaultOpen,
+  children,
+}: {
+  title: string;
+  count: number;
+  defaultOpen: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className="overflow-hidden rounded-lg border border-zinc-200/80 bg-zinc-50/40">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={cn(
+          "flex min-h-11 w-full items-center justify-between gap-2 px-2.5 py-2 text-left transition-colors",
+          "hover:bg-zinc-100/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-300",
+          open && "bg-zinc-100/60"
+        )}
+        aria-expanded={open}
+      >
+        <span className="min-w-0 flex-1 truncate text-[0.65rem] font-bold uppercase tracking-wide text-zinc-500">
+          {title}
+        </span>
+        <span className="flex shrink-0 items-center gap-1.5">
+          <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-zinc-200 px-1.5 text-[0.65rem] font-bold text-zinc-700">
+            {count}
+          </span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className={cn("h-4 w-4 text-zinc-400 transition-transform", open && "rotate-180")}
+            aria-hidden
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </span>
+      </button>
+      {open ? <div className="px-1.5 pb-2.5 pt-1">{children}</div> : null}
+    </section>
   );
 }
 
