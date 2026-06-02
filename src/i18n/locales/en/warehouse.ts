@@ -398,6 +398,11 @@ export const warehouse = {
   movementIn: "Stock in",
   movementOut: "Stock out",
   invalidQuantity: "Enter a valid positive quantity.",
+  transferLineQtyInvalid: "Line {line} ({product}): enter a valid positive quantity.",
+  transferLineProductMissing:
+    "Line {line} ({product}): product is no longer in warehouse stock (quantity may have dropped to 0). Remove the line and reselect.",
+  transferLineQtyExceedsStock:
+    "Line {line} ({product}): entered {qty} exceeds the available {stock} in stock.",
   transferTitle: "Transfer to branch",
   transferHint:
     "Deducts from the warehouse and adds branch stock. Only for products with quantity on hand here.",

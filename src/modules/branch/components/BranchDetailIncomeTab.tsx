@@ -239,7 +239,11 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
     const card = Number(
       incData?.filteredCardTotal ?? rows.reduce((s, r) => s + Number(r.cardAmount ?? 0), 0)
     );
-    return { total, cash, card };
+    // Kazanılan (brüt) nakit = toplam tahsilat − kart; ele geçen (net) nakit = cash_amount toplamı.
+    // Aradaki fark = gün içi kasadan çıkan nakit gider.
+    const cashEarned = Math.max(0, total - card);
+    const cashSpent = Math.max(0, cashEarned - cash);
+    return { total, cash, card, cashEarned, cashSpent };
   }, [incData?.filteredAmountTotal, incData?.filteredCashTotal, incData?.filteredCardTotal, incData?.items]);
   const seasonQuickRange = useMemo(() => {
     const from = String(incThroughToday?.activeTourismSeasonOpenedOn ?? "");
@@ -418,8 +422,36 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                       {t("branch.incomeListUnifiedBreakdownHint")}
                     </p>
                     <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <div className="rounded-md border border-zinc-200 bg-white px-2 py-1.5 sm:col-span-2">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                          {t("branch.incomePeriodCash")}
+                        </p>
+                        <div className="mt-1 flex flex-wrap items-end gap-x-6 gap-y-1.5">
+                          <div className="min-w-[6rem] flex-1">
+                            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+                              {t("branch.incomePeriodCashEarned")}
+                            </p>
+                            <p className="mt-0.5 text-sm font-semibold tabular-nums text-zinc-900">
+                              {formatMoneyDash(incomeListTotals.cashEarned, t("personnel.dash"), locale, "TRY")}
+                            </p>
+                          </div>
+                          <div className="min-w-[6rem] flex-1">
+                            <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+                              {t("branch.incomePeriodCashInHand")}
+                            </p>
+                            <p className="mt-0.5 text-sm font-bold tabular-nums text-emerald-800">
+                              {formatMoneyDash(incomeListTotals.cash, t("personnel.dash"), locale, "TRY")}
+                            </p>
+                          </div>
+                        </div>
+                        {incomeListTotals.cashSpent > 0.005 ? (
+                          <p className="mt-1.5 border-t border-zinc-100 pt-1 text-[11px] tabular-nums text-orange-600">
+                            {t("branch.incomePeriodCashSpent")}: −{" "}
+                            {formatMoneyDash(incomeListTotals.cashSpent, t("personnel.dash"), locale, "TRY")}
+                          </p>
+                        ) : null}
+                      </div>
                       {[
-                        { key: "cash", label: t("branch.incomePeriodCash"), amount: incomeListTotals.cash },
                         { key: "card", label: t("branch.incomePeriodCard"), amount: incomeListTotals.card },
                         {
                           key: "patron",

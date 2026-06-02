@@ -10,7 +10,7 @@ import {
 } from "@/modules/warehouse/components/WarehouseProductScopeFilters";
 import { warehouseScopeEffectiveCategoryId } from "@/modules/warehouse/lib/warehouse-scope-filters";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { PERM, hasPermissionCode } from "@/lib/auth/permissions";
+import { PERM, canSeeUiModule } from "@/lib/auth/permissions";
 import { useI18n } from "@/i18n/context";
 import { useWarehouseDetailOverlayOptional } from "@/shared/warehouse-detail";
 import { cn } from "@/lib/cn";
@@ -198,7 +198,9 @@ export function BranchStockInboundPanel({ branchId }: Props) {
   const { t, locale } = useI18n();
   const { user } = useAuth();
   const warehouseDetailOverlay = useWarehouseDetailOverlayOptional();
-  const isAdmin = hasPermissionCode(user, PERM.systemAdmin);
+  // Admin veya depo modülü yetkisi (ui.warehouse) olan kullanıcılar depo detayına/hareket
+  // geçmişine gidebilir. canSeeUiModule system.admin + operations.staff jokerlerini de kapsar.
+  const canOpenWarehouseDetail = canSeeUiModule(user, PERM.uiWarehouse);
   const [scope, setScope] = useState<WarehouseScopeFiltersValue>({ ...EMPTY_SCOPE });
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -375,6 +377,40 @@ export function BranchStockInboundPanel({ branchId }: Props) {
     });
   }, [detailModalWarehouseId, detailModalWarehouseMovementId, warehouseDetailOverlay]);
 
+  /** Tek bir gelen-mal satırını kaynak depodaki hareket geçmişi detayında açar. */
+  const openWarehouseDetailForMovement = useCallback(
+    (warehouseId: number, movementId: number | null) => {
+      if (!warehouseDetailOverlay || !warehouseId || warehouseId <= 0) return;
+      warehouseDetailOverlay.openWarehouseDetail(warehouseId, {
+        initialTab: "history",
+        openMovementId: movementId != null && movementId > 0 ? movementId : null,
+        nested: true,
+      });
+    },
+    [warehouseDetailOverlay]
+  );
+
+  /** İzinli kullanıcı için satır sonunda "kaynak depoyu aç" ikon butonu (yoksa null). */
+  const renderOpenWarehouseDetailButton = useCallback(
+    (row: BranchStockReceiptRow) => {
+      if (!canOpenWarehouseDetail || !warehouseDetailOverlay) return null;
+      const warehouseId = row.warehouseId;
+      if (warehouseId == null || warehouseId <= 0) return null;
+      return (
+        <button
+          type="button"
+          className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-zinc-200 text-zinc-500 transition hover:bg-zinc-50 hover:text-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60"
+          aria-label={t("branch.stockShipmentModalOpenWarehouse")}
+          title={t("branch.stockShipmentModalOpenWarehouse")}
+          onClick={() => openWarehouseDetailForMovement(warehouseId, row.warehouseMovementId ?? null)}
+        >
+          <Warehouse className="h-4 w-4" aria-hidden />
+        </button>
+      );
+    },
+    [canOpenWarehouseDetail, warehouseDetailOverlay, openWarehouseDetailForMovement, t]
+  );
+
   const listBlocks = useMemo((): StockListBlock[] => {
     if (listViewMode === "shipment") {
       return shipmentGroups.map(({ key, movements }) => {
@@ -494,39 +530,107 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                 ) : null}
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-100">
-              {movements.map((row) => {
-                const batchCell = formatWarehouseShipmentDisplay(
-                  row.inBatchGroupId ?? null,
-                  row.warehouseMovementId ?? row.id
-                );
-                return (
-                  <tr key={row.id}>
-                    <td className="whitespace-nowrap px-3 py-2 text-zinc-700">{fmtDate(row.movementDate)}</td>
-                    <td className="px-3 py-2 font-medium text-zinc-900">
-                      {row.parentProductName?.trim() ? (
-                        <span className="mb-0.5 block text-[0.65rem] font-semibold uppercase tracking-wide text-violet-800">
-                          {row.parentProductName}
-                        </span>
-                      ) : null}
-                      {row.productName}
-                      {row.unit ? (
-                        <span className="font-normal text-zinc-500"> ({row.unit})</span>
-                      ) : null}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">{row.quantity}</td>
-                    <td className="hidden px-3 py-2 text-zinc-600 md:table-cell">
-                      {row.warehouseName?.trim() ?? "—"}
-                    </td>
-                    {block.mode === "mainProduct" ? (
+            {block.mode === "shipment" ? (
+              <tbody className="divide-y divide-zinc-100">
+                {groupReceiptMovementsByMainProduct(movements, t("branch.stockColProduct")).map(
+                  (group) => {
+                    const onlyChild =
+                      group.movements.length === 1 &&
+                      group.movements[0]?.productName?.trim() === group.label.trim();
+                    const groupUnit =
+                      group.movements.find((x) => x.unit?.trim())?.unit?.trim() || null;
+                    return (
+                      <Fragment key={group.key}>
+                        <tr className="bg-violet-50/90">
+                          <td className="whitespace-nowrap px-3 py-2 text-xs text-zinc-600">
+                            {fmtDate(group.movements[0].movementDate)}
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              <span className="min-w-0 text-sm font-semibold text-violet-950">{group.label}</span>
+                              {onlyChild ? renderOpenWarehouseDetailButton(group.movements[0]) : null}
+                            </div>
+                            {onlyChild ? null : (
+                              <span className="mt-0.5 block text-[0.65rem] font-medium text-zinc-500">
+                                {t("branch.stockShipmentModalGroupLineCount").replace(
+                                  "{{count}}",
+                                  String(group.movements.length)
+                                )}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-right text-sm font-bold tabular-nums text-emerald-700">
+                            {formatLocaleAmount(group.totalQty, locale)}
+                            {groupUnit ? ` ${groupUnit}` : ""}
+                          </td>
+                          <td className="hidden px-3 py-2 text-zinc-600 md:table-cell">
+                            {group.movements[0].warehouseName?.trim() ?? "—"}
+                          </td>
+                        </tr>
+                        {onlyChild
+                          ? null
+                          : group.movements.map((row) => (
+                              <tr key={row.id} className="bg-white">
+                                <td className="whitespace-nowrap px-3 py-1.5 pl-5 text-zinc-500">
+                                  {fmtDate(row.movementDate)}
+                                </td>
+                                <td className="px-3 py-1.5 pl-5 font-medium text-zinc-800">
+                                  <div className="flex items-center gap-2">
+                                    <span className="min-w-0">
+                                      {row.productName}
+                                      {row.unit ? (
+                                        <span className="font-normal text-zinc-500"> ({row.unit})</span>
+                                      ) : null}
+                                    </span>
+                                    {renderOpenWarehouseDetailButton(row)}
+                                  </div>
+                                </td>
+                                <td className="px-3 py-1.5 text-right tabular-nums text-zinc-700">
+                                  {formatLocaleAmount(row.quantity, locale)}
+                                </td>
+                                <td className="hidden px-3 py-1.5 text-zinc-500 md:table-cell">
+                                  {row.warehouseName?.trim() ?? "—"}
+                                </td>
+                              </tr>
+                            ))}
+                      </Fragment>
+                    );
+                  }
+                )}
+              </tbody>
+            ) : (
+              <tbody className="divide-y divide-zinc-100">
+                {movements.map((row) => {
+                  const batchCell = formatWarehouseShipmentDisplay(
+                    row.inBatchGroupId ?? null,
+                    row.warehouseMovementId ?? row.id
+                  );
+                  return (
+                    <tr key={row.id}>
+                      <td className="whitespace-nowrap px-3 py-2 text-zinc-700">{fmtDate(row.movementDate)}</td>
+                      <td className="px-3 py-2 font-medium text-zinc-900">
+                        {row.parentProductName?.trim() ? (
+                          <span className="mb-0.5 block text-[0.65rem] font-semibold uppercase tracking-wide text-violet-800">
+                            {row.parentProductName}
+                          </span>
+                        ) : null}
+                        {row.productName}
+                        {row.unit ? (
+                          <span className="font-normal text-zinc-500"> ({row.unit})</span>
+                        ) : null}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums">{row.quantity}</td>
+                      <td className="hidden px-3 py-2 text-zinc-600 md:table-cell">
+                        {row.warehouseName?.trim() ?? "—"}
+                      </td>
                       <td className="hidden px-3 py-2 lg:table-cell">
                         <span className={shipmentIdLabelClassName}>{batchCell.text}</span>
                       </td>
-                    ) : null}
-                  </tr>
-                );
-              })}
-            </tbody>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            )}
           </table>
         </div>
       </div>
@@ -1022,7 +1126,7 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                     </span>
                   </p>
                 ) : null}
-                {isAdmin && detailModalWarehouseId && warehouseDetailOverlay ? (
+                {canOpenWarehouseDetail && detailModalWarehouseId && warehouseDetailOverlay ? (
                   <div className="mb-3 flex justify-stretch sm:justify-end">
                     <Button
                       type="button"

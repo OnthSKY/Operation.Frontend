@@ -928,17 +928,40 @@ export function WarehouseListTransferModal({
       return;
     }
     const parsed: { productId: number; quantity: number }[] = [];
-    for (const line of lines) {
+    const failLine = (line: LineDraft, key: string, vars: Record<string, string | number>) => {
+      const pid = Number(line.productId);
+      const fallbackRow = stockRows.find((r) => r.productId === pid);
+      const product =
+        (fallbackRow ? productLabel(fallbackRow) : null) ??
+        (Number.isFinite(pid) && pid > 0 ? `#${pid}` : t("warehouse.transferProduct"));
+      const msg = Object.entries({ product, ...vars }).reduce(
+        (acc, [k, v]) => acc.replaceAll(`{${k}}`, String(v)),
+        t(key)
+      );
+      notify.error(msg);
+      if (!shipmentSectionOpen) setShipmentSectionOpen(true);
+      focusTransferProduct(line.key);
+    };
+    for (let idx = 0; idx < lines.length; idx++) {
+      const line = lines[idx];
       const pid = Number(line.productId);
       if (!Number.isFinite(pid) || pid <= 0) continue;
       const n = Number(line.qty.replace(",", "."));
       if (!Number.isFinite(n) || n <= 0) {
-        notify.error(t("warehouse.invalidQuantity"));
+        failLine(line, "warehouse.transferLineQtyInvalid", { line: idx + 1 });
         return;
       }
       const row = inStockRows.find((r) => r.productId === pid);
-      if (!row || n > row.quantity) {
-        notify.error(t("warehouse.invalidQuantity"));
+      if (!row) {
+        failLine(line, "warehouse.transferLineProductMissing", { line: idx + 1 });
+        return;
+      }
+      if (n > row.quantity) {
+        failLine(line, "warehouse.transferLineQtyExceedsStock", {
+          line: idx + 1,
+          qty: n,
+          stock: row.quantity,
+        });
         return;
       }
       parsed.push({ productId: pid, quantity: n });

@@ -399,6 +399,11 @@ export const warehouse = {
   movementIn: "Giriş (IN)",
   movementOut: "Çıkış (OUT)",
   invalidQuantity: "Geçerli bir pozitif miktar girin.",
+  transferLineQtyInvalid: "{line}. satır ({product}): geçerli bir pozitif miktar girin.",
+  transferLineProductMissing:
+    "{line}. satır ({product}): ürün artık depo stoğunda görünmüyor (miktar 0'a düşmüş olabilir). Satırı silip yeniden seçin.",
+  transferLineQtyExceedsStock:
+    "{line}. satır ({product}): girilen {qty}, depodaki {stock} miktarını aşıyor.",
   transferTitle: "Şubeye sevk",
   transferHint:
     "Depodan düşer, hedef şubeye stok yazılır. Yalnızca bu depoda miktarı olan ürünlerde kullanılır.",
