@@ -918,6 +918,10 @@ export async function fetchBranchTransactionsPaged(
     filteredCashTotal?: number;
     filteredCardTotal?: number;
     filteredUnspecifiedTotal?: number;
+    filteredCashBranchManager?: number;
+    filteredCashPatron?: number;
+    filteredCashRemainsAtBranch?: number;
+    filteredCashPartyUnspecified?: number;
     patronExpenseTotal?: number;
     registerExpenseTotal?: number;
     personnelPocketExpenseTotal?: number;
@@ -975,6 +979,22 @@ export async function fetchBranchTransactionsPaged(
     filteredUnspecifiedTotal:
       typeof raw.filteredUnspecifiedTotal === "number" && Number.isFinite(raw.filteredUnspecifiedTotal)
         ? raw.filteredUnspecifiedTotal
+        : 0,
+    filteredCashBranchManager:
+      typeof raw.filteredCashBranchManager === "number" && Number.isFinite(raw.filteredCashBranchManager)
+        ? raw.filteredCashBranchManager
+        : 0,
+    filteredCashPatron:
+      typeof raw.filteredCashPatron === "number" && Number.isFinite(raw.filteredCashPatron)
+        ? raw.filteredCashPatron
+        : 0,
+    filteredCashRemainsAtBranch:
+      typeof raw.filteredCashRemainsAtBranch === "number" && Number.isFinite(raw.filteredCashRemainsAtBranch)
+        ? raw.filteredCashRemainsAtBranch
+        : 0,
+    filteredCashPartyUnspecified:
+      typeof raw.filteredCashPartyUnspecified === "number" && Number.isFinite(raw.filteredCashPartyUnspecified)
+        ? raw.filteredCashPartyUnspecified
         : 0,
     patronExpenseTotal:
       typeof raw.patronExpenseTotal === "number" && Number.isFinite(raw.patronExpenseTotal)

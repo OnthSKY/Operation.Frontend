@@ -240,6 +240,14 @@ export type BranchTransactionsPaged = {
   filteredCardTotal?: number;
   /** IN listesi + filtreler: amount - cash - card (negatif olmaz). */
   filteredUnspecifiedTotal?: number;
+  /** Net nakit (cash_amount)'in personele devredilen (BRANCH_MANAGER) kısmı. */
+  filteredCashBranchManager?: number;
+  /** Net nakit (cash_amount)'in patrona giden (PATRON) kısmı. */
+  filteredCashPatron?: number;
+  /** Net nakit (cash_amount)'in kasada kalan (REMAINS_AT_BRANCH) kısmı. */
+  filteredCashRemainsAtBranch?: number;
+  /** Net nakit (cash_amount)'in teslim tarafı atanmamış kısmı. Dördünün toplamı filteredCashTotal'a eşittir. */
+  filteredCashPartyUnspecified?: number;
   /** OUT listesi + filtreler: ödeme kaynağı PATRON gider toplamı */
   patronExpenseTotal?: number;
   /** OUT listesi + filtreler: ödeme kaynağı REGISTER gider toplamı */

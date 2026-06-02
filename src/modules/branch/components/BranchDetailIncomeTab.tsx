@@ -111,6 +111,10 @@ export type BranchDetailIncomeTabProps = {
     filteredAmountTotal?: number;
     filteredCashTotal?: number;
     filteredCardTotal?: number;
+    filteredCashBranchManager?: number;
+    filteredCashPatron?: number;
+    filteredCashRemainsAtBranch?: number;
+    filteredCashPartyUnspecified?: number;
     patronIncomeToPatron?: PatronIncomePin | null;
   }
   | null
@@ -243,8 +247,32 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
     // Aradaki fark = gün içi kasadan çıkan nakit gider.
     const cashEarned = Math.max(0, total - card);
     const cashSpent = Math.max(0, cashEarned - cash);
-    return { total, cash, card, cashEarned, cashSpent };
-  }, [incData?.filteredAmountTotal, incData?.filteredCashTotal, incData?.filteredCardTotal, incData?.items]);
+    // Ele geçen nakdin teslim tarafına göre dağılımı (dördünün toplamı = cash).
+    const cashToPersonnel = Number(incData?.filteredCashBranchManager ?? 0);
+    const cashToPatron = Number(incData?.filteredCashPatron ?? 0);
+    const cashRemains = Number(incData?.filteredCashRemainsAtBranch ?? 0);
+    const cashPartyUnset = Number(incData?.filteredCashPartyUnspecified ?? 0);
+    return {
+      total,
+      cash,
+      card,
+      cashEarned,
+      cashSpent,
+      cashToPersonnel,
+      cashToPatron,
+      cashRemains,
+      cashPartyUnset,
+    };
+  }, [
+    incData?.filteredAmountTotal,
+    incData?.filteredCashTotal,
+    incData?.filteredCardTotal,
+    incData?.filteredCashBranchManager,
+    incData?.filteredCashPatron,
+    incData?.filteredCashRemainsAtBranch,
+    incData?.filteredCashPartyUnspecified,
+    incData?.items,
+  ]);
   const seasonQuickRange = useMemo(() => {
     const from = String(incThroughToday?.activeTourismSeasonOpenedOn ?? "");
     const toRaw = String(incThroughToday?.activeTourismSeasonClosedOn ?? "");
@@ -450,6 +478,57 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
                             {formatMoneyDash(incomeListTotals.cashSpent, t("personnel.dash"), locale, "TRY")}
                           </p>
                         ) : null}
+                        {(() => {
+                          const dist = [
+                            {
+                              key: "personnel",
+                              label: t("branch.incomeCashDistPersonnel"),
+                              amount: incomeListTotals.cashToPersonnel,
+                              tone: "text-emerald-700",
+                            },
+                            {
+                              key: "patron",
+                              label: t("branch.incomeCashDistPatron"),
+                              amount: incomeListTotals.cashToPatron,
+                              tone: "text-violet-700",
+                            },
+                            {
+                              key: "remains",
+                              label: t("branch.incomeCashDistRemains"),
+                              amount: incomeListTotals.cashRemains,
+                              tone: "text-sky-700",
+                            },
+                            {
+                              key: "unset",
+                              label: t("branch.incomeCashDistUnset"),
+                              amount: incomeListTotals.cashPartyUnset,
+                              tone: "text-zinc-500",
+                            },
+                          ].filter((d) => Math.abs(d.amount) > 0.005);
+                          if (!dist.length) return null;
+                          return (
+                            <div className="mt-1.5 border-t border-zinc-100 pt-1.5">
+                              <p className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+                                {t("branch.incomeCashDistTitle")}
+                              </p>
+                              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                                {dist.map((d) => (
+                                  <div key={d.key} className="flex items-baseline gap-1">
+                                    <span className="text-[11px] text-zinc-500">{d.label}:</span>
+                                    <span
+                                      className={cn(
+                                        "text-[11px] font-semibold tabular-nums",
+                                        d.tone
+                                      )}
+                                    >
+                                      {formatMoneyDash(d.amount, t("personnel.dash"), locale, "TRY")}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                       {[
                         { key: "card", label: t("branch.incomePeriodCard"), amount: incomeListTotals.card },
