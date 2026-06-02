@@ -11,10 +11,22 @@ export type PersonnelCostRow =
 
 export type CostsTab = "all" | "advances" | "expenses" | "contractorPayments";
 
-function rowDateIso(row: PersonnelCostRow): string {
+export function rowDateIso(row: PersonnelCostRow): string {
   if (row.kind === "advance") return row.advance.advanceDate;
   if (row.kind === "contractorPayment") return row.payment.paymentDate;
   return row.expense.transactionDate;
+}
+
+export type RowDateTemporal = "future" | "today" | "thisMonth" | "past";
+
+/** Satır tarihinin bugüne göre dönemi (tag/öne-çıkarma için). todayIso = YYYY-MM-DD. */
+export function rowDateTemporal(dateIso: string, todayIso: string): RowDateTemporal {
+  const d = (dateIso ?? "").slice(0, 10);
+  if (d.length < 10 || !todayIso) return "past";
+  if (d > todayIso) return "future";
+  if (d === todayIso) return "today";
+  if (d.slice(0, 7) === todayIso.slice(0, 7)) return "thisMonth";
+  return "past";
 }
 
 function rowAmount(row: PersonnelCostRow): number {

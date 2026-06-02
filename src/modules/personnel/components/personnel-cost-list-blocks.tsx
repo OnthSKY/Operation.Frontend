@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/cn";
 import type { Locale } from "@/i18n/messages";
 import {
   expensePaymentSourceLabel,
@@ -10,7 +11,12 @@ import {
   linkTypeLabel,
   resolveNonAdvanceRow,
 } from "@/modules/personnel/components/personnel-non-advance-expense-blocks";
-import type { PersonnelCostRow } from "@/modules/personnel/lib/personnel-cost-unified";
+import {
+  rowDateIso,
+  rowDateTemporal,
+  type PersonnelCostRow,
+  type RowDateTemporal,
+} from "@/modules/personnel/lib/personnel-cost-unified";
 import { MobileListCard } from "@/shared/components/MobileListCard";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { CreatedByMeta } from "@/shared/components/CreatedByMeta";
@@ -65,16 +71,55 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+const TEMPORAL_TONE: Record<RowDateTemporal, string> = {
+  future: "border-violet-300/90 bg-violet-100 text-violet-800 ring-1 ring-violet-200/70",
+  today: "border-emerald-300/90 bg-emerald-100 text-emerald-800",
+  thisMonth: "border-sky-200 bg-sky-50 text-sky-700",
+  past: "border-zinc-200 bg-zinc-50 text-zinc-500",
+};
+
+const TEMPORAL_KEY: Record<RowDateTemporal, string> = {
+  future: "personnel.costsTagFuture",
+  today: "personnel.costsTagToday",
+  thisMonth: "personnel.costsTagThisMonth",
+  past: "personnel.costsTagPast",
+};
+
+/** Satır tarihinin dönemini gösteren compact etiket (ileri tarihli öne çıkar). */
+export function RowDateTag({
+  row,
+  todayIso,
+  t,
+}: {
+  row: PersonnelCostRow;
+  todayIso: string;
+  t: (k: string) => string;
+}) {
+  const bucket = rowDateTemporal(rowDateIso(row), todayIso);
+  return (
+    <span
+      className={cn(
+        "inline-flex w-fit items-center rounded-md border px-1.5 py-0.5 text-[0.62rem] font-semibold uppercase leading-none tracking-wide",
+        TEMPORAL_TONE[bucket]
+      )}
+    >
+      {t(TEMPORAL_KEY[bucket])}
+    </span>
+  );
+}
+
 export function PersonnelCostMobileCard({
   row,
   locale,
   t,
   branchNameById,
+  todayIso,
 }: {
   row: PersonnelCostRow;
   locale: Locale;
   t: (k: string) => string;
   branchNameById: Map<number, string>;
+  todayIso: string;
 }) {
   const dash = t("personnel.dash");
 
@@ -83,7 +128,10 @@ export function PersonnelCostMobileCard({
     return (
       <MobileListCard>
         <div className="flex flex-wrap items-start justify-between gap-2 border-b border-zinc-100 pb-3">
-          <PersonnelCostTypeBadge kind="advance" t={t} />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <PersonnelCostTypeBadge kind="advance" t={t} />
+            <RowDateTag row={row} todayIso={todayIso} t={t} />
+          </div>
           <div className="text-right">
             <p className="text-base font-semibold tabular-nums text-zinc-900">
               {formatMoneyDash(a.amount, dash, locale)}
@@ -134,7 +182,10 @@ export function PersonnelCostMobileCard({
     return (
       <MobileListCard>
         <div className="flex flex-wrap items-start justify-between gap-2 border-b border-zinc-100 pb-3">
-          <PersonnelCostTypeBadge kind="contractorPayment" t={t} />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <PersonnelCostTypeBadge kind="contractorPayment" t={t} />
+            <RowDateTag row={row} todayIso={todayIso} t={t} />
+          </div>
           <div className="text-right">
             <p className="text-base font-semibold tabular-nums text-zinc-900">
               {formatMoneyDash(p.amount, dash, locale)}
@@ -183,7 +234,10 @@ export function PersonnelCostMobileCard({
   return (
     <MobileListCard>
       <div className="flex flex-wrap items-start justify-between gap-2 border-b border-zinc-100 pb-3">
-        <PersonnelCostTypeBadge kind="expense" t={t} />
+        <div className="flex flex-wrap items-center gap-1.5">
+          <PersonnelCostTypeBadge kind="expense" t={t} />
+          <RowDateTag row={row} todayIso={todayIso} t={t} />
+        </div>
         <div className="text-right">
           <p className="text-base font-semibold tabular-nums text-zinc-900">
             {formatMoneyDash(e.amount, dash, locale)}
@@ -227,7 +281,8 @@ export function PersonnelCostMobileCard({
 export function createPersonnelCostColumns(
   t: (k: string) => string,
   locale: Locale,
-  branchNameById: Map<number, string>
+  branchNameById: Map<number, string>,
+  todayIso: string
 ): DataTableColumn<PersonnelCostRow>[] {
   const dash = t("personnel.dash");
   return [
@@ -247,12 +302,12 @@ export function createPersonnelCostColumns(
       id: "date",
       header: t("personnel.costsColDate"),
       tdClassName: "whitespace-nowrap text-sm",
-      cell: (row) =>
-        row.kind === "advance"
-          ? formatLocaleDate(row.advance.advanceDate, locale, dash)
-          : row.kind === "contractorPayment"
-            ? formatLocaleDate(row.payment.paymentDate, locale, dash)
-            : formatLocaleDate(row.expense.transactionDate, locale, dash),
+      cell: (row) => (
+        <div className="flex flex-col items-start gap-1">
+          <span>{formatLocaleDate(rowDateIso(row), locale, dash)}</span>
+          <RowDateTag row={row} todayIso={todayIso} t={t} />
+        </div>
+      ),
     },
     {
       id: "name",

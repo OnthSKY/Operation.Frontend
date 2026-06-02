@@ -56,6 +56,7 @@ import { Select } from "@/shared/ui/Select";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { useMatchMedia } from "@/shared/lib/use-match-media";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -1386,9 +1387,10 @@ export function PersonnelCostsScreen() {
     };
   }, [displayRowsFiltered, t]);
 
+  const todayIso = useMemo(() => localIsoDate(), []);
   const costColumns = useMemo(
-    () => createPersonnelCostColumns(t, locale, branchNameById),
-    [t, locale, branchNameById]
+    () => createPersonnelCostColumns(t, locale, branchNameById, todayIso),
+    [t, locale, branchNameById, todayIso]
   );
 
   const listLoading = useMemo(() => {
@@ -1728,6 +1730,7 @@ export function PersonnelCostsScreen() {
                       locale={locale}
                       t={t}
                       branchNameById={branchNameById}
+                      todayIso={todayIso}
                     />
                   ))}
                   desktop={
