@@ -5,7 +5,7 @@ export const auth = {
   password: "Password",
   rememberMe: "Remember me",
   rememberMeHint:
-    "When on, a refresh token is stored so your session renews when the access token expires.",
+    "When on, you stay signed in and won't have to log in again for a while.",
   showPassword: "Show password",
   hidePassword: "Hide password",
   submit: "Sign in",

@@ -50,11 +50,6 @@ export async function deleteCustomRole(roleCode: string): Promise<void> {
   });
 }
 
-/** Kullanıcının atanmış rollerini listele. */
-export async function fetchUserRoles(userId: number): Promise<UserRolesResponse> {
-  return apiRequest<UserRolesResponse>(`/admin/authorization/users/${userId}/roles`);
-}
-
 /**
  * Kullanıcının rol setini whole-set replace et — aktif session'lar iptal edilir.
  * `personnelId`: PERSONNEL/DRIVER rolü atanırken personel kartı bağlamak için (opsiyonel).
@@ -76,4 +71,32 @@ export async function putUserRoles(
     method: "PUT",
     body: JSON.stringify(body),
   });
+}
+
+export type UserPersonnelLinkResponse = {
+  userId: number;
+  personnelId: number | null;
+};
+
+/**
+ * Kullanıcıyı bir personel kartına bağla/bağını kaldır — rolden bağımsız.
+ * `personnelId` > 0 ise bağlar; aksi halde `unlink: true` ile mevcut bağı kaldırır
+ * (PERSONNEL/DRIVER rolü olan kullanıcıda backend reddeder). Personel kimliği JWT
+ * claim'inde olduğundan değişiklikte kullanıcının aktif session'ları iptal edilir.
+ */
+export async function putUserPersonnelLink(
+  userId: number,
+  personnelId: number | null,
+): Promise<UserPersonnelLinkResponse> {
+  const body: Record<string, unknown> =
+    personnelId != null && personnelId > 0
+      ? { personnelId }
+      : { unlink: true };
+  return apiRequest<UserPersonnelLinkResponse>(
+    `/admin/authorization/users/${userId}/personnel`,
+    {
+      method: "PUT",
+      body: JSON.stringify(body),
+    },
+  );
 }

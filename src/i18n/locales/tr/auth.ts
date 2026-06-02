@@ -5,7 +5,7 @@ export const auth = {
   password: "Şifre",
   rememberMe: "Beni hatırla",
   rememberMeHint:
-    "Açıksa sunucuda refresh token oluşturulur; access süresi dolunca oturum sessizce yenilenir.",
+    "Açıkken oturumunuz açık kalır; bir süre sonra tekrar giriş yapmanız gerekmez.",
   showPassword: "Şifreyi göster",
   hidePassword: "Şifreyi gizle",
   submit: "Giriş yap",

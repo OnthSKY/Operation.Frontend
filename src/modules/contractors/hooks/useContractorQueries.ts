@@ -1,0 +1,124 @@
+"use client";
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  createContractor,
+  createContractorPayment,
+  createContractorWorkEntry,
+  deleteContractor,
+  deleteContractorPayment,
+  deleteContractorWorkEntry,
+  fetchAllContractorPayments,
+  fetchContractor,
+  fetchContractors,
+  updateContractor,
+  updateContractorWorkEntry,
+} from "@/modules/contractors/api/contractors-api";
+
+export const contractorKeys = {
+  all: ["contractors"] as const,
+  list: (includeDeleted: boolean) => [...contractorKeys.all, "list", includeDeleted] as const,
+  detail: (id: number) => [...contractorKeys.all, "detail", id] as const,
+  allPayments: () => [...contractorKeys.all, "payments-all"] as const,
+};
+
+export function useAllContractorPayments(enabled = true) {
+  return useQuery({
+    queryKey: contractorKeys.allPayments(),
+    queryFn: fetchAllContractorPayments,
+    enabled,
+  });
+}
+
+export function useContractors(includeDeleted = false) {
+  return useQuery({
+    queryKey: contractorKeys.list(includeDeleted),
+    queryFn: () => fetchContractors(includeDeleted),
+  });
+}
+
+export function useContractor(id: number | null, enabled: boolean) {
+  return useQuery({
+    queryKey: contractorKeys.detail(id ?? 0),
+    queryFn: () => fetchContractor(id!),
+    enabled: enabled && id != null && id > 0,
+  });
+}
+
+export function useCreateContractor() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: createContractor,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: contractorKeys.all }),
+  });
+}
+
+export function useUpdateContractor() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      id: number;
+      displayName: string;
+      phone?: string | null;
+      nationalId?: string | null;
+      notes?: string | null;
+    }) => {
+      const { id, ...body } = input;
+      return updateContractor(id, body);
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: contractorKeys.all }),
+  });
+}
+
+export function useDeleteContractor() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: deleteContractor,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: contractorKeys.all }),
+  });
+}
+
+export function useCreateContractorWorkEntry(contractorId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Parameters<typeof createContractorWorkEntry>[1]) =>
+      createContractorWorkEntry(contractorId, body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: contractorKeys.all }),
+  });
+}
+
+export function useUpdateContractorWorkEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { entryId: number } & Parameters<typeof updateContractorWorkEntry>[1]) => {
+      const { entryId, ...body } = input;
+      return updateContractorWorkEntry(entryId, body);
+    },
+    onSuccess: () => void qc.invalidateQueries({ queryKey: contractorKeys.all }),
+  });
+}
+
+export function useDeleteContractorWorkEntry() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: deleteContractorWorkEntry,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: contractorKeys.all }),
+  });
+}
+
+export function useCreateContractorPayment(contractorId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: Parameters<typeof createContractorPayment>[1]) =>
+      createContractorPayment(contractorId, body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: contractorKeys.all }),
+  });
+}
+
+export function useDeleteContractorPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: deleteContractorPayment,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: contractorKeys.all }),
+  });
+}

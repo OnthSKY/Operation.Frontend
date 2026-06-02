@@ -5,8 +5,8 @@ import {
   createCustomRole,
   deleteCustomRole,
   fetchAuthorizationMatrix,
-  fetchUserRoles,
   putRolePermissions,
+  putUserPersonnelLink,
   putUserRoles,
 } from "@/modules/admin/api/authorization-admin-api";
 
@@ -59,14 +59,6 @@ export function useDeleteCustomRole() {
   });
 }
 
-export function useUserRoles(userId: number | null, enabled = true) {
-  return useQuery({
-    queryKey: authorizationAdminKeys.userRoles(userId ?? 0),
-    queryFn: () => fetchUserRoles(userId as number),
-    enabled: enabled && typeof userId === "number" && userId > 0,
-  });
-}
-
 export function usePutUserRoles() {
   const qc = useQueryClient();
   return useMutation({
@@ -81,6 +73,19 @@ export function usePutUserRoles() {
         queryKey: authorizationAdminKeys.userRoles(vars.userId),
       });
       // Kullanıcı listesi (rol rozetleri + personel bağı) tazelensin.
+      void qc.invalidateQueries({ queryKey: ["users"] });
+    },
+  });
+}
+
+/** Kullanıcıyı bir personele bağla/bağını kaldır — rolden bağımsız. */
+export function usePutUserPersonnelLink() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { userId: number; personnelId: number | null }) =>
+      putUserPersonnelLink(args.userId, args.personnelId),
+    onSuccess: () => {
+      // Kullanıcı listesi (personel bağı sütunu) tazelensin.
       void qc.invalidateQueries({ queryKey: ["users"] });
     },
   });

@@ -21,7 +21,8 @@ import { Tooltip } from "@/shared/ui/Tooltip";
 import { ToolbarGlyphPackage } from "@/shared/ui/ToolbarGlyph";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { cn } from "@/lib/cn";
-import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 type TreeNode = ProductCategory & { children: ProductCategory[] };
 
@@ -82,6 +83,23 @@ export function ProductCategoriesScreen() {
     setEditName(c.name);
     setEditOpen(true);
   };
+
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Derin-link: /products/categories?openCategory=ID → liste yüklenince düzenleme
+  // dialog'unu aç (görüntüleme modalı yok), param'ı temizle.
+  useEffect(() => {
+    const raw = searchParams.get("openCategory");
+    if (!raw || flat.length === 0) return;
+    const id = Number.parseInt(raw, 10);
+    const match = Number.isFinite(id) ? flat.find((c) => c.id === id) : undefined;
+    if (match) openEdit(match);
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    params.delete("openCategory");
+    const qs = params.toString();
+    router.replace(qs ? `/products/categories?${qs}` : "/products/categories");
+  }, [searchParams, flat, router]);
 
   const onSaveAdd = async () => {
     const n = addName.trim();

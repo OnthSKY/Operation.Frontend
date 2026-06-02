@@ -1,22 +1,26 @@
 import type { AdvanceListItem } from "@/types/advance";
 import type { BranchTransaction } from "@/types/branch-transaction";
+import type { ContractorPaymentListItem } from "@/modules/contractors/api/contractors-api";
 import type { NonAdvanceExpenseSort } from "@/modules/personnel/lib/non-advance-expense-sort";
 import { DEFAULT_NON_ADVANCE_EXPENSE_SORT } from "@/modules/personnel/lib/non-advance-expense-sort";
 
 export type PersonnelCostRow =
   | { kind: "advance"; key: string; advance: AdvanceListItem }
-  | { kind: "expense"; key: string; expense: BranchTransaction };
+  | { kind: "expense"; key: string; expense: BranchTransaction }
+  | { kind: "contractorPayment"; key: string; payment: ContractorPaymentListItem };
 
-export type CostsTab = "all" | "advances" | "expenses";
+export type CostsTab = "all" | "advances" | "expenses" | "contractorPayments";
 
 function rowDateIso(row: PersonnelCostRow): string {
-  return row.kind === "advance"
-    ? row.advance.advanceDate
-    : row.expense.transactionDate;
+  if (row.kind === "advance") return row.advance.advanceDate;
+  if (row.kind === "contractorPayment") return row.payment.paymentDate;
+  return row.expense.transactionDate;
 }
 
 function rowAmount(row: PersonnelCostRow): number {
-  return row.kind === "advance" ? row.advance.amount : row.expense.amount;
+  if (row.kind === "advance") return row.advance.amount;
+  if (row.kind === "contractorPayment") return row.payment.amount;
+  return row.expense.amount;
 }
 
 export function sortPersonnelCostRows(
@@ -48,7 +52,9 @@ function compareAmount(a: number, b: number, desc: boolean): number {
 export function buildPersonnelCostRows(
   advances: AdvanceListItem[],
   expenses: BranchTransaction[],
-  tab: CostsTab
+  tab: CostsTab,
+  /** "all" görünümünde tabloya eklenecek dış çalışan ödemeleri (avans/gider sekmelerinde gizli). */
+  contractorPayments: ContractorPaymentListItem[] = []
 ): PersonnelCostRow[] {
   const adv = advances.map(
     (advance): PersonnelCostRow => ({
@@ -66,7 +72,15 @@ export function buildPersonnelCostRows(
   );
   if (tab === "advances") return adv;
   if (tab === "expenses") return exp;
-  return [...adv, ...exp];
+  const cp = contractorPayments.map(
+    (payment): PersonnelCostRow => ({
+      kind: "contractorPayment",
+      key: `c-${payment.id}`,
+      payment,
+    })
+  );
+  if (tab === "contractorPayments") return cp;
+  return [...adv, ...exp, ...cp];
 }
 
 export function clampSortForTab(
@@ -92,9 +106,9 @@ function normalizeCcy(ccy: string | null | undefined): string {
 }
 
 function rowCurrency(row: PersonnelCostRow): string {
-  return normalizeCcy(
-    row.kind === "advance" ? row.advance.currencyCode : row.expense.currencyCode
-  );
+  if (row.kind === "advance") return normalizeCcy(row.advance.currencyCode);
+  if (row.kind === "contractorPayment") return normalizeCcy(row.payment.currencyCode);
+  return normalizeCcy(row.expense.currencyCode);
 }
 
 export type CategoryBucket = {
@@ -116,7 +130,9 @@ export type CategoryBucket = {
 export function groupRowsByCategory(
   rows: PersonnelCostRow[],
   advanceLabel: string,
-  uncategorizedLabel: string
+  uncategorizedLabel: string,
+  /** Ham classification kodunu (OUT_PER_UNIFORM vb.) okunaklı etikete çevirir; verilmezse ham kod. */
+  resolveExpenseLabel?: (rawCode: string) => string
 ): CategoryBucket[] {
   const buckets = new Map<string, CategoryBucket>();
 
@@ -140,11 +156,13 @@ export function groupRowsByCategory(
       }
       continue;
     }
+    // Dış çalışan ödemeleri kategori kırılımına girmez (personel-özel breakdown).
+    if (row.kind === "contractorPayment") continue;
     const raw =
       row.expense.mainCategory?.trim() ||
       row.expense.category?.trim() ||
       "";
-    const label = raw || uncategorizedLabel;
+    const label = raw ? resolveExpenseLabel?.(raw) ?? raw : uncategorizedLabel;
     const key = `expense:${raw || "__none__"}`;
     const b = touch(key, label, false);
     const n = Number(row.expense.amount);
@@ -220,6 +238,24 @@ export function filterRowsByMonth(
 ): PersonnelCostRow[] {
   if (!ym) return rows;
   return rows.filter((r) => ymOfRow(r) === ym);
+}
+
+/** Satırları YYYY-AA-GG tarih aralığına göre süzer (from/to dahil, boş = sınırsız). */
+export function filterRowsByDateRange(
+  rows: PersonnelCostRow[],
+  from: string | null,
+  to: string | null
+): PersonnelCostRow[] {
+  const f = from?.trim() || "";
+  const t = to?.trim() || "";
+  if (!f && !t) return rows;
+  return rows.filter((r) => {
+    const d = rowDateIso(r).slice(0, 10);
+    if (d.length < 10) return false;
+    if (f && d < f) return false;
+    if (t && d > t) return false;
+    return true;
+  });
 }
 
 export function sumRowsByCurrency(

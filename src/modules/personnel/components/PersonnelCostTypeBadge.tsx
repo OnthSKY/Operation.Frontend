@@ -21,28 +21,48 @@ function IconExpense() {
   );
 }
 
+function IconContractor() {
+  return (
+    <svg className={iconCls} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+      <rect x="2" y="7" width="20" height="14" rx="2" strokeLinejoin="round" />
+      <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export type PersonnelCostBadgeKind = "advance" | "expense" | "contractorPayment";
+
 export function PersonnelCostTypeBadge({
   kind,
   t,
   className,
 }: {
-  kind: "advance" | "expense";
+  kind: PersonnelCostBadgeKind;
   t: (k: string) => string;
   className?: string;
 }) {
-  const isAdv = kind === "advance";
+  const tone =
+    kind === "advance"
+      ? "border-amber-300/90 bg-amber-50 text-amber-900"
+      : kind === "contractorPayment"
+        ? "border-violet-300/90 bg-violet-50 text-violet-900"
+        : "border-rose-300/90 bg-rose-50 text-rose-900";
+  const labelKey =
+    kind === "advance"
+      ? "personnel.costsTypeAdvance"
+      : kind === "contractorPayment"
+        ? "personnel.costsTypeContractorPayment"
+        : "personnel.costsTypeExpense";
   return (
     <span
       className={cn(
         "inline-flex items-center gap-1 rounded-lg border px-2 py-0.5 text-[0.7rem] font-semibold uppercase tracking-wide",
-        isAdv
-          ? "border-amber-300/90 bg-amber-50 text-amber-900"
-          : "border-rose-300/90 bg-rose-50 text-rose-900",
+        tone,
         className
       )}
     >
-      {isAdv ? <IconAdvance /> : <IconExpense />}
-      {t(isAdv ? "personnel.costsTypeAdvance" : "personnel.costsTypeExpense")}
+      {kind === "advance" ? <IconAdvance /> : kind === "contractorPayment" ? <IconContractor /> : <IconExpense />}
+      {t(labelKey)}
     </span>
   );
 }

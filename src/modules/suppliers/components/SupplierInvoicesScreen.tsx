@@ -1057,6 +1057,20 @@ export function SupplierInvoicesScreen() {
 
   const [viewId, setViewId] = useState<number | null>(null);
   const { data: viewInvoice, isPending: viewPending } = useSupplierInvoice(viewId, viewId != null);
+
+  // Derin-link: /suppliers/invoices?openInvoice=ID → fatura detayını aç, param'ı temizle.
+  useEffect(() => {
+    const raw = searchParams.get("openInvoice");
+    if (!raw) return;
+    const id = Number.parseInt(raw, 10);
+    if (Number.isFinite(id) && id > 0) setViewId(id);
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    params.delete("openInvoice");
+    const qs = params.toString();
+    router.replace(qs ? `/suppliers/invoices?${qs}` : "/suppliers/invoices", {
+      scroll: false,
+    });
+  }, [searchParams, router]);
   const [allocLineId, setAllocLineId] = useState<number | null>(null);
   const [branchSharesDrawerLineId, setBranchSharesDrawerLineId] = useState<number | null>(null);
 

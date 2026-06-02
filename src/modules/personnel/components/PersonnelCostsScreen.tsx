@@ -20,6 +20,7 @@ import {
   buildPersonnelCostRows,
   clampSortForTab,
   expenseApiSortForTab,
+  filterRowsByDateRange,
   filterRowsByMonth,
   groupRowsByCategory,
   groupRowsByMonth,
@@ -30,6 +31,7 @@ import {
 } from "@/modules/personnel/lib/personnel-cost-unified";
 import { PersonnelCostsExpenseModal } from "@/modules/personnel/components/PersonnelCostsExpenseModal";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
+import { useAllContractorPayments, useContractors } from "@/modules/contractors/hooks/useContractorQueries";
 import { fetchAdvancesByPersonnel } from "@/modules/personnel/api/advances-api";
 import {
   defaultPersonnelListFilters,
@@ -419,6 +421,10 @@ type PersonnelCostsTopSummaryProps = {
   advSums: Map<string, number>;
   expSums: Map<string, number>;
   combinedSums: Map<string, number>;
+  contractorNetSums: Map<string, number>;
+  contractorOwed: number;
+  contractorPaid: number;
+  contractorPending: boolean;
   advanceCount: number;
   expenseCount: number;
   categoryBuckets: CategoryBucket[];
@@ -436,6 +442,10 @@ function PersonnelCostsTopSummary({
   advSums,
   expSums,
   combinedSums,
+  contractorNetSums,
+  contractorOwed,
+  contractorPaid,
+  contractorPending,
   advanceCount,
   expenseCount,
   categoryBuckets,
@@ -451,6 +461,24 @@ function PersonnelCostsTopSummary({
 
   return (
     <div className="space-y-4">
+      <KpiCard
+        label={t("personnel.costsKpiContractorExpense")}
+        totals={contractorNetSums}
+        hint={`${t("personnel.costsKpiContractorOwed")}: ${formatMoneyDash(
+          contractorOwed,
+          dash,
+          locale,
+          "TRY"
+        )} · ${t("personnel.costsKpiContractorPaid")}: ${formatMoneyDash(
+          contractorPaid,
+          dash,
+          locale,
+          "TRY"
+        )}`}
+        pending={contractorPending}
+        t={t}
+        locale={locale}
+      />
       <div className="grid gap-3 sm:grid-cols-3">
         <KpiCard
           label={t("personnel.costsKpiTotalAdvance")}
@@ -825,6 +853,7 @@ export function PersonnelCostsScreen() {
     if (personnelPortal) return "advances";
     const v = searchParams.get("tab")?.toLowerCase();
     if (v === "advances" || v === "expenses") return v;
+    if (v === "contractorpayments") return "contractorPayments";
     return "all";
   }, [searchParams, personnelPortal]);
 
@@ -856,6 +885,8 @@ export function PersonnelCostsScreen() {
   const [paymentFromValue, setPaymentFromValue] = useState("");
   /** Filtre: boş | yalnız avans | yalnız gider (birleşik liste). */
   const [costsRowKindFilter, setCostsRowKindFilter] = useState("");
+  const [dateFromFilter, setDateFromFilter] = useState("");
+  const [dateToFilter, setDateToFilter] = useState("");
   /** YYYY-MM drill-down filter; "" disables. */
   const [monthFilter, setMonthFilter] = useState("");
   const [settlementPrintOpen, setSettlementPrintOpen] = useState(false);
@@ -864,7 +895,7 @@ export function PersonnelCostsScreen() {
   const [pageHelpOpen, setPageHelpOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const isNarrow = useMatchMedia("(max-width: 767px)");
-  const defaultLimitNum = isNarrow ? 20 : 500;
+  const defaultLimitNum = isNarrow ? 20 : 50;
   const defaultLimitStr = String(defaultLimitNum);
   const limitFieldValue = limitInput ?? defaultLimitStr;
   const [costsSort, setCostsSort] = useState<NonAdvanceExpenseSort>(
@@ -1091,6 +1122,28 @@ export function PersonnelCostsScreen() {
     return m;
   }, [advSums, expSums]);
 
+  // Dış çalışan (taşeron) gideri (lifetime). Üstte NET = Σ yapılan iş (toplam gider);
+  // altında kırılım: Ödenen (Σ ödeme) · Borç (Σ bakiye = kalan, hâlâ borçluyuz).
+  // Personel toplam maliyetine KATILMAZ; en üstte ayrı kart.
+  const contractorsQuery = useContractors(false);
+  const contractorTotals = useMemo(() => {
+    let work = 0;
+    let paid = 0;
+    let debt = 0;
+    for (const c of contractorsQuery.data ?? []) {
+      work += Number(c.totalWork) || 0;
+      paid += Number(c.totalPaid) || 0;
+      debt += Number(c.balance) || 0;
+    }
+    return { work, paid, debt };
+  }, [contractorsQuery.data]);
+  // Üst (net) = kalan borç bakiyesi (Σ balance = borçlanan − ödenen).
+  const contractorNetSums = useMemo(() => {
+    const m = new Map<string, number>();
+    if ((contractorsQuery.data?.length ?? 0) > 0) m.set("TRY", contractorTotals.debt);
+    return m;
+  }, [contractorsQuery.data?.length, contractorTotals.debt]);
+
   /** Filtreler uygulanmış, tab/kind/month'tan bağımsız tüm satırlar. */
   const allFilteredRows = useMemo(
     () => buildPersonnelCostRows(advancesFiltered, expensesFiltered, "all"),
@@ -1099,10 +1152,24 @@ export function PersonnelCostsScreen() {
 
   const advanceCategoryLabel = t("personnel.costsCategoryAdvanceLabel");
   const uncategorizedLabel = t("personnel.costsCategoryUncategorized");
+  // Ham ledger kodunu (OUT_PER_UNIFORM vb.) okunaklı, çok dilli etikete çevir; eşleşme yoksa kodu bırak.
+  const resolveCategoryLabel = useCallback(
+    (code: string) => {
+      const key = `ledgerClass.${code}`;
+      const label = t(key);
+      return label === key ? code : label;
+    },
+    [t]
+  );
   const categoryBuckets = useMemo(
     () =>
-      groupRowsByCategory(allFilteredRows, advanceCategoryLabel, uncategorizedLabel),
-    [allFilteredRows, advanceCategoryLabel, uncategorizedLabel]
+      groupRowsByCategory(
+        allFilteredRows,
+        advanceCategoryLabel,
+        uncategorizedLabel,
+        resolveCategoryLabel
+      ),
+    [allFilteredRows, advanceCategoryLabel, uncategorizedLabel, resolveCategoryLabel]
   );
 
   const monthlyBuckets = useMemo(
@@ -1154,6 +1221,7 @@ export function PersonnelCostsScreen() {
       { value: "", label: t("personnel.costsFilterRowKindAll") },
       { value: "advance", label: t("personnel.costsFilterRowKindAdvance") },
       { value: "expense", label: t("personnel.costsFilterRowKindExpense") },
+      { value: "contractorPayment", label: t("personnel.costsFilterRowKindContractor") },
     ],
     [t]
   );
@@ -1161,9 +1229,10 @@ export function PersonnelCostsScreen() {
   const filtersActive = useMemo(() => {
     const pay = paymentFromValue.trim() !== "";
     const kind = costsRowKindFilter.trim().toLowerCase();
-    const kindOn = kind === "advance" || kind === "expense";
+    const kindOn = kind === "advance" || kind === "expense" || kind === "contractorpayment";
+    const dateOn = dateFromFilter.trim() !== "" || dateToFilter.trim() !== "";
     if (personnelPortal) {
-      return yearInput.trim() !== "" || pay || kindOn;
+      return yearInput.trim() !== "" || pay || kindOn || dateOn;
     }
     const lim = limitFieldValue.trim();
     const limitCustom =
@@ -1174,7 +1243,8 @@ export function PersonnelCostsScreen() {
       branchValue !== "" ||
       limitCustom ||
       pay ||
-      kindOn
+      kindOn ||
+      dateOn
     );
   }, [
     personnelPortal,
@@ -1185,6 +1255,8 @@ export function PersonnelCostsScreen() {
     limitInput,
     defaultLimitStr,
     paymentFromValue,
+    dateFromFilter,
+    dateToFilter,
     costsRowKindFilter,
   ]);
 
@@ -1205,9 +1277,38 @@ export function PersonnelCostsScreen() {
     [advancesData, expensesScopedOnly, branchNameById, t]
   );
 
+  // Dış çalışan ödemeleri (yalnız "all" görünümünde tabloya eklenir; KPI/kırılımlara girmez).
+  // Yıl (ödeme tarihi), şube ve ödeme-kaynağı filtrelerine uyar; personel filtresi aktifse gizlenir
+  // (ödemeler bir personele bağlı değildir).
+  const contractorPaymentsQuery = useAllContractorPayments(!personnelPortal);
+  const contractorPaymentsFiltered = useMemo(() => {
+    if (personnelPortal || listParams.personnelId) return [];
+    const all = contractorPaymentsQuery.data ?? [];
+    const year = listParams.effectiveYear;
+    const bid = listParams.branchId;
+    const src = paymentFromNorm;
+    return all.filter((p) => {
+      if (year) {
+        const y = Number.parseInt(String(p.paymentDate).slice(0, 4), 10);
+        if (y !== year) return false;
+      }
+      if (bid && p.branchId !== bid) return false;
+      if (src === "REGISTER" && p.paymentSource !== "BRANCH_REGISTER") return false;
+      if (src === "PATRON" && p.paymentSource !== "PATRON") return false;
+      return true;
+    });
+  }, [
+    contractorPaymentsQuery.data,
+    personnelPortal,
+    listParams.personnelId,
+    listParams.effectiveYear,
+    listParams.branchId,
+    paymentFromNorm,
+  ]);
+
   const combinedRaw = useMemo(
-    () => buildPersonnelCostRows(advancesFiltered, expensesFiltered, tab),
-    [advancesFiltered, expensesFiltered, tab]
+    () => buildPersonnelCostRows(advancesFiltered, expensesFiltered, tab, contractorPaymentsFiltered),
+    [advancesFiltered, expensesFiltered, tab, contractorPaymentsFiltered]
   );
 
   const displaySort = useMemo(
@@ -1227,9 +1328,16 @@ export function PersonnelCostsScreen() {
     const kindFiltered =
       k === "advance" || k === "expense"
         ? displayRows.filter((r) => r.kind === k)
-        : displayRows;
-    return filterRowsByMonth(kindFiltered, monthFilter || null);
-  }, [displayRows, costsRowKindFilter, monthFilter]);
+        : k === "contractorpayment"
+          ? displayRows.filter((r) => r.kind === "contractorPayment")
+          : displayRows;
+    const dateFiltered = filterRowsByDateRange(
+      kindFiltered,
+      dateFromFilter || null,
+      dateToFilter || null
+    );
+    return filterRowsByMonth(dateFiltered, monthFilter || null);
+  }, [displayRows, costsRowKindFilter, monthFilter, dateFromFilter, dateToFilter]);
 
   const personnelAmountStats = useMemo(() => {
     const dash = t("personnel.dash");
@@ -1251,6 +1359,8 @@ export function PersonnelCostsScreen() {
         );
         continue;
       }
+      // Dış çalışan ödemeleri personel değil → "en çok alan" istatistiğine girmez.
+      if (row.kind === "contractorPayment") continue;
       touch(
         row.expense.linkedPersonnelFullName ??
           row.expense.expensePocketPersonnelFullName ??
@@ -1285,12 +1395,14 @@ export function PersonnelCostsScreen() {
     if (personnelPortal) return advancesPending;
     if (tab === "advances") return advancesPending;
     if (tab === "expenses") return expensesQuery.isPending;
+    if (tab === "contractorPayments") return contractorPaymentsQuery.isPending;
     return advancesPending || expensesQuery.isPending;
-  }, [personnelPortal, tab, advancesPending, expensesQuery.isPending]);
+  }, [personnelPortal, tab, advancesPending, expensesQuery.isPending, contractorPaymentsQuery.isPending]);
 
-  const showAdvancesBlockError = advancesError && (personnelPortal || tab !== "expenses");
+  const showAdvancesBlockError =
+    advancesError && (personnelPortal || tab === "all" || tab === "advances");
   const showExpensesBlockError =
-    !personnelPortal && expensesQuery.isError && tab !== "advances";
+    !personnelPortal && expensesQuery.isError && (tab === "all" || tab === "expenses");
 
   const tabBtnClass = (active: boolean) =>
     cn(
@@ -1364,6 +1476,10 @@ export function PersonnelCostsScreen() {
             advSums={advSums}
             expSums={expSums}
             combinedSums={combinedSums}
+            contractorNetSums={contractorNetSums}
+            contractorOwed={contractorTotals.work}
+            contractorPaid={contractorTotals.paid}
+            contractorPending={contractorsQuery.isPending}
             advanceCount={advancesFiltered.length}
             expenseCount={expensesFiltered.length}
             categoryBuckets={categoryBuckets}
@@ -1448,6 +1564,15 @@ export function PersonnelCostsScreen() {
                 onClick={() => setTab("expenses")}
               >
                 {t("personnel.costsTabExpenses")}
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "contractorPayments"}
+                className={tabBtnClass(tab === "contractorPayments")}
+                onClick={() => setTab("contractorPayments")}
+              >
+                {t("personnel.costsTabContractor")}
               </button>
             </div>
           ) : null}
@@ -1643,6 +1768,22 @@ export function PersonnelCostsScreen() {
               value={yearInput}
               onChange={(e) => setYearInput(e.target.value)}
             />
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                name="dateFromFilter"
+                type="date"
+                label={t("personnel.costsFilterDateFrom")}
+                value={dateFromFilter}
+                onChange={(e) => setDateFromFilter(e.target.value)}
+              />
+              <Input
+                name="dateToFilter"
+                type="date"
+                label={t("personnel.costsFilterDateTo")}
+                value={dateToFilter}
+                onChange={(e) => setDateToFilter(e.target.value)}
+              />
+            </div>
             <Select
               name="paymentFromFilter"
               label={t("personnel.costsColPaymentFrom")}

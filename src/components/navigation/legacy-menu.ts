@@ -47,6 +47,7 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
   const showShipments = !personnelPortal && canSeeShipmentsModule(user);
   const showProducts = !driverPortal && canSeeUiModule(user, PERM.uiProducts);
   const showProcurement = !personnelPortal && !driverPortal && canSeeUiModule(user, PERM.uiSuppliers);
+  const showContractors = !personnelPortal && !driverPortal && canSeeUiModule(user, PERM.uiContractors);
   const showFleet = !personnelPortal && !driverPortal && canSeeUiModule(user, PERM.uiVehicles);
   const showMyFinancials = Boolean(driverPortal && user?.allowPersonnelSelfFinancials);
   const isSystemAdmin = hasPermissionCode(user, PERM.systemAdmin);
@@ -127,6 +128,14 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
       id: "my-financials",
       labelKey: "nav.myFinances",
       route: "/me/financials",
+      icon: "personnel",
+    });
+  }
+  if (showContractors) {
+    peopleChildren.push({
+      id: "contractors",
+      labelKey: "nav.contractors",
+      route: "/contractors",
       icon: "personnel",
     });
   }

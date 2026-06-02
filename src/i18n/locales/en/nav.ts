@@ -19,6 +19,7 @@ export const nav = {
   groupPeopleOrganization: "People & Organization",
   groupDocumentsRecords: "Documents & Records",
   groupProcurement: "Supply & Procurement",
+  contractors: "External workers",
   groupSystemManagement: "System Management",
   subWarehouse: "Warehouse",
   subProducts: "Products & Pricing",

@@ -15,7 +15,7 @@ import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import type { ShipmentBranchAssignment } from "@/types/shipment";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, RotateCcw, Search, Truck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -116,6 +116,23 @@ export function ShipmentAssignmentsScreen() {
 
   const [drafts, setDrafts] = useState<Record<number, DraftRow>>({});
   const [branchSearch, setBranchSearch] = useState("");
+  const searchParams = useSearchParams();
+
+  // Derin-link: /shipments/assignments?focusBranch=ID → veri gelince o şubenin adını
+  // arama filtresine koyarak listeyi o satıra indir, param'ı temizle.
+  useEffect(() => {
+    const raw = searchParams.get("focusBranch");
+    if (!raw || !data) return;
+    const id = Number.parseInt(raw, 10);
+    const match = Number.isFinite(id)
+      ? data.assignments.find((a) => a.branchId === id)
+      : undefined;
+    if (match) setBranchSearch(match.branchName);
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    params.delete("focusBranch");
+    const qs = params.toString();
+    router.replace(qs ? `/shipments/assignments?${qs}` : "/shipments/assignments");
+  }, [searchParams, data, router]);
 
   // Sunucu cevabı geldiğinde draft'ları yeniden seed et (dirty olmayanlar refresh olur).
   useEffect(() => {

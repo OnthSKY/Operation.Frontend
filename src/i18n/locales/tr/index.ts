@@ -1,15 +1,18 @@
 import type { Messages } from "../en";
 import { apiErrors } from "./api-errors";
+import { audit } from "./audit";
 import { auth } from "./auth";
 import { branch } from "./branch";
 import { branchStockConsumption } from "./branch-stock-consumption";
 import { common } from "./common";
+import { contractors } from "./contractors";
 import { dashboard } from "./dashboard";
 import { documents } from "./documents";
 import { generalOverhead } from "./general-overhead";
 import { guide } from "./guide";
 import { insuranceTrack } from "./insurance-track";
 import { lang } from "./lang";
+import { ledgerClass } from "./ledger-class";
 import { nav } from "./nav";
 import { pageHelp } from "./pageHelp";
 import { permissionMeta } from "./permissionMeta";
@@ -33,7 +36,9 @@ export const tr = {
   pageHelp,
   permissionMeta,
   lang,
+  ledgerClass,
   apiErrors,
+  audit,
   auth,
   common,
   dashboard,
@@ -51,6 +56,7 @@ export const tr = {
   branchStockConsumption,
   warehouse,
   products,
+  contractors,
   reminders,
   reports,
   search,

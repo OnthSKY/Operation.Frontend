@@ -11,6 +11,27 @@ export const users = {
   tableStatus: "Durum",
   tablePersonnel: "Personel",
   personnelNone: "—",
+  personnelLinkButton: "Personele bağla",
+  personnelLinkChangeButton: "Personeli değiştir",
+  personnelLinkSelfDisabled: "Kendi personel bağınızı buradan değiştiremezsiniz.",
+  personnelLinkModalTitle: "Personele bağla",
+  personnelLinkModalDescription:
+    "Bu kullanıcıyı rolünden bağımsız olarak bir personel kartına bağlayın veya bağını kaldırın.",
+  personnelLinkCurrentBadge: "Mevcut:",
+  personnelLinkPickHeading: "Personel kartı",
+  personnelLinkPickHint:
+    "Bu hesabı temsil edecek personel kaydını seçin. Bağı kaldırmak için “Bağlama”yı seçin.",
+  personnelLinkUnlinkHint:
+    "“Bağlama” seçilirse mevcut personel bağı kaldırılır ve kullanıcı kendi adıyla görünür.",
+  personnelLinkSessionHint:
+    "Personel kimliği oturum jetonuna işlendiğinden, değişiklikten sonra kullanıcının aktif oturumları sonlandırılır; yeniden giriş yapması gerekir.",
+  personnelLinkPortalBlockTitle: "Bağ kaldırılamaz",
+  personnelLinkPortalBlockHint:
+    "Bu kullanıcının PERSONNEL/DRIVER rolü var ve bu roller bir personel bağı gerektirir. Bağı kaldırmadan önce ilgili rolü kaldırın.",
+  personnelLinkConfirm: "Bağla",
+  personnelLinkUnlinkConfirm: "Bağı kaldır",
+  personnelLinked: "Kullanıcı personele bağlandı.",
+  personnelUnlinked: "Personel bağı kaldırıldı.",
   empty: "Henüz kullanıcı yok.",
   modalTitle: "Kullanıcı oluştur",
   modalHint:

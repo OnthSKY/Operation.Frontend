@@ -31,8 +31,8 @@ import { Tooltip } from "@/shared/ui/Tooltip";
 import { ToolbarGlyphReceipt } from "@/shared/ui/ToolbarGlyph";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 export function SuppliersScreen() {
   const { t } = useI18n();
@@ -47,6 +47,21 @@ export function SuppliersScreen() {
   const [supplierModal, setSupplierModal] = useState<"add" | "edit" | null>(null);
   const [editSupplier, setEditSupplier] = useState<Supplier | null>(null);
   const [viewSupplier, setViewSupplier] = useState<Supplier | null>(null);
+  const searchParams = useSearchParams();
+
+  // Derin-link: /suppliers?openSupplier=ID → liste yüklenince detayını aç, param'ı temizle.
+  useEffect(() => {
+    const raw = searchParams.get("openSupplier");
+    if (!raw || suppliers.length === 0) return;
+    const id = Number.parseInt(raw, 10);
+    const match = Number.isFinite(id) ? suppliers.find((s) => s.id === id) : undefined;
+    if (match) setViewSupplier(match);
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    params.delete("openSupplier");
+    const qs = params.toString();
+    router.replace(qs ? `/suppliers?${qs}` : "/suppliers");
+  }, [searchParams, suppliers, router]);
+
   const [sfName, setSfName] = useState("");
   const [sfTax, setSfTax] = useState("");
   const [sfPhone, setSfPhone] = useState("");

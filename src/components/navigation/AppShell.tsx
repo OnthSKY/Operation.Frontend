@@ -8,6 +8,7 @@ import { MobileBottomNav } from "./MobileBottomNav";
 import { BranchDetailOverlayProvider } from "@/shared/branch-detail";
 import { WarehouseDetailOverlayProvider } from "@/shared/warehouse-detail";
 import { PersonnelDetailOverlayProvider } from "@/shared/personnel-detail";
+import { ContractorDetailOverlayProvider } from "@/shared/contractor-detail";
 import { NavigationStateProvider, useNavigationState } from "./NavigationState";
 import { AppShellErrorBoundary } from "./AppShellErrorBoundary";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -104,7 +105,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         <PersonnelDetailOverlayProvider>
           <BranchDetailOverlayProvider>
             <WarehouseDetailOverlayProvider>
-              <AppShellInner>{children}</AppShellInner>
+              <ContractorDetailOverlayProvider>
+                <AppShellInner>{children}</AppShellInner>
+              </ContractorDetailOverlayProvider>
             </WarehouseDetailOverlayProvider>
           </BranchDetailOverlayProvider>
         </PersonnelDetailOverlayProvider>

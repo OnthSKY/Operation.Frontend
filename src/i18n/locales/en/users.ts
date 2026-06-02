@@ -10,6 +10,27 @@ export const users = {
   tableStatus: "Status",
   tablePersonnel: "Personnel",
   personnelNone: "—",
+  personnelLinkButton: "Link personnel",
+  personnelLinkChangeButton: "Change personnel",
+  personnelLinkSelfDisabled: "You can't change your own personnel link here.",
+  personnelLinkModalTitle: "Link personnel",
+  personnelLinkModalDescription:
+    "Link this user to a personnel record, independent of their role — or remove the link.",
+  personnelLinkCurrentBadge: "Current:",
+  personnelLinkPickHeading: "Personnel record",
+  personnelLinkPickHint:
+    "Pick the personnel record this account represents. Choose “Don't link” to remove the link.",
+  personnelLinkUnlinkHint:
+    "Choosing “Don't link” removes the current personnel link; the user then appears under their own name.",
+  personnelLinkSessionHint:
+    "The personnel identity is embedded in the session token, so the user's active sessions are revoked after the change — they'll need to sign in again.",
+  personnelLinkPortalBlockTitle: "Link can't be removed",
+  personnelLinkPortalBlockHint:
+    "This user has the PERSONNEL/DRIVER role, which requires a linked personnel. Remove that role before removing the link.",
+  personnelLinkConfirm: "Link",
+  personnelLinkUnlinkConfirm: "Remove link",
+  personnelLinked: "User linked to personnel.",
+  personnelUnlinked: "Personnel link removed.",
   empty: "No users yet.",
   modalTitle: "Create user",
   modalHint:

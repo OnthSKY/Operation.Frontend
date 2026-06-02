@@ -26,7 +26,7 @@ import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
 import type { BranchDocumentKind } from "@/types/branch-document";
 import { useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useEffect, useMemo, useState, type FocusEventHandler, type ReactNode } from "react";
 
@@ -553,6 +553,24 @@ export function DocumentsHubScreen() {
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
+  const router = useRouter();
+
+  // Derin-link: /documents?openDoc=ID → şirket belgesini seç/önizle (kategori sınırlamasını
+  // kaldır ki görünür olsun), param'ı temizle. Satır id formatı: `company-doc-<id>`.
+  const openDocParam = searchParams.get("openDoc");
+  useEffect(() => {
+    if (!openDocParam) return;
+    const id = Number.parseInt(openDocParam, 10);
+    if (Number.isFinite(id) && id > 0) {
+      setCategory("ALL");
+      setSelectedId(`company-doc-${id}`);
+      setMobilePreviewOpen(true);
+    }
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    params.delete("openDoc");
+    const qs = params.toString();
+    router.replace(qs ? `/documents?${qs}` : "/documents");
+  }, [openDocParam, searchParams, router]);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadCategory, setUploadCategory] = useState("BRANCH_DOCUMENT");
   const [uploadBranchId, setUploadBranchId] = useState("");

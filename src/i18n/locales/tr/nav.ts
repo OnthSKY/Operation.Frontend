@@ -18,6 +18,7 @@ export const nav = {
   groupPeopleOrganization: "İnsan & Organizasyon",
   groupDocumentsRecords: "Doküman & Kayıt",
   groupProcurement: "Tedarik & Satın Alma",
+  contractors: "Dış çalışanlar",
   groupSystemManagement: "Sistem Yönetimi",
   subWarehouse: "Depo",
   subProducts: "Ürünler & Fiyat",

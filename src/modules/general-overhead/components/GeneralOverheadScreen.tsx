@@ -58,6 +58,7 @@ import { Tooltip } from "@/shared/ui/Tooltip";
 import { ToolbarGlyphCoinExpense } from "@/shared/ui/ToolbarGlyph";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { fetchAuditLogs } from "@/lib/api/audit-logs-api";
 
 function splitEqualParts(total: number, n: number): number[] {
@@ -524,6 +525,20 @@ export function GeneralOverheadScreen() {
   const [allocBranchPaid, setAllocBranchPaid] = useState(false);
   const [detailPoolId, setDetailPoolId] = useState<number | null>(null);
   const detailQ = useGeneralOverheadPoolDetail(detailPoolId);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Derin-link: /general-overhead?openPool=ID → havuz detayını aç, param'ı temizle.
+  useEffect(() => {
+    const raw = searchParams.get("openPool");
+    if (!raw) return;
+    const id = Number.parseInt(raw, 10);
+    if (Number.isFinite(id) && id > 0) setDetailPoolId(id);
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    params.delete("openPool");
+    const qs = params.toString();
+    router.replace(qs ? `/general-overhead?${qs}` : "/general-overhead");
+  }, [searchParams, router]);
 
   useEffect(() => {
     if (!createOpen) return;

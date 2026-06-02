@@ -25,7 +25,11 @@ import {
   useUserPermissionOverrides,
   useUsersList,
 } from "@/modules/personnel/hooks/useUsersQueries";
-import { useAuthorizationMatrix, usePutUserRoles } from "@/modules/admin/hooks/useAuthorizationAdminQueries";
+import {
+  useAuthorizationMatrix,
+  usePutUserPersonnelLink,
+  usePutUserRoles,
+} from "@/modules/admin/hooks/useAuthorizationAdminQueries";
 import {
   groupPermissionsForMatrix,
   resolvePermissionGroupTitle,
@@ -63,7 +67,7 @@ import {
 } from "@/modules/account/lib/role-label";
 import { cn } from "@/lib/cn";
 import { ToolbarGlyphUserPlus } from "@/shared/ui/ToolbarGlyph";
-import { AlertTriangle, Ban, Check, ChevronDown, KeyRound, Layers, MapPinned, Pencil, ShieldCheck, ShieldOff, Trash2, UserCheck, UserX, X } from "lucide-react";
+import { AlertTriangle, Ban, Check, ChevronDown, History, KeyRound, Layers, Link2, MapPinned, Pencil, ShieldCheck, ShieldOff, Trash2, UserCheck, UserX, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -217,6 +221,10 @@ export function UsersScreen() {
     draftPersonnelId: string;
     draftUnlinkPersonnel: boolean;
   } | null>(null);
+  const [personnelLinkDialog, setPersonnelLinkDialog] = useState<{
+    user: UserListItem;
+    draftPersonnelId: string;
+  } | null>(null);
   const [accountStatusDialog, setAccountStatusDialog] = useState<{
     target: UserListItem;
     wantActive: boolean;
@@ -248,6 +256,7 @@ export function UsersScreen() {
   const createUser = useCreateUser();
   const patchSelfFin = usePatchUserSelfFinancials();
   const putRoles = usePutUserRoles();
+  const putPersonnelLink = usePutUserPersonnelLink();
   const patchAccountStatus = usePatchUserAccountStatus();
   const softDeleteUser = useSoftDeleteUser();
   const hardDeleteUser = useHardDeleteUser();
@@ -473,6 +482,97 @@ export function UsersScreen() {
     return (
       personnelNameById.get(r.personnelId) ?? String(r.personnelId)
     );
+  }
+
+  // Personel bağı: ada ek olarak rolden bağımsız "bağla / değiştir" butonu. Kendi hesabında
+  // personel bağı değişimi oturumu sonlandıracağından (personnel_id JWT claim'inde) engellenir.
+  function renderPersonnelControl(r: UserListItem) {
+    const linked = r.personnelId != null;
+    const selfBlock = Boolean(user && r.id === user.id);
+    const pending =
+      putPersonnelLink.isPending && putPersonnelLink.variables?.userId === r.id;
+    const label = linked
+      ? t("users.personnelLinkChangeButton")
+      : t("users.personnelLinkButton");
+    return (
+      <div className="flex min-w-0 items-center justify-end gap-2 lg:justify-start">
+        <span
+          className={cn(
+            "min-w-0 truncate text-sm font-medium",
+            linked ? "text-zinc-800" : "text-zinc-400"
+          )}
+        >
+          {personnelCell(r)}
+        </span>
+        {selfBlock ? (
+          <Tooltip content={t("users.personnelLinkSelfDisabled")} delayMs={200}>
+            <span className="inline-flex shrink-0">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled
+                className="inline-flex h-8 w-8 items-center justify-center p-0"
+                aria-label={t("users.personnelLinkSelfDisabled")}
+              >
+                <Link2 className="h-4 w-4" aria-hidden />
+              </Button>
+            </span>
+          </Tooltip>
+        ) : (
+          <Tooltip content={label} delayMs={200}>
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={pending}
+              className="inline-flex h-8 shrink-0 items-center gap-1.5 !rounded-lg !px-2.5 !text-xs !font-medium"
+              onClick={() =>
+                setPersonnelLinkDialog({
+                  user: r,
+                  draftPersonnelId: r.personnelId != null ? String(r.personnelId) : "",
+                })
+              }
+              aria-label={label}
+            >
+              <Link2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span className="hidden sm:inline">{label}</span>
+            </Button>
+          </Tooltip>
+        )}
+      </div>
+    );
+  }
+
+  function closePersonnelLinkDialog() {
+    setPersonnelLinkDialog(null);
+  }
+
+  async function confirmPersonnelLink() {
+    if (!personnelLinkDialog) return;
+    const { user: lu, draftPersonnelId } = personnelLinkDialog;
+    if (user && lu.id === user.id) return;
+
+    const sel = draftPersonnelId.trim();
+    let personnelId: number | null = null;
+    if (sel) {
+      const id = Number.parseInt(sel, 10);
+      if (!Number.isFinite(id) || id <= 0) {
+        notify.error(t("users.personnelPickInvalid"));
+        return;
+      }
+      personnelId = id;
+    }
+
+    try {
+      await putPersonnelLink.mutateAsync({ userId: lu.id, personnelId });
+      notify.success(
+        personnelId == null
+          ? t("users.personnelUnlinked")
+          : t("users.personnelLinked")
+      );
+      setPersonnelLinkDialog(null);
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    }
   }
 
   const permissionDefinitions = matrixData?.permissions ?? [];
@@ -1247,16 +1347,16 @@ export function UsersScreen() {
             <MapPinned className="h-5 w-5" aria-hidden />
           </Button>
         </Tooltip>
-        <Tooltip content={t("userRoles.manageButton")} delayMs={200}>
+        <Tooltip content={t("audit.openButtonAria")} delayMs={200}>
           <Button
             type="button"
             variant="secondary"
             className={TABLE_TOOLBAR_ICON_BTN}
             disabled={!isAdminUser}
-            onClick={() => router.push(`/admin/users/${r.id}/roles`)}
-            aria-label={t("userRoles.manageButton")}
+            onClick={() => router.push(`/admin/users/${r.id}/audit`)}
+            aria-label={t("audit.openButtonAria")}
           >
-            <Layers className="h-5 w-5" aria-hidden />
+            <History className="h-5 w-5" aria-hidden />
           </Button>
         </Tooltip>
       </div>
@@ -1462,13 +1562,11 @@ export function UsersScreen() {
                       <dt className="shrink-0 text-zinc-500">{t("users.tableRole")}</dt>
                       <dd>{renderUserRoleControl(r)}</dd>
                     </div>
-                    <div className="flex justify-between gap-2">
+                    <div className="flex items-center justify-between gap-2">
                       <dt className="shrink-0 text-zinc-500">
                         {t("users.tablePersonnel")}
                       </dt>
-                      <dd className="min-w-0 truncate text-right font-medium text-zinc-800">
-                        {personnelCell(r)}
-                      </dd>
+                      <dd className="min-w-0">{renderPersonnelControl(r)}</dd>
                     </div>
                     <div className="flex flex-col gap-2 border-t border-zinc-200/60 pt-2">
                       <dt className="shrink-0 text-zinc-500">{t("users.tablePermissions")}</dt>
@@ -1595,8 +1693,8 @@ export function UsersScreen() {
                           </div>
                         </div>
                       </td>
-                      <td className="max-w-[10rem] truncate px-4 py-3 text-zinc-600 lg:max-w-xs">
-                        {personnelCell(r)}
+                      <td className="max-w-[14rem] px-4 py-3 text-zinc-600 lg:max-w-xs">
+                        {renderPersonnelControl(r)}
                       </td>
                       <td className="px-4 py-3">
                         {userHasRole(r, "DRIVER") ? (
@@ -2729,6 +2827,120 @@ export function UsersScreen() {
               </Button>
             </div>
           </div>
+            );
+          })()
+        ) : null}
+      </Modal>
+
+      <Modal
+        open={personnelLinkDialog !== null}
+        onClose={closePersonnelLinkDialog}
+        titleId="user-personnel-link-title"
+        title={t("users.personnelLinkModalTitle")}
+        description={t("users.personnelLinkModalDescription")}
+        closeButtonLabel={t("common.close")}
+        narrow
+        sheetMobile
+      >
+        {personnelLinkDialog ? (
+          (() => {
+            const lu = personnelLinkDialog.user;
+            const portalRoleUser =
+              userHasRole(lu, "PERSONNEL") || userHasRole(lu, "DRIVER");
+            const original = lu.personnelId != null ? String(lu.personnelId) : "";
+            const draft = personnelLinkDialog.draftPersonnelId.trim();
+            const changed = draft !== original;
+            const wantsUnlink = draft === "" && original !== "";
+            const blockedUnlink = wantsUnlink && portalRoleUser;
+            const canSave = changed && !blockedUnlink;
+            return (
+              <div className="flex min-h-0 flex-1 flex-col overflow-visible sm:overflow-hidden">
+                <div className="space-y-4 px-1 py-2 sm:min-h-0 sm:flex-1 sm:overflow-y-auto sm:overscroll-contain sm:px-0 sm:[-webkit-overflow-scrolling:touch]">
+                  <div className="rounded-xl border border-zinc-200/90 bg-gradient-to-br from-zinc-50 to-white p-4 shadow-sm">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                      {t("users.roleChangeAccountHeading")}
+                    </p>
+                    <p className="mt-1 truncate text-base font-semibold text-zinc-900">
+                      {lu.fullName?.trim() || lu.username}
+                    </p>
+                    <p className="truncate text-sm text-zinc-500">@{lu.username}</p>
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-zinc-500">
+                        {t("users.personnelLinkCurrentBadge")}
+                      </span>
+                      {original !== "" ? (
+                        <StatusBadge
+                          tone="neutral"
+                          className="normal-case tracking-normal"
+                          size="md"
+                        >
+                          {personnelCell(lu)}
+                        </StatusBadge>
+                      ) : (
+                        <span className="text-sm text-zinc-400">
+                          {t("users.personnelNone")}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-zinc-200/90 bg-white p-4 shadow-sm">
+                    <p className="text-xs font-semibold text-zinc-800">
+                      {t("users.personnelLinkPickHeading")}
+                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-zinc-600">
+                      {t("users.personnelLinkPickHint")}
+                    </p>
+                    <Select
+                      className="mt-3"
+                      label={t("users.fieldPersonnel")}
+                      options={personnelOptions}
+                      name="personnelLinkPersonnel"
+                      value={personnelLinkDialog.draftPersonnelId}
+                      onChange={(e) =>
+                        setPersonnelLinkDialog((prev) =>
+                          prev ? { ...prev, draftPersonnelId: e.target.value } : prev
+                        )
+                      }
+                      onBlur={() => {}}
+                    />
+                    <p className="mt-2 text-xs leading-relaxed text-zinc-500">
+                      {t("users.personnelLinkUnlinkHint")}
+                    </p>
+                  </div>
+
+                  {blockedUnlink ? (
+                    <div className="rounded-xl border border-amber-200/90 bg-amber-50/90 p-3 text-sm text-amber-950">
+                      <p className="font-semibold">
+                        {t("users.personnelLinkPortalBlockTitle")}
+                      </p>
+                      <p className="mt-1 text-xs leading-relaxed text-amber-900/90">
+                        {t("users.personnelLinkPortalBlockHint")}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/80 p-3 text-xs leading-relaxed text-zinc-600">
+                      {t("users.personnelLinkSessionHint")}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex shrink-0 justify-stretch border-t border-zinc-200 bg-white px-1 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:justify-end sm:px-0 sm:pb-3">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    className="min-h-12 w-full sm:min-h-11 sm:w-auto sm:min-w-[140px]"
+                    disabled={putPersonnelLink.isPending || !canSave}
+                    onClick={() => void confirmPersonnelLink()}
+                  >
+                    {putPersonnelLink.isPending
+                      ? t("common.saving")
+                      : wantsUnlink
+                        ? t("users.personnelLinkUnlinkConfirm")
+                        : t("users.personnelLinkConfirm")}
+                  </Button>
+                </div>
+              </div>
             );
           })()
         ) : null}

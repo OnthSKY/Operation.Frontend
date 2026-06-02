@@ -36,6 +36,15 @@ export function personnelCostRowWrittenFrom(
     const pay = advanceFundingSourceLabel(t, a.sourceType);
     return `${t("personnel.costsOriginAdvance")} · ${branchPart} · ${pay}`;
   }
+  if (row.kind === "contractorPayment") {
+    const p = row.payment;
+    const branchPart =
+      p.branchId != null && p.branchId > 0
+        ? p.branchName?.trim() || branchNameById.get(p.branchId)?.trim() || `#${p.branchId}`
+        : t("personnel.nonAdvanceExpenseBranchOrg");
+    const pay = t(`contractors.source.${p.paymentSource}`);
+    return `${t("personnel.costsOriginContractor")} · ${branchPart} · ${pay}`;
+  }
   const e = row.expense;
   const branchPart =
     e.branchId != null && e.branchId > 0
@@ -43,6 +52,17 @@ export function personnelCostRowWrittenFrom(
       : t("personnel.nonAdvanceExpenseBranchOrg");
   const pay = expensePaymentSourceLabel(e.expensePaymentSource, t) || dash;
   return `${t("personnel.costsOriginExpense")} · ${branchPart} · ${pay}`;
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex min-w-0 items-start justify-between gap-3 py-2">
+      <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        {label}
+      </span>
+      <span className="min-w-0 text-right text-sm text-zinc-900">{children}</span>
+    </div>
+  );
 }
 
 export function PersonnelCostMobileCard({
@@ -57,20 +77,6 @@ export function PersonnelCostMobileCard({
   branchNameById: Map<number, string>;
 }) {
   const dash = t("personnel.dash");
-  const Field = ({
-    label,
-    children,
-  }: {
-    label: string;
-    children: ReactNode;
-  }) => (
-    <div className="flex min-w-0 items-start justify-between gap-3 py-2">
-      <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-        {label}
-      </span>
-      <span className="min-w-0 text-right text-sm text-zinc-900">{children}</span>
-    </div>
-  );
 
   if (row.kind === "advance") {
     const a = row.advance;
@@ -113,6 +119,52 @@ export function PersonnelCostMobileCard({
           </Field>
           <Field label={t("personnel.detailCostsCreatedBy")}>
             <CreatedByMeta row={a} locale={locale} dash={dash} compact />
+          </Field>
+        </div>
+      </MobileListCard>
+    );
+  }
+
+  if (row.kind === "contractorPayment") {
+    const p = row.payment;
+    const branchLabel =
+      p.branchId != null && p.branchId > 0
+        ? p.branchName?.trim() || branchNameById.get(p.branchId)?.trim() || dash
+        : t("personnel.nonAdvanceExpenseBranchOrg");
+    return (
+      <MobileListCard>
+        <div className="flex flex-wrap items-start justify-between gap-2 border-b border-zinc-100 pb-3">
+          <PersonnelCostTypeBadge kind="contractorPayment" t={t} />
+          <div className="text-right">
+            <p className="text-base font-semibold tabular-nums text-zinc-900">
+              {formatMoneyDash(p.amount, dash, locale)}
+            </p>
+            <p className="text-xs text-zinc-500">{p.currencyCode}</p>
+          </div>
+        </div>
+        <div className="divide-y divide-zinc-100">
+          <Field label={t("personnel.costsColWrittenFrom")}>
+            {personnelCostRowWrittenFrom(row, t, branchNameById, dash)}
+          </Field>
+          <Field label={t("personnel.tableName")}>
+            {p.contractorDisplayName?.trim() || dash}
+          </Field>
+          <Field label={t("personnel.tableBranch")}>{branchLabel}</Field>
+          <Field label={t("personnel.nonAdvanceExpensesColDate")}>
+            {formatLocaleDate(p.paymentDate, locale, dash)}
+          </Field>
+          <Field label={t("personnel.costsColPaymentFrom")}>
+            {t(`contractors.source.${p.paymentSource}`)}
+            {p.paidByPersonnelName?.trim() ? ` · ${p.paidByPersonnelName.trim()}` : ""}
+          </Field>
+          <Field label={t("personnel.note")}>
+            {p.description?.trim() ? (
+              <span className="whitespace-pre-wrap break-words text-left">
+                {p.description.trim()}
+              </span>
+            ) : (
+              dash
+            )}
           </Field>
         </div>
       </MobileListCard>
@@ -183,9 +235,7 @@ export function createPersonnelCostColumns(
       id: "kind",
       header: t("personnel.costsColType"),
       tdClassName: "whitespace-nowrap",
-      cell: (row) => (
-        <PersonnelCostTypeBadge kind={row.kind === "advance" ? "advance" : "expense"} t={t} />
-      ),
+      cell: (row) => <PersonnelCostTypeBadge kind={row.kind} t={t} />,
     },
     {
       id: "writtenFrom",
@@ -200,7 +250,9 @@ export function createPersonnelCostColumns(
       cell: (row) =>
         row.kind === "advance"
           ? formatLocaleDate(row.advance.advanceDate, locale, dash)
-          : formatLocaleDate(row.expense.transactionDate, locale, dash),
+          : row.kind === "contractorPayment"
+            ? formatLocaleDate(row.payment.paymentDate, locale, dash)
+            : formatLocaleDate(row.expense.transactionDate, locale, dash),
     },
     {
       id: "name",
@@ -209,6 +261,9 @@ export function createPersonnelCostColumns(
       cell: (row) => {
         if (row.kind === "advance") {
           return row.advance.personnelFullName?.trim() || dash;
+        }
+        if (row.kind === "contractorPayment") {
+          return row.payment.contractorDisplayName?.trim() || dash;
         }
         const { employeeName } = resolveNonAdvanceRow(row.expense, dash);
         return employeeName;
@@ -221,6 +276,13 @@ export function createPersonnelCostColumns(
       cell: (row) => {
         if (row.kind === "advance") {
           return row.advance.branchName?.trim() || dash;
+        }
+        if (row.kind === "contractorPayment") {
+          const pbid = row.payment.branchId;
+          if (pbid != null && pbid > 0) {
+            return row.payment.branchName?.trim() || branchNameById.get(pbid)?.trim() || dash;
+          }
+          return t("personnel.nonAdvanceExpenseBranchOrg");
         }
         const bid = row.expense.branchId;
         if (bid != null && bid > 0) {
@@ -239,6 +301,15 @@ export function createPersonnelCostColumns(
             <span className="text-sm text-zinc-700">
               <span className="text-zinc-500">{t("personnel.effectiveYear")}: </span>
               <span className="tabular-nums font-medium">{row.advance.effectiveYear}</span>
+            </span>
+          );
+        }
+        if (row.kind === "contractorPayment") {
+          const pn = row.payment.paidByPersonnelName?.trim();
+          return (
+            <span className="text-sm text-zinc-700">
+              {t(`contractors.source.${row.payment.paymentSource}`)}
+              {pn ? <span className="text-zinc-500"> · {pn}</span> : null}
             </span>
           );
         }
@@ -262,6 +333,9 @@ export function createPersonnelCostColumns(
         if (row.kind === "advance") {
           return advanceFundingSourceLabel(t, row.advance.sourceType);
         }
+        if (row.kind === "contractorPayment") {
+          return t(`contractors.source.${row.payment.paymentSource}`);
+        }
         return expensePaymentSourceLabel(row.expense.expensePaymentSource, t) || dash;
       },
     },
@@ -273,14 +347,20 @@ export function createPersonnelCostColumns(
       cell: (row) =>
         row.kind === "advance"
           ? formatMoneyDash(row.advance.amount, dash, locale)
-          : formatMoneyDash(row.expense.amount, dash, locale),
+          : row.kind === "contractorPayment"
+            ? formatMoneyDash(row.payment.amount, dash, locale)
+            : formatMoneyDash(row.expense.amount, dash, locale),
     },
     {
       id: "currency",
       header: t("personnel.nonAdvanceExpensesColCurrency"),
       tdClassName: "whitespace-nowrap text-sm text-zinc-600",
       cell: (row) =>
-        row.kind === "advance" ? row.advance.currencyCode : row.expense.currencyCode,
+        row.kind === "advance"
+          ? row.advance.currencyCode
+          : row.kind === "contractorPayment"
+            ? row.payment.currencyCode
+            : row.expense.currencyCode,
     },
     {
       id: "note",
@@ -289,7 +369,9 @@ export function createPersonnelCostColumns(
       cell: (row) =>
         row.kind === "advance"
           ? row.advance.description?.trim() || dash
-          : row.expense.description?.trim() || dash,
+          : row.kind === "contractorPayment"
+            ? row.payment.description?.trim() || dash
+            : row.expense.description?.trim() || dash,
     },
     {
       id: "createdBy",
@@ -298,6 +380,8 @@ export function createPersonnelCostColumns(
       cell: (row) =>
         row.kind === "advance" ? (
           <CreatedByMeta row={row.advance} locale={locale} dash={dash} />
+        ) : row.kind === "contractorPayment" ? (
+          <span className="text-sm text-zinc-400">{dash}</span>
         ) : (
           <CreatedByMeta row={row.expense} locale={locale} dash={dash} />
         ),
