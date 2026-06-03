@@ -12,6 +12,8 @@ import { Checkbox } from "@/shared/ui/Checkbox";
 import { Select } from "@/shared/ui/Select";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { RevalidateSiteButton } from "@/modules/public-site/components/RevalidateSiteButton";
+import { BulkAddFlavorsFromProducts } from "@/modules/public-site/components/BulkAddFlavorsFromProducts";
+import { slugify } from "@/modules/public-site/lib/slugify";
 
 const editIconActionButtonClass =
   "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-800 active:bg-zinc-200 disabled:pointer-events-none disabled:opacity-40";
@@ -28,15 +30,6 @@ import { flavorImageUrl, type Flavor, type UpsertFlavor } from "@/modules/public
 
 const ALLOWED = ["image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 8 * 1024 * 1024;
-
-function slugify(value: string): string {
-  const map: Record<string, string> = { ç: "c", ğ: "g", ı: "i", İ: "i", ö: "o", ş: "s", ü: "u" };
-  return value
-    .replace(/[çğıİöşü]/gi, (c) => map[c.toLowerCase()] ?? c)
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
 
 const BLANK: UpsertFlavor = {
   slug: "",
@@ -70,6 +63,7 @@ export function PublicSiteFlavorsScreen() {
 
   const [editing, setEditing] = useState<Editing | null>(null);
   const [productValue, setProductValue] = useState("");
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [imgBust, setImgBust] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -348,7 +342,12 @@ export function PublicSiteFlavorsScreen() {
         title="Çeşitler"
         description="Web sitesindeki dondurma çeşitleri."
         headerActions={
-          <Button onClick={startNew}>+ Yeni çeşit</Button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button variant="secondary" onClick={() => setBulkOpen(true)}>
+              Üründen ekle
+            </Button>
+            <Button onClick={startNew}>+ Yeni çeşit</Button>
+          </div>
         }
       >
         {isLoading ? (
@@ -398,6 +397,12 @@ export function PublicSiteFlavorsScreen() {
           </ul>
         )}
       </Card>
+
+      <BulkAddFlavorsFromProducts
+        open={bulkOpen}
+        onClose={() => setBulkOpen(false)}
+        existing={flavors ?? []}
+      />
     </div>
   );
 }
