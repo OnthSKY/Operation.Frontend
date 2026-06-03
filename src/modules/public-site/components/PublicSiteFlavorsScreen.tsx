@@ -254,7 +254,7 @@ export function PublicSiteFlavorsScreen() {
               label="Kategori"
               value={editing.form.category}
               onChange={(e) => setForm({ category: e.target.value })}
-              placeholder="ör. Sütlü, Meyveli, Özel"
+              placeholder="ör. Kaymaklı, Meyveli, Kuruyemişli"
             />
             <Input
               type="number"

@@ -29,6 +29,8 @@ export type BranchPublicProfile = {
   lng: number | null;
   keywords: string[];
   description: string | null;
+  /** Sisteme yüklenmiş bir kapak fotoğrafı var mı. */
+  hasImage: boolean;
 };
 
 export type UpsertBranchPublicProfile = {
@@ -48,6 +50,8 @@ export type UpsertBranchPublicProfile = {
   description: string | null;
 };
 
+export type HomeFeature = { title: string; text: string };
+
 export type SiteContentAdmin = {
   brandName: string;
   brandTagline: string | null;
@@ -57,6 +61,8 @@ export type SiteContentAdmin = {
   contactEmail: string | null;
   instagram: string | null;
   contactPhone: string | null;
+  footerNote: string | null;
+  homeFeatures: HomeFeature[];
 };
 
 // ---------------- Şube profilleri ----------------
@@ -79,6 +85,21 @@ export function savePublicSiteBranch(
   });
 }
 
+export function uploadBranchImage(branchId: number, file: File): Promise<void> {
+  const fd = new FormData();
+  fd.append("file", file);
+  return apiRequest<null>(`/public-site/branches/${branchId}/image`, { method: "POST", body: fd }).then(() => undefined);
+}
+
+export function deleteBranchImage(branchId: number): Promise<void> {
+  return apiRequest<null>(`/public-site/branches/${branchId}/image`, { method: "DELETE" }).then(() => undefined);
+}
+
+/** Yüklenmiş şube kapak fotoğrafının (anonim) servis URL'i — panel önizlemesi için. */
+export function branchImageUrl(branchId: number): string {
+  return apiUrl(`/public/branches/${branchId}/image`);
+}
+
 // ---------------- Site içeriği ----------------
 
 export function fetchSiteContent(): Promise<SiteContentAdmin> {
@@ -93,8 +114,6 @@ export function saveSiteContent(body: SiteContentAdmin): Promise<SiteContentAdmi
 }
 
 // ---------------- Çeşitler ----------------
-
-export type FlavorCategory = "Sütlü" | "Meyveli" | "Özel";
 
 export type Flavor = {
   id: number;

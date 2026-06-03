@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/shared/components/Card";
 import { notify } from "@/shared/lib/notify";
 import { toErrorMessage } from "@/shared/lib/error-message";
@@ -8,12 +8,17 @@ import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 import { Switch } from "@/shared/ui/Switch";
 import {
+  useDeleteBranchImage,
   usePublicSiteBranch,
   usePublicSiteBranches,
   useSavePublicSiteBranch,
+  useUploadBranchImage,
 } from "@/modules/public-site/hooks/usePublicSiteQueries";
 import { RevalidateSiteButton } from "@/modules/public-site/components/RevalidateSiteButton";
-import type { UpsertBranchPublicProfile } from "@/modules/public-site/api/public-site-api";
+import { branchImageUrl, type UpsertBranchPublicProfile } from "@/modules/public-site/api/public-site-api";
+
+const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 type FormState = UpsertBranchPublicProfile & { keywordsText: string };
 
@@ -40,10 +45,16 @@ export function PublicSiteBranchesScreen() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const { data: profile } = usePublicSiteBranch(selectedId);
   const save = useSavePublicSiteBranch();
+  const uploadImg = useUploadBranchImage();
+  const deleteImg = useDeleteBranchImage();
 
   const [form, setForm] = useState<FormState>(EMPTY);
   const [openTime, setOpenTime] = useState("10:00");
   const [closeTime, setCloseTime] = useState("23:00");
+  // Yükleme sırasında anlık önizleme; başarıdan sonra sunucu görseline (bust ile) düşülür.
+  const [localPreview, setLocalPreview] = useState<string | null>(null);
+  const [imgBust, setImgBust] = useState(0);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (selectedId == null && branches && branches.length > 0) {
@@ -53,6 +64,7 @@ export function PublicSiteBranchesScreen() {
 
   useEffect(() => {
     if (!profile) return;
+    setLocalPreview(null);
     setForm({
       isPublished: profile.isPublished,
       city: profile.city ?? "",
@@ -110,6 +122,45 @@ export function PublicSiteBranchesScreen() {
     }
   };
 
+  const onPickFile = async (file: File | null) => {
+    if (!file || selectedId == null) return;
+    if (file.size > MAX_IMAGE_BYTES) {
+      notify.error("Görsel 8MB sınırını aşıyor.");
+      return;
+    }
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      notify.error("Yalnız JPEG, PNG veya WebP.");
+      return;
+    }
+    setLocalPreview(URL.createObjectURL(file));
+    try {
+      await uploadImg.mutateAsync({ branchId: selectedId, file });
+      setImgBust((v) => v + 1);
+      setLocalPreview(null);
+      notify.success("Fotoğraf yüklendi.");
+    } catch (e) {
+      setLocalPreview(null);
+      notify.error(toErrorMessage(e));
+    }
+  };
+
+  const removeImage = async () => {
+    if (selectedId == null) return;
+    try {
+      await deleteImg.mutateAsync(selectedId);
+      setImgBust((v) => v + 1);
+      setLocalPreview(null);
+      notify.success("Fotoğraf kaldırıldı.");
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    }
+  };
+
+  // Önizleme: önce anlık (yükleme sırasında), sonra sunucudaki yüklü görsel (cache-bust ile).
+  const currentPreview =
+    localPreview ??
+    (profile?.hasImage && selectedId != null ? `${branchImageUrl(selectedId)}?v=${imgBust}` : null);
+
   const selectedName = useMemo(
     () => branches?.find((b) => b.branchId === selectedId)?.branchName ?? "",
     [branches, selectedId]
@@ -164,6 +215,42 @@ export function PublicSiteBranchesScreen() {
             <Input label="Telefon" value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value)} />
             <Input label="WhatsApp" value={form.whatsapp ?? ""} onChange={(e) => set("whatsapp", e.target.value)} placeholder="905xxxxxxxxx" />
             <Input label="Instagram" value={form.instagram ?? ""} onChange={(e) => set("instagram", e.target.value)} placeholder="@ olmadan" />
+          </div>
+
+          {/* Kapak fotoğrafı — sisteme yükleme (vitrin şube sayfası + kart görseli) */}
+          <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50/60 p-3 sm:p-4">
+            <p className="text-sm font-semibold text-zinc-800">Kapak fotoğrafı</p>
+            <p className="mt-1 text-xs text-zinc-500">JPEG / PNG / WebP · en fazla 8MB. Vitrinde şube sayfasının ve kartının görseli olur.</p>
+            <div className="mt-3 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
+              {currentPreview ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={currentPreview} alt="Önizleme" className="h-24 w-40 rounded-lg border border-black/10 object-cover" />
+              ) : (
+                <span className="flex h-24 w-40 items-center justify-center rounded-lg border border-dashed border-black/15 bg-white text-xs text-zinc-400">
+                  görsel yok
+                </span>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(e) => {
+                    void onPickFile(e.target.files?.[0] ?? null);
+                    e.target.value = "";
+                  }}
+                />
+                <Button variant="secondary" onClick={() => fileRef.current?.click()} disabled={uploadImg.isPending}>
+                  {uploadImg.isPending ? "Yükleniyor…" : currentPreview ? "Değiştir" : "Fotoğraf seç"}
+                </Button>
+                {currentPreview && (
+                  <Button variant="ghost" onClick={removeImage} disabled={deleteImg.isPending}>
+                    Kaldır
+                  </Button>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className="mt-4 rounded-xl border border-zinc-200 bg-zinc-50 p-3">

@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createFlavor,
+  deleteBranchImage,
   deleteFlavor,
   deleteFlavorImage,
   fetchFlavors,
@@ -14,6 +15,7 @@ import {
   revalidateSite,
   saveSiteContent,
   updateFlavor,
+  uploadBranchImage,
   uploadFlavorImage,
   type SiteContentAdmin,
   type UpsertBranchPublicProfile,
@@ -51,6 +53,28 @@ export function useSavePublicSiteBranch() {
     onSuccess: (_data, input) => {
       void qc.invalidateQueries({ queryKey: publicSiteKeys.branches() });
       void qc.invalidateQueries({ queryKey: publicSiteKeys.branch(input.branchId) });
+    },
+  });
+}
+
+export function useUploadBranchImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { branchId: number; file: File }) => uploadBranchImage(input.branchId, input.file),
+    onSuccess: (_data, input) => {
+      void qc.invalidateQueries({ queryKey: publicSiteKeys.branches() });
+      void qc.invalidateQueries({ queryKey: publicSiteKeys.branch(input.branchId) });
+    },
+  });
+}
+
+export function useDeleteBranchImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (branchId: number) => deleteBranchImage(branchId),
+    onSuccess: (_data, branchId) => {
+      void qc.invalidateQueries({ queryKey: publicSiteKeys.branches() });
+      void qc.invalidateQueries({ queryKey: publicSiteKeys.branch(branchId) });
     },
   });
 }

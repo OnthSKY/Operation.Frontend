@@ -19,7 +19,12 @@ const EMPTY: SiteContentAdmin = {
   contactEmail: "",
   instagram: "",
   contactPhone: "",
+  footerNote: "",
+  homeFeatures: [],
 };
+
+// Ana sayfadaki kartların ikonları tasarım gereği slota sabit — panelde yalnız metin düzenlenir.
+const FEATURE_ICON_HINTS = ["🌿 Doğal", "❄️ Geleneksel", "🏬 Şube"];
 
 function TextArea({
   label,
@@ -58,12 +63,20 @@ export function PublicSiteContentScreen() {
         contactEmail: data.contactEmail ?? "",
         instagram: data.instagram ?? "",
         contactPhone: data.contactPhone ?? "",
+        footerNote: data.footerNote ?? "",
+        homeFeatures: data.homeFeatures ?? [],
       });
     }
   }, [data]);
 
   const set = <K extends keyof SiteContentAdmin>(key: K, value: SiteContentAdmin[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
+
+  const setFeature = (index: number, patch: Partial<SiteContentAdmin["homeFeatures"][number]>) =>
+    setForm((f) => ({
+      ...f,
+      homeFeatures: f.homeFeatures.map((feat, i) => (i === index ? { ...feat, ...patch } : feat)),
+    }));
 
   const onSave = async () => {
     try {
@@ -76,6 +89,8 @@ export function PublicSiteContentScreen() {
         contactEmail: form.contactEmail || null,
         instagram: form.instagram || null,
         contactPhone: form.contactPhone || null,
+        footerNote: form.footerNote || null,
+        homeFeatures: form.homeFeatures,
       });
       notify.success("Site içeriği kaydedildi.");
     } catch (e) {
@@ -108,6 +123,26 @@ export function PublicSiteContentScreen() {
           <TextArea label="Misyon" value={form.mission ?? ""} onChange={(v) => set("mission", v)} />
           <TextArea label="Vizyon" value={form.vision ?? ""} onChange={(v) => set("vision", v)} />
         </div>
+      </Card>
+
+      <Card title="Ana sayfa kartları" description="Ana sayfadaki “neden biz” bölümü. İkonlar sabittir; yalnız metni düzenlersiniz.">
+        <div className="grid gap-4">
+          {form.homeFeatures.map((feat, i) => (
+            <div key={i} className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-3">
+              <p className="mb-2 text-xs font-semibold text-zinc-500">
+                {i + 1}. kart {FEATURE_ICON_HINTS[i] ? `· ${FEATURE_ICON_HINTS[i]}` : ""}
+              </p>
+              <div className="grid gap-3">
+                <Input label="Başlık" value={feat.title} onChange={(e) => setFeature(i, { title: e.target.value })} />
+                <TextArea label="Açıklama" value={feat.text} onChange={(v) => setFeature(i, { text: v })} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      <Card title="Footer" description="Sitenin altındaki marka açıklaması.">
+        <TextArea label="Footer metni" value={form.footerNote ?? ""} onChange={(v) => set("footerNote", v)} />
       </Card>
 
       <Card title="İletişim">
