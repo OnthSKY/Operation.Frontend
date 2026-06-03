@@ -36,6 +36,10 @@ export const PERM = {
   uiVehicles: "ui.vehicles",
   /** Dış çalışan / taşeron modülü (iş kaydı, ödemeler, bakiye). */
   uiContractors: "ui.contractors",
+  /** Vitrin (public site) yönetimi modülü görünürlüğü. */
+  uiPublicSite: "ui.public_site",
+  /** Vitrin profili + site içeriği yazma. */
+  publicSiteWrite: "public_site.write",
   /** Birden fazla şubeyi listeleyebilir; yokluğu = yalnız PersonnelBranchId'ye sınırlı (PERSONNEL). */
   branchCrossBranchView: "branch.cross_branch.view",
   /** Şube finansal toplamlarını (kasa/gelir/gider) görebilir; yokluğu = HideFinancialTotals (PERSONNEL). */

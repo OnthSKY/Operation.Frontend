@@ -48,6 +48,7 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
   const showProducts = !driverPortal && canSeeUiModule(user, PERM.uiProducts);
   const showProcurement = !personnelPortal && !driverPortal && canSeeUiModule(user, PERM.uiSuppliers);
   const showContractors = !personnelPortal && !driverPortal && canSeeUiModule(user, PERM.uiContractors);
+  const showPublicSite = !personnelPortal && !driverPortal && canSeeUiModule(user, PERM.uiPublicSite);
   const showFleet = !personnelPortal && !driverPortal && canSeeUiModule(user, PERM.uiVehicles);
   const showMyFinancials = Boolean(driverPortal && user?.allowPersonnelSelfFinancials);
   const isSystemAdmin = hasPermissionCode(user, PERM.systemAdmin);
@@ -148,6 +149,35 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
       icon: "personnel",
       mobileVisible: true,
       children: peopleChildren,
+    });
+  }
+
+  if (showPublicSite) {
+    items.push({
+      id: "public-site",
+      labelKey: "nav.publicSiteSection",
+      route: "/public-site/branches",
+      icon: "branch",
+      children: [
+        {
+          id: "public-site-branches",
+          labelKey: "nav.publicSiteBranches",
+          route: "/public-site/branches",
+          icon: "branch",
+        },
+        {
+          id: "public-site-flavors",
+          labelKey: "nav.publicSiteFlavors",
+          route: "/public-site/flavors",
+          icon: "box",
+        },
+        {
+          id: "public-site-content",
+          labelKey: "nav.publicSiteContent",
+          route: "/public-site/content",
+          icon: "branch",
+        },
+      ],
     });
   }
 
