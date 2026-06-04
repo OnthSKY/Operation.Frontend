@@ -4,7 +4,6 @@ import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
 import { cn } from "@/lib/cn";
 import {
-  personnelYearClosureArchiveUrl,
   personnelYearClosurePdfDownloadUrl,
 } from "@/modules/personnel/api/personnel-account-closure-api";
 import { AddBranchTransactionModal } from "@/modules/branch/components/AddBranchTransactionModal";
@@ -50,7 +49,6 @@ import {
   usePersonnelManagementSnapshot,
   usePersonnelYearAccountClosures,
   useReopenPersonnelYearAccount,
-  useUploadPersonnelYearClosurePdf,
   personnelKeys,
 } from "@/modules/personnel/hooks/usePersonnelQueries";
 import {
@@ -223,40 +221,18 @@ function formatYearClosureSalarySummary(
 function YearClosureReportLinks({
   personnelId,
   row,
-  readOnly,
-  uploadPending,
   t,
-  onPickPdf,
 }: {
   personnelId: number;
   row: PersonnelYearAccountClosureListItem;
-  readOnly: boolean;
-  uploadPending: boolean;
   t: (k: string) => string;
-  onPickPdf: (year: number, file: File) => void;
 }) {
-  const hasArch = row.hasClosureArchive === true;
-  const hasPdf = row.hasClosurePdf === true;
-  const jsonHref = hasArch
-    ? personnelYearClosureArchiveUrl(personnelId, row.closureYear)
-    : null;
-  const pdfHref = hasPdf
-    ? personnelYearClosurePdfDownloadUrl(personnelId, row.closureYear)
-    : null;
+  const pdfHref =
+    row.hasClosurePdf === true
+      ? personnelYearClosurePdfDownloadUrl(personnelId, row.closureYear)
+      : null;
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
-      {jsonHref ? (
-        <a
-          href={jsonHref}
-          target="_blank"
-          rel="noreferrer"
-          className="font-medium text-sky-800 underline decoration-sky-800/30 underline-offset-2"
-        >
-          {t("personnel.yearClosuresDownloadJson")}
-        </a>
-      ) : (
-        <span className="text-xs text-zinc-400">—</span>
-      )}
       {pdfHref ? (
         <a
           href={pdfHref}
@@ -264,25 +240,13 @@ function YearClosureReportLinks({
           rel="noreferrer"
           className="font-medium text-sky-800 underline decoration-sky-800/30 underline-offset-2"
         >
-          {t("personnel.yearClosuresDownloadPdf")}
+          {t("personnel.yearClosuresViewPdf")}
         </a>
-      ) : null}
-      {!readOnly ? (
-        <label className="cursor-pointer text-xs font-medium text-zinc-700 underline decoration-zinc-400 underline-offset-2 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-zinc-900">
-          <input
-            type="file"
-            accept="application/pdf,.pdf"
-            className="sr-only"
-            disabled={uploadPending}
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              e.target.value = "";
-              if (f) onPickPdf(row.closureYear, f);
-            }}
-          />
-          {t("personnel.yearClosuresUploadPdf")}
-        </label>
-      ) : null}
+      ) : (
+        <span className="text-xs text-zinc-400">
+          {t("personnel.yearClosuresNoPdf")}
+        </span>
+      )}
     </div>
   );
 }
@@ -726,20 +690,6 @@ export function PersonnelDetailModal({
   });
 
   const reopenYearMut = useReopenPersonnelYearAccount(pid);
-  const uploadClosurePdfMut = useUploadPersonnelYearClosurePdf(pid);
-  const onYearClosurePdfUpload = useCallback(
-    (year: number, file: File) => {
-      uploadClosurePdfMut.mutate(
-        { year, file },
-        {
-          onSuccess: () =>
-            notify.success(t("personnel.yearClosuresUploadPdfSuccess")),
-          onError: (e) => notify.error(toErrorMessage(e)),
-        },
-      );
-    },
-    [uploadClosurePdfMut, t],
-  );
   const deleteAdvanceMut = useDeleteAdvance();
   const deleteTxMut = useDeleteBranchTransaction();
   const askDeleteInsurancePeriod = useCallback(
@@ -2831,14 +2781,7 @@ export function PersonnelDetailModal({
                                     <YearClosureReportLinks
                                       personnelId={personnel.id}
                                       row={row}
-                                      readOnly={personnel.isDeleted}
-                                      uploadPending={
-                                        uploadClosurePdfMut.isPending &&
-                                        uploadClosurePdfMut.variables?.year ===
-                                          row.closureYear
-                                      }
                                       t={t}
-                                      onPickPdf={onYearClosurePdfUpload}
                                     />
                                   </dd>
                                 </div>
@@ -2976,21 +2919,14 @@ export function PersonnelDetailModal({
                                       <YearClosureReportLinks
                                         personnelId={personnel.id}
                                         row={row}
-                                        readOnly={personnel.isDeleted}
-                                        uploadPending={
-                                          uploadClosurePdfMut.isPending &&
-                                          uploadClosurePdfMut.variables?.year ===
-                                            row.closureYear
-                                        }
                                         t={t}
-                                        onPickPdf={onYearClosurePdfUpload}
                                       />
                                     </td>
                                     <td className="px-3 py-3 pr-4 text-right align-middle">
                                       <Button
                                         type="button"
                                         variant="secondary"
-                                        className="min-h-[44px] min-w-[44px]"
+                                        className="min-h-[44px] min-w-[44px] whitespace-nowrap"
                                         disabled={
                                           personnel.isDeleted ||
                                           (reopenYearMut.isPending &&

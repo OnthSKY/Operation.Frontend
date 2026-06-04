@@ -492,6 +492,13 @@ export const personnel = {
     closeNotesPlaceholder: "Örn. … tarihinde nakit kapandı",
     closeYearButton: "Yılı kapatıldı olarak işaretle",
     closeSuccess: "Bu personel için yıl kapatıldı olarak kaydedildi.",
+    closeSuccessPdfFailed:
+      "Yıl kapatıldı, ancak PDF yüklenemedi. PDF'i «Kesilen hesaplar» sekmesinden tekrar yükleyebilirsiniz.",
+    settlementPdfAutoSaveHint:
+      "Mutabakat PDF'i, yılı kapatınca otomatik üretilip kişinin kapanış belgesine kaydedilir («{name}-kapanis-{year}»). «Kesilen hesaplar» sekmesinden «PDF'i görüntüle» ile açabilirsiniz.",
+    heldCashWarningTitle: "Bu kişinin üzerinde kasa nakit parası var",
+    heldCashWarningBody:
+      "Sezonu kapatmadan önce bu nakdin patrona/şubeye devredilmesi veya iade edilmesi önerilir. Aşağıdaki tutar hâlâ kişinin üzerinde görünüyor:",
     yearClosedViewHint:
       "Bu durumu tekrar görmek için: «Kesilen hesaplar» sekmesi veya «Avans ve giderler» → «Dönem hesap özeti» → aynı takvim yılı → toplamlar (kapanış tarihi yeşil kutuda).",
     summaryTotalsTitle: "Ne ödendi, ne gider yazıldı?",
@@ -877,6 +884,8 @@ export const personnel = {
   yearClosuresColReport: "Arşiv / PDF",
   yearClosuresDownloadJson: "JSON indir",
   yearClosuresDownloadPdf: "Kapanış PDF indir",
+  yearClosuresViewPdf: "PDF'i görüntüle",
+  yearClosuresNoPdf: "PDF yok",
   yearClosuresUploadPdf: "Kapanış PDF yükle",
   yearClosuresUploadPdfSuccess: "Kapanış PDF kaydedildi.",
   yearClosuresColSalary: "Maaş kesimi",

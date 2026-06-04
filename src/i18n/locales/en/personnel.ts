@@ -483,6 +483,13 @@ export const personnel = {
     closeNotesPlaceholder: "e.g. settled in cash on …",
     closeYearButton: "Mark year as closed",
     closeSuccess: "Year marked as closed for this person.",
+    closeSuccessPdfFailed:
+      "Year was closed, but the PDF could not be uploaded. You can re-upload it from the «Closed accounts» tab.",
+    settlementPdfAutoSaveHint:
+      "The settlement PDF is generated automatically when you close the year and saved to this person's closure document («{name}-kapanis-{year}»). Open it via «View PDF» on the «Closed accounts» tab.",
+    heldCashWarningTitle: "This person is still holding register cash",
+    heldCashWarningBody:
+      "Before closing the season, this cash should be handed over to the owner/branch or returned. The amount below is still on this person:",
     yearClosedViewHint:
       "To see this again: «Closed accounts» tab, or «Advances & expenses» → Period account summary → the same calendar year → totals (close date in the green box).",
     summaryTotalsTitle: "What was paid out vs. expenses booked",
@@ -866,6 +873,8 @@ export const personnel = {
   yearClosuresColReport: "Archive / PDF",
   yearClosuresDownloadJson: "Download JSON",
   yearClosuresDownloadPdf: "Download closure PDF",
+  yearClosuresViewPdf: "View PDF",
+  yearClosuresNoPdf: "No PDF",
   yearClosuresUploadPdf: "Upload closure PDF",
   yearClosuresUploadPdfSuccess: "Closure PDF saved.",
   yearClosuresColSalary: "Salary close-out",
