@@ -193,6 +193,16 @@ export function personnelYearClosurePdfDownloadUrl(
   );
 }
 
+/** Tarayıcıda görüntülemek için (Content-Disposition: inline). */
+export function personnelYearClosurePdfViewUrl(
+  personnelId: number,
+  year: number,
+): string {
+  return apiUrl(
+    `/personnel/${personnelId}/year-account/closures/${year}/closure-pdf?inline=true`,
+  );
+}
+
 export async function uploadPersonnelYearClosurePdf(
   personnelId: number,
   year: number,

@@ -166,6 +166,21 @@ export const personnel = {
   settlementPrintNeedPerson: "Select a person from the list.",
   settlementPrintNeedBranch: "Select a branch from the list.",
   settlementPrintDocTitle: "Settlement summary (all advances & personnel expenses)",
+  settlementPrintDocTitleClosure: "Account Closure — {year} season",
+  settlementPrintModeClosure: "ACCOUNT CLOSURE",
+  settlementPrintClosureBannerTitle: "{year} season account closure",
+  settlementPrintClosureBannerHint:
+    "This document reconciles the advances and expenses the person took during the season against the earned salary, and shows the amount paid at closure.",
+  settlementPrintClosureCardWorkPeriod: "Work period",
+  settlementPrintClosureCardArrival: "Arrival",
+  settlementPrintClosureCardDeparture: "Departure / closure",
+  settlementPrintClosureCardWorkedDays: "Worked days",
+  settlementPrintClosureCardTaken: "Total taken (advance + expense)",
+  settlementPrintClosureCardTakenAdv: "Advance",
+  settlementPrintClosureCardTakenExp: "Expense",
+  settlementPrintClosureCardSalary: "Earned salary (this season)",
+  settlementPrintClosureCardPaid: "Paid at closure",
+  settlementPrintClosureCardPaidNone: "Not paid",
   settlementPrintDocTitleBranch:
     "Branch settlement summary (advances & personnel expenses for this branch)",
   settlementPrintScopeLinePersonnel: "Scope: selected person (all their advances and expense lines).",
@@ -856,6 +871,16 @@ export const personnel = {
   detailCostsCombinedEmpty:
     "No advances or expenses to show. Adjust season year or list filters (branch, source) via the filter icon.",
   detailTabYearClosures: "Closed accounts",
+  detailTabSalaryHistory: "Salary history",
+  salaryHistoryIntro:
+    "Retroactive salary info for this person: registered salary periods and the salary earned in closed seasons.",
+  salaryHistoryCurrentLabel: "Current registered salary",
+  salaryHistoryTermsTitle: "Registered salary periods",
+  salaryHistoryTermsEmpty: "No registered salary period.",
+  salaryHistoryOpen: "open (ongoing)",
+  salaryHistoryWorkedDays: "Worked days: {n}",
+  salaryHistorySeasonTitle: "Salary earned by season",
+  salaryHistorySeasonEmpty: "No closed-season salary record.",
   yearClosuresIntro:
     "Calendar-year account closures for this person. If a year was closed by mistake, you can reopen it.",
   yearClosuresStoryHint:

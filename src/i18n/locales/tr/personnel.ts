@@ -169,6 +169,21 @@ export const personnel = {
   settlementPrintNeedPerson: "Listeden bir personel seçin.",
   settlementPrintNeedBranch: "Listeden bir şube seçin.",
   settlementPrintDocTitle: "Hesap özeti (tüm avanslar ve personel giderleri)",
+  settlementPrintDocTitleClosure: "Hesap Kapanışı — {year} sezonu",
+  settlementPrintModeClosure: "HESAP KAPANIŞI",
+  settlementPrintClosureBannerTitle: "{year} sezonu hesap kapanışı",
+  settlementPrintClosureBannerHint:
+    "Bu belge, personelin sezon boyunca aldığı avans ve giderler ile hak edilen maaşın mutabakatını ve kapanışta ödenen tutarı gösterir.",
+  settlementPrintClosureCardWorkPeriod: "Çalışma dönemi",
+  settlementPrintClosureCardArrival: "Geliş",
+  settlementPrintClosureCardDeparture: "Ayrılış / kapanış",
+  settlementPrintClosureCardWorkedDays: "Çalışılan gün",
+  settlementPrintClosureCardTaken: "Toplam alınan (avans + gider)",
+  settlementPrintClosureCardTakenAdv: "Avans",
+  settlementPrintClosureCardTakenExp: "Gider",
+  settlementPrintClosureCardSalary: "Hak edilen maaş (bu sezon)",
+  settlementPrintClosureCardPaid: "Kapanışta ödenen",
+  settlementPrintClosureCardPaidNone: "Ödenmedi",
   settlementPrintDocTitleBranch:
     "Şube hesap özeti (bu şubeye yazılan avanslar ve personel giderleri)",
   settlementPrintScopeLinePersonnel:
@@ -867,6 +882,16 @@ export const personnel = {
   detailCostsCombinedEmpty:
     "Gösterilecek avans veya gider yok. Sezon yılı veya filtre simgesinden liste filtrelerini (şube, kaynak) değiştirin.",
   detailTabYearClosures: "Kesilen hesaplar",
+  detailTabSalaryHistory: "Maaş geçmişi",
+  salaryHistoryIntro:
+    "Personelin geriye dönük maaş bilgisi: kayıtlı maaş dönemleri ve kapanan sezonlarda hak edilen maaş.",
+  salaryHistoryCurrentLabel: "Güncel kayıtlı maaş",
+  salaryHistoryTermsTitle: "Kayıtlı maaş dönemleri",
+  salaryHistoryTermsEmpty: "Kayıtlı maaş dönemi yok.",
+  salaryHistoryOpen: "açık (devam ediyor)",
+  salaryHistoryWorkedDays: "Çalışılan gün: {n}",
+  salaryHistorySeasonTitle: "Sezon bazında hak edilen maaş",
+  salaryHistorySeasonEmpty: "Kapanan sezon maaş kaydı yok.",
   yearClosuresIntro:
     "Bu personel için takvim yılı bazında kapatılmış (kesilmiş) hesap kayıtları. Yanlış kapanışta ilgili yılı yeniden açabilirsiniz.",
   yearClosuresStoryHint:

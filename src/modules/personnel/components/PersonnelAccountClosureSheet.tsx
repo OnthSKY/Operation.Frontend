@@ -1522,6 +1522,37 @@ export function PersonnelAccountClosureSheet({
                                 // kapanış başarısını maskeleme, sadece PDF'in
                                 // kaydedilemediğini bildir.
                                 try {
+                                  const pdfCcy =
+                                    closureSalaryCurrency.trim().toUpperCase() ||
+                                    "TRY";
+                                  const paidAtClosure = salaryBalanceSettled
+                                    ? computeClosureSalaryNetRemaining(
+                                        yearPreview?.lines ?? [],
+                                        parsedExpectedSalary,
+                                        pdfCcy,
+                                      )
+                                    : null;
+                                  // Çalışma dönemi sonu = geliş + (çalışılan gün − 1).
+                                  const arrivalIso = (
+                                    personnelSeasonArrivalDate ?? ""
+                                  ).slice(0, 10);
+                                  let departureIso: string | null = null;
+                                  if (
+                                    /^\d{4}-\d{2}-\d{2}$/.test(arrivalIso) &&
+                                    Number.isFinite(parsedClosureDays) &&
+                                    parsedClosureDays > 0
+                                  ) {
+                                    const [yy, mm, dd] = arrivalIso
+                                      .split("-")
+                                      .map(Number);
+                                    const dt = new Date(
+                                      Date.UTC(yy, mm - 1, dd),
+                                    );
+                                    dt.setUTCDate(
+                                      dt.getUTCDate() + parsedClosureDays - 1,
+                                    );
+                                    departureIso = dt.toISOString().slice(0, 10);
+                                  }
                                   const { blob } =
                                     await generatePersonnelSettlementPdfBlob({
                                       target: {
@@ -1531,6 +1562,27 @@ export function PersonnelAccountClosureSheet({
                                         seasonArrivalDate:
                                           personnelSeasonArrivalDate ?? undefined,
                                         seasonYearFilter: selectedYear,
+                                        isYearClosure: true,
+                                        closureSummary: {
+                                          arrivalDate: arrivalIso || null,
+                                          departureDate: departureIso,
+                                          workedDays: Number.isFinite(
+                                            parsedClosureDays,
+                                          )
+                                            ? parsedClosureDays
+                                            : null,
+                                          expectedSalaryAmount: salaryExpectedOk
+                                            ? parsedExpectedSalary
+                                            : null,
+                                          expectedSalaryCurrency: pdfCcy,
+                                          paidAtClosureAmount: paidAtClosure,
+                                          salaryBalanceSettled,
+                                          salaryPaymentSource: salaryBalanceSettled
+                                            ? salaryPaymentSourceType
+                                                .trim()
+                                                .toUpperCase()
+                                            : null,
+                                        },
                                       },
                                       locale,
                                       branchNameById,
