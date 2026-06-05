@@ -75,6 +75,7 @@ export const contractors = {
   selectPersonnel: "Select personnel…",
   personnelRequired: "Personnel is required for pocket payments.",
   descriptionOptional: "Description (optional)",
+  description: "Description",
 
   source: {
     PATRON: "Patron",

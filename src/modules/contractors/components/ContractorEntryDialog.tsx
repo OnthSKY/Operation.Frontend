@@ -18,6 +18,7 @@ import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
 import { Checkbox } from "@/shared/ui/Checkbox";
+import { DateField } from "@/shared/ui/DateField";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
@@ -267,7 +268,7 @@ export function ContractorEntryDialog({
 
               {mode === "work" ? (
                 <FormSection>
-                  <Input type="date" label={t("contractors.workDate")} value={wDate} onChange={(e) => setWDate(e.target.value)} />
+                  <DateField label={t("contractors.workDate")} value={wDate} onChange={(e) => setWDate(e.target.value)} />
                   <div>
                     <Input
                       label={t("contractors.amount")}
@@ -313,7 +314,7 @@ export function ContractorEntryDialog({
                 </FormSection>
               ) : (
                 <FormSection>
-                  <Input type="date" label={t("contractors.paymentDate")} value={pDate} onChange={(e) => setPDate(e.target.value)} />
+                  <DateField label={t("contractors.paymentDate")} value={pDate} onChange={(e) => setPDate(e.target.value)} />
                   <Input
                     label={t("contractors.amount")}
                     labelRequired

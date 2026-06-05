@@ -75,6 +75,7 @@ export const contractors = {
   selectPersonnel: "Personel seçin…",
   personnelRequired: "Personel cebi ödemesinde personel zorunludur.",
   descriptionOptional: "Açıklama (opsiyonel)",
+  description: "Açıklama",
 
   source: {
     PATRON: "Patron",

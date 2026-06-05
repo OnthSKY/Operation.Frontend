@@ -221,7 +221,10 @@ export function ContractorDetailModal({ open, contractorId, onClose }: Props) {
                             {data.workEntries.map((w) => (
                               <TableRow key={w.id}>
                                 <TableCell dataLabel={t("contractors.workDate")} className="whitespace-nowrap text-zinc-600">{w.workDate}</TableCell>
-                                <TableCell dataLabel={t("contractors.workDescription")} className="text-zinc-900">
+                                <TableCell
+                                  dataLabel={t("contractors.workDescription")}
+                                  className="max-w-xs break-words text-zinc-900 max-md:text-right"
+                                >
                                   {w.description}
                                   <span className="ml-1 text-xs text-zinc-500">
                                     ({w.branchName ? w.branchName : t("contractors.general")})
@@ -283,6 +286,7 @@ export function ContractorDetailModal({ open, contractorId, onClose }: Props) {
                             <TableRow>
                               <TableHeader>{t("contractors.paymentDate")}</TableHeader>
                               <TableHeader>{t("contractors.paymentSource")}</TableHeader>
+                              <TableHeader>{t("contractors.description")}</TableHeader>
                               <TableHeader className="text-right">{t("contractors.amount")}</TableHeader>
                               <TableHeader className="text-right">{t("common.actions")}</TableHeader>
                             </TableRow>
@@ -295,6 +299,16 @@ export function ContractorDetailModal({ open, contractorId, onClose }: Props) {
                                   {sourceLabel(p.paymentSource)}
                                   {p.branchName ? <span className="ml-1 text-xs text-zinc-500">({p.branchName})</span> : null}
                                   {p.paidByPersonnelName ? <span className="ml-1 text-xs text-zinc-500">({p.paidByPersonnelName})</span> : null}
+                                </TableCell>
+                                <TableCell
+                                  dataLabel={t("contractors.description")}
+                                  className="max-w-xs break-words text-zinc-700 max-md:text-right"
+                                >
+                                  {p.description && p.description.trim() ? (
+                                    p.description
+                                  ) : (
+                                    <span className="text-zinc-400">{t("contractors.fieldEmpty")}</span>
+                                  )}
                                 </TableCell>
                                 <TableCell dataLabel={t("contractors.amount")} className="text-right tabular-nums">{money(p.amount, p.currencyCode)}</TableCell>
                                 <TableCell dataLabel={t("common.actions")} className="text-right">
