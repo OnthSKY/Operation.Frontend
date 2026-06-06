@@ -1048,6 +1048,7 @@ function normalizeBranchStockReceiptRow(r: Record<string, unknown>): BranchStock
   const pid = Number(r.productId);
   const ppid = r.parentProductId != null ? Number(r.parentProductId) : null;
   const wmid = r.warehouseMovementId != null ? Number(r.warehouseMovementId) : null;
+  const photoMid = r.photoMovementId != null ? Number(r.photoMovementId) : null;
   const guid =
     r.inBatchGroupId != null && String(r.inBatchGroupId).trim()
       ? String(r.inBatchGroupId).trim()
@@ -1074,6 +1075,16 @@ function normalizeBranchStockReceiptRow(r: Record<string, unknown>): BranchStock
         : null,
     warehouseMovementId: wmid != null && Number.isFinite(wmid) && wmid > 0 ? wmid : null,
     inBatchGroupId: guid,
+    photoMovementId: photoMid != null && Number.isFinite(photoMid) && photoMid > 0 ? photoMid : null,
+    hasInvoicePhoto: r.hasInvoicePhoto === true,
+    createdByUserName:
+      r.createdByUserName != null && String(r.createdByUserName).trim()
+        ? String(r.createdByUserName).trim()
+        : null,
+    createdAt:
+      r.createdAt != null && String(r.createdAt).trim()
+        ? String(r.createdAt).trim()
+        : null,
     supplierUnitPrice: optFiniteNum(r.supplierUnitPrice),
     valuationCurrencyCode:
       r.valuationCurrencyCode != null && String(r.valuationCurrencyCode).trim()
@@ -1185,7 +1196,14 @@ export async function fetchBranchStockReceiptsSummary(
   const PAGE_SIZE = 100;
   let page = 1;
   let filteredTotalQuantity = 0;
-  const groups = new Map<number, { productId: number; productName: string; quantity: number }>();
+  type ChildAgg = { productId: number; productName: string; quantity: number; unit: string | null };
+  type GroupAgg = {
+    productId: number;
+    productName: string;
+    quantity: number;
+    children: Map<number, ChildAgg>;
+  };
+  const groups = new Map<number, GroupAgg>();
 
   for (;;) {
     const res = await fetchBranchStockReceiptsPaged(branchId, {
@@ -1202,25 +1220,49 @@ export async function fetchBranchStockReceiptsSummary(
       const productName = hasParent
         ? row.parentProductName?.trim() || row.productName.trim()
         : row.productName.trim();
-      const current = groups.get(productId);
-      if (current) {
-        current.quantity += row.quantity;
-      } else {
-        groups.set(productId, {
+      let current = groups.get(productId);
+      if (!current) {
+        current = {
           productId,
           productName: productName.length > 0 ? productName : `#${productId}`,
-          quantity: row.quantity,
-        });
+          quantity: 0,
+          children: new Map(),
+        };
+        groups.set(productId, current);
+      }
+      current.quantity += row.quantity;
+      // Alt ürün kırılımı yalnızca ana ürünü olan satırlar için anlamlı.
+      if (hasParent) {
+        const childName = row.productName.trim();
+        const existingChild = current.children.get(row.productId);
+        if (existingChild) {
+          existingChild.quantity += row.quantity;
+        } else {
+          current.children.set(row.productId, {
+            productId: row.productId,
+            productName: childName.length > 0 ? childName : `#${row.productId}`,
+            quantity: row.quantity,
+            unit: row.unit?.trim() || null,
+          });
+        }
       }
     }
     if (res.items.length === 0 || page * PAGE_SIZE >= res.totalCount) break;
     page += 1;
   }
 
-  const parentBreakdown = Array.from(groups.values()).sort((a, b) => {
+  const byQtyThenName = <T extends { quantity: number; productName: string }>(a: T, b: T) => {
     if (b.quantity !== a.quantity) return b.quantity - a.quantity;
     return a.productName.localeCompare(b.productName, undefined, { sensitivity: "base" });
-  });
+  };
+  const parentBreakdown = Array.from(groups.values())
+    .map((g) => ({
+      productId: g.productId,
+      productName: g.productName,
+      quantity: g.quantity,
+      children: Array.from(g.children.values()).sort(byQtyThenName),
+    }))
+    .sort(byQtyThenName);
   return { filteredTotalQuantity, parentBreakdown };
 }
 

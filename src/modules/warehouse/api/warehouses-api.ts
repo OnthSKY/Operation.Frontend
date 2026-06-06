@@ -230,6 +230,29 @@ export async function updateWarehouseOutboundShipmentMovement(
   );
 }
 
+export async function uploadWarehouseOutboundShipmentMovementInvoicePhoto(
+  warehouseId: number,
+  movementId: number,
+  file: File
+): Promise<WarehouseMovementResponse> {
+  const fd = new FormData();
+  fd.append("invoicePhoto", file);
+  return apiRequest<WarehouseMovementResponse>(
+    `/warehouses/${warehouseId}/movements/outbound-shipment/${movementId}/invoice-photo`,
+    { method: "POST", body: fd }
+  );
+}
+
+export async function clearWarehouseOutboundShipmentMovementInvoicePhoto(
+  warehouseId: number,
+  movementId: number
+): Promise<void> {
+  await apiRequest<null>(
+    `/warehouses/${warehouseId}/movements/outbound-shipment/${movementId}/invoice-photo`,
+    { method: "DELETE" }
+  );
+}
+
 export async function softDeleteWarehouseOutboundShipmentMovement(
   warehouseId: number,
   movementId: number

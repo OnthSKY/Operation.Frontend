@@ -54,6 +54,10 @@ export type WarehouseMovementItem = {
   outDestinationBranchName?: string | null;
   /** OUT + depodan şubeye sevkiyat (tek şube stok satırı); tam düzenleme API’si. */
   isDepotToBranchShipment?: boolean;
+  /** Hareketi giren kullanıcı (recorded_by). */
+  createdByUserName?: string | null;
+  /** Kaydın oluşturulma zamanı (ISO). */
+  createdAt?: string | null;
 };
 
 /** Depo→şube sevkiyat OUT satırlarının şube bazlı özeti (API ile uyumlu). */

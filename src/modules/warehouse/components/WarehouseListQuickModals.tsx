@@ -11,6 +11,7 @@ import {
   usePreviewWarehouseTransferToBranch,
   useRegisterWarehouseMovement,
   useTransferWarehouseToBranch,
+  useUploadWarehouseOutboundShipmentMovementInvoicePhoto,
   useWarehousePeopleOptions,
   useWarehouseStock,
 } from "@/modules/warehouse/hooks/useWarehouseQueries";
@@ -596,6 +597,7 @@ export function WarehouseListTransferModal({
   const { data: peopleRaw = [], isPending: peopleLoading } = useWarehousePeopleOptions(open);
   const transfer = useTransferWarehouseToBranch();
   const transferPreview = usePreviewWarehouseTransferToBranch();
+  const uploadShipmentPhoto = useUploadWarehouseOutboundShipmentMovementInvoicePhoto();
 
   const inStockRows = useMemo(() => stockRows.filter((r) => r.quantity > 0), [stockRows]);
 
@@ -614,6 +616,7 @@ export function WarehouseListTransferModal({
   const [freightPay, setFreightPay] = useState<WarehouseFreightPaymentSource>("REGISTER");
   const [freightPocket, setFreightPocket] = useState("");
   const [freightNote, setFreightNote] = useState("");
+  const [shipmentPhoto, setShipmentPhoto] = useState<File | null>(null);
   const [previewToken, setPreviewToken] = useState<string | null>(null);
   const [previewAllocations, setPreviewAllocations] = useState<
     { requestedProductId: number; allocatedProductId: number; quantity: number }[]
@@ -747,6 +750,7 @@ export function WarehouseListTransferModal({
     setFreightPay("REGISTER");
     setFreightPocket("");
     setFreightNote("");
+    setShipmentPhoto(null);
     setPreviewToken(null);
     setPreviewAllocations([]);
     setPreviewOpen(false);
@@ -841,7 +845,21 @@ export function WarehouseListTransferModal({
       payload.confirmAllocation = true;
       payload.allocationToken = previewToken;
     }
-    await transfer.mutateAsync(payload);
+    const res = await transfer.mutateAsync(payload);
+    // Sevkiyat başına tek görsel: ilk depo hareketine (batch anchor) bağlanır.
+    const anchorMovementId = res.items?.[0]?.warehouseMovementId;
+    if (shipmentPhoto && anchorMovementId != null && anchorMovementId > 0) {
+      try {
+        await uploadShipmentPhoto.mutateAsync({
+          warehouseId: args.warehouseId,
+          movementId: anchorMovementId,
+          file: shipmentPhoto,
+        });
+      } catch {
+        // Transfer başarılı; yalnızca görsel yüklenemedi. Sevkiyatı bozma, uyar.
+        notify.error(t("warehouse.transferShipmentPhotoUploadFailed"));
+      }
+    }
   };
 
   const onConfirmPreview = async () => {
@@ -1281,6 +1299,40 @@ export function WarehouseListTransferModal({
               disabled={disabled}
             />
           ) : null}
+          <div>
+            <label htmlFor="wh-list-transfer-photo" className="mb-1 block text-sm font-medium text-zinc-700">
+              {t("warehouse.shipmentPhotoOptional")}
+            </label>
+            <input
+              id="wh-list-transfer-photo"
+              name="wh-list-transfer-photo"
+              type="file"
+              accept={IMAGE_FILE_INPUT_ACCEPT}
+              className="block w-full max-w-full min-w-0 text-sm text-zinc-600 file:mr-3 file:max-w-full file:rounded-lg file:border-0 file:bg-zinc-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-zinc-800 hover:file:bg-zinc-200"
+              disabled={disabled}
+              onChange={async (e) => {
+                const input = e.target;
+                const f = input.files?.[0] ?? null;
+                if (!f) {
+                  setShipmentPhoto(null);
+                  return;
+                }
+                const v = await validateImageFileForUpload(f);
+                if (!v.ok) {
+                  input.value = "";
+                  setShipmentPhoto(null);
+                  notify.error(
+                    v.reason === "size"
+                      ? t("common.imageUploadTooLarge")
+                      : t("common.imageUploadNotImage")
+                  );
+                  return;
+                }
+                setShipmentPhoto(f);
+              }}
+            />
+            <LocalImageFileThumb file={shipmentPhoto} />
+          </div>
           </div>
           <div className="z-20 -mx-1 flex shrink-0 flex-col gap-2 border-t border-zinc-200/80 bg-white/95 px-1 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] backdrop-blur-sm sm:mx-0 sm:flex-row sm:flex-wrap sm:justify-end sm:px-0 sm:pt-1 sm:pb-0.5">
             <Button type="submit" className="min-h-11 w-full touch-manipulation sm:w-auto sm:min-w-[10rem]" disabled={disabled}>

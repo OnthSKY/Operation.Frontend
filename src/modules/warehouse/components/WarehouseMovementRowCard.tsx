@@ -29,6 +29,8 @@ type Props = {
   t: (key: string) => string;
   hideShipmentGroup?: boolean;
   hideAuditMeta?: boolean;
+  /** "Giren / Oluşturulma" alanlarını hideAuditMeta'dan bağımsız gösterir (kalem bazında). */
+  showRecordMeta?: boolean;
   hideInvoiceSection?: boolean;
   /** Detay dialog gibi üst bilgide hedef şube zaten gösterildiğinde tekrarı gizler. */
   hideOutBranch?: boolean;
@@ -49,6 +51,7 @@ export function WarehouseMovementRowCard({
   t,
   hideShipmentGroup,
   hideAuditMeta = false,
+  showRecordMeta = false,
   hideInvoiceSection = false,
   hideOutBranch = false,
   warehouseId,
@@ -83,7 +86,8 @@ export function WarehouseMovementRowCard({
 
   const showBranchMeta =
     !hideOutBranch && m.type === "OUT" && Boolean(m.outDestinationBranchName?.trim());
-  const showBottomMeta = !hideShipmentGroup || showBranchMeta || !hideAuditMeta;
+  const showRecordMetaRows = showRecordMeta || !hideAuditMeta;
+  const showBottomMeta = !hideShipmentGroup || showBranchMeta || !hideAuditMeta || showRecordMetaRows;
 
   return (
     <MobileListCard as="div" className="touch-manipulation shadow-zinc-900/5">
@@ -280,6 +284,18 @@ export function WarehouseMovementRowCard({
           {!hideAuditMeta ? movementKv(t("warehouse.movementNote"), m.description?.trim() ? m.description : "—") : null}
           {!hideAuditMeta ? movementKv(t("warehouse.movementCheckedBy"), m.checkedByPersonnelName ?? "—") : null}
           {!hideAuditMeta ? movementKv(t("warehouse.movementApprovedBy"), m.approvedByPersonnelName ?? "—") : null}
+          {showRecordMetaRows
+            ? movementKv(
+                t("warehouse.movementCreatedBy"),
+                m.createdByUserName?.trim() ? m.createdByUserName.trim() : "—"
+              )
+            : null}
+          {showRecordMetaRows
+            ? movementKv(
+                t("warehouse.movementCreatedAt"),
+                m.createdAt ? fmtDate(m.createdAt) : "—"
+              )
+            : null}
         </div>
       ) : null}
     </MobileListCard>

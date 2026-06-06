@@ -273,6 +273,14 @@ export type BranchStockReceiptRow = {
   warehouseName: string | null;
   warehouseMovementId?: number | null;
   inBatchGroupId?: string | null;
+  /** Sevkiyatın görselini taşıyan (veya görsel eklenebilecek) depo hareketi; görüntüleme/yükleme/silme bu id üzerinden. */
+  photoMovementId?: number | null;
+  /** Bu sevkiyat (batch) için görsel var mı. */
+  hasInvoicePhoto?: boolean;
+  /** Sevkiyatı giren kullanıcı (depo çıkışını kaydeden). */
+  createdByUserName?: string | null;
+  /** Kaydın oluşturulma zamanı (ISO). */
+  createdAt?: string | null;
   /** Son depo giriş faturasından tahmini birim fiyat (API). */
   supplierUnitPrice?: number | null;
   valuationCurrencyCode?: string | null;
@@ -287,11 +295,22 @@ export type BranchStockReceiptsPaged = {
   filteredTotalQuantity?: number;
 };
 
+export type BranchStockReceiptsChildBreakdownItem = {
+  productId: number;
+  productName: string;
+  quantity: number;
+  unit?: string | null;
+};
+
+export type BranchStockReceiptsParentBreakdownItem = {
+  productId: number;
+  productName: string;
+  quantity: number;
+  /** Bu ana ürün altındaki alt ürün (leaf) kırılımı; ana ürünü olmayan satırlarda boş. */
+  children: BranchStockReceiptsChildBreakdownItem[];
+};
+
 export type BranchStockReceiptsSummary = {
   filteredTotalQuantity: number;
-  parentBreakdown: Array<{
-    productId: number;
-    productName: string;
-    quantity: number;
-  }>;
+  parentBreakdown: BranchStockReceiptsParentBreakdownItem[];
 };

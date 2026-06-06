@@ -25,6 +25,8 @@ import {
   updateWarehouseInboundMovement,
   updateWarehouseOutboundShipmentMovement,
   uploadWarehouseInboundMovementInvoicePhoto,
+  uploadWarehouseOutboundShipmentMovementInvoicePhoto,
+  clearWarehouseOutboundShipmentMovementInvoicePhoto,
   type PatchWarehouseInboundMovementDatesInput,
   type AppendWarehouseInboundLineBody,
   type AppendWarehouseOutboundShipmentLineBody,
@@ -295,6 +297,52 @@ export function useUpdateWarehouseOutboundShipmentMovement() {
       invalidateWarehouseQueries(qc);
       void qc.invalidateQueries({ queryKey: productsRootKey });
       void qc.invalidateQueries({ queryKey: branchKeys.list() });
+    },
+  });
+}
+
+function invalidateBranchStockReceipts(qc: ReturnType<typeof useQueryClient>) {
+  void qc.invalidateQueries({ queryKey: [...branchKeys.all, "stock-receipts"], exact: false });
+  void qc.invalidateQueries({
+    queryKey: [...branchKeys.all, "stock-receipts-summary"],
+    exact: false,
+  });
+}
+
+export function useUploadWarehouseOutboundShipmentMovementInvoicePhoto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { warehouseId: number; movementId: number; file: File }) =>
+      uploadWarehouseOutboundShipmentMovementInvoicePhoto(vars.warehouseId, vars.movementId, vars.file),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "movementsPage", vars.warehouseId],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "outboundShipmentEdit", vars.warehouseId, vars.movementId],
+      });
+      invalidateWarehouseQueries(qc);
+      invalidateBranchStockReceipts(qc);
+    },
+  });
+}
+
+export function useClearWarehouseOutboundShipmentMovementInvoicePhoto() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (vars: { warehouseId: number; movementId: number }) =>
+      clearWarehouseOutboundShipmentMovementInvoicePhoto(vars.warehouseId, vars.movementId),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "movementsPage", vars.warehouseId],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "outboundShipmentEdit", vars.warehouseId, vars.movementId],
+      });
+      invalidateWarehouseQueries(qc);
+      invalidateBranchStockReceipts(qc);
     },
   });
 }

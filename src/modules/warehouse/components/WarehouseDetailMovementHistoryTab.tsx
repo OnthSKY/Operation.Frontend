@@ -44,7 +44,7 @@ import { Tooltip } from "@/shared/ui/Tooltip";
 import { CatalogProductWarehouseStockCombobox } from "@/modules/products/components/CatalogProductWarehouseStockCombobox";
 import type { WarehouseMovementItem, WarehouseMovementsPageParams } from "@/types/warehouse";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
-import { formatLocaleDate } from "@/shared/lib/locale-date";
+import { formatLocaleDate, formatLocaleDateTime } from "@/shared/lib/locale-date";
 import {
   formatWarehouseShipmentDisplay,
   shipmentIdLabelClassName,
@@ -59,28 +59,20 @@ import {
   ArrowRight,
   Calendar,
   ChevronDown,
+  Clock,
   FilePlus2,
+  Hash,
   Info,
   Pencil,
   Search,
   Store,
+  User,
   Warehouse as WarehouseIcon,
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-function shipmentListPreview(movements: WarehouseMovementItem[]): string {
-  if (movements.length === 0) return "";
-  if (movements.length === 1) {
-    const m = movements[0];
-    const u = m.unit?.trim() ? ` ${m.unit}` : "";
-    return `${m.productName} · ${m.quantity}${u}`;
-  }
-  const head = movements.slice(0, 2).map((m) => m.productName);
-  const more = movements.length - head.length;
-  return more > 0 ? `${head.join(", ")} +${more}` : head.join(", ");
-}
 
 function shipmentMainProductTotals(
   movements: WarehouseMovementItem[]
@@ -640,6 +632,7 @@ export function WarehouseDetailMovementHistoryTab({
   );
 
   const fmtDate = (iso: string) => formatLocaleDate(iso, locale);
+  const fmtDateTime = (iso: string) => formatLocaleDateTime(iso, locale);
   const totalInQty = Number(data?.totalInQuantity ?? 0);
   const totalOutQty = Number(data?.totalOutQuantity ?? 0);
   const filterInboundGroups = data?.inboundShipmentGroupCount ?? 0;
@@ -1224,7 +1217,6 @@ export function WarehouseDetailMovementHistoryTab({
                       ? t("warehouse.movementDetailTypeDepotToBranch")
                       : t("products.typeOut")
                     : `${t("products.typeIn")}/${t("products.typeOut")}`;
-              const preview = shipmentListPreview(movements);
               const branchSummary = shipmentBranchSummary(movements);
               const balanceRows = groupBalanceSummaryByKey.get(key) ?? [];
               const mainAuditRows = balanceRows.filter((row) => row.scope === "MAIN");
@@ -1274,15 +1266,58 @@ export function WarehouseDetailMovementHistoryTab({
                         <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1.5">
                           <span
                             className={cn(
-                              "min-w-0 max-w-full basis-full sm:basis-auto sm:max-w-[min(100%,24rem)]",
+                              "inline-flex min-w-0 max-w-full basis-full items-center gap-1 sm:basis-auto sm:max-w-[min(100%,24rem)]",
                               shipmentIdLabelClassName
                             )}
                           >
-                            {batchCell.text}
+                            <Hash className="h-3.5 w-3.5 shrink-0 text-zinc-400" aria-hidden />
+                            <span className="min-w-0 truncate">{batchCell.text}</span>
                           </span>
-                          <span className="shrink-0 whitespace-nowrap text-xs text-zinc-500 sm:text-sm">
+                          <span
+                            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap text-xs font-medium text-zinc-700 sm:text-sm"
+                            title={`${t("warehouse.movementDate")}: ${fmtDate(sample.movementDate)}`}
+                          >
+                            <Calendar className="h-3.5 w-3.5 shrink-0 text-zinc-400" aria-hidden />
                             {fmtDate(sample.movementDate)}
                           </span>
+                          {sample.createdByUserName?.trim() || sample.createdAt ? (
+                            <span
+                              className="inline-flex min-w-0 shrink items-center gap-1.5 rounded-full border border-zinc-200/90 bg-white/90 px-2 py-0.5 text-xs text-zinc-600 shadow-sm"
+                              title={[
+                                sample.createdByUserName?.trim()
+                                  ? `${t("warehouse.movementCreatedBy")}: ${sample.createdByUserName.trim()}`
+                                  : "",
+                                sample.createdAt
+                                  ? `${t("warehouse.movementCreatedAt")}: ${fmtDateTime(sample.createdAt)}`
+                                  : "",
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            >
+                              <span className="hidden shrink-0 text-[0.6rem] font-semibold uppercase tracking-wide text-zinc-400 sm:inline">
+                                {t("warehouse.movementCreatedBy")}
+                              </span>
+                              {sample.createdByUserName?.trim() ? (
+                                <span className="inline-flex min-w-0 items-center gap-1">
+                                  <User className="h-3.5 w-3.5 shrink-0 text-zinc-400 sm:hidden" aria-hidden />
+                                  <span className="truncate font-semibold text-zinc-800">
+                                    {sample.createdByUserName.trim()}
+                                  </span>
+                                </span>
+                              ) : null}
+                              {sample.createdByUserName?.trim() && sample.createdAt ? (
+                                <span className="shrink-0 text-zinc-300" aria-hidden>
+                                  ·
+                                </span>
+                              ) : null}
+                              {sample.createdAt ? (
+                                <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap">
+                                  <Clock className="h-3.5 w-3.5 shrink-0 text-zinc-400" aria-hidden />
+                                  <span className="text-zinc-600">{fmtDateTime(sample.createdAt)}</span>
+                                </span>
+                              ) : null}
+                            </span>
+                          ) : null}
                           <span
                             className={cn(
                               "shrink-0 rounded-full px-2 py-0.5 text-[0.65rem] font-semibold tracking-tight sm:text-xs",
@@ -1314,43 +1349,6 @@ export function WarehouseDetailMovementHistoryTab({
                       </button>
 
                       <div className="flex min-w-0 flex-col gap-2">
-                        <div
-                          className={cn(
-                            "min-w-0 rounded-xl border px-2.5 py-2",
-                            singleType === "IN" && "border-emerald-200/70 bg-emerald-50/40",
-                            singleType === "OUT" && "border-red-200/70 bg-red-50/40",
-                            singleType === null && "border-zinc-200 bg-zinc-50/60"
-                          )}
-                        >
-                          <div className="flex items-center gap-1.5">
-                            <span
-                              className={cn(
-                                "h-2 w-2 shrink-0 rounded-full",
-                                singleType === "IN" && "bg-emerald-500",
-                                singleType === "OUT" && "bg-red-500",
-                                singleType === null && "bg-zinc-400"
-                              )}
-                              aria-hidden
-                            />
-                            <p
-                              className={cn(
-                                "text-[10px] font-semibold uppercase tracking-wide",
-                                singleType === "IN" && "text-emerald-800",
-                                singleType === "OUT" && "text-red-800",
-                                singleType === null && "text-zinc-500"
-                              )}
-                            >
-                              {singleType === "IN"
-                                ? t("warehouse.movementsTypeSegmentInbound")
-                                : singleType === "OUT"
-                                  ? t("warehouse.movementsTypeSegmentOutbound")
-                                  : `${t("warehouse.movementsTypeSegmentInbound")} / ${t("warehouse.movementsTypeSegmentOutbound")}`}
-                            </p>
-                          </div>
-                          <p className="mt-1 min-w-0 break-words text-sm font-medium leading-snug text-zinc-800 [overflow-wrap:anywhere]">
-                            {preview}
-                          </p>
-                        </div>
                         {balanceRowCount > 0 ? (
                           <details className="group rounded-xl border border-zinc-200/80 bg-white">
                             <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-2 px-2.5 py-2 touch-manipulation sm:px-3">
@@ -1761,6 +1759,20 @@ export function WarehouseDetailMovementHistoryTab({
                         {compactPeopleList(selectedDetailGroup.movements.map((m) => m.approvedByPersonnelName))}
                       </p>
                     </div>
+                    <div className="min-w-0 rounded-lg border border-zinc-200 bg-zinc-50/60 px-2.5 py-1.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{t("warehouse.movementCreatedBy")}</p>
+                      <p className="mt-0.5 truncate text-xs font-semibold text-zinc-900">
+                        {compactPeopleList(selectedDetailGroup.movements.map((m) => m.createdByUserName))}
+                      </p>
+                    </div>
+                    <div className="min-w-0 rounded-lg border border-zinc-200 bg-zinc-50/60 px-2.5 py-1.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{t("warehouse.movementCreatedAt")}</p>
+                      <p className="mt-0.5 truncate text-xs font-semibold text-zinc-900">
+                        {selectedDetailGroup.movements[0]?.createdAt
+                          ? fmtDate(selectedDetailGroup.movements[0].createdAt)
+                          : "—"}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1885,6 +1897,7 @@ export function WarehouseDetailMovementHistoryTab({
                           t={t}
                           hideShipmentGroup
                           hideAuditMeta
+                          showRecordMeta
                           hideInvoiceSection
                           hideOutBranch
                           warehouseId={warehouseId}

@@ -9,19 +9,27 @@ import {
   type WarehouseScopeFiltersValue,
 } from "@/modules/warehouse/components/WarehouseProductScopeFilters";
 import { warehouseScopeEffectiveCategoryId } from "@/modules/warehouse/lib/warehouse-scope-filters";
+import {
+  useUploadWarehouseOutboundShipmentMovementInvoicePhoto,
+  useClearWarehouseOutboundShipmentMovementInvoicePhoto,
+} from "@/modules/warehouse/hooks/useWarehouseQueries";
+import { warehouseMovementInvoicePhotoUrl } from "@/modules/warehouse/api/warehouse-movements-api";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { PERM, canSeeUiModule } from "@/lib/auth/permissions";
 import { useI18n } from "@/i18n/context";
 import { useWarehouseDetailOverlayOptional } from "@/shared/warehouse-detail";
 import { cn } from "@/lib/cn";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { notify } from "@/shared/lib/notify";
+import { IMAGE_FILE_INPUT_ACCEPT } from "@/shared/lib/image-upload-limits";
+import { validateImageFileForUpload } from "@/shared/lib/validate-image-upload";
 import {
   formatWarehouseShipmentDisplay,
   shipmentIdLabelClassName,
   warehouseMovementShipmentGroupKey,
 } from "@/shared/lib/in-batch-group-label";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
-import { formatLocaleDate } from "@/shared/lib/locale-date";
+import { formatLocaleDate, formatLocaleDateTime } from "@/shared/lib/locale-date";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { MobileListCard } from "@/shared/components/MobileListCard";
 import { RightDrawer } from "@/shared/components/RightDrawer";
@@ -30,7 +38,7 @@ import { TablePagination } from "@/shared/ui/TablePagination";
 import { DateField } from "@/shared/ui/DateField";
 import { Modal } from "@/shared/ui/Modal";
 import type { BranchStockReceiptRow } from "@/types/branch";
-import { Package, Warehouse } from "lucide-react";
+import { Clock, Package, User, Warehouse } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
 const PAGE_SIZE = 20;
@@ -112,11 +120,15 @@ function BranchReceiptLineCard({
   fmtDate,
   t,
   hideShipmentGroup,
+  showRecordMeta,
+  fmtDateTime,
 }: {
   row: BranchStockReceiptRow;
   fmtDate: (iso: string) => string;
   t: (key: string) => string;
   hideShipmentGroup?: boolean;
+  showRecordMeta?: boolean;
+  fmtDateTime?: (iso: string) => string;
 }) {
   const batchCell = formatWarehouseShipmentDisplay(
     row.inBatchGroupId ?? null,
@@ -164,6 +176,22 @@ function BranchReceiptLineCard({
             "—"
           )
         )}
+        {showRecordMeta
+          ? kv(
+              t("branch.stockColCreatedBy"),
+              <span className="text-sm text-zinc-700">
+                {row.createdByUserName?.trim() || t("branch.stockCreatedByUnknown")}
+              </span>
+            )
+          : null}
+        {showRecordMeta
+          ? kv(
+              t("branch.stockColCreatedAt"),
+              <span className="text-sm text-zinc-700">
+                {row.createdAt && fmtDateTime ? fmtDateTime(row.createdAt) : "—"}
+              </span>
+            )
+          : null}
       </div>
     </MobileListCard>
   );
@@ -207,6 +235,9 @@ export function BranchStockInboundPanel({ branchId }: Props) {
   const [page, setPage] = useState(1);
   const [listViewMode, setListViewMode] = useState<StockListViewMode>("shipment");
   const [expandedGroupKeys, setExpandedGroupKeys] = useState<ReadonlySet<string>>(() => new Set());
+  const [expandedBreakdownParents, setExpandedBreakdownParents] = useState<ReadonlySet<number>>(
+    () => new Set()
+  );
   const [detailModal, setDetailModal] = useState<null | {
     movements: BranchStockReceiptRow[];
     title: string;
@@ -225,6 +256,7 @@ export function BranchStockInboundPanel({ branchId }: Props) {
     setPage(1);
     setListViewMode("shipment");
     setExpandedGroupKeys(new Set());
+    setExpandedBreakdownParents(new Set());
     setDetailModal(null);
     setDetailModalViewMode("lines");
     setStockFiltersDrawerOpen(false);
@@ -367,6 +399,72 @@ export function BranchStockInboundPanel({ branchId }: Props) {
     return null;
   }, [detailModal]);
 
+  const uploadShipmentPhotoMut = useUploadWarehouseOutboundShipmentMovementInvoicePhoto();
+  const clearShipmentPhotoMut = useClearWarehouseOutboundShipmentMovementInvoicePhoto();
+
+  /** Sevkiyat (batch) görseli: depo + bağlayıcı hareket id'si + görsel var mı. Yalnızca sevkiyat gruplaması için. */
+  const detailShipmentPhoto = useMemo(() => {
+    if (!detailModal || detailModal.source !== "shipment") return null;
+    let warehouseId: number | null = null;
+    let anchorMovementId: number | null = null;
+    let hasPhoto = false;
+    for (const m of detailModal.movements) {
+      if (warehouseId == null && m.warehouseId != null && m.warehouseId > 0) warehouseId = m.warehouseId;
+      if (anchorMovementId == null && m.photoMovementId != null && m.photoMovementId > 0)
+        anchorMovementId = m.photoMovementId;
+      if (m.hasInvoicePhoto) hasPhoto = true;
+    }
+    if (anchorMovementId == null) {
+      const fm = detailModal.movements.find((m) => m.warehouseMovementId != null && m.warehouseMovementId > 0);
+      anchorMovementId = fm?.warehouseMovementId ?? null;
+    }
+    if (warehouseId == null || anchorMovementId == null) return null;
+    return { warehouseId, anchorMovementId, hasPhoto };
+  }, [detailModal]);
+
+  const shipmentPhotoBusy = uploadShipmentPhotoMut.isPending || clearShipmentPhotoMut.isPending;
+
+  const onUploadShipmentPhoto = useCallback(
+    async (file: File) => {
+      const info = detailShipmentPhoto;
+      if (!info) return;
+      const v = await validateImageFileForUpload(file);
+      if (!v.ok) {
+        notify.error(
+          v.reason === "size" ? t("common.imageUploadTooLarge") : t("common.imageUploadNotImage")
+        );
+        return;
+      }
+      try {
+        await uploadShipmentPhotoMut.mutateAsync({
+          warehouseId: info.warehouseId,
+          movementId: info.anchorMovementId,
+          file,
+        });
+        notify.success(t("branch.stockShipmentPhotoSaved"));
+        setDetailModal(null);
+      } catch (e) {
+        notify.error(toErrorMessage(e));
+      }
+    },
+    [detailShipmentPhoto, uploadShipmentPhotoMut, t]
+  );
+
+  const onClearShipmentPhoto = useCallback(async () => {
+    const info = detailShipmentPhoto;
+    if (!info) return;
+    try {
+      await clearShipmentPhotoMut.mutateAsync({
+        warehouseId: info.warehouseId,
+        movementId: info.anchorMovementId,
+      });
+      notify.success(t("branch.stockShipmentPhotoRemoved"));
+      setDetailModal(null);
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    }
+  }, [detailShipmentPhoto, clearShipmentPhotoMut, t]);
+
   const openWarehouseDetailFromModal = useCallback(() => {
     const warehouseId = detailModalWarehouseId;
     if (!warehouseId || !warehouseDetailOverlay) return;
@@ -444,6 +542,48 @@ export function BranchStockInboundPanel({ branchId }: Props) {
   }, [listViewMode, shipmentGroups, mainProductGroups]);
 
   const fmtDate = (iso: string) => formatLocaleDate(iso, locale);
+  const fmtDateTime = (iso: string) => formatLocaleDateTime(iso, locale);
+  // "Kim girdi / ne zaman oluşturuldu": bu panel zaten yalnızca merkez/yönetici (staffMode)
+  // görünümünde açıldığından ayrı bir izin gate'i gerekmez.
+  const canSeeRecordMeta = true;
+
+  /** Sevkiyat grubu başlığında giren kullanıcı + oluşturulma zamanı (admin). */
+  const renderGroupRecordMeta = (sample: BranchStockReceiptRow) => {
+    if (!canSeeRecordMeta) return null;
+    const who = sample.createdByUserName?.trim() || t("branch.stockCreatedByUnknown");
+    const when = sample.createdAt ? fmtDateTime(sample.createdAt) : "—";
+    return (
+      <span className="flex basis-full flex-wrap items-center gap-x-3 gap-y-0.5 text-[0.65rem] leading-snug text-zinc-500 sm:text-xs">
+        <span className="inline-flex min-w-0 items-center gap-1" title={`${t("branch.stockColCreatedBy")}: ${who}`}>
+          <User className="h-3.5 w-3.5 shrink-0 text-zinc-400" aria-hidden />
+          <span className="truncate font-medium text-zinc-700">{who}</span>
+        </span>
+        <span className="inline-flex items-center gap-1 whitespace-nowrap" title={`${t("branch.stockColCreatedAt")}: ${when}`}>
+          <Clock className="h-3.5 w-3.5 shrink-0 text-zinc-400" aria-hidden />
+          <span className="font-medium text-zinc-700">{when}</span>
+        </span>
+      </span>
+    );
+  };
+
+  /** Kalem (satır) altında giren kullanıcı + oluşturulma zamanı (admin). */
+  const renderLineRecordMeta = (row: BranchStockReceiptRow) => {
+    if (!canSeeRecordMeta) return null;
+    const who = row.createdByUserName?.trim() || t("branch.stockCreatedByUnknown");
+    const when = row.createdAt ? fmtDateTime(row.createdAt) : "—";
+    return (
+      <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[0.65rem] font-normal leading-snug text-zinc-400">
+        <span className="inline-flex min-w-0 items-center gap-1">
+          <User className="h-3 w-3 shrink-0" aria-hidden />
+          <span className="truncate">{who}</span>
+        </span>
+        <span className="inline-flex items-center gap-1 whitespace-nowrap">
+          <Clock className="h-3 w-3 shrink-0" aria-hidden />
+          {when}
+        </span>
+      </span>
+    );
+  };
 
   const today = localIsoDate();
   const filtersActive = useMemo(() => {
@@ -501,6 +641,8 @@ export function BranchStockInboundPanel({ branchId }: Props) {
           fmtDate={fmtDate}
           t={t}
           hideShipmentGroup={block.mode === "shipment"}
+          showRecordMeta={canSeeRecordMeta}
+          fmtDateTime={fmtDateTime}
         />
       ))}
     </div>
@@ -558,6 +700,7 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                                 )}
                               </span>
                             )}
+                            {onlyChild ? renderLineRecordMeta(group.movements[0]) : null}
                           </td>
                           <td className="px-3 py-2 text-right text-sm font-bold tabular-nums text-emerald-700">
                             {formatLocaleAmount(group.totalQty, locale)}
@@ -584,6 +727,7 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                                     </span>
                                     {renderOpenWarehouseDetailButton(row)}
                                   </div>
+                                  {renderLineRecordMeta(row)}
                                 </td>
                                 <td className="px-3 py-1.5 text-right tabular-nums text-zinc-700">
                                   {formatLocaleAmount(row.quantity, locale)}
@@ -618,6 +762,7 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                         {row.unit ? (
                           <span className="font-normal text-zinc-500"> ({row.unit})</span>
                         ) : null}
+                        {renderLineRecordMeta(row)}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums">{row.quantity}</td>
                       <td className="hidden px-3 py-2 text-zinc-600 md:table-cell">
@@ -662,6 +807,15 @@ export function BranchStockInboundPanel({ branchId }: Props) {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
+      return next;
+    });
+  };
+
+  const toggleBreakdownParent = (productId: number) => {
+    setExpandedBreakdownParents((prev) => {
+      const next = new Set(prev);
+      if (next.has(productId)) next.delete(productId);
+      else next.add(productId);
       return next;
     });
   };
@@ -875,14 +1029,72 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                     {t("branch.stockReceiptsParentBreakdownTitle")}
                   </p>
                   <ul className="mt-1.5 space-y-1.5 text-xs sm:text-sm">
-                    {mainProductBreakdown.map((g) => (
-                      <li key={`parent-${g.productId}`} className="flex items-baseline justify-between gap-3">
-                        <span className="min-w-0 truncate text-zinc-800">{g.productName}</span>
-                        <span className="shrink-0 font-semibold tabular-nums text-violet-950">
-                          {formatLocaleAmount(g.quantity, locale)}
-                        </span>
-                      </li>
-                    ))}
+                    {mainProductBreakdown.map((g) => {
+                      const hasChildren = g.children.length > 0;
+                      const open = expandedBreakdownParents.has(g.productId);
+                      return (
+                        <li key={`parent-${g.productId}`}>
+                          {hasChildren ? (
+                            <button
+                              type="button"
+                              className="flex w-full items-baseline justify-between gap-3 rounded-md py-0.5 text-left transition-colors hover:bg-violet-100/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/60"
+                              aria-expanded={open}
+                              aria-label={t(
+                                "branch.stockReceiptsParentBreakdownChildrenToggle"
+                              ).replace("{{name}}", g.productName)}
+                              onClick={() => toggleBreakdownParent(g.productId)}
+                            >
+                              <span className="flex min-w-0 items-baseline gap-1.5">
+                                <span
+                                  className={cn(
+                                    "shrink-0 self-center text-violet-400 transition-transform duration-200",
+                                    open && "rotate-180"
+                                  )}
+                                  aria-hidden
+                                >
+                                  <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                </span>
+                                <span className="min-w-0 truncate text-zinc-800">{g.productName}</span>
+                              </span>
+                              <span className="shrink-0 font-semibold tabular-nums text-violet-950">
+                                {formatLocaleAmount(g.quantity, locale)}
+                              </span>
+                            </button>
+                          ) : (
+                            <div className="flex items-baseline justify-between gap-3 py-0.5 pl-[1.25rem]">
+                              <span className="min-w-0 truncate text-zinc-800">{g.productName}</span>
+                              <span className="shrink-0 font-semibold tabular-nums text-violet-950">
+                                {formatLocaleAmount(g.quantity, locale)}
+                              </span>
+                            </div>
+                          )}
+                          {hasChildren && open ? (
+                            <ul className="mb-1 ml-[0.4rem] mt-1 space-y-1 border-l border-violet-200 pl-3">
+                              {g.children.map((c) => (
+                                <li
+                                  key={`child-${g.productId}-${c.productId}`}
+                                  className="flex items-baseline justify-between gap-3"
+                                >
+                                  <span className="min-w-0 truncate text-zinc-600">
+                                    {c.productName}
+                                    {c.unit ? <span className="text-zinc-400"> ({c.unit})</span> : null}
+                                  </span>
+                                  <span className="shrink-0 tabular-nums text-violet-900/80">
+                                    {formatLocaleAmount(c.quantity, locale)}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
+                        </li>
+                      );
+                    })}
                   </ul>
                   <p className="mt-2 text-[0.65rem] leading-snug text-violet-900/80 sm:text-xs">
                     {t("branch.stockReceiptsParentBreakdownHint").replace(
@@ -1000,6 +1212,7 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                           <span className="min-w-0 flex-1 basis-[min(100%,12rem)] truncate text-xs text-zinc-600 sm:text-sm">
                             {block.preview}
                           </span>
+                          {block.mode === "shipment" ? renderGroupRecordMeta(block.sample) : null}
                         </button>
                         <Button
                           type="button"
@@ -1078,6 +1291,7 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                           <span className="min-w-0 flex-1 basis-[min(100%,12rem)] truncate text-xs text-zinc-600 sm:text-sm">
                             {block.preview}
                           </span>
+                          {block.mode === "shipment" ? renderGroupRecordMeta(block.sample) : null}
                         </button>
                         <Button
                           type="button"
@@ -1137,6 +1351,72 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                       <Warehouse className="h-4 w-4 shrink-0" aria-hidden />
                       {t("branch.stockShipmentModalOpenWarehouse")}
                     </Button>
+                  </div>
+                ) : null}
+                {canOpenWarehouseDetail && detailShipmentPhoto ? (
+                  <div className="mb-3 rounded-lg border border-violet-200/80 bg-violet-50/50 p-3">
+                    <p className="text-xs font-semibold text-violet-900">
+                      {t("branch.stockShipmentPhotoHeading")}
+                    </p>
+                    {detailShipmentPhoto.hasPhoto && detailShipmentPhoto.anchorMovementId > 0 ? (
+                      <div className="mt-2 flex flex-col gap-2">
+                        <a
+                          href={warehouseMovementInvoicePhotoUrl(detailShipmentPhoto.anchorMovementId)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="block w-full overflow-hidden rounded-lg border border-zinc-200 bg-white sm:w-48"
+                        >
+                          <img
+                            src={warehouseMovementInvoicePhotoUrl(detailShipmentPhoto.anchorMovementId)}
+                            alt=""
+                            className="aspect-[3/4] w-full object-contain"
+                            loading="lazy"
+                          />
+                        </a>
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                          <a
+                            href={warehouseMovementInvoicePhotoUrl(detailShipmentPhoto.anchorMovementId)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-violet-900 underline decoration-violet-300 underline-offset-2 hover:decoration-violet-600"
+                          >
+                            {t("warehouse.openInvoicePhoto")}
+                          </a>
+                          <button
+                            type="button"
+                            className="font-medium text-red-700 underline decoration-red-300 underline-offset-2 hover:decoration-red-600 disabled:opacity-50"
+                            disabled={shipmentPhotoBusy}
+                            onClick={() => void onClearShipmentPhoto()}
+                          >
+                            {t("branch.stockShipmentPhotoRemove")}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-xs text-zinc-600">{t("branch.stockShipmentPhotoNone")}</p>
+                    )}
+                    <label
+                      htmlFor="branch-shipment-photo"
+                      className="mt-2 block text-[0.65rem] font-medium text-zinc-600"
+                    >
+                      {detailShipmentPhoto.hasPhoto
+                        ? t("branch.stockShipmentPhotoReplaceHint")
+                        : t("branch.stockShipmentPhotoAddHint")}
+                    </label>
+                    <input
+                      id="branch-shipment-photo"
+                      name="branch-shipment-photo"
+                      type="file"
+                      accept={IMAGE_FILE_INPUT_ACCEPT}
+                      className="mt-1 block w-full max-w-full min-w-0 text-sm text-zinc-600 file:mr-3 file:max-w-full file:rounded-lg file:border-0 file:bg-zinc-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-zinc-800 hover:file:bg-zinc-200 disabled:opacity-50"
+                      disabled={shipmentPhotoBusy}
+                      onChange={(e) => {
+                        const input = e.target;
+                        const f = input.files?.[0] ?? null;
+                        input.value = "";
+                        if (f) void onUploadShipmentPhoto(f);
+                      }}
+                    />
                   </div>
                 ) : null}
                 {detailModal.source === "shipment" ? (
@@ -1229,6 +1509,7 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                                   {row.unit ? (
                                     <span className="font-normal text-zinc-500"> ({row.unit})</span>
                                   ) : null}
+                                  {renderLineRecordMeta(row)}
                                 </td>
                                 <td className="px-3 py-1.5 text-right tabular-nums text-zinc-700">
                                   {row.quantity}
@@ -1266,6 +1547,7 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                                 {row.unit ? (
                                   <span className="font-normal text-zinc-500"> ({row.unit})</span>
                                 ) : null}
+                                {renderLineRecordMeta(row)}
                               </td>
                               <td className="px-3 py-2 text-right tabular-nums">{row.quantity}</td>
                               <td className="hidden px-3 py-2 text-zinc-600 md:table-cell">
