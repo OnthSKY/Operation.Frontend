@@ -2,8 +2,10 @@
 
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
-import { Button } from "@/shared/ui/Button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+
+const pagerIconButtonClass =
+  "inline-flex h-11 w-11 min-h-11 min-w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-300 bg-white text-zinc-700 shadow-sm transition hover:bg-zinc-50 hover:text-zinc-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-zinc-50 disabled:text-zinc-300 disabled:shadow-none";
 
 export type TablePaginationProps = {
   /** 1-tabanlı geçerli sayfa. */
@@ -63,32 +65,30 @@ export function TablePagination({
       <p className="text-sm text-zinc-600">{recordSummary}</p>
       {/* Tek sayfada ileri/geri ve "Sayfa 1/1" göstergesi gereksiz; gizle. */}
       {multiPage ? (
-        <div className="flex items-center justify-end gap-2">
-          <Button
+        <div className="flex w-full items-center justify-between gap-2 sm:w-auto sm:justify-end">
+          <button
             type="button"
-            variant="secondary"
-            className="h-11 w-11 min-h-11 min-w-11 shrink-0 px-0"
+            className={pagerIconButtonClass}
             aria-label={t("products.pagingPrev")}
             title={t("products.pagingPrev")}
             disabled={disabled || current <= 1}
             onClick={() => onPageChange(Math.max(1, current - 1))}
           >
             <ChevronLeft className="h-5 w-5" aria-hidden />
-          </Button>
+          </button>
           <span className="min-w-[6rem] text-center text-sm tabular-nums text-zinc-700">
             {pageLabel}
           </span>
-          <Button
+          <button
             type="button"
-            variant="secondary"
-            className="h-11 w-11 min-h-11 min-w-11 shrink-0 px-0"
+            className={pagerIconButtonClass}
             aria-label={t("products.pagingNext")}
             title={t("products.pagingNext")}
             disabled={disabled || current >= pageTotal}
             onClick={() => onPageChange(Math.min(pageTotal, current + 1))}
           >
             <ChevronRight className="h-5 w-5" aria-hidden />
-          </Button>
+          </button>
         </div>
       ) : null}
     </div>

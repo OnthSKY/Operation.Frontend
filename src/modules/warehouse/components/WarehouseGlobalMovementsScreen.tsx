@@ -16,7 +16,7 @@ import {
 } from "@/modules/warehouse/components/WarehouseProductScopeFilters";
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
-import { ArrowRight, ChevronDown, Clock, Hash, Store, User, Warehouse as WarehouseIcon } from "lucide-react";
+import { ArrowRight, ChevronDown, Clock, Hash, Search, Store, User, Warehouse as WarehouseIcon } from "lucide-react";
 import { FilterFunnelIcon } from "@/shared/components/FilterFunnelIcon";
 import { RightDrawer } from "@/shared/components/RightDrawer";
 import { toErrorMessage } from "@/shared/lib/error-message";
@@ -609,6 +609,28 @@ export function WarehouseGlobalMovementsScreen() {
         a.name.localeCompare(b.name, locale, { sensitivity: "base" })
     );
   }, [data, locale]);
+
+  const [mainProductQuery, setMainProductQuery] = useState("");
+  const normalizedMainQuery = mainProductQuery.trim().toLocaleLowerCase("tr-TR");
+  const mainProductView = useMemo(() => {
+    const list = inOutTotalsByMainProduct.map((row) => ({
+      ...row,
+      isMatch:
+        normalizedMainQuery.length > 0 &&
+        row.name.toLocaleLowerCase("tr-TR").includes(normalizedMainQuery),
+    }));
+    if (!normalizedMainQuery) return list;
+    // Eşleşenleri öne al; geri kalanın göreli sırası korunur (stable).
+    return list
+      .map((row, i) => ({ row, i }))
+      .sort((a, b) =>
+        a.row.isMatch === b.row.isMatch ? a.i - b.i : a.row.isMatch ? -1 : 1
+      )
+      .map((x) => x.row);
+  }, [inOutTotalsByMainProduct, normalizedMainQuery]);
+  const mainProductMatchCount = normalizedMainQuery
+    ? mainProductView.filter((r) => r.isMatch).length
+    : 0;
   const movementFiltersActive = useMemo(() => {
     if (scope.mainCategoryId != null || scope.subCategoryId != null || scope.parentProductId != null || scope.productId != null) return true;
     if (warehouseId !== "" && Number(warehouseId) > 0) return true;
@@ -1075,17 +1097,55 @@ export function WarehouseGlobalMovementsScreen() {
 
       {inOutTotalsByMainProduct.length > 0 ? (
         <div className="rounded-lg border border-zinc-200 bg-gradient-to-br from-zinc-50/80 to-white px-3 py-3 shadow-sm ring-1 ring-zinc-950/[0.03] sm:px-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-700">
-            {t("warehouse.globalInOutByMainProductTitle")}
-          </p>
-          <p className="mt-1 text-xs leading-relaxed text-zinc-500">
-            {t("warehouse.globalInOutByMainProductHint")}
-          </p>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-700">
+                {t("warehouse.globalInOutByMainProductTitle")}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+                {t("warehouse.globalInOutByMainProductHint")}
+              </p>
+            </div>
+            <div className="relative w-full shrink-0 sm:w-64">
+              <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" aria-hidden />
+              <input
+                type="text"
+                inputMode="search"
+                value={mainProductQuery}
+                onChange={(e) => setMainProductQuery(e.target.value)}
+                placeholder={t("warehouse.globalInOutSearchPlaceholder")}
+                aria-label={t("warehouse.globalInOutSearchPlaceholder")}
+                className="h-10 w-full rounded-xl border border-zinc-200 bg-white pl-8 pr-8 text-sm text-zinc-900 shadow-sm transition placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400/40"
+              />
+              {mainProductQuery ? (
+                <button
+                  type="button"
+                  aria-label={t("warehouse.globalInOutSearchClear")}
+                  title={t("warehouse.globalInOutSearchClear")}
+                  className="absolute right-1.5 top-1/2 inline-flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700"
+                  onClick={() => setMainProductQuery("")}
+                >
+                  ×
+                </button>
+              ) : null}
+            </div>
+          </div>
+          {normalizedMainQuery ? (
+            <p className="mt-2 text-[11px] font-medium text-zinc-500">
+              {t("warehouse.globalInOutSearchMatchCount").replace("{count}", String(mainProductMatchCount))}
+            </p>
+          ) : null}
           <div className="mt-3 grid max-h-[60vh] grid-cols-1 gap-1.5 overflow-auto sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {inOutTotalsByMainProduct.map((row) => (
+            {mainProductView.map((row) => (
               <div
                 key={row.key}
-                className="rounded-lg border border-zinc-200 bg-white px-2.5 py-2 shadow-sm"
+                className={cn(
+                  "rounded-lg border bg-white px-2.5 py-2 shadow-sm transition",
+                  normalizedMainQuery && row.isMatch
+                    ? "border-violet-300 ring-2 ring-violet-200/70"
+                    : "border-zinc-200",
+                  normalizedMainQuery && !row.isMatch ? "opacity-45" : "opacity-100"
+                )}
               >
                 <p className="truncate text-xs font-semibold text-zinc-900" title={row.name}>
                   {row.name}

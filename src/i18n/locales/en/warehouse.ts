@@ -25,6 +25,9 @@ export const warehouse = {
   globalInOutByMainProductTitle: "Total inbound / outbound by main product",
   globalInOutByMainProductHint:
     "Aggregated inbound and outbound quantities per main product across movements that match the active filters.",
+  globalInOutSearchPlaceholder: "Search main product…",
+  globalInOutSearchMatchCount: "{count} match(es) brought to front",
+  globalInOutSearchClear: "Clear search",
   globalViewMovements: "Movements",
   globalViewShipments: "Shipment groups",
   globalShipmentGroupsEmpty: "No shipment groups match these filters.",

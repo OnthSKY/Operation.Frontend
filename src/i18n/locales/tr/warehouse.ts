@@ -25,6 +25,9 @@ export const warehouse = {
   globalInOutByMainProductTitle: "Ana ürün bazlı toplam giriş / çıkış",
   globalInOutByMainProductHint:
     "Seçili filtrelerle gelen hareketlerin ana ürün bazında toplam giriş ve çıkış miktarları.",
+  globalInOutSearchPlaceholder: "Ana üründe ara…",
+  globalInOutSearchMatchCount: "{count} eşleşme öne çıkarıldı",
+  globalInOutSearchClear: "Aramayı temizle",
   globalViewMovements: "Hareketler",
   globalViewShipments: "Sevkiyat grupları",
   globalShipmentGroupsEmpty: "Bu filtrelerle eşleşen sevkiyat grubu yok.",
