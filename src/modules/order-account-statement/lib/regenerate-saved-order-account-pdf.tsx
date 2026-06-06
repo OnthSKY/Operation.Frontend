@@ -46,6 +46,14 @@ export async function regenerateSavedOrderAccountPdfBlob(input: {
   systemDocumentId?: number | null;
   invoice: OutboundInvoiceResponse;
   priorOpenBalance: number;
+  /** false ise «önceki cari» bakiyesi belgeye eklenmez (yalnızca bu sevkiyat). Varsayılan: true. */
+  includePriorBalance?: boolean;
+  /** true ise belgenin en altına tahsilat listesi + kalan satırı eklenir. */
+  showReceipts?: boolean;
+  /** Tahsilat kalemleri (showReceipts true iken kullanılır). */
+  receipts?: { id: string; description: string; amount: number }[];
+  receiptsLabel?: string;
+  remainingLabel?: string;
   labels: RegenerateOrderAccountPdfLabels;
 }): Promise<Blob | null> {
   const lines = input.invoice.lines ?? [];
@@ -61,7 +69,8 @@ export async function regenerateSavedOrderAccountPdfBlob(input: {
     giftLineLabel: input.labels.giftTotal,
   });
 
-  const previousBalance = Math.max(0, input.priorOpenBalance);
+  const includePrior = input.includePriorBalance !== false;
+  const previousBalance = includePrior ? Math.max(0, input.priorOpenBalance) : 0;
   const totals = computeOrderAccountTotals(
     mapped.productLines,
     mapped.promoLines,
@@ -70,6 +79,15 @@ export async function regenerateSavedOrderAccountPdfBlob(input: {
     previousBalance
   );
 
+  const showReceipts = input.showReceipts === true;
+  const receipts = showReceipts ? input.receipts ?? [] : [];
+  // Kalan = (önceki cari, dahilse) + bu faturanın açık tutarı. Faturanın openAmount değeri
+  // nakit/promosyon/avans tüm ödemeleri zaten netleştirdiği için «net − tahsilatlar» ile
+  // hesaplamak promosyon/avansı çift sayardı (bunlar gövdede indirim olarak da düşülüyor).
+  const remaining = showReceipts
+    ? Math.max(0, previousBalance + (Number(input.invoice.openAmount) || 0))
+    : undefined;
+
   const payment = input.invoice.paymentInfo;
   const host = document.createElement("div");
   host.style.position = "fixed";
@@ -77,7 +95,10 @@ export async function regenerateSavedOrderAccountPdfBlob(input: {
   host.style.top = "0";
   host.style.width = "794px";
   host.style.pointerEvents = "none";
-  host.style.visibility = "hidden";
+  // NOT: «visibility: hidden» verilmemeli — html-to-image düğümü gizli computed
+  // stille klonlayıp metin/kutuları çizmiyor (yalnız logo elle kompozit ediliyordu,
+  // «logolu boş ekran» bundandı). Ekran dışı konum + z-index yeterli.
+  host.style.zIndex = "-1";
   document.body.appendChild(host);
 
   const root = createRoot(host);
@@ -99,6 +120,10 @@ export async function regenerateSavedOrderAccountPdfBlob(input: {
         advanceDeduction={mapped.advanceDeduction}
         previousBalance={previousBalance}
         paidOnBehalf={mapped.paidOnBehalf}
+        receipts={showReceipts ? receipts : undefined}
+        receiptsLabel={input.receiptsLabel}
+        remaining={remaining}
+        remainingLabel={input.remainingLabel}
         labels={input.labels}
         paymentInfo={
           payment

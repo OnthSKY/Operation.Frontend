@@ -350,6 +350,33 @@ export const branch = {
   currentAccountReceiptOverpay:
     "Tahsilat tutarı açık bakiyeyi aşamaz. İzin verilen en yüksek tutar: {amount}.",
   currentAccountReceiptDateInvalid: "Geçerli bir tarih girin.",
+  currentAccountPdfReceiptsSection: "Tahsilatlar",
+  currentAccountPdfRemaining: "Kalan",
+  currentAccountPdfFileShipmentLabel: "Sevkiyat",
+  currentAccountPdfFileAccountLabel: "Cari Hesap",
+  currentAccountPdfChoiceTitle: "PDF içeriğini seçin",
+  currentAccountPdfChoiceHint: "Bu belgeyi nasıl oluşturalım?",
+  currentAccountPdfChoiceContentLabel: "İçerik",
+  currentAccountPdfChoiceV1: "Faturalandırma PDF'i (orijinal)",
+  currentAccountPdfChoiceV1Hint:
+    "Faturalandırma sırasında kaydedilen orijinal sevkiyat PDF'i indirilir; değiştirilmez.",
+  currentAccountPdfChoiceV2: "Tahsilatlı sürüm (v2)",
+  currentAccountPdfChoiceV2Hint:
+    "Yapılan tahsilatlar PDF'e eklenir ve indirilirken v2 olarak ayrıca kaydedilir. Sonraki indirmelerde kayıtlı v2 kullanılır.",
+  currentAccountPdfV2Saved: "Tahsilatlı sürüm (v2) kaydedildi.",
+  currentAccountPdfChoiceOriginal: "İlk hali (sade)",
+  currentAccountPdfChoiceOriginalHint:
+    "Sevkiyat PDF'inin orijinal hali; tahsilat ve kalan eklenmez.",
+  currentAccountPdfChoiceWithReceipts: "Tahsilatlar ve kalan",
+  currentAccountPdfChoiceWithReceiptsHint:
+    "Yapılan tüm tahsilatlar en alta eklenir ve kalan gösterilir; toplam tutarlar korunur.",
+  currentAccountPdfChoicePriorLabel: "Önceki cari bakiyesi",
+  currentAccountPdfChoicePriorInclude: "Dahil et (genel cari)",
+  currentAccountPdfChoicePriorIncludeHint:
+    "Önceki faturalardan kalan borç net tutara eklenir.",
+  currentAccountPdfChoicePriorExclude: "Dahil etme (sadece sevkiyat)",
+  currentAccountPdfChoicePriorExcludeHint:
+    "Yalnızca bu sevkiyatın tutarları gösterilir.",
   tourismSeasonClosedOpenTab: "Turizm sezonu sekmesine git",
   expensesSeasonMissingForToday:
     "Bugün için bu şubede açık turizm sezonu tanımlı değil. Şube fiilen sezonda değilken şube kasasından gider yazmak tutarlı değildir; önce turizm sezonu kaydı ekleyin veya işlem tarihini sezon içine alın. Gider ve gelir dışı akışlar bu durumda sunucu tarafından engellenir; yalnızca gelir satırları merkez «Sezon kapalıyken izinler» politikasının açık olması halinde mümkün olabilir.",
@@ -372,7 +399,11 @@ export const branch = {
   docKindTaxBase: "Vergi matrahı / matrah belgesi",
   docKindWorkPermit: "Çalışma / işyeri açma ve faaliyet belgesi",
   docKindAgricultureCert: "Tarım / ilgili belge",
+  docKindShipmentDeliverySlip: "Sevkiyat irsaliyesi",
   docKindOther: "Diğer",
+  documentsGroupShipmentStatement: "Sevkiyat / cari PDF'leri",
+  documentsBadgeOriginal: "Orijinal (v1)",
+  documentsBadgeWithReceipts: "Tahsilatlı (v2)",
   documentsIntro:
     "Vergi matrahı, çalışma belgesi, tarım belgesi vb. PDF veya görsel yükleyebilirsiniz. Yükleme ve silme yetkili kullanıcılara açıktır; şubeyi görebilen herkes indirebilir.",
   documentsAdd: "Belge yükle",

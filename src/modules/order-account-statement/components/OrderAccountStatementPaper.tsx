@@ -37,6 +37,12 @@ type StatementPaperProps = {
   advanceDeduction: number;
   previousBalance: number;
   paidOnBehalf: PaidOnBehalfLine[];
+  /** İsteğe bağlı: belgenin en altına eklenen tahsilat kalemleri (tutarlar net borçtan düşülür). */
+  receipts?: { id: string; description: string; amount: number }[];
+  receiptsLabel?: string;
+  /** İsteğe bağlı: tahsilatlar düşüldükten sonra gösterilecek kalan tutar. */
+  remaining?: number;
+  remainingLabel?: string;
   labels: {
     headerCompany: string;
     headerBranch: string;
@@ -98,6 +104,10 @@ export const OrderAccountStatementPaper = forwardRef<HTMLDivElement, StatementPa
     advanceDeduction,
     previousBalance,
     paidOnBehalf,
+    receipts,
+    receiptsLabel,
+    remaining,
+    remainingLabel,
     labels,
     paymentInfo,
     paymentLabels,
@@ -510,6 +520,35 @@ export const OrderAccountStatementPaper = forwardRef<HTMLDivElement, StatementPa
           <span>{labels.net}</span>
           <span className="shrink-0 tabular-nums">{fmt(totals.netDue)}</span>
         </div>
+        {receipts && receipts.length > 0 ? (
+          <div className="mt-2 border-t border-dashed border-zinc-300 pt-2">
+            <p
+              className={cn(
+                "mb-2 inline-block rounded-md bg-emerald-100 px-2 py-1 font-black uppercase tracking-wide text-emerald-900",
+                dense ? "text-[8px]" : "text-[9px] sm:text-[10px]"
+              )}
+            >
+              {receiptsLabel ?? "—"}
+            </p>
+            {receipts.map((rcp) => (
+              <div key={rcp.id} className="flex justify-between gap-3 py-0.5 text-zinc-800">
+                <span className="min-w-0 break-words">{rcp.description.trim() || "—"}</span>
+                <span className="shrink-0 tabular-nums font-semibold text-emerald-700">−{fmt(rcp.amount)}</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        {remaining != null ? (
+          <div
+            className={cn(
+              "mt-2 flex justify-between gap-3 rounded-lg border-2 border-amber-400 bg-amber-50 px-3 py-2.5 font-black uppercase tracking-wide text-amber-950 shadow-sm sm:px-4 sm:py-3",
+              dense ? "text-[9px]" : "text-[10px] sm:text-xs"
+            )}
+          >
+            <span>{remainingLabel ?? "—"}</span>
+            <span className="shrink-0 tabular-nums">{fmt(remaining)}</span>
+          </div>
+        ) : null}
       </div>
     </div>
   );

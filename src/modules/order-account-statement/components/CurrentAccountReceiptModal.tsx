@@ -2,6 +2,7 @@
 
 import { LocalImageFileThumb } from "@/shared/components/LocalImageFileThumb";
 import { Button } from "@/shared/ui/Button";
+import { DateField } from "@/shared/ui/DateField";
 import { Modal } from "@/shared/ui/Modal";
 
 type Props = {
@@ -65,6 +66,10 @@ export function CurrentAccountReceiptModal(props: Props) {
     onSubmit,
   } = props;
 
+  const fieldClass =
+    "w-full rounded-xl border border-zinc-300 bg-white px-3.5 text-sm text-zinc-900 outline-none transition-[box-shadow,border-color] placeholder:text-zinc-400 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/80 disabled:bg-zinc-50 disabled:text-zinc-400 sm:text-base";
+  const inputHeightClass = "h-11 min-h-[44px] sm:h-12";
+
   return (
     <Modal
       open={open}
@@ -74,68 +79,92 @@ export function CurrentAccountReceiptModal(props: Props) {
       closeButtonLabel={closeButtonLabel}
       className="max-w-md"
     >
-      <div className="space-y-3">
-        <p className="text-sm text-zinc-600">{summaryText}</p>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-700">{receiptDateLabel}</label>
-          <input
-            type="date"
-            className="h-10 w-full rounded-lg border border-zinc-300 px-3 text-sm"
-            value={receiptDate}
-            onChange={(e) => onReceiptDateChange(e.target.value)}
-          />
-        </div>
-        <div>
-          <div className="mb-1 flex items-center justify-between gap-2">
-            <label className="block text-sm font-medium text-zinc-700">{receiptAmountLabel}</label>
+      <div className="space-y-4">
+        <p className="rounded-xl bg-zinc-50 px-3.5 py-2.5 text-sm font-medium text-zinc-600 ring-1 ring-inset ring-zinc-100">
+          {summaryText}
+        </p>
+
+        <DateField
+          mode="date"
+          label={receiptDateLabel}
+          value={receiptDate}
+          onChange={(e) => onReceiptDateChange(e.target.value)}
+        />
+
+        <div className="space-y-1.5">
+          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+            <label htmlFor={`${titleId}-amount`} className="text-sm font-medium text-zinc-700">
+              {receiptAmountLabel}
+            </label>
             {onFillOpenAmount ? (
-              <Button
+              <button
                 type="button"
-                variant="secondary"
-                className="min-h-[44px] min-w-[44px] px-2 py-1 text-xs"
+                className="inline-flex min-h-[32px] items-center rounded-lg px-2.5 py-1 text-xs font-semibold text-violet-700 transition hover:bg-violet-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-violet-500"
                 onClick={onFillOpenAmount}
               >
                 {fillOpenAmountLabel}
-              </Button>
+              </button>
             ) : null}
           </div>
           <input
-            className="h-10 w-full rounded-lg border border-zinc-300 px-3 text-sm"
+            id={`${titleId}-amount`}
+            className={`${fieldClass} ${inputHeightClass} text-right font-semibold tabular-nums`}
             inputMode="decimal"
             value={receiptAmount}
             onChange={(e) => onReceiptAmountChange(e.target.value)}
             onBlur={onReceiptAmountBlur}
           />
         </div>
-        <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-700">{receiptNoteLabel}</label>
+
+        <div className="space-y-1.5">
+          <label htmlFor={`${titleId}-note`} className="block text-sm font-medium text-zinc-700">
+            {receiptNoteLabel}
+          </label>
           <textarea
-            className="min-h-20 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm"
+            id={`${titleId}-note`}
+            rows={3}
+            className={`${fieldClass} min-h-[5rem] resize-y py-2.5`}
             value={receiptNote}
             onChange={(e) => onReceiptNoteChange(e.target.value)}
           />
         </div>
+
         {showImageUpload ? (
-          <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-700">{receiptImageLabel}</label>
+          <div className="space-y-1.5">
+            <label className="block text-sm font-medium text-zinc-700">{receiptImageLabel}</label>
             <input
               type="file"
               accept="image/jpeg,image/png,image/webp,image/heic,image/heif,image/avif,.jpg,.jpeg,.png,.webp,.heic,.heif,.avif"
-              className="block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
+              className="block w-full cursor-pointer rounded-xl border border-zinc-300 bg-white text-sm text-zinc-500 outline-none transition file:mr-3 file:cursor-pointer file:border-0 file:bg-zinc-900 file:px-4 file:py-2.5 file:text-sm file:font-medium file:text-white hover:file:bg-zinc-800 focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/80"
               onChange={(e) => onReceiptImageChange(e.target.files?.[0] ?? null)}
             />
             <LocalImageFileThumb
               file={receiptImageFile}
               className="h-20 max-h-20 max-w-[8rem] sm:h-24 sm:max-h-24 sm:max-w-[10rem]"
             />
-            {receiptImageFile ? <p className="mt-1 text-xs text-zinc-500">{receiptImageFile.name}</p> : null}
+            {receiptImageFile ? (
+              <p className="mt-1 truncate text-xs text-zinc-500">{receiptImageFile.name}</p>
+            ) : null}
           </div>
         ) : null}
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={onClose} disabled={saving}>
+
+        <div className="flex flex-col-reverse gap-2 pt-1 sm:flex-row sm:justify-end">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onClose}
+            disabled={saving}
+            className="w-full sm:w-auto"
+          >
             {cancelLabel}
           </Button>
-          <Button type="button" variant="primary" disabled={saving} onClick={onSubmit}>
+          <Button
+            type="button"
+            variant="primary"
+            disabled={saving}
+            onClick={onSubmit}
+            className="w-full sm:w-auto"
+          >
             {saving ? loadingLabel : saveLabel}
           </Button>
         </div>

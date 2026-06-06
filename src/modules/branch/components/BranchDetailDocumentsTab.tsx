@@ -7,7 +7,8 @@ import {
 } from "@/modules/branch/hooks/useBranchQueries";
 import { fetchBranchDocumentBlob } from "@/modules/branch/api/branch-documents-api";
 import { useI18n } from "@/i18n/context";
-import type { BranchDocumentKind } from "@/types/branch-document";
+import { isOrderAccountStatementPdfNote } from "@/modules/order-account-statement/lib/parse-order-account-document-metadata";
+import type { BranchDocument, BranchDocumentKind } from "@/types/branch-document";
 import { formatLocaleDateTime } from "@/shared/lib/locale-date";
 import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
 import { Tooltip } from "@/shared/ui/Tooltip";
@@ -32,6 +33,21 @@ const KIND_OPTIONS: { value: BranchDocumentKind; labelKey: string }[] = [
 ];
 
 const NOOP_BLUR: FocusEventHandler<HTMLInputElement> = () => {};
+
+/** Türetilmiş cari/sevkiyat PDF'leri kendi grubunda toplanır; gerisi belge türüne göre. */
+const SHIPMENT_STATEMENT_GROUP = "SHIPMENT_STATEMENT";
+const GROUP_ORDER: string[] = [
+  SHIPMENT_STATEMENT_GROUP,
+  "SHIPMENT_DELIVERY_SLIP",
+  "TAX_BASE",
+  "WORK_PERMIT",
+  "AGRICULTURE_CERT",
+  "OTHER",
+];
+
+function isPdfV2Note(note: string | null | undefined): boolean {
+  return /(?:^|[;,\s·])version=v2(?:$|[;,\s·])/i.test(String(note ?? ""));
+}
 
 type Props = { branchId: number; active: boolean; readOnly?: boolean };
 
@@ -188,6 +204,31 @@ export function BranchDetailDocumentsTab({ branchId, active, readOnly = false }:
     onClose: closeForm,
   });
 
+  const groupLabel = (key: string) => {
+    if (key === SHIPMENT_STATEMENT_GROUP) return t("branch.documentsGroupShipmentStatement");
+    if (key === "SHIPMENT_DELIVERY_SLIP") return t("branch.docKindShipmentDeliverySlip");
+    return kindLabel(key as BranchDocumentKind);
+  };
+
+  /** Belgeleri grupla (türetilmiş cari/sevkiyat PDF'leri ayrı grup); grup içinde en yeni üstte. */
+  const groupedDocuments = useMemo(() => {
+    const map = new Map<string, BranchDocument[]>();
+    for (const row of data) {
+      const key = isOrderAccountStatementPdfNote(row.notes) ? SHIPMENT_STATEMENT_GROUP : row.kind;
+      const arr = map.get(key);
+      if (arr) arr.push(row);
+      else map.set(key, [row]);
+    }
+    for (const arr of map.values()) {
+      arr.sort((a, b) => (Date.parse(b.createdAt ?? "") || 0) - (Date.parse(a.createdAt ?? "") || 0));
+    }
+    const orderedKeys = [
+      ...GROUP_ORDER.filter((k) => map.has(k)),
+      ...[...map.keys()].filter((k) => !GROUP_ORDER.includes(k)),
+    ];
+    return orderedKeys.map((key) => ({ key, items: map.get(key)! }));
+  }, [data]);
+
   return (
     <div className="w-full min-w-0 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -213,84 +254,107 @@ export function BranchDetailDocumentsTab({ branchId, active, readOnly = false }:
       ) : data.length === 0 ? (
         <p className="text-sm text-zinc-500">{t("branch.documentsEmpty")}</p>
       ) : (
-        <ul className="space-y-2">
-          {data.map((row) => {
-            const shipmentNo = extractShipmentNo(row);
-            return (
-              <li
-                key={row.id}
-                className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-zinc-200 bg-white p-3"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium text-zinc-900">{kindLabel(row.kind)}</div>
-                  <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-700">
-                      {formatLocaleDateTime(row.createdAt, locale)}
-                    </span>
-                    {shipmentNo ? (
-                      <span className="rounded-md bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
-                        {t("branch.documentsShipmentNo")}: {shipmentNo}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="truncate text-sm text-zinc-600">
-                    {row.originalFileName ?? row.contentType}
-                  </div>
-                  {row.notes ? (
-                    <div
-                      className="mt-1 line-clamp-2 text-sm text-zinc-500"
-                      title={row.notes}
+        <div className="space-y-5">
+          {groupedDocuments.map((group) => (
+            <section key={group.key} className="space-y-2">
+              <div className="flex items-center gap-2 border-b border-zinc-100 pb-1.5">
+                <h3 className="text-sm font-semibold text-zinc-800">{groupLabel(group.key)}</h3>
+                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-600 tabular-nums">
+                  {group.items.length}
+                </span>
+              </div>
+              <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+                {group.items.map((row) => {
+                  const shipmentNo = extractShipmentNo(row);
+                  const isStatement = group.key === SHIPMENT_STATEMENT_GROUP;
+                  const isV2 = isStatement && isPdfV2Note(row.notes);
+                  return (
+                    <li
+                      key={row.id}
+                      className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-3 sm:flex-row sm:items-start sm:justify-between"
                     >
-                      {summarizeNotes(row.notes)}
-                    </div>
-                  ) : null}
-                </div>
-                <div className="flex shrink-0 flex-wrap gap-2">
-                <Tooltip content={t("branch.documentsView")} delayMs={200}>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className={detailOpenIconButtonClass}
-                    disabled={loadingDocAction?.id === row.id}
-                    aria-label={t("branch.documentsView")}
-                    title={t("branch.documentsView")}
-                    onClick={() => void viewFile(row.id)}
-                  >
-                    <EyeIcon />
-                  </Button>
-                </Tooltip>
-                <Tooltip content={t("branch.documentsStartAction")} delayMs={200}>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className={detailOpenIconButtonClass}
-                    disabled={loadingDocAction?.id === row.id}
-                    aria-label={t("branch.documentsStartAction")}
-                    title={t("branch.documentsStartAction")}
-                    onClick={() => void startDocumentAction(row.id)}
-                  >
-                    <DownloadIcon />
-                  </Button>
-                </Tooltip>
-                {!readOnly ? (
-                  <Tooltip content={t("common.delete")} delayMs={200}>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      className={trashIconActionButtonClass}
-                      aria-label={t("common.delete")}
-                      title={t("common.delete")}
-                      onClick={() => setDeleteId(row.id)}
-                    >
-                      <TrashIcon />
-                    </Button>
-                  </Tooltip>
-                ) : null}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium text-zinc-900" title={row.originalFileName ?? undefined}>
+                          {row.originalFileName ?? row.contentType}
+                        </div>
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                          {isStatement ? (
+                            <span
+                              className={
+                                isV2
+                                  ? "rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800"
+                                  : "rounded-md bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-800"
+                              }
+                            >
+                              {isV2
+                                ? t("branch.documentsBadgeWithReceipts")
+                                : t("branch.documentsBadgeOriginal")}
+                            </span>
+                          ) : null}
+                          <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-700">
+                            {formatLocaleDateTime(row.createdAt, locale)}
+                          </span>
+                          {shipmentNo ? (
+                            <span className="rounded-md bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
+                              {t("branch.documentsShipmentNo")}: {shipmentNo}
+                            </span>
+                          ) : null}
+                        </div>
+                        {row.notes ? (
+                          <div className="mt-1 line-clamp-2 text-sm text-zinc-500" title={row.notes}>
+                            {summarizeNotes(row.notes)}
+                          </div>
+                        ) : null}
+                      </div>
+                      <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
+                        <Tooltip content={t("branch.documentsView")} delayMs={200}>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className={detailOpenIconButtonClass}
+                            disabled={loadingDocAction?.id === row.id}
+                            aria-label={t("branch.documentsView")}
+                            title={t("branch.documentsView")}
+                            onClick={() => void viewFile(row.id)}
+                          >
+                            <EyeIcon />
+                          </Button>
+                        </Tooltip>
+                        <Tooltip content={t("branch.documentsStartAction")} delayMs={200}>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className={detailOpenIconButtonClass}
+                            disabled={loadingDocAction?.id === row.id}
+                            aria-label={t("branch.documentsStartAction")}
+                            title={t("branch.documentsStartAction")}
+                            onClick={() => void startDocumentAction(row.id)}
+                          >
+                            <DownloadIcon />
+                          </Button>
+                        </Tooltip>
+                        {!readOnly ? (
+                          <Tooltip content={t("common.delete")} delayMs={200}>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              className={trashIconActionButtonClass}
+                              aria-label={t("common.delete")}
+                              title={t("common.delete")}
+                              onClick={() => setDeleteId(row.id)}
+                            >
+                              <TrashIcon />
+                            </Button>
+                          </Tooltip>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
       )}
 
       <Modal

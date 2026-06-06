@@ -343,6 +343,33 @@ export const branch = {
   currentAccountReceiptOverpay:
     "Receipt amount cannot exceed the open balance. Maximum allowable amount: {amount}.",
   currentAccountReceiptDateInvalid: "Enter a valid date.",
+  currentAccountPdfReceiptsSection: "Collections",
+  currentAccountPdfRemaining: "Remaining",
+  currentAccountPdfFileShipmentLabel: "Shipment",
+  currentAccountPdfFileAccountLabel: "Current Account",
+  currentAccountPdfChoiceTitle: "Choose PDF content",
+  currentAccountPdfChoiceHint: "How should this document be generated?",
+  currentAccountPdfChoiceContentLabel: "Content",
+  currentAccountPdfChoiceV1: "Invoicing PDF (original)",
+  currentAccountPdfChoiceV1Hint:
+    "Downloads the original shipment PDF saved during invoicing; it is never modified.",
+  currentAccountPdfChoiceV2: "With collections (v2)",
+  currentAccountPdfChoiceV2Hint:
+    "Adds the collections to the PDF and saves it separately as v2 on download. Subsequent downloads reuse the saved v2.",
+  currentAccountPdfV2Saved: "Version with collections (v2) saved.",
+  currentAccountPdfChoiceOriginal: "Original (plain)",
+  currentAccountPdfChoiceOriginalHint:
+    "The original shipment PDF; collections and remaining are not added.",
+  currentAccountPdfChoiceWithReceipts: "Collections and remaining",
+  currentAccountPdfChoiceWithReceiptsHint:
+    "All collections are appended at the bottom and the remaining is shown; totals are preserved.",
+  currentAccountPdfChoicePriorLabel: "Prior account balance",
+  currentAccountPdfChoicePriorInclude: "Include (full account)",
+  currentAccountPdfChoicePriorIncludeHint:
+    "Open balance carried from earlier invoices is added to the net amount.",
+  currentAccountPdfChoicePriorExclude: "Exclude (shipment only)",
+  currentAccountPdfChoicePriorExcludeHint:
+    "Only this shipment's amounts are shown.",
   tourismSeasonClosedOpenTab: "Go to tourism season tab",
   expensesSeasonMissingForToday:
     "There is no open tourism season covering today for this branch. Without an operating season, posting branch-register expenses is blocked on the server; add a season row or pick a transaction date inside an open season. Only register income lines may still be allowed when the central “Closed season allowances” policy permits it.",
@@ -365,7 +392,11 @@ export const branch = {
   docKindTaxBase: "Tax base certificate",
   docKindWorkPermit: "Work permit / operating certificate",
   docKindAgricultureCert: "Agriculture / related certificate",
+  docKindShipmentDeliverySlip: "Shipment delivery slip",
   docKindOther: "Other",
+  documentsGroupShipmentStatement: "Shipment / account PDFs",
+  documentsBadgeOriginal: "Original (v1)",
+  documentsBadgeWithReceipts: "With collections (v2)",
   documentsIntro:
     "Upload PDF or image files (tax base, work permit, agriculture certificate, etc.). Staff can add and remove; everyone who can open the branch can download.",
   documentsAdd: "Upload document",

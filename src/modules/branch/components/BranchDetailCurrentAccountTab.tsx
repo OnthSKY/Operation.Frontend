@@ -23,7 +23,11 @@ import {
   buildCounterpartyInvoiceStylePdfBlob,
   downloadCounterpartyInvoiceStylePdf,
 } from "@/modules/order-account-statement/lib/download-counterparty-invoice-style-pdf";
-import { useBranchDocuments, useUploadBranchDocument } from "@/modules/branch/hooks/useBranchQueries";
+import {
+  useBranchDocuments,
+  useDeleteBranchDocument,
+  useUploadBranchDocument,
+} from "@/modules/branch/hooks/useBranchQueries";
 import { CurrentAccountReceiptModal } from "@/modules/order-account-statement/components/CurrentAccountReceiptModal";
 import { BranchCurrentAccountReceiptsPanel } from "./BranchCurrentAccountReceiptsPanel";
 import type { Locale } from "@/i18n/messages";
@@ -33,6 +37,7 @@ import { apiFetch } from "@/shared/api/client";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatAmountInputOnBlur, formatLocaleAmount, parseLocaleAmount } from "@/shared/lib/locale-amount";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
+import { buildPdfFileName } from "@/shared/lib/pdf-file-name";
 import { notify } from "@/shared/lib/notify";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { validateImageFileForUpload } from "@/shared/lib/validate-image-upload";
@@ -67,6 +72,27 @@ function parseInvoiceIdFromNote(note: string | null | undefined): number | null 
   return Number.isFinite(id) && id > 0 ? id : null;
 }
 
+/** Tahsilatlı (v2) olarak kaydedilmiş türetilmiş PDF belgesi mi? */
+function isOrderAccountPdfV2Note(note: string | null | undefined): boolean {
+  return /(?:^|[;,\s·])version=v2(?:$|[;,\s·])/i.test(String(note ?? ""));
+}
+
+/** Tahsilat kümesinin imzası: «adet-toplamKuruş». Tahsilat değişince v2 tazelenir. */
+function receiptsSignature(lines: ReadonlyArray<{ amount: number }>): string {
+  const count = lines.length;
+  const totalCents = lines.reduce(
+    (sum, l) => sum + Math.round((Number(l.amount) || 0) * 100),
+    0
+  );
+  return `${count}-${totalCents}`;
+}
+
+/** Kayıtlı v2 belgesinin notundan tahsilat imzasını okur (yoksa null). */
+function parseReceiptSigFromNote(note: string | null | undefined): string | null {
+  const m = String(note ?? "").match(/(?:^|[;,\s·])receiptSig=(\d+-\d+)(?:$|[;,\s·])/i);
+  return m ? m[1] : null;
+}
+
 type CurrentAccountSubTabId = "invoices" | "receipts";
 
 export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
@@ -80,6 +106,9 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
   const [receiptNote, setReceiptNote] = useState("");
   const [receiptTransferImage, setReceiptTransferImage] = useState<File | null>(null);
   const [pdfOpeningId, setPdfOpeningId] = useState<number | null>(null);
+  const [pdfChoice, setPdfChoice] = useState<{ invoiceId: number; mode: "view" | "download" } | null>(null);
+  // İndirme/görüntüleme sürümü: "v1" = faturalandırma PDF'i (orijinal), "v2" = tahsilatlı sürüm.
+  const [pdfChoiceVariant, setPdfChoiceVariant] = useState<"v1" | "v2">("v1");
   const [transferOpeningId, setTransferOpeningId] = useState<number | null>(null);
   const [receiptSaving, setReceiptSaving] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
@@ -99,6 +128,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
   const [receiptPromoByInvoiceId, setReceiptPromoByInvoiceId] = useState<Map<number, number>>(() => new Map());
   const [receiptAdvanceByInvoiceId, setReceiptAdvanceByInvoiceId] = useState<Map<number, number>>(() => new Map());
   const uploadBranchDocumentMut = useUploadBranchDocument(branchId);
+  const deleteBranchDocumentMut = useDeleteBranchDocument(branchId);
 
   const invoicesQuery = useQuery({
     queryKey: ["branchCurrentAccountInvoices", branchId],
@@ -115,10 +145,30 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     [invoicesQuery.data, branchId]
   );
 
+  // Orijinal (faturalandırma) PDF'i — türetilmiş v2 belgeleri hariç tutulur.
   const pdfDocByInvoiceId = useMemo(() => {
     const map = new Map<number, number>();
     for (const doc of docsQuery.data ?? []) {
       if (doc.contentType !== "application/pdf") continue;
+      if (isOrderAccountPdfV2Note(doc.notes)) continue;
+      const invoiceId = parseInvoiceIdFromNote(doc.notes);
+      if (invoiceId == null || map.has(invoiceId)) continue;
+      map.set(invoiceId, doc.id);
+    }
+    return map;
+  }, [docsQuery.data]);
+
+  // Tahsilatlı (v2) olarak daha önce kaydedilmiş türetilmiş PDF — en yenisi tutulur.
+  const pdfV2DocByInvoiceId = useMemo(() => {
+    const map = new Map<number, number>();
+    const sorted = [...(docsQuery.data ?? [])].sort((a, b) => {
+      const aTs = Date.parse(a.createdAt ?? "") || 0;
+      const bTs = Date.parse(b.createdAt ?? "") || 0;
+      return bTs - aTs;
+    });
+    for (const doc of sorted) {
+      if (doc.contentType !== "application/pdf") continue;
+      if (!isOrderAccountPdfV2Note(doc.notes)) continue;
       const invoiceId = parseInvoiceIdFromNote(doc.notes);
       if (invoiceId == null || map.has(invoiceId)) continue;
       map.set(invoiceId, doc.id);
@@ -303,77 +353,215 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     [t]
   );
 
-  const openPdf = async (invoiceId: number, mode: "view" | "download") => {
+  const receiptKindLabel = useCallback(
+    (kind?: string) => {
+      switch (kind) {
+        case "promo_discount":
+          return t("branch.currentAccountReceiptKindPromo");
+        case "advance_payment":
+          return t("branch.currentAccountReceiptKindAdvance");
+        case "other":
+          return t("branch.currentAccountReceiptKindOther");
+        default:
+          return t("branch.currentAccountReceiptKindCash");
+      }
+    },
+    [t]
+  );
+
+  const openPdf = async (
+    invoiceId: number,
+    mode: "view" | "download",
+    opts?: { variant?: "v1" | "v2" }
+  ) => {
     const documentId = pdfDocByInvoiceId.get(invoiceId);
     if (!documentId) return;
+    const variant = opts?.variant ?? "v1";
     const listInvoice = rows.find((r) => r.id === invoiceId);
     const doc = (docsQuery.data ?? []).find((d) => d.id === documentId);
     setPdfOpeningId(invoiceId);
+    // Görüntüle: sekmeyi tıklama hareketi (gesture) içinde, await'lerden önce aç —
+    // aksi halde PDF üretiminden sonraki window.open popup engelleyiciye takılıp açılmıyor.
+    const viewWindow = mode === "view" ? window.open("", "_blank") : null;
     try {
       let blob: Blob | null = null;
+      let savedV2 = false;
 
-      if (listInvoice && doc && isOrderAccountStatementPdfNote(doc.notes)) {
+      // v2 (tahsilatlı): kayıtlı v2 güncel tahsilatlarla eşleşiyorsa onu kullan; tahsilatlar
+      // değişmiş ya da v2 yoksa, tahsilatları ekleyerek yeniden üret ve indirilirken kaydet
+      // (bayat v2 varsa tazesiyle değiştir).
+      if (variant === "v2") {
+        // Güncel tahsilatları al — hem imza karşılaştırması hem de (gerekirse) üretim için.
+        let receiptLines: { id: string; description: string; amount: number }[] = [];
         try {
-          const detail = await fetchOutboundInvoice(invoiceId);
-          if ((detail.lines ?? []).length > 0) {
-            const meta = parseOrderAccountDocumentMetadata(doc.notes);
-            const priorOpen = computePriorOpenBalanceForInvoice(rows, listInvoice);
-            let emblemDataUrl: string | undefined;
-            try {
-              const branding = await fetchSystemBranding();
-              const logoRes = await apiFetch(companyBrandingLogoUrl(branding.updatedAtUtc));
-              if (logoRes.ok) {
-                const logoBlob = await logoRes.blob();
-                emblemDataUrl = await new Promise<string>((resolve, reject) => {
-                  const reader = new FileReader();
-                  reader.onload = () => resolve(String(reader.result ?? ""));
-                  reader.onerror = () => reject(reader.error);
-                  reader.readAsDataURL(logoBlob);
-                });
-              }
-            } catch {
-              /* optional emblem */
-            }
-            blob = await regenerateSavedOrderAccountPdfBlob({
-              locale,
-              companyName: meta.company || detail.counterpartyName || "—",
-              branchName: meta.branch || detail.counterpartyName || "—",
-              documentTitle: meta.title || t("reports.orderAccountStatementDocTitle"),
-              emblemDataUrl,
-              orderDocumentKey: meta.orderKey || meta.pdfDocumentNo || `invoice-${invoiceId}`,
-              systemDocumentId: documentId,
-              invoice: detail,
-              priorOpenBalance: priorOpen,
-              labels: orderAccountPdfLabels,
-            });
-          }
+          const receipts = await fetchOutboundInvoiceReceipts(invoiceId);
+          receiptLines = receipts
+            .filter((r) => (Number(r.amount) || 0) > 0.009)
+            .map((r) => ({
+              id: `receipt-${r.id}`,
+              description: `${formatLocaleDate(r.receiptDate, locale)} · ${receiptKindLabel(r.receiptKind)}`,
+              amount: Number(r.amount) || 0,
+            }));
         } catch {
-          blob = null;
+          receiptLines = [];
+        }
+        const currentSig = receiptsSignature(receiptLines);
+        const existingV2Id = pdfV2DocByInvoiceId.get(invoiceId) ?? null;
+        const existingV2Doc =
+          existingV2Id != null ? (docsQuery.data ?? []).find((d) => d.id === existingV2Id) : undefined;
+        const existingV2Sig = existingV2Doc ? parseReceiptSigFromNote(existingV2Doc.notes) : null;
+
+        if (existingV2Id != null && existingV2Sig === currentSig) {
+          // Kayıtlı v2 güncel (tahsilatlar değişmemiş) — yeniden üretmeden indir/aç.
+          const stored = await fetchBranchDocumentBlob(branchId, existingV2Id);
+          blob = stored.blob;
+        } else if (listInvoice && doc && isOrderAccountStatementPdfNote(doc.notes)) {
+          try {
+            const detail = await fetchOutboundInvoice(invoiceId);
+            if ((detail.lines ?? []).length > 0) {
+              const meta = parseOrderAccountDocumentMetadata(doc.notes);
+              const priorOpen = computePriorOpenBalanceForInvoice(rows, listInvoice);
+              let emblemDataUrl: string | undefined;
+              try {
+                const branding = await fetchSystemBranding();
+                const logoRes = await apiFetch(companyBrandingLogoUrl(branding.updatedAtUtc));
+                if (logoRes.ok) {
+                  const logoBlob = await logoRes.blob();
+                  emblemDataUrl = await new Promise<string>((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(String(reader.result ?? ""));
+                    reader.onerror = () => reject(reader.error);
+                    reader.readAsDataURL(logoBlob);
+                  });
+                }
+              } catch {
+                /* optional emblem */
+              }
+              blob = await regenerateSavedOrderAccountPdfBlob({
+                locale,
+                companyName: meta.company || detail.counterpartyName || "—",
+                branchName: meta.branch || detail.counterpartyName || "—",
+                documentTitle: meta.title || t("reports.orderAccountStatementDocTitle"),
+                emblemDataUrl,
+                orderDocumentKey: meta.orderKey || meta.pdfDocumentNo || `invoice-${invoiceId}`,
+                systemDocumentId: documentId,
+                invoice: detail,
+                priorOpenBalance: priorOpen,
+                includePriorBalance: true,
+                showReceipts: true,
+                receipts: receiptLines,
+                receiptsLabel: t("branch.currentAccountPdfReceiptsSection"),
+                remainingLabel: t("branch.currentAccountPdfRemaining"),
+                labels: orderAccountPdfLabels,
+              });
+              // İndirilirken güncel v2'yi (v1'den ayrı) kalıcı kaydet; bayat v2 varsa değiştir.
+              if (blob && mode === "download") {
+                try {
+                  const v2Name = buildPdfFileName(
+                    [
+                      listInvoice?.counterpartyName,
+                      t("branch.currentAccountPdfFileShipmentLabel"),
+                      listInvoice?.documentNumber,
+                      "v2",
+                      listInvoice?.issueDate,
+                    ],
+                    { fallback: t("branch.currentAccountPdfFileShipmentLabel") }
+                  );
+                  // v2 notu kısa ve kendine yeter: tanıma + fatura bağı + sürüm + tahsilat imzası.
+                  const v2Notes = [
+                    "Sipariş-hesap dökümü PDF",
+                    `invoiceId=${invoiceId}`,
+                    "version=v2",
+                    `parentDocumentId=${documentId}`,
+                    `receiptSig=${currentSig}`,
+                  ].join(" · ");
+                  // Önce bayat v2'yi sil (varsa); silinemese bile en yeni v2 listede kazanır.
+                  if (existingV2Id != null) {
+                    try {
+                      await deleteBranchDocumentMut.mutateAsync(existingV2Id);
+                    } catch {
+                      /* bayat v2 silinemedi; yine de yenisini yükle */
+                    }
+                  }
+                  await uploadBranchDocumentMut.mutateAsync({
+                    file: new File([blob], v2Name, { type: "application/pdf" }),
+                    kind: "OTHER",
+                    notes: v2Notes,
+                  });
+                  savedV2 = true;
+                } catch (e) {
+                  notify.error(toErrorMessage(e));
+                }
+              }
+            }
+          } catch {
+            blob = null;
+          }
         }
       }
 
+      // v1 (orijinal faturalandırma PDF'i) veya v2 üretilemediyse: kayıtlı belgeyi olduğu gibi indir/aç.
       if (!blob) {
         const stored = await fetchBranchDocumentBlob(branchId, documentId);
         blob = stored.blob;
       }
 
-      const fileBase =
-        listInvoice?.documentNumber?.trim() || `invoice-${invoiceId}`;
+      // Düzgün dosya adı: «Şube ismi - Sevkiyat - Belge no - [v2] - Tarih.pdf» (id/«invoice-» kullanılmaz).
+      const fileName = buildPdfFileName(
+        [
+          listInvoice?.counterpartyName,
+          t("branch.currentAccountPdfFileShipmentLabel"),
+          listInvoice?.documentNumber,
+          variant === "v2" ? "v2" : undefined,
+          listInvoice?.issueDate,
+        ],
+        { fallback: t("branch.currentAccountPdfFileShipmentLabel") }
+      );
       const url = URL.createObjectURL(blob);
       if (mode === "view") {
-        window.open(url, "_blank", "noopener,noreferrer");
+        if (viewWindow && !viewWindow.closed) {
+          viewWindow.location.href = url;
+        } else {
+          window.open(url, "_blank", "noopener,noreferrer");
+        }
       } else {
         const a = document.createElement("a");
         a.href = url;
-        a.download = `${fileBase}.pdf`;
+        a.download = fileName;
         a.rel = "noopener";
+        // Bazı tarayıcılar (Firefox vb.) yalnızca DOM'a bağlı anchor'da indirmeyi tetikler.
+        document.body.appendChild(a);
         a.click();
+        a.remove();
       }
       setTimeout(() => URL.revokeObjectURL(url), 1_500);
+      if (savedV2) notify.success(t("branch.currentAccountPdfV2Saved"));
     } catch (e) {
+      if (viewWindow && !viewWindow.closed) viewWindow.close();
       notify.error(toErrorMessage(e));
     } finally {
       setPdfOpeningId(null);
+    }
+  };
+
+  const isRegenerableStatement = useCallback(
+    (invoiceId: number) => {
+      const documentId = pdfDocByInvoiceId.get(invoiceId);
+      if (!documentId) return false;
+      const doc = (docsQuery.data ?? []).find((d) => d.id === documentId);
+      return Boolean(doc && isOrderAccountStatementPdfNote(doc.notes));
+    },
+    [docsQuery.data, pdfDocByInvoiceId]
+  );
+
+  /** Görüntüle/İndir: yeniden üretilebilir sevkiyat belgesiyse sürüm seçim penceresini aç
+   *  (v1 orijinal / v2 tahsilatlı); değilse (kayıtlı ham PDF) doğrudan indir/aç. */
+  const requestPdf = (invoiceId: number, mode: "view" | "download") => {
+    if (isRegenerableStatement(invoiceId)) {
+      setPdfChoiceVariant("v1"); // varsayılan: faturalandırma PDF'i (orijinal)
+      setPdfChoice({ invoiceId, mode });
+    } else {
+      void openPdf(invoiceId, mode);
     }
   };
 
@@ -540,7 +728,14 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
         issuedAtLabel: `${t("branch.currentAccountPdfGeneratedAt")}: ${new Date().toLocaleDateString(locale)}`,
         filtersLabel: `${t("branch.currentAccountPdfScope")}: ${t("branch.currentAccountPdfScopeBranchOnly")}`,
         totalsLabel: `${t("branch.currentAccountPdfTotals")}: ${footerTotals.invoicedValue} / ${footerTotals.paidValue} / ${footerTotals.openValue}`,
-        fileName: `sube_cari_hesap_${branchId}_${new Date().toISOString().slice(0, 10)}.pdf`,
+        fileName: buildPdfFileName(
+          [
+            selectedRows[0]?.counterpartyName,
+            t("branch.currentAccountPdfFileAccountLabel"),
+            localIsoDate(),
+          ],
+          { fallback: t("branch.currentAccountPdfFileAccountLabel") }
+        ),
         showLogo: pdfOptions.showLogo,
         showCompanyName: pdfOptions.showCompanyName,
         footerTotals,
@@ -625,7 +820,9 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
               : "jpg";
         a.download = `receipt-transfer-${invoiceId}.${ext}`;
         a.rel = "noopener";
+        document.body.appendChild(a);
         a.click();
+        a.remove();
       }
       setTimeout(() => URL.revokeObjectURL(url), 1_500);
     } catch (e) {
@@ -667,7 +864,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
         disabled={!hasPdf || loading}
         onClick={() => {
           if (!hasPdf) return;
-          void openPdf(invoiceId, action);
+          requestPdf(invoiceId, action);
         }}
       >
         {loading ? (
@@ -1060,6 +1257,80 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
       ) : null}
       </>
       )}
+
+      <Modal
+        open={pdfChoice != null}
+        onClose={() => setPdfChoice(null)}
+        titleId="branch-current-account-pdf-choice-title"
+        title={t("branch.currentAccountPdfChoiceTitle")}
+        closeButtonLabel={t("common.close")}
+        className="max-w-lg"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-zinc-600">{t("branch.currentAccountPdfChoiceHint")}</p>
+
+          <fieldset className="space-y-2">
+            <legend className="mb-1 text-xs font-semibold uppercase tracking-wide text-zinc-600">
+              {t("branch.currentAccountPdfChoiceContentLabel")}
+            </legend>
+            <label className="flex items-start gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm hover:bg-zinc-50">
+              <input
+                type="radio"
+                name="branch-ca-pdf-variant"
+                className="mt-0.5"
+                checked={pdfChoiceVariant === "v1"}
+                onChange={() => setPdfChoiceVariant("v1")}
+              />
+              <span>
+                <span className="block font-medium text-zinc-800">
+                  {t("branch.currentAccountPdfChoiceV1")}
+                </span>
+                <span className="block text-xs text-zinc-500">
+                  {t("branch.currentAccountPdfChoiceV1Hint")}
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm hover:bg-zinc-50">
+              <input
+                type="radio"
+                name="branch-ca-pdf-variant"
+                className="mt-0.5"
+                checked={pdfChoiceVariant === "v2"}
+                onChange={() => setPdfChoiceVariant("v2")}
+              />
+              <span>
+                <span className="block font-medium text-zinc-800">
+                  {t("branch.currentAccountPdfChoiceV2")}
+                </span>
+                <span className="block text-xs text-zinc-500">
+                  {t("branch.currentAccountPdfChoiceV2Hint")}
+                </span>
+              </span>
+            </label>
+          </fieldset>
+
+          <div className="flex justify-end gap-2 pt-1">
+            <Button type="button" variant="secondary" onClick={() => setPdfChoice(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => {
+                if (!pdfChoice) return;
+                const { invoiceId, mode } = pdfChoice;
+                const variant = pdfChoiceVariant;
+                setPdfChoice(null);
+                void openPdf(invoiceId, mode, { variant });
+              }}
+            >
+              {pdfChoice?.mode === "download"
+                ? t("branch.currentAccountPdfDownload")
+                : t("branch.currentAccountPdfView")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         open={pdfModalOpen}
