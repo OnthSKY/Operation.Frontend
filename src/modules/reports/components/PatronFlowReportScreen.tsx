@@ -25,7 +25,8 @@ import {
   type SortDir,
 } from "@/modules/reports/lib/report-table-utils";
 import { PageWhenToUseInfoButton } from "@/shared/components/PageWhenToUseInfoButton";
-import { buildBranchDetailHref } from "@/shared/branch-detail";
+import { buildBranchDetailHref, useBranchDetailOverlay } from "@/shared/branch-detail";
+import { usePersonnelDetailOverlay } from "@/shared/personnel-detail";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
@@ -388,8 +389,46 @@ function expenseDetailHref(row: PatronExpenseRow): string | null {
   });
 }
 
+/**
+ * Avans / personel gideri satırı: tıklanınca şube detayı yerine personel kartını
+ * açıp Maliyetler sekmesinde ilgili satırı işaretler (shared overlay).
+ *
+ * Returns null when row isn't personnel-related → caller branch-detail link'ine düşer.
+ */
+type PersonnelDetailFocus = {
+  personnelId: number;
+  personnelName: string | null;
+  focusAdvanceId?: number;
+  focusExpenseTransactionId?: number;
+};
+
+function rowPersonnelDetailFocus(row: PatronExpenseRow): PersonnelDetailFocus | null {
+  // Avans: linkedAdvanceId varsa, personel = linkedAdvancePersonnelId.
+  if (row.linkedAdvanceId != null && row.linkedAdvanceId > 0) {
+    const pid = row.linkedAdvancePersonnelId ?? row.linkedPersonnelId ?? 0;
+    if (pid > 0) {
+      return {
+        personnelId: pid,
+        personnelName: row.linkedAdvancePersonnelFullName ?? row.linkedPersonnelFullName ?? null,
+        focusAdvanceId: row.linkedAdvanceId,
+      };
+    }
+  }
+  // Personel gideri: linkedPersonnelId + tx id ile expense satırı işaretlenir.
+  if (row.linkedPersonnelId != null && row.linkedPersonnelId > 0) {
+    return {
+      personnelId: row.linkedPersonnelId,
+      personnelName: row.linkedPersonnelFullName ?? null,
+      focusExpenseTransactionId: row.id,
+    };
+  }
+  return null;
+}
+
 export function PatronFlowReportScreen() {
   const { t, locale } = useI18n();
+  const { openPersonnelDetail } = usePersonnelDetailOverlay();
+  const { openBranchDetail } = useBranchDetailOverlay();
   const [dateFrom, setDateFromRaw] = useState(() => startOfCalendarYearIso());
   const [dateTo, setDateToRaw] = useState(() => localIsoDate());
   const [dateRangeLock, setDateRangeLock] =
@@ -948,13 +987,17 @@ export function PatronFlowReportScreen() {
                           row.category,
                           t,
                         );
-                        const href = expenseDetailHref(row);
+                        // Personel-bazlı (avans/personel gideri) satırlar shared overlay
+                        // ile açılır; aksi halde şube detayı linki kullanılır.
+                        const personnelFocus = rowPersonnelDetailFocus(row);
+                        const href = personnelFocus ? null : expenseDetailHref(row);
+                        const hasDetail = !!(personnelFocus || href);
                         return (
                           <li
                             key={row.id}
                             className={cn(
                               "flex items-center gap-3 px-3 py-2.5",
-                              !href && "opacity-60",
+                              !hasDetail && "opacity-60",
                             )}
                           >
                             <div className="min-w-0 flex-1">
@@ -962,7 +1005,11 @@ export function PatronFlowReportScreen() {
                                 {formatLocaleDate(row.transactionDate, locale)}
                               </p>
                               <p className="truncate text-sm font-medium text-zinc-900">
-                                {row.branchName ?? "—"}
+                                {personnelFocus
+                                  ? `${
+                                      personnelFocus.focusAdvanceId ? "Avans" : "Personel"
+                                    }: ${personnelFocus.personnelName ?? "—"}`
+                                  : row.branchName ?? "—"}
                               </p>
                               <p className="truncate text-xs">
                                 <span
@@ -991,7 +1038,41 @@ export function PatronFlowReportScreen() {
                                 {row.currencyCode}
                               </p>
                             </div>
-                            {href ? (
+                            {personnelFocus ? (
+                              <button
+                                type="button"
+                                aria-label={t("reports.patronExpensesOpenDetailAria")}
+                                title={t("reports.patronExpensesOpenDetailAria")}
+                                className={eyeLinkClass}
+                                onClick={() =>
+                                  openPersonnelDetail(personnelFocus.personnelId, {
+                                    initialTab: "costs",
+                                    focusAdvanceId: personnelFocus.focusAdvanceId ?? null,
+                                    focusExpenseTransactionId:
+                                      personnelFocus.focusExpenseTransactionId ?? null,
+                                  })
+                                }
+                              >
+                                <EyeIcon className="h-5 w-5" />
+                              </button>
+                            ) : row.branchId != null && row.branchId > 0 ? (
+                              <button
+                                type="button"
+                                aria-label={t("reports.patronExpensesOpenDetailAria")}
+                                title={t("reports.patronExpensesOpenDetailAria")}
+                                className={eyeLinkClass}
+                                onClick={() =>
+                                  openBranchDetail(row.branchId!, {
+                                    initialTab: "expenses",
+                                    initialRegisterDay: row.transactionDate,
+                                    initialExpensePaymentSource: "PATRON",
+                                    focusTransactionId: row.id,
+                                  })
+                                }
+                              >
+                                <EyeIcon className="h-5 w-5" />
+                              </button>
+                            ) : href ? (
                               <Link
                                 href={href}
                                 aria-label={t("reports.patronExpensesOpenDetailAria")}
@@ -1038,14 +1119,15 @@ export function PatronFlowReportScreen() {
                         </TableHead>
                         <TableBody>
                           {slice.map((row) => {
-                            const href = expenseDetailHref(row);
+                            const personnelFocus = rowPersonnelDetailFocus(row);
+                            const href = personnelFocus ? null : expenseDetailHref(row);
                             return (
                               <TableRow key={row.id}>
                                 <TableCell className="whitespace-nowrap text-sm tabular-nums">
                                   {formatLocaleDate(row.transactionDate, locale)}
                                 </TableCell>
                                 <TableCell className="text-sm text-zinc-900">
-                                  {row.branchName ?? "—"}
+                                  {personnelFocus?.personnelName ?? row.branchName ?? "—"}
                                 </TableCell>
                                 <TableCell
                                   className={cn(
@@ -1075,7 +1157,41 @@ export function PatronFlowReportScreen() {
                                   {row.description ?? "—"}
                                 </TableCell>
                                 <TableCell className="w-12 text-right">
-                                  {href ? (
+                                  {personnelFocus ? (
+                                    <button
+                                      type="button"
+                                      aria-label={t("reports.patronExpensesOpenDetailAria")}
+                                      title={t("reports.patronExpensesOpenDetailAria")}
+                                      className={eyeLinkClass}
+                                      onClick={() =>
+                                        openPersonnelDetail(personnelFocus.personnelId, {
+                                          initialTab: "costs",
+                                          focusAdvanceId: personnelFocus.focusAdvanceId ?? null,
+                                          focusExpenseTransactionId:
+                                            personnelFocus.focusExpenseTransactionId ?? null,
+                                        })
+                                      }
+                                    >
+                                      <EyeIcon className="h-5 w-5" />
+                                    </button>
+                                  ) : row.branchId != null && row.branchId > 0 ? (
+                                    <button
+                                      type="button"
+                                      aria-label={t("reports.patronExpensesOpenDetailAria")}
+                                      title={t("reports.patronExpensesOpenDetailAria")}
+                                      className={eyeLinkClass}
+                                      onClick={() =>
+                                        openBranchDetail(row.branchId!, {
+                                          initialTab: "expenses",
+                                          initialRegisterDay: row.transactionDate,
+                                          initialExpensePaymentSource: "PATRON",
+                                          focusTransactionId: row.id,
+                                        })
+                                      }
+                                    >
+                                      <EyeIcon className="h-5 w-5" />
+                                    </button>
+                                  ) : href ? (
                                     <Link
                                       href={href}
                                       aria-label={t("reports.patronExpensesOpenDetailAria")}
