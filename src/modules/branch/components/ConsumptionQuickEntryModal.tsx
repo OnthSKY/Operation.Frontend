@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useI18n } from "@/i18n/context";
 import { useProductsCatalog } from "@/modules/products/hooks/useProductQueries";
+import { ProductUnitPicker } from "@/modules/products/components/ProductUnitPicker";
 import type { ProductListItem } from "@/types/product";
 import { Modal } from "@/shared/ui/Modal";
 import { Button } from "@/shared/ui/Button";
@@ -97,6 +98,7 @@ function QuickEntryFormBody({
   const [dateText, setDateText] = useState(() => localIsoDate());
   const [direction, setDirection] = useState<BranchStockDirection>("OUT");
   const [note, setNote] = useState("");
+  const [unitName, setUnitName] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
 
   const leafProducts = useMemo(() => catalog.filter(isLeafProduct), [catalog]);
@@ -149,12 +151,14 @@ function QuickEntryFormBody({
       return;
     }
     try {
+      const unitForSubmit = unitName.trim() || null;
       if (mode === "consume") {
         await consumeMut.mutateAsync({
           productId,
           quantity: qty,
           consumptionDate: dateText,
           note: note.trim() || null,
+          unitName: unitForSubmit,
         });
         notify.success(t("toast.branchStockConsumptionSaved"));
       } else {
@@ -164,6 +168,7 @@ function QuickEntryFormBody({
           quantity: qty,
           consumptionDate: dateText,
           note: note.trim() || null,
+          unitName: unitForSubmit,
         });
         notify.success(t("toast.branchStockAdjustmentSaved"));
       }
@@ -280,6 +285,15 @@ function QuickEntryFormBody({
           ) : null}
 
           <FormSection title={t("branchStockConsumption.quantityLabel")}>
+            <ProductUnitPicker
+              productId={selectedProduct?.id ?? null}
+              baseUnit={selectedProduct?.stockUnit ?? null}
+              legacyUnit={selectedProduct?.unit ?? null}
+              preferredContext="SALE"
+              value={unitName}
+              onChange={setUnitName}
+              disabled={isSubmitting}
+            />
             <div className="flex items-center gap-2">
               <input
                 type="text"
@@ -290,8 +304,10 @@ function QuickEntryFormBody({
                 className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
                 disabled={isSubmitting}
               />
-              {selectedProduct?.unit ? (
-                <span className="text-sm text-zinc-500">{selectedProduct.unit}</span>
+              {selectedProduct ? (
+                <span className="text-sm text-zinc-500">
+                  {unitName.trim() || selectedProduct.stockUnit || selectedProduct.unit || ""}
+                </span>
               ) : null}
             </div>
             {isInAdjust && selectedProduct ? (

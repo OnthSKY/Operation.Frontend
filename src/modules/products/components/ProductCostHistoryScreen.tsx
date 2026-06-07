@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/i18n/context";
 import { useProductsCatalog } from "@/modules/products/hooks/useProductQueries";
+import { ProductUnitPicker } from "@/modules/products/components/ProductUnitPicker";
 import {
   useCreateProductCostEntry,
   useDeleteProductCostEntry,
@@ -535,13 +536,18 @@ export function ProductCostHistoryScreen() {
               value={effectiveDate}
               onChange={(e) => setEffectiveDate(e.target.value)}
             />
-            <Input
-              name="unitEdit"
-              label={t("products.costHistory.unitLabel")}
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-              maxLength={20}
-            />
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-zinc-700">
+                {t("products.costHistory.unitLabel")}
+              </label>
+              <ProductUnitPicker
+                productId={productId > 0 ? productId : null}
+                preferredContext="PURCHASE"
+                value={unit}
+                onChange={setUnit}
+                label=""
+              />
+            </div>
             <Select
               name="currencyCodeEdit"
               label={t("products.costHistory.currencyLabel")}
@@ -659,13 +665,18 @@ export function ProductCostHistoryScreen() {
               value={effectiveDate}
               onChange={(e) => setEffectiveDate(e.target.value)}
             />
-            <Input
-              name="unit"
-              label={t("products.costHistory.unitLabel")}
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-              maxLength={20}
-            />
+            <div className="flex flex-col gap-1">
+              <label className="text-sm font-medium text-zinc-700">
+                {t("products.costHistory.unitLabel")}
+              </label>
+              <ProductUnitPicker
+                productId={productId > 0 ? productId : null}
+                preferredContext="PURCHASE"
+                value={unit}
+                onChange={setUnit}
+                label=""
+              />
+            </div>
             <Select
               name="currencyCode"
               label={t("products.costHistory.currencyLabel")}

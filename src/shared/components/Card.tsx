@@ -25,8 +25,8 @@ export function Card({ children, className, title, description, headerActions }:
           {(title || headerActions) && (
             <div
               className={cn(
-                "flex min-h-11 flex-row items-start justify-between gap-x-2 sm:items-center sm:gap-x-3",
-                headerActions ? "flex-nowrap gap-y-0" : "flex-wrap gap-y-2"
+                "flex min-h-11 flex-row flex-wrap items-start justify-between gap-x-2 gap-y-2 sm:items-center sm:gap-x-3 sm:flex-nowrap",
+                headerActions ? "sm:gap-y-0" : ""
               )}
             >
               {title ? (

@@ -5,6 +5,9 @@ import { useWarehousesList } from "@/modules/warehouse/hooks/useWarehouseQueries
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { FilterFunnelIcon } from "@/shared/components/FilterFunnelIcon";
+import { RightDrawer } from "@/shared/components/RightDrawer";
+import { WarehouseMovementMobileCard } from "@/modules/warehouse/components/WarehouseMovementMobileCard";
 import { Button } from "@/shared/ui/Button";
 import { TablePagination } from "@/shared/ui/TablePagination";
 import { DateField } from "@/shared/ui/DateField";
@@ -41,6 +44,7 @@ export function ProductDetailMovementsTab({ productId, enabled }: Props) {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => {
     setWarehouseId("");
@@ -48,7 +52,21 @@ export function ProductDetailMovementsTab({ productId, enabled }: Props) {
     setDateFrom("");
     setDateTo("");
     setPage(1);
+    setFiltersOpen(false);
   }, [productId]);
+
+  const activeFilterCount =
+    (warehouseId !== "" ? 1 : 0) +
+    (type !== "" ? 1 : 0) +
+    (dateFrom !== "" ? 1 : 0) +
+    (dateTo !== "" ? 1 : 0);
+
+  const resetFilters = () => {
+    setWarehouseId("");
+    setType("");
+    setDateFrom("");
+    setDateTo("");
+  };
 
   useEffect(() => {
     setPage(1);
@@ -98,46 +116,91 @@ export function ProductDetailMovementsTab({ productId, enabled }: Props) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <Select
-          label={t("products.movementsFilterWarehouse")}
-          options={whOptions}
-          value={warehouseId}
-          onChange={(e) => setWarehouseId(e.target.value)}
-          onBlur={() => {}}
-          name="mv-wh"
-        />
-        <Select
-          label={t("products.filterType")}
-          options={typeOptions}
-          value={type}
-          onChange={(e) => setType(e.target.value)}
-          onBlur={() => {}}
-          name="mv-type"
-        />
-        <DateField
-          label={t("products.filterDateFrom")}
-          value={dateFrom}
-          onChange={(e) => setDateFrom(e.target.value)}
-          className="min-w-0"
-        />
-        <DateField
-          label={t("products.filterDateTo")}
-          value={dateTo}
-          onChange={(e) => setDateTo(e.target.value)}
-          className="min-w-0"
-        />
-        <div className="flex items-end">
-          <Button
-            type="button"
-            variant="secondary"
-            className="min-h-12 w-full"
-            onClick={() => refetch()}
-          >
-            {t("products.filterApplyRefresh")}
-          </Button>
-        </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          className="relative inline-flex h-10 items-center gap-2 px-3"
+          onClick={() => setFiltersOpen(true)}
+          aria-label={t("products.filterApplyRefresh")}
+        >
+          <FilterFunnelIcon className="h-4 w-4" />
+          <span className="text-sm">Filtreler</span>
+          {activeFilterCount > 0 ? (
+            <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 text-[0.65rem] font-semibold text-white">
+              {activeFilterCount}
+            </span>
+          ) : null}
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          className="h-10 px-3"
+          onClick={() => refetch()}
+        >
+          {t("products.filterApplyRefresh")}
+        </Button>
       </div>
+
+      <RightDrawer
+        open={filtersOpen}
+        onClose={() => setFiltersOpen(false)}
+        title="Filtreler"
+        closeLabel="Kapat"
+        backdropCloseRequiresConfirm={false}
+      >
+        <div className="space-y-3">
+          <Select
+            label={t("products.movementsFilterWarehouse")}
+            options={whOptions}
+            value={warehouseId}
+            onChange={(e) => setWarehouseId(e.target.value)}
+            onBlur={() => {}}
+            name="mv-wh"
+          />
+          <Select
+            label={t("products.filterType")}
+            options={typeOptions}
+            value={type}
+            onChange={(e) => setType(e.target.value)}
+            onBlur={() => {}}
+            name="mv-type"
+          />
+          <DateField
+            label={t("products.filterDateFrom")}
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="min-w-0"
+          />
+          <DateField
+            label={t("products.filterDateTo")}
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="min-w-0"
+          />
+          <div className="flex flex-col gap-2 pt-2 sm:flex-row">
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full"
+              onClick={resetFilters}
+              disabled={activeFilterCount === 0}
+            >
+              Filtreleri Temizle
+            </Button>
+            <Button
+              type="button"
+              className="w-full"
+              onClick={() => {
+                setFiltersOpen(false);
+                refetch();
+              }}
+            >
+              Uygula
+            </Button>
+          </div>
+        </div>
+      </RightDrawer>
 
       {isError && (
         <p className="text-sm text-red-600">{toErrorMessage(error)}</p>
@@ -148,8 +211,41 @@ export function ProductDetailMovementsTab({ productId, enabled }: Props) {
       ) : items.length === 0 ? (
         <p className="text-sm text-zinc-600">{t("products.noMovements")}</p>
       ) : (
-        <div className="min-h-0 flex-1 overflow-x-auto rounded-lg border border-zinc-200">
-          <Table>
+        <>
+          {/* Mobil: zengin kart düzeni — sevkiyat kartı gibi */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {items.map((m) => (
+              <WarehouseMovementMobileCard
+                key={m.id}
+                m={{
+                  id: m.id,
+                  type: m.type,
+                  warehouseName: m.warehouseName,
+                  quantity: m.quantity,
+                  movementDate: m.movementDate,
+                  description: m.description ?? null,
+                  checkedByPersonnelName: m.checkedByPersonnelName ?? null,
+                  approvedByPersonnelName: m.approvedByPersonnelName ?? null,
+                  hasInvoicePhoto: m.hasInvoicePhoto,
+                  inBatchGroupId: m.inBatchGroupId ?? null,
+                }}
+                labels={{
+                  in: t("products.typeIn"),
+                  out: t("products.typeOut"),
+                  quantity: t("products.colQty"),
+                  shipment: t("warehouse.movementBatchGroup"),
+                  checkedBy: t("products.mColCheckedBy"),
+                  approvedBy: t("products.mColApprovedBy"),
+                  openInvoicePhoto: t("warehouse.openInvoicePhoto"),
+                }}
+                locale={locale}
+              />
+            ))}
+          </div>
+
+          {/* Desktop: tablo */}
+          <div className="hidden min-h-0 flex-1 overflow-x-auto rounded-lg border border-zinc-200 md:block">
+          <Table mobileCards={false}>
             <TableHead>
               <TableRow>
                 <TableHeader>{t("products.mColDate")}</TableHeader>
@@ -183,20 +279,20 @@ export function ProductDetailMovementsTab({ productId, enabled }: Props) {
                   </TableCell>
                   <TableCell
                     dataLabel={t("warehouse.movementBatchGroup")}
-                    className={cn("max-w-[min(100%,14rem)]", shipmentIdLabelClassName)}
+                    className={cn("md:max-w-[min(100%,14rem)]", shipmentIdLabelClassName)}
                   >
                     {batchCell.text}
                   </TableCell>
-                  <TableCell dataLabel={t("products.colQty")} className="text-right text-sm tabular-nums">
+                  <TableCell dataLabel={t("products.colQty")} className="text-right text-sm tabular-nums md:text-right max-md:!text-left">
                     {m.quantity}
                   </TableCell>
-                  <TableCell dataLabel={t("products.mColNote")} className="max-w-[14rem] truncate text-sm text-zinc-600">
+                  <TableCell dataLabel={t("products.mColNote")} className="text-sm text-zinc-600 md:max-w-[14rem] md:truncate max-md:whitespace-pre-line max-md:break-words">
                     {m.description ?? "—"}
                   </TableCell>
-                  <TableCell dataLabel={t("products.mColCheckedBy")} className="max-w-[10rem] truncate text-sm text-zinc-600">
+                  <TableCell dataLabel={t("products.mColCheckedBy")} className="text-sm text-zinc-600 md:max-w-[10rem] md:truncate">
                     {m.checkedByPersonnelName ?? "—"}
                   </TableCell>
-                  <TableCell dataLabel={t("products.mColApprovedBy")} className="max-w-[10rem] truncate text-sm text-zinc-600">
+                  <TableCell dataLabel={t("products.mColApprovedBy")} className="text-sm text-zinc-600 md:max-w-[10rem] md:truncate">
                     {m.approvedByPersonnelName ?? "—"}
                   </TableCell>
                   <TableCell dataLabel={t("warehouse.mColInvoice")} className="whitespace-nowrap text-sm">
@@ -218,7 +314,8 @@ export function ProductDetailMovementsTab({ productId, enabled }: Props) {
               })}
             </TableBody>
           </Table>
-        </div>
+          </div>
+        </>
       )}
 
       {!isPending && totalCount > 0 && (

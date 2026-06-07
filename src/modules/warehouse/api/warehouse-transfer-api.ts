@@ -26,6 +26,8 @@ export type TransferWarehouseToBranchPreviewResponse = {
 export type TransferWarehouseToBranchLineInput = {
   productId: number;
   quantity: number;
+  /** Kullanıcının seçtiği birim (örn. "paket"); null = ürünün temel/legacy birimi. */
+  unitName?: string | null;
 };
 
 export type WarehouseTransferGoodsValuation = {
@@ -44,7 +46,11 @@ export async function estimateWarehouseTransferGoodsValuation(
     method: "POST",
     body: JSON.stringify({
       warehouseId: input.warehouseId,
-      lines: input.lines.map((l) => ({ productId: l.productId, quantity: l.quantity })),
+      lines: input.lines.map((l) => ({
+        productId: l.productId,
+        quantity: l.quantity,
+        unitName: l.unitName?.trim() || null,
+      })),
     }),
     signal,
   });

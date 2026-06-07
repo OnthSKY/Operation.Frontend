@@ -3,14 +3,22 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { productsRootKey, warehouseRootKey } from "@/modules/stock/query-keys";
 import {
+  addProductUnit,
+  applyProductUnitMigration,
   createProduct,
+  deleteProductUnit,
   fetchProductCatalogPaged,
   fetchProductInventory,
   fetchProductMovementsPage,
   fetchProductsCatalog,
+  fetchProductUnitMigrationPreview,
+  fetchProductUnits,
   setProductCategory,
+  setProductStockUnit,
   softDeleteProduct,
   updateProduct,
+  updateProductUnit,
+  type ApplyProductUnitMigrationInput,
 } from "@/modules/products/api/products-api";
 import {
   createProductCategory,
@@ -18,7 +26,11 @@ import {
   fetchProductCategories,
   updateProductCategory,
 } from "@/modules/products/api/product-categories-api";
-import type { ProductMovementsPageParams } from "@/types/product";
+import type {
+  AddProductUnitInput,
+  ProductMovementsPageParams,
+  UpdateProductUnitInput,
+} from "@/types/product";
 
 export const productKeys = {
   all: productsRootKey,
@@ -29,6 +41,8 @@ export const productKeys = {
   catalogPagedOrderable: (page: number, pageSize: number, search: string, orderableOnly: boolean) =>
     [...productKeys.all, "catalog-paged", page, pageSize, search, orderableOnly ? 1 : 0] as const,
   inventory: (id: number) => [...productKeys.all, "inventory", id] as const,
+  units: (id: number) => [...productKeys.all, "units", id] as const,
+  unitMigration: (id: number) => [...productKeys.all, "unit-migration", id] as const,
   movementsPage: (id: number, params: ProductMovementsPageParams) =>
     [
       ...productKeys.all,
@@ -184,6 +198,8 @@ export function useUpdateProduct() {
       categoryId,
       parentProductId,
       isOrderable,
+      stockUnit,
+      stockTrackingMode,
     }: {
       id: number;
       name: string;
@@ -191,10 +207,109 @@ export function useUpdateProduct() {
       categoryId?: number | null;
       parentProductId?: number | null;
       isOrderable?: boolean;
-    }) => updateProduct(id, { name, unit, categoryId, parentProductId, isOrderable }),
+      stockUnit?: string | null;
+      stockTrackingMode?: import("@/types/product").StockTrackingMode;
+    }) =>
+      updateProduct(id, {
+        name,
+        unit,
+        categoryId,
+        parentProductId,
+        isOrderable,
+        stockUnit,
+        stockTrackingMode,
+      }),
     onSuccess: (_data, vars) => {
       invalidateProductCatalogQueries(qc);
       void qc.invalidateQueries({ queryKey: productKeys.inventory(vars.id) });
+      void qc.invalidateQueries({ queryKey: warehouseRootKey });
+    },
+  });
+}
+
+export function useProductUnits(productId: number | null) {
+  return useQuery({
+    queryKey: productKeys.units(productId ?? 0),
+    queryFn: () => fetchProductUnits(productId!),
+    enabled: productId != null && productId > 0,
+  });
+}
+
+export function useAddProductUnit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, input }: { productId: number; input: AddProductUnitInput }) =>
+      addProductUnit(productId, input),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: productKeys.units(vars.productId) });
+    },
+  });
+}
+
+export function useUpdateProductUnit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      productId,
+      unitId,
+      input,
+    }: {
+      productId: number;
+      unitId: number;
+      input: UpdateProductUnitInput;
+    }) => updateProductUnit(productId, unitId, input),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: productKeys.units(vars.productId) });
+    },
+  });
+}
+
+export function useDeleteProductUnit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, unitId }: { productId: number; unitId: number }) =>
+      deleteProductUnit(productId, unitId),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: productKeys.units(vars.productId) });
+    },
+  });
+}
+
+export function useProductUnitMigrationPreview(productId: number | null, enabled = true) {
+  return useQuery({
+    queryKey: productKeys.unitMigration(productId ?? 0),
+    queryFn: () => fetchProductUnitMigrationPreview(productId!),
+    enabled: enabled && productId != null && productId > 0,
+    staleTime: 0,
+  });
+}
+
+export function useSetProductStockUnit() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, baseUnit }: { productId: number; baseUnit: string }) =>
+      setProductStockUnit(productId, baseUnit),
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({ queryKey: productKeys.unitMigration(vars.productId) });
+      void qc.invalidateQueries({ queryKey: productKeys.units(vars.productId) });
+      void qc.invalidateQueries({ queryKey: productKeys.inventory(vars.productId) });
+      invalidateProductCatalogQueries(qc);
+    },
+  });
+}
+
+export function useApplyProductUnitMigration() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, input }: { productId: number; input: ApplyProductUnitMigrationInput }) =>
+      applyProductUnitMigration(productId, input),
+    onSuccess: (_data, vars) => {
+      // Migrasyon sonrası: ürün kartı, birim listesi ve hareket bakiyeleri hepsi
+      // değişebilir — geniş invalidate.
+      void qc.invalidateQueries({ queryKey: productKeys.units(vars.productId) });
+      void qc.invalidateQueries({ queryKey: productKeys.unitMigration(vars.productId) });
+      void qc.invalidateQueries({ queryKey: productKeys.inventory(vars.productId) });
+      invalidateProductCatalogQueries(qc);
       void qc.invalidateQueries({ queryKey: warehouseRootKey });
     },
   });

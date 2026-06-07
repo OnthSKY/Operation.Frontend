@@ -269,7 +269,7 @@ export function StatementFormStep({
 
   return (
     <section className="overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm ring-1 ring-zinc-950/[0.035]">
-      <div className="flex flex-col gap-3 border-b border-zinc-200 bg-gradient-to-b from-zinc-50 to-zinc-50/60 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5">
+      <div className="flex flex-col gap-3 border-b border-zinc-200 bg-gradient-to-b from-zinc-50 to-zinc-50/60 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5 sm:py-3.5">
         {collapsible ? (
           <>
             <div className="flex min-w-0 flex-1 items-start gap-2 sm:items-center sm:gap-3">
@@ -309,7 +309,7 @@ export function StatementFormStep({
           </>
         )}
       </div>
-      {(!collapsible || open) ? <div className="p-4 sm:p-5">{children}</div> : null}
+      {(!collapsible || open) ? <div className="p-3 sm:p-4 md:p-5">{children}</div> : null}
     </section>
   );
 }

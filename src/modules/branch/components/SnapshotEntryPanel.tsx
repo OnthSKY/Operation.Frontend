@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { cn } from "@/lib/cn";
 import { useI18n } from "@/i18n/context";
 import { useProductsCatalog } from "@/modules/products/hooks/useProductQueries";
+import { ProductUnitPicker } from "@/modules/products/components/ProductUnitPicker";
 import type { ProductListItem } from "@/types/product";
 import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
@@ -28,8 +29,11 @@ type SnapshotRow = {
   productId: number;
   productName: string;
   unit: string | null;
+  stockUnit: string | null;
   currentBalance: number;
   snapshotText: string;
+  /** Boş = ürünün temel/legacy birimi (backend default'a düşer). */
+  unitName: string;
 };
 
 function normalizeSearch(s: string): string {
@@ -106,8 +110,10 @@ function SnapshotFormBody({ onClose, branchId }: { onClose: () => void; branchId
         productId: p.id,
         productName: p.name,
         unit: p.unit,
+        stockUnit: p.stockUnit ?? null,
         currentBalance: balanceByProductId.get(p.id) ?? 0,
         snapshotText: "",
+        unitName: "",
       },
     ]);
     setSearch("");
@@ -116,6 +122,12 @@ function SnapshotFormBody({ onClose, branchId }: { onClose: () => void; branchId
   const updateRowSnapshot = (productId: number, snapshotText: string) => {
     setRows((prev) =>
       prev.map((r) => (r.productId === productId ? { ...r, snapshotText } : r))
+    );
+  };
+
+  const updateRowUnit = (productId: number, unitName: string) => {
+    setRows((prev) =>
+      prev.map((r) => (r.productId === productId ? { ...r, unitName } : r))
     );
   };
 
@@ -149,6 +161,7 @@ function SnapshotFormBody({ onClose, branchId }: { onClose: () => void; branchId
             snapshotValue: value,
             consumptionDate: dateText,
             note,
+            unitName: row.unitName.trim() || null,
           });
           if (result === null) noOpCount += 1;
           else writtenCount += 1;
@@ -228,8 +241,16 @@ function SnapshotFormBody({ onClose, branchId }: { onClose: () => void; branchId
               <ul className="space-y-2.5">
                 {rows.map((r) => {
                   const snapshotValue = parseDecimal(r.snapshotText);
+                  // Kullanıcı temel/legacy dışı bir birim seçtiyse client-side diff yanıltıcı
+                  // olur (factor bilmiyoruz, balance = temel birim). Backend doğru hesaplar;
+                  // UI'da diff badge'ini gizliyoruz.
+                  const baseLike = (r.stockUnit?.trim() || r.unit?.trim() || "").toLowerCase();
+                  const enteredLower = r.unitName.trim().toLowerCase();
+                  const sameAsBase = enteredLower === "" || enteredLower === baseLike;
                   const diff =
-                    snapshotValue !== null ? r.currentBalance - snapshotValue : null;
+                    snapshotValue !== null && sameAsBase
+                      ? r.currentBalance - snapshotValue
+                      : null;
                   const diffLabel =
                     diff === null
                       ? null
@@ -277,9 +298,21 @@ function SnapshotFormBody({ onClose, branchId }: { onClose: () => void; branchId
                             className="w-28 rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none disabled:opacity-50"
                             disabled={isSubmitting}
                           />
-                          {r.unit ? (
-                            <span className="whitespace-nowrap text-xs text-zinc-500">{r.unit}</span>
-                          ) : null}
+                          <span className="whitespace-nowrap text-xs text-zinc-500">
+                            {r.unitName.trim() || r.stockUnit || r.unit || ""}
+                          </span>
+                        </div>
+                        <div className="min-w-[140px]">
+                          <ProductUnitPicker
+                            productId={r.productId}
+                            baseUnit={r.stockUnit}
+                            legacyUnit={r.unit}
+                            preferredContext="SALE"
+                            value={r.unitName}
+                            onChange={(v) => updateRowUnit(r.productId, v)}
+                            disabled={isSubmitting}
+                            label=""
+                          />
                         </div>
                         {diffLabel !== null ? (
                           <span

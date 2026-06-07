@@ -190,11 +190,13 @@ export type UpdateWarehouseOutboundShipmentMovementBody = {
 export type AppendWarehouseOutboundShipmentLineBody = {
   productId: number;
   quantity: number;
+  unitName?: string | null;
 };
 
 export type AppendWarehouseInboundLineBody = {
   productId: number;
   quantity: number;
+  unitName?: string | null;
 };
 
 export async function fetchWarehouseOutboundShipmentMovementForEdit(
@@ -274,6 +276,7 @@ export async function appendWarehouseOutboundShipmentLine(
       body: JSON.stringify({
         productId: body.productId,
         quantity: body.quantity,
+        unitName: body.unitName?.trim() || null,
       }),
     }
   );
@@ -291,6 +294,7 @@ export async function appendWarehouseInboundLine(
       body: JSON.stringify({
         productId: body.productId,
         quantity: body.quantity,
+        unitName: body.unitName?.trim() || null,
       }),
     }
   );

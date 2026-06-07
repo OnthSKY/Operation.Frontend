@@ -22,6 +22,9 @@ export type BranchStockConsumptionRow = {
   deletedAt: string | null;
   deletedBy: number | null;
   deletedByName: string | null;
+  /** Kullanıcının seçtiği birim (örn. "paket"); null = ürünün temel/legacy birimi. */
+  enteredUnit: string | null;
+  enteredQuantity: number | null;
 };
 
 export type BranchProductBalanceRow = {
@@ -43,6 +46,8 @@ export type ConsumeInput = {
   quantity: number;
   consumptionDate: string;
   note?: string | null;
+  /** Alternatif birim adı (paket, kg, top, ...); null/boş = ürünün temel/legacy birimi varsayılır. */
+  unitName?: string | null;
 };
 
 export type SnapshotInput = {
@@ -50,6 +55,7 @@ export type SnapshotInput = {
   snapshotValue: number;
   consumptionDate: string;
   note?: string | null;
+  unitName?: string | null;
 };
 
 export type AdjustInput = {
@@ -58,6 +64,7 @@ export type AdjustInput = {
   quantity: number;
   consumptionDate: string;
   note?: string | null;
+  unitName?: string | null;
 };
 
 function normalizeRow(r: Record<string, unknown>): BranchStockConsumptionRow {
@@ -102,6 +109,16 @@ function normalizeRow(r: Record<string, unknown>): BranchStockConsumptionRow {
       r.deletedByName != null && String(r.deletedByName).trim() !== ""
         ? String(r.deletedByName).trim()
         : null,
+    enteredUnit:
+      r.enteredUnit != null && String(r.enteredUnit).trim() !== ""
+        ? String(r.enteredUnit).trim()
+        : r.EnteredUnit != null && String(r.EnteredUnit).trim() !== ""
+          ? String(r.EnteredUnit).trim()
+          : null,
+    enteredQuantity:
+      r.enteredQuantity == null && r.EnteredQuantity == null
+        ? null
+        : Number(r.enteredQuantity ?? r.EnteredQuantity),
   };
 }
 
@@ -173,6 +190,7 @@ export async function recordBranchStockConsumption(
         quantity: input.quantity,
         consumptionDate: input.consumptionDate,
         note: input.note ?? null,
+        unitName: input.unitName?.trim() || null,
       }),
     }
   );
@@ -196,6 +214,7 @@ export async function recordBranchStockSnapshot(
         snapshotValue: input.snapshotValue,
         consumptionDate: input.consumptionDate,
         note: input.note ?? null,
+        unitName: input.unitName?.trim() || null,
       }),
     }
   );
@@ -217,6 +236,7 @@ export async function recordBranchStockAdjustment(
         quantity: input.quantity,
         consumptionDate: input.consumptionDate,
         note: input.note ?? null,
+        unitName: input.unitName?.trim() || null,
       }),
     }
   );

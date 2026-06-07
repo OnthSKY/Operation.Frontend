@@ -206,6 +206,9 @@ export function AddProductModal({ open, onClose, descriptionKey, fixedParent }: 
         parentProductId: parentId,
         categoryId: catId,
         isOrderable: values.isOrderable,
+        // stock_unit ürün oluşturma anında sorulmaz; sihirbaz set eder.
+        stockUnit: null,
+        stockTrackingMode: "INHERIT",
       });
       notify.success(t("toast.productCreated"));
       reset();

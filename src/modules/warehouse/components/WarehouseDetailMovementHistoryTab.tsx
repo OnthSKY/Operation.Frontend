@@ -12,6 +12,7 @@ import {
 import { EditWarehouseInboundBatchModal } from "@/modules/warehouse/components/EditWarehouseInboundBatchModal";
 import { EditWarehouseInboundMovementFullModal } from "@/modules/warehouse/components/EditWarehouseInboundMovementFullModal";
 import { EditWarehouseOutboundShipmentMovementModal } from "@/modules/warehouse/components/EditWarehouseOutboundShipmentMovementModal";
+import { ProductUnitPicker } from "@/modules/products/components/ProductUnitPicker";
 import { WarehouseMovementInvoicePreviewModal } from "@/modules/warehouse/components/WarehouseMovementInvoicePreviewModal";
 import { WarehouseMovementRowCard } from "@/modules/warehouse/components/WarehouseMovementRowCard";
 import { warehouseScopeEffectiveCategoryId } from "@/modules/warehouse/lib/warehouse-scope-filters";
@@ -264,6 +265,8 @@ export function WarehouseDetailMovementHistoryTab({
   const [appendInboundLineOpen, setAppendInboundLineOpen] = useState(false);
   const [appendInboundProductId, setAppendInboundProductId] = useState("");
   const [appendInboundQty, setAppendInboundQty] = useState("1");
+  const [appendInboundUnitName, setAppendInboundUnitName] = useState("");
+  const [appendOutboundUnitName, setAppendOutboundUnitName] = useState("");
   const [appendProductId, setAppendProductId] = useState("");
   const [appendQty, setAppendQty] = useState("1");
 
@@ -2015,6 +2018,16 @@ export function WarehouseDetailMovementHistoryTab({
               disabled={appendInboundLineM.isPending}
             />
           </div>
+          <ProductUnitPicker
+            productId={Number(appendInboundProductId) || null}
+            baseUnit={null}
+            legacyUnit={null}
+            preferredContext="PURCHASE"
+            value={appendInboundUnitName}
+            onChange={setAppendInboundUnitName}
+            disabled={appendInboundLineM.isPending}
+            label="Birim"
+          />
           <Input
             label={t("warehouse.qtyLabelDepoIn")}
             labelRequired
@@ -2051,12 +2064,17 @@ export function WarehouseDetailMovementHistoryTab({
                   await appendInboundLineM.mutateAsync({
                     warehouseId,
                     movementId: representativeMovementId,
-                    body: { productId: pid, quantity: qty },
+                    body: {
+                      productId: pid,
+                      quantity: qty,
+                      unitName: appendInboundUnitName.trim() || null,
+                    },
                   });
                   notify.success(t("warehouse.appendInboundLineSaved"));
                   setAppendInboundLineOpen(false);
                   setAppendInboundProductId("");
                   setAppendInboundQty("1");
+                  setAppendInboundUnitName("");
                 } catch (e) {
                   notify.error(toErrorMessage(e));
                 }
@@ -2092,6 +2110,16 @@ export function WarehouseDetailMovementHistoryTab({
               disabled={appendOutboundLineM.isPending}
             />
           </div>
+          <ProductUnitPicker
+            productId={Number(appendProductId) || null}
+            baseUnit={null}
+            legacyUnit={null}
+            preferredContext="TRANSFER"
+            value={appendOutboundUnitName}
+            onChange={setAppendOutboundUnitName}
+            disabled={appendOutboundLineM.isPending}
+            label="Birim"
+          />
           <Input
             label={t("warehouse.transferQty")}
             labelRequired
@@ -2126,12 +2154,17 @@ export function WarehouseDetailMovementHistoryTab({
                   await appendOutboundLineM.mutateAsync({
                     warehouseId,
                     movementId: selectedOutboundShipmentRepresentativeMovementId,
-                    body: { productId: pid, quantity: qty },
+                    body: {
+                      productId: pid,
+                      quantity: qty,
+                      unitName: appendOutboundUnitName.trim() || null,
+                    },
                   });
                   notify.success(t("warehouse.appendOutboundShipmentLineSaved"));
                   setAppendLineOpen(false);
                   setAppendProductId("");
                   setAppendQty("1");
+                  setAppendOutboundUnitName("");
                 } catch (e) {
                   notify.error(toErrorMessage(e));
                 }

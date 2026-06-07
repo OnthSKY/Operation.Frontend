@@ -38,14 +38,15 @@ import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import type { WarehouseProductStockRow } from "@/types/product";
+import { ProductUnitPicker } from "@/modules/products/components/ProductUnitPicker";
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 function newDraftLineKey() {
   return globalThis.crypto?.randomUUID?.() ?? `ln-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-type LineDraft = { key: string; productId: string; qty: string };
-type TransferLinePayload = { productId: number; quantity: number };
+type LineDraft = { key: string; productId: string; qty: string; unitName: string };
+type TransferLinePayload = { productId: number; quantity: number; unitName?: string | null };
 
 type ResolvedReceiptLine = {
   key: string;
@@ -145,7 +146,7 @@ export function WarehouseListDepoInModal({
   const movement = useRegisterWarehouseMovement();
 
   const [movementDate, setMovementDate] = useState(() => localIsoDate());
-  const [lines, setLines] = useState<LineDraft[]>(() => [{ key: newDraftLineKey(), productId: "", qty: "1" }]);
+  const [lines, setLines] = useState<LineDraft[]>(() => [{ key: newDraftLineKey(), productId: "", qty: "1", unitName: "" }]);
   const [inCheckedBy, setInCheckedBy] = useState("");
   const [inApprovedBy, setInApprovedBy] = useState("");
   const [inMovementNote, setInMovementNote] = useState("");
@@ -160,7 +161,7 @@ export function WarehouseListDepoInModal({
   }, []);
 
   const addDepoLine = useCallback(() => {
-    setLines((ls) => [...ls, { key: newDraftLineKey(), productId: "", qty: "1" }]);
+    setLines((ls) => [...ls, { key: newDraftLineKey(), productId: "", qty: "1", unitName: "" }]);
   }, []);
 
   const removeDepoLine = useCallback((key: string) => {
@@ -168,7 +169,7 @@ export function WarehouseListDepoInModal({
   }, []);
 
   const updateDepoLine = useCallback(
-    (key: string, patch: Partial<Pick<LineDraft, "productId" | "qty">>) => {
+    (key: string, patch: Partial<Pick<LineDraft, "productId" | "qty" | "unitName">>) => {
       setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
     },
     []
@@ -212,7 +213,7 @@ export function WarehouseListDepoInModal({
   useEffect(() => {
     if (!open) return;
     setMovementDate(localIsoDate());
-    setLines([{ key: newDraftLineKey(), productId: "", qty: "1" }]);
+    setLines([{ key: newDraftLineKey(), productId: "", qty: "1", unitName: "" }]);
     setInCheckedBy("");
     setInApprovedBy("");
     setInMovementNote("");
@@ -246,7 +247,7 @@ export function WarehouseListDepoInModal({
         notify.error(t("warehouse.invalidQuantity"));
         return;
       }
-      parsed.push({ productId: pid, quantity: n });
+      parsed.push({ productId: pid, quantity: n, unitName: line.unitName.trim() || null });
     }
     if (parsed.length === 0) {
       notify.error(t("warehouse.depoAtLeastOneProductLine"));
@@ -386,6 +387,18 @@ export function WarehouseListDepoInModal({
                       </div>
                     </div>
                     <div className="grid grid-cols-[minmax(0,1fr)_2.75rem] items-end gap-2 sm:flex sm:items-end sm:gap-1.5">
+                      <div className="min-w-[110px]">
+                        <ProductUnitPicker
+                          productId={Number(line.productId) || null}
+                          baseUnit={null}
+                          legacyUnit={null}
+                          preferredContext="PURCHASE"
+                          value={line.unitName}
+                          onChange={(v) => updateDepoLine(line.key, { unitName: v })}
+                          disabled={disabled}
+                          label={idx === 0 ? "Birim" : ""}
+                        />
+                      </div>
                       <div className={cn("min-w-0", compact ? "sm:w-24" : "sm:w-28")}>
                         <Input
                           type="text"
@@ -407,7 +420,7 @@ export function WarehouseListDepoInModal({
                               return;
                             }
                             const nextKey = newDraftLineKey();
-                            setLines((ls) => [...ls, { key: nextKey, productId: "", qty: "1" }]);
+                            setLines((ls) => [...ls, { key: nextKey, productId: "", qty: "1", unitName: "" }]);
                             focusDepoProduct(nextKey);
                           }}
                           disabled={disabled}
@@ -603,7 +616,7 @@ export function WarehouseListTransferModal({
 
   const [movementDate, setMovementDate] = useState(() => localIsoDate());
   const [lines, setLines] = useState<LineDraft[]>(() => [
-    { key: newDraftLineKey(), productId: "", qty: "1" },
+    { key: newDraftLineKey(), productId: "", qty: "1", unitName: "" },
   ]);
   const [branchId, setBranchId] = useState("");
   const [tDesc, setTDesc] = useState("");
@@ -719,14 +732,14 @@ export function WarehouseListTransferModal({
   }, [previewAllocations, stockRowByProductId]);
 
   const addLine = useCallback(() => {
-    setLines((ls) => [...ls, { key: newDraftLineKey(), productId: "", qty: "1" }]);
+    setLines((ls) => [...ls, { key: newDraftLineKey(), productId: "", qty: "1", unitName: "" }]);
   }, []);
 
   const removeLine = useCallback((key: string) => {
     setLines((ls) => (ls.length <= 1 ? ls : ls.filter((l) => l.key !== key)));
   }, []);
 
-  const updateLine = useCallback((key: string, patch: Partial<Pick<LineDraft, "productId" | "qty">>) => {
+  const updateLine = useCallback((key: string, patch: Partial<Pick<LineDraft, "productId" | "qty" | "unitName">>) => {
     setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   }, []);
   const focusTransferProduct = useCallback((lineKey: string) => {
@@ -738,7 +751,7 @@ export function WarehouseListTransferModal({
   useEffect(() => {
     if (!open) return;
     setMovementDate(localIsoDate());
-    setLines([{ key: newDraftLineKey(), productId: "", qty: "1" }]);
+    setLines([{ key: newDraftLineKey(), productId: "", qty: "1", unitName: "" }]);
     setBranchId("");
     setTDesc("");
     setTrTransportedBy("");
@@ -883,7 +896,7 @@ export function WarehouseListTransferModal({
         notify.error(t("warehouse.invalidQuantity"));
         return;
       }
-      parsed.push({ productId: pid, quantity: n });
+      parsed.push({ productId: pid, quantity: n, unitName: line.unitName.trim() || null });
     }
     if (parsed.length === 0) {
       notify.error(t("warehouse.transferAtLeastOneProductLine"));
@@ -945,7 +958,7 @@ export function WarehouseListTransferModal({
       notify.error(t("warehouse.transferPickBranch"));
       return;
     }
-    const parsed: { productId: number; quantity: number }[] = [];
+    const parsed: { productId: number; quantity: number; unitName?: string | null }[] = [];
     const failLine = (line: LineDraft, key: string, vars: Record<string, string | number>) => {
       const pid = Number(line.productId);
       const fallbackRow = stockRows.find((r) => r.productId === pid);
@@ -974,7 +987,10 @@ export function WarehouseListTransferModal({
         failLine(line, "warehouse.transferLineProductMissing", { line: idx + 1 });
         return;
       }
-      if (n > row.quantity) {
+      // Client-side stok kontrolü yalnız temel birim girişinde anlamlı; kullanıcı
+      // alternatif birim seçtiyse (paket/kg/...) bizde factor bilgisi olmadığından
+      // burada karşılaştırma yanıltıcı olur; backend tutarlı kontrolü zaten yapıyor.
+      if (!line.unitName.trim() && n > row.quantity) {
         failLine(line, "warehouse.transferLineQtyExceedsStock", {
           line: idx + 1,
           qty: n,
@@ -982,7 +998,7 @@ export function WarehouseListTransferModal({
         });
         return;
       }
-      parsed.push({ productId: pid, quantity: n });
+      parsed.push({ productId: pid, quantity: n, unitName: line.unitName.trim() || null });
     }
     if (parsed.length === 0) {
       notify.error(t("warehouse.transferAtLeastOneProductLine"));
@@ -1133,6 +1149,18 @@ export function WarehouseListTransferModal({
                       </div>
                     </div>
                     <div className="grid grid-cols-[minmax(0,1fr)_2.75rem] items-end gap-2 sm:flex sm:items-end sm:gap-1.5">
+                      <div className="min-w-[110px]">
+                        <ProductUnitPicker
+                          productId={Number(line.productId) || null}
+                          baseUnit={null}
+                          legacyUnit={null}
+                          preferredContext="TRANSFER"
+                          value={line.unitName}
+                          onChange={(v) => updateLine(line.key, { unitName: v })}
+                          disabled={disabled}
+                          label={idx === 0 ? "Birim" : ""}
+                        />
+                      </div>
                       <div className={cn("min-w-0", compact ? "sm:w-24" : "sm:w-28")}>
                       <Input
                         type="text"
@@ -1154,7 +1182,7 @@ export function WarehouseListTransferModal({
                             return;
                           }
                           const nextKey = newDraftLineKey();
-                          setLines((ls) => [...ls, { key: nextKey, productId: "", qty: "1" }]);
+                          setLines((ls) => [...ls, { key: nextKey, productId: "", qty: "1", unitName: "" }]);
                           focusTransferProduct(nextKey);
                         }}
                         disabled={disabled}

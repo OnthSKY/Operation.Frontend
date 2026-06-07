@@ -46,6 +46,7 @@ import { notify } from "@/shared/lib/notify";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { PlusIcon } from "@/shared/ui/EyeIcon";
 import { OrderAccountLineProductPicker } from "@/modules/order-account-statement/components/OrderAccountLineProductPicker";
+import { OasLineUnitInput } from "@/modules/order-account-statement/components/OasLineUnitInput";
 import {
   IcCheck,
   IcX,
@@ -1768,8 +1769,8 @@ export function OrderAccountStatementScreen() {
   }
 
   return (
-    <div className="w-full min-w-0 px-4 pb-24 pt-4 sm:px-6 sm:pb-28 md:py-6 md:pb-32 lg:px-8">
-      <header className="mb-6 overflow-hidden rounded-xl border border-zinc-200 bg-white px-4 py-4 shadow-sm ring-1 ring-zinc-950/[0.035] sm:px-6 sm:py-5">
+    <div className="w-full min-w-0 px-2.5 pb-24 pt-3 sm:px-4 sm:pb-28 sm:pt-4 md:px-6 md:py-6 md:pb-32 lg:px-8">
+      <header className="mb-4 overflow-hidden rounded-xl border border-zinc-200 bg-white px-3 py-3 shadow-sm ring-1 ring-zinc-950/[0.035] sm:mb-6 sm:px-6 sm:py-5">
         <div className="flex items-start gap-3 sm:items-center sm:gap-4">
           <OasStepVisualBadge tone="indigo" icon="header" />
           <div className="min-w-0 flex-1">
@@ -2285,7 +2286,24 @@ export function OrderAccountStatementScreen() {
                         )}
                       >
                         {t("reports.orderAccountStatementUnit")}
-                        <input
+                        <OasLineUnitInput
+                          productId={line.selectedProductId ?? null}
+                          baseUnit={
+                            (line.selectedProductId
+                              ? catalog.find((p) => p.id === line.selectedProductId)
+                              : null
+                            )?.stockUnit ??
+                            (line.selectedProductId
+                              ? catalog.find((p) => p.id === line.selectedProductId)
+                              : null
+                            )?.unit ??
+                            null
+                          }
+                          fallbackUnit={line.unitText}
+                          value={line.unitText ?? ""}
+                          onChange={(v) =>
+                            setLines((prev) => prev.map((x) => (x.id === line.id ? { ...x, unitText: v } : x)))
+                          }
                           className={cn(
                             "mt-0.5 w-full rounded-md border border-zinc-200 bg-white tabular-nums",
                             lineDense
@@ -2294,13 +2312,7 @@ export function OrderAccountStatementScreen() {
                                 ? "px-1.5 py-1.5 text-xs"
                                 : "px-2 py-1.5 text-sm"
                           )}
-                          value={line.unitText ?? ""}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setLines((prev) => prev.map((x) => (x.id === line.id ? { ...x, unitText: v } : x)));
-                          }}
                           placeholder={t("reports.orderAccountStatementUnitPlaceholder")}
-                          autoComplete="off"
                         />
                       </label>
                       <label
@@ -2746,7 +2758,13 @@ export function OrderAccountStatementScreen() {
                         <td
                           className={cn("align-top px-1.5", lineDense ? "py-1" : lineCompact ? "py-1.5" : "py-2")}
                         >
-                          <input
+                          <OasLineUnitInput
+                            productId={line.selectedProductId ?? null}
+                            fallbackUnit={line.unitText}
+                            value={line.unitText ?? ""}
+                            onChange={(v) =>
+                              setLines((prev) => prev.map((x) => (x.id === line.id ? { ...x, unitText: v } : x)))
+                            }
                             className={cn(
                               "w-full min-w-0 rounded-md border border-zinc-200 text-right tabular-nums",
                               lineDense
@@ -2755,13 +2773,7 @@ export function OrderAccountStatementScreen() {
                                   ? "px-1 py-1 text-[11px]"
                                   : "px-1.5 py-1.5"
                             )}
-                            value={line.unitText ?? ""}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              setLines((prev) => prev.map((x) => (x.id === line.id ? { ...x, unitText: v } : x)));
-                            }}
                             placeholder={t("reports.orderAccountStatementUnitPlaceholder")}
-                            autoComplete="off"
                           />
                         </td>
                       ) : null}

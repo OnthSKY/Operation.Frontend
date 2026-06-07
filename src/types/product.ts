@@ -4,6 +4,8 @@ export type ProductWarehouseQty = {
   quantity: number;
 };
 
+export type StockTrackingMode = "INHERIT" | "REALTIME" | "END_OF_DAY";
+
 export type ProductListItem = {
   id: number;
   name: string;
@@ -16,6 +18,9 @@ export type ProductListItem = {
   hasChildren?: boolean;
   totalQuantity: number;
   byWarehouse: ProductWarehouseQty[];
+  /** Multi-unit kurulduğunda temel stok birimi (örn. "piece", "gram"); null = legacy ürün. */
+  stockUnit?: string | null;
+  stockTrackingMode?: StockTrackingMode;
 };
 
 /** GET /products/paged — ana ürün köklerine göre sayfalı; her sayfada ilgili alt ürünler dahil. */
@@ -44,6 +49,8 @@ export type ProductInventory = {
     warehouseName: string;
     quantity: number;
   }[];
+  stockUnit?: string | null;
+  stockTrackingMode?: StockTrackingMode;
 };
 
 export type ProductMovementLine = {
@@ -83,7 +90,31 @@ export type ProductCreated = {
   parentProductId?: number | null;
   categoryId?: number | null;
   isOrderable: boolean;
+  stockUnit?: string | null;
+  stockTrackingMode?: StockTrackingMode;
 };
+
+export type ProductUnitType = "ANY" | "PURCHASE" | "TRANSFER" | "SALE";
+
+export type ProductUnit = {
+  id: number;
+  productId: number;
+  unitName: string;
+  toBaseFactor: number;
+  unitType: ProductUnitType;
+  isDefault: boolean;
+  displayOrder: number;
+};
+
+export type AddProductUnitInput = {
+  unitName: string;
+  toBaseFactor: number;
+  unitType?: ProductUnitType;
+  isDefault?: boolean;
+  displayOrder?: number;
+};
+
+export type UpdateProductUnitInput = AddProductUnitInput;
 
 export type WarehouseProductStockRow = {
   productId: number;

@@ -15,6 +15,7 @@ import { Checkbox } from "@/shared/ui/Checkbox";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
+import type { StockTrackingMode } from "@/types/product";
 import { useEffect, useMemo, useState } from "react";
 
 export type EditProductModalProduct = {
@@ -25,6 +26,8 @@ export type EditProductModalProduct = {
   parentProductId?: number | null;
   hasChildren?: boolean;
   isOrderable?: boolean;
+  stockUnit?: string | null;
+  stockTrackingMode?: StockTrackingMode;
 };
 
 type Props = {
@@ -52,7 +55,6 @@ export function EditProductModal({ open, product, onClose, onUpdated }: Props) {
   const [categoryRootPick, setCategoryRootPick] = useState("");
   const [categorySubPick, setCategorySubPick] = useState("");
   const [isOrderable, setIsOrderable] = useState(true);
-
   const hasChildren = Boolean(product?.hasChildren);
 
   useEffect(() => {
@@ -190,6 +192,10 @@ export function EditProductModal({ open, product, onClose, onUpdated }: Props) {
         categoryId: catId,
         parentProductId: parentId,
         isOrderable,
+        // stock_unit ve trackingMode burada düzenlenmez (sihirbaz/şirket ayarı kapsamı);
+        // mevcut değerleri korumak için aynısını paslıyoruz, backend zaten ignore eder.
+        stockUnit: product.stockUnit ?? null,
+        stockTrackingMode: product.stockTrackingMode ?? "INHERIT",
       });
       notify.success(t("toast.productUpdated"));
       onUpdated?.({ id: product.id, name: n });
@@ -239,85 +245,85 @@ export function EditProductModal({ open, product, onClose, onUpdated }: Props) {
         }}
       >
         <ModalFormLayout
-          body={
-            <>
-              <FormSection>
-                <Input
-                  label={t("warehouse.productName")}
-                  labelRequired
-                  required
-                  autoFocus
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  autoComplete="off"
-                  maxLength={150}
-                />
-                <Input
-                  label={t("warehouse.productUnit")}
-                  value={unit}
-                  onChange={(e) => setUnit(e.target.value)}
-                  autoComplete="off"
-                  maxLength={20}
-                />
-                <div className="flex items-start gap-2.5 rounded-md border border-zinc-200 px-3 py-2.5">
-                  <Checkbox
-                    checked={isOrderable}
-                    onCheckedChange={setIsOrderable}
-                    aria-label={t("products.orderableLabel")}
+            body={
+              <>
+                <FormSection>
+                  <Input
+                    label={t("warehouse.productName")}
+                    labelRequired
+                    required
+                    autoFocus
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    autoComplete="off"
+                    maxLength={150}
                   />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-zinc-900">{t("products.orderableLabel")}</p>
-                    <p className="text-xs text-zinc-500">{t("products.orderableHint")}</p>
+                  <Input
+                    label={t("warehouse.productUnit")}
+                    value={unit}
+                    onChange={(e) => setUnit(e.target.value)}
+                    autoComplete="off"
+                    maxLength={20}
+                  />
+                  <div className="flex items-start gap-2.5 rounded-md border border-zinc-200 px-3 py-2.5">
+                    <Checkbox
+                      checked={isOrderable}
+                      onCheckedChange={setIsOrderable}
+                      aria-label={t("products.orderableLabel")}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-zinc-900">{t("products.orderableLabel")}</p>
+                      <p className="text-xs text-zinc-500">{t("products.orderableHint")}</p>
+                    </div>
                   </div>
-                </div>
-                {hasChildren ? (
-                  <p className="text-sm text-zinc-600">{t("products.editParentLockedHint")}</p>
-                ) : (
-                  <Select
-                    label={t("products.parentProduct")}
-                    name="edit-product-parent"
-                    options={parentSelectOptions}
-                    value={parentPick}
-                    onChange={(e) => setParentPick(e.target.value)}
-                    onBlur={() => {}}
-                  />
-                )}
-              </FormSection>
-              <FormSection>
-                {categoriesLoading ? (
-                  <p className="text-sm text-zinc-500">{t("common.loading")}</p>
-                ) : null}
-                {categoriesError ? (
-                  <p className="text-sm text-red-600" role="alert">
-                    {t("products.categoryLoadFailed")}
-                  </p>
-                ) : null}
-                {!categoriesLoading ? (
-                  <>
+                  {hasChildren ? (
+                    <p className="text-sm text-zinc-600">{t("products.editParentLockedHint")}</p>
+                  ) : (
                     <Select
-                      label={t("products.categoryMainLabel")}
-                      name="edit-product-category-root"
-                      options={rootCategoryOptions}
-                      value={categoryRootPick}
-                      onChange={(e) => {
-                        setCategoryRootPick(e.target.value);
-                        setCategorySubPick("");
-                      }}
+                      label={t("products.parentProduct")}
+                      name="edit-product-parent"
+                      options={parentSelectOptions}
+                      value={parentPick}
+                      onChange={(e) => setParentPick(e.target.value)}
                       onBlur={() => {}}
                     />
-                    {showSubCategorySelect ? (
+                  )}
+                </FormSection>
+                <FormSection>
+                  {categoriesLoading ? (
+                    <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+                  ) : null}
+                  {categoriesError ? (
+                    <p className="text-sm text-red-600" role="alert">
+                      {t("products.categoryLoadFailed")}
+                    </p>
+                  ) : null}
+                  {!categoriesLoading ? (
+                    <>
                       <Select
-                        label={t("products.categorySubLabel")}
-                        name="edit-product-category-sub"
-                        options={subCategoryOptions}
-                        value={categorySubPick}
-                        onChange={(e) => setCategorySubPick(e.target.value)}
+                        label={t("products.categoryMainLabel")}
+                        name="edit-product-category-root"
+                        options={rootCategoryOptions}
+                        value={categoryRootPick}
+                        onChange={(e) => {
+                          setCategoryRootPick(e.target.value);
+                          setCategorySubPick("");
+                        }}
                         onBlur={() => {}}
                       />
-                    ) : null}
-                  </>
-                ) : null}
-              </FormSection>
+                      {showSubCategorySelect ? (
+                        <Select
+                          label={t("products.categorySubLabel")}
+                          name="edit-product-category-sub"
+                          options={subCategoryOptions}
+                          value={categorySubPick}
+                          onChange={(e) => setCategorySubPick(e.target.value)}
+                          onBlur={() => {}}
+                        />
+                      ) : null}
+                    </>
+                  ) : null}
+                </FormSection>
             </>
           }
           footer={

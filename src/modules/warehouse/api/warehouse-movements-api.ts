@@ -7,16 +7,17 @@ function warehouseInLinesForApi(
     quantity: number;
     inboundUnitCost?: number | null;
     inboundCurrencyCode?: string | null;
+    unitName?: string | null;
   }[],
 ) {
   return lines.map((l) => {
-    const base = { productId: l.productId, quantity: l.quantity };
+    const base: Record<string, unknown> = { productId: l.productId, quantity: l.quantity };
+    if (l.unitName && l.unitName.trim()) {
+      base.unitName = l.unitName.trim();
+    }
     if (l.inboundUnitCost != null && Number.isFinite(l.inboundUnitCost) && l.inboundUnitCost > 0) {
-      return {
-        ...base,
-        inboundUnitCost: l.inboundUnitCost,
-        inboundCurrencyCode: (l.inboundCurrencyCode?.trim() || "TRY").toUpperCase(),
-      };
+      base.inboundUnitCost = l.inboundUnitCost;
+      base.inboundCurrencyCode = (l.inboundCurrencyCode?.trim() || "TRY").toUpperCase();
     }
     return base;
   });
@@ -78,10 +79,13 @@ export async function registerWarehouseMovement(input: {
     quantity: number;
     inboundUnitCost?: number | null;
     inboundCurrencyCode?: string | null;
+    unitName?: string | null;
   }[];
   /** Depo çıkışı: tek ürün */
   productId?: number;
   quantity?: number;
+  /** Tek-ürün (OUT veya tekil IN) akışı için kullanıcının seçtiği birim. */
+  unitName?: string | null;
   invoicePhoto?: File | null;
 }): Promise<WarehouseMovementResponse | WarehouseInBatchMovementResponse> {
   if (input.direction === "out") {
@@ -100,6 +104,7 @@ export async function registerWarehouseMovement(input: {
         description: input.description ?? null,
         checkedByPersonnelId: input.checkedByPersonnelId,
         approvedByPersonnelId: input.approvedByPersonnelId,
+        unitName: input.unitName?.trim() || null,
       }),
     });
   }
@@ -108,7 +113,7 @@ export async function registerWarehouseMovement(input: {
     input.lines && input.lines.length > 0
       ? input.lines
       : input.productId != null && input.quantity != null
-        ? [{ productId: input.productId, quantity: input.quantity }]
+        ? [{ productId: input.productId, quantity: input.quantity, unitName: input.unitName ?? null }]
         : [];
 
   if (lines.length === 0) {

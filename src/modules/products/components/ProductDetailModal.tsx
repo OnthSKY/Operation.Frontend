@@ -2,6 +2,7 @@
 
 import { useProductInventory } from "@/modules/products/hooks/useProductQueries";
 import { ProductDetailMovementsTab } from "@/modules/products/components/ProductDetailMovementsTab";
+import { ProductUnitsTabContent } from "@/modules/products/components/ProductUnitsTabContent";
 import { useProductCostHistory } from "@/modules/products/hooks/useProductCostQueries";
 import { useI18n } from "@/i18n/context";
 import { toErrorMessage } from "@/shared/lib/error-message";
@@ -27,7 +28,7 @@ type Props = {
   onEdit?: () => void;
 };
 
-type TabId = "inventory" | "movements" | "costHistory";
+type TabId = "inventory" | "movements" | "costHistory" | "units";
 
 export function ProductDetailModal({ open, productId, productLabel, onClose, onEdit }: Props) {
   const { t, locale } = useI18n();
@@ -126,6 +127,20 @@ export function ProductDetailModal({ open, productId, productLabel, onClose, onE
           >
             {t("products.tabCostHistory")}
           </button>
+          <button
+            type="button"
+            role="tab"
+            id="product-tab-units"
+            aria-selected={tab === "units"}
+            className={
+              tab === "units"
+                ? "-mb-px min-h-12 border-b-2 border-zinc-900 px-4 text-sm font-semibold text-zinc-900"
+                : "min-h-12 border-b-2 border-transparent px-4 text-sm font-medium text-zinc-500 hover:text-zinc-800"
+            }
+            onClick={() => setTab("units")}
+          >
+            Birimler
+          </button>
           {onEdit ? (
             <div className="ml-auto flex items-center">
               <Button
@@ -149,7 +164,9 @@ export function ProductDetailModal({ open, productId, productLabel, onClose, onE
               ? "product-tab-inventory"
               : tab === "movements"
                 ? "product-tab-movements"
-                : "product-tab-cost-history"
+                : tab === "costHistory"
+                  ? "product-tab-cost-history"
+                  : "product-tab-units"
           }
           className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain px-4 py-4 sm:px-6 sm:py-5"
         >
@@ -329,6 +346,22 @@ export function ProductDetailModal({ open, productId, productLabel, onClose, onE
                   )}
                 </div>
               ) : null}
+            </section>
+          )}
+          {tab === "units" && pid > 0 && (
+            <section className="flex min-h-0 flex-1 flex-col gap-3">
+              <h3 className="sr-only">Birimler</h3>
+              <div
+                role="status"
+                className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+              >
+                Bu sekmedeki değişiklikler <strong>anında kaydedilir</strong>; ürün
+                detayında ayrı bir kaydet butonu yoktur.
+              </div>
+              <ProductUnitsTabContent
+                productId={pid}
+                legacyUnitLabel={inv?.unit?.trim() || null}
+              />
             </section>
           )}
         </div>

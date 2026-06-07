@@ -309,14 +309,15 @@ export function ProductsScreen() {
           variant="secondary"
           className={cn(
             "min-h-11 min-w-0 touch-manipulation sm:min-h-9",
-            "max-sm:!h-11 max-sm:!w-11 max-sm:!min-h-11 max-sm:!min-w-11 max-sm:!max-w-[2.75rem] max-sm:!px-0 max-sm:!py-0"
+            // Dar ekranlarda yer kazanmak için lg altında icon-only; lg+ yazı görünür.
+            "max-lg:!h-11 max-lg:!w-11 max-lg:!min-h-11 max-lg:!min-w-11 max-lg:!max-w-[2.75rem] max-lg:!px-0 max-lg:!py-0"
           )}
           onClick={() => router.push("/products/cost-history")}
           aria-label={t("nav.productCostHistory")}
           title={t("nav.productCostHistory")}
         >
-          <ToolbarGlyphReceipt className="h-[1.15rem] w-[1.15rem] shrink-0 sm:mr-2 sm:h-4 sm:w-4" aria-hidden />
-          <span className="hidden min-w-0 truncate sm:inline">{t("nav.productCostHistory")}</span>
+          <ToolbarGlyphReceipt className="h-[1.15rem] w-[1.15rem] shrink-0 lg:mr-2 lg:h-4 lg:w-4" aria-hidden />
+          <span className="hidden min-w-0 truncate lg:inline">{t("nav.productCostHistory")}</span>
         </Button>
       </Tooltip>
       <Tooltip content={t("products.addProduct")} delayMs={200}>
@@ -600,7 +601,9 @@ export function ProductsScreen() {
                   <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
                     {t("products.colUnit")}
                   </span>
-                  <span className="text-sm font-semibold text-zinc-900">{r.unit?.trim() ? r.unit : "—"}</span>
+                  <span className="text-sm font-semibold text-zinc-900">
+                    {r.stockUnit?.trim() || r.unit?.trim() || "—"}
+                  </span>
                 </div>
 
                 <div className="overflow-hidden rounded-xl bg-gradient-to-br from-zinc-900/[0.03] via-white to-violet-50/40 p-3 ring-1 ring-zinc-200/70">
@@ -738,14 +741,14 @@ export function ProductsScreen() {
                         ) : null}
                       </div>
                       <div className="text-xs text-zinc-500 md:hidden">
-                        {r.unit ?? "—"}
+                        {r.stockUnit?.trim() || r.unit?.trim() || "—"}
                       </div>
                     </TableCell>
                     <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 max-w-[10rem] truncate text-zinc-600 md:hidden lg:table-cell">
                       {renderCategoryHierarchy(r, categoryById, t)}
                     </TableCell>
                     <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 text-zinc-600 md:table-cell">
-                      {r.unit ?? "—"}
+                      {r.stockUnit?.trim() || r.unit?.trim() || "—"}
                     </TableCell>
                     <TableCell className="min-w-0">
                       <div className="flex min-w-0 max-w-md flex-wrap gap-1.5">
@@ -834,6 +837,8 @@ export function ProductsScreen() {
                 parentProductId: productEdit.parentProductId ?? null,
                 hasChildren: Boolean(productEdit.hasChildren),
                 isOrderable: productEdit.isOrderable,
+                stockUnit: productEdit.stockUnit ?? null,
+                stockTrackingMode: productEdit.stockTrackingMode,
               }
             : null
         }
