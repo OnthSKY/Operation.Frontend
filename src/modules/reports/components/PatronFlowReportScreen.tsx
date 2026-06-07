@@ -372,14 +372,20 @@ function fillTemplate(template: string, vars: Record<string, string>): string {
 }
 
 function expenseDetailHref(row: PatronExpenseRow): string | null {
-  // OPEN general-overhead pool rows are branchless; send the user to the pool screen.
-  if (row.derivedFromOverheadPoolId != null) {
-    return "/general-overhead";
+  // OPEN general-overhead pool rows are branchless; send the user to the pool screen
+  // with the specific pool deep-link (?openPool=ID).
+  const poolId = row.derivedFromOverheadPoolId ?? row.generalOverheadPoolId;
+  if (poolId != null && poolId > 0) {
+    return `/general-overhead?openPool=${poolId}`;
   }
-  // PATRON-paid supplier_payments live in their own table — branch_transactions
-  // tab can't show them; route to the suppliers screen instead.
-  if (row.derivedFromSupplierPaymentId != null) {
-    return "/suppliers";
+  // Supplier-bağlı satırlar tedarikçi faturalar sayfasına yönlendirir; PATRON-paid
+  // supplier_payments ve branch_transactions üzerindeki linked_supplier_invoice_line_id
+  // ikisi de aynı liste içinde bulunur.
+  if (
+    row.derivedFromSupplierPaymentId != null ||
+    (row.linkedSupplierInvoiceLineId != null && row.linkedSupplierInvoiceLineId > 0)
+  ) {
+    return "/suppliers/invoices";
   }
   if (row.branchId == null || row.branchId <= 0) return null;
   return buildBranchDetailHref(row.branchId, {
@@ -990,6 +996,10 @@ export function PatronFlowReportScreen() {
                         // Personel-bazlı (avans/personel gideri) satırlar shared overlay
                         // ile açılır; aksi halde şube detayı linki kullanılır.
                         const personnelFocus = rowPersonnelDetailFocus(row);
+                        const isSupplier =
+                          row.derivedFromSupplierPaymentId != null ||
+                          (row.linkedSupplierInvoiceLineId != null &&
+                            row.linkedSupplierInvoiceLineId > 0);
                         const href = personnelFocus ? null : expenseDetailHref(row);
                         const hasDetail = !!(personnelFocus || href);
                         return (
@@ -1055,7 +1065,7 @@ export function PatronFlowReportScreen() {
                               >
                                 <EyeIcon className="h-5 w-5" />
                               </button>
-                            ) : row.branchId != null && row.branchId > 0 ? (
+                            ) : !isSupplier && row.branchId != null && row.branchId > 0 ? (
                               <button
                                 type="button"
                                 aria-label={t("reports.patronExpensesOpenDetailAria")}
@@ -1064,7 +1074,7 @@ export function PatronFlowReportScreen() {
                                 onClick={() =>
                                   openBranchDetail(row.branchId!, {
                                     initialTab: "expenses",
-                                    initialRegisterDay: row.transactionDate,
+                                    initialRegisterDay: (row.transactionDate ?? "").slice(0, 10) || null,
                                     initialExpensePaymentSource: "PATRON",
                                     focusTransactionId: row.id,
                                   })
@@ -1120,6 +1130,10 @@ export function PatronFlowReportScreen() {
                         <TableBody>
                           {slice.map((row) => {
                             const personnelFocus = rowPersonnelDetailFocus(row);
+                            const isSupplier =
+                              row.derivedFromSupplierPaymentId != null ||
+                              (row.linkedSupplierInvoiceLineId != null &&
+                                row.linkedSupplierInvoiceLineId > 0);
                             const href = personnelFocus ? null : expenseDetailHref(row);
                             return (
                               <TableRow key={row.id}>
@@ -1174,7 +1188,7 @@ export function PatronFlowReportScreen() {
                                     >
                                       <EyeIcon className="h-5 w-5" />
                                     </button>
-                                  ) : row.branchId != null && row.branchId > 0 ? (
+                                  ) : !isSupplier && row.branchId != null && row.branchId > 0 ? (
                                     <button
                                       type="button"
                                       aria-label={t("reports.patronExpensesOpenDetailAria")}
