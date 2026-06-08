@@ -15,9 +15,9 @@ import {
   type PatronExpensesPartialFailure,
 } from "@/modules/reports/hooks/useAllBranchesPatronExpenses";
 import {
-  addDaysFromIso,
+  resolveReportDatePreset,
   startOfCalendarYearIso,
-  startOfMonthIso,
+  type ReportDatePresetKey,
 } from "@/modules/reports/lib/report-period-helpers";
 import {
   compareValues,
@@ -458,18 +458,10 @@ export function PatronFlowReportScreen() {
     [branches, t],
   );
 
-  const applyDatePreset = (key: "month" | "d30" | "d7") => {
-    const today = localIsoDate();
-    if (key === "month") {
-      setDateFromRaw(startOfMonthIso());
-      setDateToRaw(today);
-    } else if (key === "d30") {
-      setDateFromRaw(addDaysFromIso(today, -29));
-      setDateToRaw(today);
-    } else {
-      setDateFromRaw(addDaysFromIso(today, -6));
-      setDateToRaw(today);
-    }
+  const applyDatePreset = (key: ReportDatePresetKey) => {
+    const r = resolveReportDatePreset(key);
+    setDateFromRaw(r.dateFrom);
+    setDateToRaw(r.dateTo);
     setPage(1);
   };
 
@@ -594,6 +586,28 @@ export function PatronFlowReportScreen() {
     return processed.slice(start, start + DETAIL_PAGE_SIZE);
   }, [processed, pageSafe]);
 
+  // (4) Sayfanın satırlarını güne göre grupla — başlıklarda günlük toplam gösterilir.
+  // Sıralama sortKey="date" desc olduğunda doğal olarak ardışıktır; aksi halde de
+  // gruplandırma görsel olarak işlevsel kalır (her gün ardı ardına gruplanır).
+  const slicedByDay = useMemo(() => {
+    const groups: {
+      date: string;
+      total: number;
+      rows: PatronExpenseRow[];
+    }[] = [];
+    let last: (typeof groups)[number] | null = null;
+    for (const row of slice) {
+      const d = (row.transactionDate ?? "").slice(0, 10);
+      if (!last || last.date !== d) {
+        last = { date: d, total: 0, rows: [] };
+        groups.push(last);
+      }
+      last.rows.push(row);
+      last.total += row.amount;
+    }
+    return groups;
+  }, [slice]);
+
   const hasAnyData = rollups.length > 0;
   const hasMultipleCcy = rollups.length > 1;
 
@@ -702,6 +716,52 @@ export function PatronFlowReportScreen() {
 
             {state.kind === "ok" && activeRollup ? (
               <>
+                {/* (5) HIZLI BAKIŞ özeti: dönemin toplamı + en yüksek 2 grup. */}
+                {(() => {
+                  const sortedBuckets = activeRollup.buckets
+                    .filter((b) => b.amount > 0)
+                    .slice()
+                    .sort((a, b) => b.amount - a.amount);
+                  const top = sortedBuckets[0];
+                  const second = sortedBuckets[1];
+                  const total = activeRollup.buckets.reduce(
+                    (s, b) => s + b.amount,
+                    0,
+                  );
+                  if (total <= 0) return null;
+                  return (
+                    <section className="mb-3 rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white px-4 py-3 shadow-sm sm:px-5 sm:py-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
+                        Hızlı bakış
+                      </p>
+                      <p className="mt-1 text-sm leading-relaxed text-zinc-800 sm:text-base">
+                        Patron cebinden çıkan toplam:{" "}
+                        <span className="font-bold tabular-nums text-zinc-950">
+                          {formatLocaleAmount(total, locale, activeRollup.currencyCode)}
+                        </span>
+                        {top ? (
+                          <>
+                            . En yüksek grup:{" "}
+                            <span className="font-medium">
+                              {bucketLabel(t, top.bucket)}
+                            </span>{" "}
+                            (%{Math.round(top.pct)})
+                          </>
+                        ) : null}
+                        {second && Math.round(second.pct) > 0 ? (
+                          <>
+                            , ardından{" "}
+                            <span className="font-medium">
+                              {bucketLabel(t, second.bucket)}
+                            </span>{" "}
+                            (%{Math.round(second.pct)})
+                          </>
+                        ) : null}
+                        .
+                      </p>
+                    </section>
+                  );
+                })()}
                 {/* HERO KPI */}
                 <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-6">
                   {hasMultipleCcy ? (
@@ -925,6 +985,74 @@ export function PatronFlowReportScreen() {
                   })()}
                 </section>
 
+                {/* (3) ŞUBE KARŞILAŞTIRMA — şube bazlı patron harcamaları */}
+                {(() => {
+                  const totalsByBranch = new Map<
+                    string,
+                    { branchId: number | null; name: string; amount: number }
+                  >();
+                  for (const r of allRows) {
+                    if ((r.currencyCode || "TRY").toUpperCase() !== effectiveCcy) continue;
+                    const key =
+                      r.branchId != null && r.branchId > 0
+                        ? `b:${r.branchId}`
+                        : "central";
+                    const existing = totalsByBranch.get(key);
+                    if (existing) {
+                      existing.amount += r.amount;
+                    } else {
+                      totalsByBranch.set(key, {
+                        branchId: r.branchId ?? null,
+                        name: r.branchName ?? "Şubeye atanmamış",
+                        amount: r.amount,
+                      });
+                    }
+                  }
+                  const list = Array.from(totalsByBranch.values())
+                    .sort((a, b) => b.amount - a.amount)
+                    .slice(0, 6);
+                  const grandTotal = list.reduce((s, x) => s + x.amount, 0);
+                  if (list.length === 0 || grandTotal <= 0) return null;
+                  return (
+                    <section className="rounded-2xl border border-zinc-200 bg-white p-3 sm:p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                        Şube karşılaştırma · Patron harcaması
+                      </p>
+                      <ul className="mt-2 space-y-1.5">
+                        {list.map((b) => {
+                          const pct = grandTotal > 0 ? (b.amount / grandTotal) * 100 : 0;
+                          return (
+                            <li
+                              key={`${b.branchId ?? "central"}-${b.name}`}
+                              className="flex items-center gap-3"
+                            >
+                              <span className="min-w-0 flex-1 truncate text-sm text-zinc-800">
+                                {b.name}
+                              </span>
+                              <span className="relative h-2 w-32 rounded-full bg-zinc-100 sm:w-48">
+                                <span
+                                  className="absolute inset-y-0 left-0 rounded-full bg-violet-500"
+                                  style={{ width: `${pct.toFixed(1)}%` }}
+                                />
+                              </span>
+                              <span className="w-14 shrink-0 text-right text-[11px] tabular-nums text-zinc-500">
+                                %{Math.round(pct)}
+                              </span>
+                              <span className="w-24 shrink-0 text-right text-xs tabular-nums font-semibold text-zinc-900 sm:w-32 sm:text-sm">
+                                {formatLocaleAmount(
+                                  b.amount,
+                                  locale,
+                                  effectiveCcy ?? "TRY",
+                                )}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </section>
+                  );
+                })()}
+
                 {/* SEARCH + SORT */}
                 <section className="rounded-2xl border border-zinc-200 bg-white px-3 py-3 sm:px-4">
                   <div
@@ -979,15 +1107,34 @@ export function PatronFlowReportScreen() {
                 </section>
 
                 {/* DETAIL ROWS */}
+                {/* (2) Çok para birimi uyarısı: liste tek para birimi gösterir, diğerleri gizli. */}
+                {rollups.length > 1 && effectiveCcy ? (
+                  <div className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                    Liste yalnız <strong>{effectiveCcy}</strong> kalemlerini gösterir.
+                    Diğer {rollups.length - 1} para birimini görmek için üstteki para birimi
+                    seçicisini kullanın.
+                  </div>
+                ) : null}
                 {processed.length === 0 ? (
                   <div className="rounded-2xl border border-zinc-200 bg-white px-5 py-6 text-center text-sm text-zinc-500">
                     {t("reports.sectionNoSearchMatches")}
                   </div>
                 ) : (
                   <section className="rounded-2xl border border-zinc-200 bg-white">
-                    {/* MOBILE: single-row, eye icon at right opens detail */}
-                    <ul className="divide-y divide-zinc-100 sm:hidden">
-                      {slice.map((row) => {
+                    {/* MOBILE: gün-bazlı gruplanmış kart listesi */}
+                    <div className="sm:hidden">
+                      {slicedByDay.map((g) => (
+                        <div key={g.date}>
+                          <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-y border-zinc-100 bg-zinc-50/95 px-3 py-1.5 backdrop-blur supports-[backdrop-filter]:bg-zinc-50/85">
+                            <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                              {formatLocaleDate(g.date, locale)}
+                            </span>
+                            <span className="text-[11px] font-bold tabular-nums text-zinc-900">
+                              {formatLocaleAmount(g.total, locale, activeRollup.currencyCode)}
+                            </span>
+                          </div>
+                          <ul className="divide-y divide-zinc-100">
+                            {g.rows.map((row) => {
                         const catLine = txCategoryLine(
                           row.mainCategory,
                           row.category,
@@ -1006,10 +1153,18 @@ export function PatronFlowReportScreen() {
                           <li
                             key={row.id}
                             className={cn(
-                              "flex items-center gap-3 px-3 py-2.5",
+                              "relative flex items-center gap-3 py-2.5 pl-4 pr-3",
                               !hasDetail && "opacity-60",
                             )}
                           >
+                            {/* (8) Renk şeridi — bucket'a göre */}
+                            <span
+                              aria-hidden
+                              className={cn(
+                                "absolute inset-y-1 left-1 w-1 rounded-full",
+                                BUCKET_TONE[bucketFromRow(row)].barActive,
+                              )}
+                            />
                             <div className="min-w-0 flex-1">
                               <p className="text-[11px] text-zinc-500 tabular-nums">
                                 {formatLocaleDate(row.transactionDate, locale)}
@@ -1021,6 +1176,11 @@ export function PatronFlowReportScreen() {
                                     }: ${personnelFocus.personnelName ?? "—"}`
                                   : row.branchName ?? "—"}
                               </p>
+                              {personnelFocus && row.branchName?.trim() ? (
+                                <p className="truncate text-[10px] text-emerald-700">
+                                  Şube kasası: {row.branchName}
+                                </p>
+                              ) : null}
                               <p className="truncate text-xs">
                                 <span
                                   className={cn(
@@ -1099,7 +1259,10 @@ export function PatronFlowReportScreen() {
                           </li>
                         );
                       })}
-                    </ul>
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
 
                     {/* DESKTOP: table with eye icon cell */}
                     <div className="hidden sm:block">
@@ -1128,7 +1291,26 @@ export function PatronFlowReportScreen() {
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {slice.map((row) => {
+                          {slicedByDay.flatMap((g) => [
+                            <TableRow key={`day-${g.date}`}>
+                              <TableCell
+                                colSpan={7}
+                                className="sticky top-0 z-10 !bg-zinc-50 !py-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-600 backdrop-blur"
+                              >
+                                <span className="flex items-center justify-between gap-3">
+                                  <span>{formatLocaleDate(g.date, locale)}</span>
+                                  <span className="tabular-nums text-zinc-800">
+                                    Toplam:{" "}
+                                    {formatLocaleAmount(
+                                      g.total,
+                                      locale,
+                                      activeRollup.currencyCode,
+                                    )}
+                                  </span>
+                                </span>
+                              </TableCell>
+                            </TableRow>,
+                            ...g.rows.map((row) => {
                             const personnelFocus = rowPersonnelDetailFocus(row);
                             const isSupplier =
                               row.derivedFromSupplierPaymentId != null ||
@@ -1138,10 +1320,32 @@ export function PatronFlowReportScreen() {
                             return (
                               <TableRow key={row.id}>
                                 <TableCell className="whitespace-nowrap text-sm tabular-nums">
-                                  {formatLocaleDate(row.transactionDate, locale)}
+                                  <span className="inline-flex items-center gap-2">
+                                    <span
+                                      aria-hidden
+                                      className={cn(
+                                        "inline-block h-3 w-1 rounded-full",
+                                        BUCKET_TONE[bucketFromRow(row)].barActive,
+                                      )}
+                                    />
+                                    {formatLocaleDate(row.transactionDate, locale)}
+                                  </span>
                                 </TableCell>
                                 <TableCell className="text-sm text-zinc-900">
-                                  {personnelFocus?.personnelName ?? row.branchName ?? "—"}
+                                  {personnelFocus ? (
+                                    <div className="flex flex-col gap-0.5">
+                                      <span className="truncate">
+                                        {`${personnelFocus.focusAdvanceId ? "Avans" : "Personel"}: ${personnelFocus.personnelName ?? "—"}`}
+                                      </span>
+                                      {row.branchName?.trim() ? (
+                                        <span className="inline-flex max-w-fit items-center rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                                          Şube kasası: {row.branchName}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                  ) : (
+                                    row.branchName ?? "—"
+                                  )}
                                 </TableCell>
                                 <TableCell
                                   className={cn(
@@ -1167,8 +1371,13 @@ export function PatronFlowReportScreen() {
                                     t,
                                   ) || "—"}
                                 </TableCell>
-                                <TableCell className="max-w-[18rem] text-sm text-zinc-700">
-                                  {row.description ?? "—"}
+                                <TableCell className="max-w-[14rem] text-sm text-zinc-700">
+                                  <span
+                                    className="block truncate"
+                                    title={row.description ?? undefined}
+                                  >
+                                    {row.description ?? "—"}
+                                  </span>
                                 </TableCell>
                                 <TableCell className="w-12 text-right">
                                   {personnelFocus ? (
@@ -1222,7 +1431,8 @@ export function PatronFlowReportScreen() {
                                 </TableCell>
                               </TableRow>
                             );
-                          })}
+                          }),
+                          ])}
                         </TableBody>
                       </Table>
                     </div>

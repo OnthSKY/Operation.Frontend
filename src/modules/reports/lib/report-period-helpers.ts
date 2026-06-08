@@ -53,6 +53,46 @@ export function inferCalendarSeasonYearFromRange(
   return y;
 }
 
+export type ReportDatePresetKey =
+  | "today"
+  | "thisWeek"
+  | "month"
+  | "lastMonth"
+  | "thisYear"
+  | "d30"
+  | "d7";
+
+/**
+ * Rapor tarih aralığı preset hesabı. `ReportHubDateRangeControls.onPreset`
+ * callback'leri için tek doğruluk kaynağı — her tüketici aynı helper'ı kullanır
+ * → preset eklemek için yalnız bu fonksiyon ve i18n etiketi güncellenir.
+ */
+export function resolveReportDatePreset(
+  key: ReportDatePresetKey,
+  now: Date = new Date(),
+): { dateFrom: string; dateTo: string } {
+  const today = localIsoDate(now);
+  if (key === "today") return { dateFrom: today, dateTo: today };
+  if (key === "thisWeek") {
+    const dow = (now.getDay() + 6) % 7; // Mon=0..Sun=6
+    return { dateFrom: addDaysFromIso(today, -dow), dateTo: today };
+  }
+  if (key === "month") return { dateFrom: startOfMonthIso(now), dateTo: today };
+  if (key === "lastMonth") {
+    const firstOfLast = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastOfLast = new Date(now.getFullYear(), now.getMonth(), 0);
+    return {
+      dateFrom: localIsoDate(firstOfLast),
+      dateTo: localIsoDate(lastOfLast),
+    };
+  }
+  if (key === "thisYear")
+    return { dateFrom: startOfCalendarYearIso(now), dateTo: today };
+  if (key === "d30")
+    return { dateFrom: addDaysFromIso(today, -29), dateTo: today };
+  return { dateFrom: addDaysFromIso(today, -6), dateTo: today };
+}
+
 /** Rapor tarihi tam yıl sonu (YYYY-12-31) ise yılı döndürür. */
 export function inferYearFromDec31AsOf(asOf: string): number | null {
   const s = String(asOf ?? "").trim().slice(0, 10);

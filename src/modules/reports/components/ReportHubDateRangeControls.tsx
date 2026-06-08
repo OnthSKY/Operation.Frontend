@@ -1,12 +1,13 @@
 "use client";
 
 import { ReportSeasonYearQuickSelect } from "@/modules/reports/components/ReportSeasonYearQuickSelect";
+import type { ReportDatePresetKey } from "@/modules/reports/lib/report-period-helpers";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
 
 export type ReportHubRangeLock = "preset" | "calendarYear" | "manual";
 
-type PresetKey = "month" | "d30" | "d7";
+type PresetKey = ReportDatePresetKey;
 
 type Props = {
   t: (key: string) => string;
@@ -48,9 +49,45 @@ export function ReportHubDateRangeControls({
           variant="secondary"
           className="min-h-11 touch-manipulation text-xs sm:min-h-10"
           disabled={presetsDisabled}
+          onClick={() => onPreset("today")}
+        >
+          Bugün
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          className="min-h-11 touch-manipulation text-xs sm:min-h-10"
+          disabled={presetsDisabled}
+          onClick={() => onPreset("thisWeek")}
+        >
+          Bu hafta
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          className="min-h-11 touch-manipulation text-xs sm:min-h-10"
+          disabled={presetsDisabled}
           onClick={() => onPreset("month")}
         >
           {t("reports.presetThisMonth")}
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          className="min-h-11 touch-manipulation text-xs sm:min-h-10"
+          disabled={presetsDisabled}
+          onClick={() => onPreset("lastMonth")}
+        >
+          Geçen ay
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          className="min-h-11 touch-manipulation text-xs sm:min-h-10"
+          disabled={presetsDisabled}
+          onClick={() => onPreset("thisYear")}
+        >
+          Bu yıl
         </Button>
         <Button
           type="button"

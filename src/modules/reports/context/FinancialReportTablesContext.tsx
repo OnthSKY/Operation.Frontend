@@ -3,8 +3,9 @@
 import { useI18n } from "@/i18n/context";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import {
-  addDaysFromIso,
+  resolveReportDatePreset,
   startOfMonthIso,
+  type ReportDatePresetKey,
 } from "@/modules/reports/lib/report-period-helpers";
 import { useFinancialReport } from "@/modules/reports/hooks/useReportsQueries";
 import type { ReportHubRangeLock } from "@/modules/reports/components/ReportHubDateRangeControls";
@@ -40,7 +41,7 @@ type FinancialReportTablesContextValue = {
   setFinExpenseSource: (v: string) => void;
   finBranchOptions: { value: string; label: string }[];
   branches: { id: number; name: string }[];
-  applyDatePreset: (key: "month" | "d30" | "d7") => void;
+  applyDatePreset: (key: ReportDatePresetKey) => void;
   filtersActive: boolean;
   financial: ReturnType<typeof useFinancialReport>;
   branchTrendMap: Map<string, number>;
@@ -109,20 +110,10 @@ export function FinancialReportTablesProvider({ children }: { children: ReactNod
     return m;
   }, [financial.data]);
 
-  const applyDatePreset = useCallback((key: "month" | "d30" | "d7") => {
-    const today = localIsoDate();
-    if (key === "month") {
-      setDateFrom(startOfMonthIso());
-      setDateTo(today);
-      return;
-    }
-    if (key === "d30") {
-      setDateFrom(addDaysFromIso(today, -29));
-      setDateTo(today);
-      return;
-    }
-    setDateFrom(addDaysFromIso(today, -6));
-    setDateTo(today);
+  const applyDatePreset = useCallback((key: ReportDatePresetKey) => {
+    const r = resolveReportDatePreset(key);
+    setDateFrom(r.dateFrom);
+    setDateTo(r.dateTo);
   }, []);
 
   const filtersActive =

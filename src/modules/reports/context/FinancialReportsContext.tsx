@@ -8,7 +8,11 @@ import {
   useFinancialReport,
   useFinancialSummaryMonthly,
 } from "@/modules/reports/hooks/useReportsQueries";
-import { addDaysFromIso, startOfMonthIso } from "@/modules/reports/lib/report-period-helpers";
+import {
+  resolveReportDatePreset,
+  startOfMonthIso,
+  type ReportDatePresetKey,
+} from "@/modules/reports/lib/report-period-helpers";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import {
   createContext,
@@ -41,7 +45,7 @@ export type FinancialReportsContextValue = {
   setFinExpenseSource: (v: string) => void;
   finBranchOptions: { value: string; label: string }[];
   branches: ReturnType<typeof useBranchesList>["data"];
-  applyDatePreset: (key: "month" | "d30" | "d7") => void;
+  applyDatePreset: (key: ReportDatePresetKey) => void;
   onCalendarYearRange: (from: string, to: string) => void;
   financial: ReturnType<typeof useFinancialReport>;
   summaryMonthly: ReturnType<typeof useFinancialSummaryMonthly>;
@@ -128,20 +132,10 @@ export function FinancialReportsProvider({ children }: { children: ReactNode }) 
     setFinCategory("");
   }, [finMainCategory]);
 
-  const applyDatePreset = useCallback((key: "month" | "d30" | "d7") => {
-    const today = localIsoDate();
-    if (key === "month") {
-      setDateFrom(startOfMonthIso());
-      setDateTo(today);
-      return;
-    }
-    if (key === "d30") {
-      setDateFrom(addDaysFromIso(today, -29));
-      setDateTo(today);
-      return;
-    }
-    setDateFrom(addDaysFromIso(today, -6));
-    setDateTo(today);
+  const applyDatePreset = useCallback((key: ReportDatePresetKey) => {
+    const r = resolveReportDatePreset(key);
+    setDateFrom(r.dateFrom);
+    setDateTo(r.dateTo);
   }, []);
 
   const onCalendarYearRange = useCallback((from: string, to: string) => {

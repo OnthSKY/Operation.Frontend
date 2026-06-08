@@ -634,7 +634,7 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   patronExpensesPartialFailureBranches: "{{count}} şube",
   patronExpensesPartialFailureAdvances: "patron avansları",
   patronExpensesPartialFailurePools: "genel gider havuzları",
-  patronExpensesPartialFailureCentralPersonnel: "merkezi personel giderleri",
+  patronExpensesPartialFailureCentralPersonnel: "personel giderleri",
   patronExpensesPartialFailureSupplierPayments: "tedarikçi ödemeleri",
   patronExpensesPartialFailureRetry: "Tekrar dene",
   patronExpensesExpandAria: "Detayı aç",

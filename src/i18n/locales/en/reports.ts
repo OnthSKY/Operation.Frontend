@@ -631,7 +631,7 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   patronExpensesPartialFailureBranches: "{{count}} branches",
   patronExpensesPartialFailureAdvances: "patron advances",
   patronExpensesPartialFailurePools: "general overhead pools",
-  patronExpensesPartialFailureCentralPersonnel: "central personnel expenses",
+  patronExpensesPartialFailureCentralPersonnel: "personnel expenses",
   patronExpensesPartialFailureSupplierPayments: "supplier payments",
   patronExpensesPartialFailureRetry: "Retry",
   patronExpensesExpandAria: "Show detail",

@@ -10,8 +10,9 @@ import {
 import { ReportMobileFilterSurface } from "@/modules/reports/components/ReportMobileFilterSurface";
 import { ReportTablesPageShell } from "@/modules/reports/components/ReportTablesPageShell";
 import {
-  addDaysFromIso,
+  resolveReportDatePreset,
   startOfMonthIso,
+  type ReportDatePresetKey,
 } from "@/modules/reports/lib/report-period-helpers";
 import {
   FinancialExpensePaySourceSubline,
@@ -137,20 +138,10 @@ export function BranchComparisonReportScreen() {
 
   const q = useBranchComparisonReport(params, true);
 
-  const applyDatePreset = (key: "month" | "d30" | "d7") => {
-    const today = localIsoDate();
-    if (key === "month") {
-      setDateFrom(startOfMonthIso());
-      setDateTo(today);
-      return;
-    }
-    if (key === "d30") {
-      setDateFrom(addDaysFromIso(today, -29));
-      setDateTo(today);
-      return;
-    }
-    setDateFrom(addDaysFromIso(today, -6));
-    setDateTo(today);
+  const applyDatePreset = (key: ReportDatePresetKey) => {
+    const r = resolveReportDatePreset(key);
+    setDateFrom(r.dateFrom);
+    setDateTo(r.dateTo);
   };
 
   const onSort = (col: SortCol) => {

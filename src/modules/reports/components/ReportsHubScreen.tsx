@@ -35,10 +35,11 @@ import { Button } from "@/shared/ui/Button";
 import { Select } from "@/shared/ui/Select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/Table";
 import {
-  addDaysFromIso,
   calendarYearRangeIso,
   inferCalendarSeasonYearFromRange,
+  resolveReportDatePreset,
   startOfMonthIso,
+  type ReportDatePresetKey,
 } from "@/modules/reports/lib/report-period-helpers";
 import type { ReportsHubTab } from "@/modules/reports/lib/reports-hub-paths";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -128,20 +129,10 @@ export function ReportsHubScreen({ routeTab }: { routeTab: ReportsHubTab }) {
     setReportView("summary");
   }, [tab]);
 
-  const applyDatePreset = (key: "month" | "d30" | "d7") => {
-    const today = localIsoDate();
-    if (key === "month") {
-      setDateFrom(startOfMonthIso());
-      setDateTo(today);
-      return;
-    }
-    if (key === "d30") {
-      setDateFrom(addDaysFromIso(today, -29));
-      setDateTo(today);
-      return;
-    }
-    setDateFrom(addDaysFromIso(today, -6));
-    setDateTo(today);
+  const applyDatePreset = (key: ReportDatePresetKey) => {
+    const r = resolveReportDatePreset(key);
+    setDateFrom(r.dateFrom);
+    setDateTo(r.dateTo);
   };
 
   const activeQuery = tab === "stock" ? stock : cash;
