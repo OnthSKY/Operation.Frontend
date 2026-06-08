@@ -639,6 +639,7 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   patronExpensesOpenDetailAria: "Open branch expense",
   patronExpenseBucketAll: "All",
   patronExpenseGroupPersonnel: "Personnel",
+  patronExpenseGroupGeneral: "General",
   patronExpenseBucketPersonnelAdvance: "Personnel advance",
   patronExpenseBucketPersonnelExpense: "Personnel expense",
   patronExpenseBucketVehicle: "Vehicle expense",

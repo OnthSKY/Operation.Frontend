@@ -26,6 +26,8 @@ export type PatronExpenseRow = BranchTransaction & {
   derivedFromOverheadPoolId?: number;
   /** supplier_payments row where source_type=PATRON; no branch_transaction exists. */
   derivedFromSupplierPaymentId?: number;
+  /** Tedarikçi-bağlı satırlar için ad — UI ana etiket olarak kullanır. */
+  supplierName?: string | null;
 };
 
 export type PatronExpensesPartialFailure = {
@@ -148,6 +150,7 @@ function supplierPaymentToPatronExpenseRow(
     linkedPersonnelFullName: null,
     branchName: pay.branchName,
     derivedFromSupplierPaymentId: pay.id,
+    supplierName: pay.supplierNames ?? null,
   };
 }
 

@@ -1024,27 +1024,31 @@ export function PatronFlowReportScreen() {
                           return (
                             <li
                               key={`${b.branchId ?? "central"}-${b.name}`}
-                              className="flex items-center gap-3"
+                              className="flex flex-col gap-1"
                             >
-                              <span className="min-w-0 flex-1 truncate text-sm text-zinc-800">
-                                {b.name}
-                              </span>
-                              <span className="relative h-2 w-32 rounded-full bg-zinc-100 sm:w-48">
-                                <span
-                                  className="absolute inset-y-0 left-0 rounded-full bg-violet-500"
-                                  style={{ width: `${pct.toFixed(1)}%` }}
-                                />
-                              </span>
-                              <span className="w-14 shrink-0 text-right text-[11px] tabular-nums text-zinc-500">
-                                %{Math.round(pct)}
-                              </span>
-                              <span className="w-24 shrink-0 text-right text-xs tabular-nums font-semibold text-zinc-900 sm:w-32 sm:text-sm">
-                                {formatLocaleAmount(
-                                  b.amount,
-                                  locale,
-                                  effectiveCcy ?? "TRY",
-                                )}
-                              </span>
+                              <div className="flex items-baseline justify-between gap-3">
+                                <span className="min-w-0 flex-1 break-words text-sm font-medium text-zinc-900">
+                                  {b.name}
+                                </span>
+                                <span className="shrink-0 text-xs font-semibold tabular-nums text-zinc-900 sm:text-sm">
+                                  {formatLocaleAmount(
+                                    b.amount,
+                                    locale,
+                                    effectiveCcy ?? "TRY",
+                                  )}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="relative h-2 min-w-0 flex-1 rounded-full bg-zinc-100">
+                                  <span
+                                    className="absolute inset-y-0 left-0 rounded-full bg-violet-500"
+                                    style={{ width: `${pct.toFixed(1)}%` }}
+                                  />
+                                </span>
+                                <span className="shrink-0 text-[11px] tabular-nums text-zinc-500">
+                                  %{Math.round(pct)}
+                                </span>
+                              </div>
                             </li>
                           );
                         })}
@@ -1174,11 +1178,18 @@ export function PatronFlowReportScreen() {
                                   ? `${
                                       personnelFocus.focusAdvanceId ? "Avans" : "Personel"
                                     }: ${personnelFocus.personnelName ?? "—"}`
-                                  : row.branchName ?? "—"}
+                                  : isSupplier && row.supplierName?.trim()
+                                    ? `Tedarikçi: ${row.supplierName}`
+                                    : row.branchName ?? "—"}
                               </p>
                               {personnelFocus && row.branchName?.trim() ? (
                                 <p className="truncate text-[10px] text-emerald-700">
                                   Şube kasası: {row.branchName}
+                                </p>
+                              ) : null}
+                              {isSupplier && row.supplierName?.trim() && row.branchName?.trim() ? (
+                                <p className="truncate text-[10px] text-emerald-700">
+                                  Şube: {row.branchName}
                                 </p>
                               ) : null}
                               <p className="truncate text-xs">
@@ -1340,6 +1351,15 @@ export function PatronFlowReportScreen() {
                                       {row.branchName?.trim() ? (
                                         <span className="inline-flex max-w-fit items-center rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
                                           Şube kasası: {row.branchName}
+                                        </span>
+                                      ) : null}
+                                    </div>
+                                  ) : isSupplier && row.supplierName?.trim() ? (
+                                    <div className="flex flex-col gap-0.5">
+                                      <span className="truncate">Tedarikçi: {row.supplierName}</span>
+                                      {row.branchName?.trim() ? (
+                                        <span className="inline-flex max-w-fit items-center rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                                          Şube: {row.branchName}
                                         </span>
                                       ) : null}
                                     </div>

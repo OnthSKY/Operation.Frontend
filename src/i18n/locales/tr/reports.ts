@@ -642,6 +642,7 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   patronExpensesOpenDetailAria: "Şube giderini aç",
   patronExpenseBucketAll: "Tümü",
   patronExpenseGroupPersonnel: "Personel",
+  patronExpenseGroupGeneral: "Genel",
   patronExpenseBucketPersonnelAdvance: "Personel avansı",
   patronExpenseBucketPersonnelExpense: "Personel gideri",
   patronExpenseBucketVehicle: "Araç gideri",
