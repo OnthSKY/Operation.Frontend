@@ -985,14 +985,23 @@ export function PatronFlowReportScreen() {
                   })()}
                 </section>
 
-                {/* (3) ŞUBE KARŞILAŞTIRMA — şube bazlı patron harcamaları */}
+                {/* (3) ŞUBE KARŞILAŞTIRMA — yalnız şube operasyonel giderleri.
+                     Personel avansı, personel gideri, patron borç ödemesi ve P&L dışı
+                     satırlar ŞUBE GİDERİ değildir → toplamdan dışlanır. */}
                 {(() => {
+                  const EXCLUDED_BUCKETS: ExpenseBucket[] = [
+                    "personnel_advance",
+                    "personnel_expense",
+                    "patron_debt_repay",
+                    "non_pnl",
+                  ];
                   const totalsByBranch = new Map<
                     string,
                     { branchId: number | null; name: string; amount: number }
                   >();
                   for (const r of allRows) {
                     if ((r.currencyCode || "TRY").toUpperCase() !== effectiveCcy) continue;
+                    if (EXCLUDED_BUCKETS.includes(bucketFromRow(r))) continue;
                     const key =
                       r.branchId != null && r.branchId > 0
                         ? `b:${r.branchId}`
@@ -1015,9 +1024,15 @@ export function PatronFlowReportScreen() {
                   if (list.length === 0 || grandTotal <= 0) return null;
                   return (
                     <section className="rounded-2xl border border-zinc-200 bg-white p-3 sm:p-4">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                        Şube karşılaştırma · Patron harcaması
-                      </p>
+                      <div className="flex flex-col gap-0.5">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                          Şube karşılaştırma · Şube giderleri
+                        </p>
+                        <p className="text-[10px] text-zinc-500">
+                          Yalnız operasyonel kalemler (şube ops, tedarikçi, araç, vergi,
+                          genel gider). Personel avans/gideri dahil değil.
+                        </p>
+                      </div>
                       <ul className="mt-2 space-y-1.5">
                         {list.map((b) => {
                           const pct = grandTotal > 0 ? (b.amount / grandTotal) * 100 : 0;
