@@ -54,11 +54,92 @@ export type PatronExpensesState =
       partialFailures?: PatronExpensesPartialFailure[];
     };
 
+/**
+ * Hedef kategori (bucket) grubu — patron raporundaki üst filtre. UI birden çok
+ * bucket'ı tek seçenekte birleştirir; hook ise alakasız kaynakları (advances,
+ * centralPersonnel, overheadPools, supplierPayments) hiç fetch etmez.
+ *
+ * "branch_ops" ve "vehicle" yalnız branch_transactions üzerinden gelir, yani diğer
+ * 4 kaynak skip edilir; "supplier"/"overhead" gibi gruplar ilgili özel kaynağı
+ * branch_transactions'la birlikte tutar.
+ */
+export type PatronExpenseBucketGroup =
+  | "all"
+  | "supplier"
+  | "overhead"
+  | "branch"
+  | "personnel"
+  | "vehicle";
+
+type SourceToggles = {
+  branchTx: boolean;
+  advances: boolean;
+  overheadPools: boolean;
+  centralPersonnel: boolean;
+  supplierPayments: boolean;
+};
+
+function togglesForGroup(group: PatronExpenseBucketGroup): SourceToggles {
+  switch (group) {
+    case "supplier":
+      return {
+        branchTx: true,
+        advances: false,
+        overheadPools: false,
+        centralPersonnel: false,
+        supplierPayments: true,
+      };
+    case "overhead":
+      return {
+        branchTx: true,
+        advances: false,
+        overheadPools: true,
+        centralPersonnel: false,
+        supplierPayments: false,
+      };
+    case "branch":
+      return {
+        branchTx: true,
+        advances: false,
+        overheadPools: false,
+        centralPersonnel: false,
+        supplierPayments: false,
+      };
+    case "personnel":
+      return {
+        branchTx: true,
+        advances: true,
+        overheadPools: false,
+        centralPersonnel: true,
+        supplierPayments: false,
+      };
+    case "vehicle":
+      return {
+        branchTx: true,
+        advances: false,
+        overheadPools: false,
+        centralPersonnel: false,
+        supplierPayments: false,
+      };
+    case "all":
+    default:
+      return {
+        branchTx: true,
+        advances: true,
+        overheadPools: true,
+        centralPersonnel: true,
+        supplierPayments: true,
+      };
+  }
+}
+
 type Params = {
   dateFrom: string;
   dateTo: string;
   /** "" or undefined = all branches; otherwise single branch id. */
   branchFilterId?: string | undefined;
+  /** Hedef kategori grubu; "all" tüm kaynakları fetch eder. */
+  bucketGroup?: PatronExpenseBucketGroup;
   enabled: boolean;
 };
 
@@ -195,8 +276,10 @@ export function useAllBranchesPatronExpenses({
   dateFrom,
   dateTo,
   branchFilterId,
+  bucketGroup = "all",
   enabled,
 }: Params) {
+  const toggles = useMemo(() => togglesForGroup(bucketGroup), [bucketGroup]);
   const {
     data: allBranches = [],
     isPending: branchesPending,
@@ -224,7 +307,7 @@ export function useAllBranchesPatronExpenses({
     queries: targetBranches.map((b) => ({
       queryKey: reportsKeys.patronExpensesForBranch(b.id, dateFrom, dateTo),
       queryFn: () => fetchAllBranchPatronExpenses(b.id, dateFrom, dateTo),
-      enabled: fetchEnabled,
+      enabled: fetchEnabled && toggles.branchTx,
     })),
   });
 
@@ -234,7 +317,7 @@ export function useAllBranchesPatronExpenses({
   const advancesQuery = useQuery({
     queryKey: reportsKeys.patronStandaloneAdvances,
     queryFn: () => fetchAllAdvances({ limit: 1000 }),
-    enabled: fetchEnabled,
+    enabled: fetchEnabled && toggles.advances,
   });
 
   // OPEN general-overhead pools: not yet allocated, so no branch_transactions exist;
@@ -242,7 +325,7 @@ export function useAllBranchesPatronExpenses({
   const openPoolsQuery = useQuery({
     queryKey: reportsKeys.patronOpenOverheadPools,
     queryFn: () => fetchGeneralOverheadPools("OPEN"),
-    enabled: fetchEnabled,
+    enabled: fetchEnabled && toggles.overheadPools,
   });
 
   // Central (branchId=null) personnel expenses: the per-branch endpoint can't see
@@ -252,7 +335,7 @@ export function useAllBranchesPatronExpenses({
   const centralPersonnelExpensesQuery = useQuery({
     queryKey: reportsKeys.patronCentralPersonnelExpenses,
     queryFn: () => fetchAllNonAdvancePersonnelAttributedExpenses(),
-    enabled: fetchEnabled,
+    enabled: fetchEnabled && toggles.centralPersonnel,
   });
 
   // PATRON-paid supplier_payments: not written to branch_transactions, so the
@@ -274,7 +357,7 @@ export function useAllBranchesPatronExpenses({
         dateTo,
         branchId: supplierPaymentBranchFilter,
       }),
-    enabled: fetchEnabled,
+    enabled: fetchEnabled && toggles.supplierPayments,
   });
 
   const state = useMemo((): PatronExpensesState => {
@@ -283,11 +366,16 @@ export function useAllBranchesPatronExpenses({
     if (branchesError) return { kind: "error", message: branchesErr };
     if (!datesOk) return { kind: "empty" };
     if (targetBranches.length === 0) return { kind: "empty" };
-    if (txResults.some((r) => r.isPending)) return { kind: "loading" };
-    if (advancesQuery.isPending) return { kind: "loading" };
-    if (openPoolsQuery.isPending) return { kind: "loading" };
-    if (centralPersonnelExpensesQuery.isPending) return { kind: "loading" };
-    if (supplierPaymentsQuery.isPending) return { kind: "loading" };
+    // enabled:false sorgular kalıcı pending görünür — toggle kapalıyken atla.
+    if (toggles.branchTx && txResults.some((r) => r.isPending))
+      return { kind: "loading" };
+    if (toggles.advances && advancesQuery.isPending) return { kind: "loading" };
+    if (toggles.overheadPools && openPoolsQuery.isPending)
+      return { kind: "loading" };
+    if (toggles.centralPersonnel && centralPersonnelExpensesQuery.isPending)
+      return { kind: "loading" };
+    if (toggles.supplierPayments && supplierPaymentsQuery.isPending)
+      return { kind: "loading" };
 
     // Collect partial failures: don't reject the whole page if some sources fail —
     // show what we have and warn the user about what's missing.
@@ -452,6 +540,7 @@ export function useAllBranchesPatronExpenses({
     branchFilterId,
     dateFrom,
     dateTo,
+    toggles,
   ]);
 
   const isFetching =

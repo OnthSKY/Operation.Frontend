@@ -11,6 +11,7 @@ import { ReportMobileFilterSurface } from "@/modules/reports/components/ReportMo
 import { ReportTablesPageShell } from "@/modules/reports/components/ReportTablesPageShell";
 import {
   useAllBranchesPatronExpenses,
+  type PatronExpenseBucketGroup,
   type PatronExpenseRow,
   type PatronExpensesPartialFailure,
 } from "@/modules/reports/hooks/useAllBranchesPatronExpenses";
@@ -75,6 +76,44 @@ const BUCKET_ORDER: ExpenseBucket[] = [
   "non_pnl",
   "other",
 ];
+
+/**
+ * Üst kategori filtresi → fiili bucket kümeleri. Hook tarafında bu gruba ait
+ * olmayan veri kaynakları hiç fetch edilmez (gerçek backend filtresi); ek olarak
+ * client tarafında da rows bu kümeye sıkıştırılır (branch_transactions birden çok
+ * bucket içerebilir — örn. "branch" grubu seçildiğinde tax/araç vs filtrelenir).
+ */
+const GROUP_BUCKETS: Record<PatronExpenseBucketGroup, ExpenseBucket[]> = {
+  all: [
+    "personnel_advance",
+    "personnel_expense",
+    "vehicle",
+    "supplier",
+    "general_overhead",
+    "branch_ops",
+    "tax",
+    "patron_debt_repay",
+    "non_pnl",
+    "other",
+  ],
+  supplier: ["supplier"],
+  overhead: ["general_overhead", "tax"],
+  branch: ["branch_ops", "patron_debt_repay", "non_pnl", "other"],
+  personnel: ["personnel_advance", "personnel_expense"],
+  vehicle: ["vehicle"],
+};
+
+function bucketGroupLabel(
+  t: (k: string) => string,
+  g: PatronExpenseBucketGroup,
+): string {
+  if (g === "supplier") return t("reports.patronExpenseBucketSupplier");
+  if (g === "overhead") return t("reports.patronExpenseBucketGeneralOverhead");
+  if (g === "branch") return t("reports.patronExpenseBucketBranchOps");
+  if (g === "personnel") return t("reports.patronExpenseBucketPersonnelExpense");
+  if (g === "vehicle") return t("reports.patronExpenseBucketVehicle");
+  return t("reports.patronExpenseBucketAll");
+}
 
 const DETAIL_PAGE_SIZE = 25;
 
@@ -363,6 +402,31 @@ function partialFailureSourcesText(
   return parts.join(", ");
 }
 
+/**
+ * Aynı uzunlukta önceki dönemi döndürür (current bitişten 1 gün önce biter).
+ * Tarihler "YYYY-MM-DD" formatında; geri dönen değerler de aynı format.
+ * Yerel saatte gün farkı sayar (zoneless), ISO sliceı ile döner.
+ */
+function prevPeriodRange(
+  from: string,
+  to: string,
+): { dateFrom: string; dateTo: string } | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+    return null;
+  }
+  const f = new Date(`${from}T00:00:00`);
+  const t = new Date(`${to}T00:00:00`);
+  const dayMs = 24 * 60 * 60 * 1000;
+  const days = Math.round((t.getTime() - f.getTime()) / dayMs) + 1;
+  if (!Number.isFinite(days) || days <= 0) return null;
+  const prevTo = new Date(f.getTime() - dayMs);
+  const prevFrom = new Date(prevTo.getTime() - (days - 1) * dayMs);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const iso = (d: Date) =>
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return { dateFrom: iso(prevFrom), dateTo: iso(prevTo) };
+}
+
 function fillTemplate(template: string, vars: Record<string, string>): string {
   let s = template;
   for (const [k, v] of Object.entries(vars)) {
@@ -440,6 +504,8 @@ export function PatronFlowReportScreen() {
   const [dateRangeLock, setDateRangeLock] =
     useState<ReportHubRangeLock>("manual");
   const [filterBranchId, setFilterBranchIdRaw] = useState("");
+  const [bucketGroup, setBucketGroupRaw] =
+    useState<PatronExpenseBucketGroup>("all");
 
   const { data: branches = [] } = useBranchesList();
 
@@ -447,7 +513,23 @@ export function PatronFlowReportScreen() {
     dateFrom,
     dateTo,
     branchFilterId: filterBranchId,
+    bucketGroup,
     enabled: true,
+  });
+
+  // Dönem-üstüne-dönem karşılaştırma: aynı uzunlukta önceki dönemi fetch eder.
+  // Aynı şube + bucket filtreleri uygulanır → elma-elma karşılaştırma. React Query
+  // dedup + cache ile aynı dateRange tekrarı kalıcı maliyet doğurmaz.
+  const prevRange = useMemo(
+    () => prevPeriodRange(dateFrom, dateTo),
+    [dateFrom, dateTo],
+  );
+  const { state: prevState } = useAllBranchesPatronExpenses({
+    dateFrom: prevRange?.dateFrom ?? dateFrom,
+    dateTo: prevRange?.dateTo ?? dateTo,
+    branchFilterId: filterBranchId,
+    bucketGroup,
+    enabled: prevRange != null,
   });
 
   const filterBranchOptions = useMemo(
@@ -465,7 +547,10 @@ export function PatronFlowReportScreen() {
     setPage(1);
   };
 
-  const filtersActive = filterBranchId !== "" || dateRangeLock !== "manual";
+  const filtersActive =
+    filterBranchId !== "" ||
+    dateRangeLock !== "manual" ||
+    bucketGroup !== "all";
 
   const filterPreview = useMemo(() => {
     const a = formatLocaleDate(dateFrom, locale);
@@ -485,9 +570,14 @@ export function PatronFlowReportScreen() {
         {branchName ? (
           <p className="mt-0.5 truncate text-xs text-zinc-600">{branchName}</p>
         ) : null}
+        {bucketGroup !== "all" ? (
+          <p className="mt-0.5 truncate text-xs text-violet-700">
+            {bucketGroupLabel(t, bucketGroup)}
+          </p>
+        ) : null}
       </>
     );
-  }, [dateFrom, dateTo, locale, t, filterBranchId, branches]);
+  }, [dateFrom, dateTo, locale, t, filterBranchId, branches, bucketGroup]);
 
   const allRows = useMemo<PatronExpenseRow[]>(
     () => (state.kind === "ok" ? state.rows : []),
@@ -521,6 +611,12 @@ export function PatronFlowReportScreen() {
   };
   const setFilterBranchId = (v: string) => {
     setFilterBranchIdRaw(v);
+    setPage(1);
+  };
+  const setBucketGroup = (v: PatronExpenseBucketGroup) => {
+    setBucketGroupRaw(v);
+    // Üst grup değişince alt bucket pill seçimi grup dışında kalabilir; sıfırla.
+    setBucketFilterRaw("all");
     setPage(1);
   };
   const setActiveCcy = (v: string) => {
@@ -565,6 +661,13 @@ export function PatronFlowReportScreen() {
     let rows = allRows.filter(
       (r) => (r.currencyCode || "TRY").toUpperCase() === effectiveCcy,
     );
+    // Üst grup filtresi: branch_transactions kaynağı karma bucket içerir, o yüzden
+    // hook'taki "skip irrelevant sources" optimizasyonuna ek olarak burada da
+    // grup dışındaki bucket'ları eler.
+    if (bucketGroup !== "all") {
+      const allowed = new Set<ExpenseBucket>(GROUP_BUCKETS[bucketGroup]);
+      rows = rows.filter((r) => allowed.has(bucketFromRow(r)));
+    }
     if (bucketFilter !== "all") {
       rows = rows.filter(
         (r) => bucketFromRow(r) === bucketFilter,
@@ -577,7 +680,16 @@ export function PatronFlowReportScreen() {
     return [...rows].sort((a, b) =>
       compareValues(rowSortValue(a, sortKey), rowSortValue(b, sortKey), sortDir),
     );
-  }, [allRows, effectiveCcy, bucketFilter, query, sortKey, sortDir, haystack]);
+  }, [
+    allRows,
+    effectiveCcy,
+    bucketGroup,
+    bucketFilter,
+    query,
+    sortKey,
+    sortDir,
+    haystack,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(processed.length / DETAIL_PAGE_SIZE));
   const pageSafe = Math.min(page, totalPages);
@@ -716,7 +828,48 @@ export function PatronFlowReportScreen() {
 
             {state.kind === "ok" && activeRollup ? (
               <>
-                {/* (5) HIZLI BAKIŞ özeti: dönemin toplamı + en yüksek 2 grup. */}
+                {/* Üst kategori filtresi (hedef bucket grubu). Görsel olarak hızla
+                    erişilebilsin diye sticky pill bar. Backend tarafında
+                    alakasız kaynaklar fetch edilmez. */}
+                {(() => {
+                  const groups: PatronExpenseBucketGroup[] = [
+                    "all",
+                    "supplier",
+                    "overhead",
+                    "branch",
+                    "personnel",
+                    "vehicle",
+                  ];
+                  return (
+                    <div
+                      role="tablist"
+                      aria-label="Hedef kategori filtresi"
+                      className="mb-3 -mx-1 flex snap-x snap-mandatory gap-1.5 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible"
+                    >
+                      {groups.map((g) => {
+                        const active = bucketGroup === g;
+                        return (
+                          <button
+                            key={g}
+                            type="button"
+                            role="tab"
+                            aria-selected={active}
+                            onClick={() => setBucketGroup(g)}
+                            className={cn(
+                              "shrink-0 snap-start rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors",
+                              active
+                                ? "bg-violet-600 text-white shadow-sm"
+                                : "bg-white text-zinc-700 ring-1 ring-zinc-200 hover:bg-violet-50 hover:text-violet-900 hover:ring-violet-200",
+                            )}
+                          >
+                            {bucketGroupLabel(t, g)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+                {/* (5) HIZLI BAKIŞ özeti: dönemin toplamı + en yüksek 2 grup + dönem-üstüne-dönem delta. */}
                 {(() => {
                   const sortedBuckets = activeRollup.buckets
                     .filter((b) => b.amount > 0)
@@ -729,6 +882,22 @@ export function PatronFlowReportScreen() {
                     0,
                   );
                   if (total <= 0) return null;
+                  // Önceki dönem toplamı: aynı para birimi üzerinden.
+                  const prevTotal =
+                    prevState.kind === "ok"
+                      ? prevState.rows.reduce(
+                          (s, r) =>
+                            (r.currencyCode || "TRY").toUpperCase() ===
+                            activeRollup.currencyCode
+                              ? s + r.amount
+                              : s,
+                          0,
+                        )
+                      : 0;
+                  const hasPrev = prevState.kind === "ok" && prevTotal > 0.005;
+                  const deltaPct = hasPrev
+                    ? ((total - prevTotal) / prevTotal) * 100
+                    : null;
                   return (
                     <section className="mb-3 rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-white px-4 py-3 shadow-sm sm:px-5 sm:py-4">
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
@@ -759,6 +928,35 @@ export function PatronFlowReportScreen() {
                         ) : null}
                         .
                       </p>
+                      {deltaPct != null ? (
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold tabular-nums",
+                              deltaPct > 0
+                                ? "bg-rose-100 text-rose-800"
+                                : deltaPct < 0
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : "bg-zinc-100 text-zinc-700",
+                            )}
+                          >
+                            {deltaPct > 0 ? "▲" : deltaPct < 0 ? "▼" : "■"}
+                            {Math.abs(deltaPct) >= 100
+                              ? Math.round(deltaPct)
+                              : deltaPct.toFixed(1)}
+                            %
+                          </span>
+                          <span className="text-zinc-600">
+                            önceki döneme göre (
+                            {formatLocaleAmount(
+                              prevTotal,
+                              locale,
+                              activeRollup.currencyCode,
+                            )}
+                            )
+                          </span>
+                        </div>
+                      ) : null}
                     </section>
                   );
                 })()}
@@ -1036,13 +1234,16 @@ export function PatronFlowReportScreen() {
                       <ul className="mt-2 space-y-1.5">
                         {list.map((b) => {
                           const pct = grandTotal > 0 ? (b.amount / grandTotal) * 100 : 0;
-                          return (
-                            <li
-                              key={`${b.branchId ?? "central"}-${b.name}`}
-                              className="flex flex-col gap-1"
-                            >
+                          // Şubeye tıklayınca üst şube filtresi otomatik o şubeye geçer
+                          // (merkezi/şubeye atanmamış satırlar tıklanmaz).
+                          const clickable =
+                            b.branchId != null && b.branchId > 0;
+                          const active =
+                            clickable && filterBranchId === String(b.branchId);
+                          const inner = (
+                            <>
                               <div className="flex items-baseline justify-between gap-3">
-                                <span className="min-w-0 flex-1 break-words text-sm font-medium text-zinc-900">
+                                <span className="min-w-0 flex-1 break-words text-left text-sm font-medium text-zinc-900">
                                   {b.name}
                                 </span>
                                 <span className="shrink-0 text-xs font-semibold tabular-nums text-zinc-900 sm:text-sm">
@@ -1056,7 +1257,10 @@ export function PatronFlowReportScreen() {
                               <div className="flex items-center gap-2">
                                 <span className="relative h-2 min-w-0 flex-1 rounded-full bg-zinc-100">
                                   <span
-                                    className="absolute inset-y-0 left-0 rounded-full bg-violet-500"
+                                    className={cn(
+                                      "absolute inset-y-0 left-0 rounded-full",
+                                      active ? "bg-violet-700" : "bg-violet-500",
+                                    )}
                                     style={{ width: `${pct.toFixed(1)}%` }}
                                   />
                                 </span>
@@ -1064,10 +1268,134 @@ export function PatronFlowReportScreen() {
                                   %{Math.round(pct)}
                                 </span>
                               </div>
+                            </>
+                          );
+                          return (
+                            <li
+                              key={`${b.branchId ?? "central"}-${b.name}`}
+                            >
+                              {clickable ? (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setFilterBranchId(
+                                      active ? "" : String(b.branchId),
+                                    )
+                                  }
+                                  className={cn(
+                                    "flex w-full flex-col gap-1 rounded-lg px-2 py-1.5 text-left transition-colors",
+                                    active
+                                      ? "bg-violet-50 ring-1 ring-violet-200"
+                                      : "hover:bg-zinc-50",
+                                  )}
+                                  aria-pressed={active}
+                                  title={
+                                    active
+                                      ? "Filtreyi kaldır"
+                                      : `Sadece ${b.name}'ı göster`
+                                  }
+                                >
+                                  {inner}
+                                </button>
+                              ) : (
+                                <div className="flex flex-col gap-1 px-2 py-1.5">
+                                  {inner}
+                                </div>
+                              )}
                             </li>
                           );
                         })}
                       </ul>
+                    </section>
+                  );
+                })()}
+
+                {/* EN BÜYÜK 5 GİDER — aktif para birimi + üst kategori grubuna göre. */}
+                {(() => {
+                  if (!effectiveCcy) return null;
+                  let pool = allRows.filter(
+                    (r) =>
+                      (r.currencyCode || "TRY").toUpperCase() === effectiveCcy,
+                  );
+                  if (bucketGroup !== "all") {
+                    const allowed = new Set<ExpenseBucket>(
+                      GROUP_BUCKETS[bucketGroup],
+                    );
+                    pool = pool.filter((r) => allowed.has(bucketFromRow(r)));
+                  }
+                  const top5 = [...pool]
+                    .sort((a, b) => b.amount - a.amount)
+                    .slice(0, 5);
+                  if (top5.length === 0) return null;
+                  return (
+                    <section className="rounded-2xl border border-zinc-200 bg-white p-3 sm:p-4">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                        En büyük 5 gider
+                      </p>
+                      <p className="text-[10px] text-zinc-500">
+                        Aktif filtre + para birimine göre, tutar büyükten küçüğe.
+                      </p>
+                      <ol className="mt-2 space-y-1.5">
+                        {top5.map((row, i) => {
+                          const bucket = bucketFromRow(row);
+                          const personnelFocus = rowPersonnelDetailFocus(row);
+                          const isSupplier =
+                            row.derivedFromSupplierPaymentId != null ||
+                            (row.linkedSupplierInvoiceLineId != null &&
+                              row.linkedSupplierInvoiceLineId > 0);
+                          const title = personnelFocus
+                            ? `${personnelFocus.focusAdvanceId ? "Avans" : "Personel"}: ${personnelFocus.personnelName ?? "—"}`
+                            : isSupplier && row.supplierName?.trim()
+                              ? `Tedarikçi: ${row.supplierName}`
+                              : (row.branchName ?? row.description ?? "—");
+                          return (
+                            <li
+                              key={row.id}
+                              className="flex items-center gap-2.5"
+                            >
+                              <span className="w-5 shrink-0 text-center text-[11px] font-bold tabular-nums text-zinc-400">
+                                {i + 1}
+                              </span>
+                              <span
+                                aria-hidden
+                                className={cn(
+                                  "h-7 w-1 shrink-0 rounded-full",
+                                  BUCKET_TONE[bucket].barActive,
+                                )}
+                              />
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium text-zinc-900">
+                                  {title}
+                                </p>
+                                <p className="truncate text-[11px]">
+                                  <span
+                                    className={cn(
+                                      "font-medium",
+                                      BUCKET_TONE[bucket].badge,
+                                    )}
+                                  >
+                                    {bucketLabel(t, bucket)}
+                                  </span>
+                                  <span className="text-zinc-500">
+                                    {" · "}
+                                    {formatLocaleDate(
+                                      row.transactionDate,
+                                      locale,
+                                    )}
+                                  </span>
+                                </p>
+                              </div>
+                              <span className="shrink-0 text-xs font-bold tabular-nums text-zinc-900 sm:text-sm">
+                                {formatLocaleAmount(
+                                  row.amount,
+                                  locale,
+                                  effectiveCcy,
+                                )}
+                              </span>
+                            </li>
+                          );
+                        })}
+                      </ol>
                     </section>
                   );
                 })()}
@@ -1173,6 +1501,13 @@ export function PatronFlowReportScreen() {
                             key={row.id}
                             className={cn(
                               "relative flex items-center gap-3 py-2.5 pl-4 pr-3",
+                              // Personel satırını şube satırından ayırt etmek için
+                              // sol kenarda hafif tint + ikon (aşağıda) ekleniyor.
+                              personnelFocus
+                                ? personnelFocus.focusAdvanceId
+                                  ? "bg-sky-50/50"
+                                  : "bg-indigo-50/50"
+                                : undefined,
                               !hasDetail && "opacity-60",
                             )}
                           >
@@ -1188,14 +1523,38 @@ export function PatronFlowReportScreen() {
                               <p className="text-[11px] text-zinc-500 tabular-nums">
                                 {formatLocaleDate(row.transactionDate, locale)}
                               </p>
-                              <p className="truncate text-sm font-medium text-zinc-900">
-                                {personnelFocus
-                                  ? `${
-                                      personnelFocus.focusAdvanceId ? "Avans" : "Personel"
-                                    }: ${personnelFocus.personnelName ?? "—"}`
-                                  : isSupplier && row.supplierName?.trim()
-                                    ? `Tedarikçi: ${row.supplierName}`
-                                    : row.branchName ?? "—"}
+                              <p className="flex items-center gap-1.5 truncate text-sm font-medium text-zinc-900">
+                                {personnelFocus ? (
+                                  <svg
+                                    aria-hidden
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    className={cn(
+                                      "h-3.5 w-3.5 shrink-0",
+                                      personnelFocus.focusAdvanceId
+                                        ? "text-sky-700"
+                                        : "text-indigo-700",
+                                    )}
+                                  >
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                    <circle cx="12" cy="7" r="4" />
+                                  </svg>
+                                ) : null}
+                                <span className="truncate">
+                                  {personnelFocus
+                                    ? `${
+                                        personnelFocus.focusAdvanceId
+                                          ? "Avans"
+                                          : "Personel"
+                                      }: ${personnelFocus.personnelName ?? "—"}`
+                                    : isSupplier && row.supplierName?.trim()
+                                      ? `Tedarikçi: ${row.supplierName}`
+                                      : row.branchName ?? "—"}
+                                </span>
                               </p>
                               {personnelFocus && row.branchName?.trim() ? (
                                 <p className="truncate text-[10px] text-emerald-700">
@@ -1344,7 +1703,16 @@ export function PatronFlowReportScreen() {
                                 row.linkedSupplierInvoiceLineId > 0);
                             const href = personnelFocus ? null : expenseDetailHref(row);
                             return (
-                              <TableRow key={row.id}>
+                              <TableRow
+                                key={row.id}
+                                className={cn(
+                                  personnelFocus
+                                    ? personnelFocus.focusAdvanceId
+                                      ? "bg-sky-50/40"
+                                      : "bg-indigo-50/40"
+                                    : undefined,
+                                )}
+                              >
                                 <TableCell className="whitespace-nowrap text-sm tabular-nums">
                                   <span className="inline-flex items-center gap-2">
                                     <span
@@ -1360,7 +1728,25 @@ export function PatronFlowReportScreen() {
                                 <TableCell className="text-sm text-zinc-900">
                                   {personnelFocus ? (
                                     <div className="flex flex-col gap-0.5">
-                                      <span className="truncate">
+                                      <span className="inline-flex items-center gap-1.5 truncate">
+                                        <svg
+                                          aria-hidden
+                                          viewBox="0 0 24 24"
+                                          fill="none"
+                                          stroke="currentColor"
+                                          strokeWidth="2"
+                                          strokeLinecap="round"
+                                          strokeLinejoin="round"
+                                          className={cn(
+                                            "h-3.5 w-3.5 shrink-0",
+                                            personnelFocus.focusAdvanceId
+                                              ? "text-sky-700"
+                                              : "text-indigo-700",
+                                          )}
+                                        >
+                                          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                          <circle cx="12" cy="7" r="4" />
+                                        </svg>
                                         {`${personnelFocus.focusAdvanceId ? "Avans" : "Personel"}: ${personnelFocus.personnelName ?? "—"}`}
                                       </span>
                                       {row.branchName?.trim() ? (
@@ -1551,6 +1937,26 @@ export function PatronFlowReportScreen() {
               options={filterBranchOptions}
               value={filterBranchId}
               onChange={(e) => setFilterBranchId(e.target.value)}
+              onBlur={() => {}}
+              className="min-h-11 sm:min-h-10 sm:text-sm"
+            />
+          </div>
+          <div className="min-w-0 sm:max-w-md">
+            <Select
+              name="patronFlowBucketGroup"
+              label="Hedef kategori"
+              options={[
+                { value: "all", label: bucketGroupLabel(t, "all") },
+                { value: "supplier", label: bucketGroupLabel(t, "supplier") },
+                { value: "overhead", label: bucketGroupLabel(t, "overhead") },
+                { value: "branch", label: bucketGroupLabel(t, "branch") },
+                { value: "personnel", label: bucketGroupLabel(t, "personnel") },
+                { value: "vehicle", label: bucketGroupLabel(t, "vehicle") },
+              ]}
+              value={bucketGroup}
+              onChange={(e) =>
+                setBucketGroup(e.target.value as PatronExpenseBucketGroup)
+              }
               onBlur={() => {}}
               className="min-h-11 sm:min-h-10 sm:text-sm"
             />
