@@ -1,7 +1,12 @@
 "use client";
 
 import { useAuth } from "@/lib/auth/AuthContext";
-import { canSeeFinancialReports, canSeeUiModule, PERM } from "@/lib/auth/permissions";
+import {
+  canSeeFinancialReports,
+  canSeeUiModule,
+  hasPermissionCode,
+  PERM,
+} from "@/lib/auth/permissions";
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
 import { Card } from "@/shared/components/Card";
@@ -15,8 +20,11 @@ import type {
   PersonnelHeldCashReportPerBranchRow,
   PersonnelHeldCashReportPerPersonRow,
 } from "@/modules/reports/api/personnel-held-cash-report-api";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+
+const ADMIN_RECONCILIATION_HREF = "/admin/personnel-held-cash-reconciliation";
 
 type ViewMode = "personnel" | "branch" | "detail";
 
@@ -35,6 +43,10 @@ export function PersonnelHeldCashReportScreen() {
     return canSeeFinancialReports(user) || canSeeUiModule(user, PERM.uiReports);
   }, [user]);
 
+  // Admin reconciliation ekranı negatif bakiyeleri inceleme + toplu düzeltme
+  // sunuyor; sadece SystemAdmin görür. Görmeyenlere CTA gizli.
+  const isAdmin = hasPermissionCode(user, PERM.systemAdmin);
+
   useEffect(() => {
     if (isReady && user && !canView) router.replace("/");
   }, [isReady, user, canView, router]);
@@ -52,12 +64,64 @@ export function PersonnelHeldCashReportScreen() {
     return Array.from(set).sort();
   }, [query.data]);
 
+  // Para birimi başına en çok eksiği olan personel — backend topHolder'ı yalnız
+  // pozitifleri verir; negatif risk burada kayboluyordu. perPersonnel zaten
+  // remaining desc; sondan başa tarayıp ilk negatif olanı yakalıyoruz.
+  const topDeficitorByCurrency = useMemo(() => {
+    const out = new Map<
+      string,
+      { personnelId: number; fullName: string; amount: number }
+    >();
+    const rows = query.data?.perPersonnel ?? [];
+    for (const r of rows) {
+      if (r.remaining >= -0.005) continue;
+      const existing = out.get(r.currencyCode);
+      if (!existing || r.remaining < existing.amount) {
+        out.set(r.currencyCode, {
+          personnelId: r.personnelId,
+          fullName: r.fullName,
+          amount: r.remaining,
+        });
+      }
+    }
+    return out;
+  }, [query.data]);
+
+  // Negatif bakiye özeti: hangi para biriminde kaç personel × ne kadar açık.
+  // Detail satırından (personel × şube × para) hesaplanır; aynı personel iki şubede
+  // ayrı negatif tutabilir → personel sayısı için distinct kullanılır.
+  const negativeSummary = useMemo(() => {
+    const rows = query.data?.detail ?? [];
+    const byCcy = new Map<
+      string,
+      { totalDeficit: number; personnelIds: Set<number> }
+    >();
+    for (const r of rows) {
+      if (r.remaining >= -0.005) continue;
+      let entry = byCcy.get(r.currencyCode);
+      if (!entry) {
+        entry = { totalDeficit: 0, personnelIds: new Set() };
+        byCcy.set(r.currencyCode, entry);
+      }
+      entry.totalDeficit += r.remaining;
+      entry.personnelIds.add(r.personnelId);
+    }
+    return Array.from(byCcy.entries())
+      .map(([currencyCode, e]) => ({
+        currencyCode,
+        totalDeficit: e.totalDeficit,
+        personnelCount: e.personnelIds.size,
+      }))
+      .sort((a, b) => a.totalDeficit - b.totalDeficit); // en negatif başta
+  }, [query.data]);
+  const hasNegative = negativeSummary.length > 0;
+
   const filteredPerPerson = useMemo<PersonnelHeldCashReportPerPersonRow[]>(() => {
     const rows = query.data?.perPersonnel ?? [];
     const q = searchText.trim().toLocaleLowerCase("tr-TR");
     return rows.filter((r) => {
       if (currencyFilter !== "ALL" && r.currencyCode !== currencyFilter) return false;
-      if (hideZero && r.remaining === 0) return false;
+      if (hideZero && Math.abs(r.remaining) < 0.005) return false;
       if (q.length > 0 && !r.fullName.toLocaleLowerCase("tr-TR").includes(q)) return false;
       return true;
     });
@@ -68,7 +132,7 @@ export function PersonnelHeldCashReportScreen() {
     const q = searchText.trim().toLocaleLowerCase("tr-TR");
     return rows.filter((r) => {
       if (currencyFilter !== "ALL" && r.currencyCode !== currencyFilter) return false;
-      if (hideZero && r.remaining === 0) return false;
+      if (hideZero && Math.abs(r.remaining) < 0.005) return false;
       if (q.length > 0 && !r.branchName.toLocaleLowerCase("tr-TR").includes(q)) return false;
       return true;
     });
@@ -79,7 +143,7 @@ export function PersonnelHeldCashReportScreen() {
     const q = searchText.trim().toLocaleLowerCase("tr-TR");
     return rows.filter((r) => {
       if (currencyFilter !== "ALL" && r.currencyCode !== currencyFilter) return false;
-      if (hideZero && r.remaining === 0) return false;
+      if (hideZero && Math.abs(r.remaining) < 0.005) return false;
       if (q.length > 0) {
         const hay = `${r.fullName} ${r.branchName}`.toLocaleLowerCase("tr-TR");
         if (!hay.includes(q)) return false;
@@ -130,6 +194,30 @@ export function PersonnelHeldCashReportScreen() {
             >
               {query.isFetching ? "Yenileniyor…" : "Yenile"}
             </button>
+            {/* Yönetim ekranı drill-down + toplu düzeltme sihirbazını barındırır.
+                Burada duplike etmiyoruz — admin değilse buton hiç render olmuyor. */}
+            {isAdmin ? (
+              <Link
+                href={ADMIN_RECONCILIATION_HREF}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 hover:border-violet-400 hover:bg-violet-50 hover:text-violet-800"
+                title="Drill-down ve toplu düzeltme sihirbazı (admin)"
+              >
+                <svg
+                  aria-hidden
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4"
+                >
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                </svg>
+                Bakiyeleri yönet
+              </Link>
+            ) : null}
             {query.data && (
               <span className="text-xs text-zinc-500">
                 Son hesaplama: {new Date(query.data.generatedAt).toLocaleString("tr-TR")}
@@ -140,6 +228,82 @@ export function PersonnelHeldCashReportScreen() {
       }
       main={
         <div className="space-y-4">
+          {/* NEGATİF BAKİYE ÖZETİ — finansal riskin "en görünür" yeri.
+              Backend zaten detail satırında negatif remaining çıkarıyor; biz para
+              birimi bazında özetleyip kırmızı banner gösteriyoruz. Admin'e doğrudan
+              Yönetim ekranına atlayan CTA bırakıyoruz (drill-down + auto-fix orada).
+              Personele yüklemiş gibi bakiyeden çıkmış ama sayıya yansımayan açıklar
+              burada birden fazla şubeye dağılmışsa "X personel" distinct sayılır. */}
+          {hasNegative ? (
+            <Card className="border-rose-300 bg-rose-50/70 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <svg
+                      aria-hidden
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-4 w-4 shrink-0 text-rose-700"
+                    >
+                      <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                      <line x1="12" y1="9" x2="12" y2="13" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                    <h2 className="text-sm font-semibold text-rose-900">
+                      Negatif bakiye uyarısı
+                    </h2>
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-rose-900/80">
+                    Bazı personeller veri tutarsızlığı veya geçmiş bug sonucu negatif
+                    bakiyeli görünüyor (hesaben fazla harcama). Detay ve toplu
+                    düzeltme için yönetim ekranına gidin.
+                  </p>
+                  <ul className="mt-2 flex flex-wrap gap-1.5">
+                    {negativeSummary.map((n) => (
+                      <li
+                        key={n.currencyCode}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-white/80 px-2.5 py-1 text-xs ring-1 ring-rose-200"
+                      >
+                        <span className="font-semibold text-rose-900 tabular-nums">
+                          {formatAmount(n.totalDeficit, n.currencyCode)}
+                        </span>
+                        <span className="text-rose-700">·</span>
+                        <span className="text-rose-700">
+                          {n.personnelCount} personel
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                {isAdmin ? (
+                  <Link
+                    href={ADMIN_RECONCILIATION_HREF}
+                    className="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 sm:w-auto"
+                  >
+                    Yönetim ekranını aç
+                    <svg
+                      aria-hidden
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-4 w-4"
+                    >
+                      <path d="M5 12h14" />
+                      <path d="m12 5 7 7-7 7" />
+                    </svg>
+                  </Link>
+                ) : null}
+              </div>
+            </Card>
+          ) : null}
+
           {/* GRAND TOTALS — para birimi bazında */}
           {currencyTotals.length === 0 && !query.isLoading ? (
             <Card className="p-6 text-center text-sm text-zinc-500">
@@ -171,9 +335,23 @@ export function PersonnelHeldCashReportScreen() {
                     <div className="text-right tabular-nums text-zinc-700">
                       −{formatAmount(c.totalSpent, c.currencyCode)}
                     </div>
-                    <div className="text-zinc-500">Patrona/devir</div>
+                    <div
+                      className="text-zinc-500"
+                      title="Eski akış: OUT_POCKET_CLAIM_* (patron/personele direkt devir tx)"
+                    >
+                      Devir (eski)
+                    </div>
                     <div className="text-right tabular-nums text-zinc-700">
                       −{formatAmount(c.totalTransferredOut, c.currencyCode)}
+                    </div>
+                    <div
+                      className="text-zinc-500"
+                      title="Yeni akış: handover settlement junction üzerinden patrona iade"
+                    >
+                      Patrona iade (yeni)
+                    </div>
+                    <div className="text-right tabular-nums text-zinc-700">
+                      −{formatAmount(c.totalSettledToPatron, c.currencyCode)}
                     </div>
                   </div>
 
@@ -187,6 +365,22 @@ export function PersonnelHeldCashReportScreen() {
                       </span>
                     </div>
                   )}
+                  {(() => {
+                    const deficit = topDeficitorByCurrency.get(c.currencyCode);
+                    if (!deficit) return null;
+                    return (
+                      <div className="mt-1.5 rounded-md bg-rose-50 px-3 py-2 text-xs">
+                        <span className="text-rose-700">En çok eksiği olan:</span>{" "}
+                        <span className="font-semibold text-rose-900">
+                          {deficit.fullName}
+                        </span>{" "}
+                        <span className="text-rose-700">·</span>{" "}
+                        <span className="font-semibold tabular-nums text-rose-900">
+                          {formatAmount(deficit.amount, c.currencyCode)}
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </Card>
               ))}
             </div>
@@ -199,7 +393,13 @@ export function PersonnelHeldCashReportScreen() {
                 type="text"
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
-                placeholder={viewMode === "branch" ? "Şube ara…" : "Personel veya şube ara…"}
+                placeholder={
+                  viewMode === "branch"
+                    ? "Şube ara…"
+                    : viewMode === "detail"
+                      ? "Personel veya şube ara…"
+                      : "Personel ara…"
+                }
                 className="min-w-[14rem] flex-1 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
               />
               <div className="w-full sm:w-auto sm:min-w-[12rem]">
@@ -254,11 +454,26 @@ export function PersonnelHeldCashReportScreen() {
               Rapor alınamadı: {(query.error as Error)?.message ?? "Bilinmeyen hata"}
             </div>
           ) : viewMode === "personnel" ? (
-            <PerPersonnelTable rows={filteredPerPerson} totalCount={query.data?.perPersonnel.length ?? 0} />
+            <PerPersonnelTable
+              rows={filteredPerPerson}
+              totalCount={query.data?.perPersonnel.length ?? 0}
+              hideZero={hideZero}
+              onDisableHideZero={() => setHideZero(false)}
+            />
           ) : viewMode === "branch" ? (
-            <PerBranchTable rows={filteredPerBranch} totalCount={query.data?.perBranch.length ?? 0} />
+            <PerBranchTable
+              rows={filteredPerBranch}
+              totalCount={query.data?.perBranch.length ?? 0}
+              hideZero={hideZero}
+              onDisableHideZero={() => setHideZero(false)}
+            />
           ) : (
-            <DetailTable rows={filteredDetail} totalCount={query.data?.detail.length ?? 0} />
+            <DetailTable
+              rows={filteredDetail}
+              totalCount={query.data?.detail.length ?? 0}
+              hideZero={hideZero}
+              onDisableHideZero={() => setHideZero(false)}
+            />
           )}
         </div>
       }
@@ -274,10 +489,28 @@ function CountStrip({ shown, total, unit }: { shown: number; total: number; unit
   );
 }
 
-function EmptyRows({ message }: { message: string }) {
+function EmptyRows({
+  message,
+  hideZero,
+  onDisableHideZero,
+}: {
+  message: string;
+  /** hideZero açıkken küçük bir CTA göster — boşluğun sebebi muhtemelen budur. */
+  hideZero?: boolean;
+  onDisableHideZero?: () => void;
+}) {
   return (
     <div className="rounded-lg border border-zinc-200 bg-white p-8 text-center text-sm text-zinc-500">
-      {message}
+      <p>{message}</p>
+      {hideZero && onDisableHideZero ? (
+        <button
+          type="button"
+          onClick={onDisableHideZero}
+          className="mt-2 inline-flex items-center gap-1 rounded-md bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-800 hover:bg-violet-100"
+        >
+          “Sıfır bakiyeyi gizle” açık — kapatmayı dene
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -325,6 +558,16 @@ const perPersonnelColumns: DataTableColumn<PersonnelHeldCashReportPerPersonRow>[
       r.transferredOut > 0 ? `−${formatAmount(r.transferredOut, r.currencyCode)}` : "—",
   },
   {
+    id: "settledToPatron",
+    header: "Patrona iade",
+    thClassName: "text-right",
+    tdClassName: "text-right tabular-nums text-rose-700",
+    cell: (r) =>
+      r.settledToPatron > 0
+        ? `−${formatAmount(r.settledToPatron, r.currencyCode)}`
+        : "—",
+  },
+  {
     id: "remaining",
     header: "Kalan",
     thClassName: "text-right",
@@ -340,9 +583,13 @@ const perPersonnelColumns: DataTableColumn<PersonnelHeldCashReportPerPersonRow>[
 function PerPersonnelTable({
   rows,
   totalCount,
+  hideZero,
+  onDisableHideZero,
 }: {
   rows: PersonnelHeldCashReportPerPersonRow[];
   totalCount: number;
+  hideZero: boolean;
+  onDisableHideZero: () => void;
 }) {
   return (
     <div className="space-y-2">
@@ -351,7 +598,13 @@ function PerPersonnelTable({
         columns={perPersonnelColumns}
         rows={rows}
         getRowKey={(r) => `${r.personnelId}-${r.currencyCode}`}
-        emptyMessage={<EmptyRows message="Eşleşen personel yok." />}
+        emptyMessage={
+          <EmptyRows
+            message="Eşleşen personel yok."
+            hideZero={hideZero}
+            onDisableHideZero={onDisableHideZero}
+          />
+        }
       />
     </div>
   );
@@ -400,6 +653,16 @@ const perBranchColumns: DataTableColumn<PersonnelHeldCashReportPerBranchRow>[] =
       r.transferredOut > 0 ? `−${formatAmount(r.transferredOut, r.currencyCode)}` : "—",
   },
   {
+    id: "settledToPatron",
+    header: "Patrona iade",
+    thClassName: "text-right",
+    tdClassName: "text-right tabular-nums text-rose-700",
+    cell: (r) =>
+      r.settledToPatron > 0
+        ? `−${formatAmount(r.settledToPatron, r.currencyCode)}`
+        : "—",
+  },
+  {
     id: "remaining",
     header: "Kalan",
     thClassName: "text-right",
@@ -415,18 +678,28 @@ const perBranchColumns: DataTableColumn<PersonnelHeldCashReportPerBranchRow>[] =
 function PerBranchTable({
   rows,
   totalCount,
+  hideZero,
+  onDisableHideZero,
 }: {
   rows: PersonnelHeldCashReportPerBranchRow[];
   totalCount: number;
+  hideZero: boolean;
+  onDisableHideZero: () => void;
 }) {
   return (
     <div className="space-y-2">
-      <CountStrip shown={rows.length} total={totalCount} unit="satır" />
+      <CountStrip shown={rows.length} total={totalCount} unit="kayıt" />
       <DataTable
         columns={perBranchColumns}
         rows={rows}
         getRowKey={(r) => `${r.branchId}-${r.currencyCode}`}
-        emptyMessage={<EmptyRows message="Eşleşen şube yok." />}
+        emptyMessage={
+          <EmptyRows
+            message="Eşleşen şube yok."
+            hideZero={hideZero}
+            onDisableHideZero={onDisableHideZero}
+          />
+        }
       />
     </div>
   );
@@ -482,6 +755,16 @@ const detailColumns: DataTableColumn<PersonnelHeldCashReportDetailRow>[] = [
       r.transferredOut > 0 ? `−${formatAmount(r.transferredOut, r.currencyCode)}` : "—",
   },
   {
+    id: "settledToPatron",
+    header: "Patrona iade",
+    thClassName: "text-right",
+    tdClassName: "text-right tabular-nums text-rose-700",
+    cell: (r) =>
+      r.settledToPatron > 0
+        ? `−${formatAmount(r.settledToPatron, r.currencyCode)}`
+        : "—",
+  },
+  {
     id: "remaining",
     header: "Kalan",
     thClassName: "text-right",
@@ -497,18 +780,28 @@ const detailColumns: DataTableColumn<PersonnelHeldCashReportDetailRow>[] = [
 function DetailTable({
   rows,
   totalCount,
+  hideZero,
+  onDisableHideZero,
 }: {
   rows: PersonnelHeldCashReportDetailRow[];
   totalCount: number;
+  hideZero: boolean;
+  onDisableHideZero: () => void;
 }) {
   return (
     <div className="space-y-2">
-      <CountStrip shown={rows.length} total={totalCount} unit="satır (personel × şube × para)" />
+      <CountStrip shown={rows.length} total={totalCount} unit="kayıt" />
       <DataTable
         columns={detailColumns}
         rows={rows}
         getRowKey={(r) => `${r.personnelId}-${r.branchId}-${r.currencyCode}`}
-        emptyMessage={<EmptyRows message="Eşleşen kayıt yok." />}
+        emptyMessage={
+          <EmptyRows
+            message="Eşleşen kayıt yok."
+            hideZero={hideZero}
+            onDisableHideZero={onDisableHideZero}
+          />
+        }
       />
     </div>
   );

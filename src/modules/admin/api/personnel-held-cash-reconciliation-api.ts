@@ -9,7 +9,10 @@ export type PersonnelHeldCashReconciliationRow = {
   inTotal: number;
   claimReceived: number;
   heldSpent: number;
+  /** Eski akış: OUT_POCKET_CLAIM_* (patron/personele direkt devir tx). */
   claimGiven: number;
+  /** Yeni akış: handover settlement junction üzerinden patrona iade. NetBalance hesabına dahildir. */
+  handoverSettled: number;
   netBalance: number;
   oldBalanceEstimate: number;
   difference: number;

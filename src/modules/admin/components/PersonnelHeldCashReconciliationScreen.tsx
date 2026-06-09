@@ -230,7 +230,15 @@ export function PersonnelHeldCashReconciliationScreen() {
                     <th className="px-3 py-2 text-right">Aldı (IN)</th>
                     <th className="px-3 py-2 text-right">Devraldı</th>
                     <th className="px-3 py-2 text-right">Harcadı</th>
-                    <th className="px-3 py-2 text-right">Devretti</th>
+                    <th className="px-3 py-2 text-right" title="Eski akış: OUT_POCKET_CLAIM_*">
+                      Devretti (eski)
+                    </th>
+                    <th
+                      className="px-3 py-2 text-right"
+                      title="Yeni akış: handover settlement junction (patrona iade)"
+                    >
+                      Patrona iade
+                    </th>
                     <th className="px-3 py-2 text-right">Yeni Net</th>
                     <th className="px-3 py-2 text-right">Eski (buglı)</th>
                     <th className="px-3 py-2 text-right">Fark</th>
@@ -261,6 +269,11 @@ export function PersonnelHeldCashReconciliationScreen() {
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums text-rose-700">
                         {r.claimGiven > 0 ? `−${formatAmount(r.claimGiven, r.currencyCode)}` : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-rose-700">
+                        {r.handoverSettled > 0
+                          ? `−${formatAmount(r.handoverSettled, r.currencyCode)}`
+                          : "—"}
                       </td>
                       <td className={cn(
                         "px-3 py-2 text-right font-semibold tabular-nums",

@@ -6,7 +6,10 @@ export type PersonnelHeldCashReportPerPersonRow = {
   currencyCode: string;
   received: number;
   spent: number;
+  /** Eski akış: OUT_POCKET_CLAIM_* (patron/personele direkt devir tx). */
   transferredOut: number;
+  /** Yeni akış: handover settlement junction üzerinden patrona iade. */
+  settledToPatron: number;
   transferredIn: number;
   remaining: number;
   branchCount: number;
@@ -19,6 +22,7 @@ export type PersonnelHeldCashReportPerBranchRow = {
   received: number;
   spent: number;
   transferredOut: number;
+  settledToPatron: number;
   transferredIn: number;
   remaining: number;
   personnelCount: number;
@@ -33,6 +37,7 @@ export type PersonnelHeldCashReportDetailRow = {
   received: number;
   spent: number;
   transferredOut: number;
+  settledToPatron: number;
   transferredIn: number;
   remaining: number;
 };
@@ -48,6 +53,7 @@ export type PersonnelHeldCashReportCurrencyTotal = {
   totalReceived: number;
   totalSpent: number;
   totalTransferredOut: number;
+  totalSettledToPatron: number;
   totalTransferredIn: number;
   totalRemaining: number;
   personnelCount: number;
