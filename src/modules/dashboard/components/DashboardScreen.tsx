@@ -2,392 +2,665 @@
 
 import { useI18n } from "@/i18n/context";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { canSeeUiModule, PERM } from "@/lib/auth/permissions";
+import {
+  canSeeBranchFinancials,
+  canSeeUiModule,
+  PERM,
+} from "@/lib/auth/permissions";
 import { isPersonnelPortalRole, postLoginHomePath } from "@/lib/auth/roles";
-import { DashboardCumulativeStorySection } from "@/modules/dashboard/components/DashboardCumulativeStorySection";
-import { DashboardFinanceTab } from "@/modules/dashboard/components/DashboardFinanceTab";
-import { DashboardOperationsRegistryTab } from "@/modules/dashboard/components/DashboardOperationsRegistryTab";
-import { DashboardOperationsTab } from "@/modules/dashboard/components/DashboardOperationsTab";
-import { DashboardPersonnelTab } from "@/modules/dashboard/components/DashboardPersonnelTab";
-import { DashboardRegisterDayFilterBar } from "@/modules/dashboard/components/DashboardRegisterDayFilterBar";
-import { DashboardReportsTab } from "@/modules/dashboard/components/DashboardReportsTab";
-import { DashboardSummaryTab } from "@/modules/dashboard/components/DashboardSummaryTab";
+import { AddTransactionModal } from "@/shared/components/transactions/AddTransactionModal";
+import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { fillDashboardTemplate } from "@/modules/dashboard/components/dashboard-utils";
-import type { DashboardMainTab } from "@/modules/dashboard/components/dashboard-main-tab";
+import { ActionGroup, type ActionItem } from "@/modules/dashboard/components/overview/ActionGroup";
+import { DashCard, Stat } from "@/modules/dashboard/components/overview/DashCard";
+import { KpiStrip, type KpiItem } from "@/modules/dashboard/components/overview/KpiStrip";
+import { QuickPickerModal, type PickerOption } from "@/modules/dashboard/components/overview/QuickPickerModal";
+import { StoryCallout } from "@/modules/dashboard/components/overview/StoryCallout";
 import { useDashboardOverview } from "@/modules/dashboard/hooks/useDashboardOverview";
 import { useTodayBranchesSummary } from "@/modules/dashboard/hooks/useTodayBranchesSummary";
+import { AdvancePersonnelModal } from "@/modules/personnel/components/AdvancePersonnelModal";
+import { PersonnelCostsExpenseModal } from "@/modules/personnel/components/PersonnelCostsExpenseModal";
 import {
-  dashboardOverviewKeys,
-  dashboardSummaryKeys,
-} from "@/modules/dashboard/query-keys";
-import type {
-  DashboardBulkCashParams,
-  DashboardCashFilterMode,
-} from "@/modules/dashboard/types/dashboard-cash-filter";
-import { reportYearQuickSelectTopYear } from "@/modules/reports/lib/report-period-helpers";
+  defaultPersonnelListFilters,
+  usePersonnelList,
+} from "@/modules/personnel/hooks/usePersonnelQueries";
+import { useSuppliers } from "@/modules/suppliers/hooks/useSupplierQueries";
 import { PageHeader } from "@/shared/components/PageHeader";
 import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
-import { formatLocaleDate } from "@/shared/lib/locale-date";
+import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { Button } from "@/shared/ui/Button";
-import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+const DASH = "—";
 
 export function DashboardScreen() {
   const { t, locale } = useI18n();
   const router = useRouter();
-  const qc = useQueryClient();
   const { user } = useAuth();
-  const [mainTab, setMainTab] = useState<DashboardMainTab>("summary");
-  const prevMainTab = useRef<DashboardMainTab | null>(null);
-  const [cashFilterMode, setCashFilterMode] =
-    useState<DashboardCashFilterMode>("day");
-  const [branchSummaryDate, setBranchSummaryDate] = useState(() =>
-    localIsoDate()
-  );
-  const [cashSeasonYear, setCashSeasonYear] = useState(() =>
-    reportYearQuickSelectTopYear()
-  );
-  const [cashSeasonYearFrom, setCashSeasonYearFrom] = useState(() =>
-    reportYearQuickSelectTopYear()
-  );
-  const [cashSeasonYearTo, setCashSeasonYearTo] = useState(() =>
-    reportYearQuickSelectTopYear()
-  );
+
+  const allowed =
+    user != null &&
+    !isPersonnelPortalRole(user.role) &&
+    canSeeUiModule(user, PERM.uiDashboard);
+
   useEffect(() => {
     if (!user) return;
     if (isPersonnelPortalRole(user.role)) {
       router.replace("/branches");
       return;
     }
-    if (!canSeeUiModule(user, PERM.uiDashboard)) router.replace(postLoginHomePath(user));
+    if (!canSeeUiModule(user, PERM.uiDashboard)) {
+      router.replace(postLoginHomePath(user));
+    }
   }, [user, router]);
 
-  useEffect(() => {
-    if (prevMainTab.current === null) {
-      prevMainTab.current = mainTab;
-      return;
-    }
-    if (prevMainTab.current === mainTab) return;
-    prevMainTab.current = mainTab;
-    void qc.invalidateQueries({ queryKey: dashboardOverviewKeys.all });
-    void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
-  }, [mainTab, qc]);
-
-  const bulkParams = useMemo((): DashboardBulkCashParams => {
-    if (cashFilterMode === "all_data") return { kind: "all_data" };
-    if (cashFilterMode === "day") return { kind: "day", date: branchSummaryDate };
-    if (cashFilterMode === "season_single") {
-      return { kind: "season_single", seasonYear: cashSeasonYear };
-    }
-    const lo = Math.min(cashSeasonYearFrom, cashSeasonYearTo);
-    const hi = Math.max(cashSeasonYearFrom, cashSeasonYearTo);
-    return { kind: "season_range", fromYear: lo, toYear: hi };
-  }, [
-    cashFilterMode,
-    branchSummaryDate,
-    cashSeasonYear,
-    cashSeasonYearFrom,
-    cashSeasonYearTo,
-  ]);
-
-  const { state, refetch } = useTodayBranchesSummary(bulkParams);
-  const overview = useDashboardOverview();
-  const dash = "—";
   const todayIso = localIsoDate();
-  const isCalendarToday = branchSummaryDate === todayIso;
-  const isPlainTodayView = bulkParams.kind === "day" && isCalendarToday;
+  const showFinancials = canSeeBranchFinancials(user);
+  const canBranches = canSeeUiModule(user, PERM.uiBranches);
+  const canPersonnel = canSeeUiModule(user, PERM.uiPersonnel);
+  const canWarehouse = canSeeUiModule(user, PERM.uiWarehouse);
+  const canDailyRegister = canSeeUiModule(user, PERM.uiDailyBranchRegister);
+  const canReportsFinancial = canSeeUiModule(user, PERM.uiReportsFinancial);
+  const canReports = canSeeUiModule(user, PERM.uiReports) || canReportsFinancial;
+  const canSuppliers = canSeeUiModule(user, PERM.uiSuppliers);
+  const canVehicles = canSeeUiModule(user, PERM.uiVehicles);
 
-  const snapshotDateLabel = useMemo(() => {
-    if (bulkParams.kind === "all_data") {
-      return t("dashboard.cashScopeAllDataShort");
-    }
-    if (bulkParams.kind === "day") {
-      return formatLocaleDate(bulkParams.date, locale);
-    }
-    if (bulkParams.kind === "season_single") {
-      return fillDashboardTemplate(t("dashboard.cashScopeSeasonSingleShort"), {
-        year: String(bulkParams.seasonYear),
-      });
-    }
-    return fillDashboardTemplate(t("dashboard.cashScopeSeasonRangeShort"), {
-      fromYear: String(bulkParams.fromYear),
-      toYear: String(bulkParams.toYear),
-    });
-  }, [bulkParams, locale, t]);
+  const today = useTodayBranchesSummary(
+    { kind: "day", date: todayIso },
+    allowed && canBranches && showFinancials
+  );
+  const overview = useDashboardOverview(allowed);
 
-  const sumBranchesFootnote = useMemo(() => {
-    if (bulkParams.kind === "all_data") {
-      return t("dashboard.sumAllBranchesAllData");
-    }
-    if (bulkParams.kind === "day") {
-      return bulkParams.date === todayIso
-        ? t("dashboard.sumAllBranchesToday")
-        : fillDashboardTemplate(t("dashboard.sumAllBranchesForDate"), {
-            date: formatLocaleDate(bulkParams.date, locale),
-          });
-    }
-    if (bulkParams.kind === "season_single") {
-      return fillDashboardTemplate(t("dashboard.sumAllBranchesSeasonSingle"), {
-        year: String(bulkParams.seasonYear),
-      });
-    }
-    return fillDashboardTemplate(t("dashboard.sumAllBranchesSeasonRange"), {
-      fromYear: String(bulkParams.fromYear),
-      toYear: String(bulkParams.toYear),
-    });
-  }, [bulkParams, todayIso, locale, t]);
+  const [advanceOpen, setAdvanceOpen] = useState(false);
+  const [persExpensePickerOpen, setPersExpensePickerOpen] = useState(false);
+  const [persExpensePersonnelId, setPersExpensePersonnelId] = useState<
+    number | null
+  >(null);
+  const [dayEndPickerOpen, setDayEndPickerOpen] = useState(false);
+  const [dayEndBranchId, setDayEndBranchId] = useState<number | null>(null);
+  const [branchExpensePickerOpen, setBranchExpensePickerOpen] = useState(false);
+  const [branchExpenseBranchId, setBranchExpenseBranchId] = useState<
+    number | null
+  >(null);
+  const [supplierPickerOpen, setSupplierPickerOpen] = useState(false);
 
-  const branchTodayTitleBadge = isPlainTodayView ? null : snapshotDateLabel;
+  const personnelListQ = usePersonnelList(
+    defaultPersonnelListFilters,
+    canPersonnel && (advanceOpen || persExpensePickerOpen)
+  );
+  const activePersonnel = useMemo(
+    () => (personnelListQ.data?.items ?? []).filter((p) => !p.isDeleted),
+    [personnelListQ.data]
+  );
+  const personnelOptions: PickerOption[] = useMemo(
+    () =>
+      activePersonnel.map((p) => ({
+        id: p.id,
+        label: p.fullName,
+        sub: p.jobTitle ?? undefined,
+      })),
+    [activePersonnel]
+  );
 
-  const branchTodayTableBlurb = useMemo(() => {
-    if (bulkParams.kind === "all_data") {
-      return t("dashboard.branchTodayDescAllData");
-    }
-    if (bulkParams.kind === "day") {
-      return isCalendarToday
-        ? t("dashboard.branchTodayDesc")
-        : fillDashboardTemplate(t("dashboard.branchTodayDescForDate"), {
-            date: snapshotDateLabel,
-          });
-    }
-    if (bulkParams.kind === "season_single") {
-      return fillDashboardTemplate(t("dashboard.branchTodayDescSeasonSingle"), {
-        year: String(bulkParams.seasonYear),
-      });
-    }
-    return fillDashboardTemplate(t("dashboard.branchTodayDescSeasonRange"), {
-      fromYear: String(bulkParams.fromYear),
-      toYear: String(bulkParams.toYear),
-    });
-  }, [bulkParams, isCalendarToday, snapshotDateLabel, t]);
+  const branchesQ = useBranchesList(
+    canBranches &&
+      (dayEndPickerOpen ||
+        dayEndBranchId != null ||
+        branchExpensePickerOpen ||
+        branchExpenseBranchId != null)
+  );
+  const branchOptions: PickerOption[] = useMemo(
+    () =>
+      (branchesQ.data ?? []).map((b) => ({
+        id: b.id,
+        label: b.name,
+      })),
+    [branchesQ.data]
+  );
 
-  const tabBtn = (active: boolean) =>
-    `min-h-11 w-full min-w-[8.5rem] shrink-0 touch-manipulation rounded-md px-4 py-2 text-center text-xs font-semibold whitespace-nowrap transition-all duration-200 ease-in-out sm:min-h-10 sm:min-w-0 sm:text-sm lg:flex-1 ${
-      active
-        ? "bg-white text-zinc-900 shadow-sm"
-        : "text-zinc-600 active:bg-zinc-200/80 sm:hover:text-zinc-900"
-    }`;
+  const suppliersQ = useSuppliers(
+    false,
+    allowed && canSuppliers && supplierPickerOpen
+  );
+  const supplierOptions: PickerOption[] = useMemo(
+    () =>
+      (suppliersQ.data ?? [])
+        .filter((s) => !s.isDeleted)
+        .map((s) => ({ id: s.id, label: s.name })),
+    [suppliersQ.data]
+  );
+
+  const todayState = today.state;
+  const todayOk = todayState.kind === "ok" ? todayState : null;
+  const ov = overview.data;
+
+  const branchesActiveToday = useMemo(() => {
+    if (!todayOk) return null;
+    const active = todayOk.branchTodayRows.filter(
+      (r) => r.income > 0 || r.totalExpenseOut > 0
+    ).length;
+    const total = todayOk.branchCount || ov?.operations.activeBranchCount || 0;
+    return { active, total };
+  }, [todayOk, ov]);
+
+  const topBranchesByIncome = useMemo(() => {
+    if (!todayOk) return [];
+    return [...todayOk.branchTodayRows]
+      .sort((a, b) => b.income - a.income)
+      .slice(0, 3);
+  }, [todayOk]);
+
+  const fmtMoney = (n: number | null | undefined, currency?: string) =>
+    n == null || Number.isNaN(n)
+      ? DASH
+      : formatLocaleAmount(n, locale, currency);
+  const fmtNum = (n: number | null | undefined) =>
+    n == null || Number.isNaN(n) ? DASH : new Intl.NumberFormat(locale).format(n);
+
+  const advanceFirst = ov?.financeExtras.advanceTotalsByCurrency?.[0];
+
+  if (!allowed) return null;
 
   return (
     <>
-      <PageScreenScaffold
-        variant="dashboard"
-        className="w-full pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pt-4 sm:pb-8 sm:pt-5"
-        intro={
-          <PageHeader
-            title={t("dashboard.title")}
-            description={t("dashboard.subtitle")}
-            actions={
-              <>
+    <PageScreenScaffold
+      variant="dashboard"
+      className="w-full pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pt-4 sm:pb-8 sm:pt-5"
+      intro={
+        <PageHeader
+          title={t("dashboard.title")}
+          description={t("dashboard.subtitle")}
+          actions={
+            today.state.kind === "error" || overview.isError ? (
               <Button
                 type="button"
                 variant="secondary"
                 className="min-h-11 flex-1 sm:flex-none"
                 onClick={() => {
-                  const el = document.getElementById("dashboard-filters");
-                  el?.scrollIntoView({ behavior: "smooth", block: "start" });
-                }}
-              >
-                {t("common.filters")}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                className="min-h-11 flex-1 sm:flex-none"
-                onClick={() => {
-                  void refetch();
+                  void today.refetch();
                   void overview.refetch();
                 }}
               >
                 {t("common.retry")}
               </Button>
-              </>
-            }
+            ) : null
+          }
+        />
+      }
+      main={
+        <div className="min-w-0 w-full space-y-5 sm:space-y-6">
+          <KpiStrip
+            items={[
+              showFinancials && canBranches
+                ? {
+                    label: t("dashboard.ovTodayCash"),
+                    value: fmtMoney(todayOk?.totalIncomeCash ?? null),
+                    sub:
+                      todayOk == null
+                        ? ""
+                        : fmtMoney(todayOk.netCash) +
+                          " · " +
+                          t("dashboard.ovTodayNet"),
+                    href: "/branches",
+                  }
+                : null,
+              canBranches
+                ? {
+                    label: t("dashboard.ovActiveBranches"),
+                    value: fmtNum(ov?.operations.activeBranchCount),
+                    sub: branchesActiveToday
+                      ? fillDashboardTemplate(
+                          t("dashboard.ovBranchesActiveToday"),
+                          {
+                            active: String(branchesActiveToday.active),
+                            total: String(branchesActiveToday.total),
+                          }
+                        )
+                      : "",
+                    href: "/branches",
+                  }
+                : null,
+              canPersonnel
+                ? {
+                    label: t("dashboard.ovActivePersonnel"),
+                    value: fmtNum(ov?.personnel.activePersonnelCount),
+                    sub: "",
+                    href: "/personnel",
+                  }
+                : null,
+              showFinancials
+                ? {
+                    label: t("dashboard.ovLifetimeNet"),
+                    value: fmtMoney(
+                      ov?.financeExtras.allBranchesLifetimeEconomicNet ?? null
+                    ),
+                    sub: "",
+                    href: canReportsFinancial
+                      ? "/reports/financial/trend"
+                      : "/reports/financial",
+                  }
+                : null,
+              canPersonnel
+                ? {
+                    label: t("dashboard.ovAdvanceOpen"),
+                    value: advanceFirst
+                      ? fmtMoney(advanceFirst.totalAmount, advanceFirst.currencyCode)
+                      : DASH,
+                    sub: advanceFirst
+                      ? fmtNum(ov?.financeExtras.advanceRecordCount) +
+                        " " +
+                        t("dashboard.ovAdvanceOpen").toLocaleLowerCase(locale)
+                      : "",
+                    href: "/personnel/advances",
+                  }
+                : null,
+            ].filter(Boolean) as KpiItem[]}
           />
-        }
-        main={
-          <div className="min-w-0 w-full space-y-4 sm:space-y-6">
-            <div className="sticky top-2 z-10">
-              <div
-                className="flex w-full min-w-0 gap-1 overflow-x-auto rounded-lg bg-zinc-100 p-1 pr-16 shadow-sm backdrop-blur-sm [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-3 sm:overflow-visible sm:pr-1 lg:flex lg:flex-nowrap"
-                role="tablist"
-                aria-label={t("dashboard.tabsAria")}
+
+          <StoryCallout
+            title={t("dashboard.ovStoryTitle")}
+            text={t("dashboard.ovStoryText")}
+          />
+
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4">
+            <ActionGroup
+              title={t("dashboard.ovQuickOpsTitle")}
+              hint={t("dashboard.ovQuickOpsHint")}
+              tone="primary"
+              items={[
+                canBranches || canDailyRegister
+                  ? {
+                      label: t("dashboard.ovActionEndOfDay"),
+                      onClick: () => setDayEndPickerOpen(true),
+                    }
+                  : null,
+                canBranches
+                  ? {
+                      label: t("dashboard.ovActionBranchExpense"),
+                      onClick: () => setBranchExpensePickerOpen(true),
+                    }
+                  : null,
+                canPersonnel
+                  ? {
+                      label: t("dashboard.ovActionGiveAdvance"),
+                      onClick: () => setAdvanceOpen(true),
+                    }
+                  : null,
+                canPersonnel
+                  ? {
+                      label: t("dashboard.ovActionPersonnelExpense"),
+                      onClick: () => setPersExpensePickerOpen(true),
+                    }
+                  : null,
+                canSuppliers
+                  ? {
+                      label: t("dashboard.ovActionSupplierInvoice"),
+                      onClick: () => setSupplierPickerOpen(true),
+                    }
+                  : null,
+              ].filter(Boolean) as ActionItem[]}
+            />
+            <ActionGroup
+              title={t("dashboard.ovQuickScreensTitle")}
+              hint={t("dashboard.ovQuickScreensHint")}
+              tone="neutral"
+              items={[
+                canBranches
+                  ? { href: "/branches", label: t("dashboard.ovScreenBranches") }
+                  : null,
+                canPersonnel
+                  ? {
+                      href: "/personnel",
+                      label: t("dashboard.ovScreenPersonnel"),
+                    }
+                  : null,
+                canReports
+                  ? {
+                      href: canReportsFinancial
+                        ? "/reports/financial"
+                        : "/reports",
+                      label: t("dashboard.ovScreenReports"),
+                    }
+                  : null,
+                canWarehouse
+                  ? {
+                      href: "/warehouses",
+                      label: t("dashboard.ovScreenWarehouse"),
+                    }
+                  : null,
+                canSuppliers
+                  ? {
+                      href: "/suppliers",
+                      label: t("dashboard.ovScreenSuppliers"),
+                    }
+                  : null,
+                canVehicles
+                  ? {
+                      href: "/vehicles",
+                      label: t("dashboard.ovScreenVehicles"),
+                    }
+                  : null,
+              ].filter(Boolean) as { href: string; label: string }[]}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {canBranches ? (
+              <DashCard
+                title={t("dashboard.ovCardBranchesTitle")}
+                description={t("dashboard.ovCardBranchesDesc")}
+                href="/branches"
+                detailLabel={t("dashboard.ovDetail")}
               >
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={mainTab === "summary"}
-                  onClick={() => setMainTab("summary")}
-                  className={tabBtn(mainTab === "summary")}
-                >
-                  {t("dashboard.storyFlowNavStory")}
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={mainTab === "finance"}
-                  onClick={() => {
-                    setMainTab("finance");
-                    if (cashFilterMode === "all_data") setCashFilterMode("day");
-                  }}
-                  className={tabBtn(mainTab === "finance")}
-                >
-                  {t("dashboard.storyFlowNavFinance")}
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={mainTab === "personnel"}
-                  onClick={() => setMainTab("personnel")}
-                  className={tabBtn(mainTab === "personnel")}
-                >
-                  {t("dashboard.storyFlowNavPersonnel")}
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={mainTab === "operations"}
-                  onClick={() => setMainTab("operations")}
-                  className={tabBtn(mainTab === "operations")}
-                >
-                  {t("dashboard.storyFlowNavOps")}
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={mainTab === "operations_registry"}
-                  onClick={() => setMainTab("operations_registry")}
-                  className={tabBtn(mainTab === "operations_registry")}
-                >
-                  {t("dashboard.storyFlowNavRegistry")}
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={mainTab === "reports"}
-                  onClick={() => setMainTab("reports")}
-                  className={tabBtn(mainTab === "reports")}
-                >
-                  {t("dashboard.storyFlowNavReports")}
-                </button>
-              </div>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center rounded-r-xl bg-gradient-to-l from-zinc-50/95 via-zinc-50/85 to-transparent pl-8 pr-2 sm:hidden">
-                <span
-                  className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-zinc-200/80 bg-white/85 text-zinc-500 shadow-sm animate-pulse"
-                  aria-hidden
-                >
-                  <svg
-                    width="14"
-                    height="14"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="m9 18 6-6-6-6" />
-                  </svg>
-                </span>
-              </div>
-            </div>
-
-            <div id="dashboard-filters">
-              {mainTab === "summary" || mainTab === "finance" ? (
-                <DashboardRegisterDayFilterBar
-                  filterMode={cashFilterMode}
-                  setFilterMode={setCashFilterMode}
-                  branchSummaryDate={branchSummaryDate}
-                  setBranchSummaryDate={setBranchSummaryDate}
-                  seasonYear={cashSeasonYear}
-                  setSeasonYear={setCashSeasonYear}
-                  seasonYearFrom={cashSeasonYearFrom}
-                  setSeasonYearFrom={setCashSeasonYearFrom}
-                  seasonYearTo={cashSeasonYearTo}
-                  setSeasonYearTo={setCashSeasonYearTo}
-                  isCalendarToday={isCalendarToday}
-                  t={t}
+                <Stat
+                  label={t("dashboard.ovActiveBranches")}
+                  value={fmtNum(ov?.operations.activeBranchCount)}
                 />
-              ) : null}
-            </div>
-
-            {mainTab === "summary" ? (
-              <div className="flex min-w-0 flex-col gap-5 transition-opacity duration-200 ease-in-out">
-                {cashFilterMode !== "all_data" ? (
-                  <DashboardSummaryTab
-                    t={t}
-                    locale={locale}
-                    state={state}
-                    onCashRetry={refetch}
-                    sumBranchesFootnote={sumBranchesFootnote}
-                    isPlainTodayView={isPlainTodayView}
-                    snapshotDateLabel={snapshotDateLabel}
-                  />
+                {branchesActiveToday ? (
+                  <p className="text-xs text-zinc-500">
+                    {fillDashboardTemplate(
+                      t("dashboard.ovBranchesActiveToday"),
+                      {
+                        active: String(branchesActiveToday.active),
+                        total: String(branchesActiveToday.total),
+                      }
+                    )}
+                  </p>
                 ) : null}
-                {cashFilterMode === "all_data" ? (
-                  <div className="min-w-0 rounded-2xl border border-zinc-200/85 bg-white p-4 shadow-sm ring-1 ring-zinc-950/[0.04] sm:p-5">
-                    <DashboardCumulativeStorySection
-                      t={t}
-                      locale={locale}
-                      overview={overview}
-                      onRegisterCashDetailClick={() => {
-                        setCashFilterMode("day");
-                        setMainTab("finance");
-                      }}
-                      sectionClassName="space-y-4"
+                {showFinancials && topBranchesByIncome.length > 0 ? (
+                  <ul className="mt-1 space-y-1 text-xs text-zinc-700">
+                    {topBranchesByIncome.map((r) => (
+                      <li
+                        key={r.branchId}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <span className="truncate">{r.branchName}</span>
+                        <span className="tabular-nums text-zinc-900">
+                          {fmtMoney(r.income)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </DashCard>
+            ) : null}
+
+            {canPersonnel ? (
+              <DashCard
+                title={t("dashboard.ovCardPersonnelTitle")}
+                description={t("dashboard.ovCardPersonnelDesc")}
+                href="/personnel/costs"
+                detailLabel={t("dashboard.ovDetail")}
+              >
+                <Stat
+                  label={t("dashboard.ovActivePersonnel")}
+                  value={fmtNum(ov?.personnel.activePersonnelCount)}
+                />
+                {ov?.personnel.longestTenure ? (
+                  <p className="text-xs text-zinc-600">
+                    <span className="text-zinc-500">
+                      {t("dashboard.ovLongestTenure")}:{" "}
+                    </span>
+                    <span className="font-medium text-zinc-900">
+                      {ov.personnel.longestTenure.fullName}
+                    </span>{" "}
+                    <span className="text-zinc-500">
+                      ·{" "}
+                      {fillDashboardTemplate(t("dashboard.ovYearsMonths"), {
+                        y: String(ov.personnel.longestTenure.tenureYears),
+                        m: String(
+                          ov.personnel.longestTenure.tenureMonthsRemainder
+                        ),
+                      })}
+                    </span>
+                  </p>
+                ) : null}
+                {ov?.personnel.topAdvanceRecipient ? (
+                  <p className="text-xs text-zinc-600">
+                    <span className="text-zinc-500">
+                      {t("dashboard.ovTopAdvance")}:{" "}
+                    </span>
+                    <span className="font-medium text-zinc-900">
+                      {ov.personnel.topAdvanceRecipient.fullName}
+                    </span>{" "}
+                    <span className="tabular-nums text-zinc-900">
+                      ·{" "}
+                      {fmtMoney(
+                        ov.personnel.topAdvanceRecipient.totalAmount,
+                        ov.personnel.topAdvanceRecipient.currencyCode
+                      )}
+                    </span>
+                  </p>
+                ) : null}
+              </DashCard>
+            ) : null}
+
+            {showFinancials ? (
+              <DashCard
+                title={t("dashboard.ovCardFinanceTitle")}
+                description={t("dashboard.ovCardFinanceDesc")}
+                href={canReportsFinancial ? "/reports/financial" : "/branches"}
+                detailLabel={t("dashboard.ovDetail")}
+              >
+                <Stat
+                  label={t("dashboard.ovLifetimeNet")}
+                  value={fmtMoney(
+                    ov?.financeExtras.allBranchesLifetimeEconomicNet ?? null
+                  )}
+                />
+                {todayOk ? (
+                  <>
+                    <Stat
+                      label={t("dashboard.ovTodayCash")}
+                      value={fmtMoney(todayOk.totalIncomeCash)}
+                      compact
                     />
-                  </div>
+                    <Stat
+                      label={t("dashboard.ovTodayNet")}
+                      value={fmtMoney(todayOk.netCash)}
+                      compact
+                    />
+                  </>
                 ) : null}
-              </div>
+              </DashCard>
             ) : null}
 
-            {mainTab === "finance" ? (
-              <div className="transition-opacity duration-200 ease-in-out">
-                <DashboardFinanceTab
-                  t={t}
-                  locale={locale}
-                  state={state}
-                  refetch={refetch}
-                  overview={overview}
-                  bulkParams={bulkParams}
-                  isPlainTodayView={isPlainTodayView}
-                  snapshotDateLabel={snapshotDateLabel}
-                  sumBranchesFootnote={sumBranchesFootnote}
-                  branchTodayTitleBadge={branchTodayTitleBadge}
-                  branchTodayTableBlurb={branchTodayTableBlurb}
-                  dash={dash}
-                />
-              </div>
+            <DashCard
+              title={t("dashboard.ovCardOpsTitle")}
+              description={t("dashboard.ovCardOpsDesc")}
+              href={canBranches ? "/branches" : "/products"}
+              detailLabel={t("dashboard.ovDetail")}
+            >
+              <ul className="grid grid-cols-2 gap-2 text-xs text-zinc-700">
+                <li>
+                  {fillDashboardTemplate(t("dashboard.ovBranchesCount"), {
+                    n: fmtNum(ov?.operations.activeBranchCount),
+                  })}
+                </li>
+                <li>
+                  {fillDashboardTemplate(t("dashboard.ovWarehousesCount"), {
+                    n: fmtNum(ov?.operations.activeWarehouseCount),
+                  })}
+                </li>
+                <li>
+                  {fillDashboardTemplate(t("dashboard.ovSuppliersCount"), {
+                    n: fmtNum(ov?.operations.activeSupplierCount),
+                  })}
+                </li>
+                <li>
+                  {fillDashboardTemplate(t("dashboard.ovVehiclesCount"), {
+                    n: fmtNum(ov?.operations.activeVehicleCount),
+                  })}
+                </li>
+                <li>
+                  {fillDashboardTemplate(t("dashboard.ovProductsCount"), {
+                    n: fmtNum(ov?.operations.activeProductCount),
+                  })}
+                </li>
+              </ul>
+            </DashCard>
+
+            {canWarehouse ? (
+              <DashCard
+                title={t("dashboard.ovCardWarehouseTitle")}
+                description={t("dashboard.ovCardWarehouseDesc")}
+                href="/warehouses"
+                detailLabel={t("dashboard.ovDetail")}
+              >
+                <p className="text-xs text-zinc-600">
+                  {fillDashboardTemplate(t("dashboard.ovDistinctProducts"), {
+                    n: fmtNum(
+                      ov?.operations.warehouseStock.distinctProductCount
+                    ),
+                  })}
+                </p>
+                {ov?.operations.warehouseStock.topByQuantity?.length ? (
+                  <>
+                    <p className="mt-1 text-xs font-medium text-zinc-500">
+                      {t("dashboard.ovTopStock")}
+                    </p>
+                    <ul className="space-y-1 text-xs text-zinc-700">
+                      {ov.operations.warehouseStock.topByQuantity
+                        .slice(0, 3)
+                        .map((row) => (
+                          <li
+                            key={row.productId}
+                            className="flex items-center justify-between gap-2"
+                          >
+                            <span className="truncate">{row.productName}</span>
+                            <span className="tabular-nums text-zinc-900">
+                              {fmtNum(row.quantity)}
+                              {row.unit ? ` ${row.unit}` : ""}
+                            </span>
+                          </li>
+                        ))}
+                    </ul>
+                  </>
+                ) : null}
+              </DashCard>
             ) : null}
 
-            {mainTab === "personnel" ? (
-              <div className="transition-opacity duration-200 ease-in-out">
-                <DashboardPersonnelTab t={t} locale={locale} overview={overview} />
-              </div>
-            ) : null}
-
-            {mainTab === "operations" ? (
-              <div className="transition-opacity duration-200 ease-in-out">
-                <DashboardOperationsTab t={t} locale={locale} overview={overview} />
-              </div>
-            ) : null}
-
-            {mainTab === "operations_registry" ? (
-              <div className="transition-opacity duration-200 ease-in-out">
-                <DashboardOperationsRegistryTab t={t} overview={overview} />
-              </div>
-            ) : null}
-
-            {mainTab === "reports" ? (
-              <div className="transition-opacity duration-200 ease-in-out">
-                <DashboardReportsTab t={t} userRole={user?.role} />
-              </div>
+            {showFinancials &&
+            ov?.financeExtras.registerCashHeldByPersonnelTotalsByCurrency
+              ?.length ? (
+              <DashCard
+                title={t("dashboard.ovCardCashHeldTitle")}
+                description={t("dashboard.ovCardCashHeldDesc")}
+                href="/personnel/costs"
+                detailLabel={t("dashboard.ovDetail")}
+              >
+                <ul className="space-y-1 text-xs text-zinc-700">
+                  {ov.financeExtras.registerCashHeldByPersonnelTotalsByCurrency.map(
+                    (row) => (
+                      <li
+                        key={row.currencyCode}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <span className="text-zinc-500">{row.currencyCode}</span>
+                        <span className="tabular-nums text-zinc-900">
+                          {fmtMoney(row.totalAmount, row.currencyCode)}
+                        </span>
+                      </li>
+                    )
+                  )}
+                </ul>
+              </DashCard>
             ) : null}
           </div>
-        }
+        </div>
+      }
+    />
+
+    {canPersonnel ? (
+      <AdvancePersonnelModal
+        open={advanceOpen}
+        onClose={() => setAdvanceOpen(false)}
+        personnel={activePersonnel}
       />
+    ) : null}
+
+    {canPersonnel ? (
+      <>
+        <QuickPickerModal
+          open={persExpensePickerOpen}
+          onClose={() => setPersExpensePickerOpen(false)}
+          title={t("dashboard.ovActionPersonnelExpense")}
+          options={personnelOptions}
+          loading={personnelListQ.isPending}
+          onPick={(id) => {
+            setPersExpensePickerOpen(false);
+            setPersExpensePersonnelId(id);
+          }}
+        />
+        {persExpensePersonnelId != null ? (
+          <PersonnelCostsExpenseModal
+            open={true}
+            onClose={() => setPersExpensePersonnelId(null)}
+            defaultLinkedPersonnelId={persExpensePersonnelId}
+          />
+        ) : null}
+      </>
+    ) : null}
+
+    {canBranches ? (
+      <>
+        <QuickPickerModal
+          open={dayEndPickerOpen}
+          onClose={() => setDayEndPickerOpen(false)}
+          title={t("dashboard.ovActionEndOfDay")}
+          options={branchOptions}
+          loading={branchesQ.isPending}
+          onPick={(id) => {
+            setDayEndPickerOpen(false);
+            setDayEndBranchId(id);
+          }}
+        />
+        {dayEndBranchId != null ? (
+          <AddTransactionModal
+            open={true}
+            onClose={() => setDayEndBranchId(null)}
+            branchId={dayEndBranchId}
+            defaultType="IN"
+            defaultMainCategory="IN_DAY_CLOSE"
+          />
+        ) : null}
+        <QuickPickerModal
+          open={branchExpensePickerOpen}
+          onClose={() => setBranchExpensePickerOpen(false)}
+          title={t("dashboard.ovActionBranchExpense")}
+          options={branchOptions}
+          loading={branchesQ.isPending}
+          onPick={(id) => {
+            setBranchExpensePickerOpen(false);
+            setBranchExpenseBranchId(id);
+          }}
+        />
+        {branchExpenseBranchId != null ? (
+          <AddTransactionModal
+            open={true}
+            onClose={() => setBranchExpenseBranchId(null)}
+            branchId={branchExpenseBranchId}
+            defaultType="OUT"
+          />
+        ) : null}
+      </>
+    ) : null}
+
+    {canSuppliers ? (
+      <QuickPickerModal
+        open={supplierPickerOpen}
+        onClose={() => setSupplierPickerOpen(false)}
+        title={t("dashboard.ovActionSupplierInvoice")}
+        options={supplierOptions}
+        loading={suppliersQ.isPending}
+        onPick={(id) => {
+          setSupplierPickerOpen(false);
+          router.push(`/suppliers/invoices?newInvoice=1&supplierId=${id}`);
+        }}
+      />
+    ) : null}
     </>
   );
 }

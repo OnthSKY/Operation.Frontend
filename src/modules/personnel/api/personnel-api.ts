@@ -90,7 +90,7 @@ function normalizePositiveIntId(v: unknown): number | null {
   return n;
 }
 
-/** Şube atanmamış: null / 0 / geçersiz → null (AddBranchTransactionModal orgMode ile uyumlu). */
+/** Şube atanmamış: null / 0 / geçersiz → null (AddTransactionModal orgMode ile uyumlu). */
 function normalizePersonnelBranchId(v: unknown): number | null {
   if (v == null || v === "") return null;
   const n = typeof v === "number" ? v : parseInt(String(v).trim(), 10);

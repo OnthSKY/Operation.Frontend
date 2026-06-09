@@ -75,4 +75,7 @@ export const common = {
   mobileCardDetailsHide: "Detayları gizle",
   /** Bölüm başlığı yanındaki bilgi düğmesi; `aria-label` için başlık ile birlikte kullanılır. */
   sectionInfoExplainButton: "Açıklama",
+  search: "Ara…",
+  noResults: "Sonuç yok",
+  empty: "Kayıt yok",
 } as const;

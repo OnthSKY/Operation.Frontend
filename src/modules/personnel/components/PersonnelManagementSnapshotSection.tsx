@@ -154,6 +154,11 @@ export type PersonnelHandoverPoolActionContext = {
   branchId: number;
   currencyCode: string;
   suggestedAmount: number;
+  /**
+   * Çoklu şubeye dağılmış cep parası için seçenek listesi (cash-account breakdown).
+   * Patron transfer dialog'u >1 ise Select açar; yoksa statik label.
+   */
+  branchOptions?: Array<{ branchId: number; branchName: string; amount: number }>;
 };
 
 type Props = {
@@ -419,6 +424,11 @@ export function PersonnelManagementSnapshotSection({
       branchId,
       currencyCode: cashAccountSummary.currencyCode,
       suggestedAmount: cashAccountSummary.currentBalance,
+      branchOptions: cashAccountBranchBreakdown.map((b) => ({
+        branchId: b.branchId,
+        branchName: b.branchName,
+        amount: b.amount,
+      })),
     };
   }, [
     cashAccountSummary,
@@ -1148,22 +1158,61 @@ export function PersonnelManagementSnapshotSection({
                             {t("personnel.detailMgmtCashAccountBranchBreakdownTitle")}
                           </p>
                           <ul className="mt-2 space-y-1">
-                            {cashAccountBranchBreakdown.map((b) => (
-                              <li
-                                key={b.branchId}
-                                className="flex items-center justify-between gap-3 rounded-md border border-sky-100/80 bg-white/80 px-3 py-1.5 text-sm"
-                              >
-                                <span className="truncate text-zinc-800">{b.branchName}</span>
-                                <span className="shrink-0 font-mono font-semibold tabular-nums text-zinc-900">
-                                  {formatMoneyDash(
-                                    b.amount,
-                                    dash,
-                                    locale,
-                                    cashAccountSummary.currencyCode,
-                                  )}
-                                </span>
-                              </li>
-                            ))}
+                            {cashAccountBranchBreakdown.map((b) => {
+                              // Şube başı devir: dialog'u o şubenin context'iyle aç.
+                              // Hero butonu birden çok şubede otomatik seçim yapıyor;
+                              // bu satır kullanıcıya "şu şubenin parasını devret" net
+                              // kontrolü verir → cepte kalan para sorunu çözülür.
+                              const canDevret =
+                                handoverActionsEnabled &&
+                                b.branchId > 0 &&
+                                b.amount > 0.009 &&
+                                typeof onHandoverOpenPatronRegisterRepay ===
+                                  "function";
+                              return (
+                                <li
+                                  key={b.branchId}
+                                  className="flex items-center justify-between gap-2 rounded-md border border-sky-100/80 bg-white/80 px-3 py-1.5 text-sm"
+                                >
+                                  <span className="min-w-0 flex-1 truncate text-zinc-800">
+                                    {b.branchName}
+                                  </span>
+                                  <span className="shrink-0 font-mono font-semibold tabular-nums text-zinc-900">
+                                    {formatMoneyDash(
+                                      b.amount,
+                                      dash,
+                                      locale,
+                                      cashAccountSummary.currencyCode,
+                                    )}
+                                  </span>
+                                  {canDevret ? (
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        onHandoverOpenPatronRegisterRepay?.({
+                                          branchId: b.branchId,
+                                          currencyCode:
+                                            cashAccountSummary.currencyCode,
+                                          suggestedAmount: b.amount,
+                                          branchOptions:
+                                            cashAccountBranchBreakdown.map(
+                                              (x) => ({
+                                                branchId: x.branchId,
+                                                branchName: x.branchName,
+                                                amount: x.amount,
+                                              }),
+                                            ),
+                                        })
+                                      }
+                                      className="shrink-0 rounded-md bg-sky-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm hover:bg-sky-700"
+                                      title={`${b.branchName} bakiyesini patrona devret`}
+                                    >
+                                      Devret
+                                    </button>
+                                  ) : null}
+                                </li>
+                              );
+                            })}
                           </ul>
                         </div>
                       ) : null}

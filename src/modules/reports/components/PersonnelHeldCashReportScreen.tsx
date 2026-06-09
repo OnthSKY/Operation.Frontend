@@ -33,6 +33,43 @@ function formatAmount(value: number, currency: string): string {
   return `${fmt.format(value)} ${currency}`;
 }
 
+/**
+ * "Patrona/devir" hücresi: ClaimGiven (eski direkt OUT_POCKET_CLAIM_*) + SettledToPatron
+ * (yeni handover settlement) toplamını tek satırda gösterir. İkisi de >0 ise breakdown
+ * title attribute'a yazılır + küçük "i" rozeti — kullanıcı veri kaybı sanmasın.
+ */
+function PatronaDevirCell({
+  row,
+}: {
+  row: {
+    transferredOut: number;
+    settledToPatron: number;
+    currencyCode: string;
+  };
+}) {
+  const total = row.transferredOut + row.settledToPatron;
+  if (total < 0.005) return <span>—</span>;
+  const both = row.transferredOut > 0.005 && row.settledToPatron > 0.005;
+  const tip = both
+    ? `Direkt devir (OUT_POCKET_CLAIM_*): ${formatAmount(row.transferredOut, row.currencyCode)}\nPatrona iade (handover): ${formatAmount(row.settledToPatron, row.currencyCode)}`
+    : row.settledToPatron > 0.005
+      ? "Yeni akış (handover settlement)"
+      : "Direkt devir (OUT_POCKET_CLAIM_*)";
+  return (
+    <span className="inline-flex items-center gap-1" title={tip}>
+      −{formatAmount(total, row.currencyCode)}
+      {both ? (
+        <span
+          aria-hidden
+          className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-rose-100 text-[9px] font-bold leading-none text-rose-700"
+        >
+          i
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 export function PersonnelHeldCashReportScreen() {
   const { t } = useI18n();
   const router = useRouter();
@@ -197,26 +234,49 @@ export function PersonnelHeldCashReportScreen() {
             {/* Yönetim ekranı drill-down + toplu düzeltme sihirbazını barındırır.
                 Burada duplike etmiyoruz — admin değilse buton hiç render olmuyor. */}
             {isAdmin ? (
-              <Link
-                href={ADMIN_RECONCILIATION_HREF}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 hover:border-violet-400 hover:bg-violet-50 hover:text-violet-800"
-                title="Drill-down ve toplu düzeltme sihirbazı (admin)"
-              >
-                <svg
-                  aria-hidden
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="h-4 w-4"
+              <>
+                <Link
+                  href={ADMIN_RECONCILIATION_HREF}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 hover:border-violet-400 hover:bg-violet-50 hover:text-violet-800"
+                  title="Drill-down ve genel doğrulama ekranı (admin)"
                 >
-                  <path d="M12 20h9" />
-                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                </svg>
-                Bakiyeleri yönet
-              </Link>
+                  <svg
+                    aria-hidden
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
+                  >
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                  </svg>
+                  Bakiyeleri yönet
+                </Link>
+                {/* Doğrudan wizard'a hızlı yönlendirme — query param ile auto-open. */}
+                <Link
+                  href={`${ADMIN_RECONCILIATION_HREF}?openWizard=1`}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-rose-700"
+                  title="Toplu düzeltme sihirbazını doğrudan aç (admin)"
+                >
+                  <svg
+                    aria-hidden
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4"
+                  >
+                    <path d="m13 2-3 7h6l-3 7" />
+                    <path d="M12 16v6" />
+                  </svg>
+                  Düzeltme Sihirbazı
+                </Link>
+              </>
             ) : null}
             {query.data && (
               <span className="text-xs text-zinc-500">
@@ -281,10 +341,11 @@ export function PersonnelHeldCashReportScreen() {
                 </div>
                 {isAdmin ? (
                   <Link
-                    href={ADMIN_RECONCILIATION_HREF}
+                    href={`${ADMIN_RECONCILIATION_HREF}?openWizard=1`}
                     className="inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-rose-700 sm:w-auto"
+                    title="Düzeltme sihirbazını doğrudan aç"
                   >
-                    Yönetim ekranını aç
+                    Sihirbazı aç
                     <svg
                       aria-hidden
                       viewBox="0 0 24 24"
@@ -335,24 +396,44 @@ export function PersonnelHeldCashReportScreen() {
                     <div className="text-right tabular-nums text-zinc-700">
                       −{formatAmount(c.totalSpent, c.currencyCode)}
                     </div>
-                    <div
-                      className="text-zinc-500"
-                      title="Eski akış: OUT_POCKET_CLAIM_* (patron/personele direkt devir tx)"
-                    >
-                      Devir (eski)
-                    </div>
-                    <div className="text-right tabular-nums text-zinc-700">
-                      −{formatAmount(c.totalTransferredOut, c.currencyCode)}
-                    </div>
-                    <div
-                      className="text-zinc-500"
-                      title="Yeni akış: handover settlement junction üzerinden patrona iade"
-                    >
-                      Patrona iade (yeni)
-                    </div>
-                    <div className="text-right tabular-nums text-zinc-700">
-                      −{formatAmount(c.totalSettledToPatron, c.currencyCode)}
-                    </div>
+                    {(() => {
+                      const combined =
+                        c.totalTransferredOut + c.totalSettledToPatron;
+                      const both =
+                        c.totalTransferredOut > 0.005 &&
+                        c.totalSettledToPatron > 0.005;
+                      const tip = both
+                        ? `Direkt devir (OUT_POCKET_CLAIM_*): ${formatAmount(c.totalTransferredOut, c.currencyCode)}\nPatrona iade (handover): ${formatAmount(c.totalSettledToPatron, c.currencyCode)}`
+                        : c.totalSettledToPatron > 0.005
+                          ? "Tamamı yeni akış (handover settlement)"
+                          : c.totalTransferredOut > 0.005
+                            ? "Tamamı direkt devir (OUT_POCKET_CLAIM_*)"
+                            : undefined;
+                      return (
+                        <>
+                          <div
+                            className="text-zinc-500"
+                            title={tip}
+                          >
+                            Patrona/devir
+                            {both ? (
+                              <span
+                                aria-hidden
+                                className="ml-1 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-zinc-200 text-[9px] font-bold leading-none text-zinc-600"
+                              >
+                                i
+                              </span>
+                            ) : null}
+                          </div>
+                          <div
+                            className="text-right tabular-nums text-zinc-700"
+                            title={tip}
+                          >
+                            −{formatAmount(combined, c.currencyCode)}
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
 
                   {c.topHolder && (
@@ -550,22 +631,11 @@ const perPersonnelColumns: DataTableColumn<PersonnelHeldCashReportPerPersonRow>[
     cell: (r) => (r.spent > 0 ? `−${formatAmount(r.spent, r.currencyCode)}` : "—"),
   },
   {
-    id: "transferredOut",
-    header: "Devretti",
+    id: "patronaDevir",
+    header: "Patrona/devir",
     thClassName: "text-right",
     tdClassName: "text-right tabular-nums text-rose-700",
-    cell: (r) =>
-      r.transferredOut > 0 ? `−${formatAmount(r.transferredOut, r.currencyCode)}` : "—",
-  },
-  {
-    id: "settledToPatron",
-    header: "Patrona iade",
-    thClassName: "text-right",
-    tdClassName: "text-right tabular-nums text-rose-700",
-    cell: (r) =>
-      r.settledToPatron > 0
-        ? `−${formatAmount(r.settledToPatron, r.currencyCode)}`
-        : "—",
+    cell: (r) => <PatronaDevirCell row={r} />,
   },
   {
     id: "remaining",
@@ -645,22 +715,11 @@ const perBranchColumns: DataTableColumn<PersonnelHeldCashReportPerBranchRow>[] =
     cell: (r) => (r.spent > 0 ? `−${formatAmount(r.spent, r.currencyCode)}` : "—"),
   },
   {
-    id: "transferredOut",
-    header: "Devredildi",
+    id: "patronaDevir",
+    header: "Patrona/devir",
     thClassName: "text-right",
     tdClassName: "text-right tabular-nums text-rose-700",
-    cell: (r) =>
-      r.transferredOut > 0 ? `−${formatAmount(r.transferredOut, r.currencyCode)}` : "—",
-  },
-  {
-    id: "settledToPatron",
-    header: "Patrona iade",
-    thClassName: "text-right",
-    tdClassName: "text-right tabular-nums text-rose-700",
-    cell: (r) =>
-      r.settledToPatron > 0
-        ? `−${formatAmount(r.settledToPatron, r.currencyCode)}`
-        : "—",
+    cell: (r) => <PatronaDevirCell row={r} />,
   },
   {
     id: "remaining",
@@ -747,22 +806,11 @@ const detailColumns: DataTableColumn<PersonnelHeldCashReportDetailRow>[] = [
     cell: (r) => (r.spent > 0 ? `−${formatAmount(r.spent, r.currencyCode)}` : "—"),
   },
   {
-    id: "transferredOut",
-    header: "Devretti",
+    id: "patronaDevir",
+    header: "Patrona/devir",
     thClassName: "text-right",
     tdClassName: "text-right tabular-nums text-rose-700",
-    cell: (r) =>
-      r.transferredOut > 0 ? `−${formatAmount(r.transferredOut, r.currencyCode)}` : "—",
-  },
-  {
-    id: "settledToPatron",
-    header: "Patrona iade",
-    thClassName: "text-right",
-    tdClassName: "text-right tabular-nums text-rose-700",
-    cell: (r) =>
-      r.settledToPatron > 0
-        ? `−${formatAmount(r.settledToPatron, r.currencyCode)}`
-        : "—",
+    cell: (r) => <PatronaDevirCell row={r} />,
   },
   {
     id: "remaining",

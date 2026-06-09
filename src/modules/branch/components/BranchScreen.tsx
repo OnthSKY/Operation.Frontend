@@ -43,7 +43,7 @@ import { Tooltip } from "@/shared/ui/Tooltip";
 import { detailOpenIconButtonClass, EyeIcon } from "@/shared/ui/EyeIcon";
 import { AddBranchModal } from "./AddBranchModal";
 import { EditBranchModal } from "./EditBranchModal";
-import { AddBranchTransactionModal } from "./AddBranchTransactionModal";
+import { AddTransactionModal } from "@/shared/components/transactions/AddTransactionModal";
 import { BranchListMetricsPanel } from "./BranchListMetricsPanel";
 import {
   BranchQuickActionsMenu,
@@ -931,7 +931,7 @@ export function BranchScreen() {
       ) : null}
 
       {quickTx ? (
-        <AddBranchTransactionModal
+        <AddTransactionModal
           key={`${quickTx.branchId}-${quickTx.nonce}`}
           open
           branchId={quickTx.branchId}

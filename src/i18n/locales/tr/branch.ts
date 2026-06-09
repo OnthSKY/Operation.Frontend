@@ -862,6 +862,7 @@ export const branch = {
   txPersonnelExpenseBranchPick: "Şube seçin…",
   txPersonnelExpenseBranchHint:
     "Kasadan ödeme bu şubenin kasasına yazılır. Şubesi atanmamış personelde önce şubeyi seçin.",
+  txContextBranchLabel: "İşlem şubesi",
   txExpenseTargetBranchLabel: "Giderin yazılacağı şube",
   txExpenseTargetBranchHintEditable:
     "Bu kaydın hangi şube kasasına yazılacağını buradan seçin.",

@@ -46,10 +46,11 @@ export const supplierKeys = {
   view: (id: number) => [...supplierKeys.all, "view", id] as const,
 };
 
-export function useSuppliers(includeDeleted = false) {
+export function useSuppliers(includeDeleted = false, enabled: boolean = true) {
   return useQuery({
     queryKey: supplierKeys.list(includeDeleted),
     queryFn: () => fetchSuppliers(includeDeleted),
+    enabled,
   });
 }
 

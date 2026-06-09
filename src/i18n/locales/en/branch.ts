@@ -854,6 +854,7 @@ export const branch = {
   txPersonnelExpenseBranchPick: "Select branch…",
   txPersonnelExpenseBranchHint:
     "Register payments post to this branch’s cash. For staff without an assigned branch, pick the branch first.",
+  txContextBranchLabel: "Transaction branch",
   txExpenseTargetBranchLabel: "Branch this expense posts to",
   txExpenseTargetBranchHintEditable:
     "Choose which branch register this record will be posted to.",

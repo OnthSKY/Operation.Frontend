@@ -218,7 +218,7 @@ function newBundledExpenseLineId(): string {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-export function AddBranchTransactionModal({
+export function AddTransactionModal({
   open,
   onClose,
   branchId: propBranchId,
@@ -2468,17 +2468,68 @@ export function AddBranchTransactionModal({
                 error={errors.type?.message}
               />
             </div>
+            {!personnelExpenseFlow &&
+            propBranchId != null &&
+            propBranchId > 0 &&
+            resolvedBranchName ? (
+              <div className="min-w-0 lg:col-span-2 flex items-center gap-3 rounded-xl border-2 border-emerald-200 bg-emerald-50 px-4 py-3 shadow-sm">
+                <span
+                  aria-hidden
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white"
+                >
+                  <svg
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M3 21h18" />
+                    <path d="M5 21V7l8-4v18" />
+                    <path d="M19 21V11l-6-4" />
+                    <path d="M9 9v.01" />
+                    <path d="M9 12v.01" />
+                    <path d="M9 15v.01" />
+                    <path d="M9 18v.01" />
+                  </svg>
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+                    {t("branch.txContextBranchLabel")}
+                  </p>
+                  <p className="mt-0.5 text-base font-bold text-emerald-950 sm:text-lg">
+                    {resolvedBranchName}
+                  </p>
+                </div>
+              </div>
+            ) : null}
             {personnelExpenseFlow &&
             personnelLinkedExpenseContext &&
             defaultLinkedPersonnelId != null &&
             defaultLinkedPersonnelId > 0 ? (
-              <div className="min-w-0 lg:col-span-2 rounded-lg border border-zinc-200 bg-zinc-50/90 px-3 py-2.5">
-                <p className="text-xs font-medium text-zinc-500">
-                  {t("branch.txExpenseLinkPersonnelLabel")}
-                </p>
-                <p className="mt-0.5 text-sm font-semibold text-zinc-900">
-                  {prefilledLinkedPersonnelLabel}
-                </p>
+              <div className="min-w-0 lg:col-span-2 flex items-center gap-3 rounded-xl border-2 border-blue-200 bg-blue-50 px-4 py-3 shadow-sm">
+                <span
+                  aria-hidden
+                  className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-600 text-base font-semibold text-white"
+                >
+                  {prefilledLinkedPersonnelLabel
+                    .trim()
+                    .split(/\s+/)
+                    .slice(0, 2)
+                    .map((w) => w[0]?.toUpperCase() ?? "")
+                    .join("") || "?"}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-blue-700">
+                    {t("branch.txExpenseLinkPersonnelLabel")}
+                  </p>
+                  <p className="mt-0.5 text-base font-bold text-blue-950 sm:text-lg">
+                    {prefilledLinkedPersonnelLabel}
+                  </p>
+                </div>
               </div>
             ) : null}
             {txType.toUpperCase() === "OUT" && personnelExpenseFlow ? (

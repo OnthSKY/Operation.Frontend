@@ -7,7 +7,7 @@ import {
   personnelYearClosurePdfDownloadUrl,
   personnelYearClosurePdfViewUrl,
 } from "@/modules/personnel/api/personnel-account-closure-api";
-import { AddBranchTransactionModal } from "@/modules/branch/components/AddBranchTransactionModal";
+import { AddTransactionModal } from "@/shared/components/transactions/AddTransactionModal";
 import { AdvancePersonnelModal } from "@/modules/personnel/components/AdvancePersonnelModal";
 import {
   fetchBranchPersonnelMoneySummaries,
@@ -1733,6 +1733,7 @@ export function PersonnelDetailModal({
                           branchName: branchNameById.get(ctx.branchId),
                           currencyCode: ctx.currencyCode,
                           suggestedAmount: ctx.suggestedAmount,
+                          branchOptions: ctx.branchOptions,
                         });
                       }}
                     />
@@ -1762,6 +1763,7 @@ export function PersonnelDetailModal({
                           branchName: branchNameById.get(ctx.branchId),
                           currencyCode: ctx.currencyCode,
                           suggestedAmount: ctx.suggestedAmount,
+                          branchOptions: ctx.branchOptions,
                         });
                       }}
                     />
@@ -3474,7 +3476,7 @@ export function PersonnelDetailModal({
           }
         }}
       />
-      <AddBranchTransactionModal
+      <AddTransactionModal
         open={orgBranchTx != null && personnel != null && !personnel.isDeleted}
         onClose={() => setOrgBranchTx(null)}
         branchId={

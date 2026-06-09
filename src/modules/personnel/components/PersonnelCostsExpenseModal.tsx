@@ -1,6 +1,6 @@
 "use client";
 
-import { AddBranchTransactionModal } from "@/modules/branch/components/AddBranchTransactionModal";
+import { AddTransactionModal } from "@/shared/components/transactions/AddTransactionModal";
 
 export type PersonnelCostsExpenseModalProps = {
   open: boolean;
@@ -22,7 +22,7 @@ export function PersonnelCostsExpenseModal({
   defaultEffectiveYear,
 }: PersonnelCostsExpenseModalProps) {
   return (
-    <AddBranchTransactionModal
+    <AddTransactionModal
       open={open}
       onClose={onClose}
       branchId={null}

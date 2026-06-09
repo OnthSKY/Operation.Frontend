@@ -10,7 +10,7 @@ import { usePersonnelHeldCashReconciliationQuery } from "@/modules/admin/hooks/u
 import type { PersonnelHeldCashReconciliationRow } from "@/modules/admin/api/personnel-held-cash-reconciliation-api";
 import { PersonnelHeldCashAutoFixWizard } from "@/modules/admin/components/PersonnelHeldCashAutoFixWizard";
 import { PersonnelHeldCashDrillDownModal } from "@/modules/admin/components/PersonnelHeldCashDrillDownModal";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 type FilterMode = "all" | "negativeOnly" | "claimOnly" | "affectedOnly";
@@ -41,6 +41,21 @@ export function PersonnelHeldCashReconciliationScreen() {
   const [filterMode, setFilterMode] = useState<FilterMode>("all");
   const [searchText, setSearchText] = useState("");
   const [wizardOpen, setWizardOpen] = useState(false);
+
+  // Deep link: ?openWizard=1 → veri geldikten sonra sihirbazı otomatik aç.
+  // Yetki yoksa veya satır boşsa sessizce yoksay; URL'yi temizle ki refresh'te
+  // tekrar açılmasın.
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    if (!isAdmin) return;
+    if (!query.data) return;
+    if (searchParams?.get("openWizard") !== "1") return;
+    setWizardOpen(true);
+    // URL'den param'ı kaldır (history replace ile, refetch tetiklenmez).
+    const url = new URL(window.location.href);
+    url.searchParams.delete("openWizard");
+    router.replace(url.pathname + (url.search ? url.search : ""));
+  }, [isAdmin, query.data, searchParams, router]);
   const [drillDown, setDrillDown] = useState<PersonnelHeldCashReconciliationRow | null>(null);
 
   const filteredRows = useMemo<PersonnelHeldCashReconciliationRow[]>(() => {
@@ -320,6 +335,10 @@ export function PersonnelHeldCashReconciliationScreen() {
             open={wizardOpen}
             rows={query.data?.rows ?? []}
             onClose={() => setWizardOpen(false)}
+            onOpenDrillDown={(r) => {
+              setWizardOpen(false);
+              setDrillDown(r);
+            }}
           />
 
           <PersonnelHeldCashDrillDownModal

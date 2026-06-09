@@ -73,4 +73,7 @@ export const common = {
   mobileCardDetailsHide: "Hide details",
   /** Info button next to a section title; combine with section title for `aria-label`. */
   sectionInfoExplainButton: "Explanation",
+  search: "Search…",
+  noResults: "No results",
+  empty: "No records",
 } as const;

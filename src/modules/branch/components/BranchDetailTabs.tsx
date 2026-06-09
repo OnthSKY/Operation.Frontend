@@ -31,7 +31,7 @@ import { useI18n } from "@/i18n/context";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TX_MAIN_IN, TX_MAIN_OUT } from "@/modules/branch/lib/branch-transaction-options";
-import { AddBranchTransactionModal } from "./AddBranchTransactionModal";
+import { AddTransactionModal } from "@/shared/components/transactions/AddTransactionModal";
 import { AssignPersonnelToBranchModal } from "./AssignPersonnelToBranchModal";
 import { BranchTransactionDetailDialog } from "./BranchTransactionDetailDialog";
 import { InvoiceSettleModal } from "./InvoiceSettleModal";
@@ -992,7 +992,7 @@ export function BranchDetailTabs({
 
       </div>
 
-      <AddBranchTransactionModal
+      <AddTransactionModal
         open={txModalOpen}
         onClose={() => {
           setTxModalOpen(false);

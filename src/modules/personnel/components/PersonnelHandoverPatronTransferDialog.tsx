@@ -90,6 +90,13 @@ async function fetchAllHandoverLinesPaged(
   return acc;
 }
 
+export type PersonnelHandoverPatronTransferBranchOption = {
+  branchId: number;
+  branchName: string;
+  /** Bu şubedeki net devredilebilir bakiye (cash-account breakdown). */
+  amount: number;
+};
+
 export type PersonnelHandoverPatronTransferOpen = {
   personnel: Personnel;
   branchId: number;
@@ -97,6 +104,13 @@ export type PersonnelHandoverPatronTransferOpen = {
   currencyCode: string;
   /** Bu şubede havuz önerisi (üst sınır ipucu). */
   suggestedAmount: number;
+  /**
+   * Çoklu şubeye dağılmış bakiyede kullanıcı dialog içinde şube değiştirebilsin
+   * diye seçenek listesi. Bir tane veya boş ise Select gizlenir, statik label
+   * gösterilir. Backend hala tek tx = tek branchId; multi-branch için kullanıcı
+   * sırayla devreder.
+   */
+  branchOptions?: PersonnelHandoverPatronTransferBranchOption[];
 };
 
 type Props = {
@@ -110,14 +124,27 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
   const loc = locale as Locale;
   const createTx = useCreateBranchTransaction();
   const personnel = ctx?.personnel;
-  const branchId = ctx?.branchId ?? 0;
   const personnelId = personnel?.id ?? 0;
+  const [branchId, setBranchId] = useState<number>(ctx?.branchId ?? 0);
   const [currencyCode, setCurrencyCode] = useState("TRY");
   const ccy = currencyCode.trim().toUpperCase() || "TRY";
   const dialogOpen =
     open && ctx != null && personnel != null && !personnel.isDeleted && branchId > 0 && personnelId > 0;
 
   const currencyOptions = useMemo(() => currencySelectOptions(), []);
+  const branchSelectOptions = useMemo(() => {
+    const opts = ctx?.branchOptions ?? [];
+    if (opts.length === 0) return [];
+    return opts
+      .filter((o) => o.branchId > 0)
+      .map((o) => ({
+        value: String(o.branchId),
+        label:
+          o.amount > 0.009
+            ? `${o.branchName} · ${formatLocaleAmount(o.amount, loc, ccy)}`
+            : o.branchName,
+      }));
+  }, [ctx?.branchOptions, ccy, loc]);
 
   const linesQuery = useQuery({
     queryKey: [
@@ -157,7 +184,14 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
     setDescription("");
     setSaving(false);
     setCurrencyCode((ctx.currencyCode ?? "TRY").trim().toUpperCase() || "TRY");
+    setBranchId(ctx.branchId);
   }, [open, ctx?.personnel.id, ctx?.branchId, ctx?.currencyCode]);
+
+  // Şube değiştiğinde amount sıfırlanır — yeni şubenin pool ceiling'i farklı olabilir.
+  useEffect(() => {
+    if (!open) return;
+    setAmount("");
+  }, [branchId, open]);
 
   const amountNum = useMemo(() => parseLocaleAmount(amount.trim(), loc), [amount, loc]);
   const amountCents = useMemo(
@@ -213,7 +247,7 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
     setSaving(true);
     try {
       await createTx.mutateAsync({
-        branchId: ctx.branchId,
+        branchId,
         type: "OUT",
         mainCategory: "OUT_PATRON_DEBT_REPAY",
         category: "PATRON_DEBT_REPAY",
@@ -237,6 +271,7 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
     }
   }, [
     amount,
+    branchId,
     ccy,
     createTx,
     ctx,
@@ -250,9 +285,19 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
     transactionDate,
   ]);
 
-  const branchLabel =
-    ctx?.branchName?.trim() ||
-    t("personnel.cashHandoverToPatronDialogBranchFallback").replace("{id}", String(branchId));
+  const currentBranchName = useMemo(() => {
+    const opts = ctx?.branchOptions ?? [];
+    const found = opts.find((o) => o.branchId === branchId);
+    return (
+      found?.branchName?.trim() ||
+      ctx?.branchName?.trim() ||
+      t("personnel.cashHandoverToPatronDialogBranchFallback").replace(
+        "{id}",
+        String(branchId),
+      )
+    );
+  }, [ctx?.branchOptions, ctx?.branchName, branchId, t]);
+  const branchLabel = currentBranchName;
   const ctxCcy = (ctx?.currencyCode ?? "TRY").trim().toUpperCase() || "TRY";
   const suggestedHint = useMemo(() => {
     const ceil = poolCeiling;
@@ -280,7 +325,29 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
               {t("personnel.pocketClaimDialogFromLabel")}
             </p>
             <p className="font-semibold text-zinc-900">{personnelDisplayName(personnel)}</p>
-            <p className="mt-1 text-xs text-zinc-600">{branchLabel}</p>
+            {branchSelectOptions.length > 1 ? (
+              <div className="mt-2">
+                <Select
+                  name="handoverPatronBranch"
+                  label="Şube"
+                  labelRequired
+                  options={branchSelectOptions}
+                  value={String(branchId)}
+                  onChange={(e) => {
+                    const v = Number.parseInt(e.target.value, 10);
+                    if (Number.isFinite(v) && v > 0) setBranchId(v);
+                  }}
+                  onBlur={() => {}}
+                  menuZIndex={320}
+                />
+                <p className="mt-1 text-[11px] leading-snug text-zinc-500">
+                  Birden çok şubeye dağılmış cep parası — her şube için ayrı
+                  devir yapılır.
+                </p>
+              </div>
+            ) : (
+              <p className="mt-1 text-xs text-zinc-600">{branchLabel}</p>
+            )}
           </div>
 
           {linesQuery.isError ? (
