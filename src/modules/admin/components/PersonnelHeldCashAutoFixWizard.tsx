@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
 import { usePersonnelHeldCashAutoFixMutation } from "@/modules/admin/hooks/usePersonnelHeldCashReconciliationQuery";
 import type {
@@ -7,6 +8,35 @@ import type {
   PersonnelHeldCashReconciliationRow,
 } from "@/modules/admin/api/personnel-held-cash-reconciliation-api";
 import { useEffect, useMemo, useState } from "react";
+
+/**
+ * Backend hata mesajları İngilizce throw ediliyor. Wizard farklı dil
+ * kullanıcılarına anlaşılır mesaj vermeli — bilinen pattern'leri locale'e
+ * çevir, bilinmeyenlerde raw mesajı (ya da generic fallback) göster.
+ *
+ * Backend'e error code dönüşü eklenirse buraya hızla taşınabilir.
+ */
+function localizeAutoFixError(
+  raw: string | null | undefined,
+  locale: string,
+): string {
+  const isTr = String(locale).toLowerCase().startsWith("tr");
+  if (!raw) return isTr ? "Bilinmeyen hata" : "Unknown error";
+  if (/calendar year is already closed/i.test(raw)) {
+    return isTr
+      ? "Bu personel için takvim yılı kapatılmış — düzeltme yazılamaz."
+      : "Calendar year is closed for this personnel — fix can't be written.";
+  }
+  if (/insufficient/i.test(raw) || /yetersiz/i.test(raw)) {
+    return isTr
+      ? "Yetersiz bakiye / kaynak."
+      : "Insufficient balance / source.";
+  }
+  if (/not found/i.test(raw) || /bulunamadı/i.test(raw)) {
+    return isTr ? "Kayıt bulunamadı." : "Record not found.";
+  }
+  return raw;
+}
 
 type Props = {
   open: boolean;
@@ -45,6 +75,7 @@ export function PersonnelHeldCashAutoFixWizard({
   onClose,
   onOpenDrillDown,
 }: Props) {
+  const { locale } = useI18n();
   const fixableRows = useMemo(() => rows.filter((r) => r.netBalance > 0), [rows]);
   const manualReviewRows = useMemo(() => rows.filter((r) => r.isNegative), [rows]);
 
@@ -140,6 +171,7 @@ export function PersonnelHeldCashAutoFixWizard({
       const resp = await mutation.mutateAsync(body);
       setResult(resp);
     } catch (err) {
+      const raw = (err as Error)?.message ?? null;
       setResult({
         requestedCount: body.transfers.length,
         successCount: 0,
@@ -150,7 +182,8 @@ export function PersonnelHeldCashAutoFixWizard({
           currencyCode: t.currencyCode,
           requestedAmount: t.amount,
           success: false,
-          errorMessage: (err as Error)?.message ?? "Bilinmeyen hata",
+          // Raw'ı sakla — UI render'da localizeAutoFixError ile dile çevrilir.
+          errorMessage: raw,
           createdTransactionId: null,
         })),
       });
@@ -258,7 +291,7 @@ export function PersonnelHeldCashAutoFixWizard({
                                 </span>
                               ) : (
                                 <span className="text-red-700">
-                                  ✗ {r.errorMessage}
+                                  ✗ {localizeAutoFixError(r.errorMessage, locale)}
                                 </span>
                               )}
                             </td>
@@ -275,12 +308,21 @@ export function PersonnelHeldCashAutoFixWizard({
             <div className="space-y-4">
               {mode === "execute" ? (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-                  <strong>Dikkat:</strong> Aşağıdaki {selectedRows.length} satır için{" "}
-                  <code className="rounded bg-white/60 px-1 py-0.5 text-xs">
-                    OUT_POCKET_CLAIM_TO_PATRON
-                  </code>{" "}
-                  tipinde finansal kayıt oluşturulacak. Audit log'a yazılır; geri
-                  almak için tek tek silmek gerek.
+                  <p>
+                    <strong>Dikkat:</strong> Aşağıdaki {selectedRows.length} satır
+                    için bugün tarihli{" "}
+                    <code className="rounded bg-white/60 px-1 py-0.5 text-xs">
+                      OUT_POCKET_CLAIM_TO_PATRON
+                    </code>{" "}
+                    finansal kayıt oluşturulacak. Audit log'a yazılır; geri almak
+                    için tek tek silmek gerek.
+                  </p>
+                  <p className="mt-2 text-xs leading-relaxed">
+                    <strong>Bu eski hareketleri düzeltmez</strong> — her satırın net
+                    bakiyesi kadar <em>yeni</em> bir patrona devir yazar. Personelin
+                    cebinde gerçekten nakit varsa, bu işlem bakiyeyi 0'a çekerken
+                    nakit kayboluyor görünür.
+                  </p>
                 </div>
               ) : (
                 <div className="rounded-lg border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
@@ -402,6 +444,27 @@ export function PersonnelHeldCashAutoFixWizard({
                 })}
               </div>
 
+              {/* Wizard'ın ne yaptığı çoğu kullanıcıya net değil — açıkça yaz.
+                  "Eski yanlışı geri dönüp düzeltmiyor; bugün için patrona devir
+                  tx'i yazıyor." Toplu kullanım öncesi admin doğrulamalı. */}
+              <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs leading-relaxed text-zinc-700">
+                <p className="font-semibold text-zinc-900">Bu sihirbaz ne yapar?</p>
+                <p className="mt-1">
+                  Seçili her satır için bugün tarihli bir{" "}
+                  <code className="rounded bg-white px-1 py-0.5 text-[11px] text-zinc-800 ring-1 ring-zinc-200">
+                    OUT_POCKET_CLAIM_TO_PATRON
+                  </code>{" "}
+                  hareketi yazılır. Personelin cep bakiyesi anında <strong>0</strong>{" "}
+                  olur; eski yazışım <em>geri dönüp düzeltilmez</em> (REVERSAL yok,
+                  attribution değişmez).
+                </p>
+                <p className="mt-2">
+                  <strong>Çalıştırmadan önce doğrula:</strong> bu pozitif bakiye
+                  patron parayı zaten geri almış ama yazılmamış mı (sık), yoksa
+                  personel cebinde nakit gerçekten duruyor mu (nadir)? İkincisinde
+                  wizard veri yanlışlığı yaratır.
+                </p>
+              </div>
               <div className="rounded-lg border border-violet-200 bg-violet-50 p-3 text-sm text-violet-900">
                 <strong>{fixableRows.length}</strong> satır otomatik düzeltilebilir
                 (pozitif net bakiye). {selectedRows.length} seçili.
