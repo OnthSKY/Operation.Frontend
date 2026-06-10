@@ -27,11 +27,27 @@ export const TX_MAIN_OUT_BRANCH_MODAL_ORDER = [
 ] as const;
 
 /**
+ * Tüm OUT_* umbrella'larının label key'leri (eski kayıt görüntüleme + ledger label lookup için).
+ * Modal/filtre listesi `TX_MAIN_OUT` ayrı; bu sadece "code → labelKey" çözümü.
+ */
+const TX_MAIN_OUT_LABEL_KEYS: Record<string, string> = {
+  OUT_OPS: "branch.txMainOutOps",
+  OUT_TAX: "branch.txMainOutTax",
+  OUT_GOODS: "branch.txMainOutGoods",
+  OUT_OTHER: "branch.txMainOutOther",
+  OUT_NON_PNL: "branch.txMainOutNonPnl",
+  OUT_PERSONNEL: "branch.txMainOutPersonnel",
+  OUT_PERSONNEL_POCKET_REPAY: "branch.txMainOutPocketRepay",
+  OUT_PERSONNEL_POCKET_CLAIM_TRANSFER: "branch.txMainOutPocketClaimTransfer",
+  OUT_PATRON_DEBT_REPAY: "branch.txMainOutPatronDebtRepay",
+};
+
+/**
  * Gider — ana kategori. Tek "İşletme Gideri" (OUT_OPS) yeterli; personel/patron/cep gibi
  * sistem veya başka modüllerin ürettiği kayıtların ayrı umbrella filtresine gerek yok.
  */
 export const TX_MAIN_OUT: { value: string; labelKey: string }[] = [
-  { value: "OUT_OPS", labelKey: "branch.txMainOutOps" },
+  { value: "OUT_OPS", labelKey: TX_MAIN_OUT_LABEL_KEYS.OUT_OPS },
 ];
 
 /** txMainOptions çıktısında ilk eleman boş placeholder; OUT satırlarını sürdürülebilir sıraya koyar. */
