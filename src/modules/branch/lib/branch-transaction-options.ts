@@ -30,25 +30,12 @@ export const TX_MAIN_OUT_BRANCH_MODAL_ORDER = [
 ] as const;
 
 /**
- * Gider — ana kategori kodları, filtreleme/listeleme için tam liste.
- * Eski kayıtların hâlâ filtrelenebilmesi için arşiv umbrellaları (OUT_GOODS, OUT_TAX, OUT_OTHER,
- * OUT_NON_PNL) da burada tutulur; sadece modal ekleme listesinden çıkarıldı.
+ * Gider — ana kategori. Tek "İşletme Gideri" (OUT_OPS) yeterli; personel/patron/cep gibi
+ * sistem veya başka modüllerin ürettiği kayıtların ayrı umbrella filtresine gerek yok.
  */
-const TX_MAIN_OUT_ALL_LABEL_KEYS = {
-  OUT_OPS: "branch.txMainOutOps",
-  OUT_TAX: "branch.txMainOutTax",
-  OUT_GOODS: "branch.txMainOutGoods",
-  OUT_OTHER: "branch.txMainOutOther",
-  OUT_NON_PNL: "branch.txMainOutNonPnl",
-  OUT_PERSONNEL: "branch.txMainOutPersonnel",
-  OUT_PERSONNEL_POCKET_REPAY: "branch.txMainOutPocketRepay",
-  OUT_PERSONNEL_POCKET_CLAIM_TRANSFER: "branch.txMainOutPocketClaimTransfer",
-  OUT_PATRON_DEBT_REPAY: "branch.txMainOutPatronDebtRepay",
-} as const;
-
-export const TX_MAIN_OUT: { value: string; labelKey: string }[] = (
-  Object.keys(TX_MAIN_OUT_ALL_LABEL_KEYS) as (keyof typeof TX_MAIN_OUT_ALL_LABEL_KEYS)[]
-).map((value) => ({ value, labelKey: TX_MAIN_OUT_ALL_LABEL_KEYS[value] }));
+export const TX_MAIN_OUT: { value: string; labelKey: string }[] = [
+  { value: "OUT_OPS", labelKey: "branch.txMainOutOps" },
+];
 
 /** txMainOptions çıktısında ilk eleman boş placeholder; OUT satırlarını sürdürülebilir sıraya koyar. */
 export function orderBranchExpenseMainOptions(options: SelectOption[]): SelectOption[] {
