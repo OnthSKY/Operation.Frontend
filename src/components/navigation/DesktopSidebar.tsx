@@ -230,20 +230,21 @@ export function DesktopSidebar({ badgeState }: { badgeState: NavBadgeState }) {
               </Tooltip>
             </>
           ) : (
-            <div className="flex min-w-0 items-center gap-2 px-1">
+            <div className="flex min-w-0 items-center gap-1.5 px-1">
               {brandingLoaded && branding?.hasLogo ? (
                 <SidebarBrandingLogo
                   hasLogo
                   updatedAtUtc={branding.updatedAtUtc}
-                  className="h-10 w-10 shrink-0 rounded-lg bg-white object-contain ring-1 ring-zinc-200/70"
+                  className="h-9 w-9 shrink-0 rounded-lg bg-white object-contain ring-1 ring-zinc-200/70"
                 />
               ) : null}
               <p
                 className={
                   brandingIsCustom
-                    ? "min-w-0 flex-1 truncate text-sm font-bold leading-tight text-zinc-900"
+                    ? "min-w-0 flex-1 break-words text-[0.8125rem] font-bold leading-tight text-zinc-900"
                     : "min-w-0 flex-1 text-[0.65rem] font-bold uppercase tracking-[0.18em] text-zinc-600"
                 }
+                title={brandingTitle}
               >
                 {brandingTitle}
               </p>
@@ -252,9 +253,9 @@ export function DesktopSidebar({ badgeState }: { badgeState: NavBadgeState }) {
                   type="button"
                   aria-label="Collapse sidebar"
                   onClick={() => setCollapsed((v) => !v)}
-                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-500 transition-all duration-200 hover:bg-zinc-100 hover:text-zinc-800"
+                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-zinc-200 bg-zinc-50 text-zinc-500 transition-all duration-200 hover:bg-zinc-100 hover:text-zinc-800"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                     <path d="m15 18-6-6 6-6" />
                   </svg>
                 </button>
