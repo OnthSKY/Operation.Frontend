@@ -119,10 +119,13 @@ export type BranchDetailExpensesTabProps = {
   expFiltersActive: boolean;
   expMainFilterOpts: { value: string; label: string }[];
   expPayFilterOpts: { value: string; label: string }[];
+  expKindFilterOpts: { value: string; label: string }[];
   expFilterMain: string;
   setExpFilterMain: (v: string) => void;
   expFilterPay: string;
   setExpFilterPay: (v: string) => void;
+  expFilterKind: string;
+  setExpFilterKind: (v: string) => void;
   refetchExp: () => unknown;
   refetchExpenseSummaryBlocks: () => void;
   canDeleteBranchTx: boolean;
@@ -175,10 +178,13 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
     expFiltersActive,
     expMainFilterOpts,
     expPayFilterOpts,
+    expKindFilterOpts,
     expFilterMain,
     setExpFilterMain,
     expFilterPay,
     setExpFilterPay,
+    expFilterKind,
+    setExpFilterKind,
     refetchExp,
     refetchExpenseSummaryBlocks,
     canDeleteBranchTx,
@@ -679,6 +685,15 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                       />
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <Select
+                        name="expFilterKind"
+                        label={t("branch.txFilterExpenseKind")}
+                        options={expKindFilterOpts}
+                        value={expFilterKind}
+                        menuZIndex={280}
+                        onChange={(e) => setExpFilterKind(e.target.value)}
+                        onBlur={() => {}}
+                      />
                       <Select
                         name="expFilterMain"
                         label={t("branch.txFilterMainCategory")}

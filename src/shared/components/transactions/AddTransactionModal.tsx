@@ -28,7 +28,6 @@ import {
   isNonPnlMemoClassificationMain,
   isOutPersonnelClassificationMain,
   isPatronCashIncomeMain,
-  isOutOtherExpenseClassificationMain,
   isPatronDebtRepayClassificationMain,
   isPersonnelPocketRepayClassificationMain,
   isPocketClaimTransferClassificationMain,
@@ -182,9 +181,6 @@ const TITLE_ID = "branch-tx-title";
 /** Gün sonu ile birlikte hızlı gider: personel / cebi / patron borcu vb. hariç şube gider ana kodları */
 const DAY_CLOSE_BUNDLED_OUT_MAINS = new Set([
   "OUT_OPS",
-  "OUT_TAX",
-  "OUT_GOODS",
-  "OUT_OTHER",
 ]);
 
 const DAY_CLOSE_BUNDLED_EXPENSE_MAX = 3;
@@ -655,7 +651,6 @@ export function AddTransactionModal({
   useEffect(() => {
     const ty = txType.toUpperCase();
     const m = String(mainCategoryWatch ?? "").trim();
-    if (ty === "OUT" && isOutOtherExpenseClassificationMain(m)) setValue("category", "EXP_OTHER");
     if (ty === "OUT" && isPersonnelPocketRepayClassificationMain(m)) {
       setValue("category", m.toUpperCase() === "OUT_POCKET_REPAY" ? "" : "POCKET_REPAY");
     }
@@ -1678,8 +1673,6 @@ export function AddTransactionModal({
             subOpts.find((o) => o.value === line.category)?.label ??
             txCodeLabel(line.category, t) ??
             line.category;
-        } else if (isOutOtherExpenseClassificationMain(line.mainCategory)) {
-          subLabel = t("branch.txSubExpOther");
         }
         const payLabel =
           line.paymentSource === "REGISTER"
@@ -1717,14 +1710,10 @@ export function AddTransactionModal({
       notify.error(t("branch.txDayCloseBundledExpenseMainRequired"));
       return;
     }
-    let bCat: string | null = v.dayCloseBundledExpenseCategory.trim() || null;
-    if (txMainNeedsSubCategory("OUT", bMain)) {
-      if (!bCat) {
-        notify.error(t("branch.txDayCloseBundledExpenseSubRequired"));
-        return;
-      }
-    } else if (isOutOtherExpenseClassificationMain(bMain)) {
-      bCat = "EXP_OTHER";
+    const bCat: string | null = v.dayCloseBundledExpenseCategory.trim() || null;
+    if (txMainNeedsSubCategory("OUT", bMain) && !bCat) {
+      notify.error(t("branch.txDayCloseBundledExpenseSubRequired"));
+      return;
     }
     const bSrc = v.dayCloseBundledExpensePaymentSource.trim().toUpperCase();
     if (bSrc !== "REGISTER" && bSrc !== "PATRON") {
@@ -1886,8 +1875,6 @@ export function AddTransactionModal({
     }
 
     let categoryOut: string | null = values.category.trim() || null;
-    if (values.type.toUpperCase() === "OUT" && isOutOtherExpenseClassificationMain(values.mainCategory))
-      categoryOut = "EXP_OTHER";
     if (values.type.toUpperCase() === "OUT" && isPersonnelPocketRepayClassificationMain(values.mainCategory)) {
       categoryOut =
         values.mainCategory.trim().toUpperCase() === "OUT_POCKET_REPAY" ? null : "POCKET_REPAY";

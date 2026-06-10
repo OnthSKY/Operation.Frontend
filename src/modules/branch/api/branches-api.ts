@@ -888,6 +888,8 @@ export type BranchTxPageParams = {
   excludeSettledPocketExpenses?: boolean;
   /** Şube gider sekmesi: patron/cep borç kapatma OUT satırlarını gizler; ana kategori filtresi varken API yine listeler. */
   excludeDebtClosureOuts?: boolean;
+  /** Giriş kaynağı filtresi: OPS | PERSONNEL | SUPPLIER | VEHICLE | CONTRACTOR. */
+  expenseKind?: "OPS" | "PERSONNEL" | "SUPPLIER" | "VEHICLE" | "CONTRACTOR";
 };
 
 export async function fetchBranchTransactionsPaged(
@@ -913,6 +915,7 @@ export async function fetchBranchTransactionsPaged(
   if (params.excludeSettledPocketExpenses === true)
     q.set("excludeSettledPocketExpenses", "true");
   if (params.excludeDebtClosureOuts === true) q.set("excludeDebtClosureOuts", "true");
+  if (params.expenseKind) q.set("expenseKind", params.expenseKind);
   const raw = await apiRequest<{
     filteredAmountTotal?: number;
     filteredCashTotal?: number;

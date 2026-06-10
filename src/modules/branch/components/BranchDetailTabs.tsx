@@ -162,7 +162,10 @@ export function BranchDetailTabs({
   const [expTo, setExpTo] = useState("");
   const [expPage, setExpPage] = useState(1);
   const [expFilterMain, setExpFilterMain] = useState("");
-  const [expFilterPay, setExpFilterPay] = useState("");
+  // Default: şube kasasından ödenenler gelir.
+  const [expFilterPay, setExpFilterPay] = useState("REGISTER");
+  // Giriş kaynağı filtresi: boş = tümü, OPS | PERSONNEL | SUPPLIER | VEHICLE | CONTRACTOR.
+  const [expFilterKind, setExpFilterKind] = useState("");
 
   const [incFrom, setIncFrom] = useState("");
   const [incTo, setIncTo] = useState("");
@@ -259,7 +262,7 @@ export function BranchDetailTabs({
 
   useEffect(() => {
     setExpPage(1);
-  }, [expFrom, expTo, expFilterMain, expFilterPay]);
+  }, [expFrom, expTo, expFilterMain, expFilterPay, expFilterKind]);
 
   useEffect(() => {
     setIncPage(1);
@@ -281,11 +284,12 @@ export function BranchDetailTabs({
     return Boolean(
       expFilterMain.trim() ||
         expFilterPay.trim() ||
+        expFilterKind.trim() ||
         expFrom !== today ||
         expTo !== today ||
         (expFrom === "" && expTo === "")
     );
-  }, [expFrom, expTo, expFilterMain, expFilterPay]);
+  }, [expFrom, expTo, expFilterMain, expFilterPay, expFilterKind]);
 
   const advanceYear = useMemo(() => {
     const y = Math.trunc(Number(txDay.slice(0, 4)));
@@ -370,6 +374,18 @@ export function BranchDetailTabs({
     ],
     [t]
   );
+  // Giriş kaynağı filtresi: kullanıcı dostu, "hangi modalden girildi" ekseni.
+  const expKindFilterOpts = useMemo(
+    () => [
+      { value: "", label: t("branch.txFilterAny") },
+      { value: "OPS", label: t("branch.expKindOps") },
+      { value: "PERSONNEL", label: t("branch.expKindPersonnel") },
+      { value: "SUPPLIER", label: t("branch.expKindSupplier") },
+      { value: "VEHICLE", label: t("branch.expKindVehicle") },
+      { value: "CONTRACTOR", label: t("branch.expKindContractor") },
+    ],
+    [t]
+  );
   const expPayFilterOpts = useMemo(
     () => [
       { value: "", label: t("branch.txFilterAny") },
@@ -433,9 +449,16 @@ export function BranchDetailTabs({
       dateTo: expTo.length === 10 ? expTo : undefined,
       mainCategory: expFilterMain.trim() || undefined,
       expensePaymentSource: expFilterPay.trim() || undefined,
+      expenseKind: (expFilterKind.trim() || undefined) as
+        | "OPS"
+        | "PERSONNEL"
+        | "SUPPLIER"
+        | "VEHICLE"
+        | "CONTRACTOR"
+        | undefined,
       excludeDebtClosureOuts: true,
     }),
-    [expPage, expFrom, expTo, expFilterMain, expFilterPay]
+    [expPage, expFrom, expTo, expFilterMain, expFilterPay, expFilterKind]
   );
 
   const todayIso = localIsoDate();
@@ -942,10 +965,13 @@ export function BranchDetailTabs({
             expFiltersActive={expFiltersActive}
             expMainFilterOpts={expMainFilterOpts}
             expPayFilterOpts={expPayFilterOpts}
+            expKindFilterOpts={expKindFilterOpts}
             expFilterMain={expFilterMain}
             setExpFilterMain={setExpFilterMain}
             expFilterPay={expFilterPay}
             setExpFilterPay={setExpFilterPay}
+            expFilterKind={expFilterKind}
+            setExpFilterKind={setExpFilterKind}
             refetchExp={refetchExp}
             refetchExpenseSummaryBlocks={refetchExpenseSummaryBlocks}
             canDeleteBranchTx={canDeleteBranchTx}
