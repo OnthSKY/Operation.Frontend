@@ -1,9 +1,6 @@
 import type { BranchTransaction } from "@/types/branch-transaction";
 import type { SelectOption } from "@/shared/ui/Select";
-import {
-  UI_POCKET_CLAIM_TRANSFER_ENABLED,
-  UI_PERSONNEL_POCKET_ENABLED,
-} from "@/modules/branch/lib/product-ui-flags";
+import { UI_PERSONNEL_POCKET_ENABLED } from "@/modules/branch/lib/product-ui-flags";
 
 /** Gelir — ana kategori kodları */
 export const TX_MAIN_IN: { value: string; labelKey: string }[] = [
@@ -46,15 +43,6 @@ export function orderBranchExpenseMainOptions(options: SelectOption[]): SelectOp
   const byVal = new Map(rest.map((o) => [o.value, o]));
   const ordered: SelectOption[] = [];
   for (const v of TX_MAIN_OUT_BRANCH_MODAL_ORDER) {
-    if (
-      !UI_POCKET_CLAIM_TRANSFER_ENABLED &&
-      v === "OUT_PERSONNEL_POCKET_CLAIM_TRANSFER"
-    ) {
-      continue;
-    }
-    if (!UI_PERSONNEL_POCKET_ENABLED && v === "OUT_PERSONNEL_POCKET_REPAY") {
-      continue;
-    }
     const o = byVal.get(v);
     if (o) ordered.push(o);
   }
