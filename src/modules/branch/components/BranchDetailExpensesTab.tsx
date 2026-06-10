@@ -258,45 +258,31 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
     const heldKnown = Number.isFinite(heldRaw);
     let register = registerKnown ? Math.max(0, registerRaw) : 0;
     const pocket = pocketKnown ? Math.max(0, pocketRaw) : 0;
-    const held = showHeldRegisterInExpenseTab && heldKnown ? Math.max(0, heldRaw) : 0;
+    const held = heldKnown ? Math.max(0, heldRaw) : 0;
     const filteredFromApi = Number.isFinite(expenseListFilteredTotal)
       ? Math.max(0, expenseListFilteredTotal)
       : 0;
+    // Toplam = kasa nakit + patron + personel zimmeti + (varsa) personel cebi.
     let total = filteredFromApi;
-    if (!showHeldRegisterInExpenseTab) {
-      if (registerKnown || pocketKnown) {
-        total = register + patron + pocket;
-      } else {
-        total = filteredFromApi;
-      }
+    if (registerKnown || pocketKnown || heldKnown) {
+      total = register + patron + pocket + held;
     }
-    if (!registerKnown && !pocketKnown && !showHeldRegisterInExpenseTab) {
-      register = Math.max(0, total - patron);
-    } else if (!registerKnown && !showHeldRegisterInExpenseTab) {
-      register = Math.max(0, total - patron - pocket);
+    if (!registerKnown) {
+      register = Math.max(0, total - patron - pocket - held);
     }
     const pct = (amount: number) => (total > 0 ? (amount / total) * 100 : 0);
-    // Kasa ekseni ayrımı: REGISTER (+ görünürse HELD) çekmeceden çıkan nakit; PATRON ve
-    // personel cebi kasa-dışıdır (patron faturası kasa toplamına sızmamalı).
-    const cashOut = register + held;
-    const offRegister = patron + pocket;
     return {
       total,
       patron,
       register,
       pocket,
       held,
-      cashOut,
-      offRegister,
-      showHeld: showHeldRegisterInExpenseTab,
       // PERSONNEL_POCKET (personel cebi) yeni kayıt için gizli; özet kartı yalnız geçmişte tutar varsa gösterilir.
       showPocket: pocket > 0.005,
       patronPct: pct(patron),
       registerPct: pct(register),
       pocketPct: pct(pocket),
       heldPct: pct(held),
-      cashOutPct: pct(cashOut),
-      offRegisterPct: pct(offRegister),
     };
   }, [
     expData?.registerExpenseTotal,
@@ -304,7 +290,6 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
     expData?.personnelHeldRegisterCashExpenseTotal,
     expenseListFilteredTotal,
     expenseListPatronTotal,
-    showHeldRegisterInExpenseTab,
   ]);
 
   const expenseSeasonQuickRange = useMemo(() => {
@@ -482,50 +467,42 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                             )}
                           </p>
                           <p className="mt-1 text-xs leading-snug text-zinc-500">
-                            {showHeldRegisterInExpenseTab
-                              ? t("branch.expensesListUnifiedBreakdownHint")
-                              : t("branch.expensesListExcludesHeldRegisterHint")}
+                            {t("branch.expensesListBreakdownHint")}
                           </p>
-                          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                            <div className="rounded-lg border border-rose-200/90 bg-rose-50/50 px-2.5 py-2">
-                              <p className="text-[11px] font-semibold uppercase tracking-wide text-rose-800">
-                                {t("branch.expensesAxisCashOut")}
-                              </p>
-                              <p className="mt-0.5 text-sm font-bold tabular-nums text-rose-900">
-                                {formatMoneyDash(expenseListSourceTotals.cashOut, t("personnel.dash"), locale, "TRY")}
-                              </p>
-                              <p className="text-[11px] tabular-nums text-rose-700/80">
-                                %{expenseListSourceTotals.cashOutPct.toFixed(1)}
-                              </p>
-                            </div>
-                            <div className="rounded-lg border border-amber-200/90 bg-amber-50/50 px-2.5 py-2">
-                              <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-800">
-                                {t("branch.expensesAxisOffRegister")}
-                              </p>
-                              <p className="mt-0.5 text-sm font-bold tabular-nums text-amber-900">
-                                {formatMoneyDash(expenseListSourceTotals.offRegister, t("personnel.dash"), locale, "TRY")}
-                              </p>
-                              <p className="text-[11px] tabular-nums text-amber-700/80">
-                                %{expenseListSourceTotals.offRegisterPct.toFixed(1)}
-                              </p>
-                            </div>
-                          </div>
-                          <p className="mt-1.5 text-[11px] leading-snug text-zinc-500">
-                            {t("branch.expensesAxisSplitHint")}
-                          </p>
-                          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
                             {[
                               {
                                 key: "register",
                                 label: t("branch.expensePayRegisterShort"),
                                 amount: expenseListSourceTotals.register,
                                 pct: expenseListSourceTotals.registerPct,
+                                border: "border-rose-200/90",
+                                bg: "bg-rose-50/50",
+                                titleColor: "text-rose-800",
+                                amountColor: "text-rose-900",
+                                pctColor: "text-rose-700/80",
                               },
                               {
                                 key: "patron",
                                 label: t("branch.expensePayPatronShort"),
                                 amount: expenseListSourceTotals.patron,
                                 pct: expenseListSourceTotals.patronPct,
+                                border: "border-amber-200/90",
+                                bg: "bg-amber-50/50",
+                                titleColor: "text-amber-800",
+                                amountColor: "text-amber-900",
+                                pctColor: "text-amber-700/80",
+                              },
+                              {
+                                key: "held",
+                                label: t("branch.expensePayPersonnelHeldRegisterCashShort"),
+                                amount: expenseListSourceTotals.held,
+                                pct: expenseListSourceTotals.heldPct,
+                                border: "border-sky-200/90",
+                                bg: "bg-sky-50/50",
+                                titleColor: "text-sky-800",
+                                amountColor: "text-sky-900",
+                                pctColor: "text-sky-700/80",
                               },
                               ...(expenseListSourceTotals.showPocket
                                 ? [
@@ -534,31 +511,26 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                                       label: t("branch.expensePayPersonnelPocketShort"),
                                       amount: expenseListSourceTotals.pocket,
                                       pct: expenseListSourceTotals.pocketPct,
-                                    },
-                                  ]
-                                : []),
-                              ...(expenseListSourceTotals.showHeld
-                                ? [
-                                    {
-                                      key: "held",
-                                      label: t("branch.expensePayPersonnelHeldRegisterCashShort"),
-                                      amount: expenseListSourceTotals.held,
-                                      pct: expenseListSourceTotals.heldPct,
+                                      border: "border-zinc-200",
+                                      bg: "bg-zinc-50/80",
+                                      titleColor: "text-zinc-600",
+                                      amountColor: "text-zinc-900",
+                                      pctColor: "text-zinc-600",
                                     },
                                   ]
                                 : []),
                             ].map((source) => (
                               <div
                                 key={source.key}
-                                className="rounded-md border border-zinc-200 bg-zinc-50/80 px-2 py-1.5"
+                                className={`rounded-lg border ${source.border} ${source.bg} px-2.5 py-2`}
                               >
-                                <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                                <p className={`text-[11px] font-semibold uppercase tracking-wide ${source.titleColor}`}>
                                   {source.label}
                                 </p>
-                                <p className="mt-0.5 text-sm font-semibold tabular-nums text-zinc-900">
+                                <p className={`mt-0.5 text-sm font-bold tabular-nums ${source.amountColor}`}>
                                   {formatMoneyDash(source.amount, t("personnel.dash"), locale, "TRY")}
                                 </p>
-                                <p className="text-[11px] tabular-nums text-zinc-600">
+                                <p className={`text-[11px] tabular-nums ${source.pctColor}`}>
                                   %{source.pct.toFixed(1)}
                                 </p>
                               </div>

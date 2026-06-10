@@ -725,7 +725,9 @@ export const branch = {
   expensesListUnifiedBreakdownHint:
     "Toplam içindeki ödeme kaynağı dağılımı (TL ve yüzde).",
   expensesListExcludesHeldRegisterHint:
-    "Personel zimmetindeki kasa nakdi devri gider sayılmaz; yalnızca kasa, patron ve personel cebinden ödemeler. Bu satırları görmek için ödeme kaynağı filtresinden «Zimmetteki kasa»yı seçin.",
+    "Personel zimmetindeki para devri gider sayılmaz; yalnızca kasa, patron ve personel cebinden ödemeler. Bu satırları görmek için ödeme kaynağı filtresinden «Personel zimmetindeki para»yı seçin.",
+  expensesListBreakdownHint:
+    "Toplam tutarın ödeme kaynağına göre dağılımı (kasa nakit, patron, personel zimmeti).",
   expensesAxisCashOut: "Kasadan ödenen (nakit çıkışı)",
   expensesAxisOffRegister: "Kasa dışı (patron / personel cebi)",
   expensesAxisSplitHint:
@@ -831,10 +833,10 @@ export const branch = {
   expensePayPatron: "Patron ödedi (kasa dışı)",
   expensePayPersonnelPocket: "Personel cebinden (kasa personele borçlu)",
   expensePayPersonnelHeldRegisterCash: "Personel zimmetindeki kasa parasından ödendi",
-  expensePayRegisterShort: "Kasa",
+  expensePayRegisterShort: "Kasa nakit",
   expensePayPatronShort: "Patron",
   expensePayPersonnelPocketShort: "Personel cebi",
-  expensePayPersonnelHeldRegisterCashShort: "Zimmetteki kasa",
+  expensePayPersonnelHeldRegisterCashShort: "Personel zimmetindeki para",
   expensePocketRepayViaRegister: "Kasadan personele",
   expensePocketRepayViaPatron: "Patrondan personele",
   expensePocketPersonLabel: "Ödemeyi yapan personel",

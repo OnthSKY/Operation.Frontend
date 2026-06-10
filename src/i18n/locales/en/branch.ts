@@ -718,7 +718,9 @@ export const branch = {
   expensesListUnifiedBreakdownHint:
     "Payment-source split within this total (amount and percentage).",
   expensesListExcludesHeldRegisterHint:
-    "Held register cash handovers are not counted as expenses—only register, owner, and personnel-pocket payments. Filter by «Held register cash» to list those transfers.",
+    "Held register cash handovers are not counted as expenses—only register, owner, and personnel-pocket payments. Filter by «Personnel-held register cash» to list those transfers.",
+  expensesListBreakdownHint:
+    "Total amount split by payment source (register cash, owner, personnel-held).",
   expensesAxisCashOut: "Paid from register (cash out)",
   expensesAxisOffRegister: "Off-register (owner / personnel pocket)",
   expensesAxisSplitHint:
@@ -825,7 +827,7 @@ export const branch = {
   expensePayRegisterShort: "Register",
   expensePayPatronShort: "Owner",
   expensePayPersonnelPocketShort: "Staff pocket",
-  expensePayPersonnelHeldRegisterCashShort: "Held register cash",
+  expensePayPersonnelHeldRegisterCashShort: "Personnel-held register cash",
   expensePocketRepayViaRegister: "Register → staff",
   expensePocketRepayViaPatron: "Owner → staff",
   expensePocketPersonLabel: "Staff member who paid",

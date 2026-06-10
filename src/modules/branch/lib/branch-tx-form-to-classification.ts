@@ -83,18 +83,35 @@ export function classificationCodeFromLegacyBranchTxForm(
     }
     if (mc === "OUT_OPS") {
       const o: Record<string, string> = {
+        // Aktif alt kategoriler (frontend dropdown ile uyumlu).
         OPS_RENT: "OUT_OPS_RENT",
         OPS_UTIL: "OUT_OPS_UTIL",
+        OPS_MAINTENANCE: "OUT_OPS_MAINTENANCE",
+        OPS_MARKETING: "OUT_OPS_MARKETING",
+        OPS_CLEANING: "OUT_OPS_CLEANING",
+        OPS_SUPPLIES: "OUT_OPS_SUPPLIES",
+        OPS_INSURANCE: "OUT_OPS_INSURANCE",
+        OPS_CONSULTING: "OUT_OPS_CONSULTING",
+        OPS_SECURITY: "OUT_OPS_SECURITY",
+        OPS_SOFTWARE: "OUT_OPS_SOFTWARE",
+        OPS_TRAINING: "OUT_OPS_TRAINING",
+        OPS_TRAVEL: "OUT_OPS_TRAVEL",
+        OPS_HOSPITALITY: "OUT_OPS_HOSPITALITY",
+        OPS_BANK_FEE: "OUT_OPS_BANK_FEE",
+        OPS_LICENSE: "OUT_OPS_LICENSE",
+        OPS_TAX: "OUT_OPS_TAX",
+        OPS_FRANCHISE: "OUT_OPS_FRANCHISE",
+        OPS_MEAL: "OUT_OPS_MEAL",
         OPS_FUEL: "OUT_OPS_FUEL",
         OPS_CARGO: "OUT_OPS_CARGO",
-        OPS_MEAL: "OUT_OPS_MEAL",
+        OPS_OTHER: "OUT_OPS_OTHER",
+        // Geriye dönük: eski form değerleri (arşivlenmiş kodlar) → arşiv kayda yazılabilsin.
         OPS_TOBACCO: "OUT_OPS_TOBACCO",
         OPS_MARKET: "OUT_OPS_MARKET",
         OPS_POS_BANK_FEE: "OUT_OPS_POS_BANK_FEE",
         OPS_INVOICE: "OUT_OPS_INVOICE",
         OPS_FRANCHISE_ROYALTY: "OUT_OPS_FRANCHISE_ROYALTY",
         OPS_FRANCHISE_MARKETING: "OUT_OPS_FRANCHISE_MARKETING",
-        OPS_OTHER: "OUT_OPS_OTHER",
       };
       if (cat && o[cat]) return o[cat]!;
     }
