@@ -19,22 +19,22 @@ export const TX_MAIN_IN: { value: string; labelKey: string }[] = [
  * sonra günlük işletme (stok, işletme, vergi, diğer, P&L dışı not), en sonda patron borcu ödemesi.
  * TX_MAIN_OUT aynı sırayı kullanır (filtreler / formlar tutarlı).
  */
+/**
+ * Şube gider ekleme modalında kullanıcının seçebileceği ana kategoriler.
+ * Sadeleştirildi: kullanıcı yalnızca İşletme Gideri (OUT_OPS) ekler.
+ * Personel/Mal/Vergi/Diğer kayıtları ilgili modüllerden (personel, tedarikçi, vb.) gelir.
+ * Patron borcu (OUT_PATRON_DEBT_REPAY) ve P&L dışı not (OUT_NON_PNL) sistem üretir.
+ */
 export const TX_MAIN_OUT_BRANCH_MODAL_ORDER = [
-  "OUT_PERSONNEL",
-  "OUT_PERSONNEL_POCKET_REPAY",
-  "OUT_PERSONNEL_POCKET_CLAIM_TRANSFER",
-  "OUT_GOODS",
   "OUT_OPS",
-  "OUT_TAX",
-  "OUT_OTHER",
-  "OUT_NON_PNL",
-  "OUT_PATRON_DEBT_REPAY",
 ] as const;
 
-const TX_MAIN_OUT_LABEL_KEYS: Record<
-  (typeof TX_MAIN_OUT_BRANCH_MODAL_ORDER)[number],
-  string
-> = {
+/**
+ * Gider — ana kategori kodları, filtreleme/listeleme için tam liste.
+ * Eski kayıtların hâlâ filtrelenebilmesi için arşiv umbrellaları (OUT_GOODS, OUT_TAX, OUT_OTHER,
+ * OUT_NON_PNL) da burada tutulur; sadece modal ekleme listesinden çıkarıldı.
+ */
+const TX_MAIN_OUT_ALL_LABEL_KEYS = {
   OUT_OPS: "branch.txMainOutOps",
   OUT_TAX: "branch.txMainOutTax",
   OUT_GOODS: "branch.txMainOutGoods",
@@ -44,14 +44,11 @@ const TX_MAIN_OUT_LABEL_KEYS: Record<
   OUT_PERSONNEL_POCKET_REPAY: "branch.txMainOutPocketRepay",
   OUT_PERSONNEL_POCKET_CLAIM_TRANSFER: "branch.txMainOutPocketClaimTransfer",
   OUT_PATRON_DEBT_REPAY: "branch.txMainOutPatronDebtRepay",
-};
+} as const;
 
-/** Gider — ana kategori kodları (sıra = şube gider modalı). */
-export const TX_MAIN_OUT: { value: string; labelKey: string }[] =
-  TX_MAIN_OUT_BRANCH_MODAL_ORDER.map((value) => ({
-    value,
-    labelKey: TX_MAIN_OUT_LABEL_KEYS[value],
-  }));
+export const TX_MAIN_OUT: { value: string; labelKey: string }[] = (
+  Object.keys(TX_MAIN_OUT_ALL_LABEL_KEYS) as (keyof typeof TX_MAIN_OUT_ALL_LABEL_KEYS)[]
+).map((value) => ({ value, labelKey: TX_MAIN_OUT_ALL_LABEL_KEYS[value] }));
 
 /** txMainOptions çıktısında ilk eleman boş placeholder; OUT satırlarını sürdürülebilir sıraya koyar. */
 export function orderBranchExpenseMainOptions(options: SelectOption[]): SelectOption[] {
@@ -170,11 +167,9 @@ export function txMainOptions(
   const empty = { value: "", label: t("branch.txSelectPlaceholder") };
   const list =
     type.toUpperCase() === "OUT"
-      ? TX_MAIN_OUT.filter((x) => {
-          if (!UI_POCKET_CLAIM_TRANSFER_ENABLED && x.value === "OUT_PERSONNEL_POCKET_CLAIM_TRANSFER") return false;
-          if (!UI_PERSONNEL_POCKET_ENABLED && x.value === "OUT_PERSONNEL_POCKET_REPAY") return false;
-          return true;
-        })
+      ? TX_MAIN_OUT.filter((x) =>
+          (TX_MAIN_OUT_BRANCH_MODAL_ORDER as readonly string[]).includes(x.value)
+        )
       : TX_MAIN_IN;
   return [empty, ...list.map((x) => ({ value: x.value, label: t(x.labelKey) }))];
 }
