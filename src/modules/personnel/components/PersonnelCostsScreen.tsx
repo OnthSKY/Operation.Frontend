@@ -30,6 +30,7 @@ import {
   type CategoryBucket,
   type CostsTab,
   type MonthBucket,
+  type PersonnelCostRow,
   sortPersonnelCostRows,
 } from "@/modules/personnel/lib/personnel-cost-unified";
 import { PersonnelCostsExpenseModal } from "@/modules/personnel/components/PersonnelCostsExpenseModal";
@@ -39,6 +40,11 @@ import {
   fetchAdvancesByPersonnel,
   fetchAllAdvanceTotals,
 } from "@/modules/personnel/api/advances-api";
+import {
+  fetchPersonnelCosts,
+  type PersonnelCostsListItemKind,
+} from "@/modules/personnel/api/personnel-costs-api";
+import type { ContractorPaymentSourceCode } from "@/modules/contractors/api/contractors-api";
 import {
   defaultPersonnelListFilters,
   personnelKeys,
@@ -58,6 +64,7 @@ import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
 import { DataTable, ResponsiveTableFrame } from "@/shared/tables";
 import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
+import { TablePagination } from "@/shared/ui/TablePagination";
 import { Select } from "@/shared/ui/Select";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
@@ -897,6 +904,16 @@ export function PersonnelCostsScreen() {
   const [dateToFilter, setDateToFilter] = useState("");
   /** YYYY-MM drill-down filter; "" disables. */
   const [monthFilter, setMonthFilter] = useState("");
+  /** Alt tablo sunucu tarafı arama (debounce'lu). Personel / şube / dış çalışan adı. */
+  const [tableSearchInput, setTableSearchInput] = useState("");
+  const [tableSearchDebounced, setTableSearchDebounced] = useState("");
+  useEffect(() => {
+    const handle = setTimeout(() => setTableSearchDebounced(tableSearchInput.trim()), 300);
+    return () => clearTimeout(handle);
+  }, [tableSearchInput]);
+  /** Alt tablo sayfa indeksi (0-based) ve sayfa boyutu. Filtre/arama değişince 0'a döner. */
+  const [tablePage, setTablePage] = useState(0);
+  const [tablePageSize, setTablePageSize] = useState(50);
   const [settlementPrintOpen, setSettlementPrintOpen] = useState(false);
   const [expenseTxOpen, setExpenseTxOpen] = useState(false);
   const [advanceOpen, setAdvanceOpen] = useState(false);
@@ -1020,6 +1037,57 @@ export function PersonnelCostsScreen() {
     ] as const,
     queryFn: () => fetchAllNonAdvancePersonnelAttributedExpenseTotals(),
     enabled: !personnelPortal,
+  });
+
+  /**
+   * Alt tablo: sayfa boyutu kadar veriyi sunucudan paginated + filtered çekiyoruz.
+   * Kind (tab), personnel/branch/year, search; offset/limit serverside.
+   * KPI/bucket/kategori kartları yukarıda global olduğu için bu sorgudan etkilenmez.
+   */
+  const tableKindParam: PersonnelCostsListItemKind | undefined = useMemo(() => {
+    if (tab === "advances") return "advance";
+    if (tab === "expenses") return "expense";
+    if (tab === "contractorPayments") return "contractorPayment";
+    return undefined;
+  }, [tab]);
+
+  useEffect(() => {
+    // Filtre/arama/sayfa boyutu değişince ilk sayfaya dön.
+    setTablePage(0);
+  }, [
+    tableKindParam,
+    listParams.personnelId,
+    listParams.branchId,
+    listParams.effectiveYear,
+    tableSearchDebounced,
+    tablePageSize,
+  ]);
+
+  const personnelCostsTableQuery = useQuery({
+    queryKey: [
+      "personnel",
+      "costs",
+      "paginated",
+      tableKindParam ?? "all",
+      listParams.personnelId ?? 0,
+      listParams.branchId ?? 0,
+      listParams.effectiveYear ?? 0,
+      tableSearchDebounced,
+      tablePage,
+      tablePageSize,
+    ] as const,
+    queryFn: () =>
+      fetchPersonnelCosts({
+        kind: tableKindParam,
+        personnelId: listParams.personnelId,
+        branchId: listParams.branchId,
+        effectiveYear: listParams.effectiveYear,
+        search: tableSearchDebounced || undefined,
+        offset: tablePage * tablePageSize,
+        limit: tablePageSize,
+      }),
+    enabled: !personnelPortal,
+    placeholderData: (prev) => prev,
   });
 
   const advancesData: AdvanceListItem[] = useMemo(() => {
@@ -1433,10 +1501,111 @@ export function PersonnelCostsScreen() {
     paymentFromNorm,
   ]);
 
-  const combinedRaw = useMemo(
-    () => buildPersonnelCostRows(advancesFiltered, expensesFiltered, tab, contractorPaymentsFiltered),
-    [advancesFiltered, expensesFiltered, tab, contractorPaymentsFiltered]
-  );
+  // Sayfalı sunucu sorgusu — alt tablo için (yalnız staff/admin).
+  // Personel portalında eski client-side akış korunur (advance + expense + contractor lokal birleştirilir).
+  const paginatedRowsAdapted = useMemo<PersonnelCostRow[]>(() => {
+    if (personnelPortal) return [];
+    const items = personnelCostsTableQuery.data?.items ?? [];
+    const out: PersonnelCostRow[] = [];
+    for (const item of items) {
+      const key = `srv-${item.kind}-${item.id}`;
+      if (item.kind === "advance") {
+        out.push({
+          kind: "advance",
+          key,
+          advance: {
+            id: item.id,
+            personnelId: item.personnelId ?? 0,
+            branchId: item.branchId,
+            sourceType: item.sourceType ?? "CASH",
+            amount: item.amount,
+            currencyCode: item.currencyCode,
+            advanceDate: item.transactionDate,
+            effectiveYear: item.effectiveYear ?? 0,
+            description: item.description,
+            personnelFullName: item.personnelFullName ?? "",
+            branchName: item.branchName,
+            createdByUserId: item.createdByUserId,
+            createdByName: item.createdByDisplayName,
+            createdAt: item.createdAt,
+          },
+        });
+        continue;
+      }
+      if (item.kind === "expense") {
+        // BranchTransaction'ın tüm alanlarını sayfalı API'den çekmiyoruz; tablo hücrelerinin
+        // kullanmadığı alanlar null/0/false ile dolduruluyor. Detay görmek için detay modalı açılır.
+        const expense = {
+          id: item.id,
+          branchId: item.branchId,
+          type: "OUT",
+          mainCategory: item.classificationCode,
+          category: null,
+          amount: item.amount,
+          cashAmount: null,
+          cardAmount: null,
+          currencyCode: item.currencyCode,
+          transactionDate: item.transactionDate,
+          description: item.description,
+          cashSettlementParty: null,
+          cashSettlementPersonnelId: null,
+          cashSettlementPersonnelFullName: null,
+          cashSettlementPersonnelJobTitle: null,
+          expensePaymentSource: item.expensePaymentSource,
+          invoicePaymentStatus: null,
+          expensePocketPersonnelId: null,
+          expensePocketPersonnelFullName: null,
+          expensePocketPersonnelJobTitle: null,
+          hasReceiptPhoto: false,
+          linkedAdvanceId: null,
+          linkedSalaryPaymentId: null,
+          linkedAdvancePersonnelId: null,
+          linkedSalaryPersonnelId: null,
+          linkedAdvancePersonnelFullName: null,
+          linkedSalaryPersonnelFullName: null,
+          linkedPersonnelId: item.personnelId,
+          linkedPersonnelFullName: item.personnelFullName,
+          createdByUserId: item.createdByUserId,
+          createdByName: item.createdByDisplayName,
+          createdAt: item.createdAt,
+        } as unknown as BranchTransaction;
+        out.push({ kind: "expense", key, expense });
+        continue;
+      }
+      out.push({
+        kind: "contractorPayment",
+        key,
+        payment: {
+          id: item.id,
+          contractorId: item.contractorCounterpartyId ?? 0,
+          paymentDate: item.transactionDate,
+          amount: item.amount,
+          currencyCode: item.currencyCode,
+          paymentSource: (item.sourceType ?? "PATRON") as ContractorPaymentSourceCode,
+          branchId: item.branchId,
+          branchName: item.branchName,
+          paidByPersonnelId: null,
+          paidByPersonnelName: null,
+          description: item.description,
+          reference: null,
+          contractorDisplayName: item.contractorName ?? "",
+        },
+      });
+    }
+    return out;
+  }, [personnelPortal, personnelCostsTableQuery.data]);
+
+  const combinedRaw = useMemo(() => {
+    if (!personnelPortal) return paginatedRowsAdapted;
+    return buildPersonnelCostRows(advancesFiltered, expensesFiltered, tab, contractorPaymentsFiltered);
+  }, [
+    personnelPortal,
+    paginatedRowsAdapted,
+    advancesFiltered,
+    expensesFiltered,
+    tab,
+    contractorPaymentsFiltered,
+  ]);
 
   const displaySort = useMemo(
     () => clampSortForTab(tab, costsSort),
@@ -1836,6 +2005,24 @@ export function PersonnelCostsScreen() {
                 </Button>
               </div>
             ) : null}
+            {!personnelPortal ? (
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex-1">
+                  <Input
+                    name="tableSearch"
+                    label={t("personnel.costsTableSearchLabel")}
+                    placeholder={t("personnel.costsTableSearchPlaceholder")}
+                    value={tableSearchInput}
+                    onChange={(e) => setTableSearchInput(e.target.value)}
+                  />
+                </div>
+                {personnelCostsTableQuery.data ? (
+                  <p className="text-xs text-zinc-500 sm:whitespace-nowrap">
+                    {t("personnel.costsTableTotalLabel")}: {personnelCostsTableQuery.data.totalCount}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             {listLoading ? (
               <p className="text-sm text-zinc-500" aria-busy="true">
                 {t("common.loading")}
@@ -1874,6 +2061,16 @@ export function PersonnelCostsScreen() {
                   </p>
                 ) : null}
               </>
+            ) : null}
+            {!personnelPortal && personnelCostsTableQuery.data
+              && personnelCostsTableQuery.data.totalCount > 0 ? (
+              <TablePagination
+                page={tablePage + 1}
+                pageSize={tablePageSize}
+                totalCount={personnelCostsTableQuery.data.totalCount}
+                onPageChange={(p) => setTablePage(Math.max(0, p - 1))}
+                disabled={personnelCostsTableQuery.isFetching}
+              />
             ) : null}
           </div>
         </div>

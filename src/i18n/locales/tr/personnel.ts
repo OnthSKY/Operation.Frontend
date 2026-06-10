@@ -68,6 +68,9 @@ export const personnel = {
     "Tümü sekmesinde avans ve gider birlikte listelenir; tür rozet ile ayrılır.",
   costsSortHintPortal: "Sıralama avans satırlarına burada uygulanır.",
   costsUnifiedEmpty: "Bu görünüm ve filtrelere uygun satır yok.",
+  costsTableSearchLabel: "Tabloda ara",
+  costsTableSearchPlaceholder: "Personel · şube · dış çalışan adı",
+  costsTableTotalLabel: "Toplam kayıt",
   costsSummaryTitle: "Toplamlar (mevcut filtreler)",
   costsSummaryHint:
     "Tutarlar aşağıdaki satırlardan gelir: avanslar liste limitine göre, giderler atanmış satırlardan (aynı yıl / kişi / şube filtresi).",

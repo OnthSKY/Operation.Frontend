@@ -68,6 +68,9 @@ export const personnel = {
     "The All tab lists advances and expenses together; rows are tagged by type.",
   costsSortHintPortal: "Sort applies to advance rows here.",
   costsUnifiedEmpty: "No rows for this view or filters.",
+  costsTableSearchLabel: "Search in table",
+  costsTableSearchPlaceholder: "Personnel · branch · external worker name",
+  costsTableTotalLabel: "Total records",
   costsSummaryTitle: "Totals (current filters)",
   costsSummaryHint:
     "Sums use the rows below: advances from the list limit, expenses from attributed lines (same year / person / branch filters).",
