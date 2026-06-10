@@ -336,7 +336,7 @@ const reportsProductSubNav: readonly ReportSidebarNavItem[] = [
   },
 ];
 
-/** Personel: personel cebindeki kasa (+ ileride maliyet kısayolları). */
+/** Personel: personel zimmetindeki kasa (+ ileride maliyet kısayolları). */
 const reportsPersonnelSubNav: readonly ReportSidebarNavItem[] = [
   {
     href: "/reports/personnel-held-cash",

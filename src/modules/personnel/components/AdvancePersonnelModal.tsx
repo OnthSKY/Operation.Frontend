@@ -47,10 +47,10 @@ type Props = {
   /** Açılışta kişi seçili gelsin (tablo/karttan hızlı avans). */
   initialPersonnelId?: number | null;
   /**
-   * false: yalnızca kasadan (CASH) avans — gün sonu kasiyeri / delegeli akış; patron ve cep kaynağı gizlenir.
+   * false: yalnızca kasadan (CASH) avans — gün sonu kasiyeri / delegeli akış; patron ve zimmetteki kasa kaynağı gizlenir.
    * @default true
    */
-  allowPersonnelPocketAdvance?: boolean;
+  allowHeldRegisterCashAdvance?: boolean;
 };
 
 const TITLE_ID = "advance-title";
@@ -64,7 +64,7 @@ export function AdvancePersonnelModal({
   onClose,
   personnel,
   initialPersonnelId = null,
-  allowPersonnelPocketAdvance = true,
+  allowHeldRegisterCashAdvance = true,
 }: Props) {
   const { t, locale } = useI18n();
   const { data: branches = [] } = useBranchesList();
@@ -103,14 +103,14 @@ export function AdvancePersonnelModal({
     [branches, t]
   );
 
-  const allowExtendedAdvanceSources = allowPersonnelPocketAdvance !== false;
+  const allowExtendedAdvanceSources = allowHeldRegisterCashAdvance !== false;
   const sourceOptions: SelectOption[] = useMemo(() => {
     const cash = { value: "CASH", label: t("personnel.sourceCash") } as const;
     if (!allowExtendedAdvanceSources) return [cash];
     return [
       cash,
       { value: "PATRON", label: t("personnel.sourcePatron") },
-      { value: "PERSONNEL_POCKET", label: t("personnel.sourcePersonnelPocket") },
+      { value: "PERSONNEL_HELD_REGISTER_CASH", label: t("personnel.sourcePersonnelPocket") },
     ];
   }, [t, allowExtendedAdvanceSources]);
 
@@ -152,7 +152,7 @@ export function AdvancePersonnelModal({
     defaultValue: "",
     rules: {
       validate: (v) => {
-        if (!isPersonnelPocketSource) return true;
+        if (!isHeldRegisterSource) return true;
         const n = Number(v);
         if (!v || Number.isNaN(n) || n < 1) return t("personnel.advancePocketSourcePersonRequired");
         return true;
@@ -187,7 +187,7 @@ export function AdvancePersonnelModal({
   const currencyCodeWatch = useWatch({ control, name: "currencyCode" });
   const advanceDateWatch = useWatch({ control, name: "advanceDate" });
   const selectedPersonnel = personnel.find((x) => String(x.id) === personnelId);
-  const isPersonnelPocketSource = (sourceTypeWatch || "CASH").toUpperCase() === "PERSONNEL_POCKET";
+  const isHeldRegisterSource = (sourceTypeWatch || "CASH").toUpperCase() === "PERSONNEL_HELD_REGISTER_CASH";
   /** Held-register bakiyesi işlem gününe kadar; `datetime-local` → YYYY-MM-DD */
   const heldRegisterAsOfYmd = useMemo(() => {
     const raw = String(advanceDateWatch ?? "").trim().slice(0, 10);
@@ -198,12 +198,12 @@ export function AdvancePersonnelModal({
     queries: branches.map((branch) => ({
       queryKey: branchKeys.heldRegisterCashByPerson(branch.id, heldRegisterAsOfYmd),
       queryFn: () => fetchBranchHeldRegisterCashByPerson(branch.id, heldRegisterAsOfYmd),
-      enabled: open && isPersonnelPocketSource && branch.id > 0,
+      enabled: open && isHeldRegisterSource && branch.id > 0,
       staleTime: 30_000,
     })),
   });
 
-  const pocketSourceRows = useMemo(() => {
+  const heldRegisterSourceRows = useMemo(() => {
     const byPersonnelId = new Map<number, { amount: number; fullName: string }>();
     for (const q of heldRegisterCashByBranchQueries) {
       for (const row of q.data ?? []) {
@@ -222,15 +222,15 @@ export function AdvancePersonnelModal({
       .filter((x) => x.amount > 0.009);
   }, [heldRegisterCashByBranchQueries]);
 
-  const eligiblePersonnelIdsForPocket = useMemo(() => {
+  const eligiblePersonnelIdsForHeldRegister = useMemo(() => {
     const set = new Set<number>();
-    for (const row of pocketSourceRows) {
+    for (const row of heldRegisterSourceRows) {
       set.add(row.personnelId);
     }
     return set;
-  }, [pocketSourceRows]);
+  }, [heldRegisterSourceRows]);
 
-  const isPocketSourceLoading = useMemo(
+  const isHeldRegisterSourceLoading = useMemo(
     () => heldRegisterCashByBranchQueries.some((q) => q.isPending),
     [heldRegisterCashByBranchQueries]
   );
@@ -304,7 +304,7 @@ export function AdvancePersonnelModal({
       String(currencyCodeWatch ?? DEFAULT_CURRENCY).trim().toUpperCase() || DEFAULT_CURRENCY;
     return [
       { value: "", label: t("personnel.selectPerson") },
-      ...[...pocketSourceRows]
+      ...[...heldRegisterSourceRows]
       .sort((a, b) => {
         const pA = personnel.find((p) => p.id === a.personnelId);
         const pB = personnel.find((p) => p.id === b.personnelId);
@@ -323,21 +323,21 @@ export function AdvancePersonnelModal({
         };
       }),
     ];
-  }, [t, personnel, pocketSourceRows, currencyCodeWatch, locale]);
+  }, [t, personnel, heldRegisterSourceRows, currencyCodeWatch, locale]);
 
   useEffect(() => {
-    if (!isPersonnelPocketSource) return;
+    if (!isHeldRegisterSource) return;
     const selected = String(sourcePersonnelIdWatch ?? "").trim();
     if (!selected) return;
     const selectedId = Number.parseInt(selected, 10);
-    if (!Number.isFinite(selectedId) || !eligiblePersonnelIdsForPocket.has(selectedId)) {
+    if (!Number.isFinite(selectedId) || !eligiblePersonnelIdsForHeldRegister.has(selectedId)) {
       sourcePersonnelField.onChange("");
     }
   }, [
-    isPersonnelPocketSource,
+    isHeldRegisterSource,
     sourcePersonnelIdWatch,
     sourcePersonnelField,
-    eligiblePersonnelIdsForPocket,
+    eligiblePersonnelIdsForHeldRegister,
   ]);
 
   const onSubmit = handleSubmit(async (values) => {
@@ -361,7 +361,7 @@ export function AdvancePersonnelModal({
         return;
       }
       branchIdForPayload = explicitBranch;
-    } else if (st === "PERSONNEL_POCKET") {
+    } else if (st === "PERSONNEL_HELD_REGISTER_CASH") {
       const sourcePid = Number(values.sourcePersonnelId);
       if (!Number.isFinite(sourcePid) || sourcePid <= 0) {
         notify.error(t("personnel.advancePocketSourcePersonRequired"));
@@ -456,8 +456,8 @@ export function AdvancePersonnelModal({
                   ref={personnelField.ref}
                   error={errors.personnelId?.message}
                 />
-                {isPersonnelPocketSource &&
-                !isPocketSourceLoading &&
+                {isHeldRegisterSource &&
+                !isHeldRegisterSourceLoading &&
                 (sourcePersonnelOptions.length <= 1) ? (
                   <p className="text-xs text-zinc-500">{t("personnel.advancePocketNoEligiblePersonnel")}</p>
                 ) : null}
@@ -483,7 +483,7 @@ export function AdvancePersonnelModal({
                   ref={branchField.ref}
                   error={errors.branchId?.message}
                 />
-                {isPersonnelPocketSource ? (
+                {isHeldRegisterSource ? (
                   <Select
                     label={t("personnel.advancePocketSourcePersonLabel")}
                     labelRequired

@@ -104,7 +104,7 @@ export function PersonnelHeldCashReconciliationScreen() {
             Personel Kasa Bakiyesi Doğrulama
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-relaxed text-zinc-600 sm:text-[0.9375rem]">
-            Tüm personellerin “personel cebindeki kasa parası” bakiyesinin bileşen bazında dökümü.
+            Tüm personellerin “personel zimmetindeki kasa parası” bakiyesinin bileşen bazında dökümü.
             Patron/personele cep alacağı devirleri dahil net bakiye gösterilir; eski (buglı) hesapla
             karşılaştırma yapılır.
           </p>

@@ -13,7 +13,7 @@ export function sourceAbbrev(t: (k: string) => string, st: string): string {
   const u = st.toUpperCase();
   if (u === "PATRON") return t("personnel.advanceSourceAbbrPatron");
   if (u === "BANK") return t("personnel.advanceSourceAbbrBank");
-  if (u === "PERSONNEL_POCKET")
+  if (u === "PERSONNEL_HELD_REGISTER_CASH" || u === "PERSONNEL_POCKET")
     return t("personnel.advanceSourceAbbrPersonnelPocket");
   return t("personnel.advanceSourceAbbrCash");
 }
@@ -26,7 +26,8 @@ export function advanceFundingSourceLabel(
   const u = String(sourceType ?? "").trim().toUpperCase();
   if (u === "PATRON") return t("branch.expensePayPatron");
   if (u === "BANK") return t("personnel.advancePaidFromBank");
-  if (u === "PERSONNEL_POCKET") return t("branch.expensePayPersonnelPocket");
+  if (u === "PERSONNEL_HELD_REGISTER_CASH" || u === "PERSONNEL_POCKET")
+    return t("branch.expensePayPersonnelHeldRegisterCash");
   if (u === "CASH" || u === "") return t("branch.expensePayRegister");
   return sourceAbbrev(t, u);
 }

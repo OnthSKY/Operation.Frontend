@@ -283,6 +283,8 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
       cashOut,
       offRegister,
       showHeld: showHeldRegisterInExpenseTab,
+      // PERSONNEL_POCKET (personel cebi) yeni kayıt için gizli; özet kartı yalnız geçmişte tutar varsa gösterilir.
+      showPocket: pocket > 0.005,
       patronPct: pct(patron),
       registerPct: pct(register),
       pocketPct: pct(pocket),
@@ -519,12 +521,16 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                                 amount: expenseListSourceTotals.patron,
                                 pct: expenseListSourceTotals.patronPct,
                               },
-                              {
-                                key: "pocket",
-                                label: t("branch.expensePayPersonnelPocketShort"),
-                                amount: expenseListSourceTotals.pocket,
-                                pct: expenseListSourceTotals.pocketPct,
-                              },
+                              ...(expenseListSourceTotals.showPocket
+                                ? [
+                                    {
+                                      key: "pocket",
+                                      label: t("branch.expensePayPersonnelPocketShort"),
+                                      amount: expenseListSourceTotals.pocket,
+                                      pct: expenseListSourceTotals.pocketPct,
+                                    },
+                                  ]
+                                : []),
                               ...(expenseListSourceTotals.showHeld
                                 ? [
                                     {

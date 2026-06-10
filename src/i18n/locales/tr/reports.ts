@@ -311,7 +311,7 @@
   sectionTotalsFinancialKpiNote:
     "Gelir = faaliyet geliri (kasaya patron nakdi ve iç kasa devri IN’leri hariç). Gider = operasyonel OUT (kasadan cebi ve patron borcu kapatma satırları hariç). Finans özeti ve şube karşılaştırma ile aynıdır.",
   sectionTotalsExpenseSourceHint:
-    "Gider tutarının altında, bu dönem ve filtrelerdeki operasyonel giderlerin ödeme kaynağı dağılımı gösterilir (şube kasası, patron, personel cebi, cebdeki kasa, belirtilmemiş) — şube hareketlerinde seçilen kaynakla uyumlu.",
+    "Gider tutarının altında, bu dönem ve filtrelerdeki operasyonel giderlerin ödeme kaynağı dağılımı gösterilir (şube kasası, patron, personel cebi, zimmetteki kasa, belirtilmemiş) — şube hareketlerinde seçilen kaynakla uyumlu.",
   sectionByBranchExpenseSourceHint:
     "Şube satırında giderin altındaki kırılım, o şubedeki OUT kayıtlarının ödeme kaynağı alanından hesaplanır.",
   expensePaySourceSublineAria: "Gider ödeme kaynağı dağılımı",
@@ -461,11 +461,11 @@
   expensePayLineCountAbbr: "satır",
   sectionExpensePayment: "Giderler — ödeme kaynağı",
   sectionExpensePaymentDesc:
-    "Kasa, patron, personel cebi veya personelin cebindeki kasa parası; kayıtta işaretlenen OUT gider satırları (muhasebe dışı notlar hariç). Personelin cebindeki kasa parası şirket/şube parasıdır ve şube + sorumlu personel bazında takip edilir.",
+    "Kasa, patron, personel cebi veya personelin zimmetindeki kasa parası; kayıtta işaretlenen OUT gider satırları (muhasebe dışı notlar hariç). Personelin zimmetindeki kasa parası şirket/şube parasıdır ve şube + sorumlu personel bazında takip edilir.",
   colExpensePayTag: "Kaynak",
   chartExpensePayBlockTitle: "Ödeme kaynağı özeti",
   chartExpensePayHint:
-    "Yeşil: şube kasası · mor: patron · kehribar: personel cebi · mavi: personelin cebindeki kasa parası (şirket parası) · gri: kaynak seçilmemiş.",
+    "Yeşil: şube kasası · mor: patron · kehribar: personel cebi · mavi: personelin zimmetindeki kasa parası (şirket parası) · gri: kaynak seçilmemiş.",
   compareCaption: "Karşılaştırılan önceki pencere",
   financialEmptyTitle: "Bu dönem ve filtrede hareket yok",
   financialEmptyBody:
@@ -478,7 +478,7 @@
   chartIncomeVsExpense: "Gelir ve gider",
   chartExpenseMix: "Gider dağılımı (kategori)",
   chartExpenseMixCaption:
-    "Üstte: operasyonel giderlerin ödeme kaynağı (kasa / patron / personel cebi / cebdeki kasa). Altta: gider ana kategorileri.",
+    "Üstte: operasyonel giderlerin ödeme kaynağı (kasa / patron / personel cebi / zimmetteki kasa). Altta: gider ana kategorileri.",
   chartBranchNet: "Şube neti — bu dönem",
   chartBranchDelta: "Önceki döneme göre net değişim",
   chartIncome: "Gelir",

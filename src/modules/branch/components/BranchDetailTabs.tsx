@@ -23,6 +23,7 @@ import type { Branch, BranchRegisterSummary, ExpenseTabPeriodBreakdown } from "@
 import type { BranchTransaction } from "@/types/branch-transaction";
 import type { Personnel } from "@/types/personnel";
 import { cn } from "@/lib/cn";
+import { UI_PERSONNEL_POCKET_ENABLED } from "@/modules/branch/lib/product-ui-flags";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
@@ -375,7 +376,9 @@ export function BranchDetailTabs({
       { value: "REGISTER", label: t("branch.expensePayRegister") },
       { value: "PATRON", label: t("branch.expensePayPatron") },
       { value: "PERSONNEL_HELD_REGISTER_CASH", label: t("branch.expensePayPersonnelHeldRegisterCash") },
-      { value: "PERSONNEL_POCKET", label: t("branch.expensePayPersonnelPocket") },
+      ...(UI_PERSONNEL_POCKET_ENABLED
+        ? [{ value: "PERSONNEL_POCKET", label: t("branch.expensePayPersonnelPocket") }]
+        : []),
     ],
     [t]
   );
@@ -1028,7 +1031,7 @@ export function BranchDetailTabs({
           onClose={closeAdvance}
           personnel={advancePersonnelList}
           initialPersonnelId={advanceInitialPersonId}
-          allowPersonnelPocketAdvance={!branchDayClerkMode}
+          allowHeldRegisterCashAdvance={!branchDayClerkMode}
         />
       ) : null}
 

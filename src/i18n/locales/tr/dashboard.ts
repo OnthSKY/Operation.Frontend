@@ -132,7 +132,7 @@ export const dashboard = {
   ovCardWarehouseDesc: "Aktif depo, ürün çeşitliliği, en yüksek stoklar",
   ovCardFinanceTitle: "Finansal nabız",
   ovCardFinanceDesc: "Birikmiş net ve bugünkü gelir / gider",
-  ovCardCashHeldTitle: "Personel cebindeki kasa",
+  ovCardCashHeldTitle: "Personel zimmetindeki kasa",
   ovCardCashHeldDesc: "Henüz teslim edilmemiş kasa toplamı",
   ovBranchesActiveToday: "{{active}} / {{total}} şube bugün kayıt girdi",
   ovTopStock: "En yüksek stok",

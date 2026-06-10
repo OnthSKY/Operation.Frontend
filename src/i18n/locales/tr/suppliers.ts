@@ -154,7 +154,7 @@ export const suppliers = {
   sourceCash: "Şube kasası",
   sourceBank: "Banka",
   sourcePatron: "Patron",
-  sourcePersonnelHeldRegisterCash: "Personel cebindeki kasa parası",
+  sourcePersonnelHeldRegisterCash: "Personel zimmetindeki kasa parası",
   paymentBranch: "Ödemenin çıktığı şube",
   allocationsHint: "Bu ödeme yalnızca seçili faturaya mahsup edilir.",
   noInvoices: "Filtreye uygun fatura yok.",

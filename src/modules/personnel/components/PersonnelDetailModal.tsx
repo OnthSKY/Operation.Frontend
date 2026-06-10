@@ -446,7 +446,8 @@ function AdvanceHeldRegisterSourceMeta({
   dash: string;
   t: (k: string) => string;
 }) {
-  if (advance.sourceType?.toUpperCase() !== "PERSONNEL_POCKET") return null;
+  const advU = advance.sourceType?.toUpperCase();
+  if (advU !== "PERSONNEL_HELD_REGISTER_CASH" && advU !== "PERSONNEL_POCKET") return null;
   const pid = advance.heldRegisterSourcePersonnelId;
   if (pid == null || pid <= 0) return null;
   return (

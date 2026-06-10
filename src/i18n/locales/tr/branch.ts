@@ -578,7 +578,7 @@ export const branch = {
   dashExpenseSourceBreakdownTitle: "Gider ödeme kaynağı kırılımı",
   dashExpenseSourceBreakdownHint: "Seçilen gün için patron/kasa/personel cebi dağılımı.",
   dashSelectedDayExpenseTotal: "Seçilen gün gider toplamı",
-  dashHeldRegisterCashTitle: "Personel cebindeki kasa nakdi",
+  dashHeldRegisterCashTitle: "Personel zimmetindeki kasa nakdi",
   dashHeldRegisterCashTotal: "Toplam açık kasa nakdi",
   dashHeldRegisterCashTotalHint:
     "Seçilen güne kadar personele devredilmiş ve henüz kasaya dönmemiş net tutar.",
@@ -725,7 +725,7 @@ export const branch = {
   expensesListUnifiedBreakdownHint:
     "Toplam içindeki ödeme kaynağı dağılımı (TL ve yüzde).",
   expensesListExcludesHeldRegisterHint:
-    "Personel cebindeki kasa nakdi devri gider sayılmaz; yalnızca kasa, patron ve personel cebinden ödemeler. Bu satırları görmek için ödeme kaynağı filtresinden «Cebdeki kasa»yı seçin.",
+    "Personel zimmetindeki kasa nakdi devri gider sayılmaz; yalnızca kasa, patron ve personel cebinden ödemeler. Bu satırları görmek için ödeme kaynağı filtresinden «Zimmetteki kasa»yı seçin.",
   expensesAxisCashOut: "Kasadan ödenen (nakit çıkışı)",
   expensesAxisOffRegister: "Kasa dışı (patron / personel cebi)",
   expensesAxisSplitHint:
@@ -824,11 +824,11 @@ export const branch = {
   expensePayRegister: "Şube kasasından ödendi",
   expensePayPatron: "Patron ödedi (kasa dışı)",
   expensePayPersonnelPocket: "Personel cebinden (kasa personele borçlu)",
-  expensePayPersonnelHeldRegisterCash: "Personel cebindeki kasa parasından ödendi",
+  expensePayPersonnelHeldRegisterCash: "Personel zimmetindeki kasa parasından ödendi",
   expensePayRegisterShort: "Kasa",
   expensePayPatronShort: "Patron",
   expensePayPersonnelPocketShort: "Personel cebi",
-  expensePayPersonnelHeldRegisterCashShort: "Cebdeki kasa",
+  expensePayPersonnelHeldRegisterCashShort: "Zimmetteki kasa",
   expensePocketRepayViaRegister: "Kasadan personele",
   expensePocketRepayViaPatron: "Patrondan personele",
   expensePocketPersonLabel: "Ödemeyi yapan personel",
@@ -857,7 +857,7 @@ export const branch = {
   expensePaymentLabel: "Ödeme nasıl karşılandı?",
   expensePaymentUnset: "Belirtilmedi",
   expensePaymentHint:
-    "Kasadan çıkan, patronun karşıladığı, personelin kendi cebinden ödediği (kasa borçlanır) veya personelin cebindeki kasa parasından ödendiği seçeneklerinden birini işaretleyin. «Personelin cebindeki kasa parası» seçeneği patrondan ödeme sayılmaz; kasadan yeni nakit çıkmadan, personele kayıtlı kasa bakiyesinden düşer.",
+    "Kasadan çıkan, patronun karşıladığı, personelin kendi cebinden ödediği (kasa borçlanır) veya personelin zimmetindeki kasa parasından ödendiği seçeneklerinden birini işaretleyin. «Personelin zimmetindeki kasa parası» seçeneği patrondan ödeme sayılmaz; kasadan yeni nakit çıkmadan, personele kayıtlı kasa bakiyesinden düşer.",
   txPersonnelExpenseBranchLabel: "Şube (kasadan ödeme için)",
   txPersonnelExpenseBranchPick: "Şube seçin…",
   txPersonnelExpenseBranchHint:

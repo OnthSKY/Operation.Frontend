@@ -2,7 +2,7 @@ export type CreateAdvanceInput = {
   personnelId: number;
   /** CASH için zorunlu; PATRON için opsiyonel (personel şubesi veya şubesiz). */
   branchId?: number;
-  /** PERSONNEL_POCKET için kasası kullanılan personel. */
+  /** PERSONNEL_HELD_REGISTER_CASH için zimmetindeki kasa parası kullanılan personel. */
   sourcePersonnelId?: number;
   sourceType?: string;
   amount: number;
@@ -24,7 +24,7 @@ export type Advance = {
   description: string | null;
   /** Kasadan düşen şube gider satırına bağlı */
   hasLinkedRegisterExpense?: boolean;
-  /** PERSONNEL_POCKET: cebindeki kasa parası kullanılan personel. */
+  /** PERSONNEL_HELD_REGISTER_CASH: zimmetindeki kasa parası kullanılan personel. */
   heldRegisterSourcePersonnelId?: number | null;
   heldRegisterSourcePersonnelFullName?: string | null;
   linkedBranchTransactionId?: number | null;

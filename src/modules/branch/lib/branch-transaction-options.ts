@@ -1,6 +1,9 @@
 import type { BranchTransaction } from "@/types/branch-transaction";
 import type { SelectOption } from "@/shared/ui/Select";
-import { UI_POCKET_CLAIM_TRANSFER_ENABLED } from "@/modules/branch/lib/product-ui-flags";
+import {
+  UI_POCKET_CLAIM_TRANSFER_ENABLED,
+  UI_PERSONNEL_POCKET_ENABLED,
+} from "@/modules/branch/lib/product-ui-flags";
 
 /** Gelir — ana kategori kodları */
 export const TX_MAIN_IN: { value: string; labelKey: string }[] = [
@@ -63,6 +66,9 @@ export function orderBranchExpenseMainOptions(options: SelectOption[]): SelectOp
       !UI_POCKET_CLAIM_TRANSFER_ENABLED &&
       v === "OUT_PERSONNEL_POCKET_CLAIM_TRANSFER"
     ) {
+      continue;
+    }
+    if (!UI_PERSONNEL_POCKET_ENABLED && v === "OUT_PERSONNEL_POCKET_REPAY") {
       continue;
     }
     const o = byVal.get(v);
@@ -154,9 +160,11 @@ export function txMainOptions(
   const empty = { value: "", label: t("branch.txSelectPlaceholder") };
   const list =
     type.toUpperCase() === "OUT"
-      ? UI_POCKET_CLAIM_TRANSFER_ENABLED
-        ? TX_MAIN_OUT
-        : TX_MAIN_OUT.filter((x) => x.value !== "OUT_PERSONNEL_POCKET_CLAIM_TRANSFER")
+      ? TX_MAIN_OUT.filter((x) => {
+          if (!UI_POCKET_CLAIM_TRANSFER_ENABLED && x.value === "OUT_PERSONNEL_POCKET_CLAIM_TRANSFER") return false;
+          if (!UI_PERSONNEL_POCKET_ENABLED && x.value === "OUT_PERSONNEL_POCKET_REPAY") return false;
+          return true;
+        })
       : TX_MAIN_IN;
   return [empty, ...list.map((x) => ({ value: x.value, label: t(x.labelKey) }))];
 }
@@ -598,9 +606,11 @@ export function buildExpensePaymentSelectOptions(params: {
     return params.orgMode ? [empty, pat] : [empty, reg, pat, held];
   }
   if (params.orgMode) {
-    return [empty, pat, poc];
+    return UI_PERSONNEL_POCKET_ENABLED ? [empty, pat, poc] : [empty, pat];
   }
-  return [empty, reg, pat, held, poc];
+  return UI_PERSONNEL_POCKET_ENABLED
+    ? [empty, reg, pat, held, poc]
+    : [empty, reg, pat, held];
 }
 
 export function txCategoryLine(
