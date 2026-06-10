@@ -224,6 +224,64 @@ export async function fetchAllNonAdvancePersonnelAttributedExpenses(
   return rows.map(normalizeBranchTxRow);
 }
 
+export type PersonnelAttributedExpenseTotalsCurrencyAmount = {
+  currencyCode: string;
+  amount: number;
+  count: number;
+};
+
+export type PersonnelAttributedExpenseCategoryTotal = {
+  classificationCode: string;
+  currencyCode: string;
+  amount: number;
+  count: number;
+};
+
+export type PersonnelAttributedExpenseTotalsResponse = {
+  totalsByCurrency: PersonnelAttributedExpenseTotalsCurrencyAmount[];
+  bySourceBucket: Record<string, PersonnelAttributedExpenseTotalsCurrencyAmount[]>;
+  byCategory: PersonnelAttributedExpenseCategoryTotal[];
+};
+
+/** Personele atfedilen giderlerin sayfa/limit'ten bağımsız ham SUM agregesi (KPI/bucket/kategori kartları için). */
+export async function fetchAllNonAdvancePersonnelAttributedExpenseTotals(): Promise<PersonnelAttributedExpenseTotalsResponse> {
+  const raw = await apiRequest<{
+    totalsByCurrency?: Array<{ currencyCode?: string; amount?: number | string; count?: number | string }>;
+    bySourceBucket?: Record<
+      string,
+      Array<{ currencyCode?: string; amount?: number | string; count?: number | string }>
+    >;
+    byCategory?: Array<{
+      classificationCode?: string;
+      currencyCode?: string;
+      amount?: number | string;
+      count?: number | string;
+    }>;
+  }>("/personnel/attributed-expenses/excluding-advances/totals");
+  const normalizeAmounts = (
+    items: Array<{ currencyCode?: string; amount?: number | string; count?: number | string }> | undefined
+  ): PersonnelAttributedExpenseTotalsCurrencyAmount[] =>
+    (items ?? []).map((r) => ({
+      currencyCode: String(r.currencyCode ?? "TRY").trim().toUpperCase() || "TRY",
+      amount: Number(r.amount ?? 0),
+      count: Number(r.count ?? 0),
+    }));
+  const bucketMap: Record<string, PersonnelAttributedExpenseTotalsCurrencyAmount[]> = {};
+  for (const [k, v] of Object.entries(raw.bySourceBucket ?? {})) {
+    bucketMap[k] = normalizeAmounts(v);
+  }
+  return {
+    totalsByCurrency: normalizeAmounts(raw.totalsByCurrency),
+    bySourceBucket: bucketMap,
+    byCategory: (raw.byCategory ?? []).map((r) => ({
+      classificationCode: String(r.classificationCode ?? "").trim() || "UNCATEGORIZED",
+      currencyCode: String(r.currencyCode ?? "TRY").trim().toUpperCase() || "TRY",
+      amount: Number(r.amount ?? 0),
+      count: Number(r.count ?? 0),
+    })),
+  };
+}
+
 function resolvedClassificationCode(input: CreateBranchTransactionInput): string {
   const direct = input.classificationCode?.trim();
   if (direct) return direct;

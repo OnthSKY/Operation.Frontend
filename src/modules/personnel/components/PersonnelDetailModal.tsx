@@ -425,7 +425,7 @@ function sourceAbbrev(t: (k: string) => string, st: string): string {
   if (u === "PATRON_BRANCH")
     return t("personnel.advanceSourceAbbrPatronBranch");
   if (u === "BANK") return t("personnel.advanceSourceAbbrBank");
-  if (u === "PERSONNEL_POCKET")
+  if (u === "PERSONNEL_HELD_REGISTER_CASH" || u === "PERSONNEL_POCKET")
     return t("personnel.advanceSourceAbbrHeldRegister");
   return t("personnel.advanceSourceAbbrCash");
 }
@@ -1031,6 +1031,10 @@ export function PersonnelDetailModal({
       { value: "", label: t("personnel.detailSourceAll") },
       { value: "CASH", label: t("personnel.detailAdvanceSourceFilterBranch") },
       { value: "PATRON", label: t("personnel.detailAdvanceSourceFilterPatron") },
+      {
+        value: "PERSONNEL_HELD_REGISTER_CASH",
+        label: t("personnel.detailAdvanceSourceFilterHeldRegister"),
+      },
     ],
     [t],
   );
@@ -1051,6 +1055,12 @@ export function PersonnelDetailModal({
     const sf = sourceFilter.trim().toUpperCase();
     if (sf === "CASH" || sf === "PATRON") {
       rows = rows.filter((a) => a.sourceType.toUpperCase() === sf);
+    } else if (sf === "PERSONNEL_HELD_REGISTER_CASH") {
+      // Yeni HELD + geçmiş POCKET avans satırlarını birlikte kapsa.
+      rows = rows.filter((a) => {
+        const st = a.sourceType.toUpperCase();
+        return st === "PERSONNEL_HELD_REGISTER_CASH" || st === "PERSONNEL_POCKET";
+      });
     }
     return rows;
   }, [advancesRaw, costsListSeason, branchFilter, sourceFilter]);

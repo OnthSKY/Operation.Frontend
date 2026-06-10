@@ -118,6 +118,63 @@ export async function deleteAdvance(advanceId: number): Promise<void> {
   await apiRequest<null>(`/advances/${advanceId}`, { method: "DELETE" });
 }
 
+export type AdvanceListTotalsCurrencyAmount = {
+  currencyCode: string;
+  amount: number;
+  count: number;
+};
+
+export type AdvanceListTotalsResponse = {
+  totalsByCurrency: AdvanceListTotalsCurrencyAmount[];
+  bySourceBucket: Record<string, AdvanceListTotalsCurrencyAmount[]>;
+};
+
+export type FetchAllAdvanceTotalsParams = {
+  effectiveYear?: number;
+  personnelId?: number;
+  branchId?: number;
+};
+
+export async function fetchAllAdvanceTotals(
+  params?: FetchAllAdvanceTotalsParams
+): Promise<AdvanceListTotalsResponse> {
+  const q = new URLSearchParams();
+  if (params?.effectiveYear != null && Number.isFinite(params.effectiveYear)) {
+    q.set("effectiveYear", String(Math.trunc(params.effectiveYear)));
+  }
+  if (params?.personnelId != null && params.personnelId > 0) {
+    q.set("personnelId", String(Math.trunc(params.personnelId)));
+  }
+  if (params?.branchId != null && params.branchId > 0) {
+    q.set("branchId", String(Math.trunc(params.branchId)));
+  }
+  const qs = q.toString();
+  const path = qs ? `/advances/all/totals?${qs}` : "/advances/all/totals";
+  const raw = await apiRequest<{
+    totalsByCurrency?: Array<{ currencyCode?: string; amount?: number | string; count?: number | string }>;
+    bySourceBucket?: Record<
+      string,
+      Array<{ currencyCode?: string; amount?: number | string; count?: number | string }>
+    >;
+  }>(path);
+  const normalizeAmounts = (
+    items: Array<{ currencyCode?: string; amount?: number | string; count?: number | string }> | undefined
+  ): AdvanceListTotalsCurrencyAmount[] =>
+    (items ?? []).map((r) => ({
+      currencyCode: normalizeCurrency(r.currencyCode),
+      amount: Number(r.amount ?? 0),
+      count: Number(r.count ?? 0),
+    }));
+  const bucketMap: Record<string, AdvanceListTotalsCurrencyAmount[]> = {};
+  for (const [k, v] of Object.entries(raw.bySourceBucket ?? {})) {
+    bucketMap[k] = normalizeAmounts(v);
+  }
+  return {
+    totalsByCurrency: normalizeAmounts(raw.totalsByCurrency),
+    bySourceBucket: bucketMap,
+  };
+}
+
 /** `GET /advances/delegate-targets` — gün sonu kasiyeri için avans hedefi personeller. */
 export async function fetchAdvanceDelegateTargets(
   branchId: number

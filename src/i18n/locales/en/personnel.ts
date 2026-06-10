@@ -89,7 +89,7 @@ export const personnel = {
   costsSourceBreakdownDesc:
     "Record count and amount totals for owner pocket, personnel pocket, and branch register.",
   costsSourceBucketPatron: "Owner pocket",
-  costsSourceBucketPersonnelPocket: "Personnel pocket / held register cash",
+  costsSourceBucketHeldRegister: "Held register cash with personnel",
   costsSourceBucketRegister: "Branch register",
   costsSourceBucketCountLabel: "Record count",
   costsTopReceiver: "Top receiver",
@@ -948,9 +948,10 @@ export const personnel = {
   detailAdvancesFilters: "Filters",
   detailAdvancesAnyBranch: "All branches",
   detailSourceAll: "All sources",
-  /** Personnel detail — advance filter (branch register vs owner only). */
+  /** Personnel detail — advance filter (branch register / owner / held register cash). */
   detailAdvanceSourceFilterBranch: "Branch",
   detailAdvanceSourceFilterPatron: "Owner",
+  detailAdvanceSourceFilterHeldRegister: "Held register cash",
   detailPageSize: "Page size",
   detailPageSizeOption: "{n} rows",
   detailShowing: "{from}–{to} of {total}",

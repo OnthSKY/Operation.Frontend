@@ -1215,6 +1215,9 @@ export function advanceSourceLabel(code: string, t: (key: string) => string): st
   if (u === "CASH") return t("personnel.sourceCash");
   if (u === "BANK") return t("personnel.sourceBank");
   if (u === "PATRON") return t("personnel.sourcePatron");
+  // Yeni HELD + geçmiş POCKET avans satırları aynı zimmet kaynağına denk gelir.
+  if (u === "PERSONNEL_HELD_REGISTER_CASH" || u === "PERSONNEL_POCKET")
+    return t("personnel.sourceHeldRegisterCash");
   return u ? code : t("personnel.dash");
 }
 

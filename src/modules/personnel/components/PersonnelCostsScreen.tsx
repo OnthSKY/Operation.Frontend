@@ -6,7 +6,10 @@ import { cn } from "@/lib/cn";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { canSeeFinancialReports } from "@/lib/auth/permissions";
 import { isPersonnelPortalRole } from "@/lib/auth/roles";
-import { fetchAllNonAdvancePersonnelAttributedExpenses } from "@/modules/branch/api/branch-transactions-api";
+import {
+  fetchAllNonAdvancePersonnelAttributedExpenses,
+  fetchAllNonAdvancePersonnelAttributedExpenseTotals,
+} from "@/modules/branch/api/branch-transactions-api";
 import { NonAdvanceExpenseSortBar } from "@/modules/personnel/components/NonAdvanceExpenseSortBar";
 import {
   createPersonnelCostColumns,
@@ -32,7 +35,10 @@ import {
 import { PersonnelCostsExpenseModal } from "@/modules/personnel/components/PersonnelCostsExpenseModal";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { useAllContractorPayments, useContractors } from "@/modules/contractors/hooks/useContractorQueries";
-import { fetchAdvancesByPersonnel } from "@/modules/personnel/api/advances-api";
+import {
+  fetchAdvancesByPersonnel,
+  fetchAllAdvanceTotals,
+} from "@/modules/personnel/api/advances-api";
 import {
   defaultPersonnelListFilters,
   personnelKeys,
@@ -117,7 +123,7 @@ function splitPaymentSourceTotalsBody(
 }
 
 type PatronBranchBucket = { key: string; label: string; totals: Map<string, number> };
-type SourceBucketKey = "PATRON" | "PERSONNEL_POCKET" | "REGISTER";
+type SourceBucketKey = "PATRON" | "PERSONNEL_HELD_REGISTER" | "REGISTER";
 type SourceBucketSummary = {
   key: SourceBucketKey;
   count: number;
@@ -225,8 +231,7 @@ function patronByBranchTotalsBody(
 function normalizeAdvancePaymentSource(code: string | null | undefined): SourceBucketKey | null {
   const u = String(code ?? "").trim().toUpperCase();
   if (u === "PATRON") return "PATRON";
-  if (u === "PERSONNEL_HELD_REGISTER_CASH" || u === "PERSONNEL_POCKET")
-    return "PERSONNEL_POCKET";
+  if (u === "PERSONNEL_HELD_REGISTER_CASH") return "PERSONNEL_HELD_REGISTER";
   if (u === "CASH" || u === "BANK" || u === "") return "REGISTER";
   return null;
 }
@@ -234,8 +239,9 @@ function normalizeAdvancePaymentSource(code: string | null | undefined): SourceB
 function normalizeExpensePaymentSource(code: string | null | undefined): SourceBucketKey | null {
   const u = String(code ?? "").trim().toUpperCase();
   if (u === "PATRON") return "PATRON";
-  if (u === "PERSONNEL_POCKET" || u === "PERSONNEL_HELD_REGISTER_CASH")
-    return "PERSONNEL_POCKET";
+  // Eski PERSONNEL_POCKET kayıtları artık üretilmiyor; geçmiş satırlar zimmet bucket'ında toplanır.
+  if (u === "PERSONNEL_HELD_REGISTER_CASH" || u === "PERSONNEL_POCKET")
+    return "PERSONNEL_HELD_REGISTER";
   if (u === "REGISTER") return "REGISTER";
   return null;
 }
@@ -562,8 +568,8 @@ function PersonnelCostsTopSummary({
                 const label =
                   bucket.key === "PATRON"
                     ? t("personnel.costsSourceBucketPatron")
-                    : bucket.key === "PERSONNEL_POCKET"
-                      ? t("personnel.costsSourceBucketPersonnelPocket")
+                    : bucket.key === "PERSONNEL_HELD_REGISTER"
+                      ? t("personnel.costsSourceBucketHeldRegister")
                       : t("personnel.costsSourceBucketRegister");
                 return (
                   <li
@@ -743,8 +749,8 @@ function PersonnelCostsSummaryPanels({
                     <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
                       {bucket.key === "PATRON"
                         ? t("personnel.costsSourceBucketPatron")
-                        : bucket.key === "PERSONNEL_POCKET"
-                          ? t("personnel.costsSourceBucketPersonnelPocket")
+                        : bucket.key === "PERSONNEL_HELD_REGISTER"
+                          ? t("personnel.costsSourceBucketHeldRegister")
                           : t("personnel.costsSourceBucketRegister")}
                     </p>
                     <p className="text-xs font-medium text-zinc-500">
@@ -995,6 +1001,27 @@ export function PersonnelCostsScreen() {
     enabled: !personnelPortal,
   });
 
+  /** Sayfa/limit'ten bağımsız ham SUM (KPI + ödeme yöntemi + kategori kartları). */
+  // Üst kartlar (KPI / ödeme yöntemi / kategori) global özet — tüm personeli kapsar.
+  // Sayfa filtreleri yalnız alttaki listeyi etkiler; yukarıdaki kartlar daima ham sistem geneli totallarını gösterir.
+  const advanceTotalsQuery = useQuery({
+    queryKey: [...personnelKeys.all, "advances", "all-totals", "global"] as const,
+    queryFn: () => fetchAllAdvanceTotals(),
+    enabled: !personnelPortal,
+  });
+
+  const expenseTotalsQuery = useQuery({
+    queryKey: [
+      "personnel",
+      "attributed-expenses",
+      "excluding-advances",
+      "totals",
+      "global",
+    ] as const,
+    queryFn: () => fetchAllNonAdvancePersonnelAttributedExpenseTotals(),
+    enabled: !personnelPortal,
+  });
+
   const advancesData: AdvanceListItem[] = useMemo(() => {
     if (personnelPortal) {
       const raw = ownAdvancesQuery.data ?? [];
@@ -1031,47 +1058,77 @@ export function PersonnelCostsScreen() {
     return filterNonAdvanceExpenseRows(raw, expenseFilterOpts);
   }, [expensesQuery.data, expenseFilterOpts]);
 
+  // Ödeme yöntemi kırılımı — API'nin sunduğu bucket toplamlarını birleştir.
+  // Personel portalında API kapalı; fallback olarak sayfa verisinden hesapla.
   const paymentSourceSplit = useMemo(() => {
     const branch = new Map<string, number>();
     const sourceBuckets: Record<SourceBucketKey, SourceBucketSummary> = {
       PATRON: { key: "PATRON", count: 0, totals: new Map<string, number>() },
-      PERSONNEL_POCKET: {
-        key: "PERSONNEL_POCKET",
+      PERSONNEL_HELD_REGISTER: {
+        key: "PERSONNEL_HELD_REGISTER",
         count: 0,
         totals: new Map<string, number>(),
       },
       REGISTER: { key: "REGISTER", count: 0, totals: new Map<string, number>() },
     };
 
-    const addBucket = (
-      bucket: SourceBucketKey | null,
-      ccy: string | null | undefined,
-      amt: unknown
-    ) => {
-      if (!bucket) return;
-      sourceBuckets[bucket].count += 1;
-      bumpCurrencyMap(sourceBuckets[bucket].totals, ccy, amt);
-    };
-
-    for (const a of advancesData) {
-      const bucket = normalizeAdvancePaymentSource(a.sourceType);
-      addBucket(bucket, a.currencyCode, a.amount);
-      if (bucket === "REGISTER") bumpCurrencyMap(branch, a.currencyCode, a.amount);
-    }
-    for (const r of expensesScopedOnly) {
-      const bucket = normalizeExpensePaymentSource(r.expensePaymentSource);
-      addBucket(bucket, r.currencyCode, r.amount);
-      if (bucket === "REGISTER") bumpCurrencyMap(branch, r.currencyCode, r.amount);
+    if (personnelPortal) {
+      const addBucket = (
+        bucket: SourceBucketKey | null,
+        ccy: string | null | undefined,
+        amt: unknown
+      ) => {
+        if (!bucket) return;
+        sourceBuckets[bucket].count += 1;
+        bumpCurrencyMap(sourceBuckets[bucket].totals, ccy, amt);
+      };
+      for (const a of advancesData) {
+        const bucket = normalizeAdvancePaymentSource(a.sourceType);
+        addBucket(bucket, a.currencyCode, a.amount);
+        if (bucket === "REGISTER") bumpCurrencyMap(branch, a.currencyCode, a.amount);
+      }
+      for (const r of expensesScopedOnly) {
+        const bucket = normalizeExpensePaymentSource(r.expensePaymentSource);
+        addBucket(bucket, r.currencyCode, r.amount);
+        if (bucket === "REGISTER") bumpCurrencyMap(branch, r.currencyCode, r.amount);
+      }
+    } else {
+      const mergeBucket = (
+        bucketKey: SourceBucketKey,
+        rows: Array<{ currencyCode: string; amount: number; count: number }> | undefined
+      ) => {
+        for (const row of rows ?? []) {
+          sourceBuckets[bucketKey].count += row.count;
+          bumpCurrencyMap(sourceBuckets[bucketKey].totals, row.currencyCode, row.amount);
+          if (bucketKey === "REGISTER") {
+            bumpCurrencyMap(branch, row.currencyCode, row.amount);
+          }
+        }
+      };
+      const advBuckets = advanceTotalsQuery.data?.bySourceBucket ?? {};
+      const expBuckets = expenseTotalsQuery.data?.bySourceBucket ?? {};
+      mergeBucket("PATRON", advBuckets.PATRON);
+      mergeBucket("PATRON", expBuckets.PATRON);
+      mergeBucket("PERSONNEL_HELD_REGISTER", advBuckets.PERSONNEL_HELD_REGISTER);
+      mergeBucket("PERSONNEL_HELD_REGISTER", expBuckets.PERSONNEL_HELD_REGISTER);
+      mergeBucket("REGISTER", advBuckets.REGISTER);
+      mergeBucket("REGISTER", expBuckets.REGISTER);
     }
     return {
       branch,
       sourceBuckets: [
         sourceBuckets.PATRON,
-        sourceBuckets.PERSONNEL_POCKET,
+        sourceBuckets.PERSONNEL_HELD_REGISTER,
         sourceBuckets.REGISTER,
       ],
     };
-  }, [advancesData, expensesScopedOnly]);
+  }, [
+    personnelPortal,
+    advancesData,
+    expensesScopedOnly,
+    advanceTotalsQuery.data,
+    expenseTotalsQuery.data,
+  ]);
 
   const paymentFromNorm = paymentFromValue.trim().toUpperCase();
 
@@ -1081,8 +1138,8 @@ export function PersonnelCostsScreen() {
       const st = String(a.sourceType ?? "").trim().toUpperCase();
       if (paymentFromNorm === "REGISTER") return st === "CASH" || st === "";
       if (paymentFromNorm === "PATRON") return st === "PATRON";
-      if (paymentFromNorm === "PERSONNEL_POCKET")
-        return st === "PERSONNEL_HELD_REGISTER_CASH" || st === "PERSONNEL_POCKET";
+      if (paymentFromNorm === "PERSONNEL_HELD_REGISTER")
+        return st === "PERSONNEL_HELD_REGISTER_CASH";
       return false;
     });
   }, [advancesData, paymentFromNorm]);
@@ -1111,14 +1168,25 @@ export function PersonnelCostsScreen() {
     ? ownAdvancesQuery.refetch
     : allAdvancesQuery.refetch;
 
-  const advSums = useMemo(
-    () => sumByCurrency(advancesFiltered),
-    [advancesFiltered]
-  );
-  const expSums = useMemo(
-    () => sumByCurrency(expensesFiltered),
-    [expensesFiltered]
-  );
+  // KPI ve bucket/kategori kartları: ham SUM endpoint'inden — sayfa/limit dışı.
+  // Personel portalında bu endpoint açık değil; fallback olarak yereldeki sayfa toplamı kullanılır.
+  const advSums = useMemo(() => {
+    if (personnelPortal) return sumByCurrency(advancesFiltered);
+    const m = new Map<string, number>();
+    for (const row of advanceTotalsQuery.data?.totalsByCurrency ?? []) {
+      m.set(row.currencyCode, (m.get(row.currencyCode) ?? 0) + row.amount);
+    }
+    return m;
+  }, [personnelPortal, advancesFiltered, advanceTotalsQuery.data]);
+
+  const expSums = useMemo(() => {
+    if (personnelPortal) return sumByCurrency(expensesFiltered);
+    const m = new Map<string, number>();
+    for (const row of expenseTotalsQuery.data?.totalsByCurrency ?? []) {
+      m.set(row.currencyCode, (m.get(row.currencyCode) ?? 0) + row.amount);
+    }
+    return m;
+  }, [personnelPortal, expensesFiltered, expenseTotalsQuery.data]);
 
   const combinedSums = useMemo(() => {
     const m = new Map<string, number>(advSums);
@@ -1165,16 +1233,71 @@ export function PersonnelCostsScreen() {
     },
     [t]
   );
-  const categoryBuckets = useMemo(
-    () =>
-      groupRowsByCategory(
+  // Kategori kırılımı — sayfa/limit dışı ham SUM endpoint'inden.
+  // Personel portalında API kapalı; fallback olarak sayfa verisinden hesapla.
+  const categoryBuckets = useMemo(() => {
+    if (personnelPortal) {
+      return groupRowsByCategory(
         allFilteredRows,
         advanceCategoryLabel,
         uncategorizedLabel,
         resolveCategoryLabel
-      ),
-    [allFilteredRows, advanceCategoryLabel, uncategorizedLabel, resolveCategoryLabel]
-  );
+      );
+    }
+    const buckets: CategoryBucket[] = [];
+    const advTotals = advanceTotalsQuery.data?.totalsByCurrency ?? [];
+    if (advTotals.length) {
+      const totals = new Map<string, number>();
+      let count = 0;
+      for (const row of advTotals) {
+        totals.set(row.currencyCode, (totals.get(row.currencyCode) ?? 0) + row.amount);
+        count += row.count;
+      }
+      buckets.push({
+        key: "advance",
+        label: advanceCategoryLabel,
+        isAdvance: true,
+        count,
+        totals,
+      });
+    }
+    const expCategories = expenseTotalsQuery.data?.byCategory ?? [];
+    const byCode = new Map<string, CategoryBucket>();
+    for (const row of expCategories) {
+      const rawCode =
+        row.classificationCode && row.classificationCode !== "UNCATEGORIZED"
+          ? row.classificationCode
+          : "";
+      const key = `expense:${rawCode || "__none__"}`;
+      let b = byCode.get(key);
+      if (!b) {
+        b = {
+          key,
+          label: rawCode ? resolveCategoryLabel(rawCode) : uncategorizedLabel,
+          isAdvance: false,
+          count: 0,
+          totals: new Map<string, number>(),
+        };
+        byCode.set(key, b);
+      }
+      b.count += row.count;
+      b.totals.set(
+        row.currencyCode,
+        (b.totals.get(row.currencyCode) ?? 0) + row.amount
+      );
+    }
+    // Backend zaten amount DESC sıralı döndürüyor; insertion order'ı koruyalım.
+    for (const b of byCode.values()) buckets.push(b);
+    return buckets;
+  }, [
+    personnelPortal,
+    allFilteredRows,
+    advanceCategoryLabel,
+    uncategorizedLabel,
+    resolveCategoryLabel,
+    advanceTotalsQuery.data,
+    expenseTotalsQuery.data,
+  ]);
 
   const monthlyBuckets = useMemo(
     () => groupRowsByMonth(allFilteredRows),

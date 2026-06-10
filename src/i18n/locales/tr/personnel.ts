@@ -89,7 +89,7 @@ export const personnel = {
   costsSourceBreakdownDesc:
     "Patron cebi, personel cebi ve şube kasasından çıkan kayıt adedi ile tutar özeti.",
   costsSourceBucketPatron: "Patron cebi",
-  costsSourceBucketPersonnelPocket: "Personel cebi / personeldeki kasa",
+  costsSourceBucketHeldRegister: "Personel zimmetindeki kasa",
   costsSourceBucketRegister: "Şube kasası",
   costsSourceBucketCountLabel: "Kayıt adedi",
   costsTopReceiver: "En çok alan kişi",
@@ -960,9 +960,10 @@ export const personnel = {
   detailAdvancesFilters: "Filtreler",
   detailAdvancesAnyBranch: "Tüm şubeler",
   detailSourceAll: "Tüm kaynaklar",
-  /** Personel detay — avans filtresi (yalnız şube kasası / patron). */
+  /** Personel detay — avans filtresi (şube kasası / patron / personel zimmetindeki kasa). */
   detailAdvanceSourceFilterBranch: "Şube",
   detailAdvanceSourceFilterPatron: "Patron",
+  detailAdvanceSourceFilterHeldRegister: "Zimmetteki kasa",
   detailPageSize: "Sayfa boyutu",
   detailPageSizeOption: "{n} satır",
   detailShowing: "{from}–{to} / {total}",
