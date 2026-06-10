@@ -90,7 +90,7 @@ function sourceAbbrev(t: (k: string) => string, st: string): string {
   if (u === "PATRON") return t("personnel.advanceSourceAbbrPatron");
   if (u === "BANK") return t("personnel.advanceSourceAbbrBank");
   if (u === "PERSONNEL_HELD_REGISTER_CASH" || u === "PERSONNEL_POCKET")
-    return t("personnel.advanceSourceAbbrPersonnelPocket");
+    return t("personnel.advanceSourceAbbrHeldRegister");
   return t("personnel.advanceSourceAbbrCash");
 }
 

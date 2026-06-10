@@ -747,14 +747,14 @@ export const personnel = {
   sourceCash: "Branch cash register (posted to branch)",
   sourcePatron: "From owner (not from branch register)",
   sourceBank: "Bank",
-  sourcePersonnelPocket:
+  sourceHeldRegisterCash:
     "Held register cash with personnel (no new drawer cash out)",
-  advancePocketSelectBranchFirst:
+  advanceHeldRegisterSelectBranchFirst:
     "Select a branch first (only personnel with register-owed pocket balance at that branch are listed).",
-  advancePocketSourcePersonLabel: "Personnel whose held register cash will be used",
-  advancePocketSourcePersonRequired:
+  advanceHeldRegisterSourcePersonLabel: "Personnel whose held register cash will be used",
+  advanceHeldRegisterSourcePersonRequired:
     "Select the personnel for held register cash source.",
-  advancePocketNoEligiblePersonnel:
+  advanceHeldRegisterNoEligiblePersonnel:
     "No personnel with register-owed pocket balance for this branch.",
   selectPerson: "Select person",
   advanceCurrency: "Currency",
@@ -793,7 +793,7 @@ export const personnel = {
   advanceSourceAbbrPatron: "Owner",
   advanceSourceAbbrPatronBranch: "Patron branch register",
   advanceSourceAbbrBank: "Bank",
-  advanceSourceAbbrPersonnelPocket: "Pocket",
+  advanceSourceAbbrHeldRegister: "Pocket",
   advancePaidFromBank: "Paid from bank account",
   tableActions: "Actions",
   edit: "Edit",

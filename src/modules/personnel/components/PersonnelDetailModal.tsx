@@ -426,7 +426,7 @@ function sourceAbbrev(t: (k: string) => string, st: string): string {
     return t("personnel.advanceSourceAbbrPatronBranch");
   if (u === "BANK") return t("personnel.advanceSourceAbbrBank");
   if (u === "PERSONNEL_POCKET")
-    return t("personnel.advanceSourceAbbrPersonnelPocket");
+    return t("personnel.advanceSourceAbbrHeldRegister");
   return t("personnel.advanceSourceAbbrCash");
 }
 

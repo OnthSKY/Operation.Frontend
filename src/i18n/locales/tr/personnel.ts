@@ -758,14 +758,14 @@ export const personnel = {
   sourceCash: "Şube kasasından (kasa hareketine yansır)",
   sourcePatron: "Patrondan (şube kasasından düşmez)",
   sourceBank: "Bankadan",
-  sourcePersonnelPocket:
+  sourceHeldRegisterCash:
     "Personelin zimmetindeki kasa parası (kasadan yeni nakit çıkmaz)",
-  advancePocketSelectBranchFirst:
+  advanceHeldRegisterSelectBranchFirst:
     "Önce şube seçin (yalnız bu şubede zimmetinde kasa parası olan personeller listelenir).",
-  advancePocketSourcePersonLabel: "Zimmetindeki kasa parası kullanılacak personel",
-  advancePocketSourcePersonRequired:
+  advanceHeldRegisterSourcePersonLabel: "Zimmetindeki kasa parası kullanılacak personel",
+  advanceHeldRegisterSourcePersonRequired:
     "Personel zimmetindeki kasa parası için personel seçin.",
-  advancePocketNoEligiblePersonnel:
+  advanceHeldRegisterNoEligiblePersonnel:
     "Bu şubede zimmetinde kasa parası bulunan personel yok.",
   selectPerson: "Kişi seçin",
   advanceCurrency: "Para birimi",
@@ -804,7 +804,7 @@ export const personnel = {
   advanceSourceAbbrPatron: "Patron",
   advanceSourceAbbrPatronBranch: "Patron şube kasası",
   advanceSourceAbbrBank: "Banka",
-  advanceSourceAbbrPersonnelPocket: "Cep",
+  advanceSourceAbbrHeldRegister: "Cep",
   advancePaidFromBank: "Banka hesabından",
   tableActions: "İşlemler",
   edit: "Düzenle",

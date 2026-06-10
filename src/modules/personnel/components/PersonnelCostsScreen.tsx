@@ -225,7 +225,8 @@ function patronByBranchTotalsBody(
 function normalizeAdvancePaymentSource(code: string | null | undefined): SourceBucketKey | null {
   const u = String(code ?? "").trim().toUpperCase();
   if (u === "PATRON") return "PATRON";
-  if (u === "PERSONNEL_POCKET") return "PERSONNEL_POCKET";
+  if (u === "PERSONNEL_HELD_REGISTER_CASH" || u === "PERSONNEL_POCKET")
+    return "PERSONNEL_POCKET";
   if (u === "CASH" || u === "BANK" || u === "") return "REGISTER";
   return null;
 }
@@ -1080,6 +1081,8 @@ export function PersonnelCostsScreen() {
       const st = String(a.sourceType ?? "").trim().toUpperCase();
       if (paymentFromNorm === "REGISTER") return st === "CASH" || st === "";
       if (paymentFromNorm === "PATRON") return st === "PATRON";
+      if (paymentFromNorm === "PERSONNEL_POCKET")
+        return st === "PERSONNEL_HELD_REGISTER_CASH" || st === "PERSONNEL_POCKET";
       return false;
     });
   }, [advancesData, paymentFromNorm]);

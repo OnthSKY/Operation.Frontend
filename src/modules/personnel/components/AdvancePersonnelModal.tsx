@@ -110,7 +110,7 @@ export function AdvancePersonnelModal({
     return [
       cash,
       { value: "PATRON", label: t("personnel.sourcePatron") },
-      { value: "PERSONNEL_HELD_REGISTER_CASH", label: t("personnel.sourcePersonnelPocket") },
+      { value: "PERSONNEL_HELD_REGISTER_CASH", label: t("personnel.sourceHeldRegisterCash") },
     ];
   }, [t, allowExtendedAdvanceSources]);
 
@@ -154,7 +154,7 @@ export function AdvancePersonnelModal({
       validate: (v) => {
         if (!isHeldRegisterSource) return true;
         const n = Number(v);
-        if (!v || Number.isNaN(n) || n < 1) return t("personnel.advancePocketSourcePersonRequired");
+        if (!v || Number.isNaN(n) || n < 1) return t("personnel.advanceHeldRegisterSourcePersonRequired");
         return true;
       },
     },
@@ -364,7 +364,7 @@ export function AdvancePersonnelModal({
     } else if (st === "PERSONNEL_HELD_REGISTER_CASH") {
       const sourcePid = Number(values.sourcePersonnelId);
       if (!Number.isFinite(sourcePid) || sourcePid <= 0) {
-        notify.error(t("personnel.advancePocketSourcePersonRequired"));
+        notify.error(t("personnel.advanceHeldRegisterSourcePersonRequired"));
         return;
       }
       sourcePersonnelIdForPayload = sourcePid;
@@ -459,7 +459,7 @@ export function AdvancePersonnelModal({
                 {isHeldRegisterSource &&
                 !isHeldRegisterSourceLoading &&
                 (sourcePersonnelOptions.length <= 1) ? (
-                  <p className="text-xs text-zinc-500">{t("personnel.advancePocketNoEligiblePersonnel")}</p>
+                  <p className="text-xs text-zinc-500">{t("personnel.advanceHeldRegisterNoEligiblePersonnel")}</p>
                 ) : null}
                 <Select
                   label={t("personnel.sourceType")}
@@ -485,7 +485,7 @@ export function AdvancePersonnelModal({
                 />
                 {isHeldRegisterSource ? (
                   <Select
-                    label={t("personnel.advancePocketSourcePersonLabel")}
+                    label={t("personnel.advanceHeldRegisterSourcePersonLabel")}
                     labelRequired
                     options={sourcePersonnelOptions}
                     name={sourcePersonnelField.name}
