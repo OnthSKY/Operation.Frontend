@@ -150,7 +150,7 @@ export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
                   <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:gap-2">
                     <Button
                       type="button"
-                      className="min-h-12 w-full sm:w-auto"
+                      className="!min-h-11 !w-full px-3 text-sm sm:!w-auto sm:px-4"
                       onClick={() => {
                         setTxModalLaunch({ defaultTransactionDate: txDay });
                         setTxModalOpen(true);
@@ -158,20 +158,9 @@ export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
                     >
                       {t("branch.addTx")}
                     </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-12 w-full sm:w-auto"
-                      onClick={() => {
-                        void refetchTx();
-                        void refetchRegSum();
-                      }}
-                    >
-                      {t("branch.refreshTx")}
-                    </Button>
                     <BranchDashboardConsumptionCta
                       branchId={branchId}
-                      className="min-h-12 w-full sm:w-auto"
+                      className="!min-h-11 !w-full sm:!w-auto"
                     />
                   </div>
                 </div>
@@ -691,43 +680,40 @@ export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
                 <p className="mt-2 text-sm text-zinc-500">{t("common.loading")}</p>
               ) : dash ? (
                 <>
-                  <div className="mt-3 flex flex-col gap-3 md:hidden">
+                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
                     <DashCard
                       label={t("branch.dashTodayIncome")}
                       value={formatMoneyDash(dash.todayIncomeTotal, t("personnel.dash"), locale, "TRY")}
                       valueClass="text-emerald-800"
-                    />
-                    <DashCard
-                      label={t("branch.dashAllIncome")}
-                      value={formatMoneyDash(dash.allTimeIncomeTotal, t("personnel.dash"), locale, "TRY")}
-                      valueClass="text-emerald-800"
-                    />
-                  </div>
-                  <div className="mt-3 hidden md:grid md:grid-cols-2 md:gap-3 lg:grid-cols-3">
-                    <DashCard label={t("branch.dashPersonnel")} value={String(dash.personnelCount)} />
-                    <DashCard
-                      label={t("branch.dashAllIncome")}
-                      value={formatMoneyDash(dash.allTimeIncomeTotal, t("personnel.dash"), locale, "TRY")}
-                      valueClass="text-emerald-800"
-                    />
-                    <DashCard
-                      label={t("branch.dashAllExpense")}
-                      value={formatMoneyDash(dash.allTimeExpenseTotal, t("personnel.dash"), locale, "TRY")}
-                      valueClass="text-red-800"
-                    />
-                    <DashCard
-                      label={t("branch.dashCashRegister")}
-                      value={formatMoneyDash(dash.cashRegisterBalance, t("personnel.dash"), locale, "TRY")}
-                    />
-                    <DashCard
-                      label={t("branch.dashTodayIncome")}
-                      value={formatMoneyDash(dash.todayIncomeTotal, t("personnel.dash"), locale, "TRY")}
-                      valueClass="text-emerald-800"
+                      compact
                     />
                     <DashCard
                       label={t("branch.dashTodayExpense")}
                       value={formatMoneyDash(dash.todayExpenseTotal, t("personnel.dash"), locale, "TRY")}
                       valueClass="text-red-800"
+                      compact
+                    />
+                    <DashCard
+                      label={t("branch.dashCashRegister")}
+                      value={formatMoneyDash(dash.cashRegisterBalance, t("personnel.dash"), locale, "TRY")}
+                      compact
+                    />
+                    <DashCard
+                      label={t("branch.dashAllIncome")}
+                      value={formatMoneyDash(dash.allTimeIncomeTotal, t("personnel.dash"), locale, "TRY")}
+                      valueClass="text-emerald-800"
+                      compact
+                    />
+                    <DashCard
+                      label={t("branch.dashAllExpense")}
+                      value={formatMoneyDash(dash.allTimeExpenseTotal, t("personnel.dash"), locale, "TRY")}
+                      valueClass="text-red-800"
+                      compact
+                    />
+                    <DashCard
+                      label={t("branch.dashPersonnel")}
+                      value={String(dash.personnelCount)}
+                      compact
                     />
                   </div>
                 </>
@@ -748,32 +734,24 @@ export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
                     onChange={(e) => setDashboardMonth(e.target.value)}
                     className="w-auto min-w-[10rem]"
                   />
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="min-h-12"
-                    onClick={() => void refetchDash()}
-                  >
-                    {t("branch.refreshTx")}
-                  </Button>
                 </div>
               </div>
               {dashLoading ? (
                 <p className="mt-2 text-sm text-zinc-500">{t("common.loading")}</p>
               ) : dash && !dashErr ? (
-                <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:gap-3">
                   <DashCard
                     label={t("branch.dashMonthIncome")}
                     value={formatMoneyDash(dash.monthIncomeTotal, t("personnel.dash"), locale, "TRY")}
                     valueClass="text-emerald-800"
+                    compact
                   />
-                  <div className="hidden md:block">
-                    <DashCard
-                      label={t("branch.dashMonthExpense")}
-                      value={formatMoneyDash(dash.monthExpenseTotal, t("personnel.dash"), locale, "TRY")}
-                      valueClass="text-red-800"
-                    />
-                  </div>
+                  <DashCard
+                    label={t("branch.dashMonthExpense")}
+                    value={formatMoneyDash(dash.monthExpenseTotal, t("personnel.dash"), locale, "TRY")}
+                    valueClass="text-red-800"
+                    compact
+                  />
                 </div>
               ) : null}
             </section>

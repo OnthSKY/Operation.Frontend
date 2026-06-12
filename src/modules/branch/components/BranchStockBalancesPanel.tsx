@@ -162,11 +162,15 @@ function ProductHistoryModal({
     { dateFrom: "", dateTo: "", includeDeleted: false, page: consPage, pageSize: PAGE_SIZE },
     true
   );
-  const receiptsQ = useBranchStockReceiptsPaged(branchId, {
-    page: recPage,
-    pageSize: PAGE_SIZE,
-    productId: product.id,
-  });
+  const receiptsQ = useBranchStockReceiptsPaged(
+    branchId,
+    {
+      page: recPage,
+      pageSize: PAGE_SIZE,
+      productId: product.id,
+    },
+    true
+  );
 
   // Yeni sayfa veri dönünce mevcut listeye ekle (id ile dedupe).
   if (consumptionsQ.data && accConsumptions.at(-1)?.id !== consumptionsQ.data.items.at(-1)?.id) {

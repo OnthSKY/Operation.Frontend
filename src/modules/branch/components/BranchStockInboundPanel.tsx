@@ -674,7 +674,7 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                 <span className="truncate">{row.createdByUserName.trim()}</span>
               </>
             ) : null}
-            {canSeeRecordMeta && fmtDateTime && row.createdAt ? (
+            {canSeeRecordMeta && row.createdAt ? (
               <>
                 <span aria-hidden className="text-zinc-300">·</span>
                 <span className="whitespace-nowrap text-zinc-400">{fmtDateTime(row.createdAt)}</span>
