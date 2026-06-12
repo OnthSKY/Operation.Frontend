@@ -12,8 +12,8 @@ type ModalProps = {
   open: boolean;
   onClose: () => void;
   titleId: string;
-  title: string;
-  description?: string;
+  title: ReactNode;
+  description?: ReactNode;
   children: ReactNode;
   className?: string;
   /** Arka plan (ör. blur / koyu ton). */

@@ -66,6 +66,16 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
     });
   }
 
+  if (showDocuments) {
+    items.push({
+      id: "documents-records",
+      labelKey: "nav.groupDocumentsRecords",
+      route: "/documents",
+      icon: "documents",
+      children: [{ id: "documents", labelKey: "nav.documents", route: "/documents", icon: "documents" }],
+    });
+  }
+
   if (showReports || showDailyBranchRegister) {
     items.push({
       id: "finance-reporting",
@@ -149,35 +159,6 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
       icon: "personnel",
       mobileVisible: true,
       children: peopleChildren,
-    });
-  }
-
-  if (showPublicSite) {
-    items.push({
-      id: "public-site",
-      labelKey: "nav.publicSiteSection",
-      route: "/public-site/branches",
-      icon: "branch",
-      children: [
-        {
-          id: "public-site-branches",
-          labelKey: "nav.publicSiteBranches",
-          route: "/public-site/branches",
-          icon: "branch",
-        },
-        {
-          id: "public-site-flavors",
-          labelKey: "nav.publicSiteFlavors",
-          route: "/public-site/flavors",
-          icon: "box",
-        },
-        {
-          id: "public-site-content",
-          labelKey: "nav.publicSiteContent",
-          route: "/public-site/content",
-          icon: "branch",
-        },
-      ],
     });
   }
 
@@ -275,16 +256,6 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
     });
   }
 
-  if (showDocuments) {
-    items.push({
-      id: "documents-records",
-      labelKey: "nav.groupDocumentsRecords",
-      route: "/documents",
-      icon: "documents",
-      children: [{ id: "documents", labelKey: "nav.documents", route: "/documents", icon: "documents" }],
-    });
-  }
-
   if (showProcurement) {
     items.push({
       id: "procurement",
@@ -294,6 +265,35 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
       children: [
         { id: "suppliers", labelKey: "nav.suppliers", route: "/suppliers", icon: "suppliers" },
         { id: "supplier-invoices", labelKey: "nav.supplierInvoices", route: "/suppliers/invoices", icon: "invoices" },
+      ],
+    });
+  }
+
+  if (showPublicSite) {
+    items.push({
+      id: "public-site",
+      labelKey: "nav.publicSiteSection",
+      route: "/public-site/branches",
+      icon: "branch",
+      children: [
+        {
+          id: "public-site-branches",
+          labelKey: "nav.publicSiteBranches",
+          route: "/public-site/branches",
+          icon: "branch",
+        },
+        {
+          id: "public-site-flavors",
+          labelKey: "nav.publicSiteFlavors",
+          route: "/public-site/flavors",
+          icon: "box",
+        },
+        {
+          id: "public-site-content",
+          labelKey: "nav.publicSiteContent",
+          route: "/public-site/content",
+          icon: "branch",
+        },
       ],
     });
   }

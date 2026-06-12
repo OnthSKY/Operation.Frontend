@@ -11,6 +11,16 @@ type StickyActionBarProps = {
 
 export function StickyActionBar({ children, className }: StickyActionBarProps) {
   const [keyboardOffset, setKeyboardOffset] = useState(0);
+  const [isMd, setIsMd] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(min-width: 768px)");
+    const update = () => setIsMd(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
 
   useEffect(() => {
     const vv = window.visualViewport;
@@ -33,16 +43,23 @@ export function StickyActionBar({ children, className }: StickyActionBarProps) {
     };
   }, []);
 
+  // Mobil nav dock (max-md `fixed bottom-0`, ~4.35rem) ile çakışmasın diye dock yüksekliği kadar yukarı çek;
+  // md+'da klasik bottom-0. Klavye açılınca keyboardOffset toplanır.
+  const bottom =
+    isMd
+      ? `calc(env(safe-area-inset-bottom,0px) + ${keyboardOffset}px)`
+      : `calc(env(safe-area-inset-bottom,0px) + 4.35rem + ${keyboardOffset}px)`;
   return (
     <div
       role="region"
       aria-label="Sticky actions"
       style={{
-        bottom: keyboardOffset,
+        bottom,
         transition: "bottom 180ms ease",
       }}
       className={cn(
-        "fixed inset-x-0 z-[80] border-t border-zinc-200 bg-white/95 px-4 pb-[env(safe-area-inset-bottom,0px)] pt-2 shadow-[0_-6px_20px_rgba(0,0,0,0.08)] backdrop-blur supports-[backdrop-filter]:bg-white/85",
+        "fixed inset-x-0 z-[80] border-t border-zinc-200 bg-white/95 px-4 pt-2 shadow-[0_-6px_20px_rgba(0,0,0,0.08)] backdrop-blur supports-[backdrop-filter]:bg-white/85",
+        "pb-2 md:pb-[env(safe-area-inset-bottom,0px)]",
         className
       )}
     >

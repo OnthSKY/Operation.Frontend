@@ -3,6 +3,7 @@
 import { RightDrawer } from "@/shared/components/RightDrawer";
 import { CreatedByMeta } from "@/shared/components/CreatedByMeta";
 import { BranchExpenseKindBadge } from "@/modules/branch/components/BranchExpenseKindBadge";
+import { ExpenseAddSplitButton } from "@/modules/branch/components/ExpenseAddSplitButton";
 import type { Locale } from "@/i18n/messages";
 import { branchTransactionReceiptPhotoUrl } from "@/modules/branch/api/branch-transactions-api";
 import {
@@ -352,17 +353,20 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                 {t("branch.expensesActionsTitle")}
               </h3>
               <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
-                <Button
-                  type="button"
-                  className="min-h-11 w-full sm:w-auto"
-                  onClick={() => {
-                    const d = expFrom.length === 10 && expFrom === expTo ? expFrom : localIsoDate();
-                    setTxModalLaunch({ defaultType: "OUT", defaultTransactionDate: d });
-                    setTxModalOpen(true);
-                  }}
-                >
-                  {t("branch.addExpenseTx")}
-                </Button>
+                {branchIdForTourismLink ? (
+                  <ExpenseAddSplitButton
+                    branchId={branchIdForTourismLink}
+                    onSelectOpsExpense={() => {
+                      const d = expFrom.length === 10 && expFrom === expTo ? expFrom : localIsoDate();
+                      setTxModalLaunch({
+                        defaultType: "OUT",
+                        defaultTransactionDate: d,
+                        defaultMainCategory: "OUT_OPS",
+                      });
+                      setTxModalOpen(true);
+                    }}
+                  />
+                ) : null}
               </div>
               <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50/70 p-3">
                 <p className="text-xs font-semibold text-zinc-700">{t("branch.expenseQuickFiltersLead")}</p>

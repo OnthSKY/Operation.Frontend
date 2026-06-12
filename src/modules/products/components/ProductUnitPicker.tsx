@@ -72,14 +72,17 @@ export function ProductUnitPicker({
     return list;
   }, [units, base]);
 
-  // Multi-unit yok ve legacy birim de yok → seçici göstermek anlamsız.
+  // Tek birim varsa (multi-unit kurulmamış) — düzenlenemez chip olarak göster ki
+  // sütun boş kalmasın, kullanıcı ana birimi yine de görebilsin.
   if (options.length <= 1 && units.length === 0) {
-    return null;
+    if (!base) return null;
+    return (
+      <StaticUnitChip label={label} unit={base} />
+    );
   }
-
-  // Tek seçenek varsa (yalnız temel birim, alternatif yok) yine gizle — parent
-  // empty string'le çalışır, backend legacy yolda kalır.
-  if (options.length === 1) return null;
+  if (options.length === 1) {
+    return <StaticUnitChip label={label} unit={base || options[0].value} />;
+  }
 
   // İlk render: değer boş ve productId varsa preferredContext default'una set et.
   const initial = (() => {
@@ -105,5 +108,21 @@ export function ProductUnitPicker({
       onBlur={() => {}}
       disabled={disabled}
     />
+  );
+}
+
+function StaticUnitChip({ label, unit }: { label: string; unit: string }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      {label ? (
+        <span className="text-sm font-medium text-zinc-700">{label}</span>
+      ) : null}
+      <span
+        aria-disabled
+        className="inline-flex h-10 min-h-10 items-center rounded-md border border-zinc-200 bg-zinc-50 px-3 text-sm font-medium text-zinc-700"
+      >
+        {unit}
+      </span>
+    </div>
   );
 }

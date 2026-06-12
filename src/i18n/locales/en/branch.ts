@@ -714,6 +714,20 @@ export const branch = {
   expensesListDatesSummaryLead:
     "Set start and end under «Filters». Same day: that day’s register bridge; a range: filtered expense total, owner-paid expense total, and row count. Empty dates default to today.",
   expensesListFilteredTotal: "Filtered expense total",
+  expenseAddOps: "Operating Expense",
+  expenseAddOpsHint: "Rent, utilities, maintenance, fuel — paid from register",
+  expenseAddSupplier: "Supplier Invoice",
+  expenseAddSupplierHint: "Stocked/non-stocked invoice with payment plan",
+  expenseAddOverhead: "General Overhead Pool",
+  expenseAddOverheadHint: "Shared expense allocated across branches",
+  expenseAddMoreOptions: "More expense types",
+  expenseAddPickTitle: "What kind of expense?",
+  txCashHandoverSummaryTitle: "Cash handover summary",
+  txCashHandoverEnteredCash: "Cash income entered:",
+  txCashHandoverPriorExpenses: "Day expenses from register:",
+  txCashHandoverBundledExpenses: "Newly added register expenses:",
+  txCashHandoverNetTransfer: "Net cash to transfer:",
+  txCashHandoverHint: "Register expenses are automatically deducted from the entered cash income before transfer.",
   expensesListFilterScopeHint: "Filter scope",
   expensesListUnifiedBreakdownHint:
     "Payment-source split within this total (amount and percentage).",
@@ -1176,6 +1190,19 @@ export const branch = {
   txRoutingHintOutPersonnel:
     "Per-personnel expense: here or Personnel › Costs. You can attach advance / payroll links when saving or add them later.",
   txNotifyIncomplete: "Please fill in the fields marked with *.",
+  txAmountTotalLabel: "Total amount",
+  txDayCloseBundledExpenseAddAnother: "Add another expense",
+  expenseHeldRegisterPickerCrossBranchHint:
+    "Showing held register cash balances aggregated across all branches.",
+  txPersonnelExpenseHeroLabel: "Personnel Expense",
+  txPersonnelExpenseHeroInfoAria: "Personnel expense info",
+  txPersonnelExpenseHeroInfoBody:
+    "Choosing branch register deducts from register cash; owner or held cash does not. Pick a sub-type and payment source; effective year/season is attributed automatically.",
+  txDayCloseHeroLabel: "Day-End Close",
+  txDayCloseHeroLine: "closing this day financially",
+  txDayCloseHeroInfoAria: "Day-end info",
+  txDayCloseHeroInfoBody:
+    "Once confirmed, this day will no longer accept new register expenses or income. Any remaining same-day expenses can still be added from the «same-day expense» panel below.",
   txStoryIncomeCallout:
     "Income is money received at the branch. Card/POS typically settles at the bank; for cash in hand you can optionally mark where that physical cash ended up.",
   txStoryExpenseCallout:
@@ -1227,11 +1254,8 @@ export const branch = {
   txNonPnlBadge: "Outside P&L",
   txSubSaleRetail: "Retail sale",
   txSubSaleWholesale: "Wholesale sale",
-  txSubSaleOther: "Other sales",
   txSubSvcConsult: "Consulting / fee",
   txSubSvcRepair: "Repair / service work",
-  txSubSvcOther: "Other services",
-  txSubIncRegister: "Register intake (cash / card)",
   txSubIncOther: "Other income",
   txAmountCash: "Cash",
   txAmountCard: "Card (POS / bank)",

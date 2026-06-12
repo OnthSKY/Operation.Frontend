@@ -4,16 +4,12 @@
  */
 export const ledgerClass = {
   // Gelir
-  IN_REGISTER_SALE: "Kasa satışı",
   IN_DAY_CLOSE: "Gün sonu",
   IN_SALES_RETAIL: "Perakende satış",
   IN_SALES_WHOLESALE: "Toptan satış",
-  IN_SALES_OTHER: "Diğer satış",
   IN_SERVICE_CONSULT: "Danışmanlık geliri",
   IN_SERVICE_REPAIR: "Tamir/servis geliri",
-  IN_SERVICE_OTHER: "Diğer hizmet geliri",
   IN_OTHER_MISC: "Diğer gelir",
-  IN_OTHER_REGISTER: "Kasa — diğer gelir",
   IN_PATRON_CASH: "Patron nakit girişi",
 
   // Personel giderleri

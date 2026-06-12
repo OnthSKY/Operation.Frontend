@@ -37,7 +37,7 @@ export function DesktopSidebar({ badgeState }: { badgeState: NavBadgeState }) {
     () => resolveMostSpecificRoute(pathname, sortedItems),
     [pathname, sortedItems]
   );
-  const [openGroups, setOpenGroups] = useState<string[]>(["overview-group", "finance-reporting"]);
+  const [openGroups, setOpenGroups] = useState<string[]>(["overview-group"]);
   const [collapsed, setCollapsed] = useState(false);
 
   useEffect(() => {
@@ -60,6 +60,21 @@ export function DesktopSidebar({ badgeState }: { badgeState: NavBadgeState }) {
       // Ignore storage write failures
     }
   }, [openGroups]);
+
+  // Aktif route hangi top-level grupta ise o grubu auto-expand et.
+  useEffect(() => {
+    if (!activeRoute) return;
+    const containing = sortedItems.find((g) =>
+      g.children?.some(
+        (c) =>
+          c.route === activeRoute ||
+          c.children?.some((sub) => sub.route === activeRoute)
+      )
+    );
+    if (containing) {
+      setOpenGroups((prev) => (prev.includes(containing.id) ? prev : [...prev, containing.id]));
+    }
+  }, [activeRoute, sortedItems]);
 
   useEffect(() => {
     try {

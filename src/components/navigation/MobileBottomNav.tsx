@@ -41,20 +41,32 @@ type DockTabContentProps = {
   icon: ReactNode;
 };
 
+/**
+ * Kompakt + aktif genişler stili (Apple/iOS pill).
+ *  - Pasif tab: yalnız ikon (kare ~44px).
+ *  - Aktif tab: ikon + label yatay pill, parent flex-grow ile genişler.
+ *  - Geçişler: spring-like cubic-bezier ile width + opacity animasyonu.
+ */
 function DockTabContent({ active, caption, captionTitle, badge, icon }: DockTabContentProps) {
   return (
     <>
       {active ? (
         <span
-          className="pointer-events-none absolute inset-x-0.5 inset-y-0.5 rounded-[0.875rem] bg-gradient-to-b from-white via-violet-50/80 to-indigo-50/95 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.88),0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-violet-200/55"
+          className="pointer-events-none absolute inset-x-0.5 inset-y-0.5 rounded-full bg-gradient-to-b from-violet-100 via-violet-50 to-indigo-50/90 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.92),0_1px_3px_rgba(91,33,182,0.12)] ring-1 ring-violet-300/55"
           aria-hidden
         />
       ) : null}
-      <span className="relative z-10 flex min-h-[3.125rem] w-full min-w-0 flex-col items-center justify-center gap-0.5 px-0.5 py-1">
-        <span className="relative inline-flex h-8 w-8 shrink-0 items-center justify-center">
+      <span
+        className={`relative z-10 flex min-h-[2.75rem] min-w-0 items-center justify-center gap-1.5 px-2.5 py-1 ${
+          active ? "pr-3.5" : ""
+        }`}
+      >
+        <span className="relative inline-flex h-7 w-7 shrink-0 items-center justify-center">
           <span
-            className={`transition-[color,transform] duration-200 ease-out will-change-transform group-active:scale-[0.94] ${
-              active ? "text-violet-700" : "text-zinc-500 group-active:text-zinc-700"
+            className={`transition-[color,transform] duration-200 ease-out will-change-transform group-active:scale-[0.92] ${
+              active
+                ? "text-violet-700 scale-105"
+                : "text-zinc-500 group-active:text-zinc-700"
             }`}
           >
             {icon}
@@ -63,8 +75,9 @@ function DockTabContent({ active, caption, captionTitle, badge, icon }: DockTabC
         </span>
         <span
           title={captionTitle}
-          className={`w-full min-w-0 max-w-full truncate px-0.5 text-center text-[10px] font-medium leading-tight tracking-[-0.01em] antialiased sm:text-[11px] ${
-            active ? "font-semibold text-zinc-900" : "text-zinc-500"
+          aria-hidden={!active}
+          className={`min-w-0 overflow-hidden whitespace-nowrap text-[12px] font-semibold tracking-[-0.01em] text-violet-900 antialiased transition-[max-width,opacity,margin] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+            active ? "max-w-[160px] opacity-100" : "max-w-0 opacity-0"
           }`}
         >
           {caption}
@@ -103,10 +116,7 @@ export function MobileBottomNav({ onOpenMore, badgeState }: MobileBottomNavProps
             className="rounded-[1.125rem] border border-zinc-200/70 bg-white/55 px-1 py-1 shadow-[0_-1px_0_0_rgba(255,255,255,0.65)_inset,0_12px_40px_-14px_rgba(15,23,42,0.12),0_0_0_1px_rgba(15,23,42,0.03)] backdrop-blur-2xl supports-[backdrop-filter]:bg-white/50 sm:px-1.5"
             role="presentation"
           >
-            <div
-              className="grid gap-0.5"
-              style={{ gridTemplateColumns: "repeat(5, minmax(0, 1fr))" }}
-            >
+            <div className="flex items-center gap-0.5">
               {mobileItems.map((item) => {
                 const active = isActiveRoute(pathname, item.route);
                 const badge = item.sourceItem ? resolveBadge(item.sourceItem, badgeState) : null;
@@ -117,10 +127,13 @@ export function MobileBottomNav({ onOpenMore, badgeState }: MobileBottomNavProps
                     href={item.route}
                     prefetch
                     title={item.label}
-                    className={`group relative flex min-h-[44px] min-w-[44px] w-full flex-col items-center justify-center rounded-[0.875rem] outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-violet-500/45 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-100/80 ${
-                      active ? "text-zinc-900" : "text-zinc-500"
+                    className={`group relative flex min-h-[44px] items-center justify-center rounded-full outline-none transition-[flex,color] duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] focus-visible:ring-2 focus-visible:ring-violet-500/45 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-100/80 ${
+                      active
+                        ? "flex-[2_1_0%] text-zinc-900"
+                        : "flex-[1_1_0%] text-zinc-500"
                     }`}
                     aria-label={item.label}
+                    aria-current={active ? "page" : undefined}
                     onClick={() => trackNavClick(item.route)}
                   >
                     <DockTabContent
@@ -135,7 +148,7 @@ export function MobileBottomNav({ onOpenMore, badgeState }: MobileBottomNavProps
               })}
               <button
                 type="button"
-                className="group relative flex min-h-[44px] min-w-[44px] w-full flex-col items-center justify-center rounded-[0.875rem] text-zinc-500 outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-violet-500/45 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-100/80 active:text-zinc-700"
+                className="group relative flex min-h-[44px] flex-[1_1_0%] items-center justify-center rounded-full text-zinc-500 outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-violet-500/45 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-100/80 active:text-zinc-700"
                 aria-label={t("nav.menuOpen")}
                 onClick={onOpenMore}
               >

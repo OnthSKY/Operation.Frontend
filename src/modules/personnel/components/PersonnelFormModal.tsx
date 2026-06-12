@@ -587,13 +587,15 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
       title={isEdit ? t("personnel.editTitle") : t("personnel.addTitle")}
       description={isEdit ? t("personnel.editHint") : t("personnel.addHint")}
       closeButtonLabel={t("common.close")}
-      className="w-full max-w-2xl lg:max-w-3xl"
+      bodyScroll
+      className="w-full max-w-3xl lg:max-w-5xl xl:max-w-6xl"
     >
       <form onSubmit={onSubmit}>
         <ModalFormLayout
           body={
             <>
               <FormSection>
+        <div className="grid gap-3 sm:grid-cols-2">
         <Input
           label={t("personnel.fieldFullName")}
           labelRequired
@@ -692,7 +694,42 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
             />
           )}
         />
-        <p className="text-xs text-zinc-500">{t("personnel.fieldHireDateHint")}</p>
+        <Select
+          label={t("personnel.fieldBranch")}
+          options={branchOptions}
+          name={branchField.name}
+          value={String(branchField.value ?? "")}
+          onChange={(e) => branchField.onChange(e.target.value)}
+          onBlur={branchField.onBlur}
+          ref={branchField.ref}
+          error={errors.branchId?.message}
+        />
+        <Input
+          label={t("personnel.fieldSalary")}
+          inputMode="decimal"
+          autoComplete="off"
+          placeholder={t("personnel.fieldOptionalPlaceholder")}
+          name={salaryField.name}
+          value={salaryField.value}
+          onChange={(e) => salaryField.onChange(e.target.value)}
+          onBlur={(e) => {
+            const raw = e.target.value.trim();
+            if (!raw) {
+              salaryField.onChange("");
+              salaryField.onBlur();
+              return;
+            }
+            const n = parseLocaleAmount(raw, locale);
+            if (Number.isFinite(n) && n >= 0) {
+              salaryField.onChange(formatLocaleAmount(n, locale));
+            }
+            salaryField.onBlur();
+          }}
+          ref={salaryField.ref}
+          error={errors.salary?.message}
+        />
+        <p className="sm:col-span-2 text-xs text-zinc-500">{t("personnel.fieldHireDateHint")}</p>
+        </div>
         {!isEdit ? (
           <div className="rounded-xl border border-zinc-200/90 bg-zinc-50/60 p-4">
             <label className="flex cursor-pointer items-start gap-3">
@@ -753,81 +790,70 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
             ) : null}
           </div>
         ) : null}
-        <div className="flex flex-col gap-1">
-          <Controller
-            name="insuranceIntakeStartDate"
-            control={control}
-            render={({ field }) => (
-              <DateField
-                label={t("personnel.fieldInsuranceIntakeStartDate")}
-                name={field.name}
-                value={field.value}
-                onChange={field.onChange}
-                onBlur={field.onBlur}
-                ref={field.ref}
+        <details className="group rounded-xl border border-zinc-200/90 bg-zinc-50/60 p-4 open:pb-4">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+            <p className="text-xs font-bold uppercase tracking-wide text-zinc-500">
+              {t("personnel.insuranceSectionTitle")}
+            </p>
+            <span aria-hidden className="shrink-0 text-zinc-500 transition group-open:rotate-180">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </span>
+          </summary>
+          <div className="mt-4 space-y-3">
+            <div className="flex flex-col gap-1">
+              <Controller
+                name="insuranceIntakeStartDate"
+                control={control}
+                render={({ field }) => (
+                  <DateField
+                    label={t("personnel.fieldInsuranceIntakeStartDate")}
+                    name={field.name}
+                    value={field.value}
+                    onChange={field.onChange}
+                    onBlur={field.onBlur}
+                    ref={field.ref}
+                  />
+                )}
               />
-            )}
-          />
-          <p className="text-xs text-zinc-500">
-            {t("personnel.fieldInsuranceIntakeStartDateHint")}
-          </p>
-        </div>
-        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-200/90 bg-zinc-50/60 p-4">
-          <input
-            type="checkbox"
-            className="mt-1 h-4 w-4 rounded border-zinc-300 text-zinc-900"
-            checked={insuranceAccountingNotifiedField.value}
-            onChange={(e) =>
-              insuranceAccountingNotifiedField.onChange(e.target.checked)
-            }
-            onBlur={insuranceAccountingNotifiedField.onBlur}
-            ref={insuranceAccountingNotifiedField.ref}
-          />
-          <span className="text-sm text-zinc-800">
-            {t("personnel.insuranceAccountingNotifiedLabel")}
-          </span>
-        </label>
-        <Input
-          label={t("personnel.fieldSalary")}
-          inputMode="decimal"
-          autoComplete="off"
-          placeholder={t("personnel.fieldOptionalPlaceholder")}
-          name={salaryField.name}
-          value={salaryField.value}
-          onChange={(e) => salaryField.onChange(e.target.value)}
-          onBlur={(e) => {
-            const raw = e.target.value.trim();
-            if (!raw) {
-              salaryField.onChange("");
-              salaryField.onBlur();
-              return;
-            }
-            const n = parseLocaleAmount(raw, locale);
-            if (Number.isFinite(n) && n >= 0) {
-              salaryField.onChange(formatLocaleAmount(n, locale));
-            }
-            salaryField.onBlur();
-          }}
-          ref={salaryField.ref}
-          error={errors.salary?.message}
-        />
-        <Select
-          label={t("personnel.fieldBranch")}
-          options={branchOptions}
-          name={branchField.name}
-          value={String(branchField.value ?? "")}
-          onChange={(e) => branchField.onChange(e.target.value)}
-          onBlur={branchField.onBlur}
-          ref={branchField.ref}
-          error={errors.branchId?.message}
-        />
-        <div className="rounded-xl border border-zinc-200/90 bg-zinc-50/60 p-4">
-          <p className="text-xs font-bold uppercase tracking-wide text-zinc-500">
-            {t("personnel.identitySectionTitle")}
-          </p>
-          <p className="mt-2 text-xs text-zinc-500">
-            {t("personnel.identitySectionHint")}
-          </p>
+              <p className="text-xs text-zinc-500">
+                {t("personnel.fieldInsuranceIntakeStartDateHint")}
+              </p>
+            </div>
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-200/90 bg-white p-3">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-zinc-300 text-zinc-900"
+                checked={insuranceAccountingNotifiedField.value}
+                onChange={(e) =>
+                  insuranceAccountingNotifiedField.onChange(e.target.checked)
+                }
+                onBlur={insuranceAccountingNotifiedField.onBlur}
+                ref={insuranceAccountingNotifiedField.ref}
+              />
+              <span className="text-sm text-zinc-800">
+                {t("personnel.insuranceAccountingNotifiedLabel")}
+              </span>
+            </label>
+          </div>
+        </details>
+        <details className="group rounded-xl border border-zinc-200/90 bg-zinc-50/60 p-4 open:pb-4">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-wide text-zinc-500">
+                {t("personnel.identitySectionTitle")}
+              </p>
+              <p className="mt-1 text-xs text-zinc-500">
+                {t("personnel.identitySectionHint")}
+              </p>
+            </div>
+            <span aria-hidden className="shrink-0 text-zinc-500 transition group-open:rotate-180">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </span>
+          </summary>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <Controller
               name="birthDate"
@@ -1080,12 +1106,19 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
               </div>
             </div>
           </div>
-        </div>
+        </details>
         {!isEdit && isAdmin ? (
-          <div className="rounded-xl border border-zinc-200/90 bg-zinc-50/80 p-4">
+          <details className="group rounded-xl border border-zinc-200/90 bg-zinc-50/80 p-4 open:pb-4">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
             <p className="text-xs font-bold uppercase tracking-wide text-zinc-500">
               {t("personnel.createUserSection")}
             </p>
+            <span aria-hidden className="shrink-0 text-zinc-500 transition group-open:rotate-180">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </span>
+          </summary>
             <label className="mt-3 flex cursor-pointer items-start gap-3">
               <input
                 type="checkbox"
@@ -1144,7 +1177,7 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
                 />
               </div>
             ) : null}
-          </div>
+          </details>
         ) : null}
               </FormSection>
             </>

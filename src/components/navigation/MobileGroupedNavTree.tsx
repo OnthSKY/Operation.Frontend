@@ -15,8 +15,8 @@ import {
 } from "./navigation-utils";
 import type { NavigationItem } from "./navigation-mapper";
 
-const OPEN_GROUPS_STORAGE_KEY = "ops.nav.mobile.openGroups";
-const DEFAULT_OPEN_GROUPS = ["overview-group", "finance-reporting"] as const;
+const OPEN_GROUPS_STORAGE_KEY = "ops.nav.mobile.openGroups.v2";
+const DEFAULT_OPEN_GROUPS = ["overview-group"] as const;
 
 export type MobileGroupedNavTreeProps = {
   sortedItems: NavigationItem[];
@@ -72,6 +72,21 @@ export function MobileGroupedNavTree({
       // ignore
     }
   }, [openGroups]);
+
+  // Aktif route hangi top-level grupta ise o grubu auto-expand et (mevcut açık olanlara eklenir).
+  useEffect(() => {
+    if (!activeRoute) return;
+    const containing = sortedItems.find(
+      (g) =>
+        g.children?.some((c) =>
+          c.route === activeRoute ||
+          c.children?.some((sub) => sub.route === activeRoute)
+        )
+    );
+    if (containing && !openGroups.includes(containing.id)) {
+      setOpenGroups((prev) => (prev.includes(containing.id) ? prev : [...prev, containing.id]));
+    }
+  }, [activeRoute, sortedItems, openGroups]);
 
   const toggleGroup = (groupId: string) => {
     setOpenGroups((prev) =>

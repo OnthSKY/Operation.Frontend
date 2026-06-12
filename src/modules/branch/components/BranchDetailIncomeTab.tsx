@@ -309,10 +309,15 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
         aria-label={t("branch.incomeActionsTitle")}
       >
         <h3 className="mb-2 text-sm font-semibold text-zinc-900">{t("branch.incomeActionsTitle")}</h3>
-        <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
+        <div
+          className={cn(
+            "grid gap-1.5 sm:flex sm:flex-wrap sm:gap-2",
+            canEditRegisterIncomeCashSettlement ? "grid-cols-3" : "grid-cols-2"
+          )}
+        >
           <Button
             type="button"
-            className="min-h-11 w-full sm:w-auto"
+            className="!min-h-11 !w-full px-2 text-xs leading-tight sm:!w-auto sm:px-4 sm:text-sm"
             onClick={() => {
               const d = incFrom.length === 10 && incFrom === incTo ? incFrom : localIsoDate();
               setTxModalLaunch({ defaultType: "IN", defaultTransactionDate: d });
@@ -324,7 +329,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
           <Button
             type="button"
             variant="secondary"
-            className="min-h-11 w-full sm:w-auto"
+            className="!min-h-11 !w-full px-2 text-xs leading-tight sm:!w-auto sm:px-4 sm:text-sm"
             onClick={() => {
               const d = incFrom.length === 10 && incFrom === incTo ? incFrom : localIsoDate();
               setTxModalLaunch({
@@ -341,7 +346,7 @@ export function BranchDetailIncomeTab(props: BranchDetailIncomeTabProps) {
             <Button
               type="button"
               variant="secondary"
-              className="min-h-11 w-full sm:w-auto"
+              className="!min-h-11 !w-full px-2 text-xs leading-tight sm:!w-auto sm:px-4 sm:text-sm"
               onClick={() => setCashSettleDialog({ mode: "bulk" })}
             >
               {t("branch.registerCashSettlementOpenBulk")}

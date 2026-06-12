@@ -445,6 +445,8 @@ export const branch = {
   tSeasonDeleteAsk: "Bu kaydı silinsin mi?",
   tSeasonDeleteConfirm: "Evet, sil",
   tSeasonStillOpen: "Açık (kapanış yok)",
+  tSeasonStatusOpen: "Şu an açık",
+  tSeasonStatusClosed: "Şu an kapalı",
   tSeasonColYear: "Sezon yılı",
   tSeasonColOpened: "Açılış",
   tSeasonColClosed: "Kapanış",
@@ -721,6 +723,20 @@ export const branch = {
   expensesListDatesSummaryLead:
     "Başlangıç ve bitişi «Filtreler»den ayarlayın. Tek günde o günün gün sonu köprüsü; farklı günlerde aralıkta filtrelenen gider toplamı, patron ödemeli gider ve satır sayısı. Tüm tarihler boşsa bugün varsayılır.",
   expensesListFilteredTotal: "Filtrelenen gider toplamı",
+  expenseAddOps: "İşletme Gideri",
+  expenseAddOpsHint: "Kira, fatura, bakım, yakıt vb. — kasadan ödenen",
+  expenseAddSupplier: "Tedarikçi Faturası",
+  expenseAddSupplierHint: "Stoklu/stoksuz fatura, ödeme planlı",
+  expenseAddOverhead: "Genel Gider Havuzu",
+  expenseAddOverheadHint: "Çok şubeye dağılan ortak gider",
+  expenseAddMoreOptions: "Diğer gider türleri",
+  expenseAddPickTitle: "Ne tür gider ekleyeceksin?",
+  txCashHandoverSummaryTitle: "Nakit Devir Özeti",
+  txCashHandoverEnteredCash: "Girilen Nakit Gelir:",
+  txCashHandoverPriorExpenses: "Gün İçi Kasa Giderleri:",
+  txCashHandoverBundledExpenses: "Yeni Eklenen Kasa Giderleri:",
+  txCashHandoverNetTransfer: "Aktarılacak Net Nakit:",
+  txCashHandoverHint: "Kasa giderleri, kullanıcının girdiği nakit gelir tutarından otomatik olarak düşülerek aktarılır.",
   expensesListFilterScopeHint: "Filtre kapsamı",
   expensesListUnifiedBreakdownHint:
     "Toplam içindeki ödeme kaynağı dağılımı (TL ve yüzde).",
@@ -1186,6 +1202,19 @@ export const branch = {
   txRoutingHintOutPersonnel:
     "Bireysel personel gideri: buradan veya Personel › Maliyetler. Avans / maaş / prim bağlantısını kayıt sırasında veya sonradan ekleyebilirsiniz.",
   txNotifyIncomplete: "(*) ile işaretli alanları doldurun.",
+  txAmountTotalLabel: "Toplam tutar",
+  txDayCloseBundledExpenseAddAnother: "Yeni gider ekle",
+  expenseHeldRegisterPickerCrossBranchHint:
+    "Personelin tüm şubelerdeki zimmet bakiyeleri toplanarak listeleniyor.",
+  txPersonnelExpenseHeroLabel: "Personel Gideri",
+  txPersonnelExpenseHeroInfoAria: "Personel gideri bilgisi",
+  txPersonnelExpenseHeroInfoBody:
+    "Şube kasası seçilirse kasa hareketine yazılır; patron veya zimmet seçilirse kasadan düşmez. Alt türü seç, ödeme kaynağını belirt; tutarın etkili yıl/sezon attribute'u otomatik bağlanır.",
+  txDayCloseHeroLabel: "Gün Sonu Kapanışı",
+  txDayCloseHeroLine: "bu günü finansal olarak kapatıyorsun",
+  txDayCloseHeroInfoAria: "Gün sonu bilgisi",
+  txDayCloseHeroInfoBody:
+    "Onaylandıktan sonra bu güne şube kasasından yeni gider veya yeni gelir eklenemez. Aynı güne kalan giderleri aşağıdaki «aynı gün gideri» panelinden ekleyebilirsin.",
   txStoryIncomeCallout:
     "Gelir: müşteriden gelen tutar. Kart ve POS bankaya yansır; eldeki nakit için ayrıca «nakit nerede» bilgisini (gerekirse) işaretleyebilirsiniz.",
   txStoryExpenseCallout:
@@ -1237,11 +1266,8 @@ export const branch = {
   txNonPnlBadge: "Gelir–gider dışı",
   txSubSaleRetail: "Perakende satış",
   txSubSaleWholesale: "Toptan satış",
-  txSubSaleOther: "Diğer satış",
   txSubSvcConsult: "Danışmanlık / ücret",
   txSubSvcRepair: "Tamir / servis işi",
-  txSubSvcOther: "Diğer hizmet",
-  txSubIncRegister: "Kasa tahsilatı (nakit / kart)",
   txSubIncOther: "Diğer gelir",
   txAmountCash: "Nakit",
   txAmountCard: "Kart (POS / banka)",

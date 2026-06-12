@@ -156,9 +156,10 @@ export function OperationalRemindersBell() {
             />
           </svg>
           {showBadge ? (
-            <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-0.5 text-[0.6rem] font-bold text-white">
-              {total > 9 ? "9+" : total}
-            </span>
+            <span
+              aria-label={`${total}`}
+              className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white"
+            />
           ) : null}
         </button>
       </Tooltip>

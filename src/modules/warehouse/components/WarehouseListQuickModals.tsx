@@ -311,25 +311,27 @@ export function WarehouseListDepoInModal({
           className="mt-3 flex min-h-0 flex-1 flex-col sm:mt-4"
           onSubmit={(e) => void onSubmit(e)}
         >
-          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
-          <DateField
-            label={t("warehouse.quickMovementDate")}
-            labelRequired
-            required
-            value={movementDate}
-            onChange={(e) => setMovementDate(e.target.value)}
-            disabled={disabled}
-          />
-          <Input
-            label={t("warehouse.movementNote")}
-            type="text"
-            autoComplete="off"
-            value={inMovementNote}
-            onChange={(e) => setInMovementNote(e.target.value)}
-            disabled={disabled}
-          />
-          <p className="-mt-1 text-xs leading-snug text-zinc-500">{t("warehouse.depoInSharedNoteHint")}</p>
-          <div className="space-y-2">
+          <div className="min-h-0 flex-1 flex flex-col gap-3 overflow-y-auto pr-1">
+          <div className="order-1 grid gap-3 sm:grid-cols-[14rem_1fr]">
+            <DateField
+              label={t("warehouse.quickMovementDate")}
+              labelRequired
+              required
+              value={movementDate}
+              onChange={(e) => setMovementDate(e.target.value)}
+              disabled={disabled}
+            />
+            <Input
+              label={t("warehouse.movementNote")}
+              type="text"
+              autoComplete="off"
+              value={inMovementNote}
+              onChange={(e) => setInMovementNote(e.target.value)}
+              disabled={disabled}
+            />
+          </div>
+          <p className="order-2 -mt-1 text-xs leading-snug text-zinc-500">{t("warehouse.depoInSharedNoteHint")}</p>
+          <div className="space-y-2 order-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
               {t("warehouse.depoInLinesSection")}
             </p>
@@ -386,8 +388,8 @@ export function WarehouseListDepoInModal({
                         />
                       </div>
                     </div>
-                    <div className="grid grid-cols-[minmax(0,1fr)_2.75rem] items-end gap-2 sm:flex sm:items-end sm:gap-1.5">
-                      <div className="min-w-[110px]">
+                    <div className="flex items-end gap-2 sm:gap-1.5">
+                      <div className="min-w-0 flex-1 sm:min-w-[110px] sm:flex-initial">
                         <ProductUnitPicker
                           productId={Number(line.productId) || null}
                           baseUnit={null}
@@ -399,7 +401,7 @@ export function WarehouseListDepoInModal({
                           label={idx === 0 ? "Birim" : ""}
                         />
                       </div>
-                      <div className={cn("min-w-0", compact ? "sm:w-24" : "sm:w-28")}>
+                      <div className={cn("shrink-0", compact ? "w-20 sm:w-24" : "w-24 sm:w-28")}>
                         <Input
                           type="text"
                           inputMode="decimal"
@@ -434,7 +436,7 @@ export function WarehouseListDepoInModal({
                         type="button"
                         className={cn(
                           trashIconActionButtonClass,
-                          "mb-0.5 self-end rounded-lg border border-zinc-200 bg-white shadow-sm hover:border-red-200 hover:bg-red-50 hover:text-red-700",
+                          "mb-0.5 shrink-0 self-end rounded-lg border border-zinc-200 bg-white shadow-sm hover:border-red-200 hover:bg-red-50 hover:text-red-700",
                           "!h-9 !w-9 !min-h-9 sm:!h-10 sm:!w-10 sm:!min-h-10"
                         )}
                         disabled={disabled || lines.length <= 1}
@@ -460,27 +462,29 @@ export function WarehouseListDepoInModal({
               {t("warehouse.depoInAddLine")}
             </Button>
           </div>
-          <Select
-            label={t("warehouse.checkedByPersonnel")}
-            labelRequired
-            name="wh-list-depo-ck"
-            options={personnelSelectOptions}
-            value={inCheckedBy}
-            onChange={(e) => setInCheckedBy(e.target.value)}
-            onBlur={() => {}}
-            disabled={disabled}
-          />
-          <Select
-            label={t("warehouse.approvedByPersonnel")}
-            labelRequired
-            name="wh-list-depo-ap"
-            options={personnelSelectOptions}
-            value={inApprovedBy}
-            onChange={(e) => setInApprovedBy(e.target.value)}
-            onBlur={() => {}}
-            disabled={disabled}
-          />
-          <div>
+          <div className="order-3 grid gap-3 sm:grid-cols-2">
+            <Select
+              label={t("warehouse.checkedByPersonnel")}
+              labelRequired
+              name="wh-list-depo-ck"
+              options={personnelSelectOptions}
+              value={inCheckedBy}
+              onChange={(e) => setInCheckedBy(e.target.value)}
+              onBlur={() => {}}
+              disabled={disabled}
+            />
+            <Select
+              label={t("warehouse.approvedByPersonnel")}
+              labelRequired
+              name="wh-list-depo-ap"
+              options={personnelSelectOptions}
+              value={inApprovedBy}
+              onChange={(e) => setInApprovedBy(e.target.value)}
+              onBlur={() => {}}
+              disabled={disabled}
+            />
+          </div>
+          <div className="order-4">
             <label htmlFor="wh-list-depo-invoice" className="mb-1 block text-sm font-medium text-zinc-700">
               {t("warehouse.invoicePhotoOptional")}
             </label>
@@ -517,7 +521,7 @@ export function WarehouseListDepoInModal({
 
           {receiptParentGroups.length > 0 ? (
             <section
-              className="rounded-xl border border-emerald-200/80 bg-gradient-to-b from-emerald-50/95 to-white p-3 shadow-sm ring-1 ring-emerald-900/[0.06] sm:p-4"
+              className="order-6 rounded-xl border border-emerald-200/80 bg-gradient-to-b from-emerald-50/95 to-white p-3 shadow-sm ring-1 ring-emerald-900/[0.06] sm:p-4"
               aria-labelledby={DEPO_RECEIPT_SUMMARY_ID}
             >
               <h3
@@ -1082,16 +1086,28 @@ export function WarehouseListTransferModal({
           className="mt-3 flex min-h-0 flex-1 flex-col sm:mt-4"
           onSubmit={(e) => void onSubmit(e)}
         >
-          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1 sm:pr-2">
-          <DateField
-            label={t("warehouse.quickMovementDate")}
-            labelRequired
-            required
-            value={movementDate}
-            onChange={(e) => setMovementDate(e.target.value)}
-            disabled={disabled}
-          />
-          <div className="space-y-3">
+          <div className="min-h-0 flex-1 flex flex-col gap-3 overflow-y-auto pr-1 sm:pr-2">
+          <div className="order-1 grid gap-3 sm:grid-cols-[14rem_1fr]">
+            <DateField
+              label={t("warehouse.quickMovementDate")}
+              labelRequired
+              required
+              value={movementDate}
+              onChange={(e) => setMovementDate(e.target.value)}
+              disabled={disabled}
+            />
+            <Select
+              label={t("warehouse.transferBranch")}
+              labelRequired
+              name="wh-list-tr-br"
+              options={branchOptions}
+              value={branchId}
+              onChange={(e) => setBranchId(e.target.value)}
+              onBlur={() => {}}
+              disabled={disabled || branchesLoading}
+            />
+          </div>
+          <div className="order-7 space-y-3">
             <button
               type="button"
               className="flex w-full items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-left text-sm font-medium text-zinc-800"
@@ -1148,8 +1164,8 @@ export function WarehouseListTransferModal({
                       />
                       </div>
                     </div>
-                    <div className="grid grid-cols-[minmax(0,1fr)_2.75rem] items-end gap-2 sm:flex sm:items-end sm:gap-1.5">
-                      <div className="min-w-[110px]">
+                    <div className="flex items-end gap-2 sm:gap-1.5">
+                      <div className="min-w-0 flex-1 sm:min-w-[110px] sm:flex-initial">
                         <ProductUnitPicker
                           productId={Number(line.productId) || null}
                           baseUnit={null}
@@ -1161,7 +1177,7 @@ export function WarehouseListTransferModal({
                           label={idx === 0 ? "Birim" : ""}
                         />
                       </div>
-                      <div className={cn("min-w-0", compact ? "sm:w-24" : "sm:w-28")}>
+                      <div className={cn("shrink-0", compact ? "w-20 sm:w-24" : "w-24 sm:w-28")}>
                       <Input
                         type="text"
                         inputMode="decimal"
@@ -1193,7 +1209,7 @@ export function WarehouseListTransferModal({
                         type="button"
                         className={cn(
                           trashIconActionButtonClass,
-                          "mb-0.5 self-end rounded-lg border border-zinc-200 bg-white shadow-sm hover:border-red-200 hover:bg-red-50 hover:text-red-700",
+                          "mb-0.5 shrink-0 self-end rounded-lg border border-zinc-200 bg-white shadow-sm hover:border-red-200 hover:bg-red-50 hover:text-red-700",
                           "!h-9 !w-9 !min-h-9 sm:!h-10 sm:!w-10 sm:!min-h-10"
                         )}
                         disabled={disabled || lines.length <= 1}
@@ -1226,17 +1242,7 @@ export function WarehouseListTransferModal({
               </>
             ) : null}
           </div>
-          <Select
-            label={t("warehouse.transferBranch")}
-            labelRequired
-            name="wh-list-tr-br"
-            options={branchOptions}
-            value={branchId}
-            onChange={(e) => setBranchId(e.target.value)}
-            onBlur={() => {}}
-            disabled={disabled || branchesLoading}
-          />
-          <div className="space-y-3">
+          <div className="order-6 space-y-3">
             <button
               type="button"
               className="flex w-full items-center justify-between rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-left text-sm font-medium text-zinc-800"
@@ -1268,46 +1274,50 @@ export function WarehouseListTransferModal({
               </>
             ) : null}
           </div>
-          <Input
-            type="text"
-            autoComplete="off"
-            label={t("warehouse.transferDescription")}
-            placeholder={t("warehouse.transferDescriptionPlaceholder")}
-            value={tDesc}
-            onChange={(e) => setTDesc(e.target.value)}
-            disabled={disabled}
-          />
-          <Select
-            label={t("warehouse.transportedByPersonnel")}
-            labelRequired
-            name="wh-list-tr-transported"
-            options={personnelSelectOptions}
-            value={trTransportedBy}
-            onChange={(e) => setTrTransportedBy(e.target.value)}
-            onBlur={() => {}}
-            disabled={disabled}
-          />
-          <Select
-            label={t("warehouse.sentByPersonnel")}
-            labelRequired
-            name="wh-list-tr-sent"
-            options={personnelSelectOptions}
-            value={trSentBy}
-            onChange={(e) => setTrSentBy(e.target.value)}
-            onBlur={() => {}}
-            disabled={disabled}
-          />
-          <Select
-            label={t("warehouse.receivedByPersonnel")}
-            labelRequired
-            name="wh-list-tr-received"
-            options={personnelSelectOptions}
-            value={trReceivedBy}
-            onChange={(e) => setTrReceivedBy(e.target.value)}
-            onBlur={() => {}}
-            disabled={disabled || trManualReceiverEnabled}
-          />
-          <label className="flex cursor-pointer items-start gap-2 text-sm text-zinc-800">
+          <div className="order-2">
+            <Input
+              type="text"
+              autoComplete="off"
+              label={t("warehouse.transferDescription")}
+              placeholder={t("warehouse.transferDescriptionPlaceholder")}
+              value={tDesc}
+              onChange={(e) => setTDesc(e.target.value)}
+              disabled={disabled}
+            />
+          </div>
+          <div className="order-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Select
+              label={t("warehouse.transportedByPersonnel")}
+              labelRequired
+              name="wh-list-tr-transported"
+              options={personnelSelectOptions}
+              value={trTransportedBy}
+              onChange={(e) => setTrTransportedBy(e.target.value)}
+              onBlur={() => {}}
+              disabled={disabled}
+            />
+            <Select
+              label={t("warehouse.sentByPersonnel")}
+              labelRequired
+              name="wh-list-tr-sent"
+              options={personnelSelectOptions}
+              value={trSentBy}
+              onChange={(e) => setTrSentBy(e.target.value)}
+              onBlur={() => {}}
+              disabled={disabled}
+            />
+            <Select
+              label={t("warehouse.receivedByPersonnel")}
+              labelRequired
+              name="wh-list-tr-received"
+              options={personnelSelectOptions}
+              value={trReceivedBy}
+              onChange={(e) => setTrReceivedBy(e.target.value)}
+              onBlur={() => {}}
+              disabled={disabled || trManualReceiverEnabled}
+            />
+          </div>
+          <label className="order-4 flex cursor-pointer items-start gap-2 text-sm text-zinc-800">
             <Checkbox
               className="mt-0.5"
               checked={trManualReceiverEnabled}
@@ -1317,6 +1327,7 @@ export function WarehouseListTransferModal({
             <span>{t("warehouse.transferManualReceiverToggle")}</span>
           </label>
           {trManualReceiverEnabled ? (
+            <div className="order-4">
             <Input
               type="text"
               autoComplete="off"
@@ -1326,8 +1337,9 @@ export function WarehouseListTransferModal({
               onChange={(e) => setTrManualReceiverName(e.target.value)}
               disabled={disabled}
             />
+            </div>
           ) : null}
-          <div>
+          <div className="order-5">
             <label htmlFor="wh-list-transfer-photo" className="mb-1 block text-sm font-medium text-zinc-700">
               {t("warehouse.shipmentPhotoOptional")}
             </label>

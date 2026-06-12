@@ -33,17 +33,14 @@ export function classificationCodeFromLegacyBranchTxForm(
   if (ty === "IN") {
     if (mc === "IN_DAY_CLOSE") return "IN_DAY_CLOSE";
     if (mc === "IN_PATRON") return "IN_PATRON_CASH";
-    if (mc === "IN_OTHER" && cat === "INC_REGISTER") return "IN_OTHER_REGISTER";
-    if (mc === "IN_OTHER" && cat === "INC_OTHER") return "IN_OTHER_MISC";
+    if (mc === "IN_OTHER" && (cat === "INC_OTHER" || cat === "")) return "IN_OTHER_MISC";
     if (mc === "IN_SALES") {
       if (cat === "SALE_RETAIL") return "IN_SALES_RETAIL";
       if (cat === "SALE_WHOLESALE") return "IN_SALES_WHOLESALE";
-      if (cat === "SALE_OTHER") return "IN_SALES_OTHER";
     }
     if (mc === "IN_SERVICE") {
       if (cat === "SVC_CONSULT") return "IN_SERVICE_CONSULT";
       if (cat === "SVC_REPAIR") return "IN_SERVICE_REPAIR";
-      if (cat === "SVC_OTHER") return "IN_SERVICE_OTHER";
     }
   }
 

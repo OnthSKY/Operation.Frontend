@@ -25,7 +25,7 @@ import {
 } from "@/shared/lib/iso4217-currencies";
 import { localIsoDate, localIsoDateTime } from "@/shared/lib/local-iso-date";
 import { useQueries } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useController, useForm, useWatch } from "react-hook-form";
 
 type FormValues = {
@@ -67,6 +67,7 @@ export function AdvancePersonnelModal({
   allowHeldRegisterCashAdvance = true,
 }: Props) {
   const { t, locale } = useI18n();
+  const [hintOpen, setHintOpen] = useState(false);
   const { data: branches = [] } = useBranchesList();
   const createAdvance = useCreateAdvance();
   const {
@@ -84,7 +85,7 @@ export function AdvancePersonnelModal({
       personnelId: "",
       branchId: "",
       sourcePersonnelId: "",
-      sourceType: "CASH",
+      sourceType: allowHeldRegisterCashAdvance === false ? "CASH" : "PATRON",
       currencyCode: DEFAULT_CURRENCY,
       advanceDate: localIsoDateTime(),
       effectiveYear: currentCalendarYear(),
@@ -142,7 +143,7 @@ export function AdvancePersonnelModal({
   const { field: sourceField } = useController({
     name: "sourceType",
     control,
-    defaultValue: "CASH",
+    defaultValue: allowHeldRegisterCashAdvance === false ? "CASH" : "PATRON",
     rules: { required: t("common.required") },
   });
 
@@ -164,6 +165,13 @@ export function AdvancePersonnelModal({
     name: "currencyCode",
     control,
     defaultValue: DEFAULT_CURRENCY,
+    rules: { required: t("common.required") },
+  });
+
+  const { field: advanceDateField, fieldState: advanceDateFieldState } = useController({
+    name: "advanceDate",
+    control,
+    defaultValue: localIsoDateTime(),
     rules: { required: t("common.required") },
   });
 
@@ -259,7 +267,7 @@ export function AdvancePersonnelModal({
     const base = {
       branchId: "",
       sourcePersonnelId: "",
-      sourceType: "CASH",
+      sourceType: allowHeldRegisterCashAdvance === false ? "CASH" : "PATRON",
       currencyCode: DEFAULT_CURRENCY,
       advanceDate: localIsoDateTime(),
       effectiveYear: currentCalendarYear(),
@@ -396,7 +404,7 @@ export function AdvancePersonnelModal({
         personnelId: "",
         branchId: "",
         sourcePersonnelId: "",
-        sourceType: "CASH",
+        sourceType: allowHeldRegisterCashAdvance === false ? "CASH" : "PATRON",
         currencyCode: DEFAULT_CURRENCY,
         advanceDate: localIsoDateTime(),
         effectiveYear: currentCalendarYear(),
@@ -413,7 +421,7 @@ export function AdvancePersonnelModal({
       personnelId: "",
       branchId: "",
       sourcePersonnelId: "",
-      sourceType: "CASH",
+      sourceType: allowHeldRegisterCashAdvance === false ? "CASH" : "PATRON",
       currencyCode: DEFAULT_CURRENCY,
       advanceDate: localIsoDateTime(),
       effectiveYear: currentCalendarYear(),
@@ -436,7 +444,7 @@ export function AdvancePersonnelModal({
       onClose={requestClose}
       titleId={TITLE_ID}
       title={t("personnel.advanceTitle")}
-      description={t("personnel.advanceHint")}
+      description={undefined}
       closeButtonLabel={t("common.close")}
       className="w-full max-w-xl"
     >
@@ -444,6 +452,31 @@ export function AdvancePersonnelModal({
         <ModalFormLayout
           body={
             <>
+              <div className="flex items-start gap-2 rounded-lg border border-zinc-200 bg-zinc-50/60 px-2.5 py-1.5">
+                <span aria-hidden className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-zinc-700 mt-0.5">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 8h.01" />
+                    <path d="M11 12h1v4h1" />
+                  </svg>
+                </span>
+                <div className="min-w-0 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => setHintOpen((v) => !v)}
+                    aria-expanded={hintOpen}
+                    aria-label={t("personnel.advanceHintInfoAria")}
+                    className="text-left text-[11px] font-medium text-zinc-700 hover:text-zinc-900 leading-snug"
+                  >
+                    {hintOpen ? t("personnel.advanceHintInfoAria") : t("personnel.advanceHint")}
+                  </button>
+                  {hintOpen ? (
+                    <p className="mt-1 text-[11px] leading-snug text-zinc-600">
+                      {t("personnel.advanceHintDetail")}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
               <FormSection>
                 <Select
                   label={t("nav.personnel")}
@@ -472,17 +505,19 @@ export function AdvancePersonnelModal({
                   ref={sourceField.ref}
                   error={errors.sourceType?.message}
                 />
-                <Select
-                  label={t("personnel.branchForAdvance")}
-                  labelRequired={(sourceTypeWatch || "CASH").toUpperCase() === "CASH"}
-                  options={branchOptions}
-                  name={branchField.name}
-                  value={String(branchField.value ?? "")}
-                  onChange={(e) => branchField.onChange(e.target.value)}
-                  onBlur={branchField.onBlur}
-                  ref={branchField.ref}
-                  error={errors.branchId?.message}
-                />
+                {(sourceTypeWatch || "CASH").toUpperCase() === "CASH" ? (
+                  <Select
+                    label={t("personnel.branchForAdvance")}
+                    labelRequired
+                    options={branchOptions}
+                    name={branchField.name}
+                    value={String(branchField.value ?? "")}
+                    onChange={(e) => branchField.onChange(e.target.value)}
+                    onBlur={branchField.onBlur}
+                    ref={branchField.ref}
+                    error={errors.branchId?.message}
+                  />
+                ) : null}
                 {isHeldRegisterSource ? (
                   <Select
                     label={t("personnel.advanceHeldRegisterSourcePersonLabel")}
@@ -496,11 +531,10 @@ export function AdvancePersonnelModal({
                     error={errors.sourcePersonnelId?.message}
                   />
                 ) : null}
-                {selectedPersonnel?.branchId != null && selectedPersonnel.branchId > 0 ? (
+                {(sourceTypeWatch || "CASH").toUpperCase() === "CASH" &&
+                selectedPersonnel?.branchId != null &&
+                selectedPersonnel.branchId > 0 ? (
                   <p className="text-xs text-zinc-500">{t("personnel.advanceBranchPrefilledHint")}</p>
-                ) : null}
-                {(sourceTypeWatch || "CASH").toUpperCase() === "PATRON" ? (
-                  <p className="text-xs text-zinc-500">{t("personnel.advanceBranchOptionalWhenNotCash")}</p>
                 ) : null}
               </FormSection>
               <FormSection>
@@ -509,31 +543,36 @@ export function AdvancePersonnelModal({
                   labelRequired
                   required
                   mode="datetime-local"
-                  {...register("advanceDate", { required: t("common.required") })}
-                  error={errors.advanceDate?.message}
+                  name={advanceDateField.name}
+                  value={advanceDateField.value}
+                  onChange={advanceDateField.onChange}
+                  onBlur={advanceDateField.onBlur}
+                  ref={advanceDateField.ref}
+                  error={advanceDateFieldState.error?.message}
                 />
-                <Input
-                  label={t("personnel.effectiveYear")}
-                  type="number"
-                  inputMode="numeric"
-                  min={1900}
-                  max={9999}
-                  step={1}
-                  labelRequired
-                  required
-                  {...register("effectiveYear", {
-                    required: t("common.required"),
-                    validate: (v) => {
-                      const n = Math.trunc(Number(v));
-                      if (!Number.isFinite(n) || n < 1900 || n > 9999) {
-                        return t("personnel.effectiveYearInvalid");
-                      }
-                      return true;
-                    },
-                  })}
-                  error={errors.effectiveYear?.message}
-                />
-                <p className="-mt-0.5 text-xs leading-relaxed text-zinc-500">{t("personnel.effectiveYearHint")}</p>
+                {selectedPersonnel && !selectedPersonnel.seasonArrivalDate ? (
+                  <Input
+                    label={t("personnel.effectiveYear")}
+                    type="number"
+                    inputMode="numeric"
+                    min={1900}
+                    max={9999}
+                    step={1}
+                    labelRequired
+                    required
+                    {...register("effectiveYear", {
+                      required: t("common.required"),
+                      validate: (v) => {
+                        const n = Math.trunc(Number(v));
+                        if (!Number.isFinite(n) || n < 1900 || n > 9999) {
+                          return t("personnel.effectiveYearInvalid");
+                        }
+                        return true;
+                      },
+                    })}
+                    error={errors.effectiveYear?.message}
+                  />
+                ) : null}
                 <Select
                   label={t("personnel.advanceCurrency")}
                   labelRequired

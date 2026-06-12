@@ -730,7 +730,9 @@ export const personnel = {
   insuranceIntakeModalPersonCaption: "Personnel",
   detailInsurancePrerequisiteNotes: "Insurance prerequisites / notes",
   advanceTitle: "Give advance",
-  advanceHint:
+  advanceHint: "Give an advance to personnel from register, owner, or held cash.",
+  advanceHintInfoAria: "Advance info",
+  advanceHintDetail:
     "Pick the attributing branch. Branch cash register posts to branch ledger; owner-funded does not. If Held register cash with personnel is selected, it is not booked as owner money; no new drawer cash leaves the register, and the amount is reduced from the staff-held register cash balance. Transaction date is the operational day; season year tags which tourism season the advance belongs to (same year number as the branch tourism season record).",
   advanceDate: "Transaction date",
   effectiveYear: "Season year",

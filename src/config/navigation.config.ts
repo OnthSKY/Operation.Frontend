@@ -40,10 +40,11 @@ export const NAV_ITEMS: NavItem[] = [
     order: 5,
   },
   {
-    label: "Dashboard",
+    label: "Genel bakış",
     path: "/",
     icon: "home",
-    mobile: false,
+    mobile: true,
+    order: 0,
   },
   {
     label: "Reports",

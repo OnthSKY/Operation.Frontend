@@ -4,6 +4,8 @@ import { apiFetch } from "@/shared/api/client";
 import { useI18n } from "@/i18n/context";
 import { useDocumentsHubQuery } from "@/modules/documents/hooks/useDocumentsHubQuery";
 import type { DocumentsHubRow } from "@/modules/documents/types";
+import { ImagePreview } from "./ImagePreview";
+import { PdfBlobPreview } from "./PdfBlobPreview";
 import { useBranchesList, useUploadBranchDocument } from "@/modules/branch/hooks/useBranchQueries";
 import { useUploadCompanyDocument } from "@/modules/company/hooks/useCompanyDocumentQueries";
 import { useVehicles, useUploadVehicleDocument } from "@/modules/vehicles/hooks/useVehicleQueries";
@@ -28,7 +30,7 @@ import type { BranchDocumentKind } from "@/types/branch-document";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { useEffect, useMemo, useState, type FocusEventHandler, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FocusEventHandler, type ReactNode } from "react";
 
 const NOOP_BLUR: FocusEventHandler<HTMLInputElement> = () => {};
 
@@ -40,11 +42,28 @@ const NOOP_BLUR: FocusEventHandler<HTMLInputElement> = () => {};
  */
 const NON_UPLOAD_CATEGORIES: ReadonlySet<string> = new Set([
   "ALL",
-  "VEHICLE_INSURANCE_POLICY",
   "WAREHOUSE_INBOUND_INVOICE",
   "WAREHOUSE_OUTBOUND_INVOICE",
   "OTHER_INVOICE",
+  // SHIPMENT_DELIVERY_SLIP sistem üretir (sevkiyat DELIVERED transition'ı) — manuel upload yok.
+  "BRANCH_SHIPMENT_SLIP",
+  // Tedarikçi fatura fotoğrafı supplier invoice modülünden upload edilir.
+  "SUPPLIER_INVOICE_PHOTO",
 ]);
+
+/** Belge hub upload combobox'taki branch sub-kategori → backend kind eşlemesi. */
+const BRANCH_CATEGORY_TO_KIND: Record<string, "TAX_BASE" | "WORK_PERMIT" | "AGRICULTURE_CERT" | "OTHER"> = {
+  BRANCH_TAX_BASE: "TAX_BASE",
+  BRANCH_WORK_PERMIT: "WORK_PERMIT",
+  BRANCH_AGRICULTURE_CERT: "AGRICULTURE_CERT",
+  BRANCH_DOCUMENT: "OTHER",
+};
+
+/** Araç kategorisi → backend kind eşlemesi (sigorta poliçesi spesifik). */
+const VEHICLE_CATEGORY_TO_KIND: Record<string, "REGISTRATION" | "INSPECTION" | "INSURANCE_POLICY" | "OTHER" | null> = {
+  VEHICLE_DOCUMENT: null, // umbrella → kullanıcı kind picker'dan seçer
+  VEHICLE_INSURANCE_POLICY: "INSURANCE_POLICY",
+};
 
 /** URL `q` sometimes contains literal "null"/"undefined"; treat as empty so the input stays clean. */
 function sanitizeUrlSearchQuery(raw: string | null | undefined): string {
@@ -60,62 +79,6 @@ function sanitizeUrlSearchQuery(raw: string | null | undefined): string {
  * doğrudan gösteremez (indirir). Dosyayı kimlik-doğrulamalı blob olarak çekip object URL ile
  * iframe'e veririz; bu disposition'ı atlar ve satır içi önizleme sağlar.
  */
-function PdfBlobPreview({
-  url,
-  title,
-  className,
-  loadingLabel,
-  errorLabel,
-}: {
-  url: string;
-  title: string;
-  className?: string;
-  loadingLabel: string;
-  errorLabel: string;
-}) {
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-    let objectUrl: string | null = null;
-    setBlobUrl(null);
-    setFailed(false);
-    (async () => {
-      try {
-        const res = await apiFetch(url);
-        if (!res.ok) throw new Error(String(res.status));
-        const blob = await res.blob();
-        if (cancelled) return;
-        objectUrl = URL.createObjectURL(blob);
-        setBlobUrl(objectUrl);
-      } catch {
-        if (!cancelled) setFailed(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [url]);
-
-  if (failed) {
-    return (
-      <div className="flex h-full w-full items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-600">
-        {errorLabel}
-      </div>
-    );
-  }
-  if (!blobUrl) {
-    return (
-      <div className="flex h-full w-full items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-500">
-        {loadingLabel}
-      </div>
-    );
-  }
-  return <iframe src={blobUrl} title={title} className={className} />;
-}
-
 function parseShipmentMovementIds(raw: string | null | undefined): Set<number> {
   return new Set(
     String(raw ?? "")
@@ -171,6 +134,10 @@ function inferRasterKind(previewUrl: string): "png" | "jpeg" | "webp" | "generic
 function moduleGlyphBadgeClass(category: DocumentsHubRow["category"]): string {
   switch (category) {
     case "BRANCH_DOCUMENT":
+    case "BRANCH_TAX_BASE":
+    case "BRANCH_WORK_PERMIT":
+    case "BRANCH_AGRICULTURE_CERT":
+    case "BRANCH_SHIPMENT_SLIP":
       return "bg-violet-600 text-white";
     case "COMPANY_GENERAL_DOCUMENT":
       return "bg-fuchsia-600 text-white";
@@ -188,6 +155,8 @@ function moduleGlyphBadgeClass(category: DocumentsHubRow["category"]): string {
       return "bg-amber-600 text-white";
     case "WAREHOUSE_OUTBOUND_INVOICE":
       return "bg-orange-600 text-white";
+    case "SUPPLIER_INVOICE_PHOTO":
+      return "bg-rose-600 text-white";
     case "OTHER_INVOICE":
       return "bg-zinc-600 text-white";
     default:
@@ -205,6 +174,10 @@ function ModuleGlyphIcon({
   const cn = `shrink-0 ${className ?? ""}`.trim();
   switch (category) {
     case "BRANCH_DOCUMENT":
+    case "BRANCH_TAX_BASE":
+    case "BRANCH_WORK_PERMIT":
+    case "BRANCH_AGRICULTURE_CERT":
+    case "BRANCH_SHIPMENT_SLIP":
       return (
         <svg viewBox="0 0 24 24" className={cn} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="M3 21h18" />
@@ -393,6 +366,10 @@ function DocumentGlyph({
 function documentBadgeClass(category: DocumentsHubRow["category"]): string {
   switch (category) {
     case "BRANCH_DOCUMENT":
+    case "BRANCH_TAX_BASE":
+    case "BRANCH_WORK_PERMIT":
+    case "BRANCH_AGRICULTURE_CERT":
+    case "BRANCH_SHIPMENT_SLIP":
       return "border-violet-200 bg-violet-50 text-violet-800";
     case "COMPANY_GENERAL_DOCUMENT":
       return "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-800";
@@ -406,6 +383,8 @@ function documentBadgeClass(category: DocumentsHubRow["category"]): string {
     case "WAREHOUSE_INBOUND_INVOICE":
     case "WAREHOUSE_OUTBOUND_INVOICE":
       return "border-amber-200 bg-amber-50 text-amber-900";
+    case "SUPPLIER_INVOICE_PHOTO":
+      return "border-rose-200 bg-rose-50 text-rose-800";
     case "OTHER_INVOICE":
       return "border-zinc-300 bg-zinc-100 text-zinc-700";
     default:
@@ -484,6 +463,10 @@ function buildDocumentCardLines(
 
   switch (row.category) {
     case "BRANCH_DOCUMENT":
+    case "BRANCH_TAX_BASE":
+    case "BRANCH_WORK_PERMIT":
+    case "BRANCH_AGRICULTURE_CERT":
+    case "BRANCH_SHIPMENT_SLIP":
       return {
         title: row.title,
         subtitle: subtitle || "Belge dosyasi",
@@ -517,6 +500,7 @@ function buildDocumentCardLines(
       };
     case "WAREHOUSE_INBOUND_INVOICE":
     case "WAREHOUSE_OUTBOUND_INVOICE":
+    case "SUPPLIER_INVOICE_PHOTO":
     case "OTHER_INVOICE":
       return {
         title: row.title,
@@ -552,6 +536,44 @@ export function DocumentsHubScreen() {
   const [openError, setOpenError] = useState<string | null>(null);
   const [openingId, setOpeningId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  /** Hover ile prefetch edilen satır id'leri — aynı satıra tekrar gelinince yeniden istek atmasın. */
+  const prefetchedIdsRef = useRef<Set<string>>(new Set());
+  const prefetchTimeoutRef = useRef<number | null>(null);
+
+  /**
+   * Hover'da görsel/PDF kaynağını arka planda warm cache'e koyar.
+   * 150ms debounce — scroll/hover ile yanlışlıkla tetiklenmesin.
+   * HEIC için skip (CPU yoğun conversion'ı her hover'da tetiklemek istemiyoruz).
+   */
+  const prefetchRowOnHover = (row: DocumentsHubRow) => {
+    if (prefetchTimeoutRef.current != null) {
+      window.clearTimeout(prefetchTimeoutRef.current);
+    }
+    prefetchTimeoutRef.current = window.setTimeout(() => {
+      if (prefetchedIdsRef.current.has(row.id)) return;
+      prefetchedIdsRef.current.add(row.id);
+      if (row.previewMode === "image") {
+        // HEIC dosyaları için ayrıca convert tetiklemek istemiyoruz; sadece raw image warm.
+        const isHeic = /\.heic(\?|#|$)/i.test(row.previewUrl) || /\.heif(\?|#|$)/i.test(row.previewUrl) ||
+          (row.mimeType?.toLowerCase().startsWith("image/hei") ?? false);
+        if (isHeic) return;
+        const img = new window.Image();
+        img.decoding = "async";
+        img.src = row.previewUrl;
+      } else if (row.previewMode === "pdf") {
+        void apiFetch(row.previewUrl).catch(() => {
+          prefetchedIdsRef.current.delete(row.id);
+        });
+      }
+    }, 150);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (prefetchTimeoutRef.current != null) window.clearTimeout(prefetchTimeoutRef.current);
+    };
+  }, []);
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   const router = useRouter();
 
@@ -585,6 +607,8 @@ export function DocumentsHubScreen() {
   const [uploadNotes, setUploadNotes] = useState("");
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  /** Submit denedikten sonra true; required alanlar inline kırmızı uyarı gösterir. */
+  const [uploadAttempted, setUploadAttempted] = useState(false);
   const [page, setPage] = useState(1);
   const pageSize = 24;
   const { data: unifiedRows = [], isPending: loading } = useDocumentsHubQuery();
@@ -632,6 +656,80 @@ export function DocumentsHubScreen() {
     () => filteredRows.slice(pageStart, pageStart + pageSize),
     [filteredRows, pageStart, pageSize]
   );
+
+  /**
+   * Global klavye kısayolları:
+   *  - j / ↓ — sonraki satır
+   *  - k / ↑ — önceki satır
+   *  - / — arama input'una focus
+   *  - Esc — mobil önizleme açıksa kapat, değilse arama metnini temizle
+   *  - Enter — seçili satırın önizlemesini aç (mobil sheet)
+   *
+   * Input/textarea/select içinde tetiklenmez (yazma karışmasın).
+   */
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const isTyping =
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
+          target.isContentEditable);
+
+      // "/" arama'ya focus — input içinde değilse
+      if (!isTyping && e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+        return;
+      }
+
+      // Esc — önizleme kapat veya arama temizle (typing iken de izinli)
+      if (e.key === "Escape") {
+        if (mobilePreviewOpen) {
+          setMobilePreviewOpen(false);
+          return;
+        }
+        if (isTyping && target === searchInputRef.current) {
+          setQuery("");
+          setPage(1);
+          searchInputRef.current?.blur();
+          return;
+        }
+        return;
+      }
+
+      if (isTyping) return;
+
+      // j / k / ↓ / ↑ — satır gezme
+      if (e.key === "j" || e.key === "ArrowDown") {
+        e.preventDefault();
+        if (pagedRows.length === 0) return;
+        const idx = pagedRows.findIndex((r) => r.id === selectedId);
+        const nextIdx = idx < 0 ? 0 : Math.min(idx + 1, pagedRows.length - 1);
+        setSelectedId(pagedRows[nextIdx]!.id);
+        return;
+      }
+      if (e.key === "k" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (pagedRows.length === 0) return;
+        const idx = pagedRows.findIndex((r) => r.id === selectedId);
+        const prevIdx = idx <= 0 ? 0 : idx - 1;
+        setSelectedId(pagedRows[prevIdx]!.id);
+        return;
+      }
+
+      // Enter — mobil önizleme aç
+      if (e.key === "Enter" && selectedId) {
+        e.preventDefault();
+        setMobilePreviewOpen(true);
+      }
+    };
+
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [pagedRows, selectedId, mobilePreviewOpen]);
   /** Only after explicit row click — avoids loading iframe/img on mount (can trigger unwanted downloads). */
   const previewRow = useMemo(() => {
     if (!selectedId) return null;
@@ -648,6 +746,10 @@ export function DocumentsHubScreen() {
   const categoryOptions = useMemo(
     () => [
       { value: "ALL", label: t("documents.categoryAll") },
+      { value: "BRANCH_TAX_BASE", label: t("documents.categoryBranchTaxBase") },
+      { value: "BRANCH_WORK_PERMIT", label: t("documents.categoryBranchWorkPermit") },
+      { value: "BRANCH_AGRICULTURE_CERT", label: t("documents.categoryBranchAgricultureCert") },
+      { value: "BRANCH_SHIPMENT_SLIP", label: t("documents.categoryBranchShipmentSlip") },
       { value: "BRANCH_DOCUMENT", label: t("documents.categoryBranch") },
       { value: "COMPANY_GENERAL_DOCUMENT", label: t("documents.categoryCompanyGeneral") },
       { value: "VEHICLE_DOCUMENT", label: t("documents.categoryVehicle") },
@@ -657,6 +759,7 @@ export function DocumentsHubScreen() {
       { value: "PERSONNEL_YEAR_CLOSURE", label: t("documents.categoryPersonnelYearClosure") },
       { value: "WAREHOUSE_INBOUND_INVOICE", label: t("documents.categoryWarehouseInboundInvoice") },
       { value: "WAREHOUSE_OUTBOUND_INVOICE", label: t("documents.categoryWarehouseOutboundInvoice") },
+      { value: "SUPPLIER_INVOICE_PHOTO", label: t("documents.categorySupplierInvoicePhoto") },
       { value: "OTHER_INVOICE", label: t("documents.categoryOtherInvoice") },
     ],
     [t]
@@ -714,6 +817,7 @@ export function DocumentsHubScreen() {
     setUploadNotes("");
     setUploadFile(null);
     setUploadError(null);
+    setUploadAttempted(false);
     setUploadOpen(true);
   };
   const quickUploadDirty =
@@ -738,20 +842,24 @@ export function DocumentsHubScreen() {
 
   const submitQuickAdd = async () => {
     setUploadError(null);
+    setUploadAttempted(true);
     if (!uploadFile || uploadFile.size <= 0) {
       setUploadError(t("documents.uploadFileRequired"));
       return;
     }
     try {
-      if (uploadCategory === "BRANCH_DOCUMENT") {
+      if (uploadCategory in BRANCH_CATEGORY_TO_KIND) {
         const branchId = Number.parseInt(uploadBranchId, 10);
         if (!Number.isFinite(branchId) || branchId <= 0) {
           setUploadError(t("documents.uploadBranchRequired"));
           return;
         }
+        const kindFromCategory = BRANCH_CATEGORY_TO_KIND[uploadCategory]!;
         await branchUploadMut.mutateAsync({
           file: uploadFile,
-          kind: uploadBranchKind,
+          // BRANCH_DOCUMENT umbrella'da kullanıcı uploadBranchKind ile alt-tür seçebilir;
+          // spesifik kategorilerde category sub-kategoriyi belirler.
+          kind: uploadCategory === "BRANCH_DOCUMENT" ? uploadBranchKind : kindFromCategory,
           notes: uploadNotes.trim() || null,
         });
       } else if (uploadCategory === "COMPANY_GENERAL_DOCUMENT") {
@@ -760,15 +868,16 @@ export function DocumentsHubScreen() {
           kind: uploadCompanyKind,
           notes: uploadNotes.trim() || null,
         });
-      } else if (uploadCategory === "VEHICLE_DOCUMENT") {
+      } else if (uploadCategory in VEHICLE_CATEGORY_TO_KIND) {
         const vehicleId = Number.parseInt(uploadVehicleId, 10);
         if (!Number.isFinite(vehicleId) || vehicleId <= 0) {
           setUploadError(t("documents.uploadVehicleRequired"));
           return;
         }
+        const mappedKind = VEHICLE_CATEGORY_TO_KIND[uploadCategory];
         await vehicleUploadMut.mutateAsync({
           file: uploadFile,
-          kind: uploadVehicleKind,
+          kind: mappedKind ?? uploadVehicleKind,
           notes: uploadNotes.trim() || null,
         });
       } else if (uploadCategory === "PERSONNEL_NATIONAL_ID") {
@@ -828,16 +937,12 @@ export function DocumentsHubScreen() {
   const mobilePreviewBody = !previewRow ? (
     <p className="text-sm text-zinc-500">{previewPlaceholderText}</p>
   ) : previewRow.previewMode === "image" ? (
-    <div className="relative h-full w-full overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">
-      {/* Authenticated API preview URL; next/image not applicable */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={previewRow.previewUrl}
-        alt={previewRow.subtitle}
-        draggable={false}
-        className="pointer-events-none h-full w-full select-none object-contain"
-      />
-    </div>
+    <ImagePreview
+      url={previewRow.previewUrl}
+      alt={previewRow.subtitle}
+      mimeType={previewRow.mimeType}
+      className="h-full"
+    />
   ) : previewRow.previewMode === "pdf" ? (
     <PdfBlobPreview
       url={previewRow.previewUrl}
@@ -855,16 +960,12 @@ export function DocumentsHubScreen() {
   const previewBody = !previewRow ? (
     <p className="text-sm text-zinc-500">{previewPlaceholderText}</p>
   ) : previewRow.previewMode === "image" ? (
-    <div className="relative h-[48vh] w-full overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">
-      {/* Authenticated API preview URL; next/image not applicable */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={previewRow.previewUrl}
-        alt={previewRow.subtitle}
-        draggable={false}
-        className="pointer-events-none h-full w-full select-none object-contain"
-      />
-    </div>
+    <ImagePreview
+      url={previewRow.previewUrl}
+      alt={previewRow.subtitle}
+      mimeType={previewRow.mimeType}
+      className="h-[48vh]"
+    />
   ) : previewRow.previewMode === "pdf" ? (
     <PdfBlobPreview
       url={previewRow.previewUrl}
@@ -916,6 +1017,7 @@ export function DocumentsHubScreen() {
           <label className="min-w-0">
             <span className="sr-only">{t("documents.searchPlaceholder")}</span>
             <input
+              ref={searchInputRef}
               value={query}
               onChange={(e) => {
                 setPage(1);
@@ -930,6 +1032,9 @@ export function DocumentsHubScreen() {
               placeholder={t("documents.searchPlaceholder")}
               className="min-h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base outline-none ring-zinc-900 [-webkit-tap-highlight-color:transparent] focus:border-zinc-900 focus:ring-2 sm:min-h-12 sm:text-sm"
             />
+            <p className="mt-1 hidden text-[11px] text-zinc-400 sm:block">
+              {t("documents.keyboardHint")}
+            </p>
           </label>
           <div className="min-w-0 self-stretch">
             <Select
@@ -1034,6 +1139,8 @@ export function DocumentsHubScreen() {
                 return (
               <li
                 key={r.id}
+                onMouseEnter={() => prefetchRowOnHover(r)}
+                onFocusCapture={() => prefetchRowOnHover(r)}
                 className={`rounded-xl border p-3 shadow-sm transition-colors ${
                   selectedId === r.id
                     ? "border-zinc-900 bg-zinc-100"
@@ -1150,26 +1257,34 @@ export function DocumentsHubScreen() {
                   menuZIndex={320}
                 />
 
-                {uploadCategory === "BRANCH_DOCUMENT" ? (
+                {uploadCategory in BRANCH_CATEGORY_TO_KIND ? (
                   <>
               <Select
                 name="documentsUploadBranch"
                 label={t("documents.uploadBranchLabel")}
+                labelRequired
                 value={uploadBranchId}
                 onChange={(e) => setUploadBranchId(e.target.value)}
                 onBlur={NOOP_BLUR}
                 options={branchOptions}
                 menuZIndex={320}
+                error={
+                  uploadAttempted && !uploadBranchId.trim()
+                    ? t("documents.uploadBranchRequired")
+                    : undefined
+                }
               />
-              <Select
-                name="documentsUploadBranchKind"
-                label={t("documents.uploadBranchKindLabel")}
-                value={uploadBranchKind}
-                onChange={(e) => setUploadBranchKind(e.target.value as BranchDocumentKind)}
-                onBlur={NOOP_BLUR}
-                options={branchKindOptions}
-                menuZIndex={320}
-              />
+              {uploadCategory === "BRANCH_DOCUMENT" ? (
+                <Select
+                  name="documentsUploadBranchKind"
+                  label={t("documents.uploadBranchKindLabel")}
+                  value={uploadBranchKind}
+                  onChange={(e) => setUploadBranchKind(e.target.value as BranchDocumentKind)}
+                  onBlur={NOOP_BLUR}
+                  options={branchKindOptions}
+                  menuZIndex={320}
+                />
+              ) : null}
               <div>
                 <label className="mb-1 block text-sm font-medium text-zinc-700">
                   {t("documents.uploadNotesLabel")}
@@ -1211,26 +1326,34 @@ export function DocumentsHubScreen() {
                   </>
                 ) : null}
 
-                {uploadCategory === "VEHICLE_DOCUMENT" ? (
+                {uploadCategory in VEHICLE_CATEGORY_TO_KIND ? (
                   <>
                     <Select
                       name="documentsUploadVehicle"
                       label={t("documents.uploadVehicleLabel")}
+                      labelRequired
                       value={uploadVehicleId}
                       onChange={(e) => setUploadVehicleId(e.target.value)}
                       onBlur={NOOP_BLUR}
                       options={vehicleOptions}
                       menuZIndex={320}
+                      error={
+                        uploadAttempted && !uploadVehicleId.trim()
+                          ? t("documents.uploadVehicleRequired")
+                          : undefined
+                      }
                     />
-                    <Select
-                      name="documentsUploadVehicleKind"
-                      label={t("documents.uploadVehicleKindLabel")}
-                      value={uploadVehicleKind}
-                      onChange={(e) => setUploadVehicleKind(e.target.value as VehicleDocumentKind)}
-                      onBlur={NOOP_BLUR}
-                      options={vehicleKindOptions}
-                      menuZIndex={320}
-                    />
+                    {uploadCategory === "VEHICLE_DOCUMENT" ? (
+                      <Select
+                        name="documentsUploadVehicleKind"
+                        label={t("documents.uploadVehicleKindLabel")}
+                        value={uploadVehicleKind}
+                        onChange={(e) => setUploadVehicleKind(e.target.value as VehicleDocumentKind)}
+                        onBlur={NOOP_BLUR}
+                        options={vehicleKindOptions}
+                        menuZIndex={320}
+                      />
+                    ) : null}
                     <div>
                       <label className="mb-1 block text-sm font-medium text-zinc-700">
                         {t("documents.uploadNotesLabel")}
@@ -1250,11 +1373,17 @@ export function DocumentsHubScreen() {
                   <Select
                     name="documentsUploadPersonnel"
                     label={t("documents.uploadPersonnelLabel")}
+                    labelRequired
                     value={uploadPersonnelId}
                     onChange={(e) => setUploadPersonnelId(e.target.value)}
                     onBlur={NOOP_BLUR}
                     options={personnelOptions}
                     menuZIndex={320}
+                    error={
+                      uploadAttempted && !uploadPersonnelId.trim()
+                        ? t("documents.uploadPersonnelRequired")
+                        : undefined
+                    }
                   />
                 ) : null}
 

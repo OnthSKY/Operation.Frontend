@@ -50,6 +50,35 @@ export function BrandingSettingsScreen() {
   const [nameDraft, setNameDraft] = useState("");
   const [bankAccountsDraft, setBankAccountsDraft] = useState<InstitutionBankAccountDraft[]>([]);
 
+  // Sticky Kaydet dirty-aware: data ile draft farklıysa true, aksi halde disabled.
+  const isDirty = (() => {
+    if (!data) return false;
+    if ((data.companyName ?? "") !== nameDraft) return true;
+    const original = data.institutionBankAccounts ?? [];
+    if (original.length !== bankAccountsDraft.length) return true;
+    const normalize = (x: {
+      id?: string;
+      displayName?: string;
+      iban?: string;
+      accountHolder?: string | null;
+      bankName?: string | null;
+      isDefaultForInvoices?: boolean;
+    }) =>
+      JSON.stringify({
+        id: x.id ?? null,
+        displayName: (x.displayName ?? "").trim(),
+        iban: (x.iban ?? "").trim(),
+        accountHolder: ((x.accountHolder ?? "") as string).trim(),
+        bankName: ((x.bankName ?? "") as string).trim(),
+        isDefaultForInvoices: Boolean(x.isDefaultForInvoices),
+      });
+    const sortById = (a: { id?: string }, b: { id?: string }) =>
+      (a.id ?? "").localeCompare(b.id ?? "");
+    const a = [...original].sort(sortById).map(normalize).join("|");
+    const b = [...bankAccountsDraft].sort(sortById).map(normalize).join("|");
+    return a !== b;
+  })();
+
   useEffect(() => {
     if (isReady && user && !hasPermissionCode(user, PERM.systemAdmin)) router.replace("/personnel");
   }, [isReady, user, router]);
@@ -189,7 +218,7 @@ export function BrandingSettingsScreen() {
     <>
       <PageScreenScaffold
         variant="form"
-        className={cn("w-full pb-24 pt-2 sm:pt-4")}
+        className={cn("w-full pb-[calc(8rem+env(safe-area-inset-bottom,0px))] pt-2 sm:pb-32 sm:pt-4")}
         top={
           <Link
             href="/admin/settings"
@@ -241,28 +270,18 @@ export function BrandingSettingsScreen() {
               {t("settings.brandingSectionName")}
             </h2>
             <p className="mt-1 text-xs text-zinc-500">{t("settings.brandingSectionNameHint")}</p>
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">
-              <div className="min-w-0 flex-1">
-                <label className="mb-1 block text-xs font-medium text-zinc-600" htmlFor="brand-name">
-                  {t("settings.brandingCompanyNameLabel")}
-                </label>
-                <Input
-                  id="brand-name"
-                  value={nameDraft}
-                  onChange={(e) => setNameDraft(e.target.value)}
-                  placeholder={t("settings.brandingCompanyNamePlaceholder")}
-                  maxLength={120}
-                  className="w-full"
-                />
-              </div>
-              <Button
-                type="button"
-                className="w-full shrink-0 sm:w-auto"
-                disabled={putMut.isPending}
-                onClick={() => void saveBranding()}
-              >
-                {putMut.isPending ? t("common.saving") : t("common.save")}
-              </Button>
+            <div className="mt-4">
+              <label className="mb-1 block text-xs font-medium text-zinc-600" htmlFor="brand-name">
+                {t("settings.brandingCompanyNameLabel")}
+              </label>
+              <Input
+                id="brand-name"
+                value={nameDraft}
+                onChange={(e) => setNameDraft(e.target.value)}
+                placeholder={t("settings.brandingCompanyNamePlaceholder")}
+                maxLength={120}
+                className="w-full"
+              />
             </div>
           </Card>
 
@@ -410,22 +429,14 @@ export function BrandingSettingsScreen() {
         }
       />
       <StickyActionBar>
-        <div className="grid grid-cols-2 gap-2">
-          <Link
-            href="/admin/settings"
-            className="flex min-h-11 items-center justify-center rounded-xl border border-zinc-300 bg-white px-3 text-sm font-medium text-zinc-700"
-          >
-            {t("common.cancel")}
-          </Link>
-          <Button
-            type="button"
-            className="min-h-11 w-full rounded-xl text-sm font-semibold"
-            disabled={putMut.isPending || isPending || isError || !data}
-            onClick={() => void saveBranding()}
-          >
-            {putMut.isPending ? t("common.saving") : t("common.save")}
-          </Button>
-        </div>
+        <Button
+          type="button"
+          className="min-h-11 w-full rounded-xl text-sm font-semibold"
+          disabled={putMut.isPending || isPending || isError || !data || !isDirty}
+          onClick={() => void saveBranding()}
+        >
+          {putMut.isPending ? t("common.saving") : t("common.save")}
+        </Button>
       </StickyActionBar>
     </>
   );

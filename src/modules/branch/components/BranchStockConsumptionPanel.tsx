@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useI18n } from "@/i18n/context";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { Button } from "@/shared/ui/Button";
-import { cn } from "@/lib/cn";
+import { DateField } from "@/shared/ui/DateField";
 import {
   canAdjustBranchStock,
   canConsumeBranchStock,
@@ -49,50 +49,46 @@ export function BranchStockConsumptionPanel({ branchId, active }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap gap-2">
         {mayConsume ? (
-          <Button onClick={() => setQuickMode("consume")}>
+          <Button className="!w-auto flex-1 min-h-10 px-3 text-sm sm:flex-initial" onClick={() => setQuickMode("consume")}>
             {t("branchStockConsumption.actionQuickConsume")}
           </Button>
         ) : null}
         {maySnapshot ? (
-          <Button variant="secondary" onClick={() => setSnapshotOpen(true)}>
+          <Button variant="secondary" className="!w-auto flex-1 min-h-10 px-3 text-sm sm:flex-initial" onClick={() => setSnapshotOpen(true)}>
             {t("branchStockConsumption.actionSnapshot")}
           </Button>
         ) : null}
         {mayAdjust ? (
-          <Button variant="secondary" onClick={() => setQuickMode("adjust")}>
+          <Button variant="secondary" className="!w-auto flex-1 min-h-10 px-3 text-sm sm:flex-initial" onClick={() => setQuickMode("adjust")}>
             {t("branchStockConsumption.actionAdjust")}
           </Button>
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 bg-zinc-50/60 px-3 py-3">
-        <FilterField label={t("branchStockConsumption.filterDateFrom")}>
-          <input
-            type="date"
-            value={dateFrom}
-            max={dateTo || today}
-            onChange={(e) => {
-              setDateFrom(e.target.value);
-              setPage(1);
-            }}
-            className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm focus:border-zinc-900 focus:outline-none"
-          />
-        </FilterField>
-        <FilterField label={t("branchStockConsumption.filterDateTo")}>
-          <input
-            type="date"
-            value={dateTo}
-            min={dateFrom || undefined}
-            max={today}
-            onChange={(e) => {
-              setDateTo(e.target.value);
-              setPage(1);
-            }}
-            className="rounded-md border border-zinc-300 px-2 py-1.5 text-sm focus:border-zinc-900 focus:outline-none"
-          />
-        </FilterField>
+      <div className="grid items-end gap-3 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm ring-1 ring-zinc-950/[0.03] sm:grid-cols-[1fr_1fr_auto]">
+        <DateField
+          label={t("branchStockConsumption.filterDateFrom")}
+          value={dateFrom}
+          max={dateTo || today}
+          onChange={(e) => {
+            setDateFrom(e.target.value);
+            setPage(1);
+          }}
+          className="min-w-0"
+        />
+        <DateField
+          label={t("branchStockConsumption.filterDateTo")}
+          value={dateTo}
+          min={dateFrom || undefined}
+          max={today}
+          onChange={(e) => {
+            setDateTo(e.target.value);
+            setPage(1);
+          }}
+          className="min-w-0"
+        />
         {mayAdjust ? (
           <label className="flex items-center gap-2 text-sm text-zinc-700">
             <input
@@ -139,11 +135,3 @@ export function BranchStockConsumptionPanel({ branchId, active }: Props) {
   );
 }
 
-function FilterField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className={cn("flex flex-col gap-1")}>
-      <span className="text-xs font-medium text-zinc-600">{label}</span>
-      {children}
-    </div>
-  );
-}

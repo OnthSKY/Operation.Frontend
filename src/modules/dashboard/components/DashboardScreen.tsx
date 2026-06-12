@@ -11,8 +11,17 @@ import { isPersonnelPortalRole, postLoginHomePath } from "@/lib/auth/roles";
 import { AddTransactionModal } from "@/shared/components/transactions/AddTransactionModal";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { fillDashboardTemplate } from "@/modules/dashboard/components/dashboard-utils";
-import { ActionGroup, type ActionItem } from "@/modules/dashboard/components/overview/ActionGroup";
-import { DashCard, Stat } from "@/modules/dashboard/components/overview/DashCard";
+import { QuickOpsSheet, type QuickOpItem } from "@/modules/dashboard/components/overview/QuickOpsSheet";
+import { useDashboardFinancialCards } from "@/modules/dashboard/hooks/useDashboardFinancialCards";
+import { FinancialIncomeCard } from "@/modules/dashboard/components/overview/FinancialIncomeCard";
+import { useWarehousesList } from "@/modules/warehouse/hooks/useWarehouseQueries";
+import {
+  WarehouseListDepoInModal,
+  WarehouseListTransferModal,
+} from "@/modules/warehouse/components/WarehouseListQuickModals";
+import { ContractorEntryDialog } from "@/modules/contractors/components/ContractorEntryDialog";
+import { useContractors } from "@/modules/contractors/hooks/useContractorQueries";
+import { DashCard } from "@/modules/dashboard/components/overview/DashCard";
 import { KpiStrip, type KpiItem } from "@/modules/dashboard/components/overview/KpiStrip";
 import { QuickPickerModal, type PickerOption } from "@/modules/dashboard/components/overview/QuickPickerModal";
 import { StoryCallout } from "@/modules/dashboard/components/overview/StoryCallout";
@@ -66,12 +75,16 @@ export function DashboardScreen() {
   const canReports = canSeeUiModule(user, PERM.uiReports) || canReportsFinancial;
   const canSuppliers = canSeeUiModule(user, PERM.uiSuppliers);
   const canVehicles = canSeeUiModule(user, PERM.uiVehicles);
+  const canContractors = canSeeUiModule(user, PERM.uiContractors);
 
   const today = useTodayBranchesSummary(
     { kind: "day", date: todayIso },
     allowed && canBranches && showFinancials
   );
   const overview = useDashboardOverview(allowed);
+  const finCards = useDashboardFinancialCards(
+    allowed && canBranches && showFinancials
+  );
 
   const [advanceOpen, setAdvanceOpen] = useState(false);
   const [persExpensePickerOpen, setPersExpensePickerOpen] = useState(false);
@@ -85,6 +98,12 @@ export function DashboardScreen() {
     number | null
   >(null);
   const [supplierPickerOpen, setSupplierPickerOpen] = useState(false);
+  const [quickOpsOpen, setQuickOpsOpen] = useState(false);
+  const [depoInPickerOpen, setDepoInPickerOpen] = useState(false);
+  const [depoInTarget, setDepoInTarget] = useState<{ id: number; name: string } | null>(null);
+  const [transferPickerOpen, setTransferPickerOpen] = useState(false);
+  const [transferTarget, setTransferTarget] = useState<{ id: number; name: string } | null>(null);
+  const [contractorEntry, setContractorEntry] = useState<{ mode: "work" | "payment" } | null>(null);
 
   const personnelListQ = usePersonnelList(
     defaultPersonnelListFilters,
@@ -96,12 +115,178 @@ export function DashboardScreen() {
   );
   const personnelOptions: PickerOption[] = useMemo(
     () =>
-      activePersonnel.map((p) => ({
-        id: p.id,
-        label: p.fullName,
-        sub: p.jobTitle ?? undefined,
+      activePersonnel.map((p) => {
+        const titleKey = p.jobTitle
+          ? `personnel.jobTitles.${p.jobTitle}`
+          : null;
+        const translated = titleKey ? t(titleKey) : "";
+        const sub =
+          translated && translated !== titleKey
+            ? translated
+            : (p.jobTitle ?? undefined);
+        return {
+          id: p.id,
+          label: p.fullName,
+          sub,
+        };
+      }),
+    [activePersonnel, t]
+  );
+
+  const quickOpsItems: QuickOpItem[] = useMemo(() => {
+    const out: QuickOpItem[] = [];
+    if (canBranches || canDailyRegister) {
+      out.push({
+        key: "endOfDay",
+        label: t("dashboard.ovActionEndOfDay"),
+        tone: "emerald",
+        group: "register",
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="5" width="18" height="14" rx="2" />
+            <path d="M3 10h18M8 3v4M16 3v4" />
+          </svg>
+        ),
+        onClick: () => setDayEndPickerOpen(true),
+      });
+    }
+    if (canBranches) {
+      out.push({
+        key: "branchExpense",
+        label: t("dashboard.ovActionBranchExpense"),
+        tone: "rose",
+        group: "register",
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 21h18M5 21V9l7-5 7 5v12M9 12h6M9 16h6" />
+          </svg>
+        ),
+        onClick: () => setBranchExpensePickerOpen(true),
+      });
+    }
+    if (canPersonnel) {
+      out.push({
+        key: "advance",
+        label: t("dashboard.ovActionGiveAdvance"),
+        tone: "amber",
+        group: "personnel",
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="6" width="20" height="12" rx="2" />
+            <circle cx="12" cy="12" r="2.5" />
+            <path d="M6 10v.01M18 14v.01" />
+          </svg>
+        ),
+        onClick: () => setAdvanceOpen(true),
+      });
+      out.push({
+        key: "personnelExpense",
+        label: t("dashboard.ovActionPersonnelExpense"),
+        tone: "violet",
+        group: "personnel",
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="8" r="3.5" />
+            <path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" />
+          </svg>
+        ),
+        onClick: () => setPersExpensePickerOpen(true),
+      });
+    }
+    if (canSuppliers) {
+      out.push({
+        key: "supplierInvoice",
+        label: t("dashboard.ovActionSupplierInvoice"),
+        tone: "sky",
+        group: "supply",
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 3h9l4 4v14H6z" />
+            <path d="M14 3v5h5M9 13h6M9 17h6" />
+          </svg>
+        ),
+        onClick: () => setSupplierPickerOpen(true),
+      });
+    }
+    if (canWarehouse) {
+      out.push({
+        key: "depoIn",
+        label: t("warehouse.actionDepoProductIn"),
+        tone: "blue",
+        group: "supply",
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 9 12 4l9 5v10H3z" />
+            <path d="M12 4v8M8 12h8" />
+          </svg>
+        ),
+        onClick: () => setDepoInPickerOpen(true),
+      });
+      out.push({
+        key: "branchTransfer",
+        label: t("warehouse.actionBranchProductOut"),
+        tone: "violet",
+        group: "supply",
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 12h13M11 6l6 6-6 6" />
+            <path d="M19 4v16" />
+          </svg>
+        ),
+        onClick: () => setTransferPickerOpen(true),
+      });
+    }
+    if (canContractors) {
+      out.push({
+        key: "contractorWork",
+        label: t("dashboard.ovActionContractorWork"),
+        tone: "rose",
+        group: "personnel",
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M9 4h6l1 3h3v13H5V7h3z" />
+            <path d="M9 12h6M9 16h6" />
+          </svg>
+        ),
+        onClick: () => setContractorEntry({ mode: "work" }),
+      });
+      out.push({
+        key: "contractorPayment",
+        label: t("dashboard.ovActionContractorPayment"),
+        tone: "emerald",
+        group: "personnel",
+        icon: (
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="6" width="20" height="12" rx="2" />
+            <circle cx="12" cy="12" r="2.5" />
+            <path d="M6 10v.01M18 14v.01" />
+          </svg>
+        ),
+        onClick: () => setContractorEntry({ mode: "payment" }),
+      });
+    }
+    return out;
+  }, [canBranches, canDailyRegister, canPersonnel, canSuppliers, canWarehouse, canContractors, t]);
+
+  const contractorsQ = useContractors(false);
+  const activeContractors = useMemo(
+    () =>
+      (contractorsQ.data ?? []).map((c) => ({
+        id: c.id,
+        displayName: c.displayName,
       })),
-    [activePersonnel]
+    [contractorsQ.data]
+  );
+
+  const warehousesQ = useWarehousesList();
+  const warehousesData = warehousesQ.data ?? [];
+  const warehouseOptions = useMemo(
+    () =>
+      warehousesData.map((w) => ({
+        id: w.id,
+        label: w.name,
+      })),
+    [warehousesData]
   );
 
   const branchesQ = useBranchesList(
@@ -145,12 +330,6 @@ export function DashboardScreen() {
     return { active, total };
   }, [todayOk, ov]);
 
-  const topBranchesByIncome = useMemo(() => {
-    if (!todayOk) return [];
-    return [...todayOk.branchTodayRows]
-      .sort((a, b) => b.income - a.income)
-      .slice(0, 3);
-  }, [todayOk]);
 
   const fmtMoney = (n: number | null | undefined, currency?: string) =>
     n == null || Number.isNaN(n)
@@ -159,18 +338,25 @@ export function DashboardScreen() {
   const fmtNum = (n: number | null | undefined) =>
     n == null || Number.isNaN(n) ? DASH : new Intl.NumberFormat(locale).format(n);
 
-  const advanceFirst = ov?.financeExtras.advanceTotalsByCurrency?.[0];
-
   if (!allowed) return null;
 
   return (
     <>
     <PageScreenScaffold
       variant="dashboard"
-      className="w-full pb-[max(1.25rem,env(safe-area-inset-bottom,0px))] pt-4 sm:pb-8 sm:pt-5"
+      collapseIntroOnMobile={false}
+      className="w-full pb-[calc(5rem+env(safe-area-inset-bottom,0px))] pt-4 sm:pb-8 sm:pt-5"
       intro={
         <PageHeader
-          title={t("dashboard.title")}
+          title={
+            <span className="flex items-center gap-2">
+              <span className="min-w-0">{t("dashboard.title")}</span>
+              <StoryCallout
+                title={t("dashboard.ovStoryTitle")}
+                text={t("dashboard.ovStoryText")}
+              />
+            </span>
+          }
           description={t("dashboard.subtitle")}
           actions={
             today.state.kind === "error" || overview.isError ? (
@@ -191,21 +377,42 @@ export function DashboardScreen() {
       }
       main={
         <div className="min-w-0 w-full space-y-5 sm:space-y-6">
+          <section aria-labelledby="dash-pulse" className="space-y-3">
+            <header className="flex items-start gap-3">
+              <span
+                aria-hidden
+                className="relative mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 text-blue-600 ring-1 ring-blue-100"
+              >
+                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-blue-500 ring-2 ring-blue-50">
+                  <span className="absolute inset-0 animate-ping rounded-full bg-blue-400 opacity-75" />
+                </span>
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M3 12h4l2-7 4 14 2-7h6" />
+                </svg>
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2
+                  id="dash-pulse"
+                  className="text-base font-semibold tracking-tight text-zinc-900 sm:text-lg"
+                >
+                  {t("dashboard.ovSectionPulseTitle")}
+                </h2>
+                <p className="mt-0.5 text-xs text-zinc-500 sm:text-sm">
+                  {t("dashboard.ovSectionPulseHint")}
+                </p>
+              </div>
+            </header>
           <KpiStrip
             items={[
-              showFinancials && canBranches
-                ? {
-                    label: t("dashboard.ovTodayCash"),
-                    value: fmtMoney(todayOk?.totalIncomeCash ?? null),
-                    sub:
-                      todayOk == null
-                        ? ""
-                        : fmtMoney(todayOk.netCash) +
-                          " · " +
-                          t("dashboard.ovTodayNet"),
-                    href: "/branches",
-                  }
-                : null,
               canBranches
                 ? {
                     label: t("dashboard.ovActiveBranches"),
@@ -230,161 +437,157 @@ export function DashboardScreen() {
                     href: "/personnel",
                   }
                 : null,
-              showFinancials
-                ? {
-                    label: t("dashboard.ovLifetimeNet"),
-                    value: fmtMoney(
-                      ov?.financeExtras.allBranchesLifetimeEconomicNet ?? null
-                    ),
-                    sub: "",
-                    href: canReportsFinancial
-                      ? "/reports/financial/trend"
-                      : "/reports/financial",
-                  }
-                : null,
               canPersonnel
                 ? {
-                    label: t("dashboard.ovAdvanceOpen"),
-                    value: advanceFirst
-                      ? fmtMoney(advanceFirst.totalAmount, advanceFirst.currencyCode)
-                      : DASH,
-                    sub: advanceFirst
-                      ? fmtNum(ov?.financeExtras.advanceRecordCount) +
-                        " " +
-                        t("dashboard.ovAdvanceOpen").toLocaleLowerCase(locale)
-                      : "",
+                    label: t("dashboard.ovPulseAdvanceCount"),
+                    value: fmtNum(ov?.financeExtras.advanceRecordCount),
+                    sub: t("dashboard.ovPulseAdvanceCountSub"),
                     href: "/personnel/advances",
                   }
                 : null,
             ].filter(Boolean) as KpiItem[]}
           />
+          </section>
 
-          <StoryCallout
-            title={t("dashboard.ovStoryTitle")}
-            text={t("dashboard.ovStoryText")}
-          />
-
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4">
-            <ActionGroup
-              title={t("dashboard.ovQuickOpsTitle")}
-              hint={t("dashboard.ovQuickOpsHint")}
-              tone="primary"
-              items={[
-                canBranches || canDailyRegister
-                  ? {
-                      label: t("dashboard.ovActionEndOfDay"),
-                      onClick: () => setDayEndPickerOpen(true),
-                    }
-                  : null,
-                canBranches
-                  ? {
-                      label: t("dashboard.ovActionBranchExpense"),
-                      onClick: () => setBranchExpensePickerOpen(true),
-                    }
-                  : null,
-                canPersonnel
-                  ? {
-                      label: t("dashboard.ovActionGiveAdvance"),
-                      onClick: () => setAdvanceOpen(true),
-                    }
-                  : null,
-                canPersonnel
-                  ? {
-                      label: t("dashboard.ovActionPersonnelExpense"),
-                      onClick: () => setPersExpensePickerOpen(true),
-                    }
-                  : null,
-                canSuppliers
-                  ? {
-                      label: t("dashboard.ovActionSupplierInvoice"),
-                      onClick: () => setSupplierPickerOpen(true),
-                    }
-                  : null,
-              ].filter(Boolean) as ActionItem[]}
-            />
-            <ActionGroup
-              title={t("dashboard.ovQuickScreensTitle")}
-              hint={t("dashboard.ovQuickScreensHint")}
-              tone="neutral"
-              items={[
-                canBranches
-                  ? { href: "/branches", label: t("dashboard.ovScreenBranches") }
-                  : null,
-                canPersonnel
-                  ? {
-                      href: "/personnel",
-                      label: t("dashboard.ovScreenPersonnel"),
-                    }
-                  : null,
-                canReports
-                  ? {
-                      href: canReportsFinancial
-                        ? "/reports/financial"
-                        : "/reports",
-                      label: t("dashboard.ovScreenReports"),
-                    }
-                  : null,
-                canWarehouse
-                  ? {
-                      href: "/warehouses",
-                      label: t("dashboard.ovScreenWarehouse"),
-                    }
-                  : null,
-                canSuppliers
-                  ? {
-                      href: "/suppliers",
-                      label: t("dashboard.ovScreenSuppliers"),
-                    }
-                  : null,
-                canVehicles
-                  ? {
-                      href: "/vehicles",
-                      label: t("dashboard.ovScreenVehicles"),
-                    }
-                  : null,
-              ].filter(Boolean) as { href: string; label: string }[]}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {canBranches ? (
-              <DashCard
-                title={t("dashboard.ovCardBranchesTitle")}
-                description={t("dashboard.ovCardBranchesDesc")}
-                href="/branches"
-                detailLabel={t("dashboard.ovDetail")}
+          {quickOpsItems.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => setQuickOpsOpen(true)}
+              className="group relative flex w-full items-center gap-3 overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-600 to-indigo-600 px-4 py-3.5 text-left text-white shadow-lg shadow-blue-600/20 ring-1 ring-blue-700/20 transition hover:from-blue-700 hover:to-indigo-700 hover:shadow-xl hover:shadow-blue-600/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-300 focus-visible:ring-offset-2 active:scale-[0.99] sm:px-5 sm:py-4"
+            >
+              <span
+                aria-hidden
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 ring-1 ring-white/20 transition group-hover:rotate-90 group-hover:bg-white/20"
               >
-                <Stat
-                  label={t("dashboard.ovActiveBranches")}
-                  value={fmtNum(ov?.operations.activeBranchCount)}
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="text-[11px] font-medium uppercase tracking-wider text-blue-100/90">
+                  {t("dashboard.ovQuickOpsHint")}
+                </span>
+                <span className="truncate text-base font-semibold leading-tight sm:text-lg">
+                  {t("dashboard.ovQuickOpsTitle")}
+                </span>
+              </span>
+              <span
+                aria-hidden
+                className="shrink-0 text-white/70 transition group-hover:translate-x-0.5 group-hover:text-white"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="m9 18 6-6-6-6" />
+                </svg>
+              </span>
+            </button>
+          ) : null}
+
+          <section aria-labelledby="dash-finance" className="space-y-3">
+            <header className="flex items-start gap-3">
+              <span
+                aria-hidden
+                className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-600 ring-1 ring-emerald-100"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M3 17l6-6 4 4 8-8" />
+                  <path d="M14 7h7v7" />
+                </svg>
+              </span>
+              <div className="min-w-0 flex-1">
+                <h2
+                  id="dash-finance"
+                  className="text-base font-semibold tracking-tight text-zinc-900 sm:text-lg"
+                >
+                  {t("dashboard.ovSectionFinanceTitle")}
+                </h2>
+                <p className="mt-0.5 text-xs text-zinc-500 sm:text-sm">
+                  {t("dashboard.ovSectionFinanceHint")}
+                </p>
+              </div>
+            </header>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {showFinancials && canBranches ? (
+              <>
+                <FinancialIncomeCard
+                  title={t("dashboard.ovFinTotalIncome")}
+                  description={t("dashboard.ovFinTotalIncomeDesc")}
+                  bucket={finCards.lifetime}
+                  href={canReportsFinancial ? "/reports/financial" : "/branches"}
+                  detailLabel={t("dashboard.ovDetail")}
+                  fmtMoney={fmtMoney}
+                  t={t}
                 />
-                {branchesActiveToday ? (
-                  <p className="text-xs text-zinc-500">
-                    {fillDashboardTemplate(
-                      t("dashboard.ovBranchesActiveToday"),
-                      {
-                        active: String(branchesActiveToday.active),
-                        total: String(branchesActiveToday.total),
-                      }
-                    )}
-                  </p>
-                ) : null}
-                {showFinancials && topBranchesByIncome.length > 0 ? (
-                  <ul className="mt-1 space-y-1 text-xs text-zinc-700">
-                    {topBranchesByIncome.map((r) => (
-                      <li
-                        key={r.branchId}
-                        className="flex items-center justify-between gap-2"
-                      >
-                        <span className="truncate">{r.branchName}</span>
-                        <span className="tabular-nums text-zinc-900">
-                          {fmtMoney(r.income)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </DashCard>
+                <FinancialIncomeCard
+                  title={t("dashboard.ovFinSeasonIncome")}
+                  description={t("dashboard.ovFinSeasonIncomeDesc")}
+                  bucket={finCards.season}
+                  href={canReportsFinancial ? "/reports/financial" : "/branches"}
+                  detailLabel={t("dashboard.ovDetail")}
+                  fmtMoney={fmtMoney}
+                  t={t}
+                />
+                <FinancialIncomeCard
+                  title={t("dashboard.ovFinDailyIncome")}
+                  description={t("dashboard.ovFinDailyIncomeDesc")}
+                  bucket={finCards.today}
+                  href={canReportsFinancial ? "/reports/financial" : "/branches"}
+                  detailLabel={t("dashboard.ovDetail")}
+                  fmtMoney={fmtMoney}
+                  t={t}
+                />
+                <DashCard
+                  title={t("dashboard.ovFinPersonnelCost")}
+                  description={t("dashboard.ovFinPersonnelCostDesc")}
+                  href="/personnel/costs"
+                  detailLabel={t("dashboard.ovDetail")}
+                >
+                  <dl className="space-y-1.5 text-xs text-zinc-700">
+                    <div className="flex items-center justify-between gap-2">
+                      <dt className="text-zinc-500">
+                        {t("dashboard.ovFinTotalAdvance")}
+                      </dt>
+                      <dd className="tabular-nums font-medium text-zinc-900">
+                        {fmtMoney(finCards.lifetime.totalAdvanceGiven)}
+                      </dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <dt className="text-zinc-500">
+                        {t("dashboard.ovFinTotalSalary")}
+                      </dt>
+                      <dd className="tabular-nums font-medium text-zinc-900">
+                        {fmtMoney(finCards.lifetime.totalSalaryPaid)}
+                      </dd>
+                    </div>
+                  </dl>
+                </DashCard>
+              </>
             ) : null}
 
             {canPersonnel ? (
@@ -394,10 +597,6 @@ export function DashboardScreen() {
                 href="/personnel/costs"
                 detailLabel={t("dashboard.ovDetail")}
               >
-                <Stat
-                  label={t("dashboard.ovActivePersonnel")}
-                  value={fmtNum(ov?.personnel.activePersonnelCount)}
-                />
                 {ov?.personnel.longestTenure ? (
                   <p className="text-xs text-zinc-600">
                     <span className="text-zinc-500">
@@ -433,36 +632,6 @@ export function DashboardScreen() {
                       )}
                     </span>
                   </p>
-                ) : null}
-              </DashCard>
-            ) : null}
-
-            {showFinancials ? (
-              <DashCard
-                title={t("dashboard.ovCardFinanceTitle")}
-                description={t("dashboard.ovCardFinanceDesc")}
-                href={canReportsFinancial ? "/reports/financial" : "/branches"}
-                detailLabel={t("dashboard.ovDetail")}
-              >
-                <Stat
-                  label={t("dashboard.ovLifetimeNet")}
-                  value={fmtMoney(
-                    ov?.financeExtras.allBranchesLifetimeEconomicNet ?? null
-                  )}
-                />
-                {todayOk ? (
-                  <>
-                    <Stat
-                      label={t("dashboard.ovTodayCash")}
-                      value={fmtMoney(todayOk.totalIncomeCash)}
-                      compact
-                    />
-                    <Stat
-                      label={t("dashboard.ovTodayNet")}
-                      value={fmtMoney(todayOk.netCash)}
-                      compact
-                    />
-                  </>
                 ) : null}
               </DashCard>
             ) : null}
@@ -542,36 +711,155 @@ export function DashboardScreen() {
               </DashCard>
             ) : null}
 
-            {showFinancials &&
-            ov?.financeExtras.registerCashHeldByPersonnelTotalsByCurrency
-              ?.length ? (
+            {showFinancials ? (
               <DashCard
-                title={t("dashboard.ovCardCashHeldTitle")}
-                description={t("dashboard.ovCardCashHeldDesc")}
+                title={t("dashboard.ovCardCashFlowTitle")}
+                description={t("dashboard.ovCardCashFlowDesc")}
                 href="/personnel/costs"
                 detailLabel={t("dashboard.ovDetail")}
               >
-                <ul className="space-y-1 text-xs text-zinc-700">
-                  {ov.financeExtras.registerCashHeldByPersonnelTotalsByCurrency.map(
-                    (row) => (
-                      <li
-                        key={row.currencyCode}
-                        className="flex items-center justify-between gap-2"
-                      >
-                        <span className="text-zinc-500">{row.currencyCode}</span>
-                        <span className="tabular-nums text-zinc-900">
-                          {fmtMoney(row.totalAmount, row.currencyCode)}
-                        </span>
-                      </li>
-                    )
-                  )}
-                </ul>
+                <dl className="space-y-2.5 text-sm">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <dt className="flex items-center gap-1.5 text-xs text-zinc-500">
+                      <span
+                        aria-hidden
+                        className="inline-block h-2 w-2 rounded-full bg-amber-500"
+                      />
+                      {t("dashboard.ovCashFlowToPatron")}
+                    </dt>
+                    <dd className="tabular-nums text-sm font-semibold text-zinc-900">
+                      {fmtMoney(
+                        finCards.cashFlow.toPatron,
+                        finCards.cashFlow.currency
+                      )}
+                    </dd>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <dt className="flex items-center gap-1.5 text-xs text-zinc-500">
+                      <span
+                        aria-hidden
+                        className="inline-block h-2 w-2 rounded-full bg-violet-500"
+                      />
+                      {t("dashboard.ovCashFlowToPersonnel")}
+                    </dt>
+                    <dd className="tabular-nums text-sm font-semibold text-zinc-900">
+                      {fmtMoney(
+                        finCards.cashFlow.toPersonnel,
+                        finCards.cashFlow.currency
+                      )}
+                    </dd>
+                  </div>
+                  {(() => {
+                    const heldRow =
+                      ov?.financeExtras.registerCashHeldByPersonnelTotalsByCurrency.find(
+                        (c) =>
+                          c.currencyCode.toUpperCase() ===
+                          finCards.cashFlow.currency.toUpperCase()
+                      ) ??
+                      ov?.financeExtras
+                        .registerCashHeldByPersonnelTotalsByCurrency[0];
+                    const available = heldRow?.totalAmount ?? 0;
+                    const spent = Math.max(
+                      0,
+                      finCards.cashFlow.toPersonnel - available
+                    );
+                    const currency = heldRow?.currencyCode ?? finCards.cashFlow.currency;
+                    return (
+                      <>
+                        <div className="flex items-baseline justify-between gap-2 border-t border-zinc-100 pt-2">
+                          <dt className="flex items-center gap-1.5 text-xs text-zinc-500">
+                            <span
+                              aria-hidden
+                              className="inline-block h-2 w-2 rounded-full bg-rose-500"
+                            />
+                            {t("dashboard.ovCashFlowSpent")}
+                          </dt>
+                          <dd className="tabular-nums text-sm font-semibold text-rose-600">
+                            {fmtMoney(spent, currency)}
+                          </dd>
+                        </div>
+                        <div className="flex items-baseline justify-between gap-2">
+                          <dt className="flex items-center gap-1.5 text-xs text-zinc-500">
+                            <span
+                              aria-hidden
+                              className="inline-block h-2 w-2 rounded-full bg-emerald-500"
+                            />
+                            {t("dashboard.ovCashFlowAvailable")}
+                          </dt>
+                          <dd className="tabular-nums text-sm font-semibold text-emerald-700">
+                            {fmtMoney(available, currency)}
+                          </dd>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </dl>
               </DashCard>
             ) : null}
           </div>
+          </section>
         </div>
       }
     />
+
+    <QuickOpsSheet
+      open={quickOpsOpen}
+      onClose={() => setQuickOpsOpen(false)}
+      title={t("dashboard.ovQuickOpsTitle")}
+      description={t("dashboard.ovQuickOpsHint")}
+      items={quickOpsItems}
+    />
+
+    {canWarehouse ? (
+      <>
+        <QuickPickerModal
+          open={depoInPickerOpen}
+          onClose={() => setDepoInPickerOpen(false)}
+          title={t("warehouse.actionDepoProductIn")}
+          description="Ürün girişi yapacağınız depoyu seçin"
+          options={warehouseOptions}
+          loading={warehousesQ.isPending}
+          onPick={(id) => {
+            const w = warehousesData.find((x) => x.id === id);
+            if (!w) return;
+            setDepoInPickerOpen(false);
+            setDepoInTarget({ id: w.id, name: w.name });
+          }}
+        />
+        <WarehouseListDepoInModal
+          target={depoInTarget}
+          onClose={() => setDepoInTarget(null)}
+        />
+        <QuickPickerModal
+          open={transferPickerOpen}
+          onClose={() => setTransferPickerOpen(false)}
+          title={t("warehouse.actionBranchProductOut")}
+          description="Sevkiyat yapacağınız kaynak depoyu seçin"
+          options={warehouseOptions}
+          loading={warehousesQ.isPending}
+          onPick={(id) => {
+            const w = warehousesData.find((x) => x.id === id);
+            if (!w) return;
+            setTransferPickerOpen(false);
+            setTransferTarget({ id: w.id, name: w.name });
+          }}
+        />
+        <WarehouseListTransferModal
+          target={transferTarget}
+          onClose={() => setTransferTarget(null)}
+        />
+      </>
+    ) : null}
+
+    {canContractors ? (
+      <ContractorEntryDialog
+        open={contractorEntry != null}
+        mode={contractorEntry?.mode ?? "work"}
+        contractorId={null}
+        contractors={activeContractors}
+        onClose={() => setContractorEntry(null)}
+      />
+    ) : null}
 
     {canPersonnel ? (
       <AdvancePersonnelModal
@@ -587,6 +875,7 @@ export function DashboardScreen() {
           open={persExpensePickerOpen}
           onClose={() => setPersExpensePickerOpen(false)}
           title={t("dashboard.ovActionPersonnelExpense")}
+          description="Masraf eklemek için bir personel seçin"
           options={personnelOptions}
           loading={personnelListQ.isPending}
           onPick={(id) => {
@@ -610,6 +899,7 @@ export function DashboardScreen() {
           open={dayEndPickerOpen}
           onClose={() => setDayEndPickerOpen(false)}
           title={t("dashboard.ovActionEndOfDay")}
+          description="Gün sonunu kapatacağınız şubeyi seçin"
           options={branchOptions}
           loading={branchesQ.isPending}
           onPick={(id) => {
@@ -630,6 +920,7 @@ export function DashboardScreen() {
           open={branchExpensePickerOpen}
           onClose={() => setBranchExpensePickerOpen(false)}
           title={t("dashboard.ovActionBranchExpense")}
+          description="Gideri ekleyeceğiniz şubeyi seçin"
           options={branchOptions}
           loading={branchesQ.isPending}
           onPick={(id) => {

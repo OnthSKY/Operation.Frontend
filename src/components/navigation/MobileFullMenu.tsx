@@ -248,41 +248,7 @@ export function MobileFullMenu({ open, onClose, onOpenSidebar, badgeState }: Mob
             </section>
           ) : (
             <>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">{t("nav.dockNav")}</p>
-              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
-                {quickItems.map((item) => {
-                  const active = isActiveRoute(pathname, item.route);
-                  const badge = item.sourceItem ? resolveBadge(item.sourceItem, badgeState) : null;
-                  return (
-                    <Link
-                      key={item.id}
-                      href={item.route}
-                      prefetch
-                      onClick={() => {
-                        trackNavClick(item.route);
-                        onClose();
-                      }}
-                      className={`relative flex min-h-[3.25rem] flex-col items-center justify-center gap-1 rounded-2xl border px-2 py-3 text-center text-sm font-semibold transition-colors ${
-                        active
-                          ? "border-indigo-200 bg-indigo-50 text-indigo-800"
-                          : "border-zinc-200/90 bg-white text-zinc-700 shadow-sm hover:border-zinc-300 hover:bg-zinc-50"
-                      }`}
-                    >
-                      <span className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100/80 text-zinc-700">
-                        <NavIcon icon={item.icon} />
-                        {badge ? (
-                          <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-indigo-600 px-1 text-[10px] font-bold text-white shadow ring-2 ring-white">
-                            {badge > 99 ? "99+" : badge}
-                          </span>
-                        ) : null}
-                      </span>
-                      <span className="line-clamp-2 w-full text-[13px] leading-snug">{item.label}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-
-              <div className="mt-8 border-t border-zinc-200/80 pt-5">
+              <div>
                 <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
                   {t("nav.openGroupedNavigation")}
                 </p>

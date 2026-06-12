@@ -23,6 +23,8 @@ type Props = {
   variant?: "dashboard" | "report" | "form";
   /** Ana içerik bölgesinin `aria-label` metni (varsayılan: «Kayıtlar» / Records). */
   mainSectionAriaLabel?: string;
+  /** false: mobilde giriş bölümü katlanmaz, doğrudan görünür. */
+  collapseIntroOnMobile?: boolean;
 };
 
 /**
@@ -37,6 +39,7 @@ export function PageScreenScaffold({
   top,
   variant = "report",
   mainSectionAriaLabel,
+  collapseIntroOnMobile = true,
 }: Props) {
   const { t } = useI18n();
   const rid = useId().replace(/:/g, "");
@@ -73,7 +76,14 @@ export function PageScreenScaffold({
       )}
     >
       {top}
-      <MobileIntroSummaryCollapse intro={introSection} summary={summarySection} />
+      {collapseIntroOnMobile ? (
+        <MobileIntroSummaryCollapse intro={introSection} summary={summarySection} />
+      ) : (
+        <div className="flex min-w-0 flex-col gap-6">
+          <div className="min-w-0">{intro}</div>
+          {summarySection}
+        </div>
+      )}
       <PageContentSection
         variant="plain"
         sectionAriaLabel={mainSectionAriaLabel ?? t("common.pageSectionMain")}

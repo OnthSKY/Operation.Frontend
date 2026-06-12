@@ -19,6 +19,7 @@ import { userCanManageTourismSeasonClosedPolicy } from "@/shared/lib/resolve-loc
 import { BranchTourismSeasonWorkflowCard } from "@/modules/branch/components/BranchTourismSeasonWorkflowCard";
 import { Card } from "@/shared/components/Card";
 import { Button } from "@/shared/ui/Button";
+import { ToggleButton } from "@/shared/ui/ToggleButton";
 import { DateField } from "@/shared/ui/DateField";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
@@ -179,10 +180,43 @@ export function BranchTourismSeasonTab({ branchId, active }: Props) {
   });
   const dash = "—";
 
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const openSeason = data.find(
+    (r) => !r.closedOn && r.openedOn.slice(0, 10) <= todayIso
+  );
+
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex flex-wrap items-center gap-2">
+        {openSeason ? (
+          <span
+            className="inline-flex items-center gap-2 rounded-full border border-emerald-200/80 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 ring-1 ring-emerald-900/[0.04]"
+            aria-label={t("branch.tSeasonStatusOpen")}
+          >
+            <span
+              aria-hidden
+              className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500"
+            >
+              <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
+            </span>
+            <span className="font-semibold">{t("branch.tSeasonStatusOpen")}</span>
+            <span className="text-emerald-700/80">·</span>
+            <span className="tabular-nums">{openSeason.seasonYear}</span>
+            <span className="text-emerald-700/80">·</span>
+            <span>{formatLocaleDate(openSeason.openedOn, locale)}</span>
+          </span>
+        ) : (
+          <span
+            className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-600"
+            aria-label={t("branch.tSeasonStatusClosed")}
+          >
+            <span aria-hidden className="h-2 w-2 rounded-full bg-zinc-400" />
+            <span className="font-semibold">{t("branch.tSeasonStatusClosed")}</span>
+          </span>
+        )}
+      </div>
+
       <BranchTourismSeasonWorkflowCard t={t} showAdminPolicyLink={canManageClosedSeasonPolicy} />
-      <p className="text-sm text-zinc-600">{t("branch.tSeasonHint")}</p>
 
       <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-zinc-50/80 p-3 sm:flex-row sm:flex-wrap sm:items-end">
         <div className="min-w-[10rem] flex-1 sm:max-w-xs">
@@ -201,14 +235,19 @@ export function BranchTourismSeasonTab({ branchId, active }: Props) {
         {yearInvalid ? (
           <p className="text-sm text-amber-800">{t("branch.tSeasonFilterYearInvalid")}</p>
         ) : null}
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="secondary" className="min-h-11" onClick={() => setYearFilter("")}>
+        <div className="flex gap-2">
+          <ToggleButton
+            active={yearFilter.trim() === ""}
+            fullWidth
+            onClick={() => setYearFilter("")}
+          >
             {t("branch.tSeasonFilterAllYears")}
-          </Button>
-          <Button type="button" variant="secondary" className="min-h-11" onClick={() => void refetch()}>
-            {t("branch.filterApplyRefresh")}
-          </Button>
-          <Button type="button" className="min-h-11" onClick={openCreate}>
+          </ToggleButton>
+          <Button
+            type="button"
+            className="min-h-11 !w-auto flex-1 px-3 text-sm sm:flex-initial"
+            onClick={openCreate}
+          >
             {t("branch.tSeasonAdd")}
           </Button>
         </div>

@@ -76,15 +76,12 @@ const SUB: Record<string, { value: string; labelKey: string }[]> = {
   IN_SALES: [
     { value: "SALE_RETAIL", labelKey: "branch.txSubSaleRetail" },
     { value: "SALE_WHOLESALE", labelKey: "branch.txSubSaleWholesale" },
-    { value: "SALE_OTHER", labelKey: "branch.txSubSaleOther" },
   ],
   IN_SERVICE: [
     { value: "SVC_CONSULT", labelKey: "branch.txSubSvcConsult" },
     { value: "SVC_REPAIR", labelKey: "branch.txSubSvcRepair" },
-    { value: "SVC_OTHER", labelKey: "branch.txSubSvcOther" },
   ],
   IN_OTHER: [
-    { value: "INC_REGISTER", labelKey: "branch.txSubIncRegister" },
     { value: "INC_OTHER", labelKey: "branch.txSubIncOther" },
   ],
   /** Ücret → yardımlar → yükümlülükler (SGK eğitimden önce) → diğer. */
@@ -175,22 +172,16 @@ export function isPatronCashIncomeMain(mainCategory: string | null | undefined):
   return m === "IN_PATRON" || m === "IN_PATRON_CASH";
 }
 
-/**
- * Gün sonu kasa / satış kaydı (bundled OUT + nakit tahsilat).
- * IN_OTHER+INC_REGISTER veya granüler IN_OTHER_REGISTER.
- */
+/** Gün sonu kasa satırı: ledger kodu IN_DAY_CLOSE. */
 export function isRegisterDayCloseIncomeRow(
   type: string,
   mainCategory: string | null | undefined,
-  category: string | null | undefined
+  _category: string | null | undefined
 ): boolean {
   const ty = String(type ?? "").trim().toUpperCase();
   if (ty !== "IN") return false;
   const m = String(mainCategory ?? "").trim().toUpperCase();
-  const c = String(category ?? "").trim().toUpperCase();
-  if (m === "IN_DAY_CLOSE") return true;
-  if (m === "IN_OTHER_REGISTER") return true;
-  return m === "IN_OTHER" && c === "INC_REGISTER";
+  return m === "IN_DAY_CLOSE";
 }
 
 /** P&L dışı not: şemsiye OUT_NON_PNL veya ledger tek kod MEMO_NON_PNL. */
@@ -234,7 +225,7 @@ export function umbrellaTxMainForSubOptions(mainCategory: string): string {
   const m = mainCategory.trim();
   if (m.startsWith("IN_SALES_")) return "IN_SALES";
   if (m.startsWith("IN_SERVICE_")) return "IN_SERVICE";
-  if (m === "IN_OTHER_REGISTER" || m === "IN_OTHER_MISC") return "IN_OTHER";
+  if (m === "IN_OTHER_MISC") return "IN_OTHER";
   if (m === "OUT_OPS_INVOICE") return "OUT_OPS_INVOICE";
   if (m === "OUT_POCKET_CLAIM_TRANSFER" || m === "OUT_POCKET_CLAIM_TO_PATRON") {
     return "OUT_PERSONNEL_POCKET_CLAIM_TRANSFER";
@@ -291,7 +282,7 @@ export function txMainNeedsSubCategory(type: string, mainCategory: string): bool
   if (ty === "OUT" && (m === "OUT_NON_PNL" || m === "MEMO_NON_PNL")) return false;
   if (ty === "IN") {
     if (m.startsWith("IN_SALES_") || m.startsWith("IN_SERVICE_")) return false;
-    if (m === "IN_OTHER_REGISTER" || m === "IN_OTHER_MISC") return false;
+    if (m === "IN_OTHER_MISC") return false;
     return m === "IN_SALES" || m === "IN_SERVICE" || m === "IN_OTHER";
   }
   if (ty === "OUT") {
@@ -571,6 +562,11 @@ export function buildExpensePaymentSelectOptions(params: {
   isPatronDebtRepayMain: boolean;
   isPocketRepayMain: boolean;
   isPocketClaimTransferMain?: boolean;
+  /**
+   * Personel gideri akışı (orgMode + personnelDirectExpenseEntry).
+   * Hedef şube modal içinde ayrıca seçildiği için REGISTER/HELD geçerli olur.
+   */
+  personnelExpenseFlow?: boolean;
   t: (key: string) => string;
 }): SelectOption[] {
   const claimXfer = params.isPocketClaimTransferMain === true;
@@ -599,7 +595,10 @@ export function buildExpensePaymentSelectOptions(params: {
   }
   const main = String(params.mainCategory ?? "").trim().toUpperCase();
   if (isOutPersonnelClassificationMain(main)) {
-    return params.orgMode ? [empty, pat] : [empty, reg, pat, held];
+    // Personel gideri akışında hedef şube ayrıca seçildiği için orgMode olsa da
+    // REGISTER + HELD kullanılabilir.
+    if (params.orgMode && !params.personnelExpenseFlow) return [empty, pat];
+    return [empty, reg, pat, held];
   }
   if (params.orgMode) {
     return UI_PERSONNEL_POCKET_ENABLED ? [empty, pat, poc] : [empty, pat];
@@ -685,12 +684,9 @@ function buildLedgerClassificationLabelKeys(): Record<string, string> {
     const suf = row.value.replace(/^SVC_/, "");
     m[`IN_SERVICE_${suf}`] = row.labelKey;
   }
-  const incReg = SUB.IN_OTHER.find((x) => x.value === "INC_REGISTER");
   const incOth = SUB.IN_OTHER.find((x) => x.value === "INC_OTHER");
-  if (incReg) m.IN_OTHER_REGISTER = incReg.labelKey;
   if (incOth) m.IN_OTHER_MISC = incOth.labelKey;
 
-  m.IN_REGISTER_SALE = "branch.txMainInSales";
   const inDay = TX_MAIN_IN.find((x) => x.value === "IN_DAY_CLOSE");
   if (inDay) m.IN_DAY_CLOSE = inDay.labelKey;
   m.IN_PATRON_CASH = "branch.txSubPatronCash";

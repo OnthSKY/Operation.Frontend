@@ -741,7 +741,9 @@ export const personnel = {
   insuranceIntakeModalPersonCaption: "Personel",
   detailInsurancePrerequisiteNotes: "Sigorta için evrak / notlar",
   advanceTitle: "Avans ver",
-  advanceHint:
+  advanceHint: "Personele kasa, patron veya zimmetten avans verin.",
+  advanceHintInfoAria: "Avans bilgisi",
+  advanceHintDetail:
     "Şube listesinden mahsup şubeyi seçin. Şube kasasından ödeme seçilirse kasa hareketine yazılır; patrondan seçilirse şube kasasından düşmez. Personelin zimmetindeki kasa parası seçilirse patrona yazılmaz; kasadan yeni nakit çıkmadan personelin zimmetindeki kasa bakiyesinden düşer. İşlem tarihi operasyon gününü; sezon yılı avansın hangi turizm sezonuna yazılacağını belirler (şube turizm sezonu kaydıyla aynı yıl numarası).",
   advanceDate: "İşlem tarihi",
   effectiveYear: "Sezon yılı",

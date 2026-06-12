@@ -1498,9 +1498,9 @@ export function DashCard({
   );
 }
 
-/** Gün sonu veya kasa tahsilatı geliri — nakit devri düzeltme API’si için uygun satır. */
+/** Gün sonu geliri — nakit devri düzeltme API'si için uygun satır. */
 export function isRegisterIncomeCashSettlementRow(row: BranchTransaction): boolean {
   const ty = String(row.type ?? "").toUpperCase();
   const main = String(row.mainCategory ?? "").toUpperCase();
-  return ty === "IN" && (main === "IN_DAY_CLOSE" || main === "IN_OTHER_REGISTER");
+  return ty === "IN" && main === "IN_DAY_CLOSE";
 }

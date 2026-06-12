@@ -186,9 +186,20 @@ export async function fetchDocumentsHubRows(t: TranslateFn): Promise<DocumentsHu
               },
             ]
           : undefined;
+      const branchCategory: DocumentsHubRow["category"] =
+        d.kind === "TAX_BASE"
+          ? "BRANCH_TAX_BASE"
+          : d.kind === "WORK_PERMIT"
+            ? "BRANCH_WORK_PERMIT"
+            : d.kind === "AGRICULTURE_CERT"
+              ? "BRANCH_AGRICULTURE_CERT"
+              : d.kind === "SHIPMENT_DELIVERY_SLIP"
+                ? "BRANCH_SHIPMENT_SLIP"
+                : "BRANCH_DOCUMENT";
       rows.push({
         id: `branch-${group.branch.id}-doc-${d.id}`,
-        category: "BRANCH_DOCUMENT",
+        category: branchCategory,
+        mimeType: d.contentType,
         title: group.branch.name,
         subtitle:
           pdfDocumentNo.length > 0
@@ -225,6 +236,7 @@ export async function fetchDocumentsHubRows(t: TranslateFn): Promise<DocumentsHu
     rows.push({
       id: `company-doc-${d.id}`,
       category: "COMPANY_GENERAL_DOCUMENT",
+      mimeType: d.contentType,
       title: d.originalFileName ?? t("documents.categoryCompanyGeneral"),
       subtitle: t("documents.categoryCompanyGeneral"),
       detail: d.notes ?? t("documents.noDetail"),
@@ -265,6 +277,7 @@ export async function fetchDocumentsHubRows(t: TranslateFn): Promise<DocumentsHu
       rows.push({
         id: `vehicle-${group.vehicle.id}-doc-${d.id}`,
         category: isInsurancePolicy ? "VEHICLE_INSURANCE_POLICY" : "VEHICLE_DOCUMENT",
+        mimeType: d.contentType,
         title: group.vehicle.plateNumber,
         subtitle: d.originalFileName ?? (isInsurancePolicy ? t("documents.vehicleInsurancePolicy") : d.kind),
         detail: d.notes ?? `${group.vehicle.brand} ${group.vehicle.model}`.trim(),
@@ -320,25 +333,42 @@ export async function fetchDocumentsHubRows(t: TranslateFn): Promise<DocumentsHu
   }
 
   for (const inv of supplierInvoices) {
-    if (!inv.formalSupplierInvoiceIssued) continue;
     const detail = inv.documentDate || inv.dueDate || `#${inv.id}`;
     const subtitle = inv.documentNumber?.trim()
-      ? `${t("documents.warehouseOutboundInvoiceLabel")} · ${inv.documentNumber.trim()}`
-      : `${t("documents.warehouseOutboundInvoiceLabel")} · #${inv.id}`;
+      ? `${t(inv.formalSupplierInvoiceIssued ? "documents.warehouseOutboundInvoiceLabel" : "documents.supplierInvoicePhotoLabel")} · ${inv.documentNumber.trim()}`
+      : `${t(inv.formalSupplierInvoiceIssued ? "documents.warehouseOutboundInvoiceLabel" : "documents.supplierInvoicePhotoLabel")} · #${inv.id}`;
     const routeUrl = `/suppliers/invoices?invoiceId=${inv.id}`;
-    rows.push({
-      id: `system-outbound-invoice-${inv.id}`,
-      category: "WAREHOUSE_OUTBOUND_INVOICE",
-      title: inv.supplierName,
-      subtitle,
-      detail,
-      searchText: `${inv.supplierName} ${inv.documentNumber ?? ""} ${inv.description ?? ""} formal supplier invoice outbound ${inv.id}`,
-      previewUrl: routeUrl,
-      previewMode: "other",
-      download: async () => {
-        window.open(routeUrl, "_blank", "noopener,noreferrer");
-      },
-    });
+    // Resmi (formal) faturalar: WAREHOUSE_OUTBOUND_INVOICE.
+    // Resmi olmayanlar: yalnız invoicePhoto varsa SUPPLIER_INVOICE_PHOTO altında listelensin.
+    if (inv.formalSupplierInvoiceIssued) {
+      rows.push({
+        id: `system-outbound-invoice-${inv.id}`,
+        category: "WAREHOUSE_OUTBOUND_INVOICE",
+        title: inv.supplierName,
+        subtitle,
+        detail,
+        searchText: `${inv.supplierName} ${inv.documentNumber ?? ""} ${inv.description ?? ""} formal supplier invoice outbound ${inv.id}`,
+        previewUrl: routeUrl,
+        previewMode: "other",
+        download: async () => {
+          window.open(routeUrl, "_blank", "noopener,noreferrer");
+        },
+      });
+    } else if (inv.hasInvoicePhoto) {
+      rows.push({
+        id: `supplier-invoice-photo-${inv.id}`,
+        category: "SUPPLIER_INVOICE_PHOTO",
+        title: inv.supplierName,
+        subtitle,
+        detail,
+        searchText: `${inv.supplierName} ${inv.documentNumber ?? ""} ${inv.description ?? ""} informal supplier invoice photo ${inv.id} tedarikci foto`,
+        previewUrl: routeUrl,
+        previewMode: "other",
+        download: async () => {
+          window.open(routeUrl, "_blank", "noopener,noreferrer");
+        },
+      });
+    }
   }
 
   for (const group of personnelYearClosures) {

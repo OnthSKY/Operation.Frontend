@@ -114,6 +114,95 @@ export function ConsumptionHistoryTable({
 
   return (
     <div className="space-y-3">
+      <ul className="flex flex-col gap-2 sm:hidden">
+        {rows.map((r) => {
+          const isDeleted = r.isDeleted;
+          return (
+            <li
+              key={r.id}
+              className={cn(
+                "overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm ring-1 ring-zinc-950/[0.03]",
+                isDeleted && "opacity-60"
+              )}
+            >
+              <div className="flex items-start justify-between gap-2 px-3 pt-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-zinc-900">{r.productName}</p>
+                  <p className="mt-0.5 text-[11px] text-zinc-500">
+                    {formatLocaleDate(r.consumptionDate, locale, "—")}
+                    {r.createdByName ? (
+                      <>
+                        <span aria-hidden className="mx-1 text-zinc-300">·</span>
+                        {r.createdByName}
+                      </>
+                    ) : null}
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1",
+                    directionBadgeClass(r.direction)
+                  )}
+                >
+                  {r.direction === "OUT" ? "−" : "+"} {typeLabel(t, r.type)}
+                </span>
+              </div>
+              <div className="flex items-baseline justify-between gap-2 px-3 pb-2 pt-1">
+                <span className="text-lg font-bold tabular-nums text-zinc-900">
+                  {r.quantity}
+                  {r.productUnit ? (
+                    <span className="ml-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+                      {r.productUnit}
+                    </span>
+                  ) : null}
+                </span>
+                {r.type === "SNAPSHOT" && r.snapshotValue != null && r.preBalance != null ? (
+                  <span className="text-[11px] tabular-nums text-zinc-600">
+                    {r.preBalance} → <span className="font-semibold text-zinc-900">{r.snapshotValue}</span>
+                  </span>
+                ) : null}
+              </div>
+              {r.note ? (
+                <p className="border-t border-zinc-100 px-3 py-1.5 text-[11px] text-zinc-600">
+                  {r.note}
+                </p>
+              ) : null}
+              {isDeleted ? (
+                <p className="border-t border-zinc-100 px-3 py-1.5 text-[10px] text-rose-700">
+                  {t("branchStockConsumption.deletedAtBy")
+                    .replace("{name}", r.deletedByName ?? "—")
+                    .replace("{date}", r.deletedAt ? formatLocaleDateTime(r.deletedAt, locale) : "—")}
+                </p>
+              ) : null}
+              {canManage ? (
+                <div className="border-t border-zinc-100 bg-zinc-50/40">
+                  {isDeleted ? (
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-zinc-700 transition hover:bg-white"
+                      onClick={() => onRestore(r.id)}
+                      disabled={restoreMut.isPending}
+                    >
+                      {t("branchStockConsumption.restore")}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-rose-700 transition hover:bg-rose-50"
+                      onClick={() => onDelete(r.id)}
+                      disabled={deleteMut.isPending}
+                    >
+                      {t("common.delete")}
+                    </button>
+                  )}
+                </div>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className="hidden sm:block">
       <Table mobileCards>
         <TableHead>
           <TableRow>
@@ -208,6 +297,7 @@ export function ConsumptionHistoryTable({
           })}
         </TableBody>
       </Table>
+      </div>
 
       {totalPages > 1 ? (
         <div className="flex items-center justify-between gap-2">

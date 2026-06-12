@@ -64,6 +64,16 @@ export function ContractorsScreen() {
     router.replace(qs ? `/contractors?${qs}` : "/contractors");
   }, [searchParams, router, openContractorDetail]);
 
+  // Derin-link: /contractors?new=1 → add modal'ını otomatik aç.
+  useEffect(() => {
+    if (searchParams.get("new") !== "1") return;
+    setModal("add");
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    params.delete("new");
+    const qs = params.toString();
+    router.replace(qs ? `/contractors?${qs}` : "/contractors");
+  }, [searchParams, router]);
+
   // Hızlı işlem: contractorId null → kişi seçici (üst butonlar); dolu → o satırın kişisi ön-seçili.
   const [quickEntry, setQuickEntry] = useState<{ mode: ContractorEntryMode; contractorId: number | null } | null>(null);
   const [fName, setFName] = useState("");

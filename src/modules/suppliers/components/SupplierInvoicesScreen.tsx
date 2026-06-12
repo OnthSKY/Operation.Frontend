@@ -928,9 +928,15 @@ export function SupplierInvoicesScreen() {
     if (idNum != null) {
       setInvSupplierId(idNum);
     }
-    if (wantNew && idNum != null) {
-      prepNewInvoiceModal(idNum);
-      router.replace("/suppliers/invoices", { scroll: false });
+    if (wantNew) {
+      // Supplier preset olmasa bile dialog açılsın — kullanıcı supplier picker'dan seçer.
+      prepNewInvoiceModal(idNum ?? "");
+      // Query'yi temizlerken branchPreset/paymentSource/returnTo'yu sakla (kayıt sonrası kullanılır).
+      const params = new URLSearchParams(Array.from(searchParams.entries()));
+      params.delete("newInvoice");
+      params.delete("supplierId");
+      const qs = params.toString();
+      router.replace(`/suppliers/invoices${qs ? `?${qs}` : ""}`, { scroll: false });
     }
   }, [searchParams, router, prepNewInvoiceModal]);
 

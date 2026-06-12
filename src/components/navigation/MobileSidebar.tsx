@@ -142,6 +142,7 @@ export function MobileSidebar({ open, onClose, badgeState }: MobileSidebarProps)
             if (navScrollRef.current) savedScrollTop.current = navScrollRef.current.scrollTop;
           }}
           onNavigate={onClose}
+          omitQuickAccess
         />
       </aside>
     </div>

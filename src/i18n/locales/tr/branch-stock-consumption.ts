@@ -11,6 +11,13 @@ export const branchStockConsumption = {
   balancesColBalance: "Bakiye",
   balancesEmpty: "Şu an stokta görünen ürün yok.",
   balancesSearchEmpty: "Aramayla eşleşen ürün yok.",
+  drillHint: "Bu ürünün son hareketleri — kim, ne zaman, ne kadar (gelen + harcanan)",
+  drillEmpty: "Bu ürün için son hareket bulunamadı.",
+  drillTruncatedHint: "Yalnızca son 100 hareket gösteriliyor; daha fazlası için Kullanım & kalan sekmesini kullanın.",
+  drillReceipt: "Depo girişi",
+  drillReceiptFrom: "Geldi:",
+  drillLoadMore: "Daha fazla göster",
+  drillAllLoaded: "Tüm hareketler yüklendi.",
 
   actionQuickConsume: "+ Hızlı kullanım",
   actionSnapshot: "Kalan sayımı",

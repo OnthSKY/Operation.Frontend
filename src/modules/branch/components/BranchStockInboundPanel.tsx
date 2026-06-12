@@ -34,6 +34,7 @@ import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { MobileListCard } from "@/shared/components/MobileListCard";
 import { RightDrawer } from "@/shared/components/RightDrawer";
 import { Button } from "@/shared/ui/Button";
+import { ToggleButton } from "@/shared/ui/ToggleButton";
 import { TablePagination } from "@/shared/ui/TablePagination";
 import { DateField } from "@/shared/ui/DateField";
 import { Modal } from "@/shared/ui/Modal";
@@ -633,19 +634,56 @@ export function BranchStockInboundPanel({ branchId }: Props) {
   };
 
   const renderExpandedRowsMobile = (block: StockListBlock) => (
-    <div className="flex flex-col gap-4 border-t border-zinc-100 bg-zinc-50/60 px-2 py-2">
+    <ul className="divide-y divide-zinc-100 border-t border-zinc-100 bg-zinc-50/40">
       {block.movements.map((row) => (
-        <BranchReceiptLineCard
-          key={row.id}
-          row={row}
-          fmtDate={fmtDate}
-          t={t}
-          hideShipmentGroup={block.mode === "shipment"}
-          showRecordMeta={canSeeRecordMeta}
-          fmtDateTime={fmtDateTime}
-        />
+        <li key={row.id} className="px-3 py-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              {row.parentProductName?.trim() ? (
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-violet-800">
+                  {row.parentProductName}
+                </p>
+              ) : null}
+              <p className="truncate text-sm font-medium text-zinc-900">
+                {row.productName}
+                {row.unit ? (
+                  <span className="ml-1 text-xs font-normal text-zinc-500">({row.unit})</span>
+                ) : null}
+              </p>
+            </div>
+            <span className="shrink-0 text-right">
+              <span className="text-base font-bold tabular-nums text-zinc-900">{row.quantity}</span>
+              {row.unit ? (
+                <span className="ml-1 text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+                  {row.unit}
+                </span>
+              ) : null}
+            </span>
+          </div>
+          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-zinc-500">
+            <span className="whitespace-nowrap">{fmtDate(row.movementDate)}</span>
+            {row.warehouseName?.trim() ? (
+              <>
+                <span aria-hidden className="text-zinc-300">·</span>
+                <span className="truncate font-medium text-violet-900">{row.warehouseName.trim()}</span>
+              </>
+            ) : null}
+            {canSeeRecordMeta && row.createdByUserName?.trim() ? (
+              <>
+                <span aria-hidden className="text-zinc-300">·</span>
+                <span className="truncate">{row.createdByUserName.trim()}</span>
+              </>
+            ) : null}
+            {canSeeRecordMeta && fmtDateTime && row.createdAt ? (
+              <>
+                <span aria-hidden className="text-zinc-300">·</span>
+                <span className="whitespace-nowrap text-zinc-400">{fmtDateTime(row.createdAt)}</span>
+              </>
+            ) : null}
+          </p>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 
   const renderExpandedTableDesktop = (block: StockListBlock, safeKey: string) => {
@@ -822,33 +860,93 @@ export function BranchStockInboundPanel({ branchId }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 sm:p-4">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-sm font-semibold text-zinc-900">{t("branch.stockInboundSectionTitle")}</h2>
-          <p className="text-xs leading-relaxed text-zinc-600">{t("branch.stockHint")}</p>
-        </div>
+      {(() => {
+        const todayIso = localIsoDate();
+        const isToday = dateFrom === todayIso && dateTo === todayIso;
+        const isAllDates = dateFrom === "" && dateTo === "";
+        return (
+          <div className="rounded-xl border border-zinc-200 bg-white shadow-sm">
+            <details className="group">
+              <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-3 py-2.5 [&::-webkit-details-marker]:hidden sm:px-4">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span
+                    aria-hidden
+                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 ring-1 ring-blue-100"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 9 12 4l9 5v10H3z" />
+                      <path d="M9 13h6M9 17h6" />
+                    </svg>
+                  </span>
+                  <span className="truncate text-sm font-semibold text-zinc-900">
+                    {t("branch.stockInboundSectionTitle")}
+                  </span>
+                </div>
+                <span
+                  aria-hidden
+                  className="shrink-0 text-zinc-400 transition group-open:rotate-180"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m6 9 6 6 6-6" />
+                  </svg>
+                </span>
+              </summary>
+              <p className="border-t border-zinc-100 px-3 py-2 text-xs leading-relaxed text-zinc-600 sm:px-4">
+                {t("branch.stockHint")}
+              </p>
+            </details>
 
-        <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-2.5 shadow-sm">
-          <p className="text-xs font-semibold text-zinc-700">{t("branch.stockQuickFiltersLead")}</p>
-          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <div className="grid min-w-0 flex-1 grid-cols-2 gap-2 sm:contents">
-              <Button
-                type="button"
-                variant="secondary"
-                className="min-h-11 w-full touch-manipulation sm:min-w-[9rem] sm:flex-1"
+            <div className="flex flex-wrap items-center gap-2 border-t border-zinc-100 p-2.5 sm:p-3">
+              <div
+                className="inline-flex rounded-lg border border-zinc-200 bg-zinc-50/80 p-0.5"
+                role="tablist"
+                aria-label={t("branch.stockListViewModeAria")}
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={listViewMode === "shipment"}
+                  className={cn(
+                    "min-h-9 flex-1 rounded-md px-3 text-xs font-semibold touch-manipulation transition sm:flex-none",
+                    listViewMode === "shipment"
+                      ? "bg-zinc-900 text-white shadow-sm"
+                      : "text-zinc-700 hover:bg-white"
+                  )}
+                  onClick={() => setListViewMode("shipment")}
+                >
+                  {t("branch.stockListViewShipment")}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={listViewMode === "mainProduct"}
+                  className={cn(
+                    "min-h-9 flex-1 rounded-md px-3 text-xs font-semibold touch-manipulation transition sm:flex-none",
+                    listViewMode === "mainProduct"
+                      ? "bg-zinc-900 text-white shadow-sm"
+                      : "text-zinc-700 hover:bg-white"
+                  )}
+                  onClick={() => setListViewMode("mainProduct")}
+                >
+                  {t("branch.stockListViewMainProduct")}
+                </button>
+              </div>
+
+              <ToggleButton
+                active={isToday}
+                className="!min-h-9 px-3 text-xs"
                 onClick={() => {
-                  const d = localIsoDate();
-                  setDateFrom(d);
-                  setDateTo(d);
+                  setDateFrom(todayIso);
+                  setDateTo(todayIso);
                   setPage(1);
                 }}
               >
                 {t("branch.filterToday")}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                className="min-h-11 w-full touch-manipulation sm:min-w-[9rem] sm:flex-1"
+              </ToggleButton>
+              <ToggleButton
+                active={isAllDates}
+                tone="zinc"
+                className="!min-h-9 px-3 text-xs"
                 onClick={() => {
                   setDateFrom("");
                   setDateTo("");
@@ -856,81 +954,33 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                 }}
               >
                 {t("branch.filterAllDates")}
+              </ToggleButton>
+
+              <Button
+                type="button"
+                variant="secondary"
+                className="relative min-h-9 !w-auto shrink-0 touch-manipulation px-3 text-xs sm:ml-auto"
+                aria-label={`${t("branch.stockFiltersDrawerOpenButton")} (${stockDrawerFilterCount})`}
+                onClick={() => setStockFiltersDrawerOpen(true)}
+              >
+                {`${t("branch.stockFiltersDrawerOpenButton")} · ${stockDrawerFilterCount}`}
+                {filtersActive ? (
+                  <span
+                    className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white"
+                    aria-hidden
+                  />
+                ) : null}
               </Button>
             </div>
-            <Button
-              type="button"
-              variant="secondary"
-              className="min-h-11 w-full touch-manipulation sm:ml-auto sm:w-auto sm:min-w-[8.5rem]"
-              onClick={() => void refetch()}
-            >
-              {t("branch.filterApplyRefresh")}
-            </Button>
-          </div>
-        </div>
 
-        <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-2.5 shadow-sm">
-          <p className="text-xs font-semibold text-zinc-700">{t("branch.stockListViewModeHint")}</p>
-          <div
-            className="mt-2 inline-flex w-full max-w-md rounded-lg border border-zinc-200 bg-zinc-50/80 p-1 sm:w-auto"
-            role="tablist"
-            aria-label={t("branch.stockListViewModeAria")}
-          >
-            <button
-              type="button"
-              role="tab"
-              aria-selected={listViewMode === "shipment"}
-              className={cn(
-                "min-h-11 flex-1 rounded-md px-3 py-2 text-xs font-semibold touch-manipulation sm:min-h-0 sm:flex-none sm:py-1.5",
-                listViewMode === "shipment"
-                  ? "bg-zinc-900 text-white"
-                  : "text-zinc-700 hover:bg-white"
-              )}
-              onClick={() => setListViewMode("shipment")}
-            >
-              {t("branch.stockListViewShipment")}
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={listViewMode === "mainProduct"}
-              className={cn(
-                "min-h-11 flex-1 rounded-md px-3 py-2 text-xs font-semibold touch-manipulation sm:min-h-0 sm:flex-none sm:py-1.5",
-                listViewMode === "mainProduct"
-                  ? "bg-zinc-900 text-white"
-                  : "text-zinc-700 hover:bg-white"
-              )}
-              onClick={() => setListViewMode("mainProduct")}
-            >
-              {t("branch.stockListViewMainProduct")}
-            </button>
+            {filtersActive ? (
+              <p className="border-t border-zinc-100 px-3 py-1.5 text-[11px] leading-snug text-zinc-500 sm:px-4">
+                {stockFiltersSummaryLine}
+              </p>
+            ) : null}
           </div>
-        </div>
-
-        <div className="mt-3 rounded-lg border border-zinc-200 bg-white p-2.5 shadow-sm">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-zinc-700">{t("branch.stockFiltersSummaryLead")}</p>
-              <p className="mt-1 break-words text-xs leading-relaxed text-zinc-600">{stockFiltersSummaryLine}</p>
-            </div>
-            <Button
-              type="button"
-              variant="secondary"
-              className="relative min-h-11 w-full shrink-0 touch-manipulation sm:mt-0 sm:w-auto sm:min-w-[11rem]"
-              aria-label={`${t("branch.stockFiltersDrawerOpenButton")} (${stockDrawerFilterCount})`}
-              onClick={() => setStockFiltersDrawerOpen(true)}
-            >
-              {`${t("branch.stockFiltersDrawerOpenButton")} (${stockDrawerFilterCount})`}
-              {filtersActive ? (
-                <span
-                  className="absolute right-2 top-2 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-white"
-                  aria-hidden
-                />
-              ) : null}
-            </Button>
-          </div>
-        </div>
-      </div>
+        );
+      })()}
 
       <RightDrawer
         open={stockFiltersDrawerOpen}
@@ -1154,31 +1204,34 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                 {t("branch.stockReceiptsParentBreakdownPageOnly")}
               </p>
 
-              <div className="flex min-h-0 min-w-0 flex-col divide-y divide-zinc-200 rounded-xl border border-zinc-200 bg-white sm:hidden">
+              <div className="flex min-h-0 min-w-0 flex-col gap-2 sm:hidden">
                 {listBlocks.map((block) => {
                   const open = expandedGroupKeys.has(block.key);
                   return (
-                    <div key={block.key} className="min-w-0 bg-white first:rounded-t-xl last:rounded-b-xl">
-                      <div className="flex w-full items-stretch gap-1 px-1 py-1 sm:gap-1.5 sm:px-1.5 sm:py-1">
-                        <button
-                          type="button"
-                          className="flex min-w-0 flex-1 touch-manipulation flex-wrap items-center gap-x-2 gap-y-1 rounded-lg px-2 py-2 text-left text-sm transition-colors hover:bg-zinc-50 sm:gap-x-3 sm:py-1.5"
-                          aria-expanded={open}
-                          aria-label={
-                            block.mode === "shipment"
-                              ? t("warehouse.shipmentGroupToggleAria")
-                              : t("branch.stockListViewMainProduct")
-                          }
-                          onClick={() => toggleExpanded(block.key)}
-                        >
+                    <div
+                      key={block.key}
+                      className="min-w-0 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-sm ring-1 ring-zinc-950/[0.03]"
+                    >
+                      <button
+                        type="button"
+                        className="flex w-full min-w-0 touch-manipulation flex-col gap-1.5 px-3 py-2.5 text-left transition hover:bg-zinc-50/70"
+                        aria-expanded={open}
+                        aria-label={
+                          block.mode === "shipment"
+                            ? t("warehouse.shipmentGroupToggleAria")
+                            : t("branch.stockListViewMainProduct")
+                        }
+                        onClick={() => toggleExpanded(block.key)}
+                      >
+                        <div className="flex w-full items-center gap-2">
                           <span
+                            aria-hidden
                             className={cn(
-                              "shrink-0 text-zinc-400 transition-transform duration-200",
+                              "flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-zinc-100 text-zinc-500 transition-transform duration-200",
                               open && "rotate-180"
                             )}
-                            aria-hidden
                           >
-                            <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
                               <path
                                 fillRule="evenodd"
                                 d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
@@ -1187,41 +1240,52 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                             </svg>
                           </span>
                           {block.mode === "shipment" ? (
-                            <span className={cn("min-w-0 max-w-full basis-full sm:basis-auto sm:max-w-[min(100%,20rem)]", shipmentIdLabelClassName)}>
+                            <span className={cn("min-w-0 flex-1 truncate", shipmentIdLabelClassName)} title={block.batchCell.text}>
                               {block.batchCell.text}
                             </span>
                           ) : (
-                            <span className="min-w-0 max-w-[14rem] truncate text-sm font-semibold text-violet-950">
+                            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-violet-950">
                               {block.label}
                             </span>
                           )}
-                          <span className="shrink-0 whitespace-nowrap text-xs text-zinc-500 sm:text-sm">
-                            {fmtDate(block.sample.movementDate)}
-                          </span>
-                          <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[0.65rem] font-semibold tracking-tight text-emerald-900 ring-1 ring-emerald-200/80 sm:text-xs">
+                          <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[0.65rem] font-semibold tracking-tight text-emerald-900 ring-1 ring-emerald-200/80">
                             {t("products.typeIn")}
                           </span>
-                          <span className="shrink-0 tabular-nums text-xs text-zinc-500">
+                        </div>
+                        <div className="flex w-full flex-wrap items-center gap-x-2 gap-y-0.5 pl-8 text-[11px] text-zinc-500">
+                          <span className="shrink-0 whitespace-nowrap">
+                            {fmtDate(block.sample.movementDate)}
+                          </span>
+                          <span aria-hidden className="text-zinc-300">·</span>
+                          <span className="shrink-0 tabular-nums">
                             {block.movements.length}×
                           </span>
                           {block.mode === "mainProduct" ? (
-                            <span className="shrink-0 text-xs font-semibold tabular-nums text-zinc-800">
-                              Σ {formatLocaleAmount(block.totalQty, locale)}
-                            </span>
+                            <>
+                              <span aria-hidden className="text-zinc-300">·</span>
+                              <span className="shrink-0 tabular-nums font-semibold text-zinc-700">
+                                Σ {formatLocaleAmount(block.totalQty, locale)}
+                              </span>
+                            </>
                           ) : null}
-                          <span className="min-w-0 flex-1 basis-[min(100%,12rem)] truncate text-xs text-zinc-600 sm:text-sm">
+                          <span className="min-w-0 flex-1 basis-full truncate text-zinc-600">
                             {block.preview}
                           </span>
                           {block.mode === "shipment" ? renderGroupRecordMeta(block.sample) : null}
-                        </button>
-                        <Button
+                        </div>
+                      </button>
+                      <div className="flex border-t border-zinc-100 bg-zinc-50/40">
+                        <button
                           type="button"
-                          variant="secondary"
-                          className="min-h-9 shrink-0 self-center px-2.5 text-xs"
+                          className="flex flex-1 items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-zinc-700 transition hover:bg-white"
                           onClick={() => openDetailModal(block)}
                         >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                            <circle cx="12" cy="12" r="3" />
+                          </svg>
                           {t("branch.stockShipmentQuickOpen")}
-                        </Button>
+                        </button>
                       </div>
                       {open ? renderExpandedRowsMobile(block) : null}
                     </div>

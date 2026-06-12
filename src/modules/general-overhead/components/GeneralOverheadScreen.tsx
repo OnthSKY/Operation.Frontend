@@ -540,6 +540,16 @@ export function GeneralOverheadScreen() {
     router.replace(qs ? `/general-overhead?${qs}` : "/general-overhead");
   }, [searchParams, router]);
 
+  // Derin-link: /general-overhead?newPool=1 → yeni havuz dialog'unu aç (branchPreset/returnTo'yu sakla).
+  useEffect(() => {
+    if (searchParams.get("newPool") !== "1") return;
+    setCreateOpen(true);
+    const params = new URLSearchParams(Array.from(searchParams.entries()));
+    params.delete("newPool");
+    const qs = params.toString();
+    router.replace(qs ? `/general-overhead?${qs}` : "/general-overhead");
+  }, [searchParams, router]);
+
   useEffect(() => {
     if (!createOpen) return;
     setAllocBranchPaid(false);

@@ -34,7 +34,7 @@ import {
 } from "@/shared/ui/Table";
 import { TablePagination } from "@/shared/ui/TablePagination";
 import { useBranchDetailOverlay } from "@/shared/branch-detail";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { MouseEvent } from "react";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/cn";
@@ -282,6 +282,7 @@ const BRANCH_DELETE_CONFIRM_TITLE_ID = "branch-soft-delete-confirm-title";
 export function BranchScreen() {
   const { t, locale } = useI18n();
   const { user } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const {
     openBranchDetail: openBranchDetailOverlay,
@@ -437,6 +438,38 @@ export function BranchScreen() {
   const openBranchQuickDayClose = useCallback((id: number) => {
     setQuickTx({ branchId: id, preset: "dayClose", nonce: Date.now() });
   }, []);
+  const goSupplierInvoiceFor = useCallback(
+    (id: number) => {
+      const ret =
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}`
+          : "/branches";
+      const q = new URLSearchParams({
+        branchPreset: String(id),
+        paymentSource: "REGISTER",
+        newInvoice: "1",
+        returnTo: ret,
+      }).toString();
+      router.push(`/suppliers/invoices?${q}`);
+    },
+    [router]
+  );
+  const goGeneralOverheadFor = useCallback(
+    (id: number) => {
+      const ret =
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}`
+          : "/branches";
+      const q = new URLSearchParams({
+        branchPreset: String(id),
+        paymentSource: "REGISTER",
+        newPool: "1",
+        returnTo: ret,
+      }).toString();
+      router.push(`/general-overhead?${q}`);
+    },
+    [router]
+  );
 
   const branchQuickSectionsFor = useCallback(
     (b: Branch): QuickActionsMenuSection[] => {
@@ -450,8 +483,18 @@ export function BranchScreen() {
           },
           {
             id: "out",
-            label: t("branch.quickAddExpense"),
+            label: t("branch.expenseAddOps"),
             onSelect: () => openBranchQuickExpense(b.id),
+          },
+          {
+            id: "outSupplier",
+            label: t("branch.expenseAddSupplier"),
+            onSelect: () => goSupplierInvoiceFor(b.id),
+          },
+          {
+            id: "outOverhead",
+            label: t("branch.expenseAddOverhead"),
+            onSelect: () => goGeneralOverheadFor(b.id),
           },
           {
             id: "dayClose",
@@ -505,6 +548,8 @@ export function BranchScreen() {
       openBranchQuickIncome,
       openBranchQuickExpense,
       openBranchQuickDayClose,
+      goSupplierInvoiceFor,
+      goGeneralOverheadFor,
     ]
   );
 

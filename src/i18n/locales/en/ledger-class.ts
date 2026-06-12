@@ -4,16 +4,12 @@
  */
 export const ledgerClass = {
   // Income
-  IN_REGISTER_SALE: "Register sale",
   IN_DAY_CLOSE: "Day close",
   IN_SALES_RETAIL: "Retail sales",
   IN_SALES_WHOLESALE: "Wholesale sales",
-  IN_SALES_OTHER: "Other sales",
   IN_SERVICE_CONSULT: "Consulting income",
   IN_SERVICE_REPAIR: "Repair/service income",
-  IN_SERVICE_OTHER: "Other service income",
   IN_OTHER_MISC: "Miscellaneous income",
-  IN_OTHER_REGISTER: "Register — other income",
   IN_PATRON_CASH: "Patron cash in",
 
   // Personnel costs

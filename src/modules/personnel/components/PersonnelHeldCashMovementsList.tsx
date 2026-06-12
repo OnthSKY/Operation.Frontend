@@ -32,10 +32,6 @@ function classificationLabel(code: string): string {
       return "Fatura";
     case "IN_DAY_CLOSE":
       return "Gün sonu (teslim alındı)";
-    case "IN_REGISTER_SALE":
-      return "Kasa satışı (teslim alındı)";
-    case "IN_OTHER_REGISTER":
-      return "Diğer kasa (teslim alındı)";
     default:
       return code;
   }

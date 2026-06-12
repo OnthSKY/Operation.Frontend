@@ -23,13 +23,36 @@ export function flattenNavItems(items: NavigationItem[]): NavigationItem[] {
   return flattenItems(items);
 }
 
+/**
+ * Tek-child grupları leaf'e indirger: grup → tek alt → direkt link.
+ * Gereksiz accordion chevron'larını kaldırır; grup ikonu/label'ı korunur.
+ * Aynı dockLabelKey / mobileVisible bayrakları leaf'e taşınır.
+ */
+function flattenSingleChildGroups(items: NavigationItem[]): NavigationItem[] {
+  return items.map((item) => {
+    if (!item.children?.length) return item;
+    const flattenedChildren = flattenSingleChildGroups(item.children);
+    if (flattenedChildren.length === 1) {
+      const only = flattenedChildren[0]!;
+      return {
+        ...item,
+        route: only.route,
+        icon: item.icon ?? only.icon,
+        children: undefined,
+      };
+    }
+    return { ...item, children: flattenedChildren };
+  });
+}
+
 export function getVisibleNavItems(
   user: AuthUser | null,
   translate: (key: string) => string
 ): NavigationItem[] {
-  return mapLegacyMenu(buildLegacyMenu(user), translate).filter((item) =>
+  const items = mapLegacyMenu(buildLegacyMenu(user), translate).filter((item) =>
     isFeatureEnabled(item.featureFlag)
   );
+  return flattenSingleChildGroups(items);
 }
 
 export function resolveMostSpecificRoute(pathname: string, items: NavigationItem[]): string | null {

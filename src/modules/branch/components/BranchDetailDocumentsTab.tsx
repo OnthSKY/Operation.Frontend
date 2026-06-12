@@ -5,7 +5,10 @@ import {
   useDeleteBranchDocument,
   useUploadBranchDocument,
 } from "@/modules/branch/hooks/useBranchQueries";
+import { apiUrl } from "@/shared/api/client";
 import { fetchBranchDocumentBlob } from "@/modules/branch/api/branch-documents-api";
+import { ImagePreview } from "@/modules/documents/components/ImagePreview";
+import { PdfBlobPreview } from "@/modules/documents/components/PdfBlobPreview";
 import { useI18n } from "@/i18n/context";
 import { isOrderAccountStatementPdfNote } from "@/modules/order-account-statement/lib/parse-order-account-document-metadata";
 import type { BranchDocument, BranchDocumentKind } from "@/types/branch-document";
@@ -21,6 +24,35 @@ import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { useEffect, useMemo, useState, type FocusEventHandler } from "react";
+
+/** Belge dosya türü için kompakt sol-üst tile (PDF/IMG/etc). */
+function DocFileTile({ contentType }: { contentType: string }) {
+  const ct = contentType.toLowerCase();
+  const isPdf = ct === "application/pdf";
+  const isImage = ct.startsWith("image/");
+  const label = isPdf ? "PDF" : isImage ? "IMG" : "···";
+  const bar = isPdf
+    ? "from-rose-600 to-red-500"
+    : isImage
+      ? "from-violet-600 to-purple-500"
+      : "from-zinc-500 to-zinc-600";
+  const frame = isPdf ? "border-rose-200" : isImage ? "border-violet-200" : "border-zinc-200";
+  return (
+    <div
+      className={`flex h-12 w-10 shrink-0 flex-col overflow-hidden rounded-md border bg-white shadow-sm sm:h-14 sm:w-11 ${frame}`}
+      aria-hidden
+    >
+      <div className={`flex h-5 shrink-0 items-center justify-center bg-gradient-to-r ${bar} sm:h-[22px]`}>
+        <span className="text-[8px] font-bold tracking-wide text-white sm:text-[9px]">{label}</span>
+      </div>
+      <div className="flex flex-1 flex-col justify-center gap-0.5 px-1.5 py-1.5 sm:gap-1 sm:px-2 sm:py-2">
+        <div className={`h-0.5 rounded-sm sm:h-1 ${isPdf ? "bg-rose-100/90" : isImage ? "bg-violet-100/90" : "bg-zinc-100"}`} />
+        <div className={`h-0.5 rounded-sm sm:h-1 ${isPdf ? "bg-rose-50" : isImage ? "bg-violet-50" : "bg-zinc-50"}`} />
+        <div className={`h-0.5 w-3/4 rounded-sm sm:h-1 ${isPdf ? "bg-rose-50/80" : isImage ? "bg-violet-50/80" : "bg-zinc-50"}`} />
+      </div>
+    </div>
+  );
+}
 
 const UPLOAD_MODAL_TITLE_ID = "branch-doc-upload-title";
 const DELETE_MODAL_TITLE_ID = "branch-doc-delete-title";
@@ -63,6 +95,7 @@ export function BranchDetailDocumentsTab({ branchId, active, readOnly = false }:
   const [file, setFile] = useState<File | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<BranchDocument | null>(null);
   const [loadingDocAction, setLoadingDocAction] = useState<{
     id: number;
     mode: "view" | "start";
@@ -126,26 +159,6 @@ export function BranchDetailDocumentsTab({ branchId, active, readOnly = false }:
       setDeleteId(null);
     } catch (e) {
       notify.error(toErrorMessage(e));
-    }
-  };
-
-  const viewFile = async (documentId: number) => {
-    const previewWindow = window.open("", "_blank", "noopener,noreferrer");
-    setLoadingDocAction({ id: documentId, mode: "view" });
-    try {
-      const { blob } = await fetchBranchDocumentBlob(branchId, documentId);
-      const url = URL.createObjectURL(blob);
-      if (previewWindow) {
-        previewWindow.location.href = url;
-      } else {
-        window.open(url, "_blank", "noopener,noreferrer");
-      }
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    } catch (e) {
-      previewWindow?.close();
-      notify.error(toErrorMessage(e));
-    } finally {
-      setLoadingDocAction(null);
     }
   };
 
@@ -250,7 +263,21 @@ export function BranchDetailDocumentsTab({ branchId, active, readOnly = false }:
       ) : null}
 
       {isPending ? (
-        <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+        <div className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex animate-pulse items-start gap-3 rounded-xl border border-zinc-200 bg-white p-3"
+            >
+              <div className="h-12 w-10 rounded-md bg-zinc-200/80 sm:h-14 sm:w-11" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <div className="h-4 w-2/3 rounded bg-zinc-200/80" />
+                <div className="h-3 w-1/2 rounded bg-zinc-100" />
+                <div className="h-3 w-3/4 rounded bg-zinc-100/80" />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : data.length === 0 ? (
         <p className="text-sm text-zinc-500">{t("branch.documentsEmpty")}</p>
       ) : (
@@ -271,19 +298,28 @@ export function BranchDetailDocumentsTab({ branchId, active, readOnly = false }:
                   return (
                     <li
                       key={row.id}
-                      className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-3 sm:flex-row sm:items-start sm:justify-between"
+                      className="group flex gap-3 rounded-xl border border-zinc-200 bg-white p-3 transition-colors hover:border-zinc-300 hover:shadow-sm"
                     >
+                      <DocFileTile contentType={row.contentType} />
                       <div className="min-w-0 flex-1">
-                        <div className="truncate font-medium text-zinc-900" title={row.originalFileName ?? undefined}>
+                        <button
+                          type="button"
+                          onClick={() => setPreviewDoc(row)}
+                          className="block w-full truncate text-left font-medium text-zinc-900 hover:text-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 rounded"
+                          title={row.originalFileName ?? undefined}
+                        >
                           {row.originalFileName ?? row.contentType}
-                        </div>
+                        </button>
                         <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                          <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-800">
+                            {groupLabel(group.key)}
+                          </span>
                           {isStatement ? (
                             <span
                               className={
                                 isV2
-                                  ? "rounded-md bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800"
-                                  : "rounded-md bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-800"
+                                  ? "rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800"
+                                  : "rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-800"
                               }
                             >
                               {isV2
@@ -291,31 +327,30 @@ export function BranchDetailDocumentsTab({ branchId, active, readOnly = false }:
                                 : t("branch.documentsBadgeOriginal")}
                             </span>
                           ) : null}
-                          <span className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-700">
+                          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700">
                             {formatLocaleDateTime(row.createdAt, locale)}
                           </span>
                           {shipmentNo ? (
-                            <span className="rounded-md bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
+                            <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-800">
                               {t("branch.documentsShipmentNo")}: {shipmentNo}
                             </span>
                           ) : null}
                         </div>
                         {row.notes ? (
-                          <div className="mt-1 line-clamp-2 text-sm text-zinc-500" title={row.notes}>
+                          <div className="mt-1 line-clamp-2 text-xs text-zinc-500" title={row.notes}>
                             {summarizeNotes(row.notes)}
                           </div>
                         ) : null}
                       </div>
-                      <div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">
+                      <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row sm:items-start">
                         <Tooltip content={t("branch.documentsView")} delayMs={200}>
                           <Button
                             type="button"
                             variant="secondary"
                             className={detailOpenIconButtonClass}
-                            disabled={loadingDocAction?.id === row.id}
                             aria-label={t("branch.documentsView")}
                             title={t("branch.documentsView")}
-                            onClick={() => void viewFile(row.id)}
+                            onClick={() => setPreviewDoc(row)}
                           >
                             <EyeIcon />
                           </Button>
@@ -456,6 +491,58 @@ export function BranchDetailDocumentsTab({ branchId, active, readOnly = false }:
             }
           />
         </form>
+      </Modal>
+
+      <Modal
+        open={previewDoc != null}
+        onClose={() => setPreviewDoc(null)}
+        titleId="branch-doc-preview-title"
+        title={previewDoc?.originalFileName ?? t("branch.documentsView")}
+        description={
+          previewDoc
+            ? `${kindLabel(previewDoc.kind)} · ${formatLocaleDateTime(previewDoc.createdAt, locale)}`
+            : undefined
+        }
+        closeButtonLabel={t("common.close")}
+        nested
+        wide
+        wideFixedHeight
+      >
+        {previewDoc ? (
+          (() => {
+            const previewUrl = apiUrl(`/branches/${branchId}/documents/${previewDoc.id}/file`);
+            const ct = previewDoc.contentType.toLowerCase();
+            if (ct.startsWith("image/")) {
+              return (
+                <ImagePreview
+                  url={previewUrl}
+                  alt={previewDoc.originalFileName ?? previewDoc.contentType}
+                  mimeType={previewDoc.contentType}
+                  className="h-[70vh]"
+                />
+              );
+            }
+            if (ct === "application/pdf") {
+              return (
+                <PdfBlobPreview
+                  url={previewUrl}
+                  title={previewDoc.originalFileName ?? "PDF"}
+                  className="h-[70vh] w-full rounded-lg border border-zinc-200"
+                />
+              );
+            }
+            return (
+              <div className="flex h-[40vh] items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 p-6 text-center text-sm text-zinc-600">
+                {t("documents.previewNotSupported")}
+              </div>
+            );
+          })()
+        ) : null}
+        {previewDoc?.notes ? (
+          <p className="mt-3 text-xs leading-relaxed text-zinc-500" title={previewDoc.notes}>
+            {previewDoc.notes}
+          </p>
+        ) : null}
       </Modal>
 
       <Modal
