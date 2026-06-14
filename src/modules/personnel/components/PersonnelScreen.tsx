@@ -8,6 +8,7 @@ import { cn } from "@/lib/cn";
 import { fetchPersonnel } from "@/modules/personnel/api/personnel-api";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
+import { hasLinkedSystemUser } from "@/modules/personnel/lib/personnel-user-link";
 import {
   defaultPersonnelListFilters,
   personnelKeys,
@@ -34,6 +35,7 @@ import { Input } from "@/shared/ui/Input";
 import { Select } from "@/shared/ui/Select";
 import { EyeIcon, detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
+import { ShieldCheck, ShieldAlert } from "lucide-react";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import {
   Table,
@@ -181,10 +183,6 @@ function fillPersonnelSummaryTemplate(
   );
 }
 
-function hasLinkedSystemUser(p: Personnel): boolean {
-  return p.userId != null && p.userId > 0;
-}
-
 function PersonnelInsuranceBadge({
   personnel,
   t,
@@ -203,20 +201,31 @@ function PersonnelInsuranceBadge({
   const tone = personnel.insuranceStarted
     ? "border-emerald-200/90 bg-emerald-50 text-emerald-900"
     : "border-amber-300/90 bg-amber-50 text-amber-900";
+  const iconTone = personnel.insuranceStarted
+    ? "text-emerald-600"
+    : "text-amber-600";
+  const Icon = personnel.insuranceStarted ? ShieldCheck : ShieldAlert;
+  const label = personnel.insuranceStarted
+    ? t("personnel.insuranceBadgeStarted")
+    : t("personnel.insuranceBadgePending");
 
   if (variant === "tag") {
     return (
       <span
         className={cn(
-          "inline-flex max-w-full shrink-0 items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold leading-tight min-[375px]:px-3 min-[375px]:py-1 min-[375px]:text-xs",
+          "inline-flex max-w-full shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10.5px] font-semibold leading-tight min-[360px]:gap-1.5 min-[360px]:px-2.5 min-[360px]:text-[11px] min-[400px]:px-3 min-[400px]:py-1 min-[400px]:text-xs",
           tone
         )}
+        title={label}
       >
-        <span className="truncate">
-          {personnel.insuranceStarted
-            ? t("personnel.insuranceBadgeStarted")
-            : t("personnel.insuranceBadgePending")}
-        </span>
+        <Icon
+          aria-hidden
+          className={cn(
+            "h-3 w-3 shrink-0 min-[400px]:h-3.5 min-[400px]:w-3.5",
+            iconTone
+          )}
+        />
+        <span className="truncate">{label}</span>
       </span>
     );
   }
@@ -224,13 +233,12 @@ function PersonnelInsuranceBadge({
   return (
     <span
       className={cn(
-        "inline-flex w-fit shrink-0 items-center rounded-md border px-2.5 py-1 text-xs font-semibold leading-tight shadow-sm",
+        "inline-flex w-fit shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold leading-tight shadow-sm",
         tone
       )}
     >
-      {personnel.insuranceStarted
-        ? t("personnel.insuranceBadgeStarted")
-        : t("personnel.insuranceBadgePending")}
+      <Icon aria-hidden className={cn("h-3.5 w-3.5 shrink-0", iconTone)} />
+      {label}
     </span>
   );
 }
@@ -508,43 +516,9 @@ function PersonnelRowActionsToolbar({
     <div
       className={cn(
         "inline-flex shrink-0 flex-nowrap items-center justify-end gap-1",
-        compact && "w-full max-w-full flex-wrap"
+        compact && "w-full max-w-full flex-wrap justify-between"
       )}
     >
-      {menuSections.length > 0 ? (
-        <BranchQuickActionsMenu
-          menuId={menuId}
-          triggerLabel={t("personnel.cardQuickActionsAria")}
-          compact={compact}
-          sections={menuSections}
-        />
-      ) : null}
-      <Tooltip content={editLabel} delayMs={200}>
-        <Button
-          type="button"
-          variant="secondary"
-          className={cn(detailOpenIconButtonClass, compact && "min-h-11 min-w-11")}
-          aria-label={editLabel}
-          title={editLabel}
-          onClick={onEdit}
-        >
-          <PencilIcon />
-        </Button>
-      </Tooltip>
-      {onView && viewLabel ? (
-        <Tooltip content={viewLabel} delayMs={200}>
-          <Button
-            type="button"
-            variant="secondary"
-            className={cn(detailOpenIconButtonClass, compact && "min-h-11 min-w-11")}
-            aria-label={viewLabel}
-            title={viewLabel}
-            onClick={onView}
-          >
-            <EyeIcon />
-          </Button>
-        </Tooltip>
-      ) : null}
       {!p.isDeleted ? (
         <Tooltip content={deactivateLabel} delayMs={200}>
           <button
@@ -553,6 +527,7 @@ function PersonnelRowActionsToolbar({
             aria-label={deactivateLabel}
             className={cn(
               trashIconActionButtonClass,
+              compact && "mr-2",
               framedDelete &&
                 "border-2 border-red-200 bg-white shadow-sm ring-1 ring-red-100/80 hover:border-red-300 hover:bg-red-50/90 active:bg-red-100"
             )}
@@ -561,6 +536,47 @@ function PersonnelRowActionsToolbar({
           </button>
         </Tooltip>
       ) : null}
+      <div
+        className={cn(
+          "inline-flex flex-nowrap items-center gap-1",
+          compact && "ml-auto"
+        )}
+      >
+        {menuSections.length > 0 ? (
+          <BranchQuickActionsMenu
+            menuId={menuId}
+            triggerLabel={t("personnel.cardQuickActionsAria")}
+            compact={compact}
+            sections={menuSections}
+          />
+        ) : null}
+        <Tooltip content={editLabel} delayMs={200}>
+          <Button
+            type="button"
+            variant="secondary"
+            className={cn(detailOpenIconButtonClass, compact && "min-h-11 min-w-11")}
+            aria-label={editLabel}
+            title={editLabel}
+            onClick={onEdit}
+          >
+            <PencilIcon />
+          </Button>
+        </Tooltip>
+        {onView && viewLabel ? (
+          <Tooltip content={viewLabel} delayMs={200}>
+            <Button
+              type="button"
+              variant="secondary"
+              className={cn(detailOpenIconButtonClass, compact && "min-h-11 min-w-11")}
+              aria-label={viewLabel}
+              title={viewLabel}
+              onClick={onView}
+            >
+              <EyeIcon />
+            </Button>
+          </Tooltip>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -1168,14 +1184,33 @@ export function PersonnelScreen() {
                             )}
                           />
                           <div className="min-w-0 flex-1 space-y-2">
-                            <h3
-                              className={cn(
-                                "min-w-0 max-w-full text-pretty text-lg font-bold leading-snug tracking-tight text-zinc-900 min-[375px]:text-xl",
-                                p.isDeleted && "text-zinc-600"
-                              )}
-                            >
-                              {personnelDisplayName(p)}
-                            </h3>
+                            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                              <h3
+                                className={cn(
+                                  "min-w-0 text-pretty text-lg font-bold leading-snug tracking-tight text-zinc-900 min-[375px]:text-xl",
+                                  p.isDeleted && "text-zinc-600"
+                                )}
+                              >
+                                {personnelDisplayName(p)}
+                              </h3>
+                              <span className="inline-flex items-center rounded-lg bg-zinc-100 px-2 py-0.5 font-mono text-xs font-medium text-zinc-700">
+                                No: {p.id}
+                              </span>
+                              {p.isDeleted ? (
+                                <StatusBadge tone="inactive">
+                                  {t("personnel.badgePassive")}
+                                </StatusBadge>
+                              ) : null}
+                              <PersonnelYearAccountClosedBadge
+                                personnel={p}
+                                t={t}
+                              />
+                              <PersonnelInsuranceBadge
+                                personnel={p}
+                                t={t}
+                                variant="tag"
+                              />
+                            </div>
                             <div
                               className="flex min-w-0 items-start gap-2.5"
                               aria-label={`${t("personnel.tableJobTitle")}: ${t(`personnel.jobTitles.${p.jobTitle}`)}`}
@@ -1276,19 +1311,6 @@ export function PersonnelScreen() {
                               "personnel.softDeactivateAriaLabel"
                             )}
                             t={t}
-                          />
-                        </div>
-                        <div className="flex min-w-0 flex-wrap items-center gap-1.5 gap-y-1.5 border-t border-zinc-100 pt-2.5">
-                          {p.isDeleted ? (
-                            <StatusBadge tone="inactive">
-                              {t("personnel.badgePassive")}
-                            </StatusBadge>
-                          ) : null}
-                          <PersonnelYearAccountClosedBadge personnel={p} t={t} />
-                          <PersonnelInsuranceBadge
-                            personnel={p}
-                            t={t}
-                            variant="tag"
                           />
                         </div>
                       </div>

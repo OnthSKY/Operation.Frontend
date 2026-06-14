@@ -8,15 +8,10 @@ import { CreatedByMeta } from "@/shared/components/CreatedByMeta";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import type { DataTableColumn } from "@/shared/tables";
 import type { ReactNode } from "react";
+import { sourceAbbrev } from "@/modules/personnel/lib/advance-formatters";
 
-export function sourceAbbrev(t: (k: string) => string, st: string): string {
-  const u = st.toUpperCase();
-  if (u === "PATRON") return t("personnel.advanceSourceAbbrPatron");
-  if (u === "BANK") return t("personnel.advanceSourceAbbrBank");
-  if (u === "PERSONNEL_HELD_REGISTER_CASH" || u === "PERSONNEL_POCKET")
-    return t("personnel.advanceSourceAbbrHeldRegister");
-  return t("personnel.advanceSourceAbbrCash");
-}
+/** Back-compat: bu dosya üzerinden import eden tüketiciler için yeniden ihraç. */
+export { sourceAbbrev };
 
 /** Avans: gider satırlarıyla aynı «kasadan / patrondan» dilinde tam metin. */
 export function advanceFundingSourceLabel(

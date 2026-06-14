@@ -46,6 +46,7 @@ import {
   bulkPatchBranchTransactionsCashSettlement,
   type BulkCashSettlementBody,
   createBranchTransaction,
+  createDayCloseBundle,
   deleteBranchTransaction,
   fetchBranchTransactions,
   patchBranchTransactionCashSettlement,
@@ -546,6 +547,44 @@ export function useDeleteBranchDocument(branchId: number) {
     mutationFn: (documentId: number) => deleteBranchDocument(branchId, documentId),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: branchKeys.documents(branchId) });
+    },
+  });
+}
+
+/**
+ * Atomik gün sonu paketi mutation'ı — bundled gider'ler day-close ile birlikte tek istekte
+ * yazılır. Hata olursa bundled'lar da rollback olur, orphan kalmaz. Invalidation aynı set.
+ */
+export function useCreateDayCloseBundle() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (input: {
+      dayClose: CreateBranchTransactionInput;
+      bundledExpenses: CreateBranchTransactionInput[];
+    }) => createDayCloseBundle(input),
+    onSuccess: (_data, variables) => {
+      void qc.invalidateQueries({ queryKey: branchKeys.all });
+      void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
+      void qc.refetchQueries({ queryKey: dashboardSummaryKeys.all });
+      const branchId = variables.dayClose.branchId;
+      if (branchId != null && branchId > 0) {
+        void qc.invalidateQueries({
+          queryKey: branchKeys.registerSummary(
+            branchId,
+            variables.dayClose.transactionDate.slice(0, 10)
+          ),
+        });
+      }
+      void qc.invalidateQueries({
+        queryKey: ["personnel", "management-snapshot"],
+        exact: false,
+      });
+      invalidatePersonnelCashHandoverUiQueries(qc);
+      void qc.invalidateQueries({
+        queryKey: ["personnel", "attributed-expenses"],
+        exact: false,
+      });
+      void qc.invalidateQueries({ queryKey: reportsKeys.all });
     },
   });
 }

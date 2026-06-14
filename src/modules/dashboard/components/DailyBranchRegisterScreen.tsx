@@ -46,8 +46,12 @@ import { buildBranchDetailHref } from "@/shared/branch-detail/branch-detail-deep
 import { BranchExpenseCategoryList } from "@/modules/branch/components/BranchExpenseCategoryList";
 import { useBranchTransactions } from "@/modules/branch/hooks/useBranchQueries";
 import { BranchExpenseSourceCategoryGroups } from "@/modules/branch/components/BranchExpenseSourceCategoryGroups";
+import { BranchExpenseSourceTypeBreakdown, type BranchExpenseClickTarget } from "@/modules/branch/components/BranchExpenseSourceTypeBreakdown";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { usePersonnelDetailOverlay } from "@/shared/personnel-detail";
+import { useBranchDetailOverlayOptional } from "@/shared/branch-detail";
 
 type RegisterScopeMode = "day" | "season_single" | "season_range" | "date_range";
 
@@ -256,6 +260,49 @@ export function DailyBranchRegisterScreen() {
   const { user } = useAuth();
   const personnelPortal = isPersonnelPortalRole(user?.role);
   const y0 = new Date().getFullYear();
+  const router = useRouter();
+  const { openPersonnelDetail } = usePersonnelDetailOverlay();
+  const branchOverlay = useBranchDetailOverlayOptional();
+
+  const handleExpenseTarget = (target: BranchExpenseClickTarget) => {
+    if (!target) return;
+    if (target.kind === "personnel") {
+      const hasAdvance = target.advanceId != null && target.advanceId > 0;
+      openPersonnelDetail(target.personnelId, {
+        initialTab: "costs",
+        // Avans satırı ise advance id ile işaretle; değilse branch tx id ile işaretle.
+        focusAdvanceId: hasAdvance ? target.advanceId : null,
+        focusExpenseTransactionId: hasAdvance ? null : target.txId,
+      });
+      setExpenseDetailRow(null);
+      return;
+    }
+    if (target.kind === "branch") {
+      if (branchOverlay) {
+        branchOverlay.openBranchDetail(target.branchId, {
+          initialTab: "expenses",
+          focusTransactionId: target.txId,
+        });
+      } else {
+        router.push(
+          `/branches?openBranch=${target.branchId}&focusTx=${target.txId}`
+        );
+      }
+      setExpenseDetailRow(null);
+      return;
+    }
+    if (target.kind === "supplier") {
+      // Fatura LINE id'sinden parent invoice id'ye çevirmek için ayrı endpoint gerek; şimdilik liste sayfasına yönlendir.
+      router.push(`/suppliers/invoices?openInvoiceLine=${target.invoiceLineId}`);
+      setExpenseDetailRow(null);
+      return;
+    }
+    if (target.kind === "overhead") {
+      router.push(`/admin/settings/general-overhead-pools?openPool=${target.poolId}`);
+      setExpenseDetailRow(null);
+      return;
+    }
+  };
 
   const [mode, setMode] = useState<RegisterScopeMode>("day");
   const [date, setDate] = useState(() => localIsoDate());
@@ -267,6 +314,7 @@ export function DailyBranchRegisterScreen() {
   const [branchFilterBranchId, setBranchFilterBranchId] = useState(BRANCH_FILTER_ALL);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [expenseDetailRow, setExpenseDetailRow] = useState<BranchTodayRow | null>(null);
+  const [breakdownTotal, setBreakdownTotal] = useState<number | null>(null);
 
   const { data: branchList = [], isPending: branchesListPending } = useBranchesList();
 
@@ -376,7 +424,10 @@ export function DailyBranchRegisterScreen() {
       : t("dashboard.dailyRegisterBranchFilterLabel");
   }, [branchFilterBranchId, branchList, t]);
 
-  const openExpenseDetail = (row: BranchTodayRow) => setExpenseDetailRow(row);
+  const openExpenseDetail = (row: BranchTodayRow) => {
+    setBreakdownTotal(null);
+    setExpenseDetailRow(row);
+  };
   const closeExpenseDetail = () => setExpenseDetailRow(null);
 
   const expenseLinePurposeLabel = (
@@ -526,6 +577,51 @@ export function DailyBranchRegisterScreen() {
       }
       main={
         <div className="flex flex-col gap-5">
+          {mode === "day" ? (
+            <div className="flex w-full items-center gap-2 rounded-xl border border-zinc-200 bg-white px-2 py-2 shadow-sm sm:px-3">
+              <button
+                type="button"
+                onClick={() => setDate(addDaysToLocalIsoDate(date, -1))}
+                aria-label={t("dashboard.dailyRegisterPrevDayAria")}
+                title={t("dashboard.dailyRegisterPrevDayAria")}
+                className="mobile-hit-44 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-700 transition-colors hover:bg-zinc-50 active:bg-zinc-100"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+              </button>
+              <div className="flex min-w-0 flex-1 flex-col items-center text-center">
+                <p className="truncate text-sm font-semibold leading-tight text-zinc-900 sm:text-base">
+                  {formatLocaleDate(date, locale)}
+                </p>
+                {date === localIsoDate() ? (
+                  <span className="mt-0.5 inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                    {t("dashboard.dailyRegisterTodayBadge")}
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setDate(localIsoDate())}
+                    className="mt-0.5 text-[11px] font-medium text-violet-700 underline decoration-violet-200 decoration-2 underline-offset-2 hover:text-violet-900"
+                  >
+                    {t("dashboard.registerSnapshotResetToday")}
+                  </button>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setDate(addDaysToLocalIsoDate(date, 1))}
+                disabled={date >= localIsoDate()}
+                aria-label={t("dashboard.dailyRegisterNextDayAria")}
+                title={t("dashboard.dailyRegisterNextDayAria")}
+                className="mobile-hit-44 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-700 transition-colors hover:bg-zinc-50 active:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M9 6l6 6-6 6" />
+                </svg>
+              </button>
+            </div>
+          ) : null}
           <RightDrawer
             open={filtersOpen}
             onClose={() => setFiltersOpen(false)}
@@ -1055,6 +1151,7 @@ export function DailyBranchRegisterScreen() {
             titleId="daily-register-expense-detail-title"
             title={t("dashboard.dailyRegisterExpenseDetailModalTitle")}
             description={t("dashboard.dailyRegisterExpenseDetailModalDescription")}
+            closeButtonLabel={t("common.close")}
             className="max-w-4xl"
             wide
             wideFixedHeight
@@ -1065,171 +1162,119 @@ export function DailyBranchRegisterScreen() {
               const netVal = r.income - r.expenseFromRegister;
               const isPositive = netVal >= -0.005;
 
-              type LineType = "register" | "patron" | "personnelPocket" | "heldRegisterCash" | "unset";
-              type Tone = "rose" | "amber" | "violet" | "sky" | "zinc";
-              const TONE: Record<Tone, { bar: string; chip: string; border: string }> = {
-                rose:   { bar: "bg-rose-500",   chip: "border-rose-200 bg-rose-50 text-rose-800",     border: "border-rose-200" },
-                amber:  { bar: "bg-amber-500",  chip: "border-amber-200 bg-amber-50 text-amber-800",  border: "border-amber-200" },
-                violet: { bar: "bg-violet-500", chip: "border-violet-200 bg-violet-50 text-violet-800", border: "border-violet-200" },
-                sky:    { bar: "bg-sky-500",    chip: "border-sky-200 bg-sky-50 text-sky-800",        border: "border-sky-200" },
-                zinc:   { bar: "bg-zinc-400",   chip: "border-zinc-200 bg-zinc-50 text-zinc-700",     border: "border-zinc-200" },
-              };
-              // Personnel pocket / held register cash are cash movements, not real expenses — hide them.
-              const sources: { key: string; lineType: LineType; label: string; amount: number; tone: Tone }[] = [
-                { key: "register", lineType: "register" as LineType, label: t("dashboard.dailyRegisterSpentFromRegister"),    amount: r.expenseFromRegister,         tone: "rose"  as Tone },
-                { key: "patron",   lineType: "patron"   as LineType, label: t("dashboard.dailyRegisterPatronExpenseOutside"), amount: r.expenseOperationalPatron,    tone: "amber" as Tone },
-                { key: "unset",    lineType: "unset"    as LineType, label: t("dashboard.dailyRegisterUnsetExpense"),         amount: r.expenseOperationalUnset,     tone: "zinc"  as Tone },
-              ].filter((s) => s.amount > EXP_DETAIL_EPS);
+              // P&L'ye giren operasyonel gider = source breakdown ile birebir aynı:
+              // OUT_POCKET_REPAY / OUT_PATRON_DEBT_REPAY / OUT_POCKET_CLAIM_* hariç,
+              // kasadan + patrondan + sınıflandırılmamış (PERSONNEL_POCKET/HELD hariç).
+              // Bu yüzden expenseOperationalRegister kullanılır (expenseFromRegister DEĞİL —
+              // o farklı bir hesap: unpaid invoice exclusion + cash_amount fallback içerir).
               const effectiveExpenseTotal =
-                r.expenseFromRegister + r.expenseOperationalPatron + r.expenseOperationalUnset;
+                r.expenseOperationalRegister + r.expenseOperationalPatron + r.expenseOperationalUnset;
 
               return (
-                <div className="space-y-4 sm:space-y-5">
-                  {/* HEADER: branch + date pill + net badge */}
-                  <header className="overflow-hidden rounded-2xl border border-zinc-200 bg-gradient-to-br from-zinc-50 to-white p-4 sm:p-5">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                      <div className="min-w-0 space-y-1.5">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
-                          {t("dashboard.dailyRegisterExpenseDetailBranch")}
+                <div className="flex h-full min-h-0 flex-col">
+                  <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-3 pb-4 pt-1 sm:px-5">
+                  {/* HEADER */}
+                  <header className="overflow-hidden rounded-xl border border-zinc-200 bg-gradient-to-br from-zinc-50 to-white p-3 sm:p-4">
+                    <div className="flex items-start justify-between gap-2 sm:items-center sm:gap-4">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p className="truncate text-sm font-bold text-zinc-900 sm:text-lg">
+                          {r.branchName}
                         </p>
-                        <p className="truncate text-lg font-bold text-zinc-900 sm:text-xl">{r.branchName}</p>
-                        <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-semibold text-indigo-800 sm:text-xs">
-                          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-800 sm:text-xs">
+                          <svg className="h-3 w-3 sm:h-3.5 sm:w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                             <rect x="3" y="4" width="18" height="18" rx="2" />
                             <path d="M16 2v4M8 2v4M3 10h18" />
                           </svg>
-                          <span className="text-indigo-500/80">{t("dashboard.dailyRegisterExpenseDetailDate")}:</span>
                           <span className="tabular-nums">{scopeDescription}</span>
                         </span>
                       </div>
                       <div
                         className={cn(
-                          "shrink-0 self-stretch rounded-xl border-2 px-4 py-3 sm:self-auto sm:text-right",
+                          "shrink-0 rounded-lg border-2 px-2.5 py-1.5 text-right sm:px-4 sm:py-3",
                           isPositive
                             ? "border-emerald-200 bg-emerald-50 text-emerald-900"
                             : "border-rose-200 bg-rose-50 text-rose-900"
                         )}
                       >
-                        <p className="text-[9px] font-bold uppercase tracking-widest opacity-70">
+                        <p className="text-[8px] font-bold uppercase tracking-widest opacity-70 sm:text-[9px]">
                           {t("dashboard.dailyRegisterCardNetEarnings")}
                         </p>
-                        <p className="mt-0.5 text-xl font-black tabular-nums sm:text-2xl">
+                        <p className="text-base font-black tabular-nums sm:text-2xl">
                           {formatLocaleAmount(netVal, locale)}
                         </p>
                       </div>
                     </div>
                   </header>
 
-                  {/* KPI strip */}
-                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                    <div className="rounded-xl border border-zinc-200 bg-white p-2.5 sm:p-3">
-                      <p className="text-[9px] font-bold uppercase tracking-wide text-zinc-500 sm:text-[10px]">
+                  {/* KPI strip — mobilde 1-col stack, sm+ 3-col grid */}
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+                    <div className="flex items-baseline justify-between gap-2 rounded-xl border border-zinc-200 bg-white p-2.5 sm:flex-col sm:items-start sm:justify-start sm:p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-500">
                         {t("dashboard.dailyRegisterCardTotalIncome")}
                       </p>
-                      <p className="mt-1 text-sm font-black tabular-nums text-zinc-900 sm:text-base">
+                      <p className="text-sm font-black tabular-nums text-zinc-900 sm:mt-1 sm:text-base">
                         {formatLocaleAmount(r.income, locale)}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-2.5 sm:p-3">
-                      <p className="text-[9px] font-bold uppercase tracking-wide text-orange-700 sm:text-[10px]">
+                    <div className="flex items-baseline justify-between gap-2 rounded-xl border border-orange-200 bg-orange-50/50 p-2.5 sm:flex-col sm:items-start sm:justify-start sm:p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-orange-700">
                         {t("dashboard.dailyRegisterExpenseDetailRealExpenseKpiLabel")}
                       </p>
-                      <p className="mt-1 text-sm font-black tabular-nums text-orange-950 sm:text-base">
-                        {formatLocaleAmount(effectiveExpenseTotal, locale)}
+                      <p className="text-sm font-black tabular-nums text-orange-950 sm:mt-1 sm:text-base">
+                        {formatLocaleAmount(breakdownTotal ?? effectiveExpenseTotal, locale)}
                       </p>
                     </div>
-                    <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-2.5 sm:p-3">
-                      <p className="text-[9px] font-bold uppercase tracking-wide text-rose-700 sm:text-[10px]">
+                    <div className="flex items-baseline justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50/50 p-2.5 sm:flex-col sm:items-start sm:justify-start sm:p-3">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-rose-700">
                         {t("dashboard.dailyRegisterCardRegisterCashOut")}
                       </p>
-                      <p className="mt-1 text-sm font-black tabular-nums text-rose-950 sm:text-base">
+                      <p className="text-sm font-black tabular-nums text-rose-950 sm:mt-1 sm:text-base">
                         {formatLocaleAmount(r.expenseFromRegister, locale)}
                       </p>
                     </div>
                   </div>
 
 
-                  {/* SOURCE BREAKDOWN */}
-                  <section>
-                    <div className="mb-2 flex items-baseline justify-between">
-                      <h3 className="text-xs font-bold uppercase tracking-wide text-zinc-700">
-                        {t("dashboard.dailyRegisterExpenseDetailToggle")}
-                      </h3>
-                      <span className="text-[11px] text-zinc-500">
-                        {sources.length} {t("dashboard.dailyRegisterCardExpenseCategories")}
+                  {/* SOURCE → TYPE hiyerarşik döküm (Kasa/Patron/Diğer × Avans/Personel/Tedarikçi/Genel/Şube) */}
+                  {(r.expenseOperationalPersonnelPocket > EXP_DETAIL_EPS || r.expenseOperationalHeldRegisterCash > EXP_DETAIL_EPS) ? (
+                    <p className="flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50/60 px-2.5 py-1.5 text-[11px] leading-snug text-amber-900">
+                      <svg className="mt-0.5 h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M12 8v4M12 16h.01" />
+                      </svg>
+                      <span>{t("dashboard.dailyRegisterExpenseDetailPersonnelExclusionNote")}</span>
+                    </p>
+                  ) : null}
+                  {registerDayForBranchLink && effectiveExpenseTotal > EXP_DETAIL_EPS ? (
+                    <BranchExpenseSourceTypeBreakdown
+                      branchId={r.branchId}
+                      date={registerDayForBranchLink}
+                      locale={locale}
+                      t={t}
+                      totalExpense={effectiveExpenseTotal}
+                      onComputedTotalChange={setBreakdownTotal}
+                      onSelectTarget={handleExpenseTarget}
+                    />
+                  ) : (
+                    <p className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50/60 px-3 py-3 text-center text-xs text-zinc-500">
+                      {t("dashboard.dailyRegisterExpenseNoOutHint")}
+                    </p>
+                  )}
+
+                  </div>
+
+                  {/* SABİT TOTAL BAR — scroll dışında, panel altına yapışık */}
+                  <div className="flex shrink-0 items-center justify-between gap-3 border-t border-zinc-200 bg-white px-3 py-2.5 shadow-[0_-4px_12px_-6px_rgba(0,0,0,0.08)] sm:px-5 sm:py-3">
+                    <div className="min-w-0">
+                      <span className="block text-xs font-bold text-zinc-800 sm:text-sm">
+                        {t("dashboard.dailyRegisterCardExpenseOutTotal")}
+                      </span>
+                      <span className="block text-[10px] text-zinc-500 sm:text-[11px]">
+                        {t("dashboard.dailyRegisterExpenseTotalHint")}
                       </span>
                     </div>
-                    {(r.expenseOperationalPersonnelPocket > EXP_DETAIL_EPS || r.expenseOperationalHeldRegisterCash > EXP_DETAIL_EPS) ? (
-                      <p className="mb-2 flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50/60 px-2.5 py-1.5 text-[11px] leading-snug text-amber-900">
-                        <svg className="mt-0.5 h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                          <circle cx="12" cy="12" r="10" />
-                          <path d="M12 8v4M12 16h.01" />
-                        </svg>
-                        <span>{t("dashboard.dailyRegisterExpenseDetailPersonnelExclusionNote")}</span>
-                      </p>
-                    ) : null}
-                    <ul className="space-y-2">
-                      {sources.map((s) => {
-                        const tone = TONE[s.tone];
-                        const loc = expenseLineRecordedLocation(r, s.lineType);
-                        return (
-                          <li
-                            key={s.key}
-                            className={cn("relative overflow-hidden rounded-xl border bg-white", tone.border)}
-                          >
-                            <span className={cn("absolute inset-y-0 left-0 w-1.5", tone.bar)} aria-hidden />
-                            <div className="flex flex-col gap-2 px-3 py-2.5 pl-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:pl-5">
-                              <div className="min-w-0 flex-1">
-                                <p className="text-[13px] font-semibold text-zinc-900">{s.label}</p>
-                                <p className="mt-0.5 text-[11px] leading-snug text-zinc-500">
-                                  {expenseLinePurposeLabel(r, s.lineType)}
-                                </p>
-                                <Link
-                                  href={loc.href}
-                                  className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800"
-                                >
-                                  <span className="text-zinc-500">{t("dashboard.dailyRegisterExpenseLineRecordedIn")}</span>
-                                  <span className="underline-offset-2 group-hover:underline">{loc.label}</span>
-                                  <span aria-hidden>›</span>
-                                </Link>
-                              </div>
-                              <span
-                                className={cn(
-                                  "shrink-0 self-start rounded-lg border px-2.5 py-1 text-sm font-bold tabular-nums sm:self-center",
-                                  tone.chip
-                                )}
-                              >
-                                {formatLocaleAmount(s.amount, locale)}
-                              </span>
-                            </div>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </section>
-
-                  {/* Real expense categories (day mode) */}
-                  {registerDayForBranchLink && effectiveExpenseTotal > EXP_DETAIL_EPS ? (
-                    <section className="rounded-xl border border-zinc-200 bg-white p-3">
-                      <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-600">
-                        {t("dashboard.dailyRegisterExpenseCategoriesHeading")}
-                      </p>
-                      <BranchExpenseCategoryList
-                        branchId={r.branchId}
-                        date={registerDayForBranchLink}
-                        locale={locale}
-                        t={t}
-                      />
-                    </section>
-                  ) : null}
-
-                  {/* TOTAL BAR */}
-                  <div className="sticky bottom-0 flex items-center justify-between rounded-xl border-2 border-zinc-300 bg-zinc-100/90 px-4 py-3 backdrop-blur">
-                    <span className="text-sm font-bold text-zinc-700">
-                      {t("dashboard.dailyRegisterCardExpenseOutTotal")}
-                    </span>
-                    <span className="text-lg font-black tabular-nums text-zinc-900">
-                      {formatLocaleAmount(effectiveExpenseTotal, locale)}
+                    <span className="shrink-0 text-base font-black tabular-nums text-zinc-900 sm:text-lg">
+                      {formatLocaleAmount(breakdownTotal ?? effectiveExpenseTotal, locale)}
                     </span>
                   </div>
                 </div>

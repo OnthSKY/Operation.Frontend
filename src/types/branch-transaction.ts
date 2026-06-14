@@ -34,6 +34,12 @@ export type BranchTransaction = {
   linkedPersonnelFullName: string | null;
   /** Otomatik satırda kaynak işlem (örn. gün sonu geliri). */
   sourceTransactionId?: number | null;
+  /**
+   * Bu OUT satırı bir gün sonu IN ile birlikte (bundled) yazılmış mı?
+   * Backend SQL JOIN ile türetir (src.is_register_day_close). UI rozeti +
+   * day-close silme dialog'unda "bağlı X satır da silinecek" uyarısı için.
+   */
+  isBundledWithDayClose?: boolean;
   /** OUT: düşülen kasa devri IN satırı (denetim). */
   settlesCashHandoverTransactionId?: number | null;
   linkedSupplierInvoiceLineId?: number | null;

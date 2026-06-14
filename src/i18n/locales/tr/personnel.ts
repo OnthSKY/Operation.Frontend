@@ -110,6 +110,7 @@ export const personnel = {
   costsKpiContractorPaid: "Ödenen",
   costsKpiEmpty: "—",
   costsCategoryCardTitle: "Kategori bazında",
+  costsShowAll: "Tümünü göster",
   costsCategoryCardDesc:
     "Avans ve gider kalemlerinin türlere göre dağılımı (TRY toplamına göre sıralı).",
   costsCategoryAdvanceLabel: "Avans",
@@ -159,6 +160,21 @@ export const personnel = {
   detailCostsFiltersDrawerTitle: "Liste filtreleri",
   detailCostsFiltersDrawerHint:
     "Şube, ödeme kaynağı ve sayfa boyutu — yalnızca aşağıdaki avans ve gider listesini etkiler.",
+  detailCostsShowDeletedAdvances: "Silinmiş avansları da göster",
+  detailCostsShowDeletedAdvancesHint:
+    "Yalnızca sistem yöneticisi. Silinmiş kayıtlar listede gösterilir; üstteki toplam kartlarına dahil edilmez.",
+  detailCostsAdvanceDeletedBadge: "Silinmiş",
+  detailCostsDeletedBy: "Silen",
+  detailCostsHardDeleteButton: "Kalıcı sil",
+  detailCostsHardDeleteConfirmTitle: "Avansı kalıcı sil",
+  detailCostsHardDeleteConfirmMessage:
+    "Bu işlem geri alınamaz. Avans ve bağlı kasa hareketleri veritabanından fiziksel olarak silinir. Devam edilsin mi?",
+  detailCostsHardDeleteSuccess: "Avans kalıcı olarak silindi.",
+  detailCostsRestoreButton: "Geri al",
+  detailCostsRestoreConfirmTitle: "Avansı geri al",
+  detailCostsRestoreConfirmMessage:
+    "Silinmiş avans ve bağlı kasa hareketleri geri yüklenir. Devam edilsin mi?",
+  detailCostsRestoreSuccess: "Avans geri yüklendi.",
   settlementPrintSeasonHint:
     "Boş = tüm dönemler. Yıl seçince: avanslar kayıttaki turizm/sezon yılına; personel giderleri ve (şube PDF’inde) kasa/stok satırları hareket tarihinin yılına; notlar oluşturulma yılına göre daralır. Maaş maliyeti tablosu yıllık görünümde gösterilmez.",
   settlementPrintSeasonAll: "Tüm dönemler (toplam)",
@@ -809,7 +825,7 @@ export const personnel = {
   advanceSourceAbbrPatron: "Patron",
   advanceSourceAbbrPatronBranch: "Patron şube kasası",
   advanceSourceAbbrBank: "Banka",
-  advanceSourceAbbrHeldRegister: "Cep",
+  advanceSourceAbbrHeldRegister: "Zimmet",
   advancePaidFromBank: "Banka hesabından",
   tableActions: "İşlemler",
   edit: "Düzenle",
@@ -972,6 +988,8 @@ export const personnel = {
   detailPageSize: "Sayfa boyutu",
   detailPageSizeOption: "{n} satır",
   detailShowing: "{from}–{to} / {total}",
+  detailPaginationPage: "Sayfa",
+  detailPaginationRecords: "kayıt",
   detailPrev: "Önceki",
   detailNext: "Sonraki",
   detailRolesStoryTitle: "Görev özeti",

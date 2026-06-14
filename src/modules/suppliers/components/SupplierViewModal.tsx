@@ -1,17 +1,22 @@
 "use client";
 
 import type { Supplier } from "@/modules/suppliers/api/suppliers-api";
-import { useSupplierView } from "@/modules/suppliers/hooks/useSupplierQueries";
+import {
+  useSupplierPayments,
+  useSupplierView,
+} from "@/modules/suppliers/hooks/useSupplierQueries";
 import { cn } from "@/lib/cn";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { useI18n } from "@/i18n/context";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
+import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
+import { SupplierPaymentModal } from "@/modules/suppliers/components/SupplierPaymentModal";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-type Tab = "general" | "summary";
+type Tab = "general" | "payments" | "summary";
 
 function InfoTile({
   label,
@@ -60,23 +65,32 @@ export function SupplierViewModal({
   open,
   supplierId,
   fallback,
+  initialTab,
   onClose,
 }: {
   open: boolean;
   supplierId: number | null;
   fallback: Supplier | null;
+  initialTab?: Tab;
   onClose: () => void;
 }) {
   const { t, locale } = useI18n();
-  const [tab, setTab] = useState<Tab>("general");
+  const tr = locale === "tr";
+  const [tab, setTab] = useState<Tab>(initialTab ?? "general");
+  const [payOpen, setPayOpen] = useState(false);
   const q = useSupplierView(supplierId, open && supplierId != null && supplierId > 0);
+  const paymentsQ = useSupplierPayments(
+    supplierId,
+    open && supplierId != null && supplierId > 0 && tab === "payments",
+  );
 
   useEffect(() => {
-    if (open) setTab("general");
-  }, [open, supplierId]);
+    if (open) setTab(initialTab ?? "general");
+  }, [open, supplierId, initialTab]);
 
   const s = q.data?.supplier ?? fallback;
   const cur = s?.currencyCode?.trim().toUpperCase() || "TRY";
+  const openBalance = q.data?.totalOpenBalance ?? 0;
 
   return (
     <Modal
@@ -101,6 +115,18 @@ export function SupplierViewModal({
             )}
           >
             {t("suppliers.viewTabGeneral")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("payments")}
+            className={cn(
+              "min-h-11 shrink-0 touch-manipulation rounded-xl px-4 py-2.5 text-sm font-semibold transition sm:min-h-0 sm:rounded-lg sm:px-3 sm:py-2",
+              tab === "payments"
+                ? "bg-violet-100 text-violet-900 ring-1 ring-violet-200/80"
+                : "text-zinc-600 hover:bg-zinc-100"
+            )}
+          >
+            {tr ? "Ödemeler" : "Payments"}
           </button>
           <button
             type="button"
@@ -193,6 +219,77 @@ export function SupplierViewModal({
                 </InfoTile>
               </div>
             </div>
+          ) : tab === "payments" ? (
+            <div className="space-y-4">
+              <section
+                className={cn(
+                  "rounded-2xl border p-4 shadow-sm",
+                  openBalance > 0
+                    ? "border-red-200/70 bg-gradient-to-br from-red-50/80 via-white to-white"
+                    : "border-emerald-200/70 bg-gradient-to-br from-emerald-50/80 via-white to-white",
+                )}
+              >
+                <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-zinc-500">
+                  {tr ? "Açık borç" : "Open balance"}
+                </p>
+                <p
+                  className={cn(
+                    "mt-0.5 text-2xl font-bold tabular-nums sm:text-3xl",
+                    openBalance > 0 ? "text-red-700" : "text-emerald-700",
+                  )}
+                >
+                  {formatLocaleAmount(openBalance, locale, cur)}
+                </p>
+                <Button
+                  type="button"
+                  className="mt-3 !min-h-11 w-full sm:w-auto"
+                  onClick={() => setPayOpen(true)}
+                  disabled={!supplierId}
+                >
+                  {tr ? "Ödeme yap" : "Make payment"}
+                </Button>
+              </section>
+
+              <section>
+                <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-500">
+                  {tr ? "Geçmiş ödemeler" : "Past payments"}
+                </h3>
+                {paymentsQ.isPending ? (
+                  <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+                ) : paymentsQ.isError ? (
+                  <p className="text-sm text-red-600">{toErrorMessage(paymentsQ.error)}</p>
+                ) : (paymentsQ.data ?? []).length === 0 ? (
+                  <p className="text-sm text-zinc-500">
+                    {tr ? "Henüz ödeme yok." : "No payments yet."}
+                  </p>
+                ) : (
+                  <ul className="flex flex-col gap-2">
+                    {[...(paymentsQ.data ?? [])]
+                      .sort((a, b) => b.paymentDate.localeCompare(a.paymentDate))
+                      .map((pmt) => (
+                        <li
+                          key={pmt.id}
+                          className="flex flex-col gap-1 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-zinc-900">
+                              {pmt.paymentDate.slice(0, 10)}
+                            </p>
+                            <p className="mt-0.5 text-xs text-zinc-500">
+                              {sourceLabel(pmt.sourceType, tr)}
+                              {pmt.branchName ? ` · ${pmt.branchName}` : ""}
+                              {pmt.description ? ` · ${pmt.description}` : ""}
+                            </p>
+                          </div>
+                          <p className="shrink-0 text-base font-bold tabular-nums text-zinc-900">
+                            {formatLocaleAmount(pmt.amount, locale, pmt.currencyCode)}
+                          </p>
+                        </li>
+                      ))}
+                  </ul>
+                )}
+              </section>
+            </div>
           ) : q.data ? (
             <div className="space-y-4">
               <p className="text-xs leading-snug text-zinc-500">{t("suppliers.viewSummaryHint")}</p>
@@ -227,6 +324,28 @@ export function SupplierViewModal({
           ) : null}
         </div>
       </div>
+      <SupplierPaymentModal
+        open={payOpen}
+        supplierId={supplierId}
+        supplierName={s?.name ?? ""}
+        currencyCode={cur}
+        onClose={() => setPayOpen(false)}
+        onSuccess={() => {
+          // refresh open balance + payments list
+          void q.refetch();
+          void paymentsQ.refetch();
+        }}
+      />
     </Modal>
   );
+}
+
+function sourceLabel(src: string, tr: boolean): string {
+  const u = (src || "").toUpperCase();
+  if (u === "CASH") return tr ? "Kasa" : "Cash";
+  if (u === "BANK") return tr ? "Banka" : "Bank";
+  if (u === "PATRON") return tr ? "Patron" : "Patron";
+  if (u === "PERSONNEL_HELD_REGISTER_CASH")
+    return tr ? "Personel zimmeti" : "Personnel-held cash";
+  return src;
 }

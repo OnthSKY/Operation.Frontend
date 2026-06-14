@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { TopNavbar } from "./TopNavbar";
+import { ImpersonationBanner } from "@/modules/account/components/ImpersonationBanner";
 import { MobileBottomNav } from "./MobileBottomNav";
 import { BranchDetailOverlayProvider } from "@/shared/branch-detail";
 import { WarehouseDetailOverlayProvider } from "@/shared/warehouse-detail";
@@ -72,6 +73,7 @@ function AppShellInner({ children }: { children: ReactNode }) {
         <div className="fixed inset-x-0 top-0 z-[75] h-0.5 bg-zinc-900/80" aria-hidden />
       ) : null}
       <TopNavbar onOpenMenu={openMobileFullMenu} breadcrumbs={breadcrumbs} />
+      <ImpersonationBanner />
 
       <div className="flex h-full w-full pt-16">
         <div className="hidden md:block">

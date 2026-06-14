@@ -60,6 +60,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { fetchAuditLogs } from "@/lib/api/audit-logs-api";
+import { GohReverseConfirmModal } from "@/modules/general-overhead/components/GohReverseConfirmModal";
+import { GohDetailModal } from "@/modules/general-overhead/components/GohDetailModal";
+import { GohAllocateModal } from "@/modules/general-overhead/components/GohAllocateModal";
+import { GohCreateModal } from "@/modules/general-overhead/components/GohCreateModal";
 
 function splitEqualParts(total: number, n: number): number[] {
   if (n <= 0) return [];
@@ -1189,718 +1193,119 @@ export function GeneralOverheadScreen() {
         }
       />
 
-      <Modal
+      <GohCreateModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        titleId="goh-create"
-        title={t("generalOverhead.modalCreateTitle")}
-        narrow
-        sheetMobile
-        closeButtonLabel={t("common.close")}
-        className="sm:!max-w-xl md:!max-w-2xl lg:!max-w-[min(52rem,calc(100vw-3rem))]"
-      >
-        <div className="flex flex-col gap-3 sm:gap-4">
-            <Input
-              label={t("generalOverhead.fieldTitle")}
-              labelRequired
-              value={cTitle}
-              onChange={(e) => setCTitle(e.target.value)}
-              required
-            />
-            <Input
-              label={t("generalOverhead.fieldNotes")}
-              value={cNotes}
-              onChange={(e) => setCNotes(e.target.value)}
-            />
-            <DateField
-              label={t("generalOverhead.fieldDate")}
-              labelRequired
-              value={cDate}
-              onChange={(e) => setCDate(e.target.value)}
-            />
-            <div className="flex flex-col gap-2">
-              <p className="text-sm font-semibold text-zinc-900">
-                {t("generalOverhead.amountsTitle")}
-                <span className="ml-0.5 font-semibold text-red-600" aria-hidden>
-                  *
-                </span>
-              </p>
-              <p className="text-xs text-zinc-500">{t("generalOverhead.amountsHint")}</p>
-              {createAmountRows.map((row) => (
-                <div
-                  key={row.key}
-                  className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(6.5rem,8rem)_auto] sm:items-end sm:gap-2"
-                >
-                  <Input
-                    label={t("generalOverhead.fieldAmount")}
-                    labelRequired
-                    value={row.amount}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setCreateAmountRows((xs) =>
-                        xs.map((x) => (x.key === row.key ? { ...x, amount: v } : x))
-                      );
-                    }}
-                    onBlur={() =>
-                      setCreateAmountRows((xs) =>
-                        xs.map((x) =>
-                          x.key === row.key
-                            ? { ...x, amount: formatAmountInputOnBlur(x.amount, loc) }
-                            : x
-                        )
-                      )
-                    }
-                    inputMode="decimal"
-                  />
-                  <div className="min-w-0">
-                    <Select
-                      name={`gohCreateCur-${row.key}`}
-                      label={t("generalOverhead.fieldCurrency")}
-                      labelRequired
-                      value={row.currency}
-                      onChange={(e) => {
-                        const v = e.target.value.toUpperCase();
-                        setCreateAmountRows((xs) =>
-                          xs.map((x) => (x.key === row.key ? { ...x, currency: v } : x))
-                        );
-                      }}
-                      onBlur={() => {}}
-                      options={currencyOpts}
-                    />
-                  </div>
-                  <div className="flex justify-end sm:pb-0.5">
-                    <button
-                      type="button"
-                      className={cn(trashIconActionButtonClass, "min-h-11 min-w-11")}
-                      disabled={createAmountRows.length <= 1}
-                      onClick={() => removeCreateAmountRow(row.key)}
-                      aria-label={t("common.delete")}
-                    >
-                      <TrashIcon className="h-5 w-5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-              <Button type="button" variant="secondary" className="w-full text-xs sm:w-auto" onClick={addCreateAmountRow}>
-                {t("generalOverhead.addCurrencyRow")}
-              </Button>
-            </div>
+        saving={createMut.isPending}
+        onSubmit={() => void submitCreate()}
+        cTitle={cTitle}
+        setCTitle={setCTitle}
+        cDate={cDate}
+        setCDate={setCDate}
+        cNotes={cNotes}
+        setCNotes={setCNotes}
+        createAmountRows={createAmountRows}
+        setCreateAmountRows={setCreateAmountRows}
+        addCreateAmountRow={addCreateAmountRow}
+        removeCreateAmountRow={removeCreateAmountRow}
+        cMain={cMain}
+        setCMain={setCMain}
+        cCat={cCat}
+        setCCat={setCCat}
+        currencySelectOptions={currencyOpts}
+        allocateNow={allocateNow}
+        setAllocateNow={setAllocateNow}
+        createAllocLines={createAllocLines}
+        setCreateAllocLines={setCreateAllocLines}
+        branchSelectOptions={branchSelectOptions}
+        branchOptionsForCreateAllocRow={(state, key, base) =>
+          branchOptionsForAllocRow(state, key, base)
+        }
+        addCreateAllocRow={addCreateAllocRow}
+        removeCreateAllocRow={removeCreateAllocRow}
+        equalSplitCreate={equalSplitCreate}
+        equalSplitAllBranchesCreate={equalSplitAllBranchesCreate}
+        createAllocCompare={createAllocCompare}
+        formatAmountInputOnBlur={formatAmountInputOnBlur}
+        hasSingleCurrencyTotal={createAmountRows.length === 1}
+        totalAmountForAlloc={
+          createAmountRows.length === 1
+            ? parseLocaleAmount(createAmountRows[0]!.amount, loc) || 0
+            : 0
+        }
+        allocPending={allocMut.isPending}
+        allocBranchPaid={allocBranchPaid}
+        setAllocBranchPaid={setAllocBranchPaid}
+        applyAllocBranchChange={applyAllocBranchChange}
+        branchOptionsForAllocRow={branchOptionsForAllocRow}
+        quickPicks={QUICK_PICKS}
+        currencyOpts={currencyOpts}
+        loc={loc}
+        locale={locale}
+        branchesLoading={branchesQ.isPending}
+        AllocationDraftTotalsBar={AllocationDraftTotalsBar}
+      />
 
-            <div>
-              <p className="mb-1 text-sm font-semibold text-zinc-900">
-                {t("generalOverhead.quickPicksTitle")}
-                <span className="ml-0.5 font-semibold text-red-600" aria-hidden>
-                  *
-                </span>
-              </p>
-              <p className="mb-2 text-xs text-zinc-500">{t("generalOverhead.quickPicksHint")}</p>
-              <div className="-mx-1 flex snap-x snap-mandatory flex-nowrap gap-2 overflow-x-auto overscroll-x-contain px-1 pb-2 [-webkit-overflow-scrolling:touch] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:pb-0 sm:snap-none sm:gap-2">
-                {QUICK_PICKS.map((p) => (
-                  <button
-                    key={`${p.main}-${p.category}`}
-                    type="button"
-                    onClick={() => {
-                      setCMain(p.main);
-                      setCCat(p.category);
-                    }}
-                    className={cn(
-                      "touch-manipulation shrink-0 snap-start rounded-lg border px-2.5 py-1.5 text-left text-xs font-medium transition sm:snap-none sm:text-sm",
-                      cMain === p.main && cCat === p.category
-                        ? "border-violet-500 bg-violet-50 text-violet-950"
-                        : "border-zinc-200 bg-zinc-50/80 text-zinc-800 hover:border-zinc-300"
-                    )}
-                  >
-                    {t(p.labelKey)}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <p className="text-xs text-zinc-500">{t("generalOverhead.allocPaymentIntro")}</p>
-
-            <div className="rounded-2xl border border-zinc-200/90 bg-gradient-to-b from-white to-zinc-50/90 p-4 shadow-sm sm:p-5">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-6">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-zinc-900">{t("generalOverhead.allocateNowLabel")}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-zinc-600">
-                    {t("generalOverhead.allocateNowHint")}
-                  </p>
-                </div>
-                <Switch
-                  checked={allocateNow}
-                  onCheckedChange={setAllocateNow}
-                  disabled={createAmountRows.length > 1}
-                  aria-label={t("generalOverhead.allocateNowLabel")}
-                  className="shrink-0 self-start sm:self-center"
-                />
-              </div>
-              {createAmountRows.length > 1 ? (
-                <p className="mt-2 text-xs text-amber-800">{t("generalOverhead.allocateAfterSaveMultiCurrency")}</p>
-              ) : null}
-
-              {allocateNow ? (
-                <div className="mt-4 flex flex-col gap-3 border-t border-zinc-200/80 pt-4">
-                  <label
-                    className={cn(
-                      "flex cursor-pointer gap-3 rounded-xl border border-zinc-200/90 bg-white p-3.5 shadow-sm transition hover:bg-zinc-50/90 sm:p-4",
-                      (createMut.isPending || allocMut.isPending) && "pointer-events-none opacity-60"
-                    )}
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold text-zinc-900">
-                        {t("generalOverhead.allocBranchPaidLabel")}
-                      </span>
-                      <span className="mt-1 block text-xs leading-relaxed text-zinc-600">
-                        {t("generalOverhead.allocBranchPaidHint")}
-                      </span>
-                    </span>
-                    <Switch
-                      checked={allocBranchPaid}
-                      onCheckedChange={setAllocBranchPaid}
-                      disabled={createMut.isPending || allocMut.isPending}
-                      className="shrink-0 self-start sm:self-center"
-                      aria-label={t("generalOverhead.allocBranchPaidLabel")}
-                    />
-                  </label>
-                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-2">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-11 w-full justify-center px-3 text-sm font-medium leading-snug whitespace-normal sm:min-h-10 sm:w-auto sm:flex-none sm:text-xs"
-                      onClick={addCreateAllocRow}
-                    >
-                      {t("generalOverhead.addBranchRow")}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-11 w-full justify-center px-3 text-sm font-medium leading-snug whitespace-normal sm:min-h-10 sm:w-auto sm:flex-none sm:text-xs"
-                      onClick={equalSplitCreate}
-                    >
-                      {t("generalOverhead.equalSplit")}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-11 w-full justify-center px-3 text-sm font-medium leading-snug whitespace-normal sm:min-h-10 sm:w-auto sm:flex-none sm:text-xs"
-                      disabled={branchesQ.isPending}
-                      onClick={equalSplitAllBranchesCreate}
-                    >
-                      {t("generalOverhead.equalSplitAllBranches")}
-                    </Button>
-                  </div>
-                  <div className="flex flex-col gap-3">
-                    {createAllocLines.map((line) => (
-                      <div
-                        key={line.key}
-                        className="rounded-xl border border-zinc-200/80 bg-white/90 p-3 shadow-sm sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none"
-                      >
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(6.5rem,9rem)_auto] sm:items-end sm:gap-2">
-                          <div className="min-w-0">
-                            <Select
-                              name={`gohCreateBranch-${line.key}`}
-                              label={t("generalOverhead.fieldBranch")}
-                              labelRequired
-                              value={line.branchId}
-                              onChange={(e) => {
-                                const v = e.target.value;
-                                setCreateAllocLines((xs) => applyAllocBranchChange(xs, line.key, v));
-                              }}
-                              onBlur={() => {}}
-                              options={branchOptionsForAllocRow(createAllocLines, line.key, branchSelectOptions)}
-                            />
-                          </div>
-                          <Input
-                            label={t("generalOverhead.fieldShareAmount")}
-                            labelRequired
-                            value={line.amount}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              setCreateAllocLines((xs) =>
-                                xs.map((x) => (x.key === line.key ? { ...x, amount: v } : x))
-                              );
-                            }}
-                            onBlur={() =>
-                              setCreateAllocLines((xs) =>
-                                xs.map((x) =>
-                                  x.key === line.key
-                                    ? { ...x, amount: formatAmountInputOnBlur(x.amount, loc) }
-                                    : x
-                                )
-                              )
-                            }
-                            inputMode="decimal"
-                            className="min-w-0"
-                          />
-                          <div className="flex justify-end sm:pb-0.5">
-                            <button
-                              type="button"
-                              className={cn(trashIconActionButtonClass, "min-h-11 min-w-11")}
-                              disabled={createAllocLines.length <= 1}
-                              onClick={() => removeCreateAllocRow(line.key)}
-                              aria-label={t("common.delete")}
-                            >
-                              <TrashIcon className="h-5 w-5" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <AllocationDraftTotalsBar
-                    compare={createAllocCompare}
-                    locale={locale}
-                    currencyCode={createAmountRows[0]?.currency.trim() || "TRY"}
-                    t={t}
-                    variant="create"
-                  />
-                  <p className="text-xs text-zinc-500">{t("generalOverhead.allocateSumHint")}</p>
-                </div>
-              ) : null}
-            </div>
-          </div>
-
-        <div className="mt-5 flex flex-col-reverse gap-3 border-t border-zinc-200/90 pt-5 sm:mt-4 sm:flex-row sm:justify-end sm:gap-2 sm:border-zinc-100 sm:pt-4">
-          <Button type="button" variant="ghost" className="min-h-11 w-full sm:min-h-10 sm:w-auto" onClick={() => setCreateOpen(false)}>
-            {t("common.cancel")}
-          </Button>
-          <Button
-            type="button"
-            variant="primary"
-            className="min-h-11 inline-flex w-full items-center justify-center gap-2 sm:min-h-10 sm:w-auto"
-            disabled={createMut.isPending || allocMut.isPending}
-            onClick={() => void submitCreate()}
-          >
-            {allocateNow ? (
-              <>
-                <ShareAllocateIcon className="h-5 w-5 shrink-0 opacity-90" />
-                <span>{t("generalOverhead.saveAndAllocate")}</span>
-              </>
-            ) : (
-              t("common.save")
-            )}
-          </Button>
-        </div>
-      </Modal>
-
-      <Modal
-        open={allocPool != null}
+      <GohAllocateModal
+        pool={allocPool}
         onClose={() => setAllocPool(null)}
-        titleId="goh-alloc"
-        title={t("generalOverhead.modalAllocateTitle")}
-        wide
-        closeButtonLabel={t("common.close")}
-        className="!max-w-[min(100vw-0.5rem,88rem)]"
-      >
-        {allocPool ? (
-          <div className="flex flex-col gap-4 px-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] pt-0 sm:px-6 sm:pb-6 sm:pt-0">
-            <p className="text-sm text-zinc-700">
-              <span className="font-semibold">{allocPool.title}</span>
-              <span className="mx-1">—</span>
-              <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 tabular-nums">
-                {poolAmountsList(allocPool).map((a, i) => (
-                  <span key={a.currencyCode}>
-                    {i > 0 ? <span className="text-zinc-400">·</span> : null}
-                    {formatLocaleAmount(a.amount, locale, a.currencyCode)}
-                  </span>
-                ))}
-              </span>
-            </p>
-            <label
-              className={cn(
-                "flex cursor-pointer gap-3 rounded-xl border border-zinc-200/90 bg-zinc-50/60 p-3.5 sm:p-4",
-                allocMut.isPending && "pointer-events-none opacity-60"
-              )}
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold text-zinc-900">
-                  {t("generalOverhead.allocBranchPaidLabel")}
-                </span>
-                <span className="mt-1 block text-xs leading-relaxed text-zinc-600">
-                  {t("generalOverhead.allocBranchPaidHint")}
-                </span>
-              </span>
-              <Switch
-                checked={allocBranchPaid}
-                onCheckedChange={setAllocBranchPaid}
-                disabled={allocMut.isPending}
-                className="shrink-0 self-start sm:self-center"
-                aria-label={t("generalOverhead.allocBranchPaidLabel")}
-              />
-            </label>
-            <div className="flex flex-col gap-6">
-              {poolAmountsList(allocPool).map((bucket) => {
-                const lines = allocLinesByCur[bucket.currencyCode] ?? [];
-                const draftCompare = compareAllocDraftSum(lines, bucket.amount, loc);
-                return (
-                  <MobileListCard
-                    key={bucket.currencyCode}
-                    as="div"
-                    className="flex flex-col gap-0 bg-zinc-50/40"
-                  >
-                    <p className="mb-3 text-sm font-semibold text-zinc-900">
-                      {t("generalOverhead.allocateSectionCurrency").replace("{cc}", bucket.currencyCode)}
-                      <span className="ml-2 tabular-nums font-normal text-zinc-600">
-                        {formatLocaleAmount(bucket.amount, locale, bucket.currencyCode)}
-                      </span>
-                    </p>
-                    <div className="mb-3 flex flex-wrap gap-2">
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="min-h-10 flex-1 text-xs sm:flex-none"
-                        onClick={() => addAllocRow(bucket.currencyCode)}
-                      >
-                        {t("generalOverhead.addBranchRow")}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="min-h-10 flex-1 text-xs sm:flex-none"
-                        onClick={() => equalSplit(bucket.currencyCode, bucket.amount)}
-                      >
-                        {t("generalOverhead.equalSplit")}
-                      </Button>
-                      {allocPoolSingleCurrency ? (
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className="min-h-10 flex-1 text-xs sm:flex-none"
-                          disabled={branchesQ.isPending || allocMut.isPending}
-                          onClick={() => equalSplitAllBranches(bucket.currencyCode, bucket.amount)}
-                        >
-                          {t("generalOverhead.equalSplitAllBranches")}
-                        </Button>
-                      ) : null}
-                    </div>
-                    <div className="flex flex-col gap-3">
-                      {lines.map((line) => (
-                        <div
-                          key={line.key}
-                          className="rounded-xl border border-zinc-200/80 bg-white/80 p-3 sm:border-0 sm:bg-transparent sm:p-0"
-                        >
-                          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(6.5rem,9rem)_auto] sm:items-end sm:gap-2">
-                            <div className="min-w-0">
-                              <Select
-                                name={`gohAllocBranch-${bucket.currencyCode}-${line.key}`}
-                                label={t("generalOverhead.fieldBranch")}
-                                labelRequired
-                                value={line.branchId}
-                                onChange={(e) => {
-                                  const v = e.target.value;
-                                  setAllocLinesByCur((prev) =>
-                                    applyAllocBranchChangeGlobal(prev, bucket.currencyCode, line.key, v)
-                                  );
-                                }}
-                                onBlur={() => {}}
-                                options={branchOptionsForAllocRowGlobal(
-                                  allocLinesByCur,
-                                  bucket.currencyCode,
-                                  line.key,
-                                  branchSelectOptions
-                                )}
-                              />
-                            </div>
-                            <Input
-                              label={t("generalOverhead.fieldShareAmount")}
-                              labelRequired
-                              value={line.amount}
-                              onChange={(e) => {
-                                const v = e.target.value;
-                                setAllocLinesByCur((prev) => ({
-                                  ...prev,
-                                  [bucket.currencyCode]: (prev[bucket.currencyCode] ?? []).map((x) =>
-                                    x.key === line.key ? { ...x, amount: v } : x
-                                  ),
-                                }));
-                              }}
-                              onBlur={() =>
-                                setAllocLinesByCur((prev) => ({
-                                  ...prev,
-                                  [bucket.currencyCode]: (prev[bucket.currencyCode] ?? []).map((x) =>
-                                    x.key === line.key
-                                      ? { ...x, amount: formatAmountInputOnBlur(x.amount, loc) }
-                                      : x
-                                  ),
-                                }))
-                              }
-                              inputMode="decimal"
-                              className="min-w-0"
-                            />
-                            <div className="flex justify-end sm:pb-0.5">
-                              <button
-                                type="button"
-                                className={cn(trashIconActionButtonClass, "min-h-11 min-w-11")}
-                                disabled={lines.length <= 1}
-                                onClick={() => removeAllocRow(bucket.currencyCode, line.key)}
-                                aria-label={t("common.delete")}
-                              >
-                                <TrashIcon className="h-5 w-5" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div className="mt-3">
-                      <AllocationDraftTotalsBar
-                        compare={draftCompare}
-                        locale={locale}
-                        currencyCode={bucket.currencyCode}
-                        t={t}
-                        variant="allocate"
-                      />
-                    </div>
-                  </MobileListCard>
-                );
-              })}
-            </div>
-            <p className="text-xs text-zinc-500">{t("generalOverhead.allocateSumHint")}</p>
-            <div className="mt-1 flex flex-col-reverse gap-2 border-t border-zinc-100 pt-4 sm:flex-row sm:justify-end">
-              <Button type="button" variant="ghost" className="min-h-11 w-full sm:min-h-10 sm:w-auto" onClick={() => setAllocPool(null)}>
-                {t("common.cancel")}
-              </Button>
-              <Button
-                type="button"
-                variant="primary"
-                className="min-h-11 inline-flex w-full items-center justify-center gap-2 sm:min-h-10 sm:w-auto"
-                disabled={allocMut.isPending}
-                onClick={() => void submitAllocate()}
-              >
-                <ShareAllocateIcon className="h-5 w-5 shrink-0 opacity-90" />
-                <span>{t("generalOverhead.confirmAllocate")}</span>
-              </Button>
-            </div>
-          </div>
-        ) : null}
-      </Modal>
+        allocLinesByCur={allocLinesByCur}
+        setAllocLinesByCur={setAllocLinesByCur}
+        allocBranchPaid={allocBranchPaid}
+        setAllocBranchPaid={setAllocBranchPaid}
+        saving={allocMut.isPending}
+        onSubmit={() => void submitAllocate()}
+        loc={loc}
+        locale={locale}
+        poolAmountsList={poolAmountsList}
+        allocPoolSingleCurrency={allocPoolSingleCurrency}
+        applyAllocBranchChangeGlobal={applyAllocBranchChangeGlobal}
+        branchOptionsForAllocRowGlobal={branchOptionsForAllocRowGlobal}
+        branchSelectOptions={branchSelectOptions}
+        branchesLoading={branchesQ.isPending}
+        equalSplit={equalSplit}
+        equalSplitAllBranches={equalSplitAllBranches}
+        addAllocRow={addAllocRow}
+        removeAllocRow={removeAllocRow}
+        compareAllocDraftSum={compareAllocDraftSum}
+        AllocationDraftTotalsBar={AllocationDraftTotalsBar}
+      />
 
-      <Modal
+      <GohDetailModal
         open={detailPoolId != null}
         onClose={() => setDetailPoolId(null)}
-        titleId="goh-detail"
-        title={t("generalOverhead.modalDetailTitle")}
-        narrow
-        closeButtonLabel={t("common.close")}
-        className="!max-w-[min(100vw-0.5rem,40rem)] sm:!max-w-xl md:!max-w-2xl"
-      >
-        {detailPoolId != null ? (
-          <div className="flex min-h-0 flex-col gap-5 px-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] pt-1 sm:gap-6 sm:px-6 sm:pb-6 sm:pt-0">
-            {detailQ.isPending ? (
-              <div className="space-y-4 px-0 pb-2 sm:px-0" aria-busy="true" aria-label={t("common.loading")}>
-                <div className="h-36 animate-pulse rounded-2xl bg-zinc-100" />
-                <div className="h-28 animate-pulse rounded-2xl bg-zinc-100" />
-              </div>
-            ) : detailQ.isError ? (
-              <p className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-800">{apiErrMsg(detailQ.error)}</p>
-            ) : detailQ.data ? (
-              <>
-                <div className="relative overflow-hidden rounded-2xl border border-zinc-200/80 bg-gradient-to-br from-zinc-50 via-white to-violet-50/30 p-4 shadow-sm ring-1 ring-zinc-950/[0.04] sm:p-5">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                    <div className="min-w-0 flex-1 space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={cn(
-                            "inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold tracking-wide",
-                            detailQ.data.status.trim().toUpperCase() === "OPEN"
-                              ? "bg-emerald-100 text-emerald-900"
-                              : "bg-zinc-200/90 text-zinc-800"
-                          )}
-                        >
-                          {statusLabel(detailQ.data.status)}
-                        </span>
-                        <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
-                          {t("generalOverhead.colDate")}
-                        </span>
-                        <span className="text-xs font-semibold text-zinc-700">
-                          {formatLocaleDate(detailQ.data.expenseDate, loc)}
-                        </span>
-                      </div>
-                      <h3 className="text-balance text-lg font-semibold leading-snug tracking-tight text-zinc-900 sm:text-xl">
-                        {detailQ.data.title}
-                      </h3>
-                      <p className="text-sm leading-relaxed text-zinc-600">
-                        {financialBreakdownMainLabel(detailQ.data.mainCategory, t)}
-                        <span className="text-zinc-300"> / </span>
-                        {txCategoryLine(detailQ.data.mainCategory, detailQ.data.category, t) || "—"}
-                      </p>
-                    </div>
-                    <div className="shrink-0 rounded-xl border border-zinc-200/60 bg-white/80 px-4 py-3 text-right shadow-sm backdrop-blur-sm sm:min-w-[9.5rem]">
-                      <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
-                        {t("generalOverhead.colAmount")}
-                      </p>
-                      <div className="mt-1 flex flex-col items-end gap-0.5 tabular-nums text-lg font-semibold text-zinc-900 sm:text-xl">
-                        {poolAmountsList(detailQ.data).map((a) => (
-                          <span key={a.currencyCode}>{formatLocaleAmount(a.amount, locale, a.currencyCode)}</span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  {detailQ.data.allocatedAt ? (
-                    <p className="mt-3 border-t border-zinc-200/60 pt-3 text-xs text-zinc-500">
-                      {t("generalOverhead.detailAllocatedAtLabel")}{" "}
-                      <span className="font-medium text-zinc-700">
-                        {formatLocaleDateTime(detailQ.data.allocatedAt, loc)}
-                      </span>
-                    </p>
-                  ) : null}
-                  {detailQ.data.notes != null && String(detailQ.data.notes).trim() !== "" ? (
-                    <p className="mt-3 rounded-xl border border-zinc-100 bg-white/70 px-3 py-2.5 text-sm leading-relaxed text-zinc-700">
-                      {String(detailQ.data.notes).trim()}
-                    </p>
-                  ) : null}
-                </div>
-                <section className="min-w-0 space-y-3">
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-semibold text-zinc-900 sm:text-base">
-                      {t("generalOverhead.detailAllocationsTitle")}
-                    </h4>
-                    <p className="text-xs text-zinc-500 sm:hidden">{t("generalOverhead.detailAllocationsHint")}</p>
-                  </div>
-                  <GohDetailAllocationSection data={detailQ.data} t={t} locale={loc} />
-                </section>
-                {String(detailQ.data.status ?? "").trim().toUpperCase() === "ALLOCATED" ? (
-                  <div className="flex justify-end pt-1">
-                    <Tooltip content={t("generalOverhead.reverseAllocation")} delayMs={200}>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className={cn(detailOpenIconButtonClass, "text-xs sm:text-sm")}
-                        disabled={reverseMut.isPending && reverseMut.variables?.poolId === detailQ.data.id}
-                        aria-label={t("generalOverhead.reverseAllocation")}
-                        title={t("generalOverhead.reverseAllocation")}
-                        onClick={() => {
-                          openReverseAllocationFlow(detailQ.data.id);
-                          setDetailPoolId(null);
-                        }}
-                      >
-                        <UndoIcon />
-                      </Button>
-                    </Tooltip>
-                  </div>
-                ) : null}
-                <section className="border-t border-zinc-100 pt-4">
-                  <GohPoolAuditSection poolId={detailQ.data.id} locale={loc} t={t} apiErrMsg={apiErrMsg} />
-                </section>
-              </>
-            ) : (
-              <p className="text-sm text-zinc-500">{t("common.retry")}</p>
-            )}
-          </div>
-        ) : null}
-      </Modal>
-
-      <Modal
-        open={reversePoolId != null}
-        onClose={() => {
-          if (!reverseMut.isPending) setReversePoolId(null);
+        poolId={detailPoolId}
+        detail={detailQ}
+        loc={loc}
+        locale={locale}
+        statusLabel={statusLabel}
+        apiErrMsg={apiErrMsg}
+        poolAmountsList={poolAmountsList}
+        AllocationSection={GohDetailAllocationSection}
+        AuditSection={GohPoolAuditSection}
+        onReverseAllocation={(poolId) => {
+          openReverseAllocationFlow(poolId);
+          setDetailPoolId(null);
         }}
-        titleId="goh-reverse"
-        title={t("generalOverhead.reverseModalTitle")}
-        wide
-        closeButtonLabel={t("common.close")}
-      >
-        {reversePoolId != null ? (
-          <div className="flex flex-col gap-4 px-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] sm:px-6 sm:pb-6">
-            {reversePreviewQ.isPending ? (
-              <p className="text-sm text-zinc-500">{t("common.loading")}</p>
-            ) : reversePreviewQ.isError ? (
-              <p className="text-sm text-red-600">{apiErrMsg(reversePreviewQ.error)}</p>
-            ) : reversePreviewQ.data ? (
-              <>
-                <p className="text-sm text-zinc-700">{t("generalOverhead.reverseModalIntro")}</p>
-                <p className="text-xs text-zinc-500">
-                  {t("generalOverhead.colDate")}: {formatLocaleDate(reversePreviewQ.data.expenseDate, loc)}
-                  {" · "}
-                  <span className="font-medium text-zinc-800">{reversePreviewQ.data.title}</span>
-                </p>
-                {reversePreviewQ.data.risksRequireAcknowledgement ? (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50/90 px-3 py-2.5 text-sm text-amber-950">
-                    {t("generalOverhead.reverseRiskNotice")}
-                  </div>
-                ) : null}
-                <div className="overflow-x-auto rounded-xl border border-zinc-200/90">
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableHeader>{t("generalOverhead.reverseColBranch")}</TableHeader>
-                        <TableHeader className="text-end">{t("generalOverhead.reverseColAmount")}</TableHeader>
-                        <TableHeader>{t("generalOverhead.reverseColSeason")}</TableHeader>
-                        <TableHeader>{t("generalOverhead.reverseColPayment")}</TableHeader>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {reversePreviewQ.data.lines.map((row) => (
-                        <TableRow key={`${row.branchId}-${row.currencyCode}-${row.branchTransactionId}`}>
-                          <TableCell className="text-sm" dataLabel={t("generalOverhead.reverseColBranch")}>
-                            {row.branchName}
-                          </TableCell>
-                          <TableCell
-                            className="text-end text-sm tabular-nums"
-                            dataLabel={t("generalOverhead.reverseColAmount")}
-                          >
-                            {formatLocaleAmount(row.amount, locale, row.currencyCode)}
-                          </TableCell>
-                          <TableCell className="text-sm" dataLabel={t("generalOverhead.reverseColSeason")}>
-                            {row.branchTransactionAlreadyRemoved ? (
-                              <span className="text-zinc-500">{t("generalOverhead.reverseRowRemoved")}</span>
-                            ) : row.hasOpenTourismSeasonOnExpenseDate ? (
-                              <span className="text-emerald-800">{t("generalOverhead.reverseSeasonOpen")}</span>
-                            ) : (
-                              <span className="text-amber-900">{t("generalOverhead.reverseSeasonClosed")}</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-sm" dataLabel={t("generalOverhead.reverseColPayment")}>
-                            {row.branchTransactionAlreadyRemoved
-                              ? "—"
-                              : expensePaySourceLabel(row.expensePaymentSource, t)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-                {reversePreviewQ.data.risksRequireAcknowledgement ? (
-                  <label className="flex cursor-pointer gap-3 rounded-xl border border-zinc-200 bg-zinc-50/80 p-3.5 sm:p-4">
-                    <span className="min-w-0 flex-1 text-sm leading-relaxed text-zinc-800">
-                      {t("generalOverhead.reverseAckSwitch")}
-                    </span>
-                    <Switch
-                      checked={reverseAck}
-                      onCheckedChange={setReverseAck}
-                      disabled={reverseMut.isPending}
-                      className="shrink-0"
-                      aria-label={t("generalOverhead.reverseAckSwitch")}
-                    />
-                  </label>
-                ) : null}
-                <div className="flex flex-col-reverse gap-2 border-t border-zinc-100 pt-4 sm:flex-row sm:justify-end">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="min-h-11 w-full touch-manipulation sm:min-h-10 sm:w-auto"
-                    disabled={reverseMut.isPending}
-                    onClick={() => setReversePoolId(null)}
-                  >
-                    {t("common.cancel")}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="primary"
-                    className="inline-flex min-h-11 w-full touch-manipulation items-center justify-center gap-2 sm:min-h-10 sm:w-auto"
-                    disabled={reverseMut.isPending || reversePreviewQ.isPending}
-                    onClick={() => void submitReverseAllocation()}
-                  >
-                    <UndoIcon className="h-5 w-5 shrink-0 opacity-90" />
-                    <span>{t("generalOverhead.reverseConfirm")}</span>
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <p className="text-sm text-zinc-500">{t("common.retry")}</p>
-            )}
-          </div>
-        ) : null}
-      </Modal>
+        reverseBusyForPool={(poolId) =>
+          reverseMut.isPending && reverseMut.variables?.poolId === poolId
+        }
+      />
+
+      <GohReverseConfirmModal
+        open={reversePoolId != null}
+        onClose={() => setReversePoolId(null)}
+        poolId={reversePoolId}
+        preview={reversePreviewQ}
+        reverseAck={reverseAck}
+        setReverseAck={setReverseAck}
+        saving={reverseMut.isPending}
+        onConfirm={() => void submitReverseAllocation()}
+        loc={loc}
+        locale={locale}
+        expensePaySourceLabel={expensePaySourceLabel}
+        apiErrMsg={apiErrMsg}
+      />
     </>
   );
 }

@@ -31,6 +31,7 @@ import { notify } from "@/shared/lib/notify";
 import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { Button } from "@/shared/ui/Button";
 import { detailOpenIconButtonClass, EyeIcon, PencilIcon, PlusIcon } from "@/shared/ui/EyeIcon";
+import { cn } from "@/lib/cn";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Switch } from "@/shared/ui/Switch";
@@ -243,7 +244,99 @@ export function ContractorsScreen() {
             ) : contractors.length === 0 ? (
               <p className="text-sm text-zinc-600">{t("contractors.empty")}</p>
             ) : (
-              <div className="-mx-1 overflow-x-auto px-1">
+              <div className="-mx-1 px-1">
+                <ul className="flex flex-col gap-2 md:hidden">
+                  {contractors.map((c) => (
+                    <li
+                      key={c.id}
+                      className="rounded-xl border border-zinc-200 bg-white px-2.5 py-2 shadow-sm"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                            <span className="min-w-0 break-words text-sm font-semibold text-zinc-900">
+                              {c.displayName}
+                            </span>
+                            {c.isDeleted ? (
+                              <StatusBadge tone="deleted">{t("contractors.deletedBadge")}</StatusBadge>
+                            ) : null}
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] leading-tight text-zinc-500">
+                            <span>
+                              {t("contractors.totalWork")}:{" "}
+                              <span className="font-medium tabular-nums text-zinc-700">{money(c.totalWork)}</span>
+                            </span>
+                            <span aria-hidden>·</span>
+                            <span>
+                              {t("contractors.totalPaid")}:{" "}
+                              <span className="font-medium tabular-nums text-zinc-700">{money(c.totalPaid)}</span>
+                            </span>
+                          </div>
+                          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs">
+                            <span className="text-zinc-500">{t("contractors.balance")}:</span>
+                            {c.balance > 0 ? (
+                              <span className="font-semibold tabular-nums text-red-600">{money(c.balance)}</span>
+                            ) : null}
+                            <span
+                              className={
+                                c.balance > 0
+                                  ? "inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-medium text-red-700"
+                                  : "inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-medium text-emerald-700"
+                              }
+                            >
+                              {c.balance > 0 ? t("contractors.hasDebt") : t("contractors.noDebt")}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between gap-2 border-t border-zinc-100 pt-2">
+                        {!c.isDeleted ? (
+                          <Tooltip content={t("common.delete")} delayMs={200}>
+                            <button
+                              type="button"
+                              className={cn(
+                                trashIconActionButtonClass,
+                                "h-9 min-h-9 w-9 min-w-9 border-2 border-red-200 bg-white shadow-sm ring-1 ring-red-100/80 hover:border-red-300 hover:bg-red-50/90 active:bg-red-100"
+                              )}
+                              disabled={deleteC.isPending}
+                              aria-label={t("common.delete")}
+                              onClick={() => onDelete(c)}
+                            >
+                              <TrashIcon />
+                            </button>
+                          </Tooltip>
+                        ) : (
+                          <span />
+                        )}
+                        <div className="inline-flex items-center gap-1">
+                          <Tooltip content={t("common.edit")} delayMs={200}>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className={`${detailOpenIconButtonClass} h-9 min-h-9 w-9 min-w-9`}
+                              aria-label={t("common.edit")}
+                              onClick={() => openEdit(c)}
+                            >
+                              <PencilIcon />
+                            </Button>
+                          </Tooltip>
+                          <Tooltip content={t("contractors.openDetail")} delayMs={200}>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className={`${detailOpenIconButtonClass} h-9 min-h-9 w-9 min-w-9`}
+                              aria-label={t("contractors.openDetail")}
+                              onClick={() => openContractorDetail(c.id)}
+                            >
+                              <EyeIcon />
+                            </Button>
+                          </Tooltip>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <div className="hidden overflow-x-auto md:block">
                 <Table>
                   <TableHead>
                     <TableRow>
@@ -272,10 +365,12 @@ export function ContractorsScreen() {
                           {money(c.totalPaid)}
                         </TableCell>
                         <TableCell dataLabel={t("contractors.balance")} className="text-right tabular-nums">
-                          <div className="inline-flex items-center justify-end gap-2">
-                            <span className={c.balance > 0 ? "font-semibold text-red-600" : "font-semibold text-emerald-600"}>
-                              {money(c.balance)}
-                            </span>
+                          <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
+                            {c.balance > 0 ? (
+                              <span className="font-semibold text-red-600">
+                                {money(c.balance)}
+                              </span>
+                            ) : null}
                             <span
                               className={
                                 c.balance > 0
@@ -287,37 +382,16 @@ export function ContractorsScreen() {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell dataLabel={t("common.actions")} className="text-right">
-                          <div className="inline-flex flex-wrap items-center justify-end gap-1">
-                            <Tooltip content={t("contractors.openDetail")} delayMs={200}>
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                className={detailOpenIconButtonClass}
-                                aria-label={t("contractors.openDetail")}
-                                title={t("contractors.openDetail")}
-                                onClick={() => openContractorDetail(c.id)}
-                              >
-                                <EyeIcon />
-                              </Button>
-                            </Tooltip>
-                            <Tooltip content={t("common.edit")} delayMs={200}>
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                className={detailOpenIconButtonClass}
-                                aria-label={t("common.edit")}
-                                title={t("common.edit")}
-                                onClick={() => openEdit(c)}
-                              >
-                                <PencilIcon />
-                              </Button>
-                            </Tooltip>
+                        <TableCell dataLabel="" className="text-right">
+                          <div className="flex w-full items-center justify-between gap-2 sm:inline-flex sm:w-auto sm:justify-end sm:gap-1">
                             {!c.isDeleted ? (
                               <Tooltip content={t("common.delete")} delayMs={200}>
                                 <button
                                   type="button"
-                                  className={trashIconActionButtonClass}
+                                  className={cn(
+                                    trashIconActionButtonClass,
+                                    "border-2 border-red-200 bg-white shadow-sm ring-1 ring-red-100/80 hover:border-red-300 hover:bg-red-50/90 active:bg-red-100 sm:border sm:shadow-none sm:ring-0"
+                                  )}
                                   disabled={deleteC.isPending}
                                   aria-label={t("common.delete")}
                                   title={t("common.delete")}
@@ -326,13 +400,42 @@ export function ContractorsScreen() {
                                   <TrashIcon />
                                 </button>
                               </Tooltip>
-                            ) : null}
+                            ) : (
+                              <span />
+                            )}
+                            <div className="inline-flex flex-wrap items-center justify-end gap-1">
+                              <Tooltip content={t("common.edit")} delayMs={200}>
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  className={detailOpenIconButtonClass}
+                                  aria-label={t("common.edit")}
+                                  title={t("common.edit")}
+                                  onClick={() => openEdit(c)}
+                                >
+                                  <PencilIcon />
+                                </Button>
+                              </Tooltip>
+                              <Tooltip content={t("contractors.openDetail")} delayMs={200}>
+                                <Button
+                                  type="button"
+                                  variant="secondary"
+                                  className={detailOpenIconButtonClass}
+                                  aria-label={t("contractors.openDetail")}
+                                  title={t("contractors.openDetail")}
+                                  onClick={() => openContractorDetail(c.id)}
+                                >
+                                  <EyeIcon />
+                                </Button>
+                              </Tooltip>
+                            </div>
                           </div>
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </div>
             )}
           </Card>

@@ -246,6 +246,7 @@ export async function createSupplierInvoice(body: {
 }
 
 export async function createSupplierPayment(body: {
+  supplierId?: number | null;
   paymentDate: string;
   amount: number;
   currencyCode?: string;
@@ -257,6 +258,7 @@ export async function createSupplierPayment(body: {
   return apiRequest<SupplierPayment>("/suppliers/payments", {
     method: "POST",
     body: JSON.stringify({
+      supplierId: body.supplierId ?? null,
       paymentDate: body.paymentDate,
       amount: body.amount,
       currencyCode: body.currencyCode ?? "TRY",

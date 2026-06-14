@@ -9,6 +9,10 @@ import {
   txCategoryLine,
 } from "@/modules/branch/lib/branch-transaction-options";
 import {
+  sortAdvancesDesc,
+  sourceAbbrev,
+} from "@/modules/personnel/lib/advance-formatters";
+import {
   fetchBranchPersonnelSalaryCostEstimates,
   fetchPersonnel,
   fetchPersonnelSalaryCostEstimate,
@@ -60,15 +64,6 @@ function safeDownloadFilename(title: string): string {
       .trim()
       .slice(0, 72) || "settlement";
   return `${base}-${d}.html`;
-}
-
-function sortAdvancesDesc<T extends Advance>(rows: T[]): T[] {
-  return [...rows].sort((a, b) => {
-    const da = a.advanceDate.slice(0, 10);
-    const db = b.advanceDate.slice(0, 10);
-    if (da !== db) return db.localeCompare(da);
-    return b.id - a.id;
-  });
 }
 
 function sortExpensesDesc(rows: BranchTransaction[]): BranchTransaction[] {
@@ -401,17 +396,6 @@ function renderSalaryCostLoadFailedSection(
   ${renderSalaryDisclaimerBlock(t, escape)}
   <p class="meta salary-cost-meta">${escape(t("personnel.settlementSalaryCostLoadFailed"))}</p>
 </section>`;
-}
-
-function sourceAbbrev(t: (k: string) => string, st: string): string {
-  const u = st.toUpperCase();
-  if (u === "PATRON") return t("personnel.advanceSourceAbbrPatron");
-  if (u === "PATRON_BRANCH")
-    return t("personnel.advanceSourceAbbrPatronBranch");
-  if (u === "BANK") return t("personnel.advanceSourceAbbrBank");
-  if (u === "PERSONNEL_HELD_REGISTER_CASH" || u === "PERSONNEL_POCKET")
-    return t("personnel.advanceSourceAbbrHeldRegister");
-  return t("personnel.advanceSourceAbbrCash");
 }
 
 function sumByCurrency(

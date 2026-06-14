@@ -6,6 +6,8 @@ import {
   deleteAdvance,
   fetchAdvancesByPersonnel,
   fetchAllAdvances,
+  hardDeleteAdvance,
+  restoreAdvance,
   type FetchAllAdvancesParams,
 } from "@/modules/personnel/api/advances-api";
 import { branchKeys } from "@/modules/branch/hooks/useBranchQueries";
@@ -526,10 +528,16 @@ export function usePersonnelCashAccountBranchBreakdown(
 }
 
 /** Tüm yıllar — geçmiş listesi (effectiveYear filtresi yok). */
-export function usePersonnelAdvancesAll(personnelId: number | null | undefined) {
+export function usePersonnelAdvancesAll(
+  personnelId: number | null | undefined,
+  includeDeleted: boolean = false,
+) {
   return useQuery({
-    queryKey: personnelKeys.advances(personnelId ?? 0, undefined),
-    queryFn: () => fetchAdvancesByPersonnel(personnelId!),
+    queryKey: [
+      ...personnelKeys.advances(personnelId ?? 0, undefined),
+      includeDeleted ? "with-deleted" : "active",
+    ] as const,
+    queryFn: () => fetchAdvancesByPersonnel(personnelId!, undefined, includeDeleted),
     enabled: personnelId != null && personnelId > 0,
   });
 }
@@ -872,55 +880,81 @@ export function useCreateAdvance() {
   });
 }
 
+function invalidateAdvanceMutations(qc: ReturnType<typeof useQueryClient>): void {
+  void qc.invalidateQueries({ queryKey: personnelKeys.listRoot() });
+  void qc.invalidateQueries({
+    queryKey: [...personnelKeys.all, "advances"],
+    exact: false,
+  });
+  void qc.invalidateQueries({
+    queryKey: [...personnelKeys.all, "management-snapshot"],
+    exact: false,
+  });
+  void qc.invalidateQueries({
+    queryKey: [...personnelKeys.all, "advances-all"],
+    exact: false,
+  });
+  void qc.invalidateQueries({
+    queryKey: ["personnel", "attributed-expenses"],
+    exact: false,
+  });
+  void qc.invalidateQueries({
+    queryKey: [...branchKeys.all, "advances"],
+    exact: false,
+  });
+  void qc.invalidateQueries({
+    queryKey: [...branchKeys.all, "register-summary"],
+    exact: false,
+  });
+  void qc.invalidateQueries({ queryKey: branchKeys.all });
+  void qc.invalidateQueries({
+    queryKey: [...branchKeys.all, "held-register-cash-by-person"],
+    exact: false,
+  });
+  void qc.invalidateQueries({
+    queryKey: [...branchKeys.all, "personnel-money"],
+    exact: false,
+  });
+  void qc.invalidateQueries({
+    queryKey: ["personnel", "cash-handover-outflows"],
+    exact: false,
+  });
+  void qc.invalidateQueries({
+    queryKey: ["personnel", "cash-handover-lines"],
+    exact: false,
+  });
+  void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
+  void qc.invalidateQueries({ queryKey: reportsKeys.all });
+}
+
 export function useDeleteAdvance() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (advanceId: number) => deleteAdvance(advanceId),
     onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: personnelKeys.listRoot() });
-      void qc.invalidateQueries({
-        queryKey: [...personnelKeys.all, "advances"],
-        exact: false,
-      });
-      void qc.invalidateQueries({
-        queryKey: [...personnelKeys.all, "management-snapshot"],
-        exact: false,
-      });
-      void qc.invalidateQueries({
-        queryKey: [...personnelKeys.all, "advances-all"],
-        exact: false,
-      });
-      void qc.invalidateQueries({
-        queryKey: ["personnel", "attributed-expenses"],
-        exact: false,
-      });
-      void qc.invalidateQueries({
-        queryKey: [...branchKeys.all, "advances"],
-        exact: false,
-      });
-      void qc.invalidateQueries({
-        queryKey: [...branchKeys.all, "register-summary"],
-        exact: false,
-      });
-      void qc.invalidateQueries({ queryKey: branchKeys.all });
-      void qc.invalidateQueries({
-        queryKey: [...branchKeys.all, "held-register-cash-by-person"],
-        exact: false,
-      });
-      void qc.invalidateQueries({
-        queryKey: [...branchKeys.all, "personnel-money"],
-        exact: false,
-      });
-      void qc.invalidateQueries({
-        queryKey: ["personnel", "cash-handover-outflows"],
-        exact: false,
-      });
-      void qc.invalidateQueries({
-        queryKey: ["personnel", "cash-handover-lines"],
-        exact: false,
-      });
-      void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
-      void qc.invalidateQueries({ queryKey: reportsKeys.all });
+      invalidateAdvanceMutations(qc);
+    },
+  });
+}
+
+/** Yalnızca sistem yöneticisi: soft-delete edilmiş avansı kalıcı siler. */
+export function useHardDeleteAdvance() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (advanceId: number) => hardDeleteAdvance(advanceId),
+    onSuccess: () => {
+      invalidateAdvanceMutations(qc);
+    },
+  });
+}
+
+/** Yalnızca sistem yöneticisi: soft-delete edilmiş avansı geri yükler. */
+export function useRestoreAdvance() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (advanceId: number) => restoreAdvance(advanceId),
+    onSuccess: () => {
+      invalidateAdvanceMutations(qc);
     },
   });
 }

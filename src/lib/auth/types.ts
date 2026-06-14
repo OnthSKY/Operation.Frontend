@@ -20,6 +20,18 @@ export type AuthUser = {
   totpEnabled?: boolean;
   /** Hesap → Sistem ayarları; API yoksa günlük toast varsayılan açık kabul edilir. */
   notificationPreferences?: NotificationPreferences | null;
+  /**
+   * Aktif istek bir "yönetici yerine geç" oturumundansa, yerine geçen
+   * admin'in minimum bilgisi. Aksi halde null/undefined.
+   * Token (httpOnly cookie) içinde `admin_user_id` claim'inden gelir.
+   */
+  impersonatedBy?: ImpersonatedBy | null;
+};
+
+export type ImpersonatedBy = {
+  id: number;
+  username: string;
+  fullName?: string | null;
 };
 
 export type LoginResultPayload = {

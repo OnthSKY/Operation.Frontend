@@ -779,6 +779,14 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                       <p className="mt-1 text-sm text-zinc-800">
                         {txCategoryLine(row.mainCategory, row.category, t) || t("personnel.dash")}
                       </p>
+                      {row.isBundledWithDayClose ? (
+                        <span
+                          className="mt-1 inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-800"
+                          title="Bu gider gün sonu ile birlikte yazıldı; gün sonu silinirse bu da silinir."
+                        >
+                          <span aria-hidden="true">🔗</span> Gün sonu ile
+                        </span>
+                      ) : null}
                       {branchTxNonPnl(row) ? (
                         <p className="mt-0.5 text-xs font-medium text-sky-800">
                           {t("branch.txNonPnlBadge")}
@@ -933,6 +941,14 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                             <div>
                               {txCategoryLine(row.mainCategory, row.category, t) || t("personnel.dash")}
                             </div>
+                            {row.isBundledWithDayClose ? (
+                              <span
+                                className="mt-1 inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-800"
+                                title="Bu gider gün sonu ile birlikte yazıldı; gün sonu silinirse bu da silinir."
+                              >
+                                <span aria-hidden="true">🔗</span> Gün sonu ile
+                              </span>
+                            ) : null}
                             {branchTxNonPnl(row) ? (
                               <p className="mt-0.5 text-xs font-medium text-sky-800">
                                 {t("branch.txNonPnlBadge")}

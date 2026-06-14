@@ -14,6 +14,9 @@ export const dashboard = {
   expense: "Expense",
   netCash: "Net cash",
   registerSnapshotResetToday: "Jump to today",
+  dailyRegisterPrevDayAria: "Previous day",
+  dailyRegisterNextDayAria: "Next day",
+  dailyRegisterTodayBadge: "Today",
   dailyRegisterTitle: "Branch register day",
   dailyRegisterIntroHint:
     "Tap the filter icon (top right) — a side panel opens with a short how-to first, then branch and date/season scope.",

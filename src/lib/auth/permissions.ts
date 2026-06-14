@@ -5,6 +5,8 @@ export const PERM = {
   systemAdmin: "system.admin",
   adminUserPermissionOverrides: "admin.users.permission_overrides",
   adminUserDataScopes: "admin.users.data_scopes",
+  /** "Yerine geç" yetkisi — system.admin de joker kapsar. */
+  adminImpersonateUsers: "admin.users.impersonate",
   operationsStaff: "operations.staff",
   warehouseDriver: "warehouse.driver",
   uiDashboard: "ui.dashboard",
@@ -100,6 +102,19 @@ function norm(c: string): string {
 }
 
 /** Literal kontrol — verilen kullanıcı setinde tam o kod var mı (joker uygulamaz). */
+/**
+ * "Yerine geç" yetkisi: system.admin (süper joker) ya da açık impersonate izni.
+ * Backend AuthPolicies.AdminImpersonate ile birebir eşleşir.
+ */
+export function canImpersonateUsers(
+  user: Pick<AuthUser, "permissionCodes" | "role"> | null | undefined
+): boolean {
+  return (
+    hasPermissionCode(user, PERM.systemAdmin) ||
+    hasPermissionCode(user, PERM.adminImpersonateUsers)
+  );
+}
+
 export function hasPermissionCode(
   user: Pick<AuthUser, "permissionCodes" | "role"> | null | undefined,
   code: string

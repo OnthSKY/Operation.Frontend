@@ -24,13 +24,37 @@ function extractCreatedByMeta(raw: Record<string, unknown>): {
   };
 }
 
+/** Soft-delete audit alanlarını çözer (yalnızca sistem yöneticisi cevabında dolu). */
+function extractDeletedByMeta(raw: Record<string, unknown>): {
+  isDeleted: boolean;
+  deletedAt: string | null;
+  deletedByUserId: number | null;
+  deletedByName: string | null;
+} {
+  const flag = raw.isDeleted ?? raw.IsDeleted;
+  const at = raw.deletedAt ?? raw.DeletedAt;
+  const uid = raw.deletedByUserId ?? raw.DeletedByUserId;
+  const name = raw.deletedByDisplayName ?? raw.DeletedByDisplayName;
+  return {
+    isDeleted: Boolean(flag),
+    deletedAt: at != null && String(at).trim() ? String(at) : null,
+    deletedByUserId: uid != null && Number(uid) > 0 ? Number(uid) : null,
+    deletedByName:
+      name != null && String(name).trim() ? String(name).trim() : null,
+  };
+}
+
 export async function fetchAdvancesByPersonnel(
   personnelId: number,
-  effectiveYear?: number
+  effectiveYear?: number,
+  includeDeleted?: boolean
 ): Promise<Advance[]> {
   const q = new URLSearchParams({ personnelId: String(personnelId) });
   if (effectiveYear != null && Number.isFinite(effectiveYear)) {
     q.set("effectiveYear", String(Math.trunc(effectiveYear)));
+  }
+  if (includeDeleted) {
+    q.set("includeDeleted", "true");
   }
   const rows = await apiRequest<
     Array<Omit<Advance, "currencyCode"> & { currencyCode?: string }>
@@ -52,6 +76,7 @@ export async function fetchAdvancesByPersonnel(
       linkedBranchTransactionId:
         linkedTx != null && Number(linkedTx) > 0 ? Number(linkedTx) : null,
       ...extractCreatedByMeta(raw),
+      ...extractDeletedByMeta(raw),
     };
   });
 }
@@ -116,6 +141,16 @@ export async function fetchAllAdvances(
 
 export async function deleteAdvance(advanceId: number): Promise<void> {
   await apiRequest<null>(`/advances/${advanceId}`, { method: "DELETE" });
+}
+
+/** Yalnızca sistem yöneticisi: soft-delete edilmiş avansı kalıcı siler (bağlı tx satırlarıyla). */
+export async function hardDeleteAdvance(advanceId: number): Promise<void> {
+  await apiRequest<null>(`/advances/${advanceId}/permanent`, { method: "DELETE" });
+}
+
+/** Yalnızca sistem yöneticisi: soft-delete edilmiş avansı geri yükler. */
+export async function restoreAdvance(advanceId: number): Promise<void> {
+  await apiRequest<null>(`/advances/${advanceId}/restore`, { method: "POST" });
 }
 
 export type AdvanceListTotalsCurrencyAmount = {

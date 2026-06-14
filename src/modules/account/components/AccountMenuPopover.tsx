@@ -5,10 +5,13 @@ import { LocaleSegmentControl } from "@/shared/components/LocaleSegmentControl";
 
 type Props = {
   roleLabel: string;
+  /** true ise "Kullanıcı Yerine Geç" menü öğesi gösterilir. */
+  canImpersonate?: boolean;
   onProfile: () => void;
   onSecurity: () => void;
   onActivity: () => void;
   onSettings: () => void;
+  onImpersonate?: () => void;
   onLogout: () => void;
 };
 
@@ -17,10 +20,12 @@ const itemClass =
 
 export function AccountMenuPopover({
   roleLabel,
+  canImpersonate,
   onProfile,
   onSecurity,
   onActivity,
   onSettings,
+  onImpersonate,
   onLogout,
 }: Props) {
   const { t } = useI18n();
@@ -52,6 +57,20 @@ export function AccountMenuPopover({
         <MenuSettingsGlyph />
         {t("profile.menuSettings")}
       </button>
+      {canImpersonate && onImpersonate ? (
+        <>
+          <div className="my-1 border-t border-zinc-100" role="separator" />
+          <button
+            type="button"
+            role="menuitem"
+            className={`${itemClass} text-amber-800 hover:bg-amber-50 active:bg-amber-100/80`}
+            onClick={onImpersonate}
+          >
+            <MenuImpersonateGlyph />
+            Kullanıcı Yerine Geç
+          </button>
+        </>
+      ) : null}
       <div className="md:hidden border-t border-zinc-100/90 px-3 py-3" role="none">
         <div className="mb-2.5 flex items-center gap-2 px-0.5">
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500/15 to-violet-500/10 ring-1 ring-indigo-200/40">
@@ -201,6 +220,28 @@ function MenuLogoutGlyph() {
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
       <polyline points="16 17 21 12 16 7" />
       <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+  );
+}
+
+function MenuImpersonateGlyph() {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="shrink-0 text-amber-700"
+      aria-hidden
+    >
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" />
+      <path d="m16 4 3 3-3 3" />
+      <path d="M19 7H13" />
     </svg>
   );
 }

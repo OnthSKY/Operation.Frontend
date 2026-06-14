@@ -110,6 +110,7 @@ export const personnel = {
   costsKpiContractorPaid: "Paid",
   costsKpiEmpty: "—",
   costsCategoryCardTitle: "By category",
+  costsShowAll: "Show all",
   costsCategoryCardDesc:
     "Advances and expense lines grouped by category (sorted by TRY total).",
   costsCategoryAdvanceLabel: "Advance",
@@ -156,6 +157,21 @@ export const personnel = {
   detailCostsFiltersDrawerTitle: "List filters",
   detailCostsFiltersDrawerHint:
     "Branch, payment source, and page size — only affects the advances & expenses list below.",
+  detailCostsShowDeletedAdvances: "Show deleted advances",
+  detailCostsShowDeletedAdvancesHint:
+    "System admin only. Deleted records appear in the list but are excluded from the summary totals above.",
+  detailCostsAdvanceDeletedBadge: "Deleted",
+  detailCostsDeletedBy: "Deleted by",
+  detailCostsHardDeleteButton: "Delete permanently",
+  detailCostsHardDeleteConfirmTitle: "Permanently delete advance",
+  detailCostsHardDeleteConfirmMessage:
+    "This cannot be undone. The advance and linked cash entries will be physically removed from the database. Continue?",
+  detailCostsHardDeleteSuccess: "Advance permanently deleted.",
+  detailCostsRestoreButton: "Restore",
+  detailCostsRestoreConfirmTitle: "Restore advance",
+  detailCostsRestoreConfirmMessage:
+    "The deleted advance and its linked cash entries will be restored. Continue?",
+  detailCostsRestoreSuccess: "Advance restored.",
   settlementPrintSeasonHint:
     "Empty = all periods. With a year: advances match tourism/season year on the record; personnel expenses and (branch PDF) register/stock lines match the movement date year; notes match created year. Salary-cost section is omitted for a filtered year.",
   settlementPrintSeasonAll: "All periods (totals)",
@@ -798,7 +814,7 @@ export const personnel = {
   advanceSourceAbbrPatron: "Owner",
   advanceSourceAbbrPatronBranch: "Patron branch register",
   advanceSourceAbbrBank: "Bank",
-  advanceSourceAbbrHeldRegister: "Pocket",
+  advanceSourceAbbrHeldRegister: "Custody",
   advancePaidFromBank: "Paid from bank account",
   tableActions: "Actions",
   edit: "Edit",
@@ -960,6 +976,8 @@ export const personnel = {
   detailPageSize: "Page size",
   detailPageSizeOption: "{n} rows",
   detailShowing: "{from}–{to} of {total}",
+  detailPaginationPage: "Page",
+  detailPaginationRecords: "records",
   detailPrev: "Previous",
   detailNext: "Next",
   detailRolesStoryTitle: "Responsibilities at a glance",

@@ -5,6 +5,7 @@ import {
   useBranchRegisterSummary,
   useBranchesList,
   useCreateBranchTransaction,
+  useCreateDayCloseBundle,
 } from "@/modules/branch/hooks/useBranchQueries";
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
 import {
@@ -187,6 +188,7 @@ export function AddTransactionModal({
   /** RHF: invalid state + red border; no visible “Zorunlu” copy under the field. */
   const reqVal = " ";
   const createTx = useCreateBranchTransaction();
+  const createDayCloseBundleMut = useCreateDayCloseBundle();
   const createAdvanceMut = useCreateAdvance();
   const { data: personnelListResult } = usePersonnelList(
     defaultPersonnelListFilters,
@@ -1085,6 +1087,7 @@ export function AddTransactionModal({
     receiptPhotoRef,
     registerSummary,
     createTx,
+    createDayCloseBundleMut,
     createAdvanceMut,
     tryTourismSeasonClosedRedirect,
   });

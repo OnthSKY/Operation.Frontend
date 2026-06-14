@@ -1410,19 +1410,25 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-[100dvh] flex-1 max-md:h-[100dvh] max-md:max-h-[100dvh] max-md:min-h-0 max-md:overflow-hidden md:min-h-[100dvh] md:items-stretch md:gap-3 md:bg-gradient-to-br md:from-zinc-100 md:to-zinc-200/50 md:p-3">
-      {mobileNavOpen ? (
-        <button
-          type="button"
-          className="fixed inset-0 z-40 bg-zinc-900/40 md:hidden"
-          aria-label={t("nav.menuClose")}
-          onClick={() => setMobileNavOpen(false)}
-        />
-      ) : null}
+      <button
+        type="button"
+        className={`fixed inset-0 z-40 bg-zinc-900/45 backdrop-blur-[2px] transition-opacity duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] md:hidden ${
+          mobileNavOpen
+            ? "opacity-100"
+            : "pointer-events-none opacity-0"
+        }`}
+        aria-label={t("nav.menuClose")}
+        aria-hidden={!mobileNavOpen}
+        tabIndex={mobileNavOpen ? 0 : -1}
+        onClick={() => setMobileNavOpen(false)}
+      />
 
       <aside
         id="app-sidebar"
-        className={`z-50 flex h-[100dvh] max-h-[100dvh] min-h-0 w-[15.5rem] flex-col overflow-hidden max-md:border-r max-md:border-zinc-200/90 bg-gradient-to-b from-zinc-50 via-white to-zinc-50/80 transition-transform duration-200 ease-out max-md:fixed max-md:inset-y-0 max-md:left-0 md:sticky md:top-3 md:h-[calc(100dvh-1.5rem)] md:max-h-[calc(100dvh-1.5rem)] md:shrink-0 md:translate-x-0 md:rounded-2xl md:border md:border-zinc-200/80 md:shadow-lg md:shadow-zinc-900/[0.06] md:ring-1 md:ring-zinc-950/[0.04] ${
-          mobileNavOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        className={`z-50 flex h-[100dvh] max-h-[100dvh] min-h-0 w-[15.5rem] flex-col overflow-hidden max-md:border-r max-md:border-zinc-200/90 bg-gradient-to-b from-zinc-50 via-white to-zinc-50/80 transform-gpu transition-[transform,box-shadow] duration-[320ms] ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none [will-change:transform] max-md:fixed max-md:inset-y-0 max-md:left-0 md:sticky md:top-3 md:h-[calc(100dvh-1.5rem)] md:max-h-[calc(100dvh-1.5rem)] md:shrink-0 md:translate-x-0 md:rounded-2xl md:border md:border-zinc-200/80 md:shadow-lg md:shadow-zinc-900/[0.06] md:ring-1 md:ring-zinc-950/[0.04] ${
+          mobileNavOpen
+            ? "translate-x-0 max-md:shadow-2xl max-md:shadow-zinc-900/20"
+            : "-translate-x-full md:translate-x-0"
         }`}
       >
         <div className="flex min-h-[calc(3.5rem+env(safe-area-inset-top,0px))] shrink-0 items-center justify-end border-b border-zinc-200/80 bg-white/60 px-2 pt-[env(safe-area-inset-top,0px)] backdrop-blur-sm md:hidden">

@@ -151,7 +151,7 @@ export function ContractorDetailModal({ open, contractorId, onClose }: Props) {
           ) : (
             <>
               {/* Bakiye özeti — her iki sekmede de üstte */}
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 <SummaryBox label={t("contractors.totalWork")} value={money(data.contractor.totalWork)} />
                 <SummaryBox label={t("contractors.totalPaid")} value={money(data.contractor.totalPaid)} />
                 <SummaryBox
@@ -208,6 +208,62 @@ export function ContractorDetailModal({ open, contractorId, onClose }: Props) {
                       {data.workEntries.length === 0 ? (
                         <p className="text-sm text-zinc-500">{t("contractors.noWork")}</p>
                       ) : (
+                        <>
+                        <ul className="flex flex-col gap-2 md:hidden">
+                          {data.workEntries.map((w) => (
+                            <li
+                              key={w.id}
+                              className="rounded-xl border border-zinc-200 bg-white px-2.5 py-2 shadow-sm"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-zinc-500">
+                                    <span className="whitespace-nowrap font-medium text-zinc-700">{w.workDate}</span>
+                                    <span aria-hidden>·</span>
+                                    <span className="truncate">{w.branchName ? w.branchName : t("contractors.general")}</span>
+                                  </div>
+                                  <p className="mt-0.5 break-words text-sm leading-snug text-zinc-900">
+                                    {w.description}
+                                  </p>
+                                </div>
+                                <div className="flex shrink-0 flex-col items-end gap-1">
+                                  {w.amount != null ? (
+                                    <span className="whitespace-nowrap text-sm font-semibold tabular-nums text-zinc-900">
+                                      {money(w.amount, w.currencyCode)}
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                                      {t("contractors.amountWaiting")}
+                                    </span>
+                                  )}
+                                  <div className="inline-flex items-center gap-1">
+                                    <Button
+                                      type="button"
+                                      variant="secondary"
+                                      className={`${detailOpenIconButtonClass} h-8 min-h-8 w-8 min-w-8`}
+                                      aria-label={t("common.edit")}
+                                      title={t("common.edit")}
+                                      onClick={() => openEditWork(w)}
+                                    >
+                                      <PencilIcon />
+                                    </Button>
+                                    <button
+                                      type="button"
+                                      className={`${trashIconActionButtonClass} h-8 min-h-8 w-8 min-w-8`}
+                                      disabled={deleteWork.isPending}
+                                      aria-label={t("common.delete")}
+                                      title={t("common.delete")}
+                                      onClick={() => confirmDeleteWork(w.id, w.description)}
+                                    >
+                                      <TrashIcon />
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                        <div className="hidden md:block">
                         <Table>
                           <TableHead>
                             <TableRow>
@@ -220,17 +276,17 @@ export function ContractorDetailModal({ open, contractorId, onClose }: Props) {
                           <TableBody>
                             {data.workEntries.map((w) => (
                               <TableRow key={w.id}>
-                                <TableCell dataLabel={t("contractors.workDate")} className="whitespace-nowrap text-zinc-600">{w.workDate}</TableCell>
+                                <TableCell dataLabel={t("contractors.workDate")} className="whitespace-nowrap text-zinc-600 max-md:py-1.5">{w.workDate}</TableCell>
                                 <TableCell
                                   dataLabel={t("contractors.workDescription")}
-                                  className="max-w-xs break-words text-zinc-900 max-md:text-right"
+                                  className="max-w-xs break-words text-zinc-900 max-md:py-1.5 max-md:text-right"
                                 >
                                   {w.description}
                                   <span className="ml-1 text-xs text-zinc-500">
                                     ({w.branchName ? w.branchName : t("contractors.general")})
                                   </span>
                                 </TableCell>
-                                <TableCell dataLabel={t("contractors.amount")} className="text-right tabular-nums">
+                                <TableCell dataLabel={t("contractors.amount")} className="text-right tabular-nums max-md:py-1.5">
                                   {w.amount != null ? (
                                     money(w.amount, w.currencyCode)
                                   ) : (
@@ -239,7 +295,7 @@ export function ContractorDetailModal({ open, contractorId, onClose }: Props) {
                                     </span>
                                   )}
                                 </TableCell>
-                                <TableCell dataLabel={t("common.actions")} className="text-right">
+                                <TableCell dataLabel="" className="text-right max-md:py-1.5">
                                   <div className="inline-flex items-center justify-end gap-1">
                                     <Button
                                       type="button"
@@ -267,6 +323,8 @@ export function ContractorDetailModal({ open, contractorId, onClose }: Props) {
                             ))}
                           </TableBody>
                         </Table>
+                        </div>
+                        </>
                       )}
                     </section>
                   ) : (
@@ -281,6 +339,58 @@ export function ContractorDetailModal({ open, contractorId, onClose }: Props) {
                       {data.payments.length === 0 ? (
                         <p className="text-sm text-zinc-500">{t("contractors.noPayments")}</p>
                       ) : (
+                        <>
+                        <ul className="flex flex-col gap-2 md:hidden">
+                          {data.payments.map((p) => (
+                            <li
+                              key={p.id}
+                              className="rounded-xl border border-zinc-200 bg-white px-2.5 py-2 shadow-sm"
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-zinc-500">
+                                    <span className="whitespace-nowrap font-medium text-zinc-700">{p.paymentDate}</span>
+                                    <span aria-hidden>·</span>
+                                    <span className="truncate text-zinc-700">{sourceLabel(p.paymentSource)}</span>
+                                    {p.branchName ? (
+                                      <>
+                                        <span aria-hidden>·</span>
+                                        <span className="truncate">{p.branchName}</span>
+                                      </>
+                                    ) : null}
+                                    {p.paidByPersonnelName ? (
+                                      <>
+                                        <span aria-hidden>·</span>
+                                        <span className="truncate">{p.paidByPersonnelName}</span>
+                                      </>
+                                    ) : null}
+                                  </div>
+                                  {p.description && p.description.trim() ? (
+                                    <p className="mt-0.5 break-words text-sm leading-snug text-zinc-800">
+                                      {p.description}
+                                    </p>
+                                  ) : null}
+                                </div>
+                                <div className="flex shrink-0 flex-col items-end gap-1">
+                                  <span className="whitespace-nowrap text-sm font-semibold tabular-nums text-zinc-900">
+                                    {money(p.amount, p.currencyCode)}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className={`${trashIconActionButtonClass} h-8 min-h-8 w-8 min-w-8`}
+                                    disabled={deletePayment.isPending}
+                                    aria-label={t("common.delete")}
+                                    title={t("common.delete")}
+                                    onClick={() => confirmDeletePayment(p.id, `${sourceLabel(p.paymentSource)} · ${money(p.amount, p.currencyCode)}`)}
+                                  >
+                                    <TrashIcon />
+                                  </button>
+                                </div>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                        <div className="hidden md:block">
                         <Table>
                           <TableHead>
                             <TableRow>
@@ -294,15 +404,15 @@ export function ContractorDetailModal({ open, contractorId, onClose }: Props) {
                           <TableBody>
                             {data.payments.map((p) => (
                               <TableRow key={p.id}>
-                                <TableCell dataLabel={t("contractors.paymentDate")} className="whitespace-nowrap text-zinc-600">{p.paymentDate}</TableCell>
-                                <TableCell dataLabel={t("contractors.paymentSource")} className="text-zinc-700">
+                                <TableCell dataLabel={t("contractors.paymentDate")} className="whitespace-nowrap text-zinc-600 max-md:py-1.5">{p.paymentDate}</TableCell>
+                                <TableCell dataLabel={t("contractors.paymentSource")} className="text-zinc-700 max-md:py-1.5">
                                   {sourceLabel(p.paymentSource)}
                                   {p.branchName ? <span className="ml-1 text-xs text-zinc-500">({p.branchName})</span> : null}
                                   {p.paidByPersonnelName ? <span className="ml-1 text-xs text-zinc-500">({p.paidByPersonnelName})</span> : null}
                                 </TableCell>
                                 <TableCell
                                   dataLabel={t("contractors.description")}
-                                  className="max-w-xs break-words text-zinc-700 max-md:text-right"
+                                  className="max-w-xs break-words text-zinc-700 max-md:py-1.5 max-md:text-right"
                                 >
                                   {p.description && p.description.trim() ? (
                                     p.description
@@ -310,8 +420,8 @@ export function ContractorDetailModal({ open, contractorId, onClose }: Props) {
                                     <span className="text-zinc-400">{t("contractors.fieldEmpty")}</span>
                                   )}
                                 </TableCell>
-                                <TableCell dataLabel={t("contractors.amount")} className="text-right tabular-nums">{money(p.amount, p.currencyCode)}</TableCell>
-                                <TableCell dataLabel={t("common.actions")} className="text-right">
+                                <TableCell dataLabel={t("contractors.amount")} className="text-right tabular-nums max-md:py-1.5 max-md:font-semibold">{money(p.amount, p.currencyCode)}</TableCell>
+                                <TableCell dataLabel="" className="text-right max-md:py-1.5">
                                   <button
                                     type="button"
                                     className={trashIconActionButtonClass}
@@ -327,6 +437,8 @@ export function ContractorDetailModal({ open, contractorId, onClose }: Props) {
                             ))}
                           </TableBody>
                         </Table>
+                        </div>
+                        </>
                       )}
                     </section>
                   )}
@@ -445,10 +557,10 @@ function SummaryBox({
         ? "border-emerald-200 bg-emerald-50/50"
         : "border-zinc-200 bg-white";
   return (
-    <div className={`rounded-2xl border p-3 ${cardClass}`}>
-      <div className="text-xs text-zinc-500">{label}</div>
-      <div className={`mt-1 text-base font-semibold tabular-nums ${valueClass}`}>{value}</div>
-      {hint ? <div className={`mt-0.5 text-[11px] ${hintClass}`}>{hint}</div> : null}
+    <div className={`min-w-0 rounded-xl border p-2 sm:rounded-2xl sm:p-3 ${cardClass}`}>
+      <div className="truncate text-[10.5px] leading-tight text-zinc-500 sm:text-xs">{label}</div>
+      <div className={`mt-0.5 break-words text-sm font-semibold tabular-nums leading-tight sm:mt-1 sm:text-base ${valueClass}`}>{value}</div>
+      {hint ? <div className={`mt-0.5 truncate text-[10px] sm:text-[11px] ${hintClass}`}>{hint}</div> : null}
     </div>
   );
 }

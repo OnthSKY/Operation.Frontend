@@ -1,6 +1,8 @@
 "use client";
 
 import { useAuth } from "@/lib/auth/AuthContext";
+import { canImpersonateUsers } from "@/lib/auth/permissions";
+import { ImpersonationModal } from "@/modules/account/components/ImpersonationModal";
 import { useAccountRemoteData } from "@/modules/account/hooks/useAccountRemoteData";
 import { useTotpSetupActions } from "@/modules/account/hooks/useTotpSetupActions";
 import type { AccountMenuSection } from "@/modules/account/types";
@@ -24,6 +26,7 @@ export function UserAccountMenu({ triggerLabel }: Props) {
   const menuRootRef = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [impersonationOpen, setImpersonationOpen] = useState(false);
   const [section, setSection] = useState<AccountMenuSection>("profile");
 
   const { status, audit, loading, refreshAll, refreshTotp } = useAccountRemoteData(user);
@@ -132,10 +135,15 @@ export function UserAccountMenu({ triggerLabel }: Props) {
         {menuOpen ? (
           <AccountMenuPopover
             roleLabel={roleLabel}
+            canImpersonate={canImpersonateUsers(user) && !user.impersonatedBy}
             onProfile={() => openPanel("profile")}
             onSecurity={() => openPanel("security")}
             onActivity={() => openPanel("activity")}
             onSettings={() => openPanel("settings")}
+            onImpersonate={() => {
+              setMenuOpen(false);
+              setImpersonationOpen(true);
+            }}
             onLogout={() => {
               setMenuOpen(false);
               void logout();
@@ -152,6 +160,11 @@ export function UserAccountMenu({ triggerLabel }: Props) {
       >
         {sectionBody}
       </AccountPanelShell>
+
+      <ImpersonationModal
+        open={impersonationOpen}
+        onClose={() => setImpersonationOpen(false)}
+      />
     </>
   );
 }

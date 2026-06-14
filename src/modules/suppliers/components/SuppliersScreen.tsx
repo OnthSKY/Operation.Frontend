@@ -28,14 +28,14 @@ import { Modal } from "@/shared/ui/Modal";
 import { Switch } from "@/shared/ui/Switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/Table";
 import { Tooltip } from "@/shared/ui/Tooltip";
-import { ToolbarGlyphReceipt } from "@/shared/ui/ToolbarGlyph";
+import { ToolbarGlyphCoinExpense, ToolbarGlyphReceipt } from "@/shared/ui/ToolbarGlyph";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 export function SuppliersScreen() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const router = useRouter();
   const [includeDeleted, setIncludeDeleted] = useState(false);
   const { data: suppliers = [], isPending: supPending, isError: supErr, error: supError } =
@@ -47,6 +47,7 @@ export function SuppliersScreen() {
   const [supplierModal, setSupplierModal] = useState<"add" | "edit" | null>(null);
   const [editSupplier, setEditSupplier] = useState<Supplier | null>(null);
   const [viewSupplier, setViewSupplier] = useState<Supplier | null>(null);
+  const [viewInitialTab, setViewInitialTab] = useState<"general" | "payments" | "summary">("general");
   const searchParams = useSearchParams();
 
   // Derin-link: /suppliers?openSupplier=ID → liste yüklenince detayını aç, param'ı temizle.
@@ -259,39 +260,30 @@ export function SuppliersScreen() {
             <Table>
               <TableHead>
                 <TableRow>
+                  <TableHeader className="w-[1%] whitespace-nowrap">{t("common.actions")}</TableHeader>
                   <TableHeader>{t("suppliers.name")}</TableHeader>
                   <TableHeader>{t("suppliers.currency")}</TableHeader>
-                  <TableHeader className="text-right whitespace-nowrap">{t("common.actions")}</TableHeader>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {suppliers.map((s) => (
                   <TableRow key={s.id}>
-                    <TableCell dataLabel={t("suppliers.name")} className="font-medium text-zinc-900">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span>{s.name}</span>
-                        {s.isDeleted ? (
-                          <StatusBadge tone="deleted">{t("suppliers.viewDeletedBadge")}</StatusBadge>
+                    <TableCell dataLabel={t("common.actions")} className="align-middle">
+                      <div className="inline-flex flex-wrap items-center gap-1">
+                        {!s.isDeleted ? (
+                          <Tooltip content={t("common.delete")} delayMs={200}>
+                            <button
+                              type="button"
+                              className={trashIconActionButtonClass}
+                              disabled={deleteSup.isPending}
+                              aria-label={t("common.delete")}
+                              title={t("common.delete")}
+                              onClick={() => onDeleteSupplier(s)}
+                            >
+                              <TrashIcon />
+                            </button>
+                          </Tooltip>
                         ) : null}
-                      </div>
-                    </TableCell>
-                    <TableCell dataLabel={t("suppliers.currency")} className="text-zinc-600">
-                      {s.currencyCode}
-                    </TableCell>
-                    <TableCell dataLabel={t("common.actions")} className="text-right">
-                      <div className="inline-flex flex-wrap items-center justify-end gap-1">
-                        <Tooltip content={t("suppliers.viewSupplier")} delayMs={200}>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className={detailOpenIconButtonClass}
-                            aria-label={t("suppliers.viewSupplier")}
-                            title={t("suppliers.viewSupplier")}
-                            onClick={() => setViewSupplier(s)}
-                          >
-                            <EyeIcon />
-                          </Button>
-                        </Tooltip>
                         <Tooltip content={t("common.edit")} delayMs={200}>
                           <Button
                             type="button"
@@ -304,37 +296,66 @@ export function SuppliersScreen() {
                             <PencilIcon />
                           </Button>
                         </Tooltip>
+                        <Tooltip content={t("suppliers.viewSupplier")} delayMs={200}>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className={detailOpenIconButtonClass}
+                            aria-label={t("suppliers.viewSupplier")}
+                            title={t("suppliers.viewSupplier")}
+                            onClick={() => {
+                              setViewInitialTab("general");
+                              setViewSupplier(s);
+                            }}
+                          >
+                            <EyeIcon />
+                          </Button>
+                        </Tooltip>
                         {!s.isDeleted ? (
-                          <>
-                            <Tooltip content={t("suppliers.writeInvoice")} delayMs={200}>
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                className={detailOpenIconButtonClass}
-                                aria-label={t("suppliers.writeInvoice")}
-                                title={t("suppliers.writeInvoice")}
-                                onClick={() =>
-                                  router.push(`/suppliers/invoices?supplierId=${s.id}&newInvoice=1`)
-                                }
-                              >
-                                <ToolbarGlyphReceipt className="h-5 w-5" />
-                              </Button>
-                            </Tooltip>
-                            <Tooltip content={t("common.delete")} delayMs={200}>
-                              <button
-                                type="button"
-                                className={trashIconActionButtonClass}
-                                disabled={deleteSup.isPending}
-                                aria-label={t("common.delete")}
-                                title={t("common.delete")}
-                                onClick={() => onDeleteSupplier(s)}
-                              >
-                                <TrashIcon />
-                              </button>
-                            </Tooltip>
-                          </>
+                          <Tooltip content={locale === "tr" ? "Para öde" : "Pay"} delayMs={200}>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className={detailOpenIconButtonClass}
+                              aria-label={locale === "tr" ? "Para öde" : "Pay"}
+                              title={locale === "tr" ? "Para öde" : "Pay"}
+                              onClick={() => {
+                                setViewInitialTab("payments");
+                                setViewSupplier(s);
+                              }}
+                            >
+                              <ToolbarGlyphCoinExpense className="h-5 w-5" />
+                            </Button>
+                          </Tooltip>
+                        ) : null}
+                        {!s.isDeleted ? (
+                          <Tooltip content={t("suppliers.writeInvoice")} delayMs={200}>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className={detailOpenIconButtonClass}
+                              aria-label={t("suppliers.writeInvoice")}
+                              title={t("suppliers.writeInvoice")}
+                              onClick={() =>
+                                router.push(`/suppliers/invoices?supplierId=${s.id}&newInvoice=1`)
+                              }
+                            >
+                              <ToolbarGlyphReceipt className="h-5 w-5" />
+                            </Button>
+                          </Tooltip>
                         ) : null}
                       </div>
+                    </TableCell>
+                    <TableCell dataLabel={t("suppliers.name")} className="font-medium text-zinc-900">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span>{s.name}</span>
+                        {s.isDeleted ? (
+                          <StatusBadge tone="deleted">{t("suppliers.viewDeletedBadge")}</StatusBadge>
+                        ) : null}
+                      </div>
+                    </TableCell>
+                    <TableCell dataLabel={t("suppliers.currency")} className="text-zinc-600">
+                      {s.currencyCode}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -350,6 +371,7 @@ export function SuppliersScreen() {
         open={viewSupplier != null}
         supplierId={viewSupplier?.id ?? null}
         fallback={viewSupplier}
+        initialTab={viewInitialTab}
         onClose={() => setViewSupplier(null)}
       />
 

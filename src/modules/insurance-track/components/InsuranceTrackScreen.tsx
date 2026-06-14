@@ -273,82 +273,205 @@ export function InsuranceTrackScreen() {
         </div>
       }
       intro={
-        <PageWhenToUseGuide
-          guideTab="flows"
-          className="mt-1"
-          title={t("common.pageWhenToUseTitle")}
-          description={t("pageHelp.insuranceTrack.intro")}
-          listVariant="ordered"
-          items={[
-            { text: t("pageHelp.insuranceTrack.step1") },
-            { text: t("pageHelp.insuranceTrack.step2") },
-            {
-              text: t("pageHelp.insuranceTrack.step3"),
-              link: { href: "/vehicles", label: t("pageHelp.insuranceTrack.step3Link") },
-            },
-          ]}
-        />
+        <div className="flex flex-col gap-3">
+          <PageWhenToUseGuide
+            guideTab="flows"
+            className="mt-1"
+            title={t("common.pageWhenToUseTitle")}
+            description={t("pageHelp.insuranceTrack.intro")}
+            listVariant="ordered"
+            items={[
+              { text: t("pageHelp.insuranceTrack.step1") },
+              { text: t("pageHelp.insuranceTrack.step2") },
+              {
+                text: t("pageHelp.insuranceTrack.step3"),
+                link: { href: "/vehicles", label: t("pageHelp.insuranceTrack.step3Link") },
+              },
+            ]}
+          />
+
+          {/* Kind breakdown — personel / araç / şube hızlı erişim badge'leri.
+              Buradan tıklanınca aşağıdaki "Tür" filtresi otomatik bu değere ayarlanır. */}
+          <div className="flex flex-col gap-1.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+              {t("insuranceTrack.kindBreakdownLabel")}
+            </p>
+            <div
+              className="flex flex-wrap items-center gap-1.5 sm:gap-2"
+              role="list"
+              aria-label={t("insuranceTrack.kindBreakdownLabel")}
+            >
+              {(
+                [
+                  {
+                    filter: "Personnel" as const,
+                    count: att?.personnelCount,
+                    label: t("insuranceTrack.kindPersonnelCount"),
+                    tone: "border-indigo-300 bg-indigo-50/80 text-indigo-900",
+                    activeTone: "ring-indigo-500 bg-indigo-100",
+                  },
+                  {
+                    filter: "Vehicle" as const,
+                    count: att?.vehiclePolicyCount,
+                    label: t("insuranceTrack.kindVehicleCount"),
+                    tone: "border-emerald-300 bg-emerald-50/80 text-emerald-900",
+                    activeTone: "ring-emerald-500 bg-emerald-100",
+                  },
+                  {
+                    filter: "Branch" as const,
+                    count: att?.branchPolicyCount,
+                    label: t("insuranceTrack.kindBranchCount"),
+                    tone: "border-sky-300 bg-sky-50/80 text-sky-900",
+                    activeTone: "ring-sky-500 bg-sky-100",
+                  },
+                ]
+              ).map((k) => {
+                const active = kind === k.filter;
+                const display = attentionLoading
+                  ? "…"
+                  : k.count != null
+                    ? String(k.count)
+                    : "—";
+                return (
+                  <button
+                    key={k.filter}
+                    type="button"
+                    role="listitem"
+                    aria-pressed={active}
+                    onClick={() => setKind((cur) => (cur === k.filter ? "All" : k.filter))}
+                    className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition touch-manipulation sm:px-3 ${k.tone} ${
+                      active
+                        ? `ring-2 ring-offset-1 ring-offset-zinc-50 ${k.activeTone}`
+                        : "hover:bg-white"
+                    }`}
+                  >
+                    <span className="font-medium">{k.label}</span>
+                    <span className="tabular-nums text-sm font-bold" aria-live="polite">
+                      {display}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       }
       summary={
-        <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <h2 className="text-sm font-bold uppercase tracking-wide text-zinc-500">
-            {t("insuranceTrack.alertsTitle")}
-          </h2>
-        </div>
-        <p className="text-xs leading-relaxed text-zinc-500">{t("insuranceTrack.alertsHint")}</p>
+        <div className="flex flex-col gap-2.5 sm:gap-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <h2 className="text-xs font-bold uppercase tracking-wide text-zinc-500 sm:text-sm">
+              {t("insuranceTrack.alertsTitle")}
+            </h2>
+            <p className="hidden text-xs leading-relaxed text-zinc-500 sm:block">
+              {t("insuranceTrack.alertsHint")}
+            </p>
+          </div>
 
-        <div
-          className="flex flex-col gap-3 pt-0.5 sm:grid sm:grid-cols-3 sm:gap-4 sm:pt-0"
-          role="list"
-        >
-          {alertDefs.map((a) => {
-            const active = status === a.filter;
-            const countDisplay =
-              attentionLoading ? "…" : a.count != null ? String(a.count) : "—";
-            return (
-              <button
-                key={a.filter}
-                type="button"
-                role="listitem"
-                aria-pressed={active}
-                onClick={() => onAlertActivate(a.filter)}
-                className={`w-full min-w-0 rounded-xl border-2 p-3.5 text-left shadow-sm transition touch-manipulation sm:p-4 ${a.accent} ${
-                  active
-                    ? "ring-2 ring-violet-500 ring-offset-2 ring-offset-zinc-50"
-                    : "hover:border-zinc-400/80 active:scale-[0.99]"
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <span className={`rounded-xl bg-white/80 p-2 shadow-sm ${a.iconTone}`}>
+          {/* Mobil ipucu (alerts hint) */}
+          <p className="text-[11px] leading-snug text-zinc-500 sm:hidden">
+            {t("insuranceTrack.alertsHint")}
+          </p>
+
+          {/* Mobil: kompakt liste pill'leri */}
+          <div className="flex flex-col gap-2 sm:hidden" role="list">
+            {alertDefs.map((a) => {
+              const active = status === a.filter;
+              const countDisplay = attentionLoading
+                ? "…"
+                : a.count != null
+                  ? String(a.count)
+                  : "—";
+              return (
+                <button
+                  key={a.filter}
+                  type="button"
+                  role="listitem"
+                  aria-pressed={active}
+                  onClick={() => onAlertActivate(a.filter)}
+                  className={`flex items-center gap-2.5 rounded-xl border-2 px-3 py-2 text-left shadow-sm transition touch-manipulation ${a.accent} ${
+                    active
+                      ? "ring-2 ring-violet-500 ring-offset-1 ring-offset-zinc-50"
+                      : "active:scale-[0.99]"
+                  }`}
+                >
+                  <span className={`shrink-0 rounded-lg bg-white/80 p-1.5 shadow-sm ${a.iconTone}`}>
                     <AlertGlyph variant={a.filter} />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-500">
-                      {t("insuranceTrack.alertTapToFilter")}
-                    </p>
-                    <p className="mt-0.5 text-sm font-bold leading-snug text-zinc-900 sm:truncate">
-                      {t(a.titleKey)}
-                    </p>
-                    <p className="mt-1 text-xs leading-relaxed text-zinc-600">{t(a.descKey)}</p>
-                    <p
-                      className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-zinc-900"
-                      aria-live="polite"
-                    >
-                      {countDisplay}
-                    </p>
+                    <p className="text-xs font-bold leading-tight text-zinc-900">{t(a.titleKey)}</p>
                     {active ? (
-                      <p className="mt-2 text-xs font-semibold text-violet-700">
+                      <p className="mt-0.5 text-[10px] font-semibold text-violet-700">
                         {t("insuranceTrack.alertActiveFilter")}
                       </p>
-                    ) : null}
+                    ) : (
+                      <p className="mt-0.5 text-[10px] font-medium text-zinc-500">
+                        {t("insuranceTrack.alertTapHint")}
+                      </p>
+                    )}
                   </div>
-                </div>
-              </button>
-            );
-          })}
+                  <span
+                    className="shrink-0 text-xl font-semibold tabular-nums tracking-tight text-zinc-900"
+                    aria-live="polite"
+                  >
+                    {countDisplay}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Masaüstü: mevcut hero kartlar */}
+          <div className="hidden sm:grid sm:grid-cols-3 sm:gap-4 sm:pt-0" role="list">
+            {alertDefs.map((a) => {
+              const active = status === a.filter;
+              const countDisplay = attentionLoading
+                ? "…"
+                : a.count != null
+                  ? String(a.count)
+                  : "—";
+              return (
+                <button
+                  key={a.filter}
+                  type="button"
+                  role="listitem"
+                  aria-pressed={active}
+                  onClick={() => onAlertActivate(a.filter)}
+                  className={`w-full min-w-0 rounded-xl border-2 p-4 text-left shadow-sm transition touch-manipulation ${a.accent} ${
+                    active
+                      ? "ring-2 ring-violet-500 ring-offset-2 ring-offset-zinc-50"
+                      : "hover:border-zinc-400/80 active:scale-[0.99]"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <span className={`rounded-xl bg-white/80 p-2 shadow-sm ${a.iconTone}`}>
+                      <AlertGlyph variant={a.filter} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-500">
+                        {t("insuranceTrack.alertTapToFilter")}
+                      </p>
+                      <p className="mt-0.5 truncate text-sm font-bold leading-snug text-zinc-900">
+                        {t(a.titleKey)}
+                      </p>
+                      <p className="mt-1 text-xs leading-relaxed text-zinc-600">{t(a.descKey)}</p>
+                      <p
+                        className="mt-3 text-3xl font-semibold tabular-nums tracking-tight text-zinc-900"
+                        aria-live="polite"
+                      >
+                        {countDisplay}
+                      </p>
+                      {active ? (
+                        <p className="mt-2 text-xs font-semibold text-violet-700">
+                          {t("insuranceTrack.alertActiveFilter")}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
       }
       main={
         <>

@@ -74,6 +74,16 @@ export type UseTxSubmitInput = {
   createTx: {
     mutateAsync: (input: ReturnType<typeof buildTxCreatePayload>) => Promise<unknown>;
   };
+  /**
+   * Gün sonu + bundled gider'leri atomik tek istekte yazar (sadece bundled varsa kullanılır).
+   * Bundled boş ise mevcut `createTx` akışı yeterli.
+   */
+  createDayCloseBundleMut: {
+    mutateAsync: (input: {
+      dayClose: ReturnType<typeof buildTxCreatePayload>;
+      bundledExpenses: ReturnType<typeof buildBundledPayload>[];
+    }) => Promise<unknown>;
+  };
   createAdvanceMut: {
     mutateAsync: (input: {
       personnelId: number;
@@ -105,6 +115,7 @@ export function useTxSubmit(input: UseTxSubmitInput) {
     receiptPhotoRef,
     registerSummary,
     createTx,
+    createDayCloseBundleMut,
     createAdvanceMut,
     tryTourismSeasonClosedRedirect,
   } = input;
@@ -350,66 +361,70 @@ export function useTxSubmit(input: UseTxSubmitInput) {
     }
     const dayCloseBundledExpensePayloads = bundledResult.payloads;
 
-    // Önce bundled gider satırlarını yaz; sonra ana income/expense tx'ı yaz.
-    for (const pl of dayCloseBundledExpensePayloads) {
+    const dayClosePayload = buildTxCreatePayload({
+      values,
+      effBranchId,
+      categoryOut,
+      currencyCode: cur,
+      amount,
+      cashAmount,
+      cardAmount,
+      cashSettlementParty,
+      cashSettlementPersonnelId,
+      expensePaymentSource: effExpensePay,
+      expensePocketPersonnelId,
+      isInvoiceRow: isInvRow,
+      invStatusUpper: invStatusRaw,
+      receiptFile,
+      linkedAdvanceId,
+      linkedSalaryPaymentId,
+      linkFinancialPid,
+      reqExpenseAdvance,
+      reqExpenseSalary,
+      advanceMode,
+      linkedPersonnelIdOut,
+      pocketRepaySettlement,
+      mainTrim: mc,
+      registerDayClose: registerDayCloseSubmit,
+      settlesCashHandoverTransactionId,
+    });
+
+    // Bundled VAR → atomik day-close-bundle endpoint'i ile tek istek:
+    // ① bundled OUT'lar INSERT ② day-close IN INSERT ③ bundled.source_transaction_id = dayCloseId
+    // Hata → tümü rollback (orphan bundled gider kalmaz).
+    //
+    // Bundled YOK → eski tekil endpoint'le devam.
+    if (registerDayCloseSubmit && dayCloseBundledExpensePayloads.length > 0) {
       try {
-        await createTx.mutateAsync(
-          buildBundledPayload({
-            branchId: effBranchId,
-            currencyCode: cur,
-            transactionDate: values.transactionDate,
-            line: pl,
-          })
-        );
-      } catch (be) {
-        if (!tryTourismSeasonClosedRedirect(be, effBranchId)) {
-          notify.error(
-            `${t("branch.txDayCloseBundledExpenseFailedBeforeIncome")} ${toErrorMessage(be)}`
-          );
+        await createDayCloseBundleMut.mutateAsync({
+          dayClose: dayClosePayload,
+          bundledExpenses: dayCloseBundledExpensePayloads.map((pl) =>
+            buildBundledPayload({
+              branchId: effBranchId,
+              currencyCode: cur,
+              transactionDate: values.transactionDate,
+              line: pl,
+            })
+          ),
+        });
+        notify.success(t("toast.branchTxCreated"));
+        onClose();
+      } catch (e) {
+        if (!tryTourismSeasonClosedRedirect(e, effBranchId)) {
+          notify.error(toErrorMessage(e));
         }
-        return;
       }
+      void expensePaymentSource;
+      return;
     }
 
     try {
-      await createTx.mutateAsync(
-        buildTxCreatePayload({
-          values,
-          effBranchId,
-          categoryOut,
-          currencyCode: cur,
-          amount,
-          cashAmount,
-          cardAmount,
-          cashSettlementParty,
-          cashSettlementPersonnelId,
-          expensePaymentSource: effExpensePay,
-          expensePocketPersonnelId,
-          isInvoiceRow: isInvRow,
-          invStatusUpper: invStatusRaw,
-          receiptFile,
-          linkedAdvanceId,
-          linkedSalaryPaymentId,
-          linkFinancialPid,
-          reqExpenseAdvance,
-          reqExpenseSalary,
-          advanceMode,
-          linkedPersonnelIdOut,
-          pocketRepaySettlement,
-          mainTrim: mc,
-          registerDayClose: registerDayCloseSubmit,
-          settlesCashHandoverTransactionId,
-        })
-      );
+      await createTx.mutateAsync(dayClosePayload);
       notify.success(t("toast.branchTxCreated"));
       onClose();
     } catch (e) {
       if (!tryTourismSeasonClosedRedirect(e, effBranchId)) {
-        notify.error(
-          dayCloseBundledExpensePayloads.length > 0
-            ? `${t("branch.txDayCloseIncomeFailedAfterBundledExpense")} ${toErrorMessage(e)}`
-            : toErrorMessage(e)
-        );
+        notify.error(toErrorMessage(e));
       }
     }
     // expensePaymentSource intentionally unused

@@ -48,6 +48,7 @@ import {
 import { fetchAdvanceDelegateTargets, advanceDelegateTargetsToPersonnelStubs } from "@/modules/personnel/api/advances-api";
 import { parseRegisterDaySearchParam } from "@/modules/branch/lib/register-day-search-param";
 import type { BranchDashboardStockScope } from "@/modules/branch/api/branches-api";
+import { fetchBranchTransactionCascadeChildren } from "@/modules/branch/api/branch-transactions-api";
 import {
   patronIncomeToPatronVisible,
   type ExpenseOverviewCardId,
@@ -659,11 +660,34 @@ export function BranchDetailTabs({
   };
 
   const handleDetailDelete = useCallback(
-    (id: number) => {
+    async (id: number) => {
       const isIncomeRow = String(detailRow?.type ?? "").trim().toUpperCase() === "IN";
-      const message = isIncomeRow
+
+      // Day-close IN için silmeden önce cascade preview: bağlı bundled gider'leri uyar.
+      let cascadeWarning = "";
+      if (isIncomeRow) {
+        try {
+          const children = await fetchBranchTransactionCascadeChildren(id);
+          // Auto patron-debt-repay her zaman bağlıdır; kullanıcıya gösterilen "manuel girilen
+          // gider" sayısı için OUT_PATRON_DEBT_REPAY satırlarını ayırt etmiyoruz — toplam göstermek
+          // daha güvenli (silinen her şey net görünür).
+          if (children.length > 0) {
+            const total = children
+              .reduce((sum, c) => sum + (Number(c.amount) || 0), 0)
+              .toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            cascadeWarning =
+              `\n\nBu gün sonu ile birlikte ${children.length} bağlı gider satırı (toplam ₺${total}) ` +
+              "de silinecek.";
+          }
+        } catch {
+          // Cascade endpoint başarısız olursa silmeyi yine de offer et — eski davranış.
+        }
+      }
+
+      const baseMessage = isIncomeRow
         ? t("branch.txDeleteIncomeToastMessage")
         : t("branch.txDeleteSure");
+      const message = baseMessage + cascadeWarning;
       setDetailRow(null);
       notifyBranchIncomeDeleteConfirm({
         message,

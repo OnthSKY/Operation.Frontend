@@ -415,6 +415,41 @@ export async function createBranchTransaction(
   return normalizeBranchTxRow(r);
 }
 
+/**
+ * Gün sonu + bundled gider'leri atomik tek istekte yazar.
+ * Hata olursa bundled'lar da rollback olur — orphan kalmaz.
+ * Dönüş: yazılmış gün sonu IN satırı.
+ */
+export async function createDayCloseBundle(input: {
+  dayClose: CreateBranchTransactionInput;
+  bundledExpenses: CreateBranchTransactionInput[];
+}): Promise<BranchTransaction> {
+  const body = {
+    dayClose: buildCreateBranchTransactionBody(input.dayClose),
+    bundledExpenses: input.bundledExpenses.map((e) =>
+      buildCreateBranchTransactionBody(e)
+    ),
+  };
+  const r = await apiRequest<BranchTxApiRow>("/branch-transactions/day-close-bundle", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  return normalizeBranchTxRow(r);
+}
+
+/**
+ * Silme öncesi cascade preview — bu satır silinince mevcut cascade ile birlikte
+ * silinecek bağlı child satırlar. Gün sonu IN için: bundled OUT gider'ler + auto patron repay.
+ */
+export async function fetchBranchTransactionCascadeChildren(
+  transactionId: number
+): Promise<BranchTransaction[]> {
+  const rows = await apiRequest<BranchTxApiRow[]>(
+    `/branch-transactions/${transactionId}/cascade-children`
+  );
+  return rows.map(normalizeBranchTxRow);
+}
+
 export async function deleteBranchTransaction(transactionId: number): Promise<void> {
   await apiRequest<null>(`/branch-transactions/${transactionId}`, {
     method: "DELETE",

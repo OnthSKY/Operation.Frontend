@@ -17,6 +17,10 @@ import {
 type AuthContextValue = {
   user: AuthUser | null;
   isReady: boolean;
+  /** true ise mevcut oturum bir admin'in başka kullanıcı yerine geçtiği oturumdur. */
+  isImpersonating: boolean;
+  /** Impersonation aktif değilse null. Aktifse yerine geçen admin bilgisi. */
+  impersonatedBy: AuthUser["impersonatedBy"] | null;
   login: (username: string, password: string, rememberMe: boolean) => Promise<LoginResultPayload>;
   completeTotpLogin: (totpChallengeToken: string, code: string, rememberMe: boolean) => Promise<void>;
   refreshMe: () => Promise<void>;
@@ -87,16 +91,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.replace("/login");
   }, [router]);
 
+  const impersonatedBy = user?.impersonatedBy ?? null;
+  const isImpersonating = impersonatedBy != null;
+
   const value = useMemo(
     () => ({
       user,
       isReady,
+      isImpersonating,
+      impersonatedBy,
       login,
       completeTotpLogin,
       refreshMe,
       logout,
     }),
-    [user, isReady, login, completeTotpLogin, refreshMe, logout]
+    [user, isReady, isImpersonating, impersonatedBy, login, completeTotpLogin, refreshMe, logout]
   );
 
   return (

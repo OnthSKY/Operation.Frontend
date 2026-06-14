@@ -97,6 +97,15 @@ export function useSupplierPayments(supplierId: number | null, enabled: boolean)
   });
 }
 
+/** Tedarikçinin açık (ödenmemiş) faturaları — FIFO dağıtım için. */
+export function useSupplierOpenInvoices(supplierId: number | null, enabled: boolean) {
+  return useQuery({
+    queryKey: supplierKeys.invoices({ supplierId: supplierId ?? undefined, paymentStatus: "unpaid" }),
+    queryFn: () => fetchSupplierInvoices({ supplierId: supplierId!, paymentStatus: "unpaid" }),
+    enabled: enabled && supplierId != null && supplierId > 0,
+  });
+}
+
 export function useCreateSupplier() {
   const qc = useQueryClient();
   return useMutation({

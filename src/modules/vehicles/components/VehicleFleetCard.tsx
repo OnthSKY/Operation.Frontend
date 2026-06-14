@@ -67,13 +67,13 @@ function FleetSpec({
 }) {
   return (
     <div
-      className="flex min-w-0 items-center gap-2 rounded-lg bg-zinc-50/90 px-2 py-1.5 ring-1 ring-zinc-100/90"
+      className="flex min-w-0 items-center gap-1.5 rounded-lg bg-zinc-50/90 px-1.5 py-1 ring-1 ring-zinc-100/90 sm:gap-2 sm:px-2 sm:py-1.5"
       title={ariaLabel}
     >
-      <span className="shrink-0 text-zinc-400 [&_svg]:size-[15px]" aria-hidden>
+      <span className="shrink-0 text-zinc-400 [&_svg]:size-[14px] sm:[&_svg]:size-[15px]" aria-hidden>
         {icon}
       </span>
-      <span className="min-w-0 truncate text-[13px] font-semibold tabular-nums text-zinc-800">{children}</span>
+      <span className="min-w-0 truncate text-xs font-semibold tabular-nums text-zinc-800 sm:text-[13px]">{children}</span>
     </div>
   );
 }
@@ -132,7 +132,7 @@ export function VehicleFleetCard({
           onClick={onOpenDetail}
           aria-label={openDetailsLabel}
         >
-          <div className="relative aspect-[5/3] w-full overflow-hidden bg-zinc-900">
+          <div className="relative aspect-[16/8] w-full overflow-hidden bg-zinc-900 sm:aspect-[5/3]">
             {r.hasPhoto ? (
               // eslint-disable-next-line @next/next/no-img-element -- authenticated blob URL from API
               <img
@@ -165,7 +165,7 @@ export function VehicleFleetCard({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 p-3 sm:gap-2.5 sm:p-3.5">
+          <div className="grid grid-cols-2 gap-1.5 p-2.5 sm:gap-2.5 sm:p-3.5">
             <FleetSpec icon={<Factory aria-hidden />} ariaLabel={r.brand}>
               {r.brand || "—"}
             </FleetSpec>
@@ -191,55 +191,62 @@ export function VehicleFleetCard({
           </div>
         </button>
 
-        <div className="mt-auto flex flex-wrap items-center gap-1 border-t border-zinc-100 bg-zinc-50/40 px-2 py-2">
-          <Tooltip content={openDetailsLabel} delayMs={200}>
-            <Button
-              type="button"
-              variant="secondary"
-              className={cn(detailOpenIconButtonClass, "min-h-10 flex-1 sm:min-h-9")}
-              aria-label={openDetailsLabel}
-              onClick={onOpenDetail}
-            >
-              <EyeIcon />
-            </Button>
-          </Tooltip>
+        <div className="mt-auto flex flex-wrap items-center justify-between gap-1 border-t border-zinc-100 bg-zinc-50/40 px-2 py-2">
           {canEdit ? (
-            <>
+            <Tooltip content={deleteLabel} delayMs={200}>
+              <Button
+                type="button"
+                variant="secondary"
+                className={cn(
+                  detailOpenIconButtonClass,
+                  "min-h-10 border-2 border-red-200 bg-white text-red-700 shadow-sm ring-1 ring-red-100/80 hover:border-red-300 hover:bg-red-50/90 active:bg-red-100 sm:min-h-9"
+                )}
+                aria-label={deleteLabel}
+                disabled={deletePending}
+                onClick={onDelete}
+              >
+                <Trash2 className="size-[15px]" strokeWidth={2} aria-hidden />
+              </Button>
+            </Tooltip>
+          ) : (
+            <span />
+          )}
+          <div className="inline-flex flex-1 flex-wrap items-center justify-end gap-1">
+            {canEdit && extrasSections.length > 0 ? (
+              <div className="flex min-h-10 shrink-0 items-stretch">
+                <BranchQuickActionsMenu
+                  menuId={`vehicle-fleet-${r.id}`}
+                  triggerLabel={menuExtrasLabel}
+                  compact
+                  sections={extrasSections}
+                />
+              </div>
+            ) : null}
+            {canEdit ? (
               <Tooltip content={editLabel} delayMs={200}>
                 <Button
                   type="button"
                   variant="secondary"
-                  className={cn(detailOpenIconButtonClass, "min-h-10 flex-1 sm:min-h-9")}
+                  className={cn(detailOpenIconButtonClass, "min-h-10 sm:min-h-9")}
                   aria-label={editLabel}
                   onClick={onEdit}
                 >
                   <PencilIcon />
                 </Button>
               </Tooltip>
-              <Tooltip content={deleteLabel} delayMs={200}>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className={cn(detailOpenIconButtonClass, "min-h-10 text-red-700 sm:min-h-9")}
-                  aria-label={deleteLabel}
-                  disabled={deletePending}
-                  onClick={onDelete}
-                >
-                  <Trash2 className="size-[15px]" strokeWidth={2} aria-hidden />
-                </Button>
-              </Tooltip>
-              {extrasSections.length > 0 ? (
-                <div className="flex min-h-10 shrink-0 items-stretch">
-                  <BranchQuickActionsMenu
-                    menuId={`vehicle-fleet-${r.id}`}
-                    triggerLabel={menuExtrasLabel}
-                    compact
-                    sections={extrasSections}
-                  />
-                </div>
-              ) : null}
-            </>
-          ) : null}
+            ) : null}
+            <Tooltip content={openDetailsLabel} delayMs={200}>
+              <Button
+                type="button"
+                variant="secondary"
+                className={cn(detailOpenIconButtonClass, "min-h-10 sm:min-h-9")}
+                aria-label={openDetailsLabel}
+                onClick={onOpenDetail}
+              >
+                <EyeIcon />
+              </Button>
+            </Tooltip>
+          </div>
         </div>
       </article>
     </li>

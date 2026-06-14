@@ -428,8 +428,6 @@ export function WarehouseScreen() {
             {pagedWarehouses.map((w) => {
               const loc = warehouseLocationLine(w);
               const resp = warehouseResponsiblesLine(w);
-              const qty = w.totalOnHandQuantity ?? 0;
-              const qtyLabel = formatLocaleAmount(qty, locale);
               const active = detailWarehouseId === w.id;
               const depoQuickOpen = quickDepoTarget?.id === w.id;
               const transferQuickOpen = quickTransferTarget?.id === w.id;
@@ -455,9 +453,14 @@ export function WarehouseScreen() {
                     )}
                   >
                     <div className="min-w-0">
-                      <p className="line-clamp-2 break-words text-base font-semibold leading-snug text-zinc-900">
-                        {w.name}
-                      </p>
+                      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                        <p className="line-clamp-2 min-w-0 break-words text-base font-semibold leading-snug text-zinc-900">
+                          {w.name}
+                        </p>
+                        <span className="inline-flex items-center rounded-lg bg-zinc-100 px-2 py-0.5 font-mono text-xs font-medium text-zinc-700">
+                          No: {w.id}
+                        </span>
+                      </div>
                       {loc ? (
                         <p className="mt-1 line-clamp-3 break-words text-sm text-zinc-600">
                           {loc}
@@ -468,9 +471,6 @@ export function WarehouseScreen() {
                           {resp}
                         </p>
                       ) : null}
-                      <p className="mt-1 break-words text-sm tabular-nums text-zinc-700">
-                        {t("warehouse.listColTotalOnHand")}: {qtyLabel}
-                      </p>
                       {created ? (
                         <p className="mt-1 text-xs text-zinc-400">
                           {t("warehouse.createdAtLabel")}: {created}
@@ -478,55 +478,9 @@ export function WarehouseScreen() {
                       ) : null}
                     </div>
                     <div
-                      className="flex w-full flex-row flex-wrap items-center justify-end gap-2 border-t border-zinc-100 pt-3"
+                      className="flex w-full flex-row flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-3"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <Tooltip className="shrink-0" content={t("warehouse.listActionDepoProductIn")} delayMs={200}>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className={detailOpenIconButtonClass}
-                          aria-haspopup="dialog"
-                          aria-expanded={depoQuickOpen}
-                          aria-label={t("warehouse.listActionDepoProductIn")}
-                          title={t("warehouse.listActionDepoProductIn")}
-                          onClick={() => setQuickDepoTarget({ id: w.id, name: w.name })}
-                        >
-                          <PlusProductIcon className={actionIconClass} />
-                        </Button>
-                      </Tooltip>
-                      <Tooltip
-                        className="shrink-0"
-                        content={t("warehouse.listActionBranchTransfer")}
-                        delayMs={200}
-                      >
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className={detailOpenIconButtonClass}
-                          aria-haspopup="dialog"
-                          aria-expanded={transferQuickOpen}
-                          aria-label={t("warehouse.listActionBranchTransfer")}
-                          title={t("warehouse.listActionBranchTransfer")}
-                          onClick={() => setQuickTransferTarget({ id: w.id, name: w.name })}
-                        >
-                          <BranchTransferListIcon className={actionIconClass} />
-                        </Button>
-                      </Tooltip>
-                      <Tooltip className="shrink-0" content={t("common.openDetailsDialog")} delayMs={200}>
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          className={detailOpenIconButtonClass}
-                          aria-haspopup="dialog"
-                          aria-expanded={active}
-                          aria-label={t("common.openDetailsDialog")}
-                          title={t("common.openDetailsDialog")}
-                          onClick={() => openDetail(w.id)}
-                        >
-                          <EyeIcon className={actionIconClass} />
-                        </Button>
-                      </Tooltip>
                       <Tooltip
                         className="shrink-0"
                         content={t("warehouse.listActionDeleteWarehouse")}
@@ -534,7 +488,10 @@ export function WarehouseScreen() {
                       >
                         <button
                           type="button"
-                          className={`${trashIconActionButtonClass} min-h-11 min-w-11`}
+                          className={cn(
+                            trashIconActionButtonClass,
+                            "min-h-11 min-w-11 border-2 border-red-200 bg-white shadow-sm ring-1 ring-red-100/80 hover:border-red-300 hover:bg-red-50/90 active:bg-red-100"
+                          )}
                           aria-label={t("warehouse.listActionDeleteWarehouse")}
                           onClick={() => onDeleteWarehouseRow(w)}
                           disabled={delWh.isPending}
@@ -542,6 +499,54 @@ export function WarehouseScreen() {
                           <TrashIcon className={actionIconClass} />
                         </button>
                       </Tooltip>
+                      <div className="inline-flex flex-row flex-wrap items-center justify-end gap-2">
+                        <Tooltip className="shrink-0" content={t("warehouse.listActionDepoProductIn")} delayMs={200}>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className={detailOpenIconButtonClass}
+                            aria-haspopup="dialog"
+                            aria-expanded={depoQuickOpen}
+                            aria-label={t("warehouse.listActionDepoProductIn")}
+                            title={t("warehouse.listActionDepoProductIn")}
+                            onClick={() => setQuickDepoTarget({ id: w.id, name: w.name })}
+                          >
+                            <PlusProductIcon className={actionIconClass} />
+                          </Button>
+                        </Tooltip>
+                        <Tooltip
+                          className="shrink-0"
+                          content={t("warehouse.listActionBranchTransfer")}
+                          delayMs={200}
+                        >
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className={detailOpenIconButtonClass}
+                            aria-haspopup="dialog"
+                            aria-expanded={transferQuickOpen}
+                            aria-label={t("warehouse.listActionBranchTransfer")}
+                            title={t("warehouse.listActionBranchTransfer")}
+                            onClick={() => setQuickTransferTarget({ id: w.id, name: w.name })}
+                          >
+                            <BranchTransferListIcon className={actionIconClass} />
+                          </Button>
+                        </Tooltip>
+                        <Tooltip className="shrink-0" content={t("common.openDetailsDialog")} delayMs={200}>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className={detailOpenIconButtonClass}
+                            aria-haspopup="dialog"
+                            aria-expanded={active}
+                            aria-label={t("common.openDetailsDialog")}
+                            title={t("common.openDetailsDialog")}
+                            onClick={() => openDetail(w.id)}
+                          >
+                            <EyeIcon className={actionIconClass} />
+                          </Button>
+                        </Tooltip>
+                      </div>
                     </div>
                   </MobileListCard>
                 </li>

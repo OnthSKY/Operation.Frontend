@@ -95,9 +95,9 @@ function createPaperNode(rows: CounterpartyInvoiceStylePdfRow[], meta: Counterpa
   rightMeta.style.gap = "4px";
   rightMeta.style.fontSize = "12px";
   rightMeta.innerHTML = `
-    <div><b>${meta.issuedAtLabel}</b></div>
-    <div>${meta.filtersLabel}</div>
-    <div>${meta.totalsLabel}</div>
+    <div><b>${escapeHtml(meta.issuedAtLabel)}</b></div>
+    <div>${escapeHtml(meta.filtersLabel)}</div>
+    <div>${escapeHtml(meta.totalsLabel)}</div>
   `;
 
   top.appendChild(logoWrap);
@@ -109,8 +109,8 @@ function createPaperNode(rows: CounterpartyInvoiceStylePdfRow[], meta: Counterpa
   titleArea.style.textAlign = "center";
   titleArea.innerHTML = `
     <div style="font-size:28px;font-weight:800;letter-spacing:0.02em;text-transform:uppercase;">${meta.showCompanyName === false ? "—" : escapeHtml(meta.companyName || "—")}</div>
-    <div style="font-size:14px;color:#475569;margin-top:2px;">${meta.branchName || "—"}</div>
-    <div style="margin-top:8px;border:1px solid #94a3b8;background:#f1f5f9;padding:8px 10px;font-size:18px;font-weight:800;text-transform:uppercase;">${meta.title}</div>
+    <div style="font-size:14px;color:#475569;margin-top:2px;">${escapeHtml(meta.branchName || "—")}</div>
+    <div style="margin-top:8px;border:1px solid #94a3b8;background:#f1f5f9;padding:8px 10px;font-size:18px;font-weight:800;text-transform:uppercase;">${escapeHtml(meta.title)}</div>
   `;
   header.appendChild(titleArea);
   root.appendChild(header);
@@ -141,14 +141,14 @@ function createPaperNode(rows: CounterpartyInvoiceStylePdfRow[], meta: Counterpa
     const tr = document.createElement("tr");
     if (index % 2 === 1) tr.style.background = "#f8fafc";
     tr.innerHTML = `
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;">${row.counterpartyName}</td>
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;">${row.counterpartyTypeLabel}</td>
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;">${row.documentNumber}</td>
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;">${row.issueDate}</td>
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;">${row.invoiceAmount}</td>
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;">${row.paidAmount}</td>
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;font-weight:700;color:#5b21b6;">${row.openAmount}</td>
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;">${row.paymentDate}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;">${escapeHtml(row.counterpartyName)}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;">${escapeHtml(row.counterpartyTypeLabel)}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;">${escapeHtml(row.documentNumber)}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;">${escapeHtml(row.issueDate)}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;">${escapeHtml(row.invoiceAmount)}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;">${escapeHtml(row.paidAmount)}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;font-weight:700;color:#5b21b6;">${escapeHtml(row.openAmount)}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;">${escapeHtml(row.paymentDate)}</td>
     `;
     tbody.appendChild(tr);
   });

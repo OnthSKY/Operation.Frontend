@@ -23,6 +23,7 @@ export function BranchExpenseCategoryList({
   t,
   emptyHint,
   includeSources,
+  excludeClassifications,
   amountTextClassName,
 }: {
   branchId: number;
@@ -33,8 +34,13 @@ export function BranchExpenseCategoryList({
   t: (key: string) => string;
   /** Optional fallback text when there are no OUT lines. */
   emptyHint?: string | null;
-  /** If provided, only OUT rows whose expensePaymentSource is in this set are counted. */
+  /** If provided, only OUT rows whose expensePaymentSource is in this set are counted.
+   *  Boş string ("") `null` / "UNSET" kaynaklarını kapsar. */
   includeSources?: readonly string[];
+  /** If provided, OUT rows with these classification codes are excluded
+   *  (örn. OUT_POCKET_REPAY, OUT_PATRON_DEBT_REPAY, OUT_POCKET_CLAIM_TRANSFER,
+   *  OUT_POCKET_CLAIM_TO_PATRON — operasyonel P&L gideri olmayan kayıtlar). */
+  excludeClassifications?: readonly string[];
   /** Override the amount column color (default orange-950). */
   amountTextClassName?: string;
 }) {
@@ -45,12 +51,19 @@ export function BranchExpenseCategoryList({
     const includeSet = includeSources
       ? new Set(includeSources.map((s) => s.toUpperCase()))
       : null;
+    const excludeSet = excludeClassifications
+      ? new Set(excludeClassifications.map((s) => s.toUpperCase()))
+      : null;
     const totals = new Map<string, Row>();
     for (const tx of list) {
       if (String(tx.type ?? "").trim().toUpperCase() !== "OUT") continue;
       if (includeSet) {
         const src = String(tx.expensePaymentSource ?? "").trim().toUpperCase();
         if (!includeSet.has(src)) continue;
+      }
+      if (excludeSet) {
+        const cls = String(tx.mainCategory ?? "").trim().toUpperCase();
+        if (excludeSet.has(cls)) continue;
       }
       const amt = Number(tx.amount) || 0;
       if (amt <= EPS) continue;
@@ -64,7 +77,7 @@ export function BranchExpenseCategoryList({
       }
     }
     return [...totals.values()].sort((a, b) => b.amount - a.amount);
-  }, [query.data, t, includeSources]);
+  }, [query.data, t, includeSources, excludeClassifications]);
 
   if (!enabled) return null;
   if (query.isPending) {

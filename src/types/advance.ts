@@ -32,6 +32,11 @@ export type Advance = {
   createdByUserId?: number | null;
   createdByName?: string | null;
   createdAt?: string | null;
+  /** Soft-delete edilmiş kayıt mı (yalnızca sistem yöneticisi includeDeleted=true istediğinde gelir). */
+  isDeleted?: boolean;
+  deletedAt?: string | null;
+  deletedByUserId?: number | null;
+  deletedByName?: string | null;
 };
 
 export type AdvanceListItem = Advance & {

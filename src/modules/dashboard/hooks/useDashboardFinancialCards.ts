@@ -2,7 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import {
-  fetchFinancialReport,
+  fetchFinancialLifetime,
+  fetchFinancialSummaryLifetime,
   fetchFinancialSummaryReport,
 } from "@/modules/reports/api/reports-api";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
@@ -54,75 +55,6 @@ function pickPrimary(
   };
 }
 
-/** Backend 400 gün üst sınırı var; lifetime için yıllık parçalar halinde çekip topluyoruz. */
-const LIFETIME_FROM_YEAR = 2020;
-
-function pad(n: number): string {
-  return n < 10 ? `0${n}` : String(n);
-}
-
-function isoDate(d: Date): string {
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-function buildLifetimeChunks(today: string): Array<{ from: string; to: string }> {
-  const todayDate = new Date(today);
-  const chunks: Array<{ from: string; to: string }> = [];
-  let cursor = new Date(LIFETIME_FROM_YEAR, 0, 1);
-  while (cursor <= todayDate) {
-    const end = new Date(cursor);
-    end.setDate(end.getDate() + 364);
-    const cappedEnd = end > todayDate ? todayDate : end;
-    chunks.push({ from: isoDate(cursor), to: isoDate(cappedEnd) });
-    cursor = new Date(cappedEnd);
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return chunks;
-}
-
-async function fetchLifetime(today: string) {
-  const chunks = buildLifetimeChunks(today);
-  const parts = await Promise.all(
-    chunks.map((c) =>
-      fetchFinancialSummaryReport({ dateFrom: c.from, dateTo: c.to })
-    )
-  );
-  const merged: Record<
-    string,
-    {
-      currencyCode: string;
-      totalIncome: number;
-      totalExpense: number;
-      totalSalaryPaid: number;
-      totalAdvanceGiven: number;
-      totalSupplierRegisterCashPaid: number;
-      netCash: number;
-    }
-  > = {};
-  for (const p of parts) {
-    for (const b of p.byCurrency) {
-      const k = b.currencyCode.toUpperCase();
-      const acc = (merged[k] ??= {
-        currencyCode: b.currencyCode,
-        totalIncome: 0,
-        totalExpense: 0,
-        totalSalaryPaid: 0,
-        totalAdvanceGiven: 0,
-        totalSupplierRegisterCashPaid: 0,
-        netCash: 0,
-      });
-      acc.totalIncome += Number(b.totalIncome) || 0;
-      acc.totalExpense += Number(b.totalExpense) || 0;
-      acc.totalSalaryPaid += Number(b.totalSalaryPaid) || 0;
-      acc.totalAdvanceGiven += Number(b.totalAdvanceGiven) || 0;
-      acc.totalSupplierRegisterCashPaid +=
-        Number(b.totalSupplierRegisterCashPaid ?? 0) || 0;
-      acc.netCash += Number(b.netCash) || 0;
-    }
-  }
-  return { byCurrency: Object.values(merged) };
-}
-
 export type CashFlowSums = {
   /** Patron tarafına devredilen toplam (lifetime). */
   toPatron: number;
@@ -131,38 +63,16 @@ export type CashFlowSums = {
   currency: string;
 };
 
-async function fetchLifetimeCashFlow(today: string): Promise<CashFlowSums> {
-  const chunks = buildLifetimeChunks(today);
-  const parts = await Promise.all(
-    chunks.map((c) =>
-      fetchFinancialReport({ dateFrom: c.from, dateTo: c.to })
-    )
-  );
-  const merged: Record<string, { toPatron: number; toPersonnel: number; currency: string }> = {};
-  for (const p of parts) {
-    for (const r of p.incomeRegisterBreakdownByCurrency ?? []) {
-      const k = r.currencyCode.toUpperCase();
-      const acc = (merged[k] ??= {
-        toPatron: 0,
-        toPersonnel: 0,
-        currency: r.currencyCode,
-      });
-      acc.toPatron += Number(r.cashPatron) || 0;
-      acc.toPersonnel += Number(r.cashBranchManager) || 0;
-    }
-  }
-  const primary = merged["TRY"] ?? Object.values(merged)[0];
-  return primary ?? { toPatron: 0, toPersonnel: 0, currency: "TRY" };
-}
-
 export function useDashboardFinancialCards(enabled: boolean) {
   const today = localIsoDate();
   const year = new Date().getFullYear();
   const seasonFrom = `${year}-01-01`;
 
+  // Tek istek — backend'in lifetime endpoint'i 25 yıllık üst limitle chunk'sız döner.
+  // Önceki sürüm yıllık parçalara böldüğü için tek başına 7-8 HTTP isteği ediyordu.
   const lifetimeQ = useQuery({
     queryKey: ["dashboard", "financial-summary", "lifetime", today],
-    queryFn: () => fetchLifetime(today),
+    queryFn: () => fetchFinancialSummaryLifetime(today),
     enabled,
     staleTime: 60_000,
   });
@@ -181,9 +91,28 @@ export function useDashboardFinancialCards(enabled: boolean) {
     staleTime: 60_000,
   });
 
+  // Cash flow için de lifetime detay endpoint'i — eski sürüm 7 chunk daha atıyordu.
   const cashFlowQ = useQuery({
     queryKey: ["dashboard", "cash-flow", "lifetime", today],
-    queryFn: () => fetchLifetimeCashFlow(today),
+    queryFn: async (): Promise<CashFlowSums> => {
+      const r = await fetchFinancialLifetime(today);
+      const merged: Record<
+        string,
+        { toPatron: number; toPersonnel: number; currency: string }
+      > = {};
+      for (const row of r.incomeRegisterBreakdownByCurrency ?? []) {
+        const k = row.currencyCode.toUpperCase();
+        const acc = (merged[k] ??= {
+          toPatron: 0,
+          toPersonnel: 0,
+          currency: row.currencyCode,
+        });
+        acc.toPatron += Number(row.cashPatron) || 0;
+        acc.toPersonnel += Number(row.cashBranchManager) || 0;
+      }
+      const primary = merged["TRY"] ?? Object.values(merged)[0];
+      return primary ?? { toPatron: 0, toPersonnel: 0, currency: "TRY" };
+    },
     enabled,
     staleTime: 60_000,
   });

@@ -1,34 +1,39 @@
 "use client";
 
 import { fetchBranches } from "@/modules/branch/api/branches-api";
-import type { QuickActionsMenuSection } from "@/modules/branch/components/BranchQuickActionsMenu";
 import { fetchPersonnelList } from "@/modules/personnel/api/personnel-api";
-import { vehiclePhotoUrl } from "@/modules/vehicles/api/vehicles-api";
-import { fetchVehicleDocumentBlob } from "@/modules/vehicles/api/vehicle-documents-api";
 import { VehicleDetailAuditTab } from "@/modules/vehicles/components/VehicleDetailAuditTab";
-import { VehicleFleetCard } from "@/modules/vehicles/components/VehicleFleetCard";
+import { VEHICLE_DOCUMENT_KIND_OPTIONS } from "@/modules/vehicles/lib/vehicle-document-kinds";
+import { useVehicleInsuranceForm } from "@/modules/vehicles/hooks/useVehicleInsuranceForm";
+import { useVehicleExpenseForm } from "@/modules/vehicles/hooks/useVehicleExpenseForm";
+import { useVehicleMaintenanceForm } from "@/modules/vehicles/hooks/useVehicleMaintenanceForm";
+import { useVehicleDocumentForm } from "@/modules/vehicles/hooks/useVehicleDocumentForm";
+import { useVehicleOdometerModal } from "@/modules/vehicles/hooks/useVehicleOdometerModal";
+import { useVehicleAssignmentDialog } from "@/modules/vehicles/hooks/useVehicleAssignmentDialog";
+import { useVehicleEditForm } from "@/modules/vehicles/hooks/useVehicleEditForm";
+import { useVehicleExpenseSummary as useVehicleExpenseSummaryState } from "@/modules/vehicles/hooks/useVehicleExpenseSummary";
+import { VehicleOdometerModal } from "@/modules/vehicles/components/VehicleOdometerModal";
+import { VehicleAssignDialog } from "@/modules/vehicles/components/VehicleAssignDialog";
+import { VehicleInsuranceModal } from "@/modules/vehicles/components/VehicleInsuranceModal";
+import { VehicleExpenseModal } from "@/modules/vehicles/components/VehicleExpenseModal";
+import { VehicleMaintenanceModal } from "@/modules/vehicles/components/VehicleMaintenanceModal";
 import {
-  useCreateVehicle,
-  useCreateVehicleExpense,
-  useCreateVehicleInsurance,
-  useCreateVehicleMaintenance,
-  useDeleteVehicle,
-  useDeleteVehicleDocument,
-  useDeleteVehicleExpense,
-  useDeleteVehicleInsurance,
-  useDeleteVehicleMaintenance,
+  VehicleDocumentUploadSheet,
+  VehicleDocumentDeleteModal,
+} from "@/modules/vehicles/components/VehicleDocumentUploadSheet";
+import { VehicleEditModal } from "@/modules/vehicles/components/VehicleEditModal";
+import { VehicleListPanel } from "@/modules/vehicles/components/VehicleListPanel";
+import { VehicleDetailDocumentsTab } from "@/modules/vehicles/components/VehicleDetailDocumentsTab";
+import { VehicleDetailAssignmentsTab } from "@/modules/vehicles/components/VehicleDetailAssignmentsTab";
+import { VehicleDetailInsurancesTab } from "@/modules/vehicles/components/VehicleDetailInsurancesTab";
+import { VehicleDetailServiceTab } from "@/modules/vehicles/components/VehicleDetailServiceTab";
+import { VehicleDetailCostsTab } from "@/modules/vehicles/components/VehicleDetailCostsTab";
+import { VehicleDetailOverviewTab } from "@/modules/vehicles/components/VehicleDetailOverviewTab";
+import {
   useDeleteVehiclePhoto,
-  usePatchVehicleOdometer,
-  useUpdateVehicle,
-  useUploadVehicleDocument,
-  useUpdateVehicleExpense,
-  useUpdateVehicleInsurance,
-  useUpdateVehicleMaintenance,
-  usePatchVehicleAssignment,
   useUploadVehiclePhoto,
   useVehicle,
   useVehicleDocuments,
-  useVehicleExpenseSummary,
   useVehicles,
 } from "@/modules/vehicles/hooks/useVehicleQueries";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -37,11 +42,7 @@ import { useI18n } from "@/i18n/context";
 import { Card } from "@/shared/components/Card";
 import { MobileListCard } from "@/shared/components/MobileListCard";
 import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
-import { StatusBadge } from "@/shared/components/StatusBadge";
-import {
-  vehicleHeaderStatusTone,
-  vehicleStatusLabel,
-} from "@/modules/vehicles/lib/vehicle-status-display";
+import { vehicleStatusLabel } from "@/modules/vehicles/lib/vehicle-status-display";
 import {
   VEHICLE_MAINTENANCE_TYPE_IDS,
   isKnownVehicleMaintenanceType,
@@ -55,9 +56,7 @@ import {
   VEHICLE_INSURANCE_TYPE_SLUGS,
   matchInsurancePresetSlug,
 } from "@/modules/vehicles/lib/vehicle-insurance-presets";
-import { TABLE_TOOLBAR_ICON_BTN, TableToolbarSplit } from "@/shared/components/TableToolbar";
 import { PageWhenToUseGuide } from "@/shared/components/PageWhenToUseGuide";
-import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import {
   formatLocaleAmount,
@@ -71,7 +70,6 @@ import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
-import { PlusIcon } from "@/shared/ui/EyeIcon";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select, type SelectOption } from "@/shared/ui/Select";
@@ -100,145 +98,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FocusEventHandl
 type DetailTab = "overview" | "service" | "documents" | "assignments" | "insurances" | "costs" | "audit";
 type CostsSubTab = "ledger" | "report";
 type AssignMode = "idle" | "personnel" | "branch";
-type VehicleDocumentPreviewMode = "image" | "pdf" | "other";
 
-const VEHICLE_DOCUMENT_KIND_OPTIONS: { value: VehicleDocumentKind; labelKey: string }[] = [
-  { value: "REGISTRATION", labelKey: "vehicles.docKindRegistration" },
-  { value: "INSPECTION", labelKey: "vehicles.docKindInspection" },
-  { value: "INSURANCE_POLICY", labelKey: "vehicles.docKindInsurancePolicy" },
-  { value: "OTHER", labelKey: "vehicles.docKindOther" },
-];
 const NOOP_BLUR: FocusEventHandler<HTMLInputElement> = () => {};
 
-function formatGroupedIntegerInput(raw: string, locale: string): string {
-  const digits = raw.replace(/\D+/g, "");
-  if (!digits) return "";
-  return new Intl.NumberFormat(locale === "tr" ? "tr-TR" : "en-US").format(Number(digits));
-}
-
-function parseGroupedIntegerInput(raw: string): number | null {
-  const digits = raw.replace(/\D+/g, "");
-  if (!digits) return null;
-  const parsed = Number.parseInt(digits, 10);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function vehicleExpenseBranchPostingDetail(x: VehicleExpense, t: (key: string) => string): string | null {
-  if (x.postedBranchId == null || x.postedBranchId <= 0) return null;
-  const src = (x.postedExpensePaymentSource ?? "REGISTER").toUpperCase();
-  if (src === "PATRON") {
-    const card = x.postedRegisterCardAmount ?? 0;
-    const cash = x.postedRegisterCashAmount ?? 0;
-    const method = card > 0 && cash <= 0 ? t("vehicles.expensePayCard") : t("vehicles.expensePayCash");
-    return `${t("vehicles.expensePaidByPatron")} · ${method}`;
-  }
-  return t("vehicles.expensePaidFromRegisterDrawer");
-}
-
-function buildVehicleRowMenuSections(params: {
-  canEdit: boolean;
-  t: (key: string) => string;
-  onView: () => void;
-  onEdit: () => void;
-  onDelete?: () => void;
-  onAddMaintenance: () => void;
-  onEditKm: () => void;
-  onChangeAssignment?: () => void;
-  onAddExpense?: () => void;
-  onAddInsurance?: () => void;
-  /** `extras`: only maintenance + km (view/edit as separate buttons on narrow layouts). */
-  menuMode?: "full" | "extras";
-}): QuickActionsMenuSection[] {
-  const {
-    canEdit,
-    t,
-    onView,
-    onEdit,
-    onDelete,
-    onAddMaintenance,
-    onEditKm,
-    onChangeAssignment,
-    onAddExpense,
-    onAddInsurance,
-    menuMode = "full",
-  } = params;
-  const items: QuickActionsMenuSection["items"] = [];
-  if (menuMode === "full") {
-    items.push({ id: "view", label: t("common.openDetails"), onSelect: onView });
-    if (canEdit) {
-      items.push(
-        { id: "edit", label: t("common.edit"), onSelect: onEdit },
-        ...(onDelete ? [{ id: "delete", label: t("vehicles.deleteVehicle"), onSelect: onDelete }] : []),
-        { id: "maint", label: t("vehicles.rowAddMaintenance"), onSelect: onAddMaintenance },
-        { id: "km", label: t("vehicles.rowEditOdometer"), onSelect: onEditKm }
-      );
-    }
-  } else if (canEdit) {
-    if (onChangeAssignment) {
-      items.push({
-        id: "assign",
-        label: t("vehicles.changeAssignment"),
-        onSelect: onChangeAssignment,
-      });
-    }
-    if (onAddExpense) {
-      items.push({ id: "expense", label: t("vehicles.addExpense"), onSelect: onAddExpense });
-    }
-    if (onAddInsurance) {
-      items.push({ id: "insurance", label: t("vehicles.addInsurance"), onSelect: onAddInsurance });
-    }
-    if (onDelete) {
-      items.push({ id: "delete", label: t("vehicles.deleteVehicle"), onSelect: onDelete });
-    }
-    items.push(
-      { id: "maint", label: t("vehicles.rowAddMaintenance"), onSelect: onAddMaintenance },
-      { id: "km", label: t("vehicles.rowEditOdometer"), onSelect: onEditKm }
-    );
-  }
-  if (items.length === 0) return [];
-  const storyTitle =
-    menuMode === "extras" ? t("vehicles.rowMenuExtras") : t("vehicles.rowMenuStory");
-  return [{ storyTitle, items }];
-}
-
-function badgeClasses(b: VehicleInsuranceBadge) {
-  switch (b) {
-    case "EXPIRED":
-      return "bg-red-50 text-red-800 ring-red-200";
-    case "SOON":
-      return "bg-amber-50 text-amber-900 ring-amber-200";
-    case "OK":
-      return "bg-emerald-50 text-emerald-900 ring-emerald-200";
-    default:
-      return "bg-zinc-100 text-zinc-600 ring-zinc-200";
-  }
-}
-
-function VehicleOverviewRow({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: ReactNode;
-  icon?: ReactNode;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-4 border-b border-zinc-100/90 py-2.5 last:border-b-0 sm:py-3">
-      <div className="flex min-w-0 items-start gap-2.5">
-        {icon ? (
-          <span className="mt-0.5 shrink-0 text-zinc-400 [&_svg]:h-4 [&_svg]:w-4" aria-hidden>
-            {icon}
-          </span>
-        ) : null}
-        <span className="text-[0.7rem] font-semibold uppercase tracking-wide text-zinc-500">{label}</span>
-      </div>
-      <div className="max-w-[min(100%,18rem)] text-right text-sm font-semibold leading-snug text-zinc-900 sm:max-w-[60%]">
-        {value}
-      </div>
-    </div>
-  );
-}
 
 export function VehiclesScreen() {
   const { t, locale } = useI18n();
@@ -256,11 +118,6 @@ export function VehiclesScreen() {
     notify.error(toErrorMessage(error), { toastId: "vehicles-list-load" });
   }, [isError, error]);
 
-  const createV = useCreateVehicle();
-  const deleteV = useDeleteVehicle();
-  const updateV = useUpdateVehicle();
-  const patchOdometerMut = usePatchVehicleOdometer();
-  const patchAssignmentMut = usePatchVehicleAssignment();
   const uploadVehiclePhotoMut = useUploadVehiclePhoto();
   const deleteVehiclePhotoMut = useDeleteVehiclePhoto();
 
@@ -296,333 +153,73 @@ export function VehiclesScreen() {
     });
   }, [rows, search]);
 
-  const [vehicleModal, setVehicleModal] = useState<"add" | "edit" | null>(null);
-  const [editRow, setEditRow] = useState<VehicleListItem | null>(null);
-  const [plate, setPlate] = useState("");
-  const [brand, setBrand] = useState("");
-  const [model, setModel] = useState("");
-  const [year, setYear] = useState("");
-  const [status, setStatus] = useState("ACTIVE");
-  const [assignMode, setAssignMode] = useState<AssignMode>("idle");
-  const [personnelId, setPersonnelId] = useState("");
-  const [branchId, setBranchId] = useState("");
-  const [odometerKmStr, setOdometerKmStr] = useState("");
-  const [inspectionUntil, setInspectionUntil] = useState("");
-  const [notes, setNotes] = useState("");
-  const [driverSrc, setDriverSrc] = useState("");
-  const [driverPsy, setDriverPsy] = useState("");
-  const [serviceIntervalKmStr, setServiceIntervalKmStr] = useState("");
-  const [serviceIntervalMonthsStr, setServiceIntervalMonthsStr] = useState("");
-  const [photoCacheBust, setPhotoCacheBust] = useState(0);
-  const syncedVehicleFormDetail = useRef<number | null>(null);
+  // Detail overlay state — editForm.onAfterDelete callback'i içinde okunduğu için
+  // editForm çağrısından önce tanımlanmalı.
+  const [detailId, setDetailId] = useState<number | null>(null);
+  const [detailTab, setDetailTab] = useState<DetailTab>("overview");
+  const [costsSubTab, setCostsSubTab] = useState<CostsSubTab>("ledger");
 
-  const editingFormVehicleId = vehicleModal === "edit" && editRow ? editRow.id : null;
-  const { data: editFormDetail, isPending: editFormDetailPending } = useVehicle(
-    editingFormVehicleId,
-    editingFormVehicleId != null
-  );
-
-  useEffect(() => {
-    if (vehicleModal !== "edit" || !editRow || !editFormDetail) return;
-    if (editFormDetail.id !== editRow.id) return;
-    if (syncedVehicleFormDetail.current === editRow.id) return;
-    syncedVehicleFormDetail.current = editRow.id;
-    setOdometerKmStr(
-      editFormDetail.odometerKm != null
-        ? formatGroupedIntegerInput(String(editFormDetail.odometerKm), locale)
-        : ""
-    );
-    setInspectionUntil(editFormDetail.inspectionValidUntil ?? "");
-    setNotes(editFormDetail.notes ?? "");
-    setDriverSrc(editFormDetail.driverSrcValidUntil ?? "");
-    setDriverPsy(editFormDetail.driverPsychotechnicalValidUntil ?? "");
-    setServiceIntervalKmStr(
-      editFormDetail.serviceIntervalKm != null ? String(editFormDetail.serviceIntervalKm) : ""
-    );
-    setServiceIntervalMonthsStr(
-      editFormDetail.serviceIntervalMonths != null ? String(editFormDetail.serviceIntervalMonths) : ""
-    );
-  }, [vehicleModal, editRow, editFormDetail, locale]);
-
-  const openAdd = () => {
-    setEditRow(null);
-    setPlate("");
-    setBrand("");
-    setModel("");
-    setYear("");
-    setStatus("ACTIVE");
-    setAssignMode("idle");
-    setPersonnelId("");
-    setBranchId("");
-    setOdometerKmStr("");
-    setInspectionUntil("");
-    setNotes("");
-    setDriverSrc("");
-    setDriverPsy("");
-    setServiceIntervalKmStr("");
-    setServiceIntervalMonthsStr("");
-    syncedVehicleFormDetail.current = null;
-    setVehicleModal("add");
-  };
-
-  const openEdit = (r: VehicleListItem) => {
-    setEditRow(r);
-    setPlate(r.plateNumber);
-    setBrand(r.brand);
-    setModel(r.model);
-    setYear(r.year != null ? String(r.year) : "");
-    setStatus(r.status);
-    if (r.assignedPersonnelId) {
-      setAssignMode("personnel");
-      setPersonnelId(String(r.assignedPersonnelId));
-      setBranchId("");
-    } else if (r.assignedBranchId) {
-      setAssignMode("branch");
-      setBranchId(String(r.assignedBranchId));
-      setPersonnelId("");
-    } else {
-      setAssignMode("idle");
-      setPersonnelId("");
-      setBranchId("");
-    }
-    setOdometerKmStr("");
-    setInspectionUntil("");
-    setNotes("");
-    setDriverSrc("");
-    setDriverPsy("");
-    setServiceIntervalKmStr("");
-    setServiceIntervalMonthsStr("");
-    syncedVehicleFormDetail.current = null;
-    setVehicleModal("edit");
-  };
-
-  const isVehicleFormDirty =
-    vehicleModal === "add"
-      ? plate.trim() !== "" ||
-        brand.trim() !== "" ||
-        model.trim() !== "" ||
-        year.trim() !== "" ||
-        status !== "ACTIVE" ||
-        assignMode !== "idle" ||
-        personnelId.trim() !== "" ||
-        branchId.trim() !== "" ||
-        odometerKmStr.trim() !== "" ||
-        inspectionUntil.trim() !== "" ||
-        notes.trim() !== "" ||
-        driverSrc.trim() !== "" ||
-        driverPsy.trim() !== "" ||
-        serviceIntervalKmStr.trim() !== "" ||
-        serviceIntervalMonthsStr.trim() !== ""
-      : editRow != null &&
-        (plate !== editRow.plateNumber ||
-          brand !== editRow.brand ||
-          model !== editRow.model ||
-          year !== (editRow.year != null ? String(editRow.year) : "") ||
-          status !== editRow.status ||
-          (assignMode === "personnel" ? personnelId : "") !==
-            (editRow.assignedPersonnelId != null ? String(editRow.assignedPersonnelId) : "") ||
-          (assignMode === "branch" ? branchId : "") !==
-            (editRow.assignedBranchId != null ? String(editRow.assignedBranchId) : "") ||
-          (assignMode === "idle" && (editRow.assignedPersonnelId != null || editRow.assignedBranchId != null)) ||
-          (editFormDetail != null &&
-            (odometerKmStr !==
-              (editFormDetail.odometerKm != null
-                ? formatGroupedIntegerInput(String(editFormDetail.odometerKm), locale)
-                : "") ||
-              inspectionUntil !== (editFormDetail.inspectionValidUntil ?? "") ||
-              notes !== (editFormDetail.notes ?? "") ||
-              driverSrc !== (editFormDetail.driverSrcValidUntil ?? "") ||
-              driverPsy !== (editFormDetail.driverPsychotechnicalValidUntil ?? "") ||
-              serviceIntervalKmStr !==
-                (editFormDetail.serviceIntervalKm != null ? String(editFormDetail.serviceIntervalKm) : "") ||
-              serviceIntervalMonthsStr !==
-                (editFormDetail.serviceIntervalMonths != null
-                  ? String(editFormDetail.serviceIntervalMonths)
-                  : ""))));
-
-  const closeVehicleModal = () => setVehicleModal(null);
-  const requestCloseVehicleModal = useDirtyGuard({
-    isDirty: isVehicleFormDirty,
-    isBlocked:
-      createV.isPending ||
-      updateV.isPending ||
-      (vehicleModal === "edit" && editRow != null && editFormDetailPending),
-    confirmMessage: t("common.unsavedChangesConfirm"),
-    onClose: closeVehicleModal,
+  // ─── Vehicle add/edit form hook (en büyük form: 15+ alan + dirty-guard) ───
+  const editForm = useVehicleEditForm({
+    locale,
+    t,
+    onAfterDelete: (vehicleId) => {
+      if (detailId === vehicleId) setDetailId(null);
+    },
   });
+  const vehicleModal = editForm.modal;
+  const editRow = editForm.editRow;
+  const editFormDetail = editForm.editFormDetail;
+  const editFormDetailPending = editForm.editFormDetailPending;
+  const plate = editForm.plate;
+  const setPlate = editForm.setPlate;
+  const brand = editForm.brand;
+  const setBrand = editForm.setBrand;
+  const model = editForm.model;
+  const setModel = editForm.setModel;
+  const year = editForm.year;
+  const setYear = editForm.setYear;
+  const status = editForm.status;
+  const setStatus = editForm.setStatus;
+  const assignMode = editForm.assignMode;
+  const setAssignMode = editForm.setAssignMode;
+  const personnelId = editForm.personnelId;
+  const setPersonnelId = editForm.setPersonnelId;
+  const branchId = editForm.branchId;
+  const setBranchId = editForm.setBranchId;
+  const odometerKmStr = editForm.odometerKmStr;
+  const setOdometerKmStr = editForm.setOdometerKmStr;
+  const inspectionUntil = editForm.inspectionUntil;
+  const setInspectionUntil = editForm.setInspectionUntil;
+  const notes = editForm.notes;
+  const setNotes = editForm.setNotes;
+  const driverSrc = editForm.driverSrc;
+  const setDriverSrc = editForm.setDriverSrc;
+  const driverPsy = editForm.driverPsy;
+  const setDriverPsy = editForm.setDriverPsy;
+  const serviceIntervalKmStr = editForm.serviceIntervalKmStr;
+  const setServiceIntervalKmStr = editForm.setServiceIntervalKmStr;
+  const serviceIntervalMonthsStr = editForm.serviceIntervalMonthsStr;
+  const setServiceIntervalMonthsStr = editForm.setServiceIntervalMonthsStr;
+  const openAdd = editForm.openAdd;
+  const openEdit = editForm.openEdit;
+  const requestCloseVehicleModal = editForm.requestClose;
+  const saveVehicle = editForm.save;
+  const confirmDeleteVehicle = editForm.confirmDelete;
+
+  const [photoCacheBust, setPhotoCacheBust] = useState(0);
 
   const openAssignmentDialogFromDetail = () => {
     if (!detail || !canEdit) return;
-    setAssignDlgVehicleId(detail.id);
-    if (detail.assignedPersonnelId) {
-      setAssignDlgMode("personnel");
-      setAssignDlgPersonnelId(String(detail.assignedPersonnelId));
-      setAssignDlgBranchId("");
-    } else if (detail.assignedBranchId) {
-      setAssignDlgMode("branch");
-      setAssignDlgBranchId(String(detail.assignedBranchId));
-      setAssignDlgPersonnelId("");
-    } else {
-      setAssignDlgMode("idle");
-      setAssignDlgPersonnelId("");
-      setAssignDlgBranchId("");
-    }
-    setAssignDlgOpen(true);
+    assignment.openFor(detail);
   };
 
   const openAssignmentFromListRow = (r: VehicleListItem) => {
     if (!canEdit) return;
-    setAssignDlgVehicleId(r.id);
-    if (r.assignedPersonnelId) {
-      setAssignDlgMode("personnel");
-      setAssignDlgPersonnelId(String(r.assignedPersonnelId));
-      setAssignDlgBranchId("");
-    } else if (r.assignedBranchId) {
-      setAssignDlgMode("branch");
-      setAssignDlgBranchId(String(r.assignedBranchId));
-      setAssignDlgPersonnelId("");
-    } else {
-      setAssignDlgMode("idle");
-      setAssignDlgPersonnelId("");
-      setAssignDlgBranchId("");
-    }
-    setAssignDlgOpen(true);
+    assignment.openFor(r);
   };
 
-  const saveAssignmentDialog = async () => {
-    if (assignDlgVehicleId == null) return;
-    let assignedPersonnelId: number | null = null;
-    let assignedBranchId: number | null = null;
-    if (assignDlgMode === "personnel") {
-      const raw = assignDlgPersonnelId.trim();
-      if (!raw) {
-        notify.error(t("vehicles.assignmentIncomplete"));
-        return;
-      }
-      const id = parseInt(raw, 10);
-      if (!Number.isFinite(id)) {
-        notify.error(t("common.invalid"));
-        return;
-      }
-      assignedPersonnelId = id;
-    } else if (assignDlgMode === "branch") {
-      const raw = assignDlgBranchId.trim();
-      if (!raw) {
-        notify.error(t("vehicles.assignmentIncomplete"));
-        return;
-      }
-      const id = parseInt(raw, 10);
-      if (!Number.isFinite(id)) {
-        notify.error(t("common.invalid"));
-        return;
-      }
-      assignedBranchId = id;
-    }
-    try {
-      await patchAssignmentMut.mutateAsync({
-        vehicleId: assignDlgVehicleId,
-        assignedPersonnelId,
-        assignedBranchId,
-      });
-      notify.success(t("common.saved"));
-      setAssignDlgOpen(false);
-      setAssignDlgVehicleId(null);
-    } catch (e) {
-      notify.error(toErrorMessage(e));
-    }
-  };
 
-  const saveVehicle = async () => {
-    const y = year.trim() ? parseInt(year, 10) : null;
-    const ap =
-      assignMode === "personnel" && personnelId.trim()
-        ? parseInt(personnelId, 10)
-        : null;
-    const ab =
-      assignMode === "branch" && branchId.trim() ? parseInt(branchId, 10) : null;
-    const odomRaw = odometerKmStr.trim();
-    const odomParsed = parseGroupedIntegerInput(odomRaw);
-    const odometerKm =
-      odomParsed != null && Number.isFinite(odomParsed) && odomParsed >= 0 ? odomParsed : null;
-    const inspectionIso = inspectionUntil.trim() || null;
-    const notesTrim = notes.trim() || null;
-    const srcIso = ap != null && driverSrc.trim() ? driverSrc.trim() : null;
-    const psyIso = ap != null && driverPsy.trim() ? driverPsy.trim() : null;
-    const siKmRaw = serviceIntervalKmStr.trim();
-    const siKmParsed = siKmRaw ? parseInt(siKmRaw, 10) : null;
-    const serviceIntervalKm =
-      siKmParsed != null && Number.isFinite(siKmParsed) && siKmParsed > 0 ? siKmParsed : null;
-    const siMoRaw = serviceIntervalMonthsStr.trim();
-    const siMoParsed = siMoRaw ? parseInt(siMoRaw, 10) : null;
-    const serviceIntervalMonths =
-      siMoParsed != null && Number.isFinite(siMoParsed) && siMoParsed > 0 ? siMoParsed : null;
-    try {
-      if (vehicleModal === "add") {
-        await createV.mutateAsync({
-          plateNumber: plate.trim(),
-          brand: brand.trim(),
-          model: model.trim(),
-          year: y != null && Number.isFinite(y) ? y : null,
-          status,
-          assignedPersonnelId: ap,
-          assignedBranchId: ab,
-          odometerKm,
-          inspectionValidUntil: inspectionIso,
-          notes: notesTrim,
-          driverSrcValidUntil: srcIso,
-          driverPsychotechnicalValidUntil: psyIso,
-          serviceIntervalKm,
-          serviceIntervalMonths,
-        });
-        notify.success(t("common.saved"));
-      } else if (editRow) {
-        await updateV.mutateAsync({
-          id: editRow.id,
-          plateNumber: plate.trim(),
-          brand: brand.trim(),
-          model: model.trim(),
-          year: y != null && Number.isFinite(y) ? y : null,
-          status,
-          assignedPersonnelId: ap,
-          assignedBranchId: ab,
-          odometerKm,
-          inspectionValidUntil: inspectionIso,
-          notes: notesTrim,
-          driverSrcValidUntil: srcIso,
-          driverPsychotechnicalValidUntil: psyIso,
-          serviceIntervalKm,
-          serviceIntervalMonths,
-        });
-        notify.success(t("common.saved"));
-      }
-      setVehicleModal(null);
-    } catch (e) {
-      notify.error(toErrorMessage(e));
-    }
-  };
-
-  const confirmDeleteVehicle = (vehicleId: number) => {
-    void notifyConfirmToast({
-      toastId: `vehicle-delete-${vehicleId}`,
-      message: t("vehicles.confirmDeleteVehicle"),
-      confirmLabel: t("vehicles.deleteVehicle"),
-      cancelLabel: t("common.cancel"),
-      onConfirm: async () => {
-        try {
-          await deleteV.mutateAsync(vehicleId);
-          if (detailId === vehicleId) setDetailId(null);
-          if (vehicleModal === "edit" && editRow?.id === vehicleId) setVehicleModal(null);
-          notify.success(t("common.saved"));
-        } catch (err) {
-          notify.error(toErrorMessage(err));
-        }
-      },
-    });
-  };
-
-  const [detailId, setDetailId] = useState<number | null>(null);
-  const [detailTab, setDetailTab] = useState<DetailTab>("overview");
-  const [costsSubTab, setCostsSubTab] = useState<CostsSubTab>("ledger");
   const searchParams = useSearchParams();
 
   const goDetailTab = (tab: DetailTab) => {
@@ -657,109 +254,36 @@ export function VehiclesScreen() {
     isError: vehicleDocumentsError,
     error: vehicleDocumentsErrorValue,
   } = useVehicleDocuments(detailId, detailEnabled);
-  const uploadVehicleDocumentMut = useUploadVehicleDocument(currentVehicleId);
-  const deleteVehicleDocumentMut = useDeleteVehicleDocument(currentVehicleId);
+  // ─── Document form hook ───────────────────────────────────────────────────
+  const docForm = useVehicleDocumentForm({
+    vehicleId: currentVehicleId,
+    active: detailEnabled,
+    t,
+  });
+  const docFormOpen = docForm.formOpen;
+  const setDocFormOpen = docForm.setFormOpen;
+  const docKind = docForm.kind;
+  const setDocKind = docForm.setKind;
+  const docNotes = docForm.notes;
+  const setDocNotes = docForm.setNotes;
+  const docFile = docForm.file;
+  const setDocFile = docForm.setFile;
+  const docFormError = docForm.formError;
+  const setDocFormError = docForm.setFormError;
+  const docDeleteId = docForm.deleteId;
+  const setDocDeleteId = docForm.setDeleteId;
+  const openingVehicleDocId = docForm.openingId;
+  const vehicleDocPreviewMode = docForm.previewMode;
+  const vehicleDocPreviewUrl = docForm.previewUrl;
+  const openVehicleDoc = docForm.openDoc;
+  const submitVehicleDocUpload = docForm.submitUpload;
+  const confirmVehicleDocDelete = docForm.confirmDelete;
 
   const [maintLogFilterType, setMaintLogFilterType] = useState("");
-  const [docFormOpen, setDocFormOpen] = useState(false);
-  const [docKind, setDocKind] = useState<VehicleDocumentKind>("REGISTRATION");
-  const [docNotes, setDocNotes] = useState("");
-  const [docFile, setDocFile] = useState<File | null>(null);
-  const [docFormError, setDocFormError] = useState<string | null>(null);
-  const [docDeleteId, setDocDeleteId] = useState<number | null>(null);
-  const [openingVehicleDocId, setOpeningVehicleDocId] = useState<number | null>(null);
 
-  const selectedVehicleDocType = docFile?.type?.toLowerCase() ?? "";
-  const vehicleDocPreviewMode: VehicleDocumentPreviewMode = !docFile
-    ? "other"
-    : selectedVehicleDocType.startsWith("image/")
-      ? "image"
-      : selectedVehicleDocType === "application/pdf"
-        ? "pdf"
-        : "other";
-  const vehicleDocPreviewUrl = useMemo(() => {
-    if (!docFile || vehicleDocPreviewMode === "other") return null;
-    return URL.createObjectURL(docFile);
-  }, [docFile, vehicleDocPreviewMode]);
-
-  useEffect(() => {
-    if (!vehicleDocPreviewUrl) return;
-    return () => URL.revokeObjectURL(vehicleDocPreviewUrl);
-  }, [vehicleDocPreviewUrl]);
-
-  useEffect(() => {
-    if (!detailEnabled) {
-      setDocFormOpen(false);
-      setDocDeleteId(null);
-      setDocFile(null);
-      setDocNotes("");
-      setDocFormError(null);
-    }
-  }, [detailEnabled]);
-
-  const vehicleDocKindLabel = (kind: VehicleDocumentKind) => {
-    const opt = VEHICLE_DOCUMENT_KIND_OPTIONS.find((x) => x.value === kind);
-    return opt ? t(opt.labelKey) : kind;
-  };
-
-  const openVehicleDoc = async (vehicleId: number, documentId: number) => {
-    setOpeningVehicleDocId(documentId);
-    try {
-      const { blob, contentType } = await fetchVehicleDocumentBlob(vehicleId, documentId);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      const ext =
-        contentType === "application/pdf"
-          ? "pdf"
-          : contentType.includes("png")
-            ? "png"
-            : contentType.includes("webp")
-              ? "webp"
-              : "jpg";
-      a.download = `vehicle-${vehicleId}-doc-${documentId}.${ext}`;
-      a.rel = "noopener";
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (e) {
-      notify.error(toErrorMessage(e));
-    } finally {
-      setOpeningVehicleDocId(null);
-    }
-  };
-
-  const submitVehicleDocUpload = async () => {
-    if (!detailId || detailId <= 0) return;
-    setDocFormError(null);
-    if (!docFile || docFile.size <= 0) {
-      setDocFormError(t("vehicles.documentsFileRequired"));
-      return;
-    }
-    try {
-      await uploadVehicleDocumentMut.mutateAsync({
-        file: docFile,
-        kind: docKind,
-        notes: docNotes.trim() || null,
-      });
-      notify.success(t("common.saved"));
-      setDocFormOpen(false);
-      setDocFile(null);
-      setDocNotes("");
-      setDocKind("REGISTRATION");
-    } catch (e) {
-      setDocFormError(toErrorMessage(e));
-    }
-  };
-
-  const confirmVehicleDocDelete = async () => {
-    if (!docDeleteId || !detailId) return;
-    try {
-      await deleteVehicleDocumentMut.mutateAsync(docDeleteId);
-      notify.success(t("common.saved"));
-      setDocDeleteId(null);
-    } catch (e) {
-      notify.error(toErrorMessage(e));
-    }
+  const vehicleDocKindLabel = (k: VehicleDocumentKind) => {
+    const opt = VEHICLE_DOCUMENT_KIND_OPTIONS.find((x) => x.value === k);
+    return opt ? t(opt.labelKey) : k;
   };
 
   const filteredVehicleMaintenances = useMemo(() => {
@@ -790,118 +314,133 @@ export function VehiclesScreen() {
     ];
   }, [detail?.maintenances, t]);
 
-  const [sumYear, setSumYear] = useState(String(new Date().getFullYear()));
-  const [sumMonth, setSumMonth] = useState("");
-  const [sumVehicleId, setSumVehicleId] = useState("");
-  const [sumBranchId, setSumBranchId] = useState("");
-  const [expenseReportParams, setExpenseReportParams] = useState<{
-    year?: number;
-    month?: number;
-    vehicleId?: number;
-    branchId?: number;
-  } | null>(null);
+  // ─── Expense summary report (Costs tab → Report sub-tab) ─────────────────
+  const expenseSummary = useVehicleExpenseSummaryState({
+    detailId,
+    active: detailTab === "costs" && costsSubTab === "report",
+    canEdit,
+  });
+  const sumYear = expenseSummary.sumYear;
+  const setSumYear = expenseSummary.setSumYear;
+  const sumMonth = expenseSummary.sumMonth;
+  const setSumMonth = expenseSummary.setSumMonth;
+  const sumVehicleId = expenseSummary.sumVehicleId;
+  const setSumVehicleId = expenseSummary.setSumVehicleId;
+  const sumBranchId = expenseSummary.sumBranchId;
+  const setSumBranchId = expenseSummary.setSumBranchId;
+  const applyExpenseReportFilters = expenseSummary.applyFilters;
+  const summaryRows = expenseSummary.summaryRows;
+  const summaryPending = expenseSummary.summaryPending;
+  const summaryQueryEnabled = expenseSummary.queryEnabled;
 
-  const applyExpenseReportFilters = useCallback(() => {
-    const y = sumYear.trim() ? parseInt(sumYear, 10) : undefined;
-    const m = sumMonth.trim() ? parseInt(sumMonth, 10) : undefined;
-    const vid = sumVehicleId.trim() ? parseInt(sumVehicleId, 10) : undefined;
-    const bid = sumBranchId.trim() ? parseInt(sumBranchId, 10) : undefined;
-    setExpenseReportParams({
-      year: y != null && Number.isFinite(y) ? y : undefined,
-      month: m != null && Number.isFinite(m) && m >= 1 && m <= 12 ? m : undefined,
-      vehicleId: vid != null && Number.isFinite(vid) ? vid : undefined,
-      branchId: bid != null && Number.isFinite(bid) ? bid : undefined,
-    });
-  }, [sumYear, sumMonth, sumVehicleId, sumBranchId]);
 
-  useEffect(() => {
-    if (detailTab !== "costs" || detailId == null) {
-      setExpenseReportParams(null);
-      return;
-    }
-    if (costsSubTab !== "report") {
-      setExpenseReportParams(null);
-      return;
-    }
-    const y = new Date().getFullYear();
-    setSumYear(String(y));
-    setSumMonth("");
-    setSumVehicleId(String(detailId));
-    setSumBranchId("");
-    setExpenseReportParams({
-      year: y,
-      month: undefined,
-      vehicleId: detailId,
-      branchId: undefined,
-    });
-  }, [detailTab, costsSubTab, detailId]);
 
-  const summaryQueryEnabled =
-    canEdit &&
-    detailTab === "costs" &&
-    costsSubTab === "report" &&
-    detailId != null &&
-    expenseReportParams != null;
-  const { data: summaryRows = [], isPending: summaryPending } = useVehicleExpenseSummary(
-    expenseReportParams ?? {},
-    summaryQueryEnabled
-  );
+  // ─── Expense modal hook ───────────────────────────────────────────────────
+  const expense = useVehicleExpenseForm({
+    defaultVehicleId: detailId,
+    t,
+  });
+  const expModal = expense.modal;
+  const expType = expense.type;
+  const setExpType = expense.setType;
+  const expAmount = expense.amount;
+  const setExpAmount = expense.setAmount;
+  const expCur = expense.currency;
+  const setExpCur = expense.setCurrency;
+  const expDate = expense.date;
+  const setExpDate = expense.setDate;
+  const expDesc = expense.desc;
+  const setExpDesc = expense.setDesc;
+  const expBranchId = expense.branchId;
+  const setExpBranchId = expense.setBranchId;
+  const expBranchPaySource = expense.branchPaySource;
+  const setExpBranchPaySource = expense.setBranchPaySource;
+  const expPatronPay = expense.patronPay;
+  const setExpPatronPay = expense.setPatronPay;
+  const openAddExpenseForVehicle = expense.openAddFor;
+  const openAddExpense = expense.openAdd;
+  const openEditExpense = expense.openEdit;
+  const saveExpense = expense.save;
 
-  const insCreate = useCreateVehicleInsurance();
-  const insUpdate = useUpdateVehicleInsurance();
-  const insDel = useDeleteVehicleInsurance();
-  const expCreate = useCreateVehicleExpense();
-  const expUpdate = useUpdateVehicleExpense();
-  const expDel = useDeleteVehicleExpense();
-  const maintCreate = useCreateVehicleMaintenance();
-  const maintUpdate = useUpdateVehicleMaintenance();
-  const maintDel = useDeleteVehicleMaintenance();
+  // ─── Insurance modal hook ─────────────────────────────────────────────────
+  const insurance = useVehicleInsuranceForm({
+    defaultVehicleId: detailId,
+    locale,
+    t,
+  });
+  const insModal = insurance.modal;
+  const setInsModal = insurance.setModal;
+  const insEditId = insurance.editId;
+  const insTypeSlug = insurance.typeSlug;
+  const setInsTypeSlug = insurance.setTypeSlug;
+  const insTypeCustom = insurance.typeCustom;
+  const setInsTypeCustom = insurance.setTypeCustom;
+  const insProvSlug = insurance.provSlug;
+  const setInsProvSlug = insurance.setProvSlug;
+  const insProvCustom = insurance.provCustom;
+  const setInsProvCustom = insurance.setProvCustom;
+  const insPolicy = insurance.policy;
+  const setInsPolicy = insurance.setPolicy;
+  const insStart = insurance.start;
+  const setInsStart = insurance.setStart;
+  const insEnd = insurance.end;
+  const setInsEnd = insurance.setEnd;
+  const insAmount = insurance.amount;
+  const setInsAmount = insurance.setAmount;
+  const openAddInsuranceForVehicle = insurance.openAddFor;
+  const openAddInsurance = insurance.openAdd;
+  const openEditInsurance = insurance.openEdit;
+  const saveInsurance = insurance.save;
 
-  const [insModal, setInsModal] = useState<"add" | "edit" | null>(null);
-  const [insEditId, setInsEditId] = useState<number | null>(null);
-  const [insTypeSlug, setInsTypeSlug] = useState("");
-  const [insTypeCustom, setInsTypeCustom] = useState("");
-  const [insProvSlug, setInsProvSlug] = useState("");
-  const [insProvCustom, setInsProvCustom] = useState("");
-  const [insPolicy, setInsPolicy] = useState("");
-  const [insStart, setInsStart] = useState("");
-  const [insEnd, setInsEnd] = useState("");
-  const [insAmount, setInsAmount] = useState("");
+  // ─── Maintenance modal hook ───────────────────────────────────────────────
+  const maintenance = useVehicleMaintenanceForm({ t });
+  const maintModal = maintenance.modal;
+  const maintVehicleId = maintenance.vehicleId;
+  const maintEditId = maintenance.editId;
+  const maintServiceDate = maintenance.serviceDate;
+  const setMaintServiceDate = maintenance.setServiceDate;
+  const maintOdometerStr = maintenance.odometerStr;
+  const setMaintOdometerStr = maintenance.setOdometerStr;
+  const maintType = maintenance.type;
+  const setMaintType = maintenance.setType;
+  const maintWorkshop = maintenance.workshop;
+  const setMaintWorkshop = maintenance.setWorkshop;
+  const maintDesc = maintenance.desc;
+  const setMaintDesc = maintenance.setDesc;
+  const maintCost = maintenance.cost;
+  const setMaintCost = maintenance.setCost;
+  const maintCur = maintenance.currency;
+  const setMaintCur = maintenance.setCurrency;
+  const maintNextDate = maintenance.nextDate;
+  const setMaintNextDate = maintenance.setNextDate;
+  const maintNextKmStr = maintenance.nextKmStr;
+  const setMaintNextKmStr = maintenance.setNextKmStr;
+  const openAddMaintenanceForVehicle = maintenance.openAddFor;
+  const openEditMaintenance = maintenance.openEdit;
+  const saveMaintenance = maintenance.save;
 
-  const [expModal, setExpModal] = useState<"add" | "edit" | null>(null);
-  const [expEditId, setExpEditId] = useState<number | null>(null);
-  const [expType, setExpType] = useState("fuel");
-  const [expAmount, setExpAmount] = useState("");
-  const [expCur, setExpCur] = useState("TRY");
-  const [expDate, setExpDate] = useState(localIsoDate());
-  const [expDesc, setExpDesc] = useState("");
-  const [expBranchId, setExpBranchId] = useState("");
-  const [expBranchPaySource, setExpBranchPaySource] = useState<"REGISTER" | "PATRON">("REGISTER");
-  const [expPatronPay, setExpPatronPay] = useState<"CASH" | "CARD">("CASH");
-  const [expModalVehicleId, setExpModalVehicleId] = useState<number | null>(null);
-  const [insModalVehicleId, setInsModalVehicleId] = useState<number | null>(null);
+  // ─── Odometer modal hook ──────────────────────────────────────────────────
+  const odometer = useVehicleOdometerModal({ t });
+  const kmModalVehicleId = odometer.vehicleId;
+  const kmModalStr = odometer.str;
+  const setKmModalStr = odometer.setStr;
+  const kmModalEnabled = odometer.enabled;
+  const kmModalVehicle = odometer.vehicle;
+  const openKmModal = odometer.openFor;
+  const saveKmModal = odometer.save;
 
-  const [maintModal, setMaintModal] = useState<"add" | "edit" | null>(null);
-  const [maintVehicleId, setMaintVehicleId] = useState<number | null>(null);
-  const [maintEditId, setMaintEditId] = useState<number | null>(null);
-  const [maintServiceDate, setMaintServiceDate] = useState("");
-  const [maintOdometerStr, setMaintOdometerStr] = useState("");
-  const [maintType, setMaintType] = useState("");
-  const [maintWorkshop, setMaintWorkshop] = useState("");
-  const [maintDesc, setMaintDesc] = useState("");
-  const [maintCost, setMaintCost] = useState("");
-  const [maintCur, setMaintCur] = useState("TRY");
-  const [maintNextDate, setMaintNextDate] = useState("");
-  const [maintNextKmStr, setMaintNextKmStr] = useState("");
-
-  const [kmModalVehicleId, setKmModalVehicleId] = useState<number | null>(null);
-  const [kmModalStr, setKmModalStr] = useState("");
-
-  const [assignDlgOpen, setAssignDlgOpen] = useState(false);
-  const [assignDlgVehicleId, setAssignDlgVehicleId] = useState<number | null>(null);
-  const [assignDlgMode, setAssignDlgMode] = useState<AssignMode>("idle");
-  const [assignDlgPersonnelId, setAssignDlgPersonnelId] = useState("");
-  const [assignDlgBranchId, setAssignDlgBranchId] = useState("");
+  // ─── Assignment dialog hook ───────────────────────────────────────────────
+  const assignment = useVehicleAssignmentDialog({ t });
+  const assignDlgOpen = assignment.open;
+  const setAssignDlgOpen = assignment.setOpen;
+  const assignDlgVehicleId = assignment.vehicleId;
+  const assignDlgMode = assignment.mode;
+  const setAssignDlgMode = assignment.setMode;
+  const assignDlgPersonnelId = assignment.personnelId;
+  const setAssignDlgPersonnelId = assignment.setPersonnelId;
+  const assignDlgBranchId = assignment.branchId;
+  const setAssignDlgBranchId = assignment.setBranchId;
+  const saveAssignmentDialog = assignment.save;
 
   const insuranceTypeSelectOptions = useMemo((): SelectOption[] => {
     return [
@@ -943,349 +482,14 @@ export function VehiclesScreen() {
     return base;
   }, [maintType, t]);
 
-  const kmModalEnabled = kmModalVehicleId != null && kmModalVehicleId > 0;
-  const { data: kmModalVehicle } = useVehicle(kmModalVehicleId, kmModalEnabled);
 
-  useEffect(() => {
-    if (!kmModalEnabled || !kmModalVehicle) return;
-    setKmModalStr(kmModalVehicle.odometerKm != null ? String(kmModalVehicle.odometerKm) : "");
-  }, [kmModalEnabled, kmModalVehicle, kmModalVehicleId]);
 
-  const openKmModal = (vehicleId: number) => {
-    setKmModalVehicleId(vehicleId);
-    setKmModalStr("");
-  };
-
-  const saveKmModal = async () => {
-    if (kmModalVehicleId == null) return;
-    const raw = kmModalStr.trim();
-    const parsed = raw ? parseInt(raw, 10) : null;
-    const odometerKm =
-      parsed != null && Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
-    if (raw !== "" && odometerKm == null) {
-      notify.error(t("common.invalid"));
-      return;
-    }
-    try {
-      await patchOdometerMut.mutateAsync({
-        vehicleId: kmModalVehicleId,
-        odometerKm: raw === "" ? null : odometerKm,
-      });
-      notify.success(t("common.saved"));
-      setKmModalVehicleId(null);
-    } catch (e) {
-      notify.error(toErrorMessage(e));
-    }
-  };
-
-  const openAddMaintenanceForVehicle = (vehicleId: number) => {
-    setMaintVehicleId(vehicleId);
-    setMaintEditId(null);
-    setMaintServiceDate(localIsoDate());
-    setMaintOdometerStr("");
-    setMaintType(VEHICLE_MAINTENANCE_TYPE_IDS[0]);
-    setMaintWorkshop("");
-    setMaintDesc("");
-    setMaintCost("");
-    setMaintCur("TRY");
-    setMaintNextDate("");
-    setMaintNextKmStr("");
-    setMaintModal("add");
-  };
-
-  const openEditMaintenance = (vehicleId: number, x: VehicleMaintenance) => {
-    setMaintVehicleId(vehicleId);
-    setMaintEditId(x.id);
-    setMaintServiceDate(x.serviceDate.slice(0, 10));
-    setMaintOdometerStr(x.odometerKm != null ? String(x.odometerKm) : "");
-    setMaintType(x.maintenanceType);
-    setMaintWorkshop(x.workshop ?? "");
-    setMaintDesc(x.description ?? "");
-    setMaintCost(x.cost != null ? String(x.cost) : "");
-    setMaintCur(x.currencyCode);
-    setMaintNextDate(x.nextDueDate?.slice(0, 10) ?? "");
-    setMaintNextKmStr(x.nextDueKm != null ? String(x.nextDueKm) : "");
-    setMaintModal("edit");
-  };
-
-  const saveMaintenance = async () => {
-    if (maintVehicleId == null) return;
-    const sd = maintServiceDate.trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(sd) || !maintType.trim()) {
-      notify.error(t("vehicles.maintenanceFillRequired"));
-      return;
-    }
-    const curNorm = (maintCur.trim() || "TRY").toUpperCase();
-    if (curNorm.length !== 3) {
-      notify.error(t("vehicles.maintenanceFillRequired"));
-      return;
-    }
-    const odomRaw = maintOdometerStr.trim();
-    const odomParsed = odomRaw ? parseInt(odomRaw, 10) : NaN;
-    const odometerKm =
-      Number.isFinite(odomParsed) && odomParsed >= 0 ? odomParsed : null;
-    if (odometerKm == null) {
-      notify.error(t("vehicles.maintenanceCostOdometerRequired"));
-      return;
-    }
-    const nextKmRaw = maintNextKmStr.trim();
-    const nextKmParsed = nextKmRaw ? parseInt(nextKmRaw, 10) : null;
-    const nextDueKm =
-      nextKmParsed != null && Number.isFinite(nextKmParsed) && nextKmParsed >= 0
-        ? nextKmParsed
-        : null;
-    const costRaw = maintCost.trim();
-    const costParsed = costRaw ? parseFloat(costRaw.replace(",", ".")) : NaN;
-    const cost = Number.isFinite(costParsed) && costParsed >= 0 ? costParsed : null;
-    if (cost == null) {
-      notify.error(t("vehicles.maintenanceCostOdometerRequired"));
-      return;
-    }
-    const nextDateIso = maintNextDate.trim() || null;
-    try {
-      if (maintModal === "add") {
-        await maintCreate.mutateAsync({
-          vehicleId: maintVehicleId,
-          serviceDate: sd,
-          odometerKm,
-          maintenanceType: maintType.trim(),
-          workshop: maintWorkshop.trim() || null,
-          description: maintDesc.trim() || null,
-          cost,
-          currencyCode: curNorm,
-          nextDueDate: nextDateIso,
-          nextDueKm: nextKmRaw === "" ? null : nextDueKm,
-        });
-      } else if (maintEditId != null) {
-        await maintUpdate.mutateAsync({
-          vehicleId: maintVehicleId,
-          maintenanceId: maintEditId,
-          serviceDate: sd,
-          odometerKm,
-          maintenanceType: maintType.trim(),
-          workshop: maintWorkshop.trim() || null,
-          description: maintDesc.trim() || null,
-          cost,
-          currencyCode: curNorm,
-          nextDueDate: nextDateIso,
-          nextDueKm: nextKmRaw === "" ? null : nextDueKm,
-        });
-      }
-      notify.success(t("common.saved"));
-      setMaintModal(null);
-      setMaintVehicleId(null);
-    } catch (e) {
-      notify.error(toErrorMessage(e));
-    }
-  };
-
-  const openAddInsuranceForVehicle = (vehicleId: number) => {
-    setInsModalVehicleId(vehicleId);
-    setInsEditId(null);
-    setInsTypeSlug("");
-    setInsTypeCustom("");
-    setInsProvSlug("");
-    setInsProvCustom("");
-    setInsPolicy("");
-    setInsStart(localIsoDate());
-    setInsEnd(localIsoDate());
-    setInsAmount("");
-    setInsModal("add");
-  };
-
-  const openAddInsurance = () => {
-    if (!detailId) return;
-    openAddInsuranceForVehicle(detailId);
-  };
-
-  const openEditInsurance = (x: VehicleInsurance) => {
-    if (detailId) setInsModalVehicleId(detailId);
-    setInsEditId(x.id);
-    const tm = matchInsurancePresetSlug(
-      x.insuranceType,
-      [...VEHICLE_INSURANCE_TYPE_SLUGS],
-      VEHICLE_INSURANCE_OTHER_SLUG,
-      t,
-      "vehicles.insuranceTypeOptions",
-      VEHICLE_INSURANCE_TYPE_ALIASES
-    );
-    setInsTypeSlug(tm.slug);
-    setInsTypeCustom(tm.custom);
-    const pm = matchInsurancePresetSlug(
-      x.provider ?? "",
-      [...VEHICLE_INSURANCE_COMPANY_SLUGS],
-      VEHICLE_INSURANCE_OTHER_SLUG,
-      t,
-      "vehicles.insuranceCompanyOptions",
-      VEHICLE_INSURANCE_COMPANY_ALIASES
-    );
-    setInsProvSlug(pm.slug);
-    setInsProvCustom(pm.custom);
-    setInsPolicy(x.policyNumber ?? "");
-    setInsStart(x.startDate.slice(0, 10));
-    setInsEnd(x.endDate.slice(0, 10));
-    setInsAmount(
-      x.amount != null && Number.isFinite(x.amount)
-        ? formatLocaleAmountInput(x.amount, locale)
-        : ""
-    );
-    setInsModal("edit");
-  };
-
-  const saveInsurance = async () => {
-    const vid = insModalVehicleId ?? detailId;
-    if (!vid) return;
-    const resolvedType =
-      insTypeSlug === VEHICLE_INSURANCE_OTHER_SLUG
-        ? insTypeCustom.trim()
-        : insTypeSlug
-          ? t(`vehicles.insuranceTypeOptions.${insTypeSlug}`)
-          : "";
-    const resolvedProvider =
-      insProvSlug === VEHICLE_INSURANCE_OTHER_SLUG
-        ? insProvCustom.trim()
-        : insProvSlug
-          ? t(`vehicles.insuranceCompanyOptions.${insProvSlug}`)
-          : "";
-    const sd = insStart.trim();
-    const ed = insEnd.trim();
-    if (
-      !resolvedType ||
-      !resolvedProvider ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(sd) ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(ed)
-    ) {
-      notify.error(t("vehicles.insuranceFillRequired"));
-      return;
-    }
-    const amtParsed = parseLocaleAmount(insAmount.trim(), locale);
-    const amt =
-      insAmount.trim() === "" || !Number.isFinite(amtParsed) ? null : amtParsed;
-    try {
-      if (insModal === "add") {
-        await insCreate.mutateAsync({
-          vehicleId: vid,
-          insuranceType: resolvedType,
-          provider: resolvedProvider || null,
-          policyNumber: insPolicy.trim() || null,
-          startDate: sd,
-          endDate: ed,
-          amount: amt,
-        });
-      } else if (insEditId) {
-        await insUpdate.mutateAsync({
-          vehicleId: vid,
-          insuranceId: insEditId,
-          insuranceType: resolvedType,
-          provider: resolvedProvider || null,
-          policyNumber: insPolicy.trim() || null,
-          startDate: sd,
-          endDate: ed,
-          amount: amt,
-        });
-      }
-      notify.success(t("common.saved"));
-      setInsModal(null);
-      setInsModalVehicleId(null);
-    } catch (e) {
-      notify.error(toErrorMessage(e));
-    }
-  };
 
   const openAddMaintenanceFromDetail = () => {
     if (!detailId) return;
     openAddMaintenanceForVehicle(detailId);
   };
 
-  const openAddExpenseForVehicle = (vehicleId: number) => {
-    setExpModalVehicleId(vehicleId);
-    setExpEditId(null);
-    setExpType("fuel");
-    setExpAmount("");
-    setExpCur("TRY");
-    setExpDate(localIsoDate());
-    setExpDesc("");
-    setExpBranchId("");
-    setExpBranchPaySource("REGISTER");
-    setExpPatronPay("CASH");
-    setExpModal("add");
-  };
-
-  const openAddExpense = () => {
-    if (!detailId) return;
-    openAddExpenseForVehicle(detailId);
-  };
-
-  const openEditExpense = (x: VehicleExpense) => {
-    if (detailId) setExpModalVehicleId(detailId);
-    setExpEditId(x.id);
-    setExpType(x.expenseType);
-    setExpAmount(String(x.amount));
-    setExpCur(x.currencyCode);
-    setExpDate(x.expenseDate.slice(0, 10));
-    setExpDesc(x.description ?? "");
-    setExpBranchId(
-      x.postedBranchId != null && x.postedBranchId > 0 ? String(x.postedBranchId) : ""
-    );
-    const src = (x.postedExpensePaymentSource ?? "REGISTER").toUpperCase();
-    setExpBranchPaySource(src === "PATRON" ? "PATRON" : "REGISTER");
-    const card = x.postedRegisterCardAmount ?? 0;
-    const cash = x.postedRegisterCashAmount ?? 0;
-    setExpPatronPay(card > 0 && cash <= 0 ? "CARD" : "CASH");
-    setExpModal("edit");
-  };
-
-  const saveExpense = async () => {
-    const vid = expModalVehicleId ?? detailId;
-    if (!vid) return;
-    const amt = parseFloat(expAmount.replace(",", "."));
-    if (!Number.isFinite(amt)) {
-      notify.error(t("common.invalid"));
-      return;
-    }
-    const brRaw = expBranchId.trim();
-    const branchIdParsed = brRaw ? parseInt(brRaw, 10) : null;
-    const branchId =
-      branchIdParsed != null && Number.isFinite(branchIdParsed) && branchIdParsed > 0
-        ? branchIdParsed
-        : null;
-    const branchExpensePaymentSource = branchId != null ? expBranchPaySource : undefined;
-    const patronPaymentMethod =
-      branchId != null && expBranchPaySource === "PATRON" ? expPatronPay : undefined;
-    try {
-      if (expModal === "add") {
-        await expCreate.mutateAsync({
-          vehicleId: vid,
-          expenseType: expType.trim(),
-          amount: amt,
-          currencyCode: expCur.trim() || "TRY",
-          expenseDate: expDate,
-          description: expDesc.trim() || null,
-          branchId,
-          branchExpensePaymentSource,
-          patronPaymentMethod,
-        });
-      } else if (expEditId) {
-        await expUpdate.mutateAsync({
-          vehicleId: vid,
-          expenseId: expEditId,
-          expenseType: expType.trim(),
-          amount: amt,
-          currencyCode: expCur.trim() || "TRY",
-          expenseDate: expDate,
-          description: expDesc.trim() || null,
-          branchId,
-          branchExpensePaymentSource,
-          patronPaymentMethod,
-        });
-      }
-      notify.success(t("common.saved"));
-      setExpModal(null);
-      setExpModalVehicleId(null);
-    } catch (e) {
-      notify.error(toErrorMessage(e));
-    }
-  };
 
   const insuranceBadgeLabel = (b: VehicleInsuranceBadge) => {
     switch (b) {
@@ -1342,239 +546,43 @@ export function VehiclesScreen() {
         }
         main={
           <Card className="min-w-0 p-3 sm:p-4" title={t("common.pageSectionMain")}>
-            <TableToolbarSplit
-              className="mb-1 sm:mb-2"
-              lead={
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder={t("vehicles.listFilterPlaceholder")}
-                  className="w-full text-base sm:text-sm"
-                  name="vehicles-list-search"
-                  autoComplete="off"
-                  aria-label={t("vehicles.listFilterPlaceholder")}
-                />
-              }
-              trailing={
-                canEdit ? (
-                  <Tooltip content={t("vehicles.addVehicle")} delayMs={200}>
-                    <Button
-                      type="button"
-                      variant="primary"
-                      onClick={openAdd}
-                      className={TABLE_TOOLBAR_ICON_BTN}
-                      aria-label={t("vehicles.addVehicle")}
-                    >
-                      <PlusIcon />
-                    </Button>
-                  </Tooltip>
-                ) : null
-              }
+            <VehicleListPanel
+              vehicles={filtered}
+              search={search}
+              onSearchChange={setSearch}
+              canEdit={canEdit}
+              isPending={isPending}
+              isError={isError}
+              deletePending={editForm.deleteBusy}
+              locale={locale}
+              vehicleStatusLabel={vehicleStatusLabel}
+              insuranceBadgeLabel={insuranceBadgeLabel}
+              onAddVehicle={openAdd}
+              onOpenDetail={(r) => {
+                setDetailId(r.id);
+                setDetailTab("overview");
+              }}
+              onEdit={openEdit}
+              onDelete={confirmDeleteVehicle}
+              onAddMaintenance={openAddMaintenanceForVehicle}
+              onEditOdometer={openKmModal}
+              onChangeAssignment={openAssignmentFromListRow}
+              onAddExpense={openAddExpenseForVehicle}
+              onAddInsurance={openAddInsuranceForVehicle}
+              t={t}
             />
-        {isError ? (
-          <p className="mt-3 text-sm text-zinc-600">{t("toast.loadFailed")}</p>
-        ) : isPending ? (
-          <p className="mt-3 text-sm text-zinc-500">{t("common.loading")}</p>
-        ) : (
-          <>
-            <ul className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {filtered.map((r) => {
-                const extrasSections = buildVehicleRowMenuSections({
-                  canEdit,
-                  t,
-                  onView: () => {
-                    setDetailId(r.id);
-                    setDetailTab("overview");
-                  },
-                  onEdit: () => openEdit(r),
-                  onDelete: () => confirmDeleteVehicle(r.id),
-                  onAddMaintenance: () => openAddMaintenanceForVehicle(r.id),
-                  onEditKm: () => openKmModal(r.id),
-                  onChangeAssignment: () => openAssignmentFromListRow(r),
-                  onAddExpense: () => openAddExpenseForVehicle(r.id),
-                  onAddInsurance: () => openAddInsuranceForVehicle(r.id),
-                  menuMode: "extras",
-                });
-                const assignmentShown =
-                  r.assignedPersonnelName ?? r.assignedBranchName ?? t("vehicles.idle");
-                return (
-                  <VehicleFleetCard
-                    key={r.id}
-                    vehicle={r}
-                    locale={locale}
-                    canEdit={canEdit}
-                    deletePending={deleteV.isPending}
-                    extrasSections={extrasSections}
-                    statusDescription={vehicleStatusLabel(t, r.status)}
-                    insuranceDescription={insuranceBadgeLabel(r.insuranceBadge)}
-                    assignmentDescription={assignmentShown}
-                    onOpenDetail={() => {
-                      setDetailId(r.id);
-                      setDetailTab("overview");
-                    }}
-                    onEdit={() => openEdit(r)}
-                    onDelete={() => confirmDeleteVehicle(r.id)}
-                    openDetailsLabel={t("common.openDetails")}
-                    editLabel={t("common.edit")}
-                    deleteLabel={t("vehicles.deleteVehicle")}
-                    menuExtrasLabel={t("vehicles.rowMenuExtras")}
-                  />
-                );
-              })}
-            </ul>
-          </>
-        )}
           </Card>
         }
       />
 
-      <Modal
-        open={vehicleModal != null}
-        onClose={requestCloseVehicleModal}
-        titleId="vehicle-form-title"
-        title={vehicleModal === "add" ? t("vehicles.addVehicle") : t("vehicles.editVehicle")}
-        narrow
-        className="lg:!max-w-4xl xl:!max-w-5xl"
+      <VehicleEditModal
+        state={editForm}
+        personnelOptions={personnelRows}
+        branchOptions={branchRows}
         nested={detailId != null}
-      >
-        <div className="grid grid-cols-1 gap-3 p-1 lg:grid-cols-2">
-          <Input label={t("vehicles.plate")} value={plate} onChange={(e) => setPlate(e.target.value)} />
-          <Input label={t("vehicles.brand")} value={brand} onChange={(e) => setBrand(e.target.value)} />
-          <Input label={t("vehicles.model")} value={model} onChange={(e) => setModel(e.target.value)} />
-          <Input label={t("vehicles.year")} value={year} onChange={(e) => setYear(e.target.value)} />
-          <Select
-            name="vehicle-status"
-            label={t("vehicles.status")}
-            value={status}
-            onBlur={() => {}}
-            onChange={(e) => setStatus(e.target.value)}
-            options={[
-              { value: "ACTIVE", label: t("vehicles.statusActive") },
-              { value: "INACTIVE", label: t("vehicles.statusInactive") },
-              { value: "MAINTENANCE", label: t("vehicles.statusMaintenance") },
-            ]}
-          />
-          <Select
-            name="vehicle-assign-mode"
-            label={t("vehicles.assignment")}
-            value={assignMode}
-            onBlur={() => {}}
-            onChange={(e) => setAssignMode(e.target.value as AssignMode)}
-            options={[
-              { value: "idle", label: t("vehicles.idle") },
-              { value: "personnel", label: t("vehicles.assignedPerson") },
-              { value: "branch", label: t("vehicles.assignedBranch") },
-            ]}
-          />
-          {assignMode === "personnel" ? (
-            <Select
-              name="vehicle-personnel"
-              label={t("vehicles.assignedPerson")}
-              value={personnelId}
-              onBlur={() => {}}
-              onChange={(e) => setPersonnelId(e.target.value)}
-              options={[
-                { value: "", label: "—" },
-                ...personnelRows.map((p) => ({
-                  value: String(p.id),
-                  label: p.fullName,
-                })),
-              ]}
-            />
-          ) : null}
-          {assignMode === "branch" ? (
-            <Select
-              name="vehicle-branch"
-              label={t("vehicles.assignedBranch")}
-              value={branchId}
-              onBlur={() => {}}
-              onChange={(e) => setBranchId(e.target.value)}
-              options={[
-                { value: "", label: "—" },
-                ...branchRows.map((b) => ({
-                  value: String(b.id),
-                  label: b.name,
-                })),
-              ]}
-            />
-          ) : null}
-          <Input
-            label={t("vehicles.odometerKm")}
-            value={odometerKmStr}
-            onChange={(e) => setOdometerKmStr(formatGroupedIntegerInput(e.target.value, locale))}
-            inputMode="numeric"
-            placeholder="—"
-          />
-          <DateField
-            label={t("vehicles.inspectionValidUntil")}
-            value={inspectionUntil}
-            onChange={(e) => setInspectionUntil(e.target.value)}
-          />
-          <Input
-            label={t("vehicles.serviceIntervalKm")}
-            value={serviceIntervalKmStr}
-            onChange={(e) => setServiceIntervalKmStr(e.target.value)}
-            inputMode="numeric"
-            placeholder="—"
-          />
-          <Input
-            label={t("vehicles.serviceIntervalMonths")}
-            value={serviceIntervalMonthsStr}
-            onChange={(e) => setServiceIntervalMonthsStr(e.target.value)}
-            inputMode="numeric"
-            placeholder="—"
-          />
-          <div className="flex flex-col gap-1 lg:col-span-2">
-            <label className="text-sm font-medium text-zinc-700" htmlFor="vehicle-notes">
-              {t("vehicles.notes")}
-            </label>
-            <textarea
-              id="vehicle-notes"
-              name="vehicle-notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-              className="min-h-[5.5rem] w-full resize-y rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base text-zinc-900 outline-none ring-zinc-900 focus:border-zinc-900 focus:ring-2"
-            />
-          </div>
-          {assignMode === "personnel" ? (
-            <>
-              <DateField
-                label={t("vehicles.driverSrcValidUntil")}
-                value={driverSrc}
-                onChange={(e) => setDriverSrc(e.target.value)}
-              />
-              <DateField
-                label={t("vehicles.driverPsychotechnicalValidUntil")}
-                value={driverPsy}
-                onChange={(e) => setDriverPsy(e.target.value)}
-              />
-            </>
-          ) : null}
-          <div className="mt-2 flex flex-col-reverse gap-2 lg:col-span-2 sm:flex-row sm:justify-end">
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full !min-h-12 touch-manipulation sm:!min-h-10 sm:w-auto"
-              onClick={requestCloseVehicleModal}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              type="button"
-              className="w-full !min-h-12 touch-manipulation sm:!min-h-10 sm:w-auto"
-              onClick={() => void saveVehicle()}
-              disabled={
-                createV.isPending ||
-                updateV.isPending ||
-                (vehicleModal === "edit" && editRow != null && editFormDetailPending)
-              }
-            >
-              {t("common.save")}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        locale={locale}
+        t={t}
+      />
 
       <Modal
         open={detailId != null}
@@ -1629,1286 +637,114 @@ export function VehiclesScreen() {
               aria-labelledby={`vehicle-detail-tab-${detailTab}`}
               className="min-h-0 min-w-0 flex-1"
             >
+
             {detailTab === "overview" ? (
-              <div className="space-y-4">
-                <div className="overflow-hidden rounded-2xl border border-zinc-200/90 bg-white shadow-[0_1px_3px_rgba(15,23,42,0.06)] ring-1 ring-zinc-100/80">
-                  <div className="border-b border-zinc-800/20 bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900 px-4 py-4 sm:px-5 sm:py-5">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="text-[0.65rem] font-semibold uppercase tracking-wider text-zinc-400">
-                          {t("vehicles.plate")}
-                        </p>
-                        <p className="mt-0.5 font-mono text-2xl font-bold tracking-[0.08em] text-white sm:text-[1.65rem]">
-                          {detail.plateNumber}
-                        </p>
-                        <p className="mt-1.5 text-sm text-zinc-300">
-                          {detail.brand} {detail.model}
-                          {detail.year != null ? ` · ${detail.year}` : ""}
-                        </p>
-                      </div>
-                      <StatusBadge
-                        surface="dark"
-                        tone={vehicleHeaderStatusTone(detail.status)}
-                        size="md"
-                        className="w-fit font-bold"
-                      >
-                        {vehicleStatusLabel(t, detail.status)}
-                      </StatusBadge>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,17rem)_1fr] lg:gap-6">
-                    <section
-                      className="flex min-h-0 flex-col rounded-xl border border-dashed border-zinc-200/90 bg-zinc-50/60 p-3 ring-1 ring-zinc-100/60 sm:p-4"
-                      aria-label={t("vehicles.vehiclePhoto")}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-[0.65rem] font-bold uppercase tracking-wide text-zinc-500">
-                          {t("vehicles.vehiclePhoto")}
-                        </h3>
-                      </div>
-                      <div className="mt-3 flex min-h-[10rem] flex-1 flex-col items-center justify-center overflow-hidden rounded-lg border border-zinc-200/80 bg-white shadow-inner">
-                        {detail.hasPhoto ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={vehiclePhotoUrl(detail.id, photoCacheBust)}
-                            alt=""
-                            className="max-h-52 w-full object-contain"
-                          />
-                        ) : (
-                          <p className="px-3 text-center text-sm text-zinc-500">{t("vehicles.noPhoto")}</p>
-                        )}
-                      </div>
-                      {canEdit ? (
-                        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                          <input
-                            id={`vehicle-detail-photo-${detail.id}`}
-                            type="file"
-                            accept="image/jpeg,image/png,image/webp,image/heic,image/avif"
-                            className="sr-only"
-                            onChange={(e) => {
-                              const input = e.currentTarget;
-                              const f = input.files?.[0];
-                              if (!f) return;
-                              void (async () => {
-                                try {
-                                  await uploadVehiclePhotoMut.mutateAsync({
-                                    vehicleId: detail.id,
-                                    file: f,
-                                  });
-                                  setPhotoCacheBust(Date.now());
-                                  notify.success(t("common.saved"));
-                                } catch (err) {
-                                  notify.error(toErrorMessage(err));
-                                } finally {
-                                  input.value = "";
-                                }
-                              })();
-                            }}
-                          />
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className="w-full !min-h-11 touch-manipulation shadow-sm sm:w-auto sm:!min-h-10"
-                            disabled={uploadVehiclePhotoMut.isPending}
-                            onClick={() =>
-                              document.getElementById(`vehicle-detail-photo-${detail.id}`)?.click()
-                            }
-                          >
-                            {t("vehicles.uploadPhoto")}
-                          </Button>
-                          {detail.hasPhoto ? (
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="w-full !min-h-11 touch-manipulation shadow-sm sm:w-auto sm:!min-h-10"
-                              disabled={deleteVehiclePhotoMut.isPending}
-                              onClick={() =>
-                                void notifyConfirmToast({
-                                  toastId: `vehicle-photo-delete-${detail.id}`,
-                                  message: t("vehicles.confirmDeletePhoto"),
-                                  confirmLabel: t("vehicles.deletePhoto"),
-                                  cancelLabel: t("common.cancel"),
-                                  onConfirm: async () => {
-                                    try {
-                                      await deleteVehiclePhotoMut.mutateAsync(detail.id);
-                                      setPhotoCacheBust(Date.now());
-                                      notify.success(t("common.saved"));
-                                    } catch (err) {
-                                      notify.error(toErrorMessage(err));
-                                    }
-                                  },
-                                })
-                              }
-                            >
-                              {t("vehicles.deletePhoto")}
-                            </Button>
-                          ) : null}
-                        </div>
-                      ) : null}
-
-                    </section>
-
-                    <div className="min-w-0 space-y-4">
-                      <section
-                        className="rounded-xl border border-zinc-200/80 bg-white p-3 shadow-sm sm:p-4"
-                        aria-labelledby="vehicle-overview-lines-heading"
-                      >
-                        <div
-                          id="vehicle-overview-lines-heading"
-                          className="mb-1 flex items-center gap-2 border-b border-zinc-100 pb-2"
-                        >
-                          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 text-violet-700">
-                            <svg
-                              viewBox="0 0 24 24"
-                              width={18}
-                              height={18}
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="1.75"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              aria-hidden
-                            >
-                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                              <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
-                            </svg>
-                          </span>
-                          <h3 className="text-sm font-semibold text-zinc-900">{t("vehicles.tabOverview")}</h3>
-                        </div>
-                        <div className="px-0.5">
-                          <VehicleOverviewRow
-                            label={`${t("vehicles.brand")} / ${t("vehicles.model")}`}
-                            value={`${detail.brand} ${detail.model}`.trim() || "—"}
-                            icon={
-                              <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="1.75"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
-                                <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.3-1.5-2.1c-.2-.8-.7-1.4-1.5-1.4H8.5c-.8 0-1.3.6-1.5 1.4C6.8 8.7 5.5 10 5.5 10 3.3 10 2 11.7 2 14v3c0 .6.4 1 1 1h2" />
-                                <circle cx="7" cy="17" r="2" />
-                                <path d="M9 17h6" />
-                                <circle cx="17" cy="17" r="2" />
-                              </svg>
-                            }
-                          />
-                          <VehicleOverviewRow
-                            label={t("vehicles.year")}
-                            value={detail.year ?? "—"}
-                            icon={
-                              <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="1.75"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
-                                <path d="M8 2v4M16 2v4" />
-                                <rect x="3" y="4" width="18" height="18" rx="2" />
-                                <path d="M3 10h18" />
-                              </svg>
-                            }
-                          />
-                          <VehicleOverviewRow
-                            label={t("vehicles.odometerKm")}
-                            value={
-                              detail.odometerKm != null
-                                ? new Intl.NumberFormat(locale === "tr" ? "tr-TR" : "en-US").format(
-                                    detail.odometerKm
-                                  )
-                                : "—"
-                            }
-                            icon={
-                              <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="1.75"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
-                                <circle cx="12" cy="12" r="10" />
-                                <path d="M12 6v6l4 2" />
-                              </svg>
-                            }
-                          />
-                          <VehicleOverviewRow
-                            label={t("vehicles.inspectionValidUntil")}
-                            value={
-                              detail.inspectionValidUntil
-                                ? new Date(`${detail.inspectionValidUntil}T12:00:00`).toLocaleDateString(
-                                    locale === "tr" ? "tr-TR" : "en-US"
-                                  )
-                                : "—"
-                            }
-                            icon={
-                              <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="1.75"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
-                                <path d="M8 2v4M16 2v4" />
-                                <rect x="3" y="4" width="18" height="18" rx="2" />
-                                <path d="M3 10h18" />
-                              </svg>
-                            }
-                          />
-                          {detail.assignedPersonnelId ? (
-                            <>
-                              <VehicleOverviewRow
-                                label={t("vehicles.driverSrcValidUntil")}
-                                value={
-                                  detail.driverSrcValidUntil
-                                    ? new Date(
-                                        `${detail.driverSrcValidUntil}T12:00:00`
-                                      ).toLocaleDateString(locale === "tr" ? "tr-TR" : "en-US")
-                                    : "—"
-                                }
-                                icon={
-                                  <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="1.75"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  >
-                                    <path d="M8 2v4M16 2v4" />
-                                    <rect x="3" y="4" width="18" height="18" rx="2" />
-                                    <path d="M3 10h18" />
-                                  </svg>
-                                }
-                              />
-                              <VehicleOverviewRow
-                                label={t("vehicles.driverPsychotechnicalValidUntil")}
-                                value={
-                                  detail.driverPsychotechnicalValidUntil
-                                    ? new Date(
-                                        `${detail.driverPsychotechnicalValidUntil}T12:00:00`
-                                      ).toLocaleDateString(locale === "tr" ? "tr-TR" : "en-US")
-                                    : "—"
-                                }
-                                icon={
-                                  <svg
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="1.75"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  >
-                                    <path d="M8 2v4M16 2v4" />
-                                    <rect x="3" y="4" width="18" height="18" rx="2" />
-                                    <path d="M3 10h18" />
-                                  </svg>
-                                }
-                              />
-                            </>
-                          ) : null}
-                          <VehicleOverviewRow
-                            label={t("vehicles.assignment")}
-                            value={
-                              <span className="inline-flex flex-col items-end gap-2 sm:flex-row sm:items-center sm:gap-3">
-                                <span className="break-words font-semibold text-zinc-900">
-                                  {detail.assignedPersonnelName ??
-                                    detail.assignedBranchName ??
-                                    t("vehicles.idle")}
-                                </span>
-                                {canEdit ? (
-                                  <Button
-                                    type="button"
-                                    variant="secondary"
-                                    className="!min-h-10 w-full shrink-0 touch-manipulation shadow-sm sm:w-auto"
-                                    onClick={openAssignmentDialogFromDetail}
-                                  >
-                                    {t("vehicles.changeAssignment")}
-                                  </Button>
-                                ) : null}
-                              </span>
-                            }
-                            icon={
-                              <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="1.75"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
-                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                                <circle cx="9" cy="7" r="4" />
-                                <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-                              </svg>
-                            }
-                          />
-                          <VehicleOverviewRow
-                            label={t("vehicles.notes")}
-                            value={
-                              <span className="whitespace-pre-wrap font-normal text-zinc-800">
-                                {detail.notes?.trim() ? detail.notes : "—"}
-                              </span>
-                            }
-                            icon={
-                              <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="1.75"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
-                              </svg>
-                            }
-                          />
-                          <VehicleOverviewRow
-                            label={t("vehicles.insuranceBadge")}
-                            value={
-                              <span
-                                className={cn(
-                                  "inline-flex rounded-full px-2.5 py-1 text-[0.65rem] font-bold uppercase ring-1",
-                                  badgeClasses(detail.insuranceBadge)
-                                )}
-                              >
-                                {insuranceBadgeLabel(detail.insuranceBadge)}
-                              </span>
-                            }
-                            icon={
-                              <svg
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                strokeWidth="1.75"
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                              >
-                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                              </svg>
-                            }
-                          />
-                        </div>
-                      </section>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <VehicleDetailOverviewTab
+                detail={detail}
+                canEdit={canEdit}
+                locale={locale}
+                photoCacheBust={photoCacheBust}
+                setPhotoCacheBust={setPhotoCacheBust}
+                uploadPhotoMut={uploadVehiclePhotoMut}
+                deletePhotoMut={deleteVehiclePhotoMut}
+                onChangeAssignment={openAssignmentDialogFromDetail}
+                insuranceBadgeLabel={insuranceBadgeLabel}
+                t={t}
+              />
             ) : null}
 
             {detailTab === "service" ? (
-              <div className="flex flex-col gap-8">
-                <section
-                  className="rounded-2xl border border-zinc-200/80 bg-zinc-50/40 p-4 ring-1 ring-zinc-100/60 sm:p-5"
-                  aria-labelledby="vehicle-service-plan-heading"
-                >
-                  <h3
-                    id="vehicle-service-plan-heading"
-                    className="text-sm font-semibold tracking-tight text-zinc-900"
-                  >
-                    {t("vehicles.serviceSectionPlan")}
-                  </h3>
-                  <p className="mt-2 text-pretty text-sm leading-relaxed text-zinc-600">
-                    {t("vehicles.maintenancePlanHint")}
-                  </p>
-                  <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <div className="min-w-0 rounded-xl border border-zinc-200/80 bg-white/80 p-3 shadow-sm">
-                      <p className="text-[0.65rem] font-bold uppercase text-zinc-400">
-                        {t("vehicles.serviceIntervalKm")}
-                      </p>
-                      <p className="mt-1 text-base font-semibold tabular-nums text-zinc-900 sm:text-lg">
-                        {detail.serviceIntervalKm == null
-                          ? "—"
-                          : new Intl.NumberFormat(locale === "tr" ? "tr-TR" : "en-US").format(
-                              detail.serviceIntervalKm
-                            )}
-                      </p>
-                    </div>
-                    <div className="min-w-0 rounded-xl border border-zinc-200/80 bg-white/80 p-3 shadow-sm">
-                      <p className="text-[0.65rem] font-bold uppercase text-zinc-400">
-                        {t("vehicles.serviceIntervalMonths")}
-                      </p>
-                      <p className="mt-1 text-base font-semibold tabular-nums text-zinc-900 sm:text-lg">
-                        {detail.serviceIntervalMonths == null
-                          ? "—"
-                          : new Intl.NumberFormat(locale === "tr" ? "tr-TR" : "en-US").format(
-                              detail.serviceIntervalMonths
-                            )}
-                      </p>
-                    </div>
-                  </div>
-                </section>
-
-                <section className="flex flex-col gap-3" aria-labelledby="vehicle-service-log-heading">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <h3
-                      id="vehicle-service-log-heading"
-                      className="text-sm font-semibold tracking-tight text-zinc-900"
-                    >
-                      {t("vehicles.serviceSectionLog")}
-                    </h3>
-                    {canEdit ? (
-                      <Button
-                        type="button"
-                        className="w-full !min-h-11 shrink-0 px-3 text-sm sm:w-auto sm:!min-h-9"
-                        onClick={openAddMaintenanceFromDetail}
-                      >
-                        {t("vehicles.addMaintenance")}
-                      </Button>
-                    ) : null}
-                  </div>
-                {(detail.maintenances ?? []).length === 0 ? (
-                  <p className="text-sm text-zinc-500">{t("vehicles.emptyMaintenances")}</p>
-                ) : (
-                  <>
-                    <Select
-                      name="vehicle-maintenance-log-filter"
-                      label={t("vehicles.maintenanceFilterByType")}
-                      value={maintLogFilterType}
-                      onBlur={() => {}}
-                      onChange={(e) => setMaintLogFilterType(e.target.value)}
-                      options={maintenanceLogFilterSelectOptions}
-                      className="max-w-md"
-                    />
-                    {filteredVehicleMaintenances.length === 0 ? (
-                      <p className="text-sm text-zinc-500">{t("vehicles.maintenanceFilterNoResults")}</p>
-                    ) : (
-                      <>
-                    <ul className="flex flex-col gap-4 md:hidden">
-                      {filteredVehicleMaintenances.map((x) => {
-                        const nextDueLabel = x.nextDueDate
-                          ? x.nextDueDate.slice(0, 10)
-                          : x.nextDueKm != null
-                            ? `${new Intl.NumberFormat(locale === "tr" ? "tr-TR" : "en-US").format(x.nextDueKm)} km`
-                            : null;
-                        return (
-                          <MobileListCard
-                            as="li"
-                            key={x.id}
-                            className="flex flex-col gap-2 bg-white"
-                          >
-                            <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
-                              <div className="min-w-0 flex-1 overflow-hidden">
-                                <p className="truncate font-semibold text-zinc-900">
-                                  {labelVehicleMaintenanceType(x.maintenanceType, t)}
-                                </p>
-                                <p className="mt-0.5 text-xs text-zinc-500">
-                                  {t("vehicles.maintenanceServiceDate")}: {x.serviceDate.slice(0, 10)}
-                                </p>
-                              </div>
-                              <p className="shrink-0 tabular-nums text-sm font-medium text-zinc-800">
-                                {x.cost != null
-                                  ? formatLocaleAmount(x.cost, locale, x.currencyCode)
-                                  : "—"}
-                              </p>
-                            </div>
-                            <dl className="mt-2 grid grid-cols-1 gap-1.5 text-xs text-zinc-600">
-                              <div className="flex justify-between gap-2">
-                                <dt>{t("vehicles.odometerKm")}</dt>
-                                <dd className="tabular-nums text-zinc-800">
-                                  {x.odometerKm != null
-                                    ? new Intl.NumberFormat(locale === "tr" ? "tr-TR" : "en-US").format(
-                                        x.odometerKm
-                                      )
-                                    : "—"}
-                                </dd>
-                              </div>
-                              <div className="flex justify-between gap-2">
-                                <dt>{t("vehicles.maintenanceWorkshop")}</dt>
-                                <dd className="max-w-[60%] text-right text-zinc-800">
-                                  {x.workshop ?? "—"}
-                                </dd>
-                              </div>
-                              {nextDueLabel ? (
-                                <div className="flex justify-between gap-2">
-                                  <dt>{t("vehicles.maintenanceNextDueDate")}</dt>
-                                  <dd className="text-zinc-800">{nextDueLabel}</dd>
-                                </div>
-                              ) : null}
-                              {x.description?.trim() ? (
-                                <div className="border-t border-zinc-100 pt-2 text-zinc-700">
-                                  {x.description}
-                                </div>
-                              ) : null}
-                            </dl>
-                            {canEdit ? (
-                              <div className="mt-3 flex flex-col gap-2">
-                                <Button
-                                  type="button"
-                                  variant="secondary"
-                                  className="w-full !min-h-11 touch-manipulation"
-                                  onClick={() => openEditMaintenance(detail.id, x)}
-                                >
-                                  {t("common.edit")}
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="secondary"
-                                  className="w-full !min-h-11 touch-manipulation text-red-700 ring-red-200 hover:bg-red-50"
-                                  onClick={() =>
-                                    notifyConfirmToast({
-                                      toastId: `vm-del-${x.id}`,
-                                      title: t("vehicles.delete"),
-                                      message: t("vehicles.confirmDeleteMaintenance"),
-                                      cancelLabel: t("common.cancel"),
-                                      confirmLabel: t("vehicles.delete"),
-                                      onConfirm: async () => {
-                                        try {
-                                          await maintDel.mutateAsync({
-                                            vehicleId: detail.id,
-                                            maintenanceId: x.id,
-                                          });
-                                          notify.success(t("common.saved"));
-                                        } catch (e) {
-                                          notify.error(toErrorMessage(e));
-                                        }
-                                      },
-                                    })
-                                  }
-                                >
-                                  {t("vehicles.delete")}
-                                </Button>
-                              </div>
-                            ) : null}
-                          </MobileListCard>
-                        );
-                      })}
-                    </ul>
-                    <div className="hidden md:block">
-                      <div className="-mx-1 min-w-0 overflow-x-auto rounded-lg sm:mx-0">
-                        <Table className="min-w-[40rem] text-sm sm:min-w-0 sm:text-base">
-                          <TableHead>
-                            <TableRow>
-                              <TableHeader>{t("vehicles.maintenanceServiceDate")}</TableHeader>
-                              <TableHeader>{t("vehicles.maintenanceType")}</TableHeader>
-                              <TableHeader className="hidden sm:table-cell">{t("vehicles.odometerKm")}</TableHeader>
-                              <TableHeader className="hidden md:table-cell">
-                                {t("vehicles.maintenanceWorkshop")}
-                              </TableHeader>
-                              <TableHeader>{t("vehicles.amount")}</TableHeader>
-                              <TableHeader className="hidden md:table-cell">
-                                {t("vehicles.maintenanceNextDueDate")}
-                              </TableHeader>
-                              <TableHeader className="w-[1%]" />
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {filteredVehicleMaintenances.map((x) => (
-                              <TableRow key={x.id}>
-                                <TableCell className="whitespace-nowrap">
-                                  {x.serviceDate.slice(0, 10)}
-                                </TableCell>
-                                <TableCell className="max-w-[10rem] truncate">
-                                  {labelVehicleMaintenanceType(x.maintenanceType, t)}
-                                </TableCell>
-                                <TableCell className="max-sm:hidden sm:max-md:flex sm:max-md:w-full sm:max-md:min-w-0 sm:max-md:items-start sm:max-md:justify-between sm:max-md:gap-3 tabular-nums md:table-cell">
-                                  {x.odometerKm != null
-                                    ? new Intl.NumberFormat(locale === "tr" ? "tr-TR" : "en-US").format(
-                                        x.odometerKm
-                                      )
-                                    : "—"}
-                                </TableCell>
-                                <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 max-w-[8rem] truncate md:table-cell">
-                                  {x.workshop ?? "—"}
-                                </TableCell>
-                                <TableCell className="tabular-nums">
-                                  {x.cost != null
-                                    ? formatLocaleAmount(x.cost, locale, x.currencyCode)
-                                    : "—"}
-                                </TableCell>
-                                <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 whitespace-nowrap text-xs text-zinc-600 md:table-cell">
-                                  {x.nextDueDate
-                                    ? x.nextDueDate.slice(0, 10)
-                                    : x.nextDueKm != null
-                                      ? `${new Intl.NumberFormat(locale === "tr" ? "tr-TR" : "en-US").format(x.nextDueKm)} km`
-                                      : "—"}
-                                </TableCell>
-                                <TableCell className="align-top">
-                                  {canEdit ? (
-                                    <div className="flex min-w-[7rem] flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center">
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        className="!min-h-10 w-full px-2 text-sm sm:!min-h-9 sm:w-auto"
-                                        onClick={() => openEditMaintenance(detail.id, x)}
-                                      >
-                                        {t("common.edit")}
-                                      </Button>
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        className="!min-h-10 w-full px-2 text-sm sm:!min-h-9 sm:w-auto"
-                                        onClick={() =>
-                                          notifyConfirmToast({
-                                            toastId: `vm-del-${x.id}`,
-                                            title: t("vehicles.delete"),
-                                            message: t("vehicles.confirmDeleteMaintenance"),
-                                            cancelLabel: t("common.cancel"),
-                                            confirmLabel: t("vehicles.delete"),
-                                            onConfirm: async () => {
-                                              try {
-                                                await maintDel.mutateAsync({
-                                                  vehicleId: detail.id,
-                                                  maintenanceId: x.id,
-                                                });
-                                                notify.success(t("common.saved"));
-                                              } catch (e) {
-                                                notify.error(toErrorMessage(e));
-                                              }
-                                            },
-                                          })
-                                        }
-                                      >
-                                        {t("vehicles.delete")}
-                                      </Button>
-                                    </div>
-                                  ) : null}
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </div>
-                      </>
-                    )}
-                  </>
-                )}
-                </section>
-              </div>
+              <VehicleDetailServiceTab
+                vehicleId={detail.id}
+                serviceIntervalKm={detail.serviceIntervalKm}
+                serviceIntervalMonths={detail.serviceIntervalMonths}
+                maintenances={detail.maintenances ?? []}
+                filterType={maintLogFilterType}
+                filterOptions={maintenanceLogFilterSelectOptions}
+                filteredMaintenances={filteredVehicleMaintenances}
+                canEdit={canEdit}
+                locale={locale}
+                onAddMaintenance={openAddMaintenanceFromDetail}
+                onFilterTypeChange={setMaintLogFilterType}
+                onEditMaintenance={openEditMaintenance}
+                onDeleteMaintenance={(id) =>
+                  maintenance.askDelete(id, detail.id)
+                }
+                t={t}
+              />
             ) : null}
 
             {detailTab === "assignments" ? (
-              <div className="flex flex-col gap-4">
-                {canEdit ? (
-                  <div className="rounded-xl border border-zinc-200/90 bg-zinc-50/70 p-3 ring-1 ring-zinc-100/80 sm:p-4">
-                    <p className="text-pretty text-sm leading-relaxed text-zinc-600">
-                      {t("vehicles.assignmentTabHint")}
-                    </p>
-                    <Button
-                      type="button"
-                      className="mt-3 w-full !min-h-11 touch-manipulation sm:w-auto sm:!min-h-10"
-                      onClick={openAssignmentDialogFromDetail}
-                    >
-                      {t("vehicles.changeAssignment")}
-                    </Button>
-                  </div>
-                ) : null}
-                {detail.assignments.length === 0 ? (
-                  <p className="text-sm text-zinc-500">{t("vehicles.emptyAssignments")}</p>
-                ) : (
-                  <>
-                    <ul className="flex flex-col gap-4 md:hidden">
-                      {detail.assignments.map((a) => (
-                        <MobileListCard
-                          as="li"
-                          key={a.id}
-                          className="flex flex-col gap-1 bg-zinc-50/40 text-sm"
-                        >
-                          <p className="truncate font-medium text-zinc-900">
-                            {a.personnelName ?? a.branchName ?? t("vehicles.idle")}
-                          </p>
-                          <p className="mt-1 text-xs text-zinc-600">
-                            <span className="font-medium text-zinc-500">{t("vehicles.assignedAt")}:</span>{" "}
-                            {new Date(a.assignedAt).toLocaleString(locale === "tr" ? "tr-TR" : "en-US")}
-                          </p>
-                          <p className="mt-0.5 text-xs text-zinc-600">
-                            <span className="font-medium text-zinc-500">{t("vehicles.released")}:</span>{" "}
-                            {a.releasedAt
-                              ? new Date(a.releasedAt).toLocaleString(
-                                  locale === "tr" ? "tr-TR" : "en-US"
-                                )
-                              : t("vehicles.active")}
-                          </p>
-                        </MobileListCard>
-                      ))}
-                    </ul>
-                    <div className="-mx-1 hidden min-w-0 overflow-x-auto rounded-lg sm:mx-0 md:block">
-                      <Table className="min-w-[32rem] text-sm sm:min-w-0 sm:text-base">
-                        <TableHead>
-                          <TableRow>
-                            <TableHeader>{t("vehicles.assignment")}</TableHeader>
-                            <TableHeader>{t("vehicles.assignedAt")}</TableHeader>
-                            <TableHeader>{t("vehicles.released")}</TableHeader>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {detail.assignments.map((a) => (
-                            <TableRow key={a.id}>
-                              <TableCell>
-                                {a.personnelName ?? a.branchName ?? t("vehicles.idle")}
-                              </TableCell>
-                              <TableCell className="whitespace-nowrap text-xs text-zinc-600">
-                                {new Date(a.assignedAt).toLocaleString(
-                                  locale === "tr" ? "tr-TR" : "en-US"
-                                )}
-                              </TableCell>
-                              <TableCell className="text-xs text-zinc-600">
-                                {a.releasedAt
-                                  ? new Date(a.releasedAt).toLocaleString(
-                                      locale === "tr" ? "tr-TR" : "en-US"
-                                    )
-                                  : t("vehicles.active")}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </>
-                )}
-              </div>
+              <VehicleDetailAssignmentsTab
+                assignments={detail.assignments}
+                canEdit={canEdit}
+                locale={locale}
+                onOpenAssignmentDialog={openAssignmentDialogFromDetail}
+                t={t}
+              />
             ) : null}
 
             {detailTab === "documents" ? (
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm text-zinc-600">{t("vehicles.vehicleDocuments")}</p>
-                  {canEdit ? (
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="min-h-10 px-3 py-2 text-sm"
-                      onClick={() => {
-                        setDocKind("REGISTRATION");
-                        setDocNotes("");
-                        setDocFile(null);
-                        setDocFormError(null);
-                        setDocFormOpen(true);
-                      }}
-                    >
-                      {t("vehicles.addVehicleDocument")}
-                    </Button>
-                  ) : null}
-                </div>
-                {vehicleDocumentsError ? (
-                  <p className="text-sm text-red-600">{toErrorMessage(vehicleDocumentsErrorValue)}</p>
-                ) : vehicleDocumentsPending ? (
-                  <p className="text-sm text-zinc-500">{t("common.loading")}</p>
-                ) : vehicleDocuments.length === 0 ? (
-                  <p className="text-sm text-zinc-500">{t("vehicles.documentsEmpty")}</p>
-                ) : (
-                  <ul className="flex flex-col gap-4">
-                    {vehicleDocuments.map((doc) => (
-                      <MobileListCard
-                        as="li"
-                        key={doc.id}
-                        className="flex flex-wrap items-start justify-between gap-3"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="font-medium text-zinc-900">{vehicleDocKindLabel(doc.kind)}</div>
-                          <div className="truncate text-sm text-zinc-600">
-                            {doc.originalFileName ?? doc.contentType}
-                          </div>
-                          {doc.notes ? (
-                            <div className="mt-1 text-sm text-zinc-500">{doc.notes}</div>
-                          ) : null}
-                        </div>
-                        <div className="flex shrink-0 flex-wrap gap-2">
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className="min-h-10 px-3 py-2 text-sm"
-                            disabled={openingVehicleDocId === doc.id}
-                            onClick={() => void openVehicleDoc(detail.id, doc.id)}
-                          >
-                            {openingVehicleDocId === doc.id ? t("common.loading") : t("documents.open")}
-                          </Button>
-                          {canEdit ? (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              className="min-h-10 px-3 py-2 text-sm"
-                              onClick={() => setDocDeleteId(doc.id)}
-                            >
-                              {t("common.delete")}
-                            </Button>
-                          ) : null}
-                        </div>
-                      </MobileListCard>
-                    ))}
-                  </ul>
-                )}
-              </div>
+              <VehicleDetailDocumentsTab
+                vehicleId={detail.id}
+                documents={vehicleDocuments}
+                pending={vehicleDocumentsPending}
+                error={vehicleDocumentsError}
+                errorValue={vehicleDocumentsErrorValue}
+                openingId={openingVehicleDocId}
+                canEdit={canEdit}
+                documentKindLabel={vehicleDocKindLabel}
+                onOpenAddSheet={() => {
+                  setDocKind("REGISTRATION");
+                  setDocNotes("");
+                  setDocFile(null);
+                  setDocFormError(null);
+                  setDocFormOpen(true);
+                }}
+                onOpenDocument={openVehicleDoc}
+                onAskDelete={setDocDeleteId}
+                t={t}
+              />
             ) : null}
 
             {detailTab === "insurances" ? (
-              <div className="flex flex-col gap-3">
-                {canEdit ? (
-                  <Button
-                    type="button"
-                    className="w-full !min-h-11 self-stretch px-3 text-sm sm:w-auto sm:!min-h-9 sm:self-start"
-                    onClick={openAddInsurance}
-                  >
-                    {t("vehicles.addInsurance")}
-                  </Button>
-                ) : null}
-                {detail.insurances.length === 0 ? (
-                  <p className="text-sm text-zinc-500">{t("vehicles.emptyInsurances")}</p>
-                ) : (
-                  <>
-                    <ul className="flex flex-col gap-4 md:hidden">
-                      {detail.insurances.map((x) => (
-                        <MobileListCard
-                          as="li"
-                          key={x.id}
-                          className="flex flex-col gap-2 bg-white"
-                        >
-                          <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
-                            <p className="min-w-0 flex-1 truncate font-semibold text-zinc-900">
-                              {x.insuranceType}
-                            </p>
-                            <p className="text-xs font-medium text-zinc-600">
-                              {t("vehicles.endDate")}: {x.endDate.slice(0, 10)}
-                            </p>
-                          </div>
-                          {x.provider ? (
-                            <p className="mt-1 break-words text-xs text-zinc-500">
-                              {t("vehicles.provider")}: {x.provider}
-                            </p>
-                          ) : null}
-                          {canEdit ? (
-                            <div className="mt-2 flex min-w-0 flex-col flex-wrap gap-2">
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                className="w-full !min-h-11 touch-manipulation"
-                                onClick={() => openEditInsurance(x)}
-                              >
-                                {t("common.edit")}
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                className="w-full !min-h-11 touch-manipulation text-red-700 ring-red-200 hover:bg-red-50"
-                                onClick={() =>
-                                  notifyConfirmToast({
-                                    toastId: `vi-del-${x.id}`,
-                                    title: t("vehicles.delete"),
-                                    message: t("vehicles.confirmDeleteInsurance"),
-                                    cancelLabel: t("common.cancel"),
-                                    confirmLabel: t("vehicles.delete"),
-                                    onConfirm: async () => {
-                                      try {
-                                        await insDel.mutateAsync({
-                                          vehicleId: detail.id,
-                                          insuranceId: x.id,
-                                        });
-                                        notify.success(t("common.saved"));
-                                      } catch (e) {
-                                        notify.error(toErrorMessage(e));
-                                      }
-                                    },
-                                  })
-                                }
-                              >
-                                {t("vehicles.delete")}
-                              </Button>
-                            </div>
-                          ) : null}
-                        </MobileListCard>
-                      ))}
-                    </ul>
-                    <div className="-mx-1 hidden min-w-0 overflow-x-auto rounded-lg sm:mx-0 md:block">
-                      <Table className="min-w-[36rem] text-sm sm:min-w-0 sm:text-base">
-                        <TableHead>
-                          <TableRow>
-                            <TableHeader>{t("vehicles.insuranceType")}</TableHeader>
-                            <TableHeader className="hidden sm:table-cell">{t("vehicles.provider")}</TableHeader>
-                            <TableHeader>{t("vehicles.endDate")}</TableHeader>
-                            <TableHeader className="w-[1%]" />
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {detail.insurances.map((x) => (
-                            <TableRow key={x.id}>
-                              <TableCell>{x.insuranceType}</TableCell>
-                              <TableCell className="max-sm:hidden sm:max-md:flex sm:max-md:w-full sm:max-md:min-w-0 sm:max-md:items-start sm:max-md:justify-between sm:max-md:gap-3 sm:table-cell">
-                                {x.provider ?? "—"}
-                              </TableCell>
-                              <TableCell>{x.endDate.slice(0, 10)}</TableCell>
-                              <TableCell className="align-top">
-                                {canEdit ? (
-                                  <div className="flex min-w-[7rem] flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center">
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      className="!min-h-10 w-full px-2 text-sm sm:!min-h-9 sm:w-auto"
-                                      onClick={() => openEditInsurance(x)}
-                                    >
-                                      {t("common.edit")}
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      className="!min-h-10 w-full px-2 text-sm sm:!min-h-9 sm:w-auto"
-                                      onClick={() =>
-                                        notifyConfirmToast({
-                                          toastId: `vi-del-${x.id}`,
-                                          title: t("vehicles.delete"),
-                                          message: t("vehicles.confirmDeleteInsurance"),
-                                          cancelLabel: t("common.cancel"),
-                                          confirmLabel: t("vehicles.delete"),
-                                          onConfirm: async () => {
-                                            try {
-                                              await insDel.mutateAsync({
-                                                vehicleId: detail.id,
-                                                insuranceId: x.id,
-                                              });
-                                              notify.success(t("common.saved"));
-                                            } catch (e) {
-                                              notify.error(toErrorMessage(e));
-                                            }
-                                          },
-                                        })
-                                      }
-                                    >
-                                      {t("vehicles.delete")}
-                                    </Button>
-                                  </div>
-                                ) : null}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </>
-                )}
-              </div>
+              <VehicleDetailInsurancesTab
+                insurances={detail.insurances}
+                canEdit={canEdit}
+                locale={locale}
+                onAddInsurance={openAddInsurance}
+                onEditInsurance={openEditInsurance}
+                onDeleteInsurance={(id) => insurance.askDelete(id, detail.id)}
+                t={t}
+              />
             ) : null}
 
             {detailTab === "costs" ? (
-              <div className="flex flex-col gap-4">
-                {canEdit ? (
-                  <div
-                    className="flex w-full max-w-md flex-wrap gap-1 rounded-xl bg-zinc-100/90 p-1 ring-1 ring-zinc-200/80"
-                    role="tablist"
-                    aria-label={t("vehicles.tabCosts")}
-                  >
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={costsSubTab === "ledger"}
-                      className={cn(
-                        "min-h-10 flex-1 touch-manipulation rounded-lg px-3 py-2 text-center text-xs font-semibold transition-all sm:text-sm",
-                        costsSubTab === "ledger"
-                          ? "bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80"
-                          : "text-zinc-600 hover:text-zinc-900"
-                      )}
-                      onClick={() => setCostsSubTab("ledger")}
-                    >
-                      {t("vehicles.costsSubLedger")}
-                    </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={costsSubTab === "report"}
-                      className={cn(
-                        "min-h-10 flex-1 touch-manipulation rounded-lg px-3 py-2 text-center text-xs font-semibold transition-all sm:text-sm",
-                        costsSubTab === "report"
-                          ? "bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200/80"
-                          : "text-zinc-600 hover:text-zinc-900"
-                      )}
-                      onClick={() => setCostsSubTab("report")}
-                    >
-                      {t("vehicles.costsSubReport")}
-                    </button>
-                  </div>
-                ) : null}
-
-                {(!canEdit || costsSubTab === "ledger") ? (
-              <div className="flex flex-col gap-3">
-                {canEdit ? (
-                  <Button
-                    type="button"
-                    className="w-full !min-h-11 self-stretch px-3 text-sm sm:w-auto sm:!min-h-9 sm:self-start"
-                    onClick={openAddExpense}
-                  >
-                    {t("vehicles.addExpense")}
-                  </Button>
-                ) : null}
-                {detail.expenses.length === 0 ? (
-                  <p className="text-sm text-zinc-500">{t("vehicles.emptyExpenses")}</p>
-                ) : (
-                  <>
-                    <ul className="flex flex-col gap-4 md:hidden">
-                      {detail.expenses.map((x) => {
-                        const postingDetail = vehicleExpenseBranchPostingDetail(x, t);
-                        return (
-                        <MobileListCard
-                          as="li"
-                          key={x.id}
-                          className="flex flex-col gap-2 bg-white"
-                        >
-                          <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
-                            <div className="min-w-0 flex-1 overflow-hidden">
-                              <p className="truncate font-semibold text-zinc-900">{x.expenseType}</p>
-                              <p className="text-xs text-zinc-500">{x.expenseDate.slice(0, 10)}</p>
-                              {x.postedBranchName?.trim() ? (
-                                <p className="mt-0.5 text-[11px] text-sky-800">
-                                  {t("vehicles.expensePostedBranch")}: {x.postedBranchName.trim()}
-                                  {postingDetail ? (
-                                    <span className="ml-1 font-semibold">· {postingDetail}</span>
-                                  ) : null}
-                                </p>
-                              ) : null}
-                            </div>
-                            <p className="shrink-0 tabular-nums text-sm font-medium text-zinc-800">
-                              {formatLocaleAmount(x.amount, locale, x.currencyCode)}
-                            </p>
-                          </div>
-                          {x.description?.trim() ? (
-                            <p className="mt-2 break-words text-xs text-zinc-600">{x.description}</p>
-                          ) : null}
-                          {canEdit ? (
-                            <div className="mt-2 flex min-w-0 flex-col flex-wrap gap-2">
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                className="w-full !min-h-11 touch-manipulation"
-                                onClick={() => openEditExpense(x)}
-                              >
-                                {t("common.edit")}
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                className="w-full !min-h-11 touch-manipulation text-red-700 ring-red-200 hover:bg-red-50"
-                                onClick={() =>
-                                  notifyConfirmToast({
-                                    toastId: `ve-del-${x.id}`,
-                                    title: t("vehicles.delete"),
-                                    message: t("vehicles.confirmDeleteExpense"),
-                                    cancelLabel: t("common.cancel"),
-                                    confirmLabel: t("vehicles.delete"),
-                                    onConfirm: async () => {
-                                      try {
-                                        await expDel.mutateAsync({
-                                          vehicleId: detail.id,
-                                          expenseId: x.id,
-                                        });
-                                        notify.success(t("common.saved"));
-                                      } catch (e) {
-                                        notify.error(toErrorMessage(e));
-                                      }
-                                    },
-                                  })
-                                }
-                              >
-                                {t("vehicles.delete")}
-                              </Button>
-                            </div>
-                          ) : null}
-                        </MobileListCard>
-                        );
-                      })}
-                    </ul>
-                    <div className="-mx-1 hidden min-w-0 overflow-x-auto rounded-lg sm:mx-0 md:block">
-                      <Table className="min-w-[34rem] text-sm sm:min-w-0 sm:text-base">
-                        <TableHead>
-                          <TableRow>
-                            <TableHeader>{t("vehicles.expenseDate")}</TableHeader>
-                            <TableHeader>{t("vehicles.expenseType")}</TableHeader>
-                            <TableHeader>{t("vehicles.amount")}</TableHeader>
-                            <TableHeader className="w-[1%]" />
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {detail.expenses.map((x) => {
-                                const postingDetail = vehicleExpenseBranchPostingDetail(x, t);
-                                return (
-                            <TableRow key={x.id}>
-                              <TableCell>{x.expenseDate.slice(0, 10)}</TableCell>
-                              <TableCell>
-                                <div>{x.expenseType}</div>
-                                {x.postedBranchName?.trim() ? (
-                                  <div className="mt-0.5 text-xs text-sky-800">
-                                    {x.postedBranchName.trim()}
-                                    {postingDetail ? (
-                                      <span className="ml-1 font-semibold">· {postingDetail}</span>
-                                    ) : null}
-                                  </div>
-                                ) : null}
-                              </TableCell>
-                              <TableCell className="tabular-nums">
-                                {formatLocaleAmount(x.amount, locale, x.currencyCode)}
-                              </TableCell>
-                              <TableCell className="align-top">
-                                {canEdit ? (
-                                  <div className="flex min-w-[7rem] flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-center">
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      className="!min-h-10 w-full px-2 text-sm sm:!min-h-9 sm:w-auto"
-                                      onClick={() => openEditExpense(x)}
-                                    >
-                                      {t("common.edit")}
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      className="!min-h-10 w-full px-2 text-sm sm:!min-h-9 sm:w-auto"
-                                      onClick={() =>
-                                        notifyConfirmToast({
-                                          toastId: `ve-del-${x.id}`,
-                                          title: t("vehicles.delete"),
-                                          message: t("vehicles.confirmDeleteExpense"),
-                                          cancelLabel: t("common.cancel"),
-                                          confirmLabel: t("vehicles.delete"),
-                                          onConfirm: async () => {
-                                            try {
-                                              await expDel.mutateAsync({
-                                                vehicleId: detail.id,
-                                                expenseId: x.id,
-                                              });
-                                              notify.success(t("common.saved"));
-                                            } catch (e) {
-                                              notify.error(toErrorMessage(e));
-                                            }
-                                          },
-                                        })
-                                      }
-                                    >
-                                      {t("vehicles.delete")}
-                                    </Button>
-                                  </div>
-                                ) : null}
-                              </TableCell>
-                            </TableRow>
-                                );
-                              })}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </>
-                )}
-              </div>
-                ) : null}
-
-                {canEdit && costsSubTab === "report" ? (
-              <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200/80 bg-zinc-50/40 p-3 ring-1 ring-zinc-100/60 sm:p-4">
-                <p className="text-pretty text-sm leading-relaxed text-zinc-600">
-                  {t("vehicles.vehicleExpenseReportHint")}
-                </p>
-                <p className="text-xs text-zinc-500">{t("vehicles.branchFilterHint")}</p>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <Input
-                    label={t("vehicles.filterYear")}
-                    value={sumYear}
-                    onChange={(e) => setSumYear(e.target.value)}
-                  />
-                  <Input
-                    label={t("vehicles.filterMonth")}
-                    value={sumMonth}
-                    onChange={(e) => setSumMonth(e.target.value)}
-                    placeholder={t("vehicles.filterMonthOptional")}
-                  />
-                  <Select
-                    name="veh-sum-vehicle"
-                    label={t("vehicles.filterVehicle")}
-                    value={sumVehicleId}
-                    onBlur={() => {}}
-                    onChange={(e) => setSumVehicleId(e.target.value)}
-                    options={[
-                      { value: "", label: t("common.all") },
-                      ...rows.map((r) => ({
-                        value: String(r.id),
-                        label: r.plateNumber,
-                      })),
-                    ]}
-                  />
-                  <Select
-                    name="veh-sum-branch"
-                    label={t("vehicles.filterBranch")}
-                    value={sumBranchId}
-                    onBlur={() => {}}
-                    onChange={(e) => setSumBranchId(e.target.value)}
-                    options={[
-                      { value: "", label: t("vehicles.allBranches") },
-                      ...branchRows.map((b) => ({
-                        value: String(b.id),
-                        label: b.name,
-                      })),
-                    ]}
-                  />
-                </div>
-                <Button
-                  type="button"
-                  className="w-full !min-h-11 touch-manipulation sm:w-auto sm:!min-h-10"
-                  onClick={() => applyExpenseReportFilters()}
-                >
-                  {t("vehicles.applyExpenseReport")}
-                </Button>
-                {!summaryQueryEnabled || summaryPending ? (
-                  <p className="text-sm text-zinc-500">{t("common.loading")}</p>
-                ) : summaryRows.length === 0 ? (
-                  <p className="text-sm text-zinc-500">{t("vehicles.emptySummary")}</p>
-                ) : (
-                  <>
-                    <ul className="flex flex-col gap-4 md:hidden">
-                      {summaryRows.map((s, i) => (
-                        <MobileListCard
-                          as="li"
-                          key={`${s.vehicleId}-${s.year}-${s.month}-${s.expenseType}-${s.currencyCode}-${i}`}
-                          className="flex flex-col gap-1 bg-zinc-50/40 text-sm"
-                        >
-                          <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
-                            <p className="truncate font-mono font-semibold text-zinc-900">{s.plateNumber}</p>
-                            <p className="tabular-nums font-medium text-zinc-800">
-                              {formatLocaleAmount(s.totalAmount, locale, s.currencyCode)}
-                            </p>
-                          </div>
-                          <p className="mt-1 break-words text-xs text-zinc-600">
-                            {s.expenseType} · {s.year}/{String(s.month).padStart(2, "0")}
-                          </p>
-                        </MobileListCard>
-                      ))}
-                    </ul>
-                    <div className="-mx-1 hidden min-w-0 overflow-x-auto rounded-lg sm:mx-0 md:block">
-                      <Table className="min-w-[36rem] text-sm sm:min-w-0 sm:text-base">
-                        <TableHead>
-                          <TableRow>
-                            <TableHeader>{t("vehicles.plate")}</TableHeader>
-                            <TableHeader>{t("vehicles.filterYear")}</TableHeader>
-                            <TableHeader>{t("vehicles.filterMonth")}</TableHeader>
-                            <TableHeader>{t("vehicles.expenseType")}</TableHeader>
-                            <TableHeader>{t("vehicles.amount")}</TableHeader>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {summaryRows.map((s, i) => (
-                            <TableRow
-                              key={`${s.vehicleId}-${s.year}-${s.month}-${s.expenseType}-${s.currencyCode}-${i}`}
-                            >
-                              <TableCell className="max-w-[8rem] truncate sm:max-w-none">
-                                {s.plateNumber}
-                              </TableCell>
-                              <TableCell>{s.year}</TableCell>
-                              <TableCell>{s.month}</TableCell>
-                              <TableCell className="max-w-[7rem] truncate sm:max-w-none">
-                                {s.expenseType}
-                              </TableCell>
-                              <TableCell className="whitespace-nowrap tabular-nums">
-                                {formatLocaleAmount(s.totalAmount, locale, s.currencyCode)}
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
-                  </>
-                )}
-              </div>
-                ) : null}
-              </div>
+              <VehicleDetailCostsTab
+                expenses={detail.expenses}
+                subTab={costsSubTab}
+                onSubTabChange={setCostsSubTab}
+                canEdit={canEdit}
+                locale={locale}
+                onAddExpense={openAddExpense}
+                onEditExpense={openEditExpense}
+                onDeleteExpense={(id) => expense.askDelete(id, detail.id)}
+                sumYear={sumYear}
+                sumMonth={sumMonth}
+                sumVehicleId={sumVehicleId}
+                sumBranchId={sumBranchId}
+                onSumYearChange={setSumYear}
+                onSumMonthChange={setSumMonth}
+                onSumVehicleIdChange={setSumVehicleId}
+                onSumBranchIdChange={setSumBranchId}
+                onApplyReportFilters={applyExpenseReportFilters}
+                vehicleOptions={rows}
+                branchOptions={branchRows}
+                summaryRows={summaryRows}
+                summaryPending={summaryPending}
+                summaryQueryEnabled={summaryQueryEnabled}
+                t={t}
+              />
             ) : null}
 
             {canEdit && detailTab === "audit" ? (
@@ -2919,560 +755,44 @@ export function VehiclesScreen() {
         )}
       </Modal>
 
-      <Modal
-        open={insModal != null}
-        onClose={() => {
-          setInsModal(null);
-          setInsModalVehicleId(null);
-        }}
-        titleId="vehicle-insurance-form"
-        title={insModal === "add" ? t("vehicles.addInsurance") : t("vehicles.editInsurance")}
-        narrow
-        nested
-        closeButtonLabel={t("common.close")}
-      >
-        <div className="flex flex-col gap-3 p-1">
-          <Select
-            name="vehicle-insurance-type"
-            label={t("vehicles.insuranceType")}
-            labelRequired
-            menuZIndex={OVERLAY_Z_INDEX.dateFieldPopover + 5}
-            value={insTypeSlug}
-            onBlur={() => {}}
-            onChange={(e) => {
-              setInsTypeSlug(e.target.value);
-              if (e.target.value !== VEHICLE_INSURANCE_OTHER_SLUG) setInsTypeCustom("");
-            }}
-            options={insuranceTypeSelectOptions}
-          />
-          {insTypeSlug === VEHICLE_INSURANCE_OTHER_SLUG ? (
-            <Input
-              label={t("vehicles.insuranceCustomTypeLabel")}
-              labelRequired
-              value={insTypeCustom}
-              onChange={(e) => setInsTypeCustom(e.target.value)}
-              autoComplete="off"
-            />
-          ) : null}
-          <Select
-            name="vehicle-insurance-company"
-            label={t("vehicles.provider")}
-            labelRequired
-            menuZIndex={OVERLAY_Z_INDEX.dateFieldPopover + 5}
-            value={insProvSlug}
-            onBlur={() => {}}
-            onChange={(e) => {
-              setInsProvSlug(e.target.value);
-              if (e.target.value !== VEHICLE_INSURANCE_OTHER_SLUG) setInsProvCustom("");
-            }}
-            options={insuranceCompanySelectOptions}
-          />
-          {insProvSlug === VEHICLE_INSURANCE_OTHER_SLUG ? (
-            <Input
-              label={t("vehicles.insuranceCustomCompanyLabel")}
-              labelRequired
-              value={insProvCustom}
-              onChange={(e) => setInsProvCustom(e.target.value)}
-              autoComplete="off"
-            />
-          ) : null}
-          <Input
-            label={t("vehicles.policyNumber")}
-            value={insPolicy}
-            onChange={(e) => setInsPolicy(e.target.value)}
-          />
-          <DateField
-            label={t("vehicles.startDate")}
-            labelRequired
-            required
-            value={insStart}
-            onChange={(e) => setInsStart(e.target.value)}
-          />
-          <DateField
-            label={t("vehicles.endDate")}
-            labelRequired
-            required
-            value={insEnd}
-            onChange={(e) => setInsEnd(e.target.value)}
-          />
-          <Input
-            label={t("vehicles.amount")}
-            value={insAmount}
-            onChange={(e) => setInsAmount(e.target.value)}
-            onBlur={() => setInsAmount((s) => formatAmountInputOnBlur(s, locale))}
-            inputMode="decimal"
-            autoComplete="off"
-          />
-          <div className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full !min-h-12 touch-manipulation sm:!min-h-10 sm:w-auto"
-              onClick={() => {
-                setInsModal(null);
-                setInsModalVehicleId(null);
-              }}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              type="button"
-              className="w-full !min-h-12 touch-manipulation sm:!min-h-10 sm:w-auto"
-              onClick={() => void saveInsurance()}
-              disabled={insCreate.isPending || insUpdate.isPending}
-            >
-              {t("common.save")}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      <VehicleInsuranceModal
+        state={insurance}
+        typeOptions={insuranceTypeSelectOptions}
+        providerOptions={insuranceCompanySelectOptions}
+        locale={locale}
+        t={t}
+      />
 
-      <Modal
-        open={expModal != null}
-        onClose={() => {
-          setExpModal(null);
-          setExpModalVehicleId(null);
-        }}
-        titleId="vehicle-expense-form"
-        title={expModal === "add" ? t("vehicles.addExpense") : t("vehicles.editExpense")}
-        narrow
-        nested
-        closeButtonLabel={t("common.close")}
-      >
-        <div className="flex flex-col gap-3 p-1">
-          <Select
-            name="vehicle-expense-type"
-            label={t("vehicles.expenseType")}
-            value={expType}
-            onBlur={() => {}}
-            onChange={(e) => setExpType(e.target.value)}
-            options={[
-              { value: "fuel", label: t("vehicles.types.fuel") },
-              { value: "maintenance", label: t("vehicles.types.maintenance") },
-              { value: "insurance", label: t("vehicles.types.insurance") },
-              { value: "repair", label: t("vehicles.types.repair") },
-              { value: "other", label: t("vehicles.types.other") },
-            ]}
-          />
-          <Input
-            label={t("vehicles.amount")}
-            value={expAmount}
-            onChange={(e) => setExpAmount(e.target.value)}
-          />
-          <Input
-            label={t("vehicles.currency")}
-            value={expCur}
-            onChange={(e) => setExpCur(e.target.value.toUpperCase())}
-          />
-          <DateField
-            label={t("vehicles.expenseDate")}
-            value={expDate}
-            onChange={(e) => setExpDate(e.target.value)}
-          />
-          <Input
-            label={t("vehicles.description")}
-            value={expDesc}
-            onChange={(e) => setExpDesc(e.target.value)}
-          />
-          {canEdit ? (
-            <Select
-              name="vehicle-expense-branch"
-              label={t("vehicles.expensePostToBranch")}
-              value={expBranchId}
-              onBlur={() => {}}
-              onChange={(e) => {
-                const v = e.target.value;
-                setExpBranchId(v);
-                if (!v.trim()) {
-                  setExpBranchPaySource("REGISTER");
-                  setExpPatronPay("CASH");
-                }
-              }}
-              options={[
-                { value: "", label: "—" },
-                ...branchRows.map((b) => ({
-                  value: String(b.id),
-                  label: b.name,
-                })),
-              ]}
-            />
-          ) : null}
-          {canEdit && expBranchId.trim() ? (
-            <div className="flex flex-col gap-3 rounded-lg border border-zinc-200/80 bg-zinc-50/60 p-3">
-              <p className="text-xs text-zinc-600">{t("vehicles.expenseBranchPayHint")}</p>
-              <Select
-                name="vehicle-expense-branch-pay-source"
-                label={t("vehicles.expenseBranchPaySource")}
-                value={expBranchPaySource}
-                onBlur={() => {}}
-                onChange={(e) => setExpBranchPaySource(e.target.value as "REGISTER" | "PATRON")}
-                options={[
-                  { value: "REGISTER", label: t("vehicles.expenseBranchPayRegister") },
-                  { value: "PATRON", label: t("vehicles.expenseBranchPayPatron") },
-                ]}
-              />
-              {expBranchPaySource === "PATRON" ? (
-                <Select
-                  name="vehicle-expense-patron-pay"
-                  label={t("vehicles.expensePatronPayMethod")}
-                  value={expPatronPay}
-                  onBlur={() => {}}
-                  onChange={(e) => setExpPatronPay(e.target.value as "CASH" | "CARD")}
-                  options={[
-                    { value: "CASH", label: t("vehicles.expensePayCash") },
-                    { value: "CARD", label: t("vehicles.expensePayCard") },
-                  ]}
-                />
-              ) : null}
-            </div>
-          ) : null}
-          <div className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full !min-h-12 touch-manipulation sm:!min-h-10 sm:w-auto"
-              onClick={() => {
-                setExpModal(null);
-                setExpModalVehicleId(null);
-              }}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              type="button"
-              className="w-full !min-h-12 touch-manipulation sm:!min-h-10 sm:w-auto"
-              onClick={() => void saveExpense()}
-              disabled={expCreate.isPending || expUpdate.isPending}
-            >
-              {t("common.save")}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      <VehicleExpenseModal
+        state={expense}
+        branchOptions={branchRows}
+        canEdit={canEdit}
+        t={t}
+      />
 
-      <Modal
-        open={maintModal != null}
-        onClose={() => {
-          setMaintModal(null);
-          setMaintVehicleId(null);
-        }}
-        titleId="vehicle-maintenance-form"
-        title={maintModal === "add" ? t("vehicles.addMaintenance") : t("vehicles.editMaintenance")}
-        narrow
-        nested
-        closeButtonLabel={t("common.close")}
-      >
-        <div className="flex flex-col gap-3 p-1">
-          <DateField
-            label={t("vehicles.maintenanceServiceDate")}
-            labelRequired
-            value={maintServiceDate}
-            onChange={(e) => setMaintServiceDate(e.target.value)}
-          />
-          <Input
-            label={t("vehicles.odometerKm")}
-            labelRequired
-            value={maintOdometerStr}
-            onChange={(e) => setMaintOdometerStr(e.target.value)}
-            inputMode="numeric"
-            placeholder="0"
-          />
-          <Select
-            name="vehicle-maintenance-type"
-            label={t("vehicles.maintenanceType")}
-            labelRequired
-            value={maintType}
-            onBlur={() => {}}
-            onChange={(e) => setMaintType(e.target.value)}
-            options={maintenanceTypeFormSelectOptions}
-          />
-          <Input
-            label={t("vehicles.maintenanceWorkshop")}
-            value={maintWorkshop}
-            onChange={(e) => setMaintWorkshop(e.target.value)}
-          />
-          <Input
-            label={t("vehicles.amount")}
-            labelRequired
-            value={maintCost}
-            onChange={(e) => setMaintCost(e.target.value)}
-            placeholder="0"
-          />
-          <Input
-            label={t("vehicles.currency")}
-            labelRequired
-            value={maintCur}
-            onChange={(e) => setMaintCur(e.target.value.toUpperCase())}
-            maxLength={3}
-          />
-          <DateField
-            label={t("vehicles.maintenanceNextDueDate")}
-            value={maintNextDate}
-            onChange={(e) => setMaintNextDate(e.target.value)}
-          />
-          <Input
-            label={t("vehicles.maintenanceNextDueKm")}
-            value={maintNextKmStr}
-            onChange={(e) => setMaintNextKmStr(e.target.value)}
-            inputMode="numeric"
-            placeholder="—"
-          />
-          <Input
-            label={t("vehicles.description")}
-            value={maintDesc}
-            onChange={(e) => setMaintDesc(e.target.value)}
-          />
-          <div className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full !min-h-12 touch-manipulation sm:!min-h-10 sm:w-auto"
-              onClick={() => {
-                setMaintModal(null);
-                setMaintVehicleId(null);
-              }}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              type="button"
-              className="w-full !min-h-12 touch-manipulation sm:!min-h-10 sm:w-auto"
-              onClick={() => void saveMaintenance()}
-              disabled={maintCreate.isPending || maintUpdate.isPending}
-            >
-              {t("common.save")}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      <VehicleMaintenanceModal
+        state={maintenance}
+        typeOptions={maintenanceTypeFormSelectOptions}
+        t={t}
+      />
 
-      <Modal
-        open={kmModalVehicleId != null}
-        onClose={() => setKmModalVehicleId(null)}
-        titleId="vehicle-odometer-form"
-        title={t("vehicles.editOdometerTitle")}
-        narrow
+      <VehicleOdometerModal
+        state={odometer}
         nested={detailId != null}
-        closeButtonLabel={t("common.close")}
-      >
-        <div className="flex flex-col gap-3 p-1">
-          <Input
-            label={t("vehicles.odometerKm")}
-            value={kmModalStr}
-            onChange={(e) => setKmModalStr(e.target.value)}
-            inputMode="numeric"
-            placeholder="—"
-          />
-          <div className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full !min-h-12 touch-manipulation sm:!min-h-10 sm:w-auto"
-              onClick={() => setKmModalVehicleId(null)}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              type="button"
-              className="w-full !min-h-12 touch-manipulation sm:!min-h-10 sm:w-auto"
-              onClick={() => void saveKmModal()}
-              disabled={patchOdometerMut.isPending || (kmModalEnabled && !kmModalVehicle)}
-            >
-              {t("common.save")}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        t={t}
+      />
 
-      <Modal
-        open={assignDlgOpen}
-        onClose={() => {
-          setAssignDlgOpen(false);
-          setAssignDlgVehicleId(null);
-        }}
-        titleId="vehicle-assign-dialog-title"
-        title={t("vehicles.assignmentDialogTitle")}
-        narrow
+      <VehicleAssignDialog
+        state={assignment}
+        vehicles={rows}
+        personnelOptions={personnelRows}
+        branchOptions={branchRows}
         nested={detailId != null}
-        closeButtonLabel={t("common.close")}
-      >
-        <div className="flex flex-col gap-3 p-1">
-          {assignDlgVehicleId != null ? (
-            <p className="text-sm font-medium text-zinc-800">
-              {rows.find((r) => r.id === assignDlgVehicleId)?.plateNumber ?? `#${assignDlgVehicleId}`}
-            </p>
-          ) : null}
-          <Select
-            name="vehicle-assign-dlg-mode"
-            label={t("vehicles.assignment")}
-            value={assignDlgMode}
-            onBlur={() => {}}
-            onChange={(e) => setAssignDlgMode(e.target.value as AssignMode)}
-            options={[
-              { value: "idle", label: t("vehicles.idle") },
-              { value: "personnel", label: t("vehicles.assignedPerson") },
-              { value: "branch", label: t("vehicles.assignedBranch") },
-            ]}
-          />
-          {assignDlgMode === "personnel" ? (
-            <Select
-              name="vehicle-assign-dlg-personnel"
-              label={t("vehicles.assignedPerson")}
-              value={assignDlgPersonnelId}
-              onBlur={() => {}}
-              onChange={(e) => setAssignDlgPersonnelId(e.target.value)}
-              options={[
-                { value: "", label: "—" },
-                ...personnelRows.map((p) => ({
-                  value: String(p.id),
-                  label: p.fullName,
-                })),
-              ]}
-            />
-          ) : null}
-          {assignDlgMode === "branch" ? (
-            <Select
-              name="vehicle-assign-dlg-branch"
-              label={t("vehicles.assignedBranch")}
-              value={assignDlgBranchId}
-              onBlur={() => {}}
-              onChange={(e) => setAssignDlgBranchId(e.target.value)}
-              options={[
-                { value: "", label: "—" },
-                ...branchRows.map((b) => ({
-                  value: String(b.id),
-                  label: b.name,
-                })),
-              ]}
-            />
-          ) : null}
-          <div className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button
-              type="button"
-              variant="secondary"
-              className="w-full !min-h-12 touch-manipulation sm:!min-h-10 sm:w-auto"
-              onClick={() => {
-                setAssignDlgOpen(false);
-                setAssignDlgVehicleId(null);
-              }}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              type="button"
-              className="w-full !min-h-12 touch-manipulation sm:!min-h-10 sm:w-auto"
-              onClick={() => void saveAssignmentDialog()}
-              disabled={patchAssignmentMut.isPending || assignDlgVehicleId == null}
-            >
-              {t("common.save")}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        t={t}
+      />
 
-      <Modal
-        open={docFormOpen}
-        onClose={() => {
-          setDocFormOpen(false);
-          setDocFile(null);
-          setDocFormError(null);
-        }}
-        titleId="vehicle-doc-upload-title"
-        title={t("vehicles.vehicleDocumentsUploadTitle")}
-        closeButtonLabel={t("common.close")}
-        nested
-        className="max-w-lg"
-      >
-        <div className="space-y-3 p-1">
-          <Select
-            name="vehicleDocumentKind"
-            label={t("vehicles.vehicleDocumentsKindLabel")}
-            value={docKind}
-            onChange={(e) => setDocKind(e.target.value as VehicleDocumentKind)}
-            onBlur={NOOP_BLUR}
-            options={VEHICLE_DOCUMENT_KIND_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey) }))}
-            menuZIndex={320}
-          />
-          <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-700">{t("vehicles.vehicleDocumentsFileLabel")}</label>
-            <label
-              htmlFor="vehicle-doc-file-input"
-              className="flex min-h-24 cursor-pointer items-center justify-center rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-4 py-4 text-center text-sm text-zinc-600 transition-colors hover:border-zinc-500 hover:bg-zinc-100"
-            >
-              {docFile ? docFile.name : t("vehicles.vehicleDocumentsFileLabel")}
-            </label>
-            <input
-              id="vehicle-doc-file-input"
-              type="file"
-              accept="application/pdf,image/jpeg,image/png,image/webp,.pdf,.jpg,.jpeg,.png,.webp"
-              className="sr-only"
-              onChange={(e) => setDocFile(e.target.files?.[0] ?? null)}
-            />
-            {docFile ? (
-              <div className="mt-2 rounded-xl border border-zinc-200 bg-white p-2">
-                {vehicleDocPreviewMode === "image" && vehicleDocPreviewUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element -- local blob URL from file input
-                  <img src={vehicleDocPreviewUrl} alt={docFile.name} className="h-40 w-full rounded-lg object-cover" />
-                ) : vehicleDocPreviewMode === "pdf" && vehicleDocPreviewUrl ? (
-                  <iframe src={vehicleDocPreviewUrl} title={docFile.name} className="h-48 w-full rounded-lg border border-zinc-200" />
-                ) : (
-                  <div className="rounded-lg bg-zinc-100 px-3 py-2 text-sm text-zinc-700">{docFile.name}</div>
-                )}
-                <div className="mt-2 text-xs text-zinc-500">{(docFile.size / 1024 / 1024).toFixed(2)} MB</div>
-              </div>
-            ) : null}
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-zinc-700">{t("vehicles.vehicleDocumentsNotesLabel")}</label>
-            <textarea
-              className="min-h-[72px] w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm"
-              value={docNotes}
-              onChange={(e) => setDocNotes(e.target.value)}
-              maxLength={500}
-              placeholder={t("vehicles.vehicleDocumentsNotesPlaceholder")}
-            />
-          </div>
-          {docFormError ? <p className="text-sm text-red-600">{docFormError}</p> : null}
-          <div className="flex flex-wrap justify-end gap-2 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setDocFormOpen(false)}>
-              {t("common.cancel")}
-            </Button>
-            <Button
-              type="button"
-              variant="primary"
-              disabled={uploadVehicleDocumentMut.isPending}
-              onClick={() => void submitVehicleDocUpload()}
-            >
-              {uploadVehicleDocumentMut.isPending ? t("common.loading") : t("vehicles.vehicleDocumentsUploadSubmit")}
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
-      <Modal
-        open={docDeleteId != null}
-        onClose={() => setDocDeleteId(null)}
-        titleId="vehicle-doc-delete-title"
-        title={t("vehicles.vehicleDocumentsDeleteTitle")}
-        closeButtonLabel={t("common.close")}
-        nested
-        className="max-w-md"
-      >
-        <p className="text-sm text-zinc-600">{t("vehicles.vehicleDocumentsDeleteConfirm")}</p>
-        <div className="mt-4 flex flex-wrap justify-end gap-2">
-          <Button type="button" variant="secondary" onClick={() => setDocDeleteId(null)}>
-            {t("common.cancel")}
-          </Button>
-          <Button
-            type="button"
-            className="bg-red-600 hover:bg-red-700"
-            disabled={deleteVehicleDocumentMut.isPending}
-            onClick={() => void confirmVehicleDocDelete()}
-          >
-            {deleteVehicleDocumentMut.isPending ? t("common.loading") : t("common.delete")}
-          </Button>
-        </div>
-      </Modal>
+      <VehicleDocumentUploadSheet state={docForm} t={t} />
+      <VehicleDocumentDeleteModal state={docForm} t={t} />
     </>
   );
 }

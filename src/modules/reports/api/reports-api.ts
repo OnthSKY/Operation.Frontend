@@ -148,6 +148,35 @@ export function fetchFinancialSummaryReport(
   );
 }
 
+/**
+ * Lifetime varyantı — backend tek SQL'le 2020→today aralığını döner; 400 günlük chunk'lara
+ * bölmek zorunda değiliz. Dashboard finansal kartları için kullanılır.
+ */
+export function fetchFinancialSummaryLifetime(
+  dateTo?: string
+): Promise<FinancialSummaryReport> {
+  return apiRequest<FinancialSummaryReport>(
+    `/reports/financial-summary/lifetime${toQuery({ dateTo })}`
+  );
+}
+
+export function fetchFinancialLifetime(
+  dateTo?: string
+): Promise<FinancialReport> {
+  return apiRequest<FinancialReport>(
+    `/reports/financial/lifetime${toQuery({ dateTo })}`
+  ).then((r) => ({
+    ...r,
+    byExpensePaymentSource: r.byExpensePaymentSource ?? [],
+    supplierPayments: r.supplierPayments ?? [],
+    vehicleExpensesOffRegister: r.vehicleExpensesOffRegister ?? [],
+    vehicleExpensesByPlate: r.vehicleExpensesByPlate ?? [],
+    branchExpenseResidualByCategory: r.branchExpenseResidualByCategory ?? [],
+    personnelExpenseByCategory: r.personnelExpenseByCategory ?? [],
+    incomeRegisterBreakdownByCurrency: r.incomeRegisterBreakdownByCurrency ?? [],
+  }));
+}
+
 export function fetchFinancialBranchMonthly(
   params: FinancialReportParams
 ): Promise<FinancialBranchMonthlyBreakdownRow[]> {

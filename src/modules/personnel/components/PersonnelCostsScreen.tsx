@@ -346,7 +346,7 @@ function KpiCard({
   return (
     <div
       className={cn(
-        "rounded-xl border p-4 shadow-sm",
+        "rounded-xl border p-2.5 shadow-sm sm:p-3",
         emphasis
           ? "border-violet-200 bg-violet-50/60"
           : "border-zinc-200 bg-white"
@@ -354,15 +354,16 @@ function KpiCard({
     >
       <p
         className={cn(
-          "text-xs font-medium uppercase tracking-wide",
+          "truncate text-[10px] font-semibold uppercase tracking-wide sm:text-[11px]",
           emphasis ? "text-violet-700" : "text-zinc-500"
         )}
+        title={label}
       >
         {label}
       </p>
       <p
         className={cn(
-          "mt-1.5 text-2xl font-semibold tabular-nums leading-tight sm:text-[1.6rem]",
+          "mt-1 text-lg font-semibold tabular-nums leading-tight sm:text-xl lg:text-[1.35rem]",
           emphasis ? "text-violet-950" : "text-zinc-900"
         )}
       >
@@ -373,7 +374,7 @@ function KpiCard({
             : dash}
       </p>
       {!pending && others.length > 0 ? (
-        <p className="mt-1 text-xs text-zinc-500">
+        <p className="mt-0.5 truncate text-[10px] text-zinc-500 sm:text-xs">
           {others
             .map((k) => formatMoneyDash(totals.get(k) ?? 0, dash, locale, k))
             .join(" · ")}
@@ -381,13 +382,288 @@ function KpiCard({
       ) : null}
       <p
         className={cn(
-          "mt-2 text-xs",
+          "mt-1 truncate text-[10px] sm:text-xs",
           emphasis ? "text-violet-700/80" : "text-zinc-500"
         )}
+        title={hint}
       >
         {hint}
       </p>
     </div>
+  );
+}
+
+type CompactChipBlocksProps = {
+  t: (key: string) => string;
+  locale: Locale;
+  dash: string;
+  empty: string;
+  countTpl: string;
+  pending: boolean;
+  categoryBuckets: CategoryBucket[];
+  sourceBuckets: SourceBucketSummary[];
+};
+
+function CompactChipBlocks({
+  t,
+  locale,
+  dash,
+  empty,
+  countTpl,
+  pending,
+  categoryBuckets,
+  sourceBuckets,
+}: CompactChipBlocksProps) {
+  const sourceLabel = useCallback(
+    (key: SourceBucketSummary["key"]) =>
+      key === "PATRON"
+        ? t("personnel.costsSourceBucketPatron")
+        : key === "PERSONNEL_HELD_REGISTER"
+          ? t("personnel.costsSourceBucketHeldRegister")
+          : t("personnel.costsSourceBucketRegister"),
+    [t],
+  );
+
+  const renderTry = (totals: Map<string, number>) => {
+    const v = totals.get("TRY") ?? 0;
+    return v > 0 ? formatMoneyDash(v, dash, locale, "TRY") : empty;
+  };
+
+  return (
+    <section className="grid gap-2 md:grid-cols-2">
+      <article className="rounded-xl border border-zinc-200 bg-white p-2.5 shadow-sm sm:p-3">
+        <header className="mb-2 flex items-center justify-between gap-2">
+          <h3 className="truncate text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+            {t("personnel.costsCategoryCardTitle")}
+          </h3>
+        </header>
+        {pending ? (
+          <p className="text-xs text-zinc-500">{t("common.loading")}</p>
+        ) : categoryBuckets.length === 0 ? (
+          <p className="text-xs text-zinc-600">{empty}</p>
+        ) : (
+          <>
+            <div className="-mx-2.5 flex snap-x snap-mandatory gap-1.5 overflow-x-auto px-2.5 pb-1 [scrollbar-width:thin] sm:-mx-3 sm:px-3">
+              {categoryBuckets.slice(0, 6).map((b) => (
+                <span
+                  key={b.key}
+                  title={`${b.label} · ${renderTry(b.totals)} · ${b.count}`}
+                  className={cn(
+                    "flex min-w-[7rem] shrink-0 snap-start flex-col gap-0.5 rounded-lg border px-2 py-1.5",
+                    b.isAdvance
+                      ? "border-violet-200 bg-violet-50/70"
+                      : "border-zinc-200 bg-white",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "truncate text-[11px] font-semibold leading-tight",
+                      b.isAdvance ? "text-violet-900" : "text-zinc-900",
+                    )}
+                  >
+                    {b.label}
+                  </span>
+                  <span className="truncate font-mono text-[11px] tabular-nums text-zinc-900">
+                    {renderTry(b.totals)}
+                  </span>
+                  <span className="truncate text-[10px] text-zinc-500">
+                    {countTpl.replace("{count}", String(b.count))}
+                  </span>
+                </span>
+              ))}
+            </div>
+            {categoryBuckets.length > 6 ? (
+              <details className="group mt-1.5">
+                <summary className="cursor-pointer text-[11px] font-medium text-violet-700 hover:underline [&::-webkit-details-marker]:hidden">
+                  {t("personnel.costsShowAll")} ({categoryBuckets.length})
+                </summary>
+                <ul className="mt-1.5 space-y-1.5 border-t border-zinc-100 pt-1.5">
+                  {categoryBuckets.slice(6).map((b) => (
+                    <li
+                      key={b.key}
+                      className="flex items-start justify-between gap-3"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className={cn(
+                            "truncate text-xs font-medium",
+                            b.isAdvance ? "text-violet-900" : "text-zinc-900",
+                          )}
+                        >
+                          {b.label}
+                        </p>
+                        <p className="text-[10px] text-zinc-500">
+                          {countTpl.replace("{count}", String(b.count))}
+                        </p>
+                      </div>
+                      <CurrencyTotalsRight
+                        totals={b.totals}
+                        dash={dash}
+                        locale={locale}
+                        emptyLabel={empty}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ) : null}
+          </>
+        )}
+      </article>
+
+      <article className="rounded-xl border border-zinc-200 bg-white p-2.5 shadow-sm sm:p-3">
+        <header className="mb-2 flex items-center justify-between gap-2">
+          <h3 className="truncate text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+            {t("personnel.costsPaymentMethodCardTitle")}
+          </h3>
+        </header>
+        {pending ? (
+          <p className="text-xs text-zinc-500">{t("common.loading")}</p>
+        ) : sourceBuckets.length === 0 ? (
+          <p className="text-xs text-zinc-600">{empty}</p>
+        ) : (
+          <div className="grid grid-cols-3 gap-1.5">
+            {sourceBuckets.map((bucket) => (
+              <span
+                key={bucket.key}
+                title={`${sourceLabel(bucket.key)} · ${renderTry(bucket.totals)} · ${bucket.count}`}
+                className="flex flex-col gap-0.5 rounded-lg border border-zinc-200 bg-white px-2 py-1.5"
+              >
+                <span className="truncate text-[11px] font-semibold leading-tight text-zinc-900">
+                  {sourceLabel(bucket.key)}
+                </span>
+                <span className="truncate font-mono text-[11px] tabular-nums text-zinc-900">
+                  {renderTry(bucket.totals)}
+                </span>
+                <span className="truncate text-[10px] text-zinc-500">
+                  {countTpl.replace("{count}", String(bucket.count))}
+                </span>
+              </span>
+            ))}
+          </div>
+        )}
+      </article>
+    </section>
+  );
+}
+
+type MonthlyChipStripProps = {
+  t: (key: string) => string;
+  locale: Locale;
+  dash: string;
+  empty: string;
+  pending: boolean;
+  monthlyBuckets: MonthBucket[];
+  monthFilter: string;
+  onMonthFilterChange: (ym: string) => void;
+  formatMonthLabel: (ym: string) => string;
+};
+
+function MonthlyChipStrip({
+  t,
+  locale,
+  dash,
+  empty,
+  pending,
+  monthlyBuckets,
+  monthFilter,
+  onMonthFilterChange,
+  formatMonthLabel,
+}: MonthlyChipStripProps) {
+  const tryMax = useMemo(() => {
+    let m = 0;
+    for (const b of monthlyBuckets) {
+      const v = b.totals.get("TRY") ?? 0;
+      if (v > m) m = v;
+    }
+    return m;
+  }, [monthlyBuckets]);
+
+  return (
+    <section className="rounded-xl border border-zinc-200 bg-white p-2.5 shadow-sm sm:p-3">
+      <header className="mb-2 flex items-center justify-between gap-2">
+        <h3 className="truncate text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+          {t("personnel.costsMonthlyCardTitle")}
+        </h3>
+        {monthFilter ? (
+          <button
+            type="button"
+            onClick={() => onMonthFilterChange("")}
+            className="shrink-0 rounded-md border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-medium text-violet-800 hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70"
+          >
+            {t("personnel.costsMonthlyClearFilter")}
+          </button>
+        ) : null}
+      </header>
+      {pending ? (
+        <p className="text-xs text-zinc-500">{t("common.loading")}</p>
+      ) : monthlyBuckets.length === 0 ? (
+        <p className="text-xs text-zinc-600">
+          {t("personnel.costsMonthlyEmpty")}
+        </p>
+      ) : (
+        <div
+          role="group"
+          aria-label={t("personnel.costsMonthlyCardTitle")}
+          className="-mx-2.5 flex snap-x snap-mandatory gap-1.5 overflow-x-auto px-2.5 pb-1 [scrollbar-width:thin] sm:-mx-3 sm:px-3"
+        >
+          {monthlyBuckets.map((bucket) => {
+            const active = bucket.ym === monthFilter;
+            const tryAmount = bucket.totals.get("TRY") ?? 0;
+            const ratio = tryMax > 0 ? tryAmount / tryMax : 0;
+            return (
+              <button
+                key={bucket.ym}
+                type="button"
+                onClick={() => onMonthFilterChange(active ? "" : bucket.ym)}
+                aria-pressed={active}
+                title={`${formatMonthLabel(bucket.ym)} · ${formatMoneyDash(
+                  tryAmount,
+                  dash,
+                  locale,
+                  "TRY",
+                )} · ${bucket.count}`}
+                className={cn(
+                  "group relative flex min-w-[5rem] shrink-0 snap-start flex-col items-stretch gap-1 rounded-lg border px-2 py-1.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70",
+                  active
+                    ? "border-violet-300 bg-violet-50 text-violet-900"
+                    : "border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50",
+                )}
+              >
+                <span className="truncate text-[11px] font-semibold leading-tight">
+                  {formatMonthLabel(bucket.ym)}
+                </span>
+                <span className="truncate font-mono text-[11px] tabular-nums">
+                  {tryAmount > 0
+                    ? formatMoneyDash(tryAmount, dash, locale, "TRY")
+                    : empty}
+                </span>
+                <span
+                  aria-hidden
+                  className={cn(
+                    "h-1 w-full overflow-hidden rounded-full",
+                    active ? "bg-violet-200/70" : "bg-zinc-200/70",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "block h-full origin-left rounded-full",
+                      active ? "bg-violet-500" : "bg-zinc-400/80",
+                    )}
+                    style={{
+                      transform: `scaleX(${ratio.toFixed(3)})`,
+                    }}
+                  />
+                </span>
+                <span className="truncate text-[10px] text-zinc-500">
+                  {String(bucket.count)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -475,26 +751,17 @@ function PersonnelCostsTopSummary({
   const countTpl = t("personnel.costsCategoryCount");
 
   return (
-    <div className="space-y-4">
-      <KpiCard
-        label={t("personnel.costsKpiContractorExpense")}
-        totals={contractorNetSums}
-        hint={`${t("personnel.costsKpiContractorOwed")}: ${formatMoneyDash(
-          contractorOwed,
-          dash,
-          locale,
-          "TRY"
-        )} · ${t("personnel.costsKpiContractorPaid")}: ${formatMoneyDash(
-          contractorPaid,
-          dash,
-          locale,
-          "TRY"
-        )}`}
-        pending={contractorPending}
-        t={t}
-        locale={locale}
-      />
-      <div className="grid gap-3 sm:grid-cols-3">
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+        <KpiCard
+          label={t("personnel.costsKpiTotalPersonnel")}
+          totals={combinedSums}
+          hint={t("personnel.costsKpiTotalPersonnelHint")}
+          emphasis
+          pending={pending}
+          t={t}
+          locale={locale}
+        />
         <KpiCard
           label={t("personnel.costsKpiTotalAdvance")}
           totals={advSums}
@@ -512,163 +779,47 @@ function PersonnelCostsTopSummary({
           locale={locale}
         />
         <KpiCard
-          label={t("personnel.costsKpiTotalPersonnel")}
-          totals={combinedSums}
-          hint={t("personnel.costsKpiTotalPersonnelHint")}
-          emphasis
-          pending={pending}
+          label={t("personnel.costsKpiContractorExpense")}
+          totals={contractorNetSums}
+          hint={`${t("personnel.costsKpiContractorOwed")}: ${formatMoneyDash(
+            contractorOwed,
+            dash,
+            locale,
+            "TRY"
+          )} · ${t("personnel.costsKpiContractorPaid")}: ${formatMoneyDash(
+            contractorPaid,
+            dash,
+            locale,
+            "TRY"
+          )}`}
+          pending={contractorPending}
           t={t}
           locale={locale}
         />
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
-        <Card
-          title={t("personnel.costsCategoryCardTitle")}
-          description={t("personnel.costsCategoryCardDesc")}
-        >
-          {pending ? (
-            <p className="text-sm text-zinc-500">{t("common.loading")}</p>
-          ) : categoryBuckets.length === 0 ? (
-            <p className="text-sm text-zinc-600">{empty}</p>
-          ) : (
-            <ul className="space-y-2">
-              {categoryBuckets.map((b) => (
-                <li
-                  key={b.key}
-                  className="flex items-start justify-between gap-3 border-b border-zinc-100 pb-2 last:border-0 last:pb-0"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={cn(
-                        "truncate text-sm font-medium",
-                        b.isAdvance ? "text-violet-900" : "text-zinc-900"
-                      )}
-                    >
-                      {b.label}
-                    </p>
-                    <p className="text-xs text-zinc-500">
-                      {countTpl.replace("{count}", String(b.count))}
-                    </p>
-                  </div>
-                  <CurrencyTotalsRight
-                    totals={b.totals}
-                    dash={dash}
-                    locale={locale}
-                    emptyLabel={empty}
-                  />
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
+      <CompactChipBlocks
+        t={t}
+        locale={locale}
+        dash={dash}
+        empty={empty}
+        countTpl={countTpl}
+        pending={pending}
+        categoryBuckets={categoryBuckets}
+        sourceBuckets={sourceBuckets}
+      />
 
-        <Card
-          title={t("personnel.costsPaymentMethodCardTitle")}
-          description={t("personnel.costsPaymentMethodCardDesc")}
-        >
-          {pending ? (
-            <p className="text-sm text-zinc-500">{t("common.loading")}</p>
-          ) : (
-            <ul className="space-y-2">
-              {sourceBuckets.map((bucket) => {
-                const label =
-                  bucket.key === "PATRON"
-                    ? t("personnel.costsSourceBucketPatron")
-                    : bucket.key === "PERSONNEL_HELD_REGISTER"
-                      ? t("personnel.costsSourceBucketHeldRegister")
-                      : t("personnel.costsSourceBucketRegister");
-                return (
-                  <li
-                    key={bucket.key}
-                    className="flex items-start justify-between gap-3 border-b border-zinc-100 pb-2 last:border-0 last:pb-0"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-zinc-900">
-                        {label}
-                      </p>
-                      <p className="text-xs text-zinc-500">
-                        {countTpl.replace("{count}", String(bucket.count))}
-                      </p>
-                    </div>
-                    <CurrencyTotalsRight
-                      totals={bucket.totals}
-                      dash={dash}
-                      locale={locale}
-                      emptyLabel={empty}
-                    />
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </Card>
-      </div>
-
-      <Card
-        title={t("personnel.costsMonthlyCardTitle")}
-        description={t("personnel.costsMonthlyCardDesc")}
-        headerActions={
-          monthFilter ? (
-            <button
-              type="button"
-              onClick={() => onMonthFilterChange("")}
-              className="rounded-lg border border-violet-200 bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-800 hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70"
-            >
-              {t("personnel.costsMonthlyClearFilter")}
-            </button>
-          ) : undefined
-        }
-      >
-        {pending ? (
-          <p className="text-sm text-zinc-500">{t("common.loading")}</p>
-        ) : monthlyBuckets.length === 0 ? (
-          <p className="text-sm text-zinc-600">
-            {t("personnel.costsMonthlyEmpty")}
-          </p>
-        ) : (
-          <div
-            role="group"
-            aria-label={t("personnel.costsMonthlyCardTitle")}
-            className="space-y-1.5"
-          >
-            {monthlyBuckets.map((bucket) => {
-              const active = bucket.ym === monthFilter;
-              return (
-                <button
-                  key={bucket.ym}
-                  type="button"
-                  onClick={() =>
-                    onMonthFilterChange(active ? "" : bucket.ym)
-                  }
-                  aria-pressed={active}
-                  className={cn(
-                    "flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2 text-left text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70",
-                    active
-                      ? "border-violet-300 bg-violet-50 text-violet-900"
-                      : "border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50"
-                  )}
-                >
-                  <span className="min-w-0 flex-1 truncate font-medium">
-                    {formatMonthLabel(bucket.ym)}
-                  </span>
-                  <span className="flex shrink-0 items-center gap-3 text-xs">
-                    <span className="text-zinc-500">
-                      {countTpl.replace("{count}", String(bucket.count))}
-                    </span>
-                    <CurrencyTotalsRight
-                      totals={bucket.totals}
-                      dash={dash}
-                      locale={locale}
-                      emptyLabel={empty}
-                    />
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </Card>
+      <MonthlyChipStrip
+        t={t}
+        locale={locale}
+        dash={dash}
+        empty={empty}
+        pending={pending}
+        monthlyBuckets={monthlyBuckets}
+        monthFilter={monthFilter}
+        onMonthFilterChange={onMonthFilterChange}
+        formatMonthLabel={formatMonthLabel}
+      />
     </div>
   );
 }
@@ -1703,7 +1854,7 @@ export function PersonnelCostsScreen() {
 
   const tabBtnClass = (active: boolean) =>
     cn(
-      "min-h-11 flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors sm:flex-none sm:px-4",
+      "h-9 shrink-0 whitespace-nowrap rounded-lg border px-2.5 text-xs font-medium transition-colors sm:h-10 sm:px-3.5 sm:text-sm",
       active
         ? "border-violet-300 bg-violet-50 text-violet-900"
         : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
@@ -1737,7 +1888,7 @@ export function PersonnelCostsScreen() {
   );
 
   return (
-    <div className="flex w-full min-w-0 max-w-full flex-col gap-4 px-4 pb-8 pt-4 sm:gap-6 sm:px-6 lg:px-8">
+    <div className="flex w-full min-w-0 max-w-full flex-col gap-3 px-3 pb-6 pt-3 sm:gap-4 sm:px-5 lg:px-6">
       <PageContentSection
         variant="intro"
         eyebrow={t("common.pageSectionIntro")}
@@ -1826,126 +1977,124 @@ export function PersonnelCostsScreen() {
         mobileFrame="flush"
       >
         <div className="min-w-0 bg-white" aria-labelledby="personnel-costs-table-title">
-          {!personnelPortal ? (
-            <div
-              className={cn(
-                "flex flex-wrap gap-2 border-b border-zinc-100 bg-zinc-50/80 px-2 py-2 sm:px-3",
-                "max-sm:sticky max-sm:top-0 max-sm:z-10 max-sm:bg-zinc-50/95 max-sm:backdrop-blur-sm supports-[backdrop-filter]:max-sm:bg-zinc-50/90"
-              )}
-              role="tablist"
-              aria-label={t("personnel.costsTabsAria")}
-            >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === "all"}
-                className={tabBtnClass(tab === "all")}
-                onClick={() => setTab("all")}
+          <h2 id="personnel-costs-table-title" className="sr-only">
+            {t("personnel.costsTableHeading")}
+          </h2>
+          <div
+            className={cn(
+              "flex min-w-0 items-center gap-2 border-b border-zinc-100 bg-zinc-50/80 px-2 py-1.5 sm:px-3 sm:py-2",
+              "max-sm:sticky max-sm:top-0 max-sm:z-10 max-sm:bg-zinc-50/95 max-sm:backdrop-blur-sm supports-[backdrop-filter]:max-sm:bg-zinc-50/90"
+            )}
+          >
+            {!personnelPortal ? (
+              <div
+                role="tablist"
+                aria-label={t("personnel.costsTabsAria")}
+                className="flex min-w-0 flex-1 gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               >
-                {t("personnel.costsTabAll")}
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === "advances"}
-                className={tabBtnClass(tab === "advances")}
-                onClick={() => setTab("advances")}
-              >
-                {t("personnel.costsTabAdvances")}
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === "expenses"}
-                className={tabBtnClass(tab === "expenses")}
-                onClick={() => setTab("expenses")}
-              >
-                {t("personnel.costsTabExpenses")}
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={tab === "contractorPayments"}
-                className={tabBtnClass(tab === "contractorPayments")}
-                onClick={() => setTab("contractorPayments")}
-              >
-                {t("personnel.costsTabContractor")}
-              </button>
-            </div>
-          ) : null}
-
-          <div className="border-b border-zinc-100 bg-white px-3 py-3 sm:px-4 sm:py-3.5">
-            <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
-              <h2
-                id="personnel-costs-table-title"
-                className="min-w-0 text-base font-semibold leading-snug tracking-tight text-zinc-900 sm:text-[1.0625rem]"
-              >
-                {t("personnel.costsTableHeading")}
-              </h2>
-              <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-2">
-                <Tooltip content={t("personnel.allAdvancesFilters")} delayMs={200}>
-                  <button
-                    type="button"
-                    className={cn(
-                      "relative flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50/90 text-zinc-700 shadow-sm transition hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70",
-                      filtersActive && "border-violet-300 bg-violet-50/90 text-violet-900"
-                    )}
-                    aria-label={t("common.filters")}
-                    aria-expanded={filtersOpen}
-                    onClick={() => setFiltersOpen(true)}
-                  >
-                    <FilterFunnelIcon className="h-5 w-5" />
-                    {filtersActive ? (
-                      <span
-                        className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-violet-500 ring-2 ring-white"
-                        aria-hidden
-                      />
-                    ) : null}
-                  </button>
-                </Tooltip>
-                {!personnelPortal ? (
-                  <>
-                    <Tooltip content={t("personnel.costsAddAdvance")} delayMs={200}>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className={TABLE_TOOLBAR_ICON_BTN}
-                        disabled={activePersonnel.length === 0}
-                        onClick={() => setAdvanceOpen(true)}
-                        aria-label={t("personnel.costsAddAdvance")}
-                      >
-                        <CostsIconAdvance className="h-5 w-5" />
-                      </Button>
-                    </Tooltip>
-                    <Tooltip content={t("personnel.costsAddPersonnelExpense")} delayMs={200}>
-                      <Button
-                        type="button"
-                        variant="primary"
-                        className={TABLE_TOOLBAR_ICON_BTN}
-                        onClick={() => setExpenseTxOpen(true)}
-                        aria-label={t("personnel.costsAddPersonnelExpense")}
-                      >
-                        <CostsIconExpense className="h-5 w-5" />
-                      </Button>
-                    </Tooltip>
-                    <Tooltip content={t("personnel.settlementPrintOpen")} delayMs={200}>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className={TABLE_TOOLBAR_ICON_BTN}
-                        onClick={() => setSettlementPrintOpen(true)}
-                        aria-label={t("personnel.settlementPrintOpen")}
-                      >
-                        <CostsIconPrint className="h-5 w-5" />
-                      </Button>
-                    </Tooltip>
-                  </>
-                ) : null}
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "all"}
+                  className={tabBtnClass(tab === "all")}
+                  onClick={() => setTab("all")}
+                >
+                  {t("personnel.costsTabAll")}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "advances"}
+                  className={tabBtnClass(tab === "advances")}
+                  onClick={() => setTab("advances")}
+                >
+                  {t("personnel.costsTabAdvances")}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "expenses"}
+                  className={tabBtnClass(tab === "expenses")}
+                  onClick={() => setTab("expenses")}
+                >
+                  {t("personnel.costsTabExpenses")}
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === "contractorPayments"}
+                  className={tabBtnClass(tab === "contractorPayments")}
+                  onClick={() => setTab("contractorPayments")}
+                >
+                  {t("personnel.costsTabContractor")}
+                </button>
               </div>
+            ) : (
+              <span className="min-w-0 flex-1" />
+            )}
+            <div className="flex shrink-0 items-center gap-1.5">
+              <Tooltip content={t("personnel.allAdvancesFilters")} delayMs={200}>
+                <button
+                  type="button"
+                  className={cn(
+                    "relative flex h-9 w-9 shrink-0 touch-manipulation items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-700 shadow-sm transition hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70 sm:h-10 sm:w-10",
+                    filtersActive && "border-violet-300 bg-violet-50 text-violet-900"
+                  )}
+                  aria-label={t("common.filters")}
+                  aria-expanded={filtersOpen}
+                  onClick={() => setFiltersOpen(true)}
+                >
+                  <FilterFunnelIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+                  {filtersActive ? (
+                    <span
+                      className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-violet-500 ring-2 ring-white"
+                      aria-hidden
+                    />
+                  ) : null}
+                </button>
+              </Tooltip>
+              {!personnelPortal ? (
+                <>
+                  <Tooltip content={t("personnel.costsAddAdvance")} delayMs={200}>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="flex h-9 w-9 items-center justify-center rounded-lg p-0 sm:h-10 sm:w-10"
+                      disabled={activePersonnel.length === 0}
+                      onClick={() => setAdvanceOpen(true)}
+                      aria-label={t("personnel.costsAddAdvance")}
+                    >
+                      <CostsIconAdvance className="h-4 w-4 sm:h-5 sm:w-5" />
+                    </Button>
+                  </Tooltip>
+                  <Tooltip content={t("personnel.costsAddPersonnelExpense")} delayMs={200}>
+                    <Button
+                      type="button"
+                      variant="primary"
+                      className="flex h-9 w-9 items-center justify-center rounded-lg p-0 sm:h-10 sm:w-10"
+                      onClick={() => setExpenseTxOpen(true)}
+                      aria-label={t("personnel.costsAddPersonnelExpense")}
+                    >
+                      <CostsIconExpense className="h-4 w-4 sm:h-5 sm:w-5" />
+                    </Button>
+                  </Tooltip>
+                  <Tooltip content={t("personnel.settlementPrintOpen")} delayMs={200}>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="flex h-9 w-9 items-center justify-center rounded-lg p-0 sm:h-10 sm:w-10"
+                      onClick={() => setSettlementPrintOpen(true)}
+                      aria-label={t("personnel.settlementPrintOpen")}
+                    >
+                      <CostsIconPrint className="h-4 w-4 sm:h-5 sm:w-5" />
+                    </Button>
+                  </Tooltip>
+                </>
+              ) : null}
             </div>
           </div>
 
-          <div className="min-w-0 space-y-3 p-4 sm:p-5">
+          <div className="min-w-0 space-y-2.5 p-3 sm:space-y-3 sm:p-4">
             {monthFilter ? (
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-violet-200 bg-violet-50/70 px-3 py-2 text-sm text-violet-900">
                 <span>
@@ -1970,7 +2119,7 @@ export function PersonnelCostsScreen() {
               includeCategorySort={!personnelPortal && tab === "expenses"}
               groupAriaLabelKey="personnel.costsSortGroupAria"
             />
-            <p className="text-xs leading-relaxed text-zinc-500">
+            <p className="hidden text-xs leading-relaxed text-zinc-500 sm:block">
               {personnelPortal
                 ? t("personnel.costsSortHintPortal")
                 : tab === "expenses"

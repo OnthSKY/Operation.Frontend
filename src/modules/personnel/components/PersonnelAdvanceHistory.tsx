@@ -7,6 +7,11 @@ import { fetchPersonnelAttributedExpenses } from "@/modules/branch/api/branch-tr
 import { txCategoryLine } from "@/modules/branch/lib/branch-transaction-options";
 import { PersonnelHeldRegisterPersonLink } from "@/modules/personnel/components/PersonnelHeldRegisterPersonLink";
 import { usePersonnelAdvancesAll } from "@/modules/personnel/hooks/usePersonnelQueries";
+import {
+  attributedExpenseRowIsAdvance,
+  sortAdvancesDesc,
+  sourceAbbrev,
+} from "@/modules/personnel/lib/advance-formatters";
 import type { Advance } from "@/types/advance";
 import type { Personnel } from "@/types/personnel";
 import type { BranchTransaction } from "@/types/branch-transaction";
@@ -67,31 +72,6 @@ function ExpandToggleIcon({ open }: { open: boolean }) {
       <path d="m6 9 6 6 6-6" />
     </svg>
   );
-}
-
-function sortAdvancesDesc(rows: Advance[]): Advance[] {
-  return [...rows].sort((a, b) => {
-    const da = a.advanceDate.slice(0, 10);
-    const db = b.advanceDate.slice(0, 10);
-    if (da !== db) return db.localeCompare(da);
-    return b.id - a.id;
-  });
-}
-
-function attributedExpenseRowIsAdvance(row: BranchTransaction): boolean {
-  const cat = String(row.category ?? "").trim().toUpperCase();
-  if (cat === "PER_ADVANCE") return true;
-  const lid = row.linkedAdvanceId;
-  return lid != null && lid > 0;
-}
-
-function sourceAbbrev(t: (k: string) => string, st: string): string {
-  const u = st.toUpperCase();
-  if (u === "PATRON") return t("personnel.advanceSourceAbbrPatron");
-  if (u === "BANK") return t("personnel.advanceSourceAbbrBank");
-  if (u === "PERSONNEL_HELD_REGISTER_CASH" || u === "PERSONNEL_POCKET")
-    return t("personnel.advanceSourceAbbrHeldRegister");
-  return t("personnel.advanceSourceAbbrCash");
 }
 
 function sumAmountsByCurrency(

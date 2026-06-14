@@ -53,6 +53,7 @@ export async function apiFetch(pathOrUrl: string, init?: RequestInit): Promise<R
   headers.set("Accept-Language", acceptLanguageHeader());
   const method = (init?.method ?? "GET").toUpperCase();
   ensureIdempotencyKey(headers, method);
+  ensureCsrfHeader(headers, method);
   const isFormData =
     typeof FormData !== "undefined" && init?.body != null && init.body instanceof FormData;
   if (init?.body && !headers.has("Content-Type") && !isFormData) {
@@ -161,6 +162,34 @@ function ensureIdempotencyKey(headers: Headers, method: string): void {
   if (headers.has("Idempotency-Key")) return;
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
     headers.set("Idempotency-Key", crypto.randomUUID());
+  }
+}
+
+/**
+ * CSRF double-submit cookie: backend `XSRF-TOKEN` cookie'sini set ediyor (HttpOnly = false);
+ * mutating request'lerde aynı değeri `X-XSRF-TOKEN` header'ı olarak göndeririz.
+ * SameSite=None + AllowCredentials senaryosunda CSRF surface'ini kapatır.
+ */
+function ensureCsrfHeader(headers: Headers, method: string): void {
+  const m = method.toUpperCase();
+  if (m === "GET" || m === "HEAD" || m === "OPTIONS" || m === "TRACE") return;
+  if (headers.has("X-XSRF-TOKEN")) return;
+  if (typeof document === "undefined") return;
+  const token = readCookie("XSRF-TOKEN");
+  if (token) headers.set("X-XSRF-TOKEN", token);
+}
+
+function readCookie(name: string): string | null {
+  if (typeof document === "undefined") return null;
+  const escaped = name.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&");
+  const match = document.cookie.match(
+    new RegExp("(?:^|;\\s*)" + escaped + "=([^;]*)")
+  );
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
   }
 }
 

@@ -35,37 +35,6 @@ function fromCents(c: number): number {
   return Math.round(c) / 100;
 }
 
-/**
- * En eski IN satırından başlayarak tutarı sent olarak böl; tek API çağrısında `cashHandoverSettlements` ile gönderilir.
- * Parçaların toplamı `targetCents` ile birebir eşit olmalı; aksi halde null.
- */
-function allocateHandoverPatronAmountCents(
-  openLines: PersonnelCashHandoverLine[],
-  targetCents: number
-): { transactionId: number; amountCents: number }[] | null {
-  if (targetCents <= 0) return null;
-  const sorted = [...openLines].sort((a, b) => {
-    const c = String(a.transactionDate).localeCompare(String(b.transactionDate));
-    if (c !== 0) return c;
-    return (a.transactionId ?? 0) - (b.transactionId ?? 0);
-  });
-  let left = targetCents;
-  const parts: { transactionId: number; amountCents: number }[] = [];
-  for (const row of sorted) {
-    if (left <= 0) break;
-    const rem = toCents(row.remainingHandoverAmount);
-    if (rem <= 0) continue;
-    const take = Math.min(rem, left);
-    if (take <= 0) continue;
-    parts.push({ transactionId: row.transactionId, amountCents: take });
-    left -= take;
-  }
-  if (left > 0) return null;
-  const sum = parts.reduce((s, p) => s + p.amountCents, 0);
-  if (sum !== targetCents) return null;
-  return parts;
-}
-
 async function fetchAllHandoverLinesPaged(
   personnelId: number,
   branchId: number,
@@ -239,26 +208,22 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
       notify.error(t("personnel.handoverPatronTransferAmountExceeds"));
       return;
     }
-    const planCents = allocateHandoverPatronAmountCents(openLines, targetCents);
-    if (planCents == null || planCents.length === 0) {
-      notify.error(t("personnel.handoverPatronTransferAmountExceeds"));
-      return;
-    }
+    // OUT_POCKET_CLAIM_TO_PATRON: personel zimmetli kasa-IN alacağının patrona devri.
+    // Kasa fiziksel olarak ETKİLENMEZ (expense_payment_source = NULL), sadece zimmet/patron alacak defteri güncellenir.
+    // Bu yüzden eski OUT_PATRON_DEBT_REPAY (REGISTER + cashHandoverSettlements) flow'u terk edildi —
+    // o flow kasayı yanlış şekilde düşürüyordu ve day-close ekranında "Patrona kasa borcu ödemesi"
+    // olarak gözükmesine yol açıyordu.
     setSaving(true);
     try {
       await createTx.mutateAsync({
         branchId,
         type: "OUT",
-        mainCategory: "OUT_PATRON_DEBT_REPAY",
-        category: "PATRON_DEBT_REPAY",
+        mainCategory: "OUT_POCKET_CLAIM_TO_PATRON",
+        category: "POCKET_CLAIM_TRANSFER_TO_PATRON",
         amount: amt,
         currencyCode: ccy,
         transactionDate,
-        expensePaymentSource: "REGISTER",
-        cashHandoverSettlements: planCents.map((step) => ({
-          handoverTransactionId: step.transactionId,
-          amount: fromCents(step.amountCents),
-        })),
+        linkedPersonnelId: personnel.id,
         description: description.trim() || null,
       });
       const amountLabel = formatLocaleAmount(amt, loc, ccy);

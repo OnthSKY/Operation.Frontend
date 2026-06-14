@@ -41,6 +41,7 @@ import { cn } from "@/lib/cn";
 import { PlusIcon } from "@/shared/ui/EyeIcon";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import { detailOpenIconButtonClass, EyeIcon } from "@/shared/ui/EyeIcon";
+import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { AddBranchModal } from "./AddBranchModal";
 import { EditBranchModal } from "./EditBranchModal";
 import { AddTransactionModal } from "@/shared/components/transactions/AddTransactionModal";
@@ -732,7 +733,7 @@ export function BranchScreen() {
                           <p className="line-clamp-2 text-lg font-semibold leading-snug text-zinc-900">
                             {b.name}
                           </p>
-                          <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                             <span className="inline-flex items-center rounded-lg bg-zinc-100 px-2 py-0.5 font-mono text-xs font-medium text-zinc-700">
                               {t("branch.tableId")} {b.id}
                             </span>
@@ -744,55 +745,88 @@ export function BranchScreen() {
                             >
                               {t("branch.tableSeason")}: {seasonLabel(b.seasonStatus, t)}
                             </span>
-                          </div>
-                          <div
-                            className="mt-3 rounded-xl border border-zinc-100 bg-zinc-50/80 px-3 py-2.5"
-                            title={t("branch.tableStaffHint")}
-                          >
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                              {t("branch.tableStaff")}
-                            </p>
-                            <p className="mt-1 break-words text-sm leading-relaxed text-zinc-800">
-                              {staffTableLine(b, t)}
-                            </p>
+                            <span
+                              className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-xs font-medium text-zinc-700"
+                              title={t("branch.tableStaffHint")}
+                              aria-label={`${t("branch.tableStaff")}: ${staffTableLine(b, t)}`}
+                            >
+                              <svg
+                                aria-hidden
+                                className="h-3.5 w-3.5 text-violet-600"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                                <circle cx="9" cy="7" r="4" />
+                                <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                              </svg>
+                              <span className="truncate">{staffTableLine(b, t)}</span>
+                            </span>
                           </div>
                         </div>
                         <span
-                          className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-400"
+                          className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-violet-600"
                           aria-hidden
                         >
-                          <ChevronRightIcon className="h-5 w-5" />
+                          <EyeIcon />
                         </span>
                       </div>
                     </button>
                     <div className="border-t border-zinc-100 px-3 py-3 sm:px-4">
-                      <div className="flex min-h-11 flex-row gap-2">
-                        <BranchQuickActionsMenu
-                          menuId={`branch-quick-${b.id}`}
-                          triggerLabel={t("branch.quickActions")}
-                          compact
-                          sections={branchQuickSectionsFor(b)}
-                        />
+                      <div className="flex min-h-11 flex-row items-center justify-between gap-2">
                         {!personnelPortal ? (
-                          <Tooltip content={t("branch.edit")} delayMs={200}>
-                            <Button
+                          <Tooltip content={t("branch.deleteBranch")} delayMs={200}>
+                            <button
                               type="button"
-                              variant="secondary"
-                              className={cn(
-                                detailOpenIconButtonClass,
-                                "min-h-11 min-w-11 shrink-0"
-                              )}
-                              aria-label={t("branch.edit")}
-                              title={t("branch.edit")}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                openBranchEdit(b.id);
+                                setBranchPendingDelete(b);
                               }}
+                              aria-label={t("branch.deleteBranch")}
+                              className={cn(
+                                trashIconActionButtonClass,
+                                "border-2 border-red-200 bg-white shadow-sm ring-1 ring-red-100/80 hover:border-red-300 hover:bg-red-50/90 active:bg-red-100"
+                              )}
                             >
-                              <BranchEditIcon />
-                            </Button>
+                              <TrashIcon />
+                            </button>
                           </Tooltip>
-                        ) : null}
+                        ) : (
+                          <span />
+                        )}
+                        <div className="inline-flex flex-row items-center gap-2">
+                          <BranchQuickActionsMenu
+                            menuId={`branch-quick-${b.id}`}
+                            triggerLabel={t("branch.quickActions")}
+                            compact
+                            sections={branchQuickSectionsFor(b)}
+                          />
+                          {!personnelPortal ? (
+                            <Tooltip content={t("branch.edit")} delayMs={200}>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                className={cn(
+                                  detailOpenIconButtonClass,
+                                  "min-h-11 min-w-11 shrink-0"
+                                )}
+                                aria-label={t("branch.edit")}
+                                title={t("branch.edit")}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openBranchEdit(b.id);
+                                }}
+                              >
+                                <BranchEditIcon />
+                              </Button>
+                            </Tooltip>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                   </MobileListCard>
