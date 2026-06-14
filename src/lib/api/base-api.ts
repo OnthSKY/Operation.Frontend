@@ -70,12 +70,14 @@ export async function apiFetch(pathOrUrl: string, init?: RequestInit): Promise<R
     else external.addEventListener("abort", () => ctrl.abort(), { once: true });
   }
   try {
-    return await fetch(url, {
+    const res = await fetch(url, {
       ...init,
       headers,
       credentials: "include",
       signal: ctrl.signal,
     });
+    rememberCsrfTokenFromResponse(res);
+    return res;
   } catch {
     throw new ApiError(0, "network");
   } finally {
@@ -166,17 +168,29 @@ function ensureIdempotencyKey(headers: Headers, method: string): void {
 }
 
 /**
- * CSRF double-submit cookie: backend `XSRF-TOKEN` cookie'sini set ediyor (HttpOnly = false);
- * mutating request'lerde aynı değeri `X-XSRF-TOKEN` header'ı olarak göndeririz.
- * SameSite=None + AllowCredentials senaryosunda CSRF surface'ini kapatır.
+ * CSRF double-submit: backend `XSRF-TOKEN` cookie'sini set eder VE her response'a
+ * aynı değeri `X-XSRF-TOKEN` header olarak yansıtır.
+ *
+ * Cross-origin (frontend ≠ backend host): document.cookie cookie'ye erişemez,
+ * o yüzden in-memory cache'i öncelikli kaynak yaparız. apiFetch her response'tan
+ * header'ı okuyup cache'i günceller (rememberCsrfTokenFromResponse).
+ *
+ * Same-origin senaryosunda cookie de okunur — fallback olarak.
  */
+let inMemoryCsrfToken: string | null = null;
+
 function ensureCsrfHeader(headers: Headers, method: string): void {
   const m = method.toUpperCase();
   if (m === "GET" || m === "HEAD" || m === "OPTIONS" || m === "TRACE") return;
   if (headers.has("X-XSRF-TOKEN")) return;
-  if (typeof document === "undefined") return;
-  const token = readCookie("XSRF-TOKEN");
+  // Öncelik: in-memory (her response'tan güncellenir, cross-origin'de çalışır)
+  const token = inMemoryCsrfToken ?? (typeof document !== "undefined" ? readCookie("XSRF-TOKEN") : null);
   if (token) headers.set("X-XSRF-TOKEN", token);
+}
+
+function rememberCsrfTokenFromResponse(res: Response): void {
+  const fromHeader = res.headers.get("X-XSRF-TOKEN");
+  if (fromHeader) inMemoryCsrfToken = fromHeader;
 }
 
 function readCookie(name: string): string | null {
