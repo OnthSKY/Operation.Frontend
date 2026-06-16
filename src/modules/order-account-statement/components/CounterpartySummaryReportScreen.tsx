@@ -9,18 +9,20 @@ import {
 } from "@/modules/branch/api/branch-documents-api";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import {
-  addOutboundInvoiceReceipt,
   deleteCustomerAccount,
   deleteOutboundInvoice,
   fetchOutboundInvoices,
-  fetchOutboundInvoiceReceipts,
-  fetchCounterpartySummaryReport,
   type CounterpartySummaryFilters,
   type CounterpartySummaryReport,
   type CounterpartySuggestionRow,
   type OutboundInvoiceReceiptResponse,
   type OutboundInvoiceResponse,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
+import {
+  addCustomerAccountReceipt,
+  fetchCounterpartyLedgerSummary,
+  fetchCustomerAccountReceiptsByInvoice,
+} from "@/modules/order-account-statement/api/customer-accounts-api";
 import {
   companyBrandingLogoUrl,
   fetchSystemBranding,
@@ -160,10 +162,15 @@ export function CounterpartySummaryReportScreen() {
     setBusy(true);
     setErrorText("");
     try {
-      const [data, invoices] = await Promise.all([
-        fetchCounterpartySummaryReport(nextFilters),
+      // C planı: yeni cari endpoint'i. Shape uyumlu (items + totals).
+      const [ledger, invoices] = await Promise.all([
+        fetchCounterpartyLedgerSummary(nextFilters),
         fetchOutboundInvoices(),
       ]);
+      const data: CounterpartySummaryReport = {
+        items: ledger.items as unknown as CounterpartySuggestionRow[],
+        totals: ledger.totals,
+      };
       const invoiceBreakdown = invoices.map((invoice) => {
         const promoTotal =
           Number.isFinite(Number(invoice.promoAmount)) && Number(invoice.promoAmount) > 0
@@ -193,13 +200,13 @@ export function CounterpartySummaryReportScreen() {
           const chunk = unresolved.slice(i, i + concurrency);
           const chunkResults = await Promise.all(
             chunk.map(async (invoice) => {
-              const receipts = await fetchOutboundInvoiceReceipts(invoice.id);
+              const receipts = await fetchCustomerAccountReceiptsByInvoice(invoice.id);
               const promo = receipts.reduce((sum, receipt) => {
-                if (!isPromoReceipt(receipt)) return sum;
+                if (!isPromoReceipt(receipt as unknown as OutboundInvoiceReceiptResponse)) return sum;
                 return sum + Math.max(0, Number(receipt.amount) || 0);
               }, 0);
               const advance = receipts.reduce((sum, receipt) => {
-                if (!isAdvanceReceipt(receipt)) return sum;
+                if (!isAdvanceReceipt(receipt as unknown as OutboundInvoiceReceiptResponse)) return sum;
                 return sum + Math.max(0, Number(receipt.amount) || 0);
               }, 0);
               return [invoice.id, { promo, advance }] as const;
@@ -611,68 +618,33 @@ export function CounterpartySummaryReportScreen() {
     setReceiptSaving(true);
     setErrorText("");
     try {
-      const invoices = await fetchOutboundInvoices();
-      const openRows = invoices
-        .filter(
-          (r) =>
-            r.counterpartyType === receiptTarget.counterpartyType &&
-            r.counterpartyId === receiptTarget.counterpartyId &&
-            (r.currencyCode || "TRY").trim().toUpperCase() === currencyCode &&
-            Number.isFinite(Number(r.openAmount)) &&
-            Number(r.openAmount) > 0.009
-        )
-        .sort((a, b) => {
-          const d = a.issueDate.localeCompare(b.issueDate);
-          return d !== 0 ? d : a.id - b.id;
+      // C planı: counterparty-level genel tahsilat (FIFO yok). linkedInvoiceId boş bırakılır,
+      // ödeme bakiyeyi doğrudan azaltır. Backend overpay'i credit olarak tutar.
+      await addCustomerAccountReceipt({
+        counterpartyType: receiptTarget.counterpartyType,
+        counterpartyId: receiptTarget.counterpartyId,
+        receiptDate,
+        amount,
+        currencyCode,
+        receiptKind: "cash",
+        linkedOutboundInvoiceId: null,
+        branchId:
+          receiptTarget.counterpartyType === "branch" ? receiptTarget.counterpartyId : null,
+        notes: receiptNote.trim() || null,
+      });
+      if (receiptTransferImage && receiptTarget.counterpartyType === "branch") {
+        await uploadBranchDocument(receiptTarget.counterpartyId, {
+          file: receiptTransferImage,
+          kind: "OTHER",
+          notes: `title=banka_dekontu · source=current_account_receipt · receiptDate=${receiptDate}`,
         });
-      if (openRows.length === 0) {
-        notify.error(t("branch.currentAccountNoOpenInvoicesForAllocation"));
-        return;
-      }
-      const prioritized = [
-        ...openRows.filter((r) => r.documentNumber === receiptTarget.lastDocumentNumber),
-        ...openRows.filter((r) => r.documentNumber !== receiptTarget.lastDocumentNumber),
-      ];
-      let remaining = amount;
-      let appliedTotal = 0;
-      let appliedCount = 0;
-      for (const r of prioritized) {
-        if (remaining <= 0.009) break;
-        const open = Number(r.openAmount) || 0;
-        if (open <= 0.009) continue;
-        const apply = Math.min(remaining, open);
-        await addOutboundInvoiceReceipt(r.id, {
-          receiptDate,
-          amount: apply,
-          currencyCode,
-          receiptKind: "cash",
-          notes: receiptNote.trim() || null,
-        });
-        if (receiptTransferImage && receiptTarget.counterpartyType === "branch") {
-          await uploadBranchDocument(receiptTarget.counterpartyId, {
-            file: receiptTransferImage,
-            kind: "OTHER",
-            notes: `title=banka_dekontu · source=current_account_receipt · invoiceId=${r.id} · receiptDate=${receiptDate}`,
-          });
-        }
-        appliedTotal += apply;
-        appliedCount += 1;
-        remaining -= apply;
       }
       await load(filters);
       notify.success(
         t("branch.currentAccountReceiptDistributedSaved")
-          .replace("{n}", String(appliedCount))
-          .replace("{amount}", formatLocaleAmount(appliedTotal, locale, currencyCode))
+          .replace("{n}", "1")
+          .replace("{amount}", formatLocaleAmount(amount, locale, currencyCode))
       );
-      if (remaining > 0.009) {
-        notify.info(
-          t("branch.currentAccountReceiptUnappliedRemainder").replace(
-            "{amount}",
-            formatLocaleAmount(remaining, locale, currencyCode)
-          )
-        );
-      }
       setReceiptTarget(null);
       setReceiptTransferImage(null);
     } catch (error) {
@@ -722,7 +694,7 @@ export function CounterpartySummaryReportScreen() {
 
       const rows = await Promise.all(
         filteredInvoices.map(async (invoice) => {
-          const receipts = await fetchOutboundInvoiceReceipts(invoice.id);
+          const receipts = await fetchCustomerAccountReceiptsByInvoice(invoice.id);
           const lastPaymentDate = receipts.length > 0 ? receipts[0]?.receiptDate ?? null : null;
           return {
             counterpartyName: invoice.counterpartyName,

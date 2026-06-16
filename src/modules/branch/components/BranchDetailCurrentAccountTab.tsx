@@ -2,13 +2,13 @@
 
 import { fetchBranchDocumentBlob } from "@/modules/branch/api/branch-documents-api";
 import {
-  addOutboundInvoiceReceipt,
   fetchOutboundInvoice,
   fetchOutboundInvoices,
   fetchOutboundInvoiceReceipts,
   type OutboundInvoiceReceiptResponse,
   type OutboundInvoiceResponse,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
+import { addCustomerAccountReceipt } from "@/modules/order-account-statement/api/customer-accounts-api";
 import { computePriorOpenBalanceForInvoice } from "@/modules/order-account-statement/lib/compute-prior-open-balance-for-invoice";
 import {
   isOrderAccountStatementPdfNote,
@@ -30,6 +30,7 @@ import {
 } from "@/modules/branch/hooks/useBranchQueries";
 import { CurrentAccountReceiptModal } from "@/modules/order-account-statement/components/CurrentAccountReceiptModal";
 import { BranchCurrentAccountReceiptsPanel } from "./BranchCurrentAccountReceiptsPanel";
+import { BranchRunningLedgerPanel } from "./BranchRunningLedgerPanel";
 import type { Locale } from "@/i18n/messages";
 import { cn } from "@/lib/cn";
 import { useI18n } from "@/i18n/context";
@@ -93,7 +94,7 @@ function parseReceiptSigFromNote(note: string | null | undefined): string | null
   return m ? m[1] : null;
 }
 
-type CurrentAccountSubTabId = "invoices" | "receipts";
+type CurrentAccountSubTabId = "invoices" | "receipts" | "ledger";
 
 export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
   const { t, locale } = useI18n();
@@ -584,67 +585,36 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
       }
     }
     const currencyCode = receiptInvoice.currencyCode;
-    const openRows = rows
-      .filter(
-        (r) =>
-          r.currencyCode === currencyCode &&
-          Number.isFinite(Number(r.openAmount)) &&
-          Number(r.openAmount) > 0.009
-      )
-      .sort((a, b) => {
-        const d = a.issueDate.localeCompare(b.issueDate);
-        return d !== 0 ? d : a.id - b.id;
-      });
-    if (openRows.length === 0) {
-      notify.error(t("branch.currentAccountNoOpenInvoicesForAllocation"));
-      return;
-    }
-    const prioritized = [
-      ...openRows.filter((r) => r.id === receiptInvoice.id),
-      ...openRows.filter((r) => r.id !== receiptInvoice.id),
-    ];
-    let remaining = amount;
-    let appliedTotal = 0;
-    let appliedCount = 0;
+    // C planı: artık FIFO dağıtım yok. Tek bir tahsilat satırı, seçili faturaya bağlanır.
+    // Backend overpay/currency/ownership doğrulamasını yapar.
     setReceiptSaving(true);
     try {
-      for (const r of prioritized) {
-        if (remaining <= 0.009) break;
-        const open = Number(r.openAmount) || 0;
-        if (open <= 0.009) continue;
-        const apply = Math.min(remaining, open);
-        await addOutboundInvoiceReceipt(r.id, {
-          receiptDate,
-          amount: apply,
-          currencyCode,
-          receiptKind: "cash",
-          notes: receiptNote.trim() || null,
+      await addCustomerAccountReceipt({
+        counterpartyType: "branch",
+        counterpartyId: branchId,
+        receiptDate,
+        amount,
+        currencyCode,
+        receiptKind: "cash",
+        linkedOutboundInvoiceId: receiptInvoice.id,
+        branchId,
+        notes: receiptNote.trim() || null,
+      });
+      if (receiptTransferImage) {
+        await uploadBranchDocumentMut.mutateAsync({
+          file: receiptTransferImage,
+          kind: "OTHER",
+          notes: `title=banka_dekontu · source=current_account_receipt · invoiceId=${receiptInvoice.id} · receiptDate=${receiptDate}`,
         });
-        if (receiptTransferImage) {
-          await uploadBranchDocumentMut.mutateAsync({
-            file: receiptTransferImage,
-            kind: "OTHER",
-            notes: `title=banka_dekontu · source=current_account_receipt · invoiceId=${r.id} · receiptDate=${receiptDate}`,
-          });
-        }
-        appliedTotal += apply;
-        appliedCount += 1;
-        remaining -= apply;
       }
-      await qc.invalidateQueries({ queryKey: ["branchCurrentAccountInvoices", branchId] });
-      notify.success(
-        t("branch.currentAccountReceiptDistributedSaved")
-          .replace("{n}", String(appliedCount))
-          .replace("{amount}", formatLocaleAmount(appliedTotal, locale, currencyCode))
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["branchCurrentAccountInvoices", branchId] }),
+        qc.invalidateQueries({ queryKey: ["customerAccountBalance", "branch", branchId] }),
+      ]);
+      notify.success(t("branch.currentAccountReceiptDistributedSaved")
+        .replace("{n}", "1")
+        .replace("{amount}", formatLocaleAmount(amount, locale, currencyCode))
       );
-      if (remaining > 0.009) {
-        notify.info(
-          t("branch.currentAccountReceiptUnappliedRemainder").replace(
-            "{amount}",
-            formatLocaleAmount(remaining, locale, currencyCode)
-          )
-        );
-      }
       setReceiptInvoice(null);
       setReceiptDate(localIsoDate());
       setReceiptAmount("");
@@ -879,6 +849,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
   const subTabs: { id: CurrentAccountSubTabId; label: string }[] = [
     { id: "invoices", label: t("branch.currentAccountSubTabInvoices") },
     { id: "receipts", label: t("branch.currentAccountSubTabReceipts") },
+    { id: "ledger", label: t("branch.currentAccountSubTabLedger") },
   ];
 
   return (
@@ -915,6 +886,17 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
           t={t}
           canEdit
           active={active && subTab === "receipts"}
+        />
+      ) : null}
+
+      {subTab === "ledger" ? (
+        <BranchRunningLedgerPanel
+          counterpartyType="branch"
+          counterpartyId={branchId}
+          locale={locale as Locale}
+          t={t}
+          canEdit
+          active={active && subTab === "ledger"}
         />
       ) : null}
 
