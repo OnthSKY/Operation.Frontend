@@ -8,7 +8,7 @@ import {
   type OutboundInvoiceReceiptResponse,
   type OutboundInvoiceResponse,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
-import { addCustomerAccountReceipt } from "@/modules/order-account-statement/api/customer-accounts-api";
+import { addOutboundInvoiceReceipt } from "@/modules/order-account-statement/api/outbound-invoices-api";
 import { computePriorOpenBalanceForInvoice } from "@/modules/order-account-statement/lib/compute-prior-open-balance-for-invoice";
 import {
   isOrderAccountStatementPdfNote,
@@ -585,19 +585,15 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
       }
     }
     const currencyCode = receiptInvoice.currencyCode;
-    // C planı: artık FIFO dağıtım yok. Tek bir tahsilat satırı, seçili faturaya bağlanır.
-    // Backend overpay/currency/ownership doğrulamasını yapar.
+    // Faturaya bağlı tahsilat → legacy endpoint (invoice_receipts + customer_account_receipts'e
+    // dual-write yapar). openAmount tutarlı kalır, drift olmaz.
     setReceiptSaving(true);
     try {
-      await addCustomerAccountReceipt({
-        counterpartyType: "branch",
-        counterpartyId: branchId,
+      await addOutboundInvoiceReceipt(receiptInvoice.id, {
         receiptDate,
         amount,
         currencyCode,
         receiptKind: "cash",
-        linkedOutboundInvoiceId: receiptInvoice.id,
-        branchId,
         notes: receiptNote.trim() || null,
       });
       if (receiptTransferImage) {
