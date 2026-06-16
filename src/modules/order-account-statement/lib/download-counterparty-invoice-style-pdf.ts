@@ -11,10 +11,12 @@ export type CounterpartyInvoiceStylePdfRow = {
   paidAmount: string;
   /** Ön ödeme (advance_payment) — fatura bazlı veya tahsilattan */
   advanceAmount?: string;
-  /** Promosyon / indirim (promo_discount) */
+  /** Promosyon / para indirim (promo_discount) */
   promoAmount?: string;
   /** Hediye ürün tutarı */
   giftAmount?: string;
+  /** Promosyon + Hediye toplamı (kolon başlığında gösterilen) */
+  promoCombinedAmount?: string;
   openAmount: string;
   paymentDate: string;
 };
@@ -49,6 +51,8 @@ export type CounterpartyInvoiceStylePdfMeta = {
     promoValue?: string;
     giftLabel?: string;
     giftValue?: string;
+    /** Promo + Hediye birleşik toplam (gösterimde başlık, alt satırda detay) */
+    promoCombinedValue?: string;
   };
 };
 
@@ -143,8 +147,7 @@ function createPaperNode(rows: CounterpartyInvoiceStylePdfRow[], meta: Counterpa
       <th style="padding:8px;border:1px solid #334155;text-align:right;">Fatura Tutarı</th>
       <th style="padding:8px;border:1px solid #334155;text-align:right;">Tahsil Edilen</th>
       <th style="padding:8px;border:1px solid #334155;text-align:right;">Ön Ödeme</th>
-      <th style="padding:8px;border:1px solid #334155;text-align:right;">İndirim</th>
-      <th style="padding:8px;border:1px solid #334155;text-align:right;">Hediye</th>
+      <th style="padding:8px;border:1px solid #334155;text-align:right;">Promosyon<br/><span style="font-weight:400;font-size:10px;opacity:0.75;">(Para + Ürün hediye)</span></th>
       <th style="padding:8px;border:1px solid #334155;text-align:right;">Açık</th>
       <th style="padding:8px;border:1px solid #334155;text-align:right;">Ödeme Tarihi</th>
     </tr>
@@ -163,8 +166,10 @@ function createPaperNode(rows: CounterpartyInvoiceStylePdfRow[], meta: Counterpa
       <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;">${escapeHtml(row.invoiceAmount)}</td>
       <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#166534;">${escapeHtml(row.paidAmount)}</td>
       <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#0369a1;">${escapeHtml(row.advanceAmount ?? "—")}</td>
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#6d28d9;">${escapeHtml(row.promoAmount ?? "—")}</td>
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#a21caf;">${escapeHtml(row.giftAmount ?? "—")}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#6d28d9;">
+        ${escapeHtml(row.promoCombinedAmount ?? row.promoAmount ?? "—")}
+        ${row.promoAmount || row.giftAmount ? `<div style="margin-top:2px;font-size:9px;font-weight:400;color:#64748b;line-height:1.2;">Para: ${escapeHtml(row.promoAmount ?? "—")} · Hediye: ${escapeHtml(row.giftAmount ?? "—")}</div>` : ""}
+      </td>
       <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;font-weight:700;color:#92400e;">${escapeHtml(row.openAmount)}</td>
       <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;">${escapeHtml(row.paymentDate)}</td>
     `;
@@ -184,15 +189,18 @@ function createPaperNode(rows: CounterpartyInvoiceStylePdfRow[], meta: Counterpa
     const advanceCell = ft.advanceLabel
       ? `<div><div style="color:#64748b;">${escapeHtml(ft.advanceLabel)}</div><div style="font-weight:700;color:#0369a1;">${escapeHtml(ft.advanceValue ?? "—")}</div></div>`
       : "";
+    // Promosyon birleşik (para + hediye) — kart başlığında toplam, altında detay.
+    const promoCombined = ft.promoCombinedValue ?? ft.promoValue ?? "—";
+    const promoBreakdown =
+      ft.promoValue || ft.giftValue
+        ? `<div style="margin-top:2px;font-size:10px;color:#64748b;line-height:1.3;">Para: ${escapeHtml(ft.promoValue ?? "—")} · Hediye: ${escapeHtml(ft.giftValue ?? "—")}</div>`
+        : "";
     const promoCell = ft.promoLabel
-      ? `<div><div style="color:#64748b;">${escapeHtml(ft.promoLabel)}</div><div style="font-weight:700;color:#6d28d9;">${escapeHtml(ft.promoValue ?? "—")}</div></div>`
-      : "";
-    const giftCell = ft.giftLabel
-      ? `<div><div style="color:#64748b;">${escapeHtml(ft.giftLabel)}</div><div style="font-weight:700;color:#a21caf;">${escapeHtml(ft.giftValue ?? "—")}</div></div>`
+      ? `<div><div style="color:#64748b;">${escapeHtml(ft.promoLabel)}</div><div style="font-weight:700;color:#6d28d9;">${escapeHtml(promoCombined)}</div>${promoBreakdown}</div>`
       : "";
     totalsWrap.innerHTML = `
       <div style="font-size:11px;color:#334155;text-transform:uppercase;letter-spacing:0.03em;">Toplamlar</div>
-      <div style="margin-top:6px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;font-size:12px;">
+      <div style="margin-top:6px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;font-size:12px;">
         <div>
           <div style="color:#64748b;">${escapeHtml(ft.invoicedLabel)}</div>
           <div style="font-weight:700;color:#0f172a;">${escapeHtml(ft.invoicedValue)}</div>
@@ -203,7 +211,6 @@ function createPaperNode(rows: CounterpartyInvoiceStylePdfRow[], meta: Counterpa
         </div>
         ${advanceCell}
         ${promoCell}
-        ${giftCell}
         <div>
           <div style="color:#64748b;">${escapeHtml(ft.openLabel)}</div>
           <div style="font-weight:700;color:#92400e;">${escapeHtml(ft.openValue)}</div>

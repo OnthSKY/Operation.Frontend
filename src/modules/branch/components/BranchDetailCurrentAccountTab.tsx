@@ -684,6 +684,10 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
             advance > 0 ? formatLocaleAmount(advance, locale, invoice.currencyCode) : "—",
           promoAmount: promo > 0 ? formatLocaleAmount(promo, locale, invoice.currencyCode) : "—",
           giftAmount: gift > 0 ? formatLocaleAmount(gift, locale, invoice.currencyCode) : "—",
+          promoCombinedAmount:
+            promo + gift > 0
+              ? formatLocaleAmount(promo + gift, locale, invoice.currencyCode)
+              : "—",
           openAmount: formatLocaleAmount(invoice.openAmount, locale, invoice.currencyCode),
           paymentDate: paymentDate ? formatLocaleDate(paymentDate, locale) : "—",
         };
@@ -743,6 +747,11 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
       promoValue: formatLocaleAmount(selectedTotals.promo, locale, "TRY"),
       giftLabel: t("branch.currentAccountColGiftAmount"),
       giftValue: formatLocaleAmount(selectedTotals.gift, locale, "TRY"),
+      promoCombinedValue: formatLocaleAmount(
+        selectedTotals.promo + selectedTotals.gift,
+        locale,
+        "TRY"
+      ),
       openLabel: t("branch.currentAccountOpenTotal"),
       openValue: formatLocaleAmount(computedOpen, locale, "TRY"),
     };
@@ -989,7 +998,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
       <>
       <p className="text-sm text-zinc-600">{t("branch.currentAccountHint")}</p>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <div className="rounded-xl border border-zinc-200 bg-white p-3">
           <div className="text-xs text-zinc-500">{t("branch.currentAccountInvoicedTotal")}</div>
           <div className="mt-1 text-lg font-semibold text-zinc-900">
@@ -1011,14 +1020,15 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
         <div className="rounded-xl border border-zinc-200 bg-white p-3">
           <div className="text-xs text-zinc-500">{t("branch.currentAccountColPromo")}</div>
           <div className="mt-1 text-lg font-semibold text-violet-700">
-            {formatLocaleAmount(totals.promo, locale, "TRY")}
+            {formatLocaleAmount(totals.promo + totals.gift, locale, "TRY")}
           </div>
-        </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-3">
-          <div className="text-xs text-zinc-500">{t("branch.currentAccountColGiftAmount")}</div>
-          <div className="mt-1 text-lg font-semibold text-fuchsia-700">
-            {formatLocaleAmount(totals.gift, locale, "TRY")}
-          </div>
+          {totals.gift > 0 || totals.promo > 0 ? (
+            <div className="mt-1 text-[11px] leading-tight text-zinc-500">
+              {t("branch.currentAccountColPromoMoney")}: {formatLocaleAmount(totals.promo, locale, "TRY")}
+              {" · "}
+              {t("branch.currentAccountColGiftAmount")}: {formatLocaleAmount(totals.gift, locale, "TRY")}
+            </div>
+          ) : null}
         </div>
         <div className="rounded-xl border border-zinc-200 bg-white p-3">
           <div className="text-xs text-zinc-500">{t("branch.currentAccountOpenTotal")}</div>
@@ -1045,7 +1055,6 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                 <th className="px-3 py-2 text-right">{t("branch.currentAccountColInvoiceTotal")}</th>
                 <th className="px-3 py-2 text-right">{t("branch.currentAccountColPaid")}</th>
                 <th className="px-3 py-2 text-right">{t("branch.currentAccountColPromo")}</th>
-                <th className="px-3 py-2 text-right">{t("branch.currentAccountColGiftAmount")}</th>
                 <th className="px-3 py-2 text-right">{t("branch.currentAccountColAdvance")}</th>
                 <th className="px-3 py-2 text-right">{t("branch.currentAccountColOpen")}</th>
                 <th className="px-3 py-2 text-center">{t("branch.currentAccountColPdfStatus")}</th>
@@ -1089,12 +1098,28 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                       <div>{formatLocaleAmount(cashCollected, locale, r.currencyCode)}</div>
                     </td>
                     <td className="px-3 py-2 text-right text-violet-700">
-                      {promoDeduction > 0
-                        ? formatLocaleAmount(promoDeduction, locale, r.currencyCode)
-                        : "—"}
-                    </td>
-                    <td className="px-3 py-2 text-right text-fuchsia-700">
-                      {giftAmount > 0 ? formatLocaleAmount(giftAmount, locale, r.currencyCode) : "—"}
+                      {promoDeduction + giftAmount > 0 ? (
+                        <div>
+                          <div className="font-semibold">
+                            {formatLocaleAmount(
+                              promoDeduction + giftAmount,
+                              locale,
+                              r.currencyCode
+                            )}
+                          </div>
+                          {promoDeduction > 0 || giftAmount > 0 ? (
+                            <div className="mt-0.5 text-[10px] leading-tight text-zinc-500">
+                              {t("branch.currentAccountColPromoMoney")}:{" "}
+                              {formatLocaleAmount(promoDeduction, locale, r.currencyCode)}
+                              <br />
+                              {t("branch.currentAccountColGiftAmount")}:{" "}
+                              {formatLocaleAmount(giftAmount, locale, r.currencyCode)}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                     <td className="px-3 py-2 text-right text-sky-700">
                       {advanceDeduction > 0
@@ -1239,18 +1264,23 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                       {formatLocaleAmount(cashCollected, locale, r.currencyCode)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-start justify-between gap-2">
                     <span className="text-zinc-500">{t("branch.currentAccountColPromo")}</span>
-                    <span className="font-medium text-violet-700">
-                      {promoDeduction > 0
-                        ? formatLocaleAmount(promoDeduction, locale, r.currencyCode)
-                        : "—"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-zinc-500">{t("branch.currentAccountColGiftAmount")}</span>
-                    <span className="font-medium text-fuchsia-700">
-                      {giftAmount > 0 ? formatLocaleAmount(giftAmount, locale, r.currencyCode) : "—"}
+                    <span className="text-right">
+                      <span className="block font-medium text-violet-700">
+                        {promoDeduction + giftAmount > 0
+                          ? formatLocaleAmount(promoDeduction + giftAmount, locale, r.currencyCode)
+                          : "—"}
+                      </span>
+                      {promoDeduction > 0 || giftAmount > 0 ? (
+                        <span className="mt-0.5 block text-[11px] leading-tight text-zinc-500">
+                          {t("branch.currentAccountColPromoMoney")}:{" "}
+                          {formatLocaleAmount(promoDeduction, locale, r.currencyCode)}
+                          {" · "}
+                          {t("branch.currentAccountColGiftAmount")}:{" "}
+                          {formatLocaleAmount(giftAmount, locale, r.currencyCode)}
+                        </span>
+                      ) : null}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2">
