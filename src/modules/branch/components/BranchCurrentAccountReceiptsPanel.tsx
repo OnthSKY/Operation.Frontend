@@ -151,16 +151,42 @@ export function BranchCurrentAccountReceiptsPanel({
   const totals = useMemo(() => {
     const receipts = balanceQuery.data?.receipts ?? [];
     let count = 0;
-    let amount = 0;
+    let cash = 0;
+    let advance = 0;
+    let promo = 0;
+    let other = 0;
     let currency: string | undefined;
     let mixedCurrency = false;
     for (const r of receipts) {
       count += 1;
-      amount += Number(r.amount) || 0;
+      const amt = Number(r.amount) || 0;
+      switch (r.receiptKind) {
+        case "advance_payment":
+          advance += amt;
+          break;
+        case "promo_discount":
+          promo += amt;
+          break;
+        case "cash":
+        case "bank_transfer":
+        case "check":
+          cash += amt;
+          break;
+        default:
+          other += amt;
+      }
       if (!currency) currency = r.currencyCode;
       else if (currency !== r.currencyCode) mixedCurrency = true;
     }
-    return { count, amount, currency: mixedCurrency ? undefined : currency };
+    return {
+      count,
+      cash,
+      advance,
+      promo,
+      other,
+      total: cash + advance + promo + other,
+      currency: mixedCurrency ? undefined : currency,
+    };
   }, [balanceQuery.data]);
 
   if (balanceQuery.isPending) {
@@ -174,7 +200,7 @@ export function BranchCurrentAccountReceiptsPanel({
     <div className="w-full min-w-0 space-y-4">
       <p className="text-sm text-zinc-600">{t("branch.currentAccountReceiptsHint")}</p>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <div className="rounded-xl border border-zinc-200 bg-white p-3">
           <div className="text-xs text-zinc-500">
             {t("branch.currentAccountReceiptsTotalCount")}
@@ -184,13 +210,29 @@ export function BranchCurrentAccountReceiptsPanel({
           </div>
         </div>
         <div className="rounded-xl border border-zinc-200 bg-white p-3">
+          <div className="text-xs text-zinc-500">{t("branch.currentAccountColPaid")}</div>
+          <div className="mt-1 text-lg font-semibold text-emerald-700 tabular-nums">
+            {formatLocaleAmount(totals.cash, locale, totals.currency ?? "TRY")}
+          </div>
+        </div>
+        <div className="rounded-xl border border-zinc-200 bg-white p-3">
+          <div className="text-xs text-zinc-500">{t("branch.currentAccountColAdvance")}</div>
+          <div className="mt-1 text-lg font-semibold text-sky-700 tabular-nums">
+            {formatLocaleAmount(totals.advance, locale, totals.currency ?? "TRY")}
+          </div>
+        </div>
+        <div className="rounded-xl border border-zinc-200 bg-white p-3">
+          <div className="text-xs text-zinc-500">{t("branch.currentAccountColPromo")}</div>
+          <div className="mt-1 text-lg font-semibold text-violet-700 tabular-nums">
+            {formatLocaleAmount(totals.promo, locale, totals.currency ?? "TRY")}
+          </div>
+        </div>
+        <div className="rounded-xl border border-zinc-200 bg-white p-3">
           <div className="text-xs text-zinc-500">
             {t("branch.currentAccountReceiptsTotalAmount")}
           </div>
-          <div className="mt-1 text-lg font-semibold text-emerald-700 tabular-nums">
-            {totals.currency
-              ? formatLocaleAmount(totals.amount, locale, totals.currency)
-              : `${formatLocaleAmount(totals.amount, locale, "TRY")} ·`}
+          <div className="mt-1 text-lg font-semibold text-zinc-900 tabular-nums">
+            {formatLocaleAmount(totals.total, locale, totals.currency ?? "TRY")}
             {!totals.currency && totals.count > 0 ? (
               <span className="ml-1 text-xs font-normal text-zinc-500">
                 {t("branch.currentAccountReceiptsMixedCurrency")}
