@@ -10,6 +10,8 @@ export const common = {
   loadErrorHint:
     "Bağlantınızı kontrol edin; sorun sürerse sayfayı yenileyin veya bir süre sonra «Yenile» ile tekrar deneyin.",
   loading: "Yükleniyor…",
+  rowVersionConflict:
+    "Bu kayıt siz görüntülerken başka bir kullanıcı tarafından değiştirildi. Güncel hâli getirildi; değişikliklerinizi tekrar uygulayın.",
   all: "Tümü",
   invalid: "Geçersiz değer",
   required: "Zorunlu",

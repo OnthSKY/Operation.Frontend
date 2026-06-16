@@ -2,6 +2,7 @@
 
 import type { Locale } from "@/i18n/messages";
 import { Button } from "@/shared/ui/Button";
+import { EmptyState } from "@/shared/ui/EmptyState";
 import { MobileListCard } from "@/shared/components/MobileListCard";
 import {
   Table,
@@ -50,7 +51,12 @@ export function VehicleDetailInsurancesTab({
         </Button>
       ) : null}
       {insurances.length === 0 ? (
-        <p className="text-sm text-zinc-500">{t("vehicles.emptyInsurances")}</p>
+        <EmptyState
+          icon="📋"
+          title={t("vehicles.emptyInsurances")}
+          description="Aracın sigorta poliçelerini ekleyerek bitiş tarihlerini takip edin."
+          compact
+        />
       ) : (
         <>
           <ul className="flex flex-col gap-2 md:hidden">

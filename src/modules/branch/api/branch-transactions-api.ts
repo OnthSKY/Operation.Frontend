@@ -83,6 +83,9 @@ type BranchTxApiRow = Omit<
   linkedVehicleExpenseId?: number | null;
   linkedVehicleId?: number | null;
   linkedVehiclePlateNumber?: string | null;
+  linkedContractorPaymentId?: number | null;
+  linkedContractorId?: number | null;
+  linkedContractorName?: string | null;
   generalOverheadPoolId?: number | null;
   settlesCashHandoverTransactionId?: number | null;
 };
@@ -171,6 +174,12 @@ function normalizeBranchTxRow(r: BranchTxApiRow): BranchTransaction {
     linkedVehiclePlateNumber:
       typeof r.linkedVehiclePlateNumber === "string" && r.linkedVehiclePlateNumber.trim()
         ? r.linkedVehiclePlateNumber.trim()
+        : null,
+    linkedContractorPaymentId: normalizeOptionalPositiveId(r.linkedContractorPaymentId),
+    linkedContractorId: normalizeOptionalPositiveId(r.linkedContractorId),
+    linkedContractorName:
+      typeof r.linkedContractorName === "string" && r.linkedContractorName.trim()
+        ? r.linkedContractorName.trim()
         : null,
     generalOverheadPoolId: normalizeOptionalPositiveId(
       (r as { generalOverheadPoolId?: unknown }).generalOverheadPoolId

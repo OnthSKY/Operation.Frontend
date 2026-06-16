@@ -2,9 +2,12 @@
 
 import { useI18n } from "@/i18n/context";
 import {
+  personnelKeys,
   useDeletePersonnelInsurancePeriod,
   useUpdatePersonnelInsurancePeriod,
 } from "@/modules/personnel/hooks/usePersonnelQueries";
+import { useQueryClient } from "@tanstack/react-query";
+import { confirmUndoableDelete } from "@/shared/lib/confirm-undoable-delete";
 import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
 import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { toErrorMessage } from "@/shared/lib/error-message";
@@ -34,6 +37,7 @@ export function EditPersonnelInsurancePeriodModal({
   const { t } = useI18n();
   const mut = useUpdatePersonnelInsurancePeriod();
   const delMut = useDeletePersonnelInsurancePeriod();
+  const qc = useQueryClient();
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
   const [notes, setNotes] = useState("");
@@ -93,14 +97,16 @@ export function EditPersonnelInsurancePeriodModal({
       message: t("personnel.insurancePeriodDeleteAsk"),
       cancelLabel: t("common.cancel"),
       confirmLabel: t("common.delete"),
-      onConfirm: async () => {
-        try {
-          await delMut.mutateAsync({ personnelId, periodId: period.id });
-          notify.success(t("personnel.insurancePeriodDeleted"));
-          onClose();
-        } catch (err) {
-          notify.error(toErrorMessage(err));
-        }
+      onConfirm: () => {
+        const periodId = period.id;
+        onClose();
+        confirmUndoableDelete<{ id: number }>({
+          qc,
+          queryKeyPrefix: personnelKeys.insurancePeriods(personnelId),
+          targetId: periodId,
+          deleteFn: () => delMut.mutateAsync({ personnelId, periodId }),
+          successMessage: t("personnel.insurancePeriodDeleted"),
+        });
       },
     });
   };

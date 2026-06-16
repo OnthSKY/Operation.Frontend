@@ -10,8 +10,10 @@ import { useShipmentList, useRegenerateDeliverySlip } from "@/modules/shipments/
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { useWarehousesList } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import { Button } from "@/shared/ui/Button";
+import { EmptyState } from "@/shared/ui/EmptyState";
 import { Input } from "@/shared/ui/Input";
 import { Select, type SelectOption } from "@/shared/ui/Select";
+import { Skeleton, SkeletonText } from "@/shared/ui/Skeleton";
 import { notify } from "@/shared/lib/notify";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import type { ShipmentNextActorRole, ShipmentStatus } from "@/types/shipment";
@@ -233,11 +235,23 @@ export function ShipmentListScreen() {
         ) : null}
       </div>
 
-      {isPending ? <p className="text-sm text-zinc-500">{t("common.loading")}</p> : null}
+      {isPending ? (
+        <div className="space-y-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="rounded-lg border border-zinc-100 p-3">
+              <Skeleton className="mb-2 h-4 w-1/3" />
+              <SkeletonText lines={1} />
+            </div>
+          ))}
+        </div>
+      ) : null}
       {!isPending && (data?.items ?? []).length === 0 ? (
-        <p className="rounded-xl border border-dashed border-zinc-300 bg-white p-6 text-center text-sm text-zinc-500">
-          {t("shipments.list.noItems")}
-        </p>
+        <EmptyState
+          icon="📦"
+          title={t("shipments.list.noItems")}
+          description="Henüz sevkiyat kaydı yok. Yeni bir sevkiyat oluştur veya filtreleri kontrol et."
+          compact
+        />
       ) : null}
 
       <div className="grid gap-3">

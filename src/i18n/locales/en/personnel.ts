@@ -83,6 +83,10 @@ export const personnel = {
   costsPaymentSourceSplitHint:
     "Year, branch, and person filters apply. The register vs owner list filter below does not change these cards. Employee-pocket expenses and other sources are not included here.",
   costsPatronOutCardTitle: "Paid by owner",
+  costsPatronOutAdvanceLabel: "Advance",
+  costsPatronOutPersonnelExpenseLabel: "Personnel expense",
+  costsPatronOutBranchExpenseLabel: "Branch expense",
+  costsPatronOutCentralExpenseLabel: "Central expense",
   costsPatronOutCardDesc:
     "Patron-sourced advances and owner-paid personnel expenses; amounts booked via a branch are grouped under that branch.",
   costsBranchOutCardTitle: "From branch",
@@ -765,11 +769,13 @@ export const personnel = {
   advanceBranchPickWhenPersonnelHasNoBranch:
     "Select a branch, or assign a branch to the personnel record.",
   sourceType: "Payment source",
-  sourceCash: "Branch cash register (posted to branch)",
-  sourcePatron: "From owner (not from branch register)",
+  sourceCash: "Branch register",
+  sourcePatron: "Owner's pocket",
   sourceBank: "Bank",
-  sourceHeldRegisterCash:
-    "Held register cash with personnel (no new drawer cash out)",
+  sourceHeldRegisterCash: "Held register cash",
+  sourceHintCash: "Posted to branch register.",
+  sourceHintPatron: "Not from branch register; owner pays.",
+  sourceHintHeldRegisterCash: "No new drawer cash out.",
   advanceHeldRegisterSelectBranchFirst:
     "Select a branch first (only personnel with register-owed pocket balance at that branch are listed).",
   advanceHeldRegisterSourcePersonLabel: "Personnel whose held register cash will be used",

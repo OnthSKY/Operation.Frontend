@@ -3,11 +3,14 @@
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
 import {
+  personnelKeys,
   useCreatePersonnelNote,
   useDeletePersonnelNote,
   usePersonnelNotes,
   useUpdatePersonnelNote,
 } from "@/modules/personnel/hooks/usePersonnelQueries";
+import { useQueryClient } from "@tanstack/react-query";
+import { confirmUndoableDelete } from "@/shared/lib/confirm-undoable-delete";
 import type { PersonnelNote } from "@/types/personnel-note";
 import { formatLocaleDateTime } from "@/shared/lib/locale-date";
 import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
@@ -29,6 +32,7 @@ export function PersonnelNotesTab({ personnelId, active, readOnly = false }: Pro
   const createMut = useCreatePersonnelNote(personnelId);
   const updateMut = useUpdatePersonnelNote(personnelId);
   const deleteMut = useDeletePersonnelNote(personnelId);
+  const qc = useQueryClient();
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<PersonnelNote | null>(null);
@@ -89,15 +93,17 @@ export function PersonnelNotesTab({ personnelId, active, readOnly = false }: Pro
     onClose: closeForm,
   });
 
-  const confirmDelete = async () => {
+  const confirmDelete = () => {
     if (deleteId == null) return;
-    try {
-      await deleteMut.mutateAsync(deleteId);
-      notify.success(t("toast.personnelNoteDeleted"));
-      setDeleteId(null);
-    } catch (e) {
-      notify.error(toErrorMessage(e));
-    }
+    const targetId = deleteId;
+    setDeleteId(null);
+    confirmUndoableDelete<{ id: number }>({
+      qc,
+      queryKeyPrefix: personnelKeys.notes(personnelId),
+      targetId,
+      deleteFn: () => deleteMut.mutateAsync(targetId),
+      successMessage: t("toast.personnelNoteDeleted"),
+    });
   };
 
   return (

@@ -12,6 +12,8 @@ export type Supplier = {
   currencyCode: string;
   /** Sunucu listesinde silinmiş kayıtlar için true; silme aksiyonu gösterilmez. */
   isDeleted?: boolean;
+  /** PostgreSQL xmin'den türeyen optimistic concurrency token; PUT'ta backend'e geri gönderilmeli. */
+  rowVersion?: number;
 };
 
 export type SupplierView = {
@@ -118,6 +120,7 @@ export async function updateSupplier(
     notes?: string | null;
     defaultPaymentTermsDays?: number | null;
     currencyCode?: string;
+    rowVersion?: number;
   }
 ): Promise<Supplier> {
   return apiRequest<Supplier>(`/suppliers/${id}`, {
@@ -130,6 +133,7 @@ export async function updateSupplier(
       notes: body.notes ?? null,
       defaultPaymentTermsDays: body.defaultPaymentTermsDays ?? null,
       currencyCode: body.currencyCode ?? "TRY",
+      rowVersion: body.rowVersion ?? null,
     }),
   });
 }

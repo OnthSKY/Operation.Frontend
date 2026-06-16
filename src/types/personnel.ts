@@ -55,6 +55,8 @@ export type Personnel = {
   driverHasSrc: boolean | null;
   /** Şoför: psikoteknik var mı; diğer ünvanlarda null. */
   driverHasPsychotechnical: boolean | null;
+  /** PostgreSQL xmin'den türeyen optimistic concurrency token; PUT'ta backend'e geri gönderilmeli. */
+  rowVersion?: number;
 };
 
 export type CreatePersonnelUserAccountInput = {
@@ -82,7 +84,11 @@ export type CreatePersonnelInput = {
   driverHasPsychotechnical?: boolean;
 };
 
-export type UpdatePersonnelInput = CreatePersonnelInput & { id: number };
+export type UpdatePersonnelInput = CreatePersonnelInput & {
+  id: number;
+  /** GET'ten gelen rowVersion'ı geri gönder → optimistic concurrency check. */
+  rowVersion?: number;
+};
 
 export type PersonnelInsurancePeriod = {
   id: number;

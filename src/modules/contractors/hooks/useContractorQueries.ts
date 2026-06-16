@@ -14,6 +14,7 @@ import {
   updateContractor,
   updateContractorWorkEntry,
 } from "@/modules/contractors/api/contractors-api";
+import { createOptimisticListDelete } from "@/shared/lib/optimistic-list-delete";
 
 export const contractorKeys = {
   all: ["contractors"] as const,
@@ -72,9 +73,15 @@ export function useUpdateContractor() {
 
 export function useDeleteContractor() {
   const qc = useQueryClient();
+  const optimistic = createOptimisticListDelete<{ id: number }>({
+    qc,
+    queryKeyPrefix: contractorKeys.all,
+    extractId: (c) => c.id,
+  });
   return useMutation({
     mutationFn: deleteContractor,
-    onSuccess: () => void qc.invalidateQueries({ queryKey: contractorKeys.all }),
+    ...optimistic((id) => id as number),
+    onSettled: () => void qc.invalidateQueries({ queryKey: contractorKeys.all }),
   });
 }
 

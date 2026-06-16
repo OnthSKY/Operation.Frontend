@@ -30,6 +30,7 @@ import {
 } from "@/modules/vehicles/api/vehicle-documents-api";
 import { branchKeys } from "@/modules/branch/hooks/useBranchQueries";
 import { reportsKeys } from "@/modules/reports/query-keys";
+import { createOptimisticListDelete } from "@/shared/lib/optimistic-list-delete";
 import type { UploadVehicleDocumentInput } from "@/types/vehicle-document";
 import type { VehicleAuditPageParams } from "@/types/vehicle";
 
@@ -152,9 +153,15 @@ export function useCreateVehicle() {
 
 export function useDeleteVehicle() {
   const qc = useQueryClient();
+  const optimistic = createOptimisticListDelete<{ id: number }>({
+    qc,
+    queryKeyPrefix: vehicleKeys.all,
+    extractId: (v) => v.id,
+  });
   return useMutation({
     mutationFn: (vehicleId: number) => deleteVehicle(vehicleId),
-    onSuccess: () => {
+    ...optimistic((id) => id as number),
+    onSettled: () => {
       void qc.invalidateQueries({ queryKey: vehicleKeys.all });
     },
   });
@@ -179,6 +186,7 @@ export function useUpdateVehicle() {
       driverPsychotechnicalValidUntil?: string | null;
       serviceIntervalKm?: number | null;
       serviceIntervalMonths?: number | null;
+      rowVersion?: number;
     }) => {
       const { id, ...body } = input;
       return updateVehicle(id, body);

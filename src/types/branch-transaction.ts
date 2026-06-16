@@ -47,6 +47,10 @@ export type BranchTransaction = {
   linkedVehicleExpenseId?: number | null;
   linkedVehicleId?: number | null;
   linkedVehiclePlateNumber?: string | null;
+  /** contractor_payments üzerinden bağlı taşeron ödemesi. */
+  linkedContractorPaymentId?: number | null;
+  linkedContractorId?: number | null;
+  linkedContractorName?: string | null;
   /** Gelir–gider özetlerine dahil değil (franchise / POS ortak notu). */
   excludedFromProfitAndLoss?: boolean;
   /** Genel gider havuzundan paylaştırılmış şube satırı. */

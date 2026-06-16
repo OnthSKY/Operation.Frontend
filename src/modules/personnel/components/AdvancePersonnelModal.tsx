@@ -505,6 +505,20 @@ export function AdvancePersonnelModal({
                   ref={sourceField.ref}
                   error={errors.sourceType?.message}
                 />
+                {(() => {
+                  const st = (sourceTypeWatch || "CASH").toUpperCase();
+                  const hintKey =
+                    st === "PATRON"
+                      ? "personnel.sourceHintPatron"
+                      : st === "PERSONNEL_HELD_REGISTER_CASH"
+                        ? "personnel.sourceHintHeldRegisterCash"
+                        : "personnel.sourceHintCash";
+                  return (
+                    <p className="-mt-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
+                      {t(hintKey)}
+                    </p>
+                  );
+                })()}
                 {(sourceTypeWatch || "CASH").toUpperCase() === "CASH" ? (
                   <Select
                     label={t("personnel.branchForAdvance")}

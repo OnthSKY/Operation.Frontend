@@ -2,6 +2,7 @@
 
 import type { Locale } from "@/i18n/messages";
 import { Button } from "@/shared/ui/Button";
+import { EmptyState } from "@/shared/ui/EmptyState";
 import { MobileListCard } from "@/shared/components/MobileListCard";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import {
@@ -112,9 +113,12 @@ export function VehicleDetailServiceTab({
           ) : null}
         </div>
         {maintenances.length === 0 ? (
-          <p className="text-sm text-zinc-500">
-            {t("vehicles.emptyMaintenances")}
-          </p>
+          <EmptyState
+            icon="🔧"
+            title={t("vehicles.emptyMaintenances")}
+            description="Yağ değişimi, lastik gibi bakım kayıtlarını ekleyerek servis takibi yapın."
+            compact
+          />
         ) : (
           <>
             <Select

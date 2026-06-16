@@ -465,6 +465,10 @@ export async function createBranch(input: CreateBranchInput): Promise<Branch> {
         input.posSettlementNotes != null && String(input.posSettlementNotes).trim()
           ? String(input.posSettlementNotes).trim()
           : null,
+      branchType: input.branchType ?? null,
+      partnerName: input.partnerName ?? null,
+      partnerSharePercent: input.partnerSharePercent ?? null,
+      partnerPersonnelId: input.partnerPersonnelId ?? null,
     }),
   });
   return normalizeBranchListRow(r);
@@ -511,6 +515,32 @@ export async function updateBranch(
     }),
   });
   return normalizeBranchListRow(r);
+}
+
+/**
+ * Şubenin iş modelini değiştirir: OWNED / JOINT_VENTURE / FRANCHISE.
+ * JOINT_VENTURE'da partner_* alanları zorunlu; diğer tiplerde sunucu temizler.
+ */
+export async function updateBranchType(
+  id: number,
+  input: {
+    branchType: "OWNED" | "JOINT_VENTURE" | "FRANCHISE";
+    partnerName?: string | null;
+    partnerSharePercent?: number | null;
+    partnerPersonnelId?: number | null;
+    rowVersion?: number;
+  }
+): Promise<void> {
+  await apiRequest<unknown>(`/branches/${id}/branch-type`, {
+    method: "PUT",
+    body: JSON.stringify({
+      branchType: input.branchType,
+      partnerName: input.partnerName?.trim() || null,
+      partnerSharePercent: input.partnerSharePercent ?? null,
+      partnerPersonnelId: input.partnerPersonnelId ?? null,
+      rowVersion: input.rowVersion ?? null,
+    }),
+  });
 }
 
 export async function fetchBranchRegisterSummary(

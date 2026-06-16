@@ -4,6 +4,10 @@ import type { ControllerRenderProps, FieldErrors } from "react-hook-form";
 import { useI18n } from "@/i18n/context";
 import { Select } from "@/shared/ui/Select";
 import type { SelectOption } from "@/shared/ui/Select";
+import { InfoHint } from "@/shared/ui/InfoHint";
+import { domainHint } from "@/shared/lib/domain-hints";
+import { readRecentList, RECENT_BUCKETS } from "@/shared/lib/recent-values-store";
+import { useMemo } from "react";
 import type { Locale } from "@/i18n/messages";
 import type { TxFormValues } from "../lib/tx-form-types";
 import { PocketHeldPersonPicker } from "./PocketHeldPersonPicker";
@@ -79,7 +83,8 @@ export function ExpensePaymentSection(props: ExpensePaymentSectionProps) {
 
   return (
     <div className="min-w-0 lg:col-span-2">
-      {/* Bağlam hint (personnel expense flow'da hero zaten bağlamı veriyor) */}
+      {/* Bağlam hint — özel akışlarda hâlâ gerekli (genel uzun hint kaldırıldı,
+          yerine her seçeneğin altında sarı tek satırlık ipucu var). */}
       {isPatronDebtRepayMain ? (
         <p className="mb-1.5 text-xs leading-relaxed text-zinc-600">
           {t("branch.txPatronDebtRepayModalHint")}
@@ -88,17 +93,18 @@ export function ExpensePaymentSection(props: ExpensePaymentSectionProps) {
         <p className="mb-1.5 text-xs leading-relaxed text-zinc-600">
           {t("branch.txPocketRepayModalHint")}
         </p>
-      ) : personnelExpenseFlow ? null : (
-        <p className="mb-1.5 text-xs leading-relaxed text-zinc-600">
-          {t("branch.expensePaymentHint")}
-        </p>
-      )}
+      ) : null}
 
       {/* Payment source select */}
       <Select
         label={t("branch.expensePaymentLabel")}
         labelRequired
+        labelHint={<InfoHint content={domainHint("expensePaymentSource")} />}
         options={expensePaymentOptions}
+        recentlyUsedValues={useMemo(
+          () => readRecentList(RECENT_BUCKETS.txExpensePaymentSource, 3).map(String),
+          []
+        )}
         name={expensePayField.name}
         value={String(expensePayField.value ?? "")}
         onChange={(e) => expensePayField.onChange(e.target.value)}
@@ -106,6 +112,26 @@ export function ExpensePaymentSection(props: ExpensePaymentSectionProps) {
         ref={expensePayField.ref}
         error={errors.expensePaymentSource?.message}
       />
+      {(() => {
+        const u = String(expensePayWatch ?? "").trim().toUpperCase();
+        if (!u) return null;
+        const hintKey =
+          u === "REGISTER"
+            ? "branch.expensePayHintRegister"
+            : u === "PATRON"
+              ? "branch.expensePayHintPatron"
+              : u === "PERSONNEL_POCKET"
+                ? "branch.expensePayHintPersonnelPocket"
+                : u === "PERSONNEL_HELD_REGISTER_CASH"
+                  ? "branch.expensePayHintPersonnelHeldRegisterCash"
+                  : "";
+        if (!hintKey) return null;
+        return (
+          <p className="mt-1 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
+            {t(hintKey)}
+          </p>
+        );
+      })()}
 
       {/* POCKET/HELD → personel seçici */}
       <PocketHeldPersonPicker

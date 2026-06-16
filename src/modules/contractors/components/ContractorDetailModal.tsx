@@ -3,10 +3,13 @@
 import { useState } from "react";
 import type { ContractorPaymentSourceCode } from "@/modules/contractors/api/contractors-api";
 import {
+  contractorKeys,
   useContractor,
   useDeleteContractorPayment,
   useDeleteContractorWorkEntry,
 } from "@/modules/contractors/hooks/useContractorQueries";
+import { useQueryClient } from "@tanstack/react-query";
+import { confirmUndoableDelete } from "@/shared/lib/confirm-undoable-delete";
 import {
   ContractorEntryDialog,
   type ContractorEntryMode,
@@ -39,6 +42,7 @@ export function ContractorDetailModal({ open, contractorId, onClose }: Props) {
   const { data, isPending, isError, error } = useContractor(contractorId, open);
   const deleteWork = useDeleteContractorWorkEntry();
   const deletePayment = useDeleteContractorPayment();
+  const qc = useQueryClient();
 
   // Paylaşılan giriş dialog'u: iş ekle/düzenle ve ödeme ekle.
   const [entryMode, setEntryMode] = useState<ContractorEntryMode | null>(null);
@@ -84,13 +88,14 @@ export function ContractorDetailModal({ open, contractorId, onClose }: Props) {
       message: <p className="break-words font-medium text-zinc-900">{label}</p>,
       cancelLabel: t("common.cancel"),
       confirmLabel: t("common.delete"),
-      onConfirm: async () => {
-        try {
-          await deleteWork.mutateAsync(id);
-          notify.success(t("contractors.toastDeleted"));
-        } catch (e) {
-          notify.error(toErrorMessage(e));
-        }
+      onConfirm: () => {
+        confirmUndoableDelete<{ id: number }>({
+          qc,
+          queryKeyPrefix: contractorKeys.all,
+          targetId: id,
+          deleteFn: () => deleteWork.mutateAsync(id),
+          successMessage: t("contractors.toastDeleted"),
+        });
       },
     });
 
@@ -101,13 +106,14 @@ export function ContractorDetailModal({ open, contractorId, onClose }: Props) {
       message: <p className="break-words font-medium text-zinc-900">{label}</p>,
       cancelLabel: t("common.cancel"),
       confirmLabel: t("common.delete"),
-      onConfirm: async () => {
-        try {
-          await deletePayment.mutateAsync(id);
-          notify.success(t("contractors.toastDeleted"));
-        } catch (e) {
-          notify.error(toErrorMessage(e));
-        }
+      onConfirm: () => {
+        confirmUndoableDelete<{ id: number }>({
+          qc,
+          queryKeyPrefix: contractorKeys.all,
+          targetId: id,
+          deleteFn: () => deletePayment.mutateAsync(id),
+          successMessage: t("contractors.toastDeleted"),
+        });
       },
     });
 

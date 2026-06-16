@@ -14,6 +14,8 @@ import {
 } from "@/modules/personnel/hooks/usePersonnelQueries";
 import type { Branch, BranchListSort, BranchSeasonStatus } from "@/types/branch";
 import { Card } from "@/shared/components/Card";
+import { EmptyState } from "@/shared/ui/EmptyState";
+import { getBranchTypeBadge } from "@/modules/branch/lib/branch-type-badge";
 import { MobileListCard } from "@/shared/components/MobileListCard";
 import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
@@ -44,6 +46,7 @@ import { detailOpenIconButtonClass, EyeIcon } from "@/shared/ui/EyeIcon";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { AddBranchModal } from "./AddBranchModal";
 import { EditBranchModal } from "./EditBranchModal";
+import { EditBranchTypeModal } from "./EditBranchTypeModal";
 import { AddTransactionModal } from "@/shared/components/transactions/AddTransactionModal";
 import { BranchListMetricsPanel } from "./BranchListMetricsPanel";
 import {
@@ -358,6 +361,7 @@ export function BranchScreen() {
   const [addOpen, setAddOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editBranchId, setEditBranchId] = useState<number | null>(null);
+  const [typeEditBranch, setTypeEditBranch] = useState<Branch | null>(null);
   const [quickTx, setQuickTx] = useState<{
     branchId: number;
     preset: "income" | "expense" | "dayClose";
@@ -700,9 +704,25 @@ export function BranchScreen() {
           </div>
         )}
         {!isPending && !isError && totalCount === 0 && (
-          <p className="text-sm text-zinc-500">
-            {listSearchActive ? t("branch.listSearchNoResults") : t("branch.noData")}
-          </p>
+          listSearchActive ? (
+            <EmptyState
+              icon="🔍"
+              title={t("branch.listSearchNoResults")}
+              description="Arama kriterlerini değiştir veya filtreleri temizle."
+              compact
+            />
+          ) : (
+            <EmptyState
+              icon="🏪"
+              title={t("branch.noData")}
+              description="Şube ekleyerek operasyonlarınızı yönetmeye başlayın."
+              action={
+                !personnelPortal
+                  ? { label: t("branch.add"), onClick: () => setAddOpen(true) }
+                  : undefined
+              }
+            />
+          )
         )}
         {!isPending && !isError && totalCount > 0 && (
           <>
@@ -719,12 +739,9 @@ export function BranchScreen() {
                       active && "border-violet-200 ring-1 ring-violet-200/60"
                     )}
                   >
-                    <button
-                      type="button"
-                      onClick={() => openBranchDetail(b.id)}
+                    <div
                       className={cn(
-                        "w-full px-3 pb-3 pt-3 text-left outline-none transition-colors active:bg-zinc-50 sm:px-4",
-                        "focus-visible:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-400",
+                        "w-full px-3 pb-3 pt-3 text-left transition-colors sm:px-4",
                         active && "bg-violet-50/50"
                       )}
                     >
@@ -737,6 +754,24 @@ export function BranchScreen() {
                             <span className="inline-flex items-center rounded-lg bg-zinc-100 px-2 py-0.5 font-mono text-xs font-medium text-zinc-700">
                               {t("branch.tableId")} {b.id}
                             </span>
+                            {(() => {
+                              const bd = getBranchTypeBadge(b.branchType);
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => setTypeEditBranch(b)}
+                                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 ${bd.className}`}
+                                  title="Şube tipini düzenle"
+                                >
+                                  <span aria-hidden>{bd.emoji}</span>
+                                  {bd.label}
+                                  {b.branchType === "JOINT_VENTURE" && b.partnerSharePercent != null
+                                    ? ` %${b.partnerSharePercent}`
+                                    : ""}
+                                  <span aria-hidden className="ml-0.5 text-zinc-400">✎</span>
+                                </button>
+                              );
+                            })()}
                             <span
                               className={cn(
                                 "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
@@ -769,14 +804,17 @@ export function BranchScreen() {
                             </span>
                           </div>
                         </div>
-                        <span
-                          className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-violet-600"
-                          aria-hidden
+                        <button
+                          type="button"
+                          onClick={() => openBranchDetail(b.id)}
+                          aria-label={t("branch.detail")}
+                          title={t("branch.detail")}
+                          className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-violet-600 transition-colors hover:bg-violet-50 active:bg-violet-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
                         >
                           <EyeIcon />
-                        </span>
+                        </button>
                       </div>
-                    </button>
+                    </div>
                     <div className="border-t border-zinc-100 px-3 py-3 sm:px-4">
                       <div className="flex min-h-11 flex-row items-center justify-between gap-2">
                         {!personnelPortal ? (
@@ -871,10 +909,9 @@ export function BranchScreen() {
                       <Fragment key={b.id}>
                       <TableRow
                         className={cn(
-                          "cursor-pointer transition-colors hover:bg-zinc-50 active:bg-zinc-100",
+                          "transition-colors hover:bg-zinc-50",
                           active && "bg-zinc-50"
                         )}
-                        onClick={() => openBranchDetail(b.id)}
                       >
                         <TableCell
                           className="w-[1%] whitespace-nowrap"
@@ -886,7 +923,30 @@ export function BranchScreen() {
                           {b.id}
                         </TableCell>
                         <TableCell className="font-medium text-zinc-900">
-                          {b.name}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span>{b.name}</span>
+                            {(() => {
+                              const bd = getBranchTypeBadge(b.branchType);
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setTypeEditBranch(b);
+                                  }}
+                                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium transition-opacity hover:opacity-80 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 ${bd.className}`}
+                                  title="Şube tipini düzenle"
+                                >
+                                  <span aria-hidden>{bd.emoji}</span>
+                                  {bd.label}
+                                  {b.branchType === "JOINT_VENTURE" && b.partnerSharePercent != null
+                                    ? ` %${b.partnerSharePercent}`
+                                    : ""}
+                                  <span aria-hidden className="ml-0.5 text-zinc-400">✎</span>
+                                </button>
+                              );
+                            })()}
+                          </div>
                         </TableCell>
                         <TableCell className="max-md:flex max-md:w-full max-md:min-w-0 max-md:items-start max-md:justify-between max-md:gap-3 md:hidden lg:table-cell">
                           <span
@@ -1023,7 +1083,13 @@ export function BranchScreen() {
       ) : null}
 
       {!personnelPortal ? (
-        <AddBranchModal open={addOpen} onClose={() => setAddOpen(false)} />
+        <>
+          <AddBranchModal open={addOpen} onClose={() => setAddOpen(false)} />
+          <EditBranchTypeModal
+            branch={typeEditBranch}
+            onClose={() => setTypeEditBranch(null)}
+          />
+        </>
       ) : null}
 
       {!personnelPortal && assignTargetBranch ? (

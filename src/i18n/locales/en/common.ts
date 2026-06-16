@@ -10,6 +10,8 @@ export const common = {
   loadErrorHint:
     "Check your connection; if it persists, refresh the page or tap Retry again in a moment.",
   loading: "Loading…",
+  rowVersionConflict:
+    "This record was modified by another user while you were editing. The fresh copy has been loaded; please re-apply your changes.",
   all: "All",
   invalid: "Invalid value",
   required: "Required",

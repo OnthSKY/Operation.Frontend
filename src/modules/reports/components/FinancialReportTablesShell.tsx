@@ -46,7 +46,6 @@ const SUBNAV: {
     panel: "vehicle-off-register",
     labelKey: "reports.sectionVehicleExpensesOffRegister",
   },
-  { path: `${TABLES_BASE}/advances`, panel: "advances", labelKey: "reports.sectionAdvances" },
 ];
 
 export function FinancialReportTablesShell({

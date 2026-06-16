@@ -53,6 +53,8 @@ type ModalProps = {
    * Sadece `wide` ve `narrow` olmadığında etki eder.
    */
   bodyScroll?: boolean;
+  /** Telefonun geri tuşu / kaydırma jesti dialog'u kapatsın (history.pushState). */
+  dismissOnBack?: boolean;
 };
 
 export function Modal({
@@ -75,15 +77,29 @@ export function Modal({
   nested = false,
   backdropCloseRequiresConfirm = false,
   bodyScroll = false,
+  dismissOnBack = false,
 }: ModalProps) {
   const [mounted, setMounted] = useState(false);
   const [backdropConfirmOpen, setBackdropConfirmOpen] = useState(false);
+  const [shouldRender, setShouldRender] = useState(open);
+  const [entered, setEntered] = useState(false);
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
     if (!open) setBackdropConfirmOpen(false);
+  }, [open]);
+
+  useEffect(() => {
+    if (open) {
+      setShouldRender(true);
+      const raf = requestAnimationFrame(() => setEntered(true));
+      return () => cancelAnimationFrame(raf);
+    }
+    setEntered(false);
+    const id = window.setTimeout(() => setShouldRender(false), 180);
+    return () => window.clearTimeout(id);
   }, [open]);
 
   useEffect(() => {
@@ -102,7 +118,7 @@ export function Modal({
   }, [open, onClose, nested, backdropConfirmOpen]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!shouldRender) return;
     const prev = document.body.style.overflow;
     const prevPaddingRight = document.body.style.paddingRight;
     const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
@@ -114,9 +130,9 @@ export function Modal({
       document.body.style.overflow = prev;
       document.body.style.paddingRight = prevPaddingRight;
     };
-  }, [open]);
+  }, [shouldRender]);
 
-  if (!open) return null;
+  if (!shouldRender) return null;
 
   if (!mounted) return null;
 
@@ -190,7 +206,9 @@ export function Modal({
           "max-sm:items-stretch max-sm:justify-stretch max-sm:!bg-zinc-950/40 max-sm:!p-0 max-sm:!px-0 max-sm:!pt-0 max-sm:!pb-0",
         wideFullScreenActive &&
           "!items-stretch !justify-stretch !bg-zinc-950/40 !p-0 !px-0 !pt-0 !pb-0",
-        nested && OVERLAY_Z_TW.modalNested
+        nested && OVERLAY_Z_TW.modalNested,
+        "transition-opacity duration-200 ease-out motion-reduce:transition-none",
+        entered ? "opacity-100" : "opacity-0"
       )}
       role="presentation"
       onClick={requestBackdropClose}
@@ -199,7 +217,16 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={cn(panelClass, className)}
+        className={cn(
+          panelClass,
+          className,
+          "transition-[transform,opacity] duration-200 ease-out will-change-transform motion-reduce:transition-none",
+          entered
+            ? "translate-y-0 scale-100 opacity-100"
+            : sheetMobileActive
+              ? "max-sm:translate-y-4 max-sm:opacity-0 translate-y-2 scale-[0.97] opacity-0"
+              : "translate-y-2 scale-[0.97] opacity-0"
+        )}
         onClick={(e) => e.stopPropagation()}
       >
         <div className={cn(headerClass, "shrink-0")}>

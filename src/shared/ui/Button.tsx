@@ -27,6 +27,12 @@ const SUBMIT_GUARD_MS = 1200;
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: Variant;
   children: ReactNode;
+  /**
+   * Dışarıdan kontrol edilen busy state (örn. `mutation.isPending`).
+   * True iken pulse animasyonu + disabled davranışı + cursor-wait;
+   * iç click-guard'dan bağımsız çalışır, kullanıcı "kaydediliyor" sinyali alır.
+   */
+  busy?: boolean;
 };
 
 export function Button({
@@ -35,10 +41,12 @@ export function Button({
   type = "button",
   disabled,
   onClick,
+  busy: externalBusy,
   children,
   ...rest
 }: ButtonProps) {
-  const [busy, setBusy] = useState(false);
+  const [internalBusy, setBusy] = useState(false);
+  const busy = internalBusy || Boolean(externalBusy);
   const guardRef = useRef(false);
   const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -52,9 +60,19 @@ export function Button({
 
       guardRef.current = true;
 
-      // Native <form> submit: do not setBusy → avoids disabled={true} before the browser's
-      // default submit runs (React 18 flushes updates after this handler and cancels submit).
-      if (type === "submit" && !onClick) {
+      // Native <form> submit yolu: setBusy ÇAĞIRMA. React 18, click handler'dan sonra state
+      // flush ederse disabled={true} olur ve tarayıcı form submit'i iptal eder.
+      // onClick varsa (örn. ref toggle gibi side-effect) önce onu çalıştırıp sonra submit'in
+      // tarayıcı default davranışına bırakırız; busy stilini dışarıdan gelen externalBusy
+      // (mutation.isPending) sağlar.
+      if (type === "submit") {
+        if (onClick) {
+          try {
+            onClick(e);
+          } catch {
+            // sessiz; submit zaten devam ediyor.
+          }
+        }
         if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
         syncTimerRef.current = setTimeout(() => {
           syncTimerRef.current = null;

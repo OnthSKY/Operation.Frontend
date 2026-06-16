@@ -97,8 +97,9 @@ export function useTodayBranchesSummary(
     queryKey: dashboardSummaryKeys.bulk(stableParams),
     queryFn: () => fetchDashboardDailySummaries(stableParams),
     enabled: bulkEnabled,
-    staleTime: 0,
-    refetchOnMount: "always",
+    // Bulk daily-summary: yavaş net'te tekrar tekrar yüklemeyi azalt (15s pencere).
+    staleTime: 15_000,
+    refetchOnMount: true,
     refetchOnWindowFocus: true,
   });
 

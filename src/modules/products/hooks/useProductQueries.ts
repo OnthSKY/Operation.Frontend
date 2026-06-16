@@ -200,6 +200,7 @@ export function useUpdateProduct() {
       isOrderable,
       stockUnit,
       stockTrackingMode,
+      rowVersion,
     }: {
       id: number;
       name: string;
@@ -209,6 +210,7 @@ export function useUpdateProduct() {
       isOrderable?: boolean;
       stockUnit?: string | null;
       stockTrackingMode?: import("@/types/product").StockTrackingMode;
+      rowVersion?: number;
     }) =>
       updateProduct(id, {
         name,
@@ -218,6 +220,7 @@ export function useUpdateProduct() {
         isOrderable,
         stockUnit,
         stockTrackingMode,
+        rowVersion,
       }),
     onSuccess: (_data, vars) => {
       invalidateProductCatalogQueries(qc);

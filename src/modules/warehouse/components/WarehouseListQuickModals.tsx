@@ -153,10 +153,19 @@ export function WarehouseListDepoInModal({
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
   const [pending, setPending] = useState(false);
   const depoProductRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const depoQtyRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const focusDepoProduct = useCallback((lineKey: string) => {
     requestAnimationFrame(() => {
       depoProductRefs.current[lineKey]?.focus();
+    });
+  }, []);
+
+  const focusDepoQty = useCallback((lineKey: string) => {
+    requestAnimationFrame(() => {
+      const el = depoQtyRefs.current[lineKey];
+      el?.focus();
+      el?.select?.();
     });
   }, []);
 
@@ -180,12 +189,11 @@ export function WarehouseListDepoInModal({
     () => withWarehousePersonnelPickPlaceholder(personnelOptions, t("warehouse.personnelPickPlaceholder")),
     [personnelOptions, t]
   );
+  // Placeholder satırı (value="") arama listesinde de eşleşip kullanıcıyı şaşırtıyordu;
+  // Select label-required + boş input zaten yeterli ipucu.
   const productOptions = useMemo(
-    () => [
-      { value: "", label: t("warehouse.listQuickPickProduct") },
-      ...stockRows.map((r) => ({ value: String(r.productId), label: productLabel(r) })),
-    ],
-    [stockRows, t]
+    () => stockRows.map((r) => ({ value: String(r.productId), label: productLabel(r) })),
+    [stockRows]
   );
 
   const resolvedReceiptLines = useMemo(
@@ -385,6 +393,7 @@ export function WarehouseListDepoInModal({
                           onBlur={() => {}}
                           disabled={disabled}
                           className={cn("min-w-0", compact && "min-h-11 py-2 text-sm")}
+                          onAfterCommit={() => focusDepoQty(line.key)}
                         />
                       </div>
                     </div>
@@ -403,6 +412,9 @@ export function WarehouseListDepoInModal({
                       </div>
                       <div className={cn("shrink-0", compact ? "w-20 sm:w-24" : "w-24 sm:w-28")}>
                         <Input
+                          ref={(node) => {
+                            depoQtyRefs.current[line.key] = node;
+                          }}
                           type="text"
                           inputMode="decimal"
                           autoComplete="off"
@@ -643,6 +655,7 @@ export function WarehouseListTransferModal({
   const [freightSectionOpen, setFreightSectionOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const transferProductRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const transferQtyRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const personnelOptions = useMemo(() => mapWarehousePersonnelOptions(peopleRaw), [peopleRaw]);
   const personnelSelectOptions = useMemo(
@@ -749,6 +762,13 @@ export function WarehouseListTransferModal({
   const focusTransferProduct = useCallback((lineKey: string) => {
     requestAnimationFrame(() => {
       transferProductRefs.current[lineKey]?.focus();
+    });
+  }, []);
+  const focusTransferQty = useCallback((lineKey: string) => {
+    requestAnimationFrame(() => {
+      const el = transferQtyRefs.current[lineKey];
+      el?.focus();
+      el?.select?.();
     });
   }, []);
 
@@ -1161,6 +1181,7 @@ export function WarehouseListTransferModal({
                         onBlur={() => {}}
                         disabled={disabled}
                         className={cn("min-w-0", compact && "min-h-11 py-2 text-sm")}
+                        onAfterCommit={() => focusTransferQty(line.key)}
                       />
                       </div>
                     </div>
@@ -1179,6 +1200,9 @@ export function WarehouseListTransferModal({
                       </div>
                       <div className={cn("shrink-0", compact ? "w-20 sm:w-24" : "w-24 sm:w-28")}>
                       <Input
+                        ref={(node) => {
+                          transferQtyRefs.current[line.key] = node;
+                        }}
                         type="text"
                         inputMode="decimal"
                         autoComplete="off"

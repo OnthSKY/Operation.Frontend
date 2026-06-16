@@ -1074,12 +1074,31 @@ export function AddTransactionModal({
     [expenseLinkSalary, locale]
   );
 
+  // "Kaydet ve devam et" — footer'daki ikinci submit butonu set eder.
+  const continueAfterSaveRef = useRef(false);
+  const handleSavedContinue = () => {
+    // Form sıfırlanır → buildTxFormDefaults son recordRecent değerlerini okur (taze seed).
+    reset(
+      buildTxFormDefaults({
+        defaultType,
+        defaultMainCategory,
+        defaultTransactionDate,
+      })
+    );
+    // Bundle state, pocket-repay vb. lokal state'ler de temizlensin (yan etki kalıntısı kalmasın).
+    pocketRepay.reset();
+    dayCloseBundle.clearAll();
+    setReceiptPhotoPick(null);
+  };
+
   const { onSubmit } = useTxSubmit({
     handleSubmit,
     propBranchId,
     personnelExpenseFlow,
     defaultLinkedPersonnelId,
     onClose,
+    onSavedContinue: handleSavedContinue,
+    continueAfterSaveRef,
     locale,
     dayCloseBundledConfirmedLines,
     dayCloseBundledExpenseOpen,
@@ -1091,9 +1110,11 @@ export function AddTransactionModal({
     createAdvanceMut,
     tryTourismSeasonClosedRedirect,
   });
+  const anyMutationPending =
+    createTx.isPending || createAdvanceMut.isPending || createDayCloseBundleMut.isPending;
   const requestClose = useDirtyGuard({
     isDirty,
-    isBlocked: createTx.isPending || createAdvanceMut.isPending,
+    isBlocked: anyMutationPending,
     confirmMessage: t("common.modalConfirmOutsideCloseMessage"),
     onClose,
   });
@@ -1348,8 +1369,9 @@ export function AddTransactionModal({
           </div>
         </div>
         <TxModalFooter
-          pending={createTx.isPending || createAdvanceMut.isPending}
+          pending={anyMutationPending}
           onCancel={requestClose}
+          continueRef={continueAfterSaveRef}
         />
       </form>
     </Modal>

@@ -13,6 +13,7 @@ import {
   parseGroupedIntegerInput,
 } from "@/modules/vehicles/lib/vehicle-formatters";
 import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
+import { useRowVersionConflict } from "@/shared/hooks/useRowVersionConflict";
 import { notify } from "@/shared/lib/notify";
 import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { toErrorMessage } from "@/shared/lib/error-message";
@@ -49,6 +50,7 @@ export function useVehicleEditForm({
   const createMut = useCreateVehicle();
   const updateMut = useUpdateVehicle();
   const deleteMut = useDeleteVehicle();
+  const handleRowVersionConflict = useRowVersionConflict({ invalidate: [["vehicles"]] });
 
   const [modal, setModal] = useState<VehicleEditFormMode>(null);
   const [editRow, setEditRow] = useState<VehicleListItem | null>(null);
@@ -292,11 +294,13 @@ export function useVehicleEditForm({
           driverPsychotechnicalValidUntil: psyIso,
           serviceIntervalKm,
           serviceIntervalMonths,
+          rowVersion: editFormDetail?.rowVersion,
         });
         notify.success(t("common.saved"));
       }
       setModal(null);
     } catch (e) {
+      if (handleRowVersionConflict(e)) return;
       notify.error(toErrorMessage(e));
     }
   }, [
@@ -306,7 +310,9 @@ export function useVehicleEditForm({
     createMut,
     driverPsy,
     driverSrc,
+    editFormDetail,
     editRow,
+    handleRowVersionConflict,
     inspectionUntil,
     modal,
     model,

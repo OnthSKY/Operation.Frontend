@@ -59,6 +59,8 @@ export function useOasSamplePresets(params: Params) {
         ...s,
         id: newId(),
         amountText: formatLocaleAmountInput(s.amount, locale),
+        // Preset amount'larını koruyalım — auto-apply qty*price ile ezmesin.
+        amountTouched: s.amount > 0,
       }))
     );
     linesState.setPromoLines([

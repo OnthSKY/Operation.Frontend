@@ -86,6 +86,8 @@ import { PersonnelSettlementSeasonPickerModal } from "./PersonnelSettlementSeaso
 import type { PersonnelDetailTabId } from "./PersonnelDetailModal";
 import { AddPersonnelInsurancePeriodModal } from "./AddPersonnelInsurancePeriodModal";
 import { PersonnelFormModal } from "./PersonnelFormModal";
+import { EmptyState } from "@/shared/ui/EmptyState";
+import { Skeleton, SkeletonText } from "@/shared/ui/Skeleton";
 import { PersonnelProfilePhotoAvatar } from "./PersonnelProfilePhotoAvatar";
 import { PersonnelProfilePhotoPreviewModal } from "./PersonnelProfilePhotoPreviewModal";
 function formatCompanyHireDate(p: Personnel, dash: string, locale: Locale): string {
@@ -1130,7 +1132,14 @@ export function PersonnelScreen() {
             />
           </div>
           {isPending && (
-            <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+            <div className="space-y-3">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="rounded-lg border border-zinc-100 p-3">
+                  <Skeleton className="mb-2 h-4 w-1/3" />
+                  <SkeletonText lines={1} />
+                </div>
+              ))}
+            </div>
           )}
           {isError && (
             <div className="flex flex-col gap-2">
@@ -1141,10 +1150,20 @@ export function PersonnelScreen() {
             </div>
           )}
           {!isPending && !isError && totalCount === 0 && (
-            <p className="text-sm text-zinc-500">{t("personnel.noData")}</p>
+            <EmptyState
+              icon="👥"
+              title={t("personnel.noData")}
+              description="Personel ekleyerek ekibinizi sisteme dahil edin."
+              action={{ label: t("personnel.add"), onClick: openCreate }}
+            />
           )}
           {!isPending && !isError && totalCount > 0 && items.length === 0 && (
-            <p className="text-sm text-zinc-500">{t("personnel.listFilteredEmpty")}</p>
+            <EmptyState
+              icon="🔍"
+              title={t("personnel.listFilteredEmpty")}
+              description="Arama kriterlerini değiştir veya filtreleri temizle."
+              compact
+            />
           )}
           {!isPending && !isError && items.length > 0 && (
             <>

@@ -3,7 +3,9 @@
 import type { Locale } from "@/i18n/messages";
 import { cn } from "@/lib/cn";
 import { Button } from "@/shared/ui/Button";
+import { EmptyState } from "@/shared/ui/EmptyState";
 import { Input } from "@/shared/ui/Input";
+import { InlineLoading } from "@/shared/ui/Spinner";
 import { MobileListCard } from "@/shared/components/MobileListCard";
 import { Select } from "@/shared/ui/Select";
 import {
@@ -133,9 +135,12 @@ export function VehicleDetailCostsTab({
             </Button>
           ) : null}
           {expenses.length === 0 ? (
-            <p className="text-sm text-zinc-500">
-              {t("vehicles.emptyExpenses")}
-            </p>
+            <EmptyState
+              icon="💰"
+              title={t("vehicles.emptyExpenses")}
+              description="Yakıt, bakım, sigorta gibi araç giderlerini ekleyerek maliyet takibi başlatın."
+              compact
+            />
           ) : (
             <>
               <ul className="flex flex-col gap-4 md:hidden">
@@ -327,9 +332,14 @@ export function VehicleDetailCostsTab({
             {t("vehicles.applyExpenseReport")}
           </Button>
           {!summaryQueryEnabled || summaryPending ? (
-            <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+            <InlineLoading text={t("common.loading")} />
           ) : summaryRows.length === 0 ? (
-            <p className="text-sm text-zinc-500">{t("vehicles.emptySummary")}</p>
+            <EmptyState
+              icon="📊"
+              title={t("vehicles.emptySummary")}
+              description="Seçili dönem ve filtrelere uyan gider kaydı bulunamadı."
+              compact
+            />
           ) : (
             <>
               <ul className="flex flex-col gap-4 md:hidden">

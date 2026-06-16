@@ -10,6 +10,7 @@ import {
   useBranchTransactions,
   useBranchTransactionsPaged,
   useDeleteBranchTransaction,
+  branchKeys,
 } from "@/modules/branch/hooks/useBranchQueries";
 import { AdvancePersonnelModal } from "@/modules/personnel/components/AdvancePersonnelModal";
 import { fetchAdvancesByPersonnel } from "@/modules/personnel/api/advances-api";
@@ -29,7 +30,7 @@ import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { notifyBranchIncomeDeleteConfirm } from "@/shared/lib/notify-branch-income-delete";
 import { useI18n } from "@/i18n/context";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { TX_MAIN_IN, TX_MAIN_OUT } from "@/modules/branch/lib/branch-transaction-options";
 import { AddTransactionModal } from "@/shared/components/transactions/AddTransactionModal";
@@ -48,7 +49,11 @@ import {
 import { fetchAdvanceDelegateTargets, advanceDelegateTargetsToPersonnelStubs } from "@/modules/personnel/api/advances-api";
 import { parseRegisterDaySearchParam } from "@/modules/branch/lib/register-day-search-param";
 import type { BranchDashboardStockScope } from "@/modules/branch/api/branches-api";
-import { fetchBranchTransactionCascadeChildren } from "@/modules/branch/api/branch-transactions-api";
+import {
+  fetchBranchTransactionCascadeChildren,
+  deleteBranchTransaction,
+} from "@/modules/branch/api/branch-transactions-api";
+import { notifyUndoable } from "@/shared/lib/notify-undoable";
 import {
   patronIncomeToPatronVisible,
   type ExpenseOverviewCardId,
@@ -96,6 +101,7 @@ export function BranchDetailTabs({
   const { t, locale } = useI18n();
   const showStaffOnlyFeatures = !employeeSelfService && !branchDayClerkMode;
   const deleteTxMut = useDeleteBranchTransaction();
+  const qcRoot = useQueryClient();
   const [advanceOpen, setAdvanceOpen] = useState(false);
   const [advanceInitialPersonId, setAdvanceInitialPersonId] = useState<number | null>(null);
   const { data: personnelListResult } = usePersonnelList(
@@ -646,17 +652,89 @@ export function BranchDetailTabs({
   };
 
   const confirmDeleteBranchTx = async (id: number) => {
-    try {
-      await deleteTxMut.mutateAsync(id);
-      setTxDeletePendingId(null);
-      notify.success(t("toast.branchTxDeleted"));
-      void refetchInc();
-      void refetchExp();
-      refetchIncomeSummaryBlocks();
-      refetchExpenseSummaryBlocks();
-    } catch (e) {
-      notify.error(toErrorMessage(e));
+    // 5sn'lik geri-alma penceresi — kullanıcı yanlış silme korkusunu yener.
+    // Akış: ① cache snapshot al + satırı kaldır ② "Silindi [Geri Al]" toast ③ süre dolarsa
+    // gerçek DELETE + invalidate. Geri Al'da snapshot'tan restore.
+    //
+    // KRİTİK: Snapshot kaydederken updater'a `query` parametresi geçilir; her gerçek queryKey
+    // ayrı kaydedilir. Aksi halde generic key'e yazıp rollback'te yanlış satıra restore eder
+    // ve UI güncellenmez (bilinen önceki bug: dialog'u aç-kapa yapmadan satır geri gelmiyordu).
+    const snapshots: Array<[readonly unknown[], unknown]> = [];
+
+    await qcRoot.cancelQueries({ queryKey: [...branchKeys.all, "tx-paged"], exact: false });
+    await qcRoot.cancelQueries({ queryKey: [...branchKeys.all, "tx"], exact: false });
+
+    // TanStack v5'in `setQueriesData` updater'ı query'yi vermez. Manuel iterate ediyoruz:
+    // cache.findAll(filter) → her query'nin gerçek queryKey'i ile setQueryData.
+    type PagedTx = {
+      items: Array<{ id: number; amount: number }>;
+      totalCount: number;
+      totalAmount?: number;
+    };
+    const pagedQueries = qcRoot.getQueryCache().findAll({
+      queryKey: [...branchKeys.all, "tx-paged"],
+      exact: false,
+    });
+    for (const q of pagedQueries) {
+      const old = q.state.data as PagedTx | undefined;
+      if (!old) continue;
+      const hit = old.items.find((it) => it.id === id);
+      if (!hit) continue;
+      snapshots.push([q.queryKey, structuredClone(old)]);
+      qcRoot.setQueryData<PagedTx>(q.queryKey, {
+        ...old,
+        items: old.items.filter((it) => it.id !== id),
+        totalCount: Math.max(0, old.totalCount - 1),
+        totalAmount:
+          old.totalAmount != null
+            ? Math.max(0, old.totalAmount - Number(hit.amount || 0))
+            : old.totalAmount,
+      });
     }
+
+    type TxList = Array<{ id: number }>;
+    const listQueries = qcRoot.getQueryCache().findAll({
+      queryKey: [...branchKeys.all, "tx"],
+      exact: false,
+    });
+    for (const q of listQueries) {
+      const old = q.state.data as TxList | undefined;
+      if (!old) continue;
+      const hit = old.find((it) => it.id === id);
+      if (!hit) continue;
+      snapshots.push([q.queryKey, structuredClone(old)]);
+      qcRoot.setQueryData<TxList>(q.queryKey, old.filter((it) => it.id !== id));
+    }
+
+    setTxDeletePendingId(null);
+
+    notifyUndoable({
+      message: t("toast.branchTxDeleted"),
+      delayMs: 5000,
+      optimisticUpdate: () => {
+        /* zaten yukarıda yapıldı */
+      },
+      rollback: () => {
+        for (const [key, data] of snapshots) {
+          qcRoot.setQueryData(key, data);
+        }
+        // Safety: snapshot tutulmamış query'ler (delete anında refetch ile data=undefined
+        // olan veya yeni mount olan) için sunucu hâlâ satırı tutuyor — bir refetch ile UI
+        // anında doğru hale gelir. Tek seferlik küçük bir istek.
+        void refetchInc();
+        void refetchExp();
+        refetchIncomeSummaryBlocks();
+        refetchExpenseSummaryBlocks();
+      },
+      commit: async () => {
+        await deleteBranchTransaction(id);
+        void refetchInc();
+        void refetchExp();
+        refetchIncomeSummaryBlocks();
+        refetchExpenseSummaryBlocks();
+      },
+      failureMessage: "Silme tamamlanamadı, satır geri yüklendi.",
+    });
   };
 
   const handleDetailDelete = useCallback(

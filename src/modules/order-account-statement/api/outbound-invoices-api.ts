@@ -285,6 +285,36 @@ export async function fetchCounterpartySummaryReport(
   );
 }
 
+export type SalesPriceSuggestionBatchItem = SalesPriceSuggestion & { productId: number };
+
+export async function fetchSalesPriceSuggestionsBatch(params: {
+  productIds: number[];
+  counterpartyType: "branch" | "customer";
+  counterpartyId: number;
+  currencyCode?: string;
+  lookbackDays?: number;
+}): Promise<Record<number, SalesPriceSuggestion>> {
+  const ids = Array.from(new Set(params.productIds.filter((x) => Number.isFinite(x) && x > 0)));
+  if (ids.length === 0) return {};
+  const body = {
+    productIds: ids,
+    counterpartyType: params.counterpartyType,
+    counterpartyId: params.counterpartyId,
+    currencyCode: (params.currencyCode ?? "TRY").trim().toUpperCase(),
+    lookbackDays: Math.max(1, params.lookbackDays ?? 90),
+  };
+  const res = await apiRequest<{ items: SalesPriceSuggestionBatchItem[] }>(
+    "/outbound-invoices/price-suggestions/batch",
+    { method: "POST", body: JSON.stringify(body) }
+  );
+  const map: Record<number, SalesPriceSuggestion> = {};
+  for (const it of res.items ?? []) {
+    const { productId, ...rest } = it;
+    map[productId] = rest;
+  }
+  return map;
+}
+
 export async function fetchSalesPriceSuggestion(params: {
   productId: number;
   counterpartyType: "branch" | "customer";

@@ -247,8 +247,9 @@ export function useDailyRangeBranchesSummary(
       queryKey: dashboardSummaryKeys.bulk({ kind: "day", date }),
       queryFn: () => fetchDashboardDailySummaries({ kind: "day", date }),
       enabled: rangeEnabled,
-      staleTime: 0,
-      refetchOnMount: "always" as const,
+      // Tarih aralığı sorgusu — geçmiş günler değişmez, agresif refetch gerekmiyor.
+      staleTime: 30_000,
+      refetchOnMount: true,
       refetchOnWindowFocus: true as const,
     })),
   });

@@ -24,6 +24,16 @@
   }
 }
 
+/* Skeleton placeholder shimmer — soldan sağa parlama efekti. */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

@@ -73,6 +73,7 @@ import { DateField } from "@/shared/ui/DateField";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select, type SelectOption } from "@/shared/ui/Select";
+import { Spinner } from "@/shared/ui/Spinner";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import {
   Table,
@@ -595,7 +596,8 @@ export function VehiclesScreen() {
         closeButtonLabel={t("common.close")}
       >
         {detailPending || !detail ? (
-          <div className="flex min-h-[12rem] flex-1 flex-col items-center justify-center p-4 sm:min-h-[16rem] sm:p-5">
+          <div className="flex min-h-[12rem] flex-1 flex-col items-center justify-center gap-2 p-4 sm:min-h-[16rem] sm:p-5">
+            <Spinner size="md" />
             <p className="text-sm text-zinc-500">{t("common.loading")}</p>
           </div>
         ) : (

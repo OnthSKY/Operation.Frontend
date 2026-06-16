@@ -2,7 +2,7 @@
 
 import { Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import { cn } from "@/lib/cn";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -329,6 +329,20 @@ export function ShipmentCreateScreen() {
 
   const [submitted, setSubmitted] =
     useState(false);
+
+  const lineQtyRefs = useRef<
+    Record<string, HTMLInputElement | null>
+  >({});
+  const focusLineQty = useCallback(
+    (lineKey: string) => {
+      requestAnimationFrame(() => {
+        const el = lineQtyRefs.current[lineKey];
+        el?.focus();
+        el?.select?.();
+      });
+    },
+    []
+  );
 
   const products = useMemo(
     () => productPage?.items ?? [],
@@ -802,11 +816,15 @@ export function ShipmentCreateScreen() {
                         disabled={
                           productsPending
                         }
+                        onAfterCommit={() => focusLineQty(line.key)}
                       />
                     </div>
 
                     <div className="flex flex-col gap-1">
                       <Input
+                        ref={(node) => {
+                          lineQtyRefs.current[line.key] = node;
+                        }}
                         name={`quantity-${line.key}`}
                         type="number"
                         min="0"

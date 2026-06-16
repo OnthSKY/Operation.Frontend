@@ -38,6 +38,7 @@ import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notifyBranchIncomeDeleteConfirm } from "@/shared/lib/notify-branch-income-delete";
+import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { notify } from "@/shared/lib/notify";
 import { OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
 import { Button } from "@/shared/ui/Button";
@@ -1351,55 +1352,41 @@ export function PersonnelPocketRepayCta({
 
 export function BranchTxDeleteRow({
   transactionId,
-  pendingId,
-  onSetPending,
   onConfirm,
   busy,
   show,
   t,
 }: {
   transactionId: number;
-  pendingId: number | null;
-  onSetPending: (id: number | null) => void;
+  /** Legacy props — eski inline-confirm akışı kaldırıldı; merkezi toast kullanılıyor. */
+  pendingId?: number | null;
+  onSetPending?: (id: number | null) => void;
   onConfirm: (id: number) => void | Promise<void>;
   busy: boolean;
   show: boolean;
   t: (key: string) => string;
 }) {
   if (!show) return null;
-  if (pendingId === transactionId) {
-    return (
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-        <p className="text-xs leading-snug text-zinc-600">{t("branch.txDeleteSure")}</p>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            className="min-h-[44px] min-w-[44px] text-xs"
-            disabled={busy}
-            onClick={() => onSetPending(null)}
-          >
-            {t("branch.txDeleteCancel")}
-          </Button>
-          <Button
-            type="button"
-            className="min-h-[44px] min-w-[44px] bg-red-600 text-xs text-white hover:bg-red-700"
-            disabled={busy}
-            onClick={() => void onConfirm(transactionId)}
-          >
-            {t("branch.txDeleteConfirm")}
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  // Mobilde satır içine sığmayan inline onay yerine ortalanmış confirm toast (overlay)
+  // — `notifyConfirmToast` zaten full-width buton + safe-area destekli.
   return (
     <button
       type="button"
       className={trashIconActionButtonClass}
       aria-label={t("branch.txDeleteAria")}
       disabled={busy}
-      onClick={() => onSetPending(transactionId)}
+      onClick={(e) => {
+        e.stopPropagation();
+        notifyConfirmToast({
+          toastId: `branch-tx-delete-${transactionId}`,
+          title: t("branch.txDeleteSure"),
+          message: t("branch.txDeleteConfirmMessage"),
+          cancelLabel: t("branch.txDeleteCancel"),
+          confirmLabel: t("branch.txDeleteConfirm"),
+          tone: "warning",
+          onConfirm: () => onConfirm(transactionId),
+        });
+      }}
     >
       <TrashIcon className="h-5 w-5" />
     </button>

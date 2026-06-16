@@ -66,6 +66,7 @@ export async function updateVehicle(
     driverPsychotechnicalValidUntil?: string | null;
     serviceIntervalKm?: number | null;
     serviceIntervalMonths?: number | null;
+    rowVersion?: number;
   }
 ): Promise<VehicleDetail> {
   return apiRequest<VehicleDetail>(`/vehicles/${id}`, {

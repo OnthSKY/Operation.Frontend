@@ -9,6 +9,7 @@ import { useI18n } from "@/i18n/context";
 import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
 import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { useRowVersionConflict } from "@/shared/hooks/useRowVersionConflict";
 import { notify } from "@/shared/lib/notify";
 import { Button } from "@/shared/ui/Button";
 import { Checkbox } from "@/shared/ui/Checkbox";
@@ -28,6 +29,7 @@ export type EditProductModalProduct = {
   isOrderable?: boolean;
   stockUnit?: string | null;
   stockTrackingMode?: StockTrackingMode;
+  rowVersion?: number;
 };
 
 type Props = {
@@ -42,6 +44,9 @@ const TITLE_ID = "edit-product-title";
 export function EditProductModal({ open, product, onClose, onUpdated }: Props) {
   const { t } = useI18n();
   const updateProductMut = useUpdateProduct();
+  const handleRowVersionConflict = useRowVersionConflict({
+    invalidate: [["products"], ["product", product?.id]],
+  });
   const {
     data: categories = [],
     isPending: categoriesLoading,
@@ -196,11 +201,13 @@ export function EditProductModal({ open, product, onClose, onUpdated }: Props) {
         // mevcut değerleri korumak için aynısını paslıyoruz, backend zaten ignore eder.
         stockUnit: product.stockUnit ?? null,
         stockTrackingMode: product.stockTrackingMode ?? "INHERIT",
+        rowVersion: product.rowVersion,
       });
       notify.success(t("toast.productUpdated"));
       onUpdated?.({ id: product.id, name: n });
       onClose();
     } catch (e) {
+      if (handleRowVersionConflict(e)) return;
       notify.error(toErrorMessage(e));
     }
   };

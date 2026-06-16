@@ -8,8 +8,10 @@ export function useDashboardOverview(enabled: boolean = true) {
   return useQuery({
     queryKey: dashboardOverviewKeys.all,
     queryFn: fetchDashboardOverview,
-    staleTime: 0,
-    refetchOnMount: "always",
+    // Dashboard KPI'ları yavaş net'te her mount'ta yeniden çekilmek istemiyor.
+    // 15s pencere içindeki dönüşler cache'ten anlık servis edilir; sonrası refetch.
+    staleTime: 15_000,
+    refetchOnMount: true,
     refetchOnWindowFocus: true,
     enabled,
   });

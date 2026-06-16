@@ -21,6 +21,7 @@ import {
   personnelProfilePhotoUrl,
 } from "@/modules/personnel/api/personnel-api";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { useRowVersionConflict } from "@/shared/hooks/useRowVersionConflict";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { LocalImageFileThumb } from "@/shared/components/LocalImageFileThumb";
 import { IMAGE_FILE_INPUT_ACCEPT } from "@/shared/lib/image-upload-limits";
@@ -159,6 +160,9 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
 
   const createPersonnel = useCreatePersonnel();
   const updatePersonnel = useUpdatePersonnel();
+  const handleRowVersionConflict = useRowVersionConflict({
+    invalidate: [["personnel"], ["personnel", initial?.id]],
+  });
   const uploadNat = useUploadNationalIdPhotos();
   const uploadProf = useUploadProfilePhotos();
   const [idPhotoFront, setIdPhotoFront] = useState<File | null>(null);
@@ -516,7 +520,11 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
 
     try {
       if (isEdit && initial) {
-        await updatePersonnel.mutateAsync({ id: initial.id, ...payload });
+        await updatePersonnel.mutateAsync({
+          id: initial.id,
+          rowVersion: initial.rowVersion,
+          ...payload,
+        });
         if (idPhotoFront || idPhotoBack) {
           await uploadNat.mutateAsync({
             personnelId: initial.id,
@@ -557,6 +565,7 @@ export function PersonnelFormModal({ open, onClose, initial }: Props) {
       setProfilePhoto2(null);
       onClose();
     } catch (e) {
+      if (handleRowVersionConflict(e)) return;
       notify.error(toErrorMessage(e));
     }
   });

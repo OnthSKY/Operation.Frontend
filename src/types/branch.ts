@@ -16,6 +16,9 @@ export type BranchResponsiblePerson = {
   fullName: string;
 };
 
+/** OWNED: öz şube — tam operasyon. JOINT_VENTURE: ortak (öz gibi + partner_share). FRANCHISE: sadece sevkiyat/fatura. */
+export type BranchType = "OWNED" | "JOINT_VENTURE" | "FRANCHISE";
+
 export type Branch = {
   id: number;
   name: string;
@@ -25,6 +28,14 @@ export type Branch = {
   personnelStartedCount: number;
   personnelNotStartedCount: number;
   seasonStatus: BranchSeasonStatus;
+  /** Şube iş modeli. List API her satırda dönmeyebilir; detail API döner. */
+  branchType?: BranchType;
+  partnerName?: string | null;
+  partnerSharePercent?: number | null;
+  partnerPersonnelId?: number | null;
+  partnerPersonnelFullName?: string | null;
+  /** PostgreSQL xmin'den türeyen optimistic concurrency token; PUT'ta backend'e geri gönderilmeli. */
+  rowVersion?: number;
 };
 
 /** GET /branches — `items` + `totalCount` (sayfalama opsiyonel). */
@@ -47,12 +58,18 @@ export type CreateBranchInput = {
   posSettlementBeneficiaryType: BranchPosSettlementBeneficiaryType;
   posSettlementBeneficiaryPersonnelId?: number | null;
   posSettlementNotes?: string | null;
+  branchType?: BranchType;
+  partnerName?: string | null;
+  partnerSharePercent?: number | null;
+  partnerPersonnelId?: number | null;
 };
 
 export type UpdateBranchInput = {
   name: string;
   address?: string | null;
   responsiblePersonnelIds: number[];
+  /** GET'ten gelen rowVersion'ı geri gönder → optimistic concurrency check. */
+  rowVersion?: number;
 };
 
 /** IN nakit tarafında BRANCH_MANAGER; satırda seçilen sorumlu personele göre gruplanır. */

@@ -91,6 +91,10 @@ async function clearSessionOnServer(): Promise<void> {
   } catch {
     /* ignore */
   }
+  inMemoryCsrfToken = null;
+  if (typeof localStorage !== "undefined") {
+    try { localStorage.removeItem(CSRF_STORAGE_KEY); } catch { /* ignore */ }
+  }
 }
 
 /** Bu uçlarda 401 sonrası refresh denenmez (yanlış şifre / refresh kendisi vb.). */
@@ -158,13 +162,21 @@ export function createIdempotencyKey(): string {
   return crypto.randomUUID();
 }
 
-function ensureIdempotencyKey(headers: Headers, method: string): void {
-  const m = method.toUpperCase();
-  if (m === "GET" || m === "HEAD" || m === "OPTIONS" || m === "TRACE") return;
-  if (headers.has("Idempotency-Key")) return;
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    headers.set("Idempotency-Key", crypto.randomUUID());
-  }
+/**
+ * Idempotency-Key header'ı **otomatik üretilmez** — her fetch çağrısında yeni UUID üretmek
+ * çift-tıklama / retry korumasını kırardı (her istek farklı key → backend cache hit yok).
+ *
+ * Backend `IdempotencyMiddleware` davranışı:
+ *   - Header verilirse: 24 saat TTL ile (user, path, key) bazında dedup. Aynı key farklı body
+ *     ile gelirse 409 Conflict.
+ *   - Header verilmezse: kısa TTL (60 sn) ile (user, path, body-hash) implicit dedup. Bu,
+ *     çift-tıklama / network retry'ı UI'dan ek iş yapmadan yakalar.
+ *
+ * Daha güçlü garantiler için (örn. form-level stabil key) caller `createIdempotencyKey()`
+ * çağırıp init.headers['Idempotency-Key'] olarak verebilir; aynı key tüm retry'larda taşınmalı.
+ */
+function ensureIdempotencyKey(_headers: Headers, _method: string): void {
+  // intentional no-op; bkz. yukarıdaki not.
 }
 
 /**
@@ -177,20 +189,47 @@ function ensureIdempotencyKey(headers: Headers, method: string): void {
  *
  * Same-origin senaryosunda cookie de okunur — fallback olarak.
  */
+const CSRF_STORAGE_KEY = "operations.xsrf";
 let inMemoryCsrfToken: string | null = null;
+
+function readCsrfFromStorage(): string | null {
+  if (typeof localStorage === "undefined") return null;
+  try {
+    return localStorage.getItem(CSRF_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeCsrfToStorage(token: string): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(CSRF_STORAGE_KEY, token);
+  } catch {
+    /* ignore */
+  }
+}
 
 function ensureCsrfHeader(headers: Headers, method: string): void {
   const m = method.toUpperCase();
   if (m === "GET" || m === "HEAD" || m === "OPTIONS" || m === "TRACE") return;
   if (headers.has("X-XSRF-TOKEN")) return;
-  // Öncelik: in-memory (her response'tan güncellenir, cross-origin'de çalışır)
-  const token = inMemoryCsrfToken ?? (typeof document !== "undefined" ? readCookie("XSRF-TOKEN") : null);
-  if (token) headers.set("X-XSRF-TOKEN", token);
+  const token =
+    inMemoryCsrfToken
+    ?? readCsrfFromStorage()
+    ?? (typeof document !== "undefined" ? readCookie("XSRF-TOKEN") : null);
+  if (token) {
+    inMemoryCsrfToken = token;
+    headers.set("X-XSRF-TOKEN", token);
+  }
 }
 
 function rememberCsrfTokenFromResponse(res: Response): void {
   const fromHeader = res.headers.get("X-XSRF-TOKEN");
-  if (fromHeader) inMemoryCsrfToken = fromHeader;
+  if (fromHeader && fromHeader !== inMemoryCsrfToken) {
+    inMemoryCsrfToken = fromHeader;
+    writeCsrfToStorage(fromHeader);
+  }
 }
 
 function readCookie(name: string): string | null {

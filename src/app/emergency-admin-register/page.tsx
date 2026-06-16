@@ -360,6 +360,8 @@ export default function EmergencyAdminRegisterPage() {
             type="submit"
             form="emergency-admin-form"
             className="min-h-11 w-full rounded-xl text-sm font-semibold"
+            disabled={pending}
+            busy={pending}
           >
             {pending ? t("auth.emergencySubmitting") : t("auth.emergencySubmit")}
           </Button>

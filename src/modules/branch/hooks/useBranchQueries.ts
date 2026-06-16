@@ -26,6 +26,7 @@ import {
   fetchBranches,
   fetchBranchList,
   updateBranch,
+  updateBranchType,
   fetchBranchDashboard,
   fetchBranchPersonnelMoneySummaries,
   fetchBranchHeldRegisterCashByPerson,
@@ -219,6 +220,28 @@ export function useUpdateBranch() {
       updateBranch(id, input),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: branchKeys.all });
+    },
+  });
+}
+
+/**
+ * Şube iş modelini değiştirir. Server FRANCHISE'da yeni branch_transactions yasaklar,
+ * JOINT_VENTURE'da partner_share_percent zorunludur.
+ */
+export function useUpdateBranchType() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      input,
+    }: {
+      id: number;
+      input: Parameters<typeof updateBranchType>[1];
+    }) => updateBranchType(id, input),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: branchKeys.all });
+      // POS settlement profilleri tipe bağlı raporlanır
+      void qc.invalidateQueries({ queryKey: reportsKeys.patronFlowPosProfiles });
     },
   });
 }
@@ -624,7 +647,67 @@ export function useDeleteBranchTransaction() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (transactionId: number) => deleteBranchTransaction(transactionId),
-    onSuccess: () => {
+    /**
+     * Optimistic delete — sunucu cevap vermeden satır listeden anında düşer.
+     * Hata olursa onError snapshot'tan geri yükler. onSettled'da invalidation ile
+     * sunucu durumuyla senkronize ederiz (cascade child'lar varsa onlar da gelir).
+     */
+    onMutate: async (transactionId) => {
+      // Çakışan refetch'leri durdur — yarı-uçtaki refetch optimistic update'i ezmesin
+      await qc.cancelQueries({ queryKey: [...branchKeys.all, "tx-paged"], exact: false });
+      await qc.cancelQueries({ queryKey: [...branchKeys.all, "tx"], exact: false });
+
+      // Aktif TÜM tx-paged ve transactions cache'lerinin snapshot'ını al
+      const snapshots: Array<[readonly unknown[], unknown]> = [];
+
+      // tx-paged (BranchTransactionsPaged shape: { items, totalCount, ... })
+      qc.setQueriesData<{
+        items: Array<{ id: number; amount: number; type?: string }>;
+        totalCount: number;
+        totalAmount?: number;
+      } | undefined>(
+        { queryKey: [...branchKeys.all, "tx-paged"], exact: false },
+        (old) => {
+          if (!old) return old;
+          snapshots.push([
+            [...branchKeys.all, "tx-paged"],
+            structuredClone(old),
+          ]);
+          const itemToDelete = old.items.find((it) => it.id === transactionId);
+          if (!itemToDelete) return old;
+          return {
+            ...old,
+            items: old.items.filter((it) => it.id !== transactionId),
+            totalCount: Math.max(0, old.totalCount - 1),
+            totalAmount:
+              old.totalAmount != null
+                ? Math.max(0, old.totalAmount - Number(itemToDelete.amount || 0))
+                : old.totalAmount,
+          };
+        }
+      );
+
+      // tek-gün liste: branchKeys.transactions
+      qc.setQueriesData<Array<{ id: number }> | undefined>(
+        { queryKey: [...branchKeys.all, "tx"], exact: false },
+        (old) => {
+          if (!old) return old;
+          snapshots.push([[...branchKeys.all, "tx"], structuredClone(old)]);
+          return old.filter((it) => it.id !== transactionId);
+        }
+      );
+
+      return { snapshots };
+    },
+    onError: (_err, _id, ctx) => {
+      // Optimistic UI rollback — snapshot'ları geri yükle
+      if (!ctx?.snapshots) return;
+      for (const [key, data] of ctx.snapshots) {
+        qc.setQueryData(key, data);
+      }
+    },
+    onSettled: () => {
+      // Başarılı/başarısız fark etmez — sunucu durumuyla tam senkron
       void qc.invalidateQueries({ queryKey: branchKeys.all });
       void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
       void qc.refetchQueries({ queryKey: dashboardSummaryKeys.all });

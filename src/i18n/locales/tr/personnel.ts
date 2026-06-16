@@ -31,7 +31,7 @@ export const personnel = {
   costsAddAdvance: "Avans gir",
   costsAddPersonnelExpense: "Personel gideri gir",
   costsDesc:
-    "Avans (elden/havale ön ödeme) ayrı; tıraş, eczane vb. kalemler personel gideri olarak burada. İki liste tek ekranda — sekmelerle odaklanın; filtreler özeti de etkiler.",
+    "Avans ve personel giderleri tek ekranda; sekmelerle filtreleyin.",
   costsTabsAria: "Personel maliyeti görünümleri",
   costsTabAll: "Tümü",
   costsTabAdvances: "Avanslar",
@@ -83,6 +83,10 @@ export const personnel = {
   costsPaymentSourceSplitHint:
     "Yıl, şube ve personel filtreleri uygulanır. Aşağıdaki «Kasadan / patrondan» liste filtresi bu özet kartlarını değiştirmez. Personel cebi (gider) ve kasa dışı kalemler bu iki kartta yok.",
   costsPatronOutCardTitle: "Patrondan giden",
+  costsPatronOutAdvanceLabel: "Avans",
+  costsPatronOutPersonnelExpenseLabel: "Personel gideri",
+  costsPatronOutBranchExpenseLabel: "Şube gideri",
+  costsPatronOutCentralExpenseLabel: "Merkezi gider",
   costsPatronOutCardDesc:
     "Patron kaynaklı avans ve patron ödemeli personel giderleri; şube üzerinden kayıtlı olanlar şube adıyla ayrılır.",
   costsBranchOutCardTitle: "Şubeden giden",
@@ -776,11 +780,13 @@ export const personnel = {
   advanceBranchPickWhenPersonnelHasNoBranch:
     "Şube seçin veya personel kaydına şube atayın.",
   sourceType: "Ödeme kaynağı",
-  sourceCash: "Şube kasasından (kasa hareketine yansır)",
-  sourcePatron: "Patrondan (şube kasasından düşmez)",
-  sourceBank: "Bankadan",
-  sourceHeldRegisterCash:
-    "Personelin zimmetindeki kasa parası (kasadan yeni nakit çıkmaz)",
+  sourceCash: "Şube kasası",
+  sourcePatron: "Patron cebi",
+  sourceBank: "Banka",
+  sourceHeldRegisterCash: "Personel zimmeti",
+  sourceHintCash: "Kasa hareketine yansır.",
+  sourceHintPatron: "Şubeden düşmez, patron öder.",
+  sourceHintHeldRegisterCash: "Kasadan yeni nakit çıkmaz.",
   advanceHeldRegisterSelectBranchFirst:
     "Önce şube seçin (yalnız bu şubede zimmetinde kasa parası olan personeller listelenir).",
   advanceHeldRegisterSourcePersonLabel: "Zimmetindeki kasa parası kullanılacak personel",

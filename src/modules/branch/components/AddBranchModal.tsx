@@ -10,15 +10,24 @@ import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { requiresPosDestinationNotes } from "@/modules/branch/lib/pos-settlement-beneficiary";
-import type { BranchPosSettlementBeneficiaryType } from "@/types/branch";
+import type { BranchPosSettlementBeneficiaryType, BranchType } from "@/types/branch";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
 type FormValues = {
   name: string;
+  branchType: BranchType;
+  partnerName: string;
+  partnerSharePercent: string;
   posSettlementBeneficiaryType: BranchPosSettlementBeneficiaryType;
   posSettlementNotes: string;
 };
+
+const BRANCH_TYPE_OPTIONS: { value: BranchType; emoji: string; title: string; desc: string }[] = [
+  { value: "OWNED", emoji: "🏠", title: "Öz Şube", desc: "Tam operasyonel — gelir, gider, gün sonu, personel." },
+  { value: "JOINT_VENTURE", emoji: "🤝", title: "Ortak Şube", desc: "Öz şube gibi + ortak adı + kar payı bilgisi." },
+  { value: "FRANCHISE", emoji: "📦", title: "Franchise", desc: "Sadece sevkiyat + fatura + tahsilat. Kasa hareketi yazılamaz." },
+];
 
 type Props = {
   open: boolean;
@@ -63,6 +72,9 @@ export function AddBranchModal({ open, onClose }: Props) {
   } = useForm<FormValues>({
     defaultValues: {
       name: "",
+      branchType: "OWNED",
+      partnerName: "",
+      partnerSharePercent: "",
       posSettlementBeneficiaryType: "PATRON",
       posSettlementNotes: "",
     },
@@ -70,6 +82,8 @@ export function AddBranchModal({ open, onClose }: Props) {
 
   const posType = watch("posSettlementBeneficiaryType");
   const notesRequired = requiresPosDestinationNotes(posType);
+  const branchType = watch("branchType");
+  const isJv = branchType === "JOINT_VENTURE";
 
   useEffect(() => {
     if (!open) reset();
@@ -77,12 +91,28 @@ export function AddBranchModal({ open, onClose }: Props) {
 
   const onSubmit = handleSubmit(async (values) => {
     try {
+      const isJointVenture = values.branchType === "JOINT_VENTURE";
+      if (isJointVenture) {
+        if (!values.partnerName.trim()) {
+          notify.error("Ortak şubede ortak adı zorunludur.");
+          return;
+        }
+        const pct = Number(values.partnerSharePercent);
+        if (!Number.isFinite(pct) || pct <= 0 || pct > 100) {
+          notify.error("Ortak payı yüzdesi 0 (hariç) ile 100 (dahil) arasında olmalıdır.");
+          return;
+        }
+      }
       await createBranch.mutateAsync({
         name: values.name.trim(),
         posSettlementBeneficiaryType: values.posSettlementBeneficiaryType,
         posSettlementNotes: values.posSettlementNotes.trim()
           ? values.posSettlementNotes.trim()
           : null,
+        branchType: values.branchType,
+        partnerName: isJointVenture ? values.partnerName.trim() : null,
+        partnerSharePercent: isJointVenture ? Number(values.partnerSharePercent) : null,
+        partnerPersonnelId: null,
       });
       notify.success(t("toast.branchCreated"));
       reset();
@@ -125,6 +155,62 @@ export function AddBranchModal({ open, onClose }: Props) {
                   autoComplete="organization"
                   maxLength={100}
                 />
+              </FormSection>
+              <FormSection>
+                <fieldset className="min-w-0 rounded-xl border border-zinc-200 bg-zinc-50/80 p-3">
+                  <legend className="px-1 text-sm font-semibold text-zinc-800">Şube Tipi</legend>
+                  <p className="mb-3 text-xs leading-relaxed text-zinc-600">
+                    Bu şubenin iş modeli. Franchise seçilirse şubeye doğrudan gelir/gider/gün sonu yazılamaz.
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {BRANCH_TYPE_OPTIONS.map((opt) => (
+                      <label
+                        key={opt.value}
+                        className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-transparent px-1 py-1 hover:bg-white/80"
+                      >
+                        <input
+                          type="radio"
+                          className="mt-0.5 h-4 w-4 shrink-0 border-zinc-300 text-zinc-900"
+                          value={opt.value}
+                          {...register("branchType")}
+                        />
+                        <span className="flex min-w-0 flex-col gap-0.5">
+                          <span className="text-sm font-medium text-zinc-800">
+                            <span className="mr-1.5" aria-hidden>{opt.emoji}</span>
+                            {opt.title}
+                          </span>
+                          <span className="text-xs leading-snug text-zinc-500">{opt.desc}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  {isJv ? (
+                    <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+                      <div className="flex-1">
+                        <Input
+                          label="Ortak Adı"
+                          labelRequired
+                          {...register("partnerName")}
+                          maxLength={150}
+                          placeholder="Ahmet Yılmaz"
+                        />
+                      </div>
+                      <div className="w-full sm:w-32">
+                        <Input
+                          label="Pay (%)"
+                          labelRequired
+                          type="number"
+                          inputMode="decimal"
+                          step="0.01"
+                          min={0.01}
+                          max={100}
+                          {...register("partnerSharePercent")}
+                          placeholder="40"
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+                </fieldset>
               </FormSection>
               <FormSection>
                 <fieldset className="min-w-0 rounded-xl border border-zinc-200 bg-zinc-50/80 p-3">

@@ -45,6 +45,8 @@ type RichComboboxProps = {
   className?: string;
   /** Portallanan liste z-index (modal üstü). */
   menuZIndex?: number;
+  /** Bir seçenek tıklandıktan sonra çağrılır; çağıran sıradaki input'a focus alabilir. */
+  onAfterCommit?: () => void;
 };
 
 export function RichCombobox({
@@ -66,6 +68,7 @@ export function RichCombobox({
   disabled,
   className,
   menuZIndex = OVERLAY_Z_INDEX.menuPanel,
+  onAfterCommit,
 }: RichComboboxProps) {
   const [internalQuery, setInternalQuery] = useState("");
   const [open, setOpen] = useState(false);
@@ -260,6 +263,7 @@ export function RichCombobox({
                       onClick={() => {
                         onChange(opt.value);
                         closeAndReset();
+                        if (onAfterCommit) requestAnimationFrame(() => onAfterCommit());
                       }}
                       disabled={disabled}
                       className={cn(

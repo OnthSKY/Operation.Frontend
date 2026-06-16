@@ -3,11 +3,14 @@
 import type { Supplier } from "@/modules/suppliers/api/suppliers-api";
 import { SupplierViewModal } from "@/modules/suppliers/components/SupplierViewModal";
 import {
+  supplierKeys,
   useCreateSupplier,
   useDeleteSupplier,
   useSuppliers,
   useUpdateSupplier,
 } from "@/modules/suppliers/hooks/useSupplierQueries";
+import { useQueryClient } from "@tanstack/react-query";
+import { confirmUndoableDelete } from "@/shared/lib/confirm-undoable-delete";
 import { cn } from "@/lib/cn";
 import { useI18n } from "@/i18n/context";
 import { Card } from "@/shared/components/Card";
@@ -19,12 +22,29 @@ import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayou
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { useRowVersionConflict } from "@/shared/hooks/useRowVersionConflict";
 import { notify } from "@/shared/lib/notify";
 import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { Button } from "@/shared/ui/Button";
 import { detailOpenIconButtonClass, EyeIcon, PencilIcon, PlusIcon } from "@/shared/ui/EyeIcon";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
+import { EmptyState } from "@/shared/ui/EmptyState";
+import { Skeleton, SkeletonText } from "@/shared/ui/Skeleton";
+
+/** Tedarikçi listesi yükleme placeholder'ı — 4 satır kart benzeri shimmer. */
+function SkeletonTableRowsList() {
+  return (
+    <div className="space-y-3">
+      {[0, 1, 2, 3].map((i) => (
+        <div key={i} className="rounded-lg border border-zinc-100 p-3">
+          <Skeleton className="mb-2 h-4 w-1/3" />
+          <SkeletonText lines={1} />
+        </div>
+      ))}
+    </div>
+  );
+}
 import { Switch } from "@/shared/ui/Switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/Table";
 import { Tooltip } from "@/shared/ui/Tooltip";
@@ -42,7 +62,9 @@ export function SuppliersScreen() {
     useSuppliers(includeDeleted);
   const createSup = useCreateSupplier();
   const updateSup = useUpdateSupplier();
+  const handleRowVersionConflict = useRowVersionConflict({ invalidate: [["suppliers"]] });
   const deleteSup = useDeleteSupplier();
+  const qc = useQueryClient();
 
   const [supplierModal, setSupplierModal] = useState<"add" | "edit" | null>(null);
   const [editSupplier, setEditSupplier] = useState<Supplier | null>(null);
@@ -144,11 +166,16 @@ export function SuppliersScreen() {
         await createSup.mutateAsync(body);
         notify.success(t("toast.supplierCreated"));
       } else if (editSupplier) {
-        await updateSup.mutateAsync({ id: editSupplier.id, ...body });
+        await updateSup.mutateAsync({
+          id: editSupplier.id,
+          ...body,
+          rowVersion: editSupplier.rowVersion,
+        });
         notify.success(t("toast.supplierUpdated"));
       }
       setSupplierModal(null);
     } catch (e) {
+      if (handleRowVersionConflict(e)) return;
       notify.error(toErrorMessage(e));
     }
   };
@@ -171,13 +198,15 @@ export function SuppliersScreen() {
       message: <p className="break-words font-medium text-zinc-900">{s.name}</p>,
       cancelLabel: t("common.cancel"),
       confirmLabel: t("common.delete"),
-      onConfirm: async () => {
-        try {
-          await deleteSup.mutateAsync(s.id);
-          notify.success(t("toast.supplierDeleted"));
-        } catch (e) {
-          notify.error(toErrorMessage(e));
-        }
+      onConfirm: () => {
+        // 5sn'lik geri-alma penceresi — yanlış silmeyi kurtarır
+        confirmUndoableDelete<{ id: number }>({
+          qc,
+          queryKeyPrefix: supplierKeys.all,
+          targetId: s.id,
+          deleteFn: () => deleteSup.mutateAsync(s.id),
+          successMessage: t("toast.supplierDeleted"),
+        });
       },
     });
   };
@@ -252,9 +281,14 @@ export function SuppliersScreen() {
         {supErr ? (
           <p className="text-sm text-red-600">{toErrorMessage(supError)}</p>
         ) : supPending ? (
-          <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+          <SkeletonTableRowsList />
         ) : suppliers.length === 0 ? (
-          <p className="text-sm text-zinc-600">{t("suppliers.noSuppliers")}</p>
+          <EmptyState
+            icon="🏢"
+            title={t("suppliers.noSuppliers")}
+            description="Tedarikçi ekleyerek fatura ve ödeme takibini başlatın."
+            action={{ label: "Tedarikçi ekle", onClick: () => setSupplierModal("add") }}
+          />
         ) : (
           <div className="-mx-1 overflow-x-auto px-1">
             <Table>

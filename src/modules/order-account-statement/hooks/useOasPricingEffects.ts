@@ -7,6 +7,7 @@ import { formatLocaleAmountInput } from "@/shared/lib/locale-amount";
 import {
   fetchSalesPriceHistory,
   fetchSalesPriceSuggestion,
+  fetchSalesPriceSuggestionsBatch,
   type SalesPriceSuggestion,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
 import type { LineDraft } from "@/modules/order-account-statement/components/oas-types";
@@ -14,15 +15,16 @@ import type { ProductCostHistoryRow } from "@/types/product-cost";
 import type { useOasSuggestions } from "@/modules/order-account-statement/hooks/useOasSuggestions";
 
 /**
- * Ürün maliyet & satış fiyatı önerileri + bunları satıra uygulayan akış:
- *  - latestCostByProductId map'i (cost history ilk satırı = en güncel),
- *  - productPricingCostRows (modal için filtrelenmiş geçmiş),
- *  - activeCounterparty (linkedBranchId / customerAccountIdText),
- *  - loadSalesSuggestionForLine helper'ı,
- *  - productPricingOpen iken price history fetch effect'i,
- *  - activeCounterparty değişince mevcut satırlar için (sessiz) öneri yükle.
+ * Ürün maliyet & satış fiyatı önerileri + bunları satıra uygulayan akış.
  *
- * SRP: yalnızca fiyat türetme + yan etki. Counterparty değişimine reaktif.
+ * Tasarım notları (regresyon hatırlatması):
+ *  - `loadSalesSuggestionForLine` deps'inde tüm `suggestions` objesini TUTMA.
+ *    Parent her render'da yeni obje verir → callback yenilenir → effect
+ *    yeniden tetiklenir → fetch → setState → render → SONSUZ DÖNGÜ + 429.
+ *    Sadece kullandığımız `setLinePriceSuggestionByLineId` setter referansını al;
+ *    useState setter'ları zaten kararlıdır.
+ *  - Counterparty değişimine reaktif effect, satır-başına N istek yerine
+ *    TEK batch isteği atar (`fetchSalesPriceSuggestionsBatch`).
  */
 type Params = {
   locale: "tr" | "en";
@@ -36,6 +38,14 @@ type Params = {
 };
 
 export function useOasPricingEffects(p: Params) {
+  const {
+    setLinePriceSuggestionByLineId,
+    productPricingOpen,
+    productPricingProductId,
+    setPriceHistoryBusy,
+    setPriceHistoryRows,
+  } = p.suggestions;
+
   const latestCostByProductId = useMemo(() => {
     const map = new Map<number, ProductCostHistoryRow>();
     for (const row of p.costHistoryRows) {
@@ -45,12 +55,12 @@ export function useOasPricingEffects(p: Params) {
   }, [p.costHistoryRows]);
 
   const productPricingCostRows = useMemo(() => {
-    if (p.suggestions.productPricingProductId <= 0) return [];
+    if (productPricingProductId <= 0) return [];
     return p.costHistoryRows
-      .filter((r) => r.productId === p.suggestions.productPricingProductId)
+      .filter((r) => r.productId === productPricingProductId)
       .slice()
       .sort((a, b) => b.effectiveDate.localeCompare(a.effectiveDate));
-  }, [p.costHistoryRows, p.suggestions.productPricingProductId]);
+  }, [p.costHistoryRows, productPricingProductId]);
 
   const activeCounterparty = useMemo(() => {
     const branchId = Number.parseInt(p.linkedBranchId, 10);
@@ -75,7 +85,7 @@ export function useOasPricingEffects(p: Params) {
           currencyCode: "TRY",
           lookbackDays: 90,
         });
-        p.suggestions.setLinePriceSuggestionByLineId((prev) => ({
+        setLinePriceSuggestionByLineId((prev) => ({
           ...prev,
           [lineId]: suggestion ?? undefined,
         }));
@@ -89,58 +99,93 @@ export function useOasPricingEffects(p: Params) {
             if (line.id !== lineId) return line;
             const current = (line.unitPriceText ?? "").trim();
             if (current.length > 0) return line;
-            return {
-              ...line,
-              unitPriceText: normalizedSuggested,
-              tryPerKgText: line.priceCalcMode === "kg" ? normalizedSuggested : line.tryPerKgText,
-            };
+            return { ...line, unitPriceText: normalizedSuggested };
           })
         );
       } catch {
-        p.suggestions.setLinePriceSuggestionByLineId((prev) => ({ ...prev, [lineId]: undefined }));
+        setLinePriceSuggestionByLineId((prev) => ({ ...prev, [lineId]: undefined }));
       }
     },
-    [activeCounterparty, p.locale, p.setLines, p.suggestions]
+    [activeCounterparty, p.locale, p.setLines, setLinePriceSuggestionByLineId]
   );
 
   // Ürün-fiyat modal açıkken ilgili price history'yi çek.
   useEffect(() => {
-    if (!p.suggestions.productPricingOpen) return;
-    if (!activeCounterparty || p.suggestions.productPricingProductId <= 0) return;
+    if (!productPricingOpen) return;
+    if (!activeCounterparty || productPricingProductId <= 0) return;
     let cancelled = false;
-    p.suggestions.setPriceHistoryBusy(true);
+    setPriceHistoryBusy(true);
     void fetchSalesPriceHistory({
-      productId: p.suggestions.productPricingProductId,
+      productId: productPricingProductId,
       counterpartyType: activeCounterparty.counterpartyType,
       counterpartyId: activeCounterparty.counterpartyId,
       currencyCode: "TRY",
       limit: 50,
     })
       .then((page) => {
-        if (!cancelled) p.suggestions.setPriceHistoryRows(page.items);
+        if (!cancelled) setPriceHistoryRows(page.items);
       })
       .catch((e) => {
         if (!cancelled) notify.error(toErrorMessage(e));
       })
       .finally(() => {
-        if (!cancelled) p.suggestions.setPriceHistoryBusy(false);
+        if (!cancelled) setPriceHistoryBusy(false);
       });
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.suggestions.productPricingOpen, p.suggestions.productPricingProductId, activeCounterparty]);
+  }, [
+    productPricingOpen,
+    productPricingProductId,
+    activeCounterparty,
+    setPriceHistoryBusy,
+    setPriceHistoryRows,
+  ]);
 
-  // Counterparty değişimine reaktif: mevcut satırlar için sessiz öneri yükle.
+  // Counterparty değişimine reaktif: tüm mevcut satırlar için TEK batch çağrısı.
   useEffect(() => {
     if (!activeCounterparty) return;
-    for (const line of p.linesRef.current) {
+    const lineList = p.linesRef.current;
+    const lineByProduct = new Map<number, string[]>();
+    for (const line of lineList) {
       const pid = line.selectedProductId ?? 0;
       if (pid <= 0) continue;
-      void loadSalesSuggestionForLine(line.id, pid, false);
+      const arr = lineByProduct.get(pid) ?? [];
+      arr.push(line.id);
+      lineByProduct.set(pid, arr);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeCounterparty, loadSalesSuggestionForLine]);
+    const productIds = Array.from(lineByProduct.keys());
+    if (productIds.length === 0) return;
+
+    let cancelled = false;
+    void fetchSalesPriceSuggestionsBatch({
+      productIds,
+      counterpartyType: activeCounterparty.counterpartyType,
+      counterpartyId: activeCounterparty.counterpartyId,
+      currencyCode: "TRY",
+      lookbackDays: 90,
+    })
+      .then((mapByProduct) => {
+        if (cancelled) return;
+        setLinePriceSuggestionByLineId((prev) => {
+          const next = { ...prev };
+          for (const [pid, lineIds] of lineByProduct) {
+            const suggestion = mapByProduct[pid];
+            for (const lid of lineIds) next[lid] = suggestion ?? undefined;
+          }
+          return next;
+        });
+      })
+      .catch((e) => {
+        // Satırı bozmuyoruz ama kullanıcı "öneri neden gelmedi" diye sormasın diye
+        // görünür bir uyarı bırakıyoruz. 429 buraya da düşer.
+        if (!cancelled) notify.info(toErrorMessage(e));
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeCounterparty, setLinePriceSuggestionByLineId, p.linesRef]);
 
   return {
     latestCostByProductId,

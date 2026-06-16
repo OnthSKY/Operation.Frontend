@@ -129,7 +129,18 @@ function splitPaymentSourceTotalsBody(
   );
 }
 
-type PatronBranchBucket = { key: string; label: string; totals: Map<string, number> };
+type PatronBranchBucket = {
+  key: string;
+  /** Üst etiket — chip'in tipini açıklar (Avans / Personel gideri / Şube gideri / Merkezi gider). */
+  kindLabel: string;
+  /** Hedef adı — personel adı, şube adı veya "Merkezi". */
+  targetLabel: string;
+  /** Görsel ton (avans=violet, gider=zinc). */
+  tone: "violet" | undefined;
+  /** Sıralama önceliği: avans önce, sonra personel gider, sonra şube, en sonda merkezi. */
+  sortOrder: number;
+  totals: Map<string, number>;
+};
 type SourceBucketKey = "PATRON" | "PERSONNEL_HELD_REGISTER" | "REGISTER";
 type SourceBucketSummary = {
   key: SourceBucketKey;
@@ -153,60 +164,123 @@ function bumpCurrencyMap(
   m.set(c, (m.get(c) ?? 0) + n);
 }
 
-/** Patron kaynaklı avans + gider satırlarını şube / merkez üzerinden gruplar. */
+/**
+ * Patron kaynaklı satırları kime/nereye gittiğine göre net şekilde gruplar:
+ *   - Avans → her zaman bir personele atfedilir (personel başına bucket).
+ *   - Gider → öncelik: personel-bağlı (linked/pocket/salary) > şube-bağlı > merkezi.
+ * Böylece chip okunduğunda "Avans · Ali" veya "Personel gideri · Ali" veya
+ * "Şube gideri · Şube A" veya "Merkezi gider" net seçilir.
+ */
 function buildPatronTotalsByBranch(
   advances: AdvanceListItem[],
   expenses: BranchTransaction[],
   branchNameById: Map<number, string>,
-  orgLabel: string
+  orgLabel: string,
+  advanceLabel: string,
+  personnelExpenseLabel: string,
+  branchExpenseLabel: string,
+  centralExpenseLabel: string
 ): PatronBranchBucket[] {
-  const buckets = new Map<string, Map<string, number>>();
-  const labels = new Map<string, string>();
+  type Group = {
+    kindLabel: string;
+    targetLabel: string;
+    tone: "violet" | undefined;
+    sortOrder: number;
+    totals: Map<string, number>;
+  };
+  const buckets = new Map<string, Group>();
 
-  const touch = (key: string, label: string) => {
-    if (!buckets.has(key)) {
-      buckets.set(key, new Map());
-      labels.set(key, label);
-    }
+  const touch = (key: string, init: Omit<Group, "totals">) => {
+    if (!buckets.has(key))
+      buckets.set(key, {
+        ...init,
+        totals: new Map<string, number>(),
+      });
+    return buckets.get(key)!;
   };
 
   for (const a of advances) {
     if (String(a.sourceType ?? "").trim().toUpperCase() !== "PATRON") continue;
-    const bid = a.branchId != null && a.branchId > 0 ? a.branchId : null;
-    const key = bid != null ? `b:${bid}` : "org";
-    const label =
-      bid != null
-        ? a.branchName?.trim() || branchNameById.get(bid)?.trim() || `#${bid}`
-        : orgLabel;
-    touch(key, label);
-    bumpCurrencyMap(buckets.get(key)!, a.currencyCode, a.amount);
+    const pid = a.personnelId;
+    const pname = a.personnelFullName?.trim() || `#${pid ?? "?"}`;
+    const key = `adv:p:${pid ?? "?"}`;
+    const g = touch(key, {
+      kindLabel: advanceLabel,
+      targetLabel: pname,
+      tone: "violet",
+      sortOrder: 0,
+    });
+    bumpCurrencyMap(g.totals, a.currencyCode, a.amount);
   }
+
+  const personnelLookup = (r: BranchTransaction): { pid: number; name: string } | null => {
+    if (r.linkedPersonnelId != null && r.linkedPersonnelId > 0)
+      return {
+        pid: r.linkedPersonnelId,
+        name: r.linkedPersonnelFullName?.trim() || `#${r.linkedPersonnelId}`,
+      };
+    if (r.expensePocketPersonnelId != null && r.expensePocketPersonnelId > 0)
+      return {
+        pid: r.expensePocketPersonnelId,
+        name: r.expensePocketPersonnelFullName?.trim() || `#${r.expensePocketPersonnelId}`,
+      };
+    if (r.linkedSalaryPersonnelId != null && r.linkedSalaryPersonnelId > 0)
+      return {
+        pid: r.linkedSalaryPersonnelId,
+        name: r.linkedSalaryPersonnelFullName?.trim() || `#${r.linkedSalaryPersonnelId}`,
+      };
+    return null;
+  };
 
   for (const r of expenses) {
     if (String(r.expensePaymentSource ?? "").trim().toUpperCase() !== "PATRON")
       continue;
-    const bid = r.branchId != null && r.branchId > 0 ? r.branchId : null;
-    const key = bid != null ? `b:${bid}` : "org";
-    const label =
-      bid != null
-        ? branchNameById.get(bid)?.trim() || `#${bid}`
-        : orgLabel;
-    touch(key, label);
-    bumpCurrencyMap(buckets.get(key)!, r.currencyCode, r.amount);
+    const p = personnelLookup(r);
+    let key: string;
+    let init: Omit<Group, "totals">;
+    if (p) {
+      key = `exp:p:${p.pid}`;
+      init = {
+        kindLabel: personnelExpenseLabel,
+        targetLabel: p.name,
+        tone: undefined,
+        sortOrder: 1,
+      };
+    } else if (r.branchId != null && r.branchId > 0) {
+      const bname = branchNameById.get(r.branchId)?.trim() || `#${r.branchId}`;
+      key = `exp:b:${r.branchId}`;
+      init = {
+        kindLabel: branchExpenseLabel,
+        targetLabel: bname,
+        tone: undefined,
+        sortOrder: 2,
+      };
+    } else {
+      key = "exp:org";
+      init = {
+        kindLabel: centralExpenseLabel,
+        targetLabel: orgLabel,
+        tone: undefined,
+        sortOrder: 3,
+      };
+    }
+    const g = touch(key, init);
+    bumpCurrencyMap(g.totals, r.currencyCode, r.amount);
   }
 
-  const rows: PatronBranchBucket[] = [...buckets.entries()].map(([key, totals]) => ({
+  const rows: PatronBranchBucket[] = [...buckets.entries()].map(([key, g]) => ({
     key,
-    label: labels.get(key) ?? key,
-    totals,
+    kindLabel: g.kindLabel,
+    targetLabel: g.targetLabel,
+    tone: g.tone,
+    sortOrder: g.sortOrder,
+    totals: g.totals,
   }));
 
   rows.sort((x, y) => {
-    if (x.key === "org") return 1;
-    if (y.key === "org") return -1;
-    return x.label.localeCompare(y.label, undefined, { sensitivity: "base" });
+    if (x.sortOrder !== y.sortOrder) return x.sortOrder - y.sortOrder;
+    return x.targetLabel.localeCompare(y.targetLabel, undefined, { sensitivity: "base" });
   });
-
   return rows;
 }
 
@@ -430,7 +504,7 @@ function CompactChipBlocks({
   };
 
   return (
-    <section className="grid gap-2 md:grid-cols-2">
+    <section className="flex flex-col gap-2">
       <article className="rounded-xl border border-zinc-200 bg-white p-2.5 shadow-sm sm:p-3">
         <header className="mb-2 flex items-center justify-between gap-2">
           <h3 className="truncate text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
@@ -443,13 +517,13 @@ function CompactChipBlocks({
           <p className="text-xs text-zinc-600">{empty}</p>
         ) : (
           <>
-            <div className="-mx-2.5 flex snap-x snap-mandatory gap-1.5 overflow-x-auto px-2.5 pb-1 [scrollbar-width:thin] sm:-mx-3 sm:px-3">
+            <div className="-mx-2.5 flex snap-x snap-mandatory gap-1 overflow-x-auto px-2.5 pb-1 [scrollbar-width:thin] sm:-mx-3 sm:px-3">
               {categoryBuckets.slice(0, 6).map((b) => (
                 <span
                   key={b.key}
                   title={`${b.label} · ${renderTry(b.totals)} · ${b.count}`}
                   className={cn(
-                    "flex min-w-[7rem] shrink-0 snap-start flex-col gap-0.5 rounded-lg border px-2 py-1.5",
+                    "flex min-w-[5.5rem] shrink-0 snap-start flex-col gap-0 rounded-md border px-1.5 py-1",
                     b.isAdvance
                       ? "border-violet-200 bg-violet-50/70"
                       : "border-zinc-200 bg-white",
@@ -522,12 +596,16 @@ function CompactChipBlocks({
         ) : sourceBuckets.length === 0 ? (
           <p className="text-xs text-zinc-600">{empty}</p>
         ) : (
-          <div className="grid grid-cols-3 gap-1.5">
+          <div
+            role="group"
+            aria-label={t("personnel.costsPaymentMethodCardTitle")}
+            className="-mx-2.5 flex snap-x snap-mandatory gap-1.5 overflow-x-auto px-2.5 pb-1 [scrollbar-width:thin] sm:-mx-3 sm:px-3"
+          >
             {sourceBuckets.map((bucket) => (
               <span
                 key={bucket.key}
                 title={`${sourceLabel(bucket.key)} · ${renderTry(bucket.totals)} · ${bucket.count}`}
-                className="flex flex-col gap-0.5 rounded-lg border border-zinc-200 bg-white px-2 py-1.5"
+                className="flex min-w-[5.5rem] shrink-0 snap-start flex-col gap-0 rounded-md border border-zinc-200 bg-white px-1.5 py-1"
               >
                 <span className="truncate text-[11px] font-semibold leading-tight text-zinc-900">
                   {sourceLabel(bucket.key)}
@@ -831,8 +909,6 @@ type PersonnelCostsSummaryPanelsProps = {
   expensesPending: boolean;
   patronByBranchRows: PatronBranchBucket[];
   paymentSourceSplit: PaymentSourceSplitSummary;
-  advSums: Map<string, number>;
-  expSums: Map<string, number>;
   personnelAmountStats: {
     topByAmount: PersonnelAmountStat | null;
     topByLines: PersonnelAmountStat | null;
@@ -847,163 +923,152 @@ function PersonnelCostsSummaryPanels({
   expensesPending,
   patronByBranchRows,
   paymentSourceSplit,
-  advSums,
-  expSums,
   personnelAmountStats,
 }: PersonnelCostsSummaryPanelsProps) {
   const pending = advancesPending || expensesPending;
+  const dash = t("personnel.dash");
+  const empty = t("personnel.costsSummaryEmpty");
+  const renderTry = (totals: Map<string, number>) => {
+    const v = totals.get("TRY") ?? 0;
+    return v > 0 ? formatMoneyDash(v, dash, locale, "TRY") : empty;
+  };
+  const branchTotalCcyKeys = [...paymentSourceSplit.branch.keys()].sort();
   return (
-    <>
-      <div className="flex flex-col gap-3">
-        <p className="text-xs leading-relaxed text-zinc-600">
-          {t("personnel.costsPaymentSourceSplitHint")}
-        </p>
-        <div className="grid gap-3 sm:grid-cols-2 lg:gap-4">
-          <Card
-            title={t("personnel.costsPatronOutCardTitle")}
-            description={t("personnel.costsPatronOutCardDesc")}
-          >
-            {pending ? (
-              <p className="text-sm text-zinc-500">{t("common.loading")}</p>
-            ) : (
-              patronByBranchTotalsBody(
-                patronByBranchRows,
-                t("personnel.dash"),
-                locale,
-                t("personnel.costsSummaryEmpty")
-              )
-            )}
-          </Card>
-          <Card
-            title={t("personnel.costsBranchOutCardTitle")}
-            description={t("personnel.costsBranchOutCardDesc")}
-          >
-            {pending ? (
-              <p className="text-sm text-zinc-500">{t("common.loading")}</p>
-            ) : (
-              splitPaymentSourceTotalsBody(
-                paymentSourceSplit.branch,
-                t("personnel.dash"),
-                locale,
-                t("personnel.costsSummaryEmpty")
-              )
-            )}
-          </Card>
-        </div>
-        <Card
-          title={t("personnel.costsSourceBreakdownTitle")}
-          description={t("personnel.costsSourceBreakdownDesc")}
-        >
-          {pending ? (
-            <p className="text-sm text-zinc-500">{t("common.loading")}</p>
-          ) : (
-            <div className="space-y-3">
-              {paymentSourceSplit.sourceBuckets.map((bucket) => (
-                <div
-                  key={bucket.key}
-                  className="rounded-lg border border-zinc-100 bg-zinc-50/60 p-3"
-                >
-                  <div className="mb-2 flex items-center justify-between gap-2">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
-                      {bucket.key === "PATRON"
-                        ? t("personnel.costsSourceBucketPatron")
-                        : bucket.key === "PERSONNEL_HELD_REGISTER"
-                          ? t("personnel.costsSourceBucketHeldRegister")
-                          : t("personnel.costsSourceBucketRegister")}
-                    </p>
-                    <p className="text-xs font-medium text-zinc-500">
-                      {t("personnel.costsSourceBucketCountLabel")}: {bucket.count}
-                    </p>
-                  </div>
-                  {splitPaymentSourceTotalsBody(
-                    bucket.totals,
-                    t("personnel.dash"),
-                    locale,
-                    t("personnel.costsSummaryEmpty")
+    <div className="flex flex-col gap-2">
+      <CompactStripCard
+        title={t("personnel.costsPatronOutCardTitle")}
+        pending={pending}
+        empty={empty}
+        items={patronByBranchRows.map((r) => ({
+          key: r.key,
+          title: r.kindLabel,
+          subtitle: r.targetLabel,
+          amount: renderTry(r.totals),
+          tone: r.tone,
+        }))}
+      />
+      <CompactStripCard
+        title={t("personnel.costsBranchOutCardTitle")}
+        pending={pending}
+        empty={empty}
+        items={branchTotalCcyKeys.map((ccy) => ({
+          key: ccy,
+          title: ccy,
+          amount: formatMoneyDash(
+            paymentSourceSplit.branch.get(ccy) ?? 0,
+            dash,
+            locale,
+            ccy
+          ),
+        }))}
+      />
+      <CompactStripCard
+        title={t("personnel.costsSummaryTitle")}
+        pending={pending}
+        empty={empty}
+        items={[
+          {
+            key: "top",
+            title: t("personnel.costsTopReceiver"),
+            amount: personnelAmountStats.topByAmount?.name ?? dash,
+            tone: "violet",
+          },
+          {
+            key: "topLines",
+            title: t("personnel.costsTopLineReceiver"),
+            amount: personnelAmountStats.topByLines?.name ?? dash,
+            tone: "violet",
+          },
+          {
+            key: "low",
+            title: t("personnel.costsLowestReceiver"),
+            amount: personnelAmountStats.lowByAmount?.name ?? dash,
+            tone: "violet",
+          },
+        ]}
+      />
+    </div>
+  );
+}
+
+function CompactStripCard({
+  title,
+  pending,
+  empty,
+  items,
+  className,
+}: {
+  title: string;
+  pending: boolean;
+  empty: string;
+  items: {
+    key: string;
+    title: string;
+    subtitle?: string;
+    amount: string;
+    tone?: "violet";
+  }[];
+  className?: string;
+}) {
+  return (
+    <article
+      className={cn(
+        "rounded-xl border border-zinc-200 bg-white p-2.5 shadow-sm sm:p-3",
+        className
+      )}
+    >
+      <header className="mb-2">
+        <h3 className="truncate text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+          {title}
+        </h3>
+      </header>
+      {pending ? (
+        <p className="text-xs text-zinc-500">…</p>
+      ) : items.length === 0 ? (
+        <p className="text-xs text-zinc-600">{empty}</p>
+      ) : (
+        <div className="-mx-2.5 flex snap-x snap-mandatory gap-1 overflow-x-auto px-2.5 pb-1 [scrollbar-width:thin] sm:-mx-3 sm:px-3">
+          {items.map((it) => (
+            <span
+              key={it.key}
+              title={
+                it.subtitle
+                  ? `${it.title} · ${it.subtitle} · ${it.amount}`
+                  : `${it.title} · ${it.amount}`
+              }
+              className={cn(
+                "flex min-w-[7.5rem] max-w-[12rem] shrink-0 snap-start flex-col gap-0.5 rounded-md border px-2 py-1.5",
+                it.tone === "violet"
+                  ? "border-violet-200 bg-violet-50/70"
+                  : "border-zinc-200 bg-white"
+              )}
+            >
+              <span
+                className={cn(
+                  "text-[10px] font-semibold uppercase leading-tight tracking-wide",
+                  it.tone === "violet" ? "text-violet-700" : "text-zinc-500"
+                )}
+              >
+                {it.title}
+              </span>
+              {it.subtitle ? (
+                <span
+                  className={cn(
+                    "break-words text-[12px] font-semibold leading-tight",
+                    it.tone === "violet" ? "text-violet-900" : "text-zinc-900"
                   )}
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      </div>
-      <Card className="mt-4" title={t("personnel.costsSummaryTitle")}>
-        {pending ? (
-          <p className="text-sm text-zinc-500">{t("common.loading")}</p>
-        ) : (
-          <div className="space-y-4 text-sm">
-            <p className="text-xs leading-relaxed text-zinc-600">
-              {t("personnel.costsSummaryHint")}
-            </p>
-            {sortedCurrencyKeys(advSums, expSums).map((ccy) => {
-              const a = advSums.get(ccy) ?? 0;
-              const e = expSums.get(ccy) ?? 0;
-              const dash = t("personnel.dash");
-              return (
-                <div
-                  key={ccy}
-                  className="grid gap-2 rounded-lg border border-zinc-100 bg-white/80 p-3 sm:grid-cols-3"
                 >
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                      {t("personnel.costsSummaryAdvances")} ({ccy})
-                    </p>
-                    <p className="mt-0.5 font-semibold tabular-nums text-zinc-900">
-                      {formatMoneyDash(a, dash, locale, ccy)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                      {t("personnel.costsSummaryRegisterExpenses")} ({ccy})
-                    </p>
-                    <p className="mt-0.5 font-semibold tabular-nums text-zinc-900">
-                      {formatMoneyDash(e, dash, locale, ccy)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
-                      {t("personnel.costsSummaryCombined")} ({ccy})
-                    </p>
-                    <p className="mt-0.5 font-semibold tabular-nums text-violet-950">
-                      {formatMoneyDash(a + e, dash, locale, ccy)}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-            {sortedCurrencyKeys(advSums, expSums).length === 0 && (
-              <p className="text-zinc-600">{t("personnel.costsSummaryEmpty")}</p>
-            )}
-            <div className="grid gap-2 rounded-lg border border-violet-100 bg-violet-50/40 p-3 sm:grid-cols-3">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
-                  {t("personnel.costsTopReceiver")}
-                </p>
-                <p className="mt-0.5 text-sm font-semibold text-violet-950">
-                  {personnelAmountStats.topByAmount?.name ?? t("personnel.dash")}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
-                  {t("personnel.costsTopLineReceiver")}
-                </p>
-                <p className="mt-0.5 text-sm font-semibold text-violet-950">
-                  {personnelAmountStats.topByLines?.name ?? t("personnel.dash")}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-violet-700">
-                  {t("personnel.costsLowestReceiver")}
-                </p>
-                <p className="mt-0.5 text-sm font-semibold text-violet-950">
-                  {personnelAmountStats.lowByAmount?.name ?? t("personnel.dash")}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-      </Card>
-    </>
+                  {it.subtitle}
+                </span>
+              ) : null}
+              <span className="break-words font-mono text-[11px] tabular-nums text-zinc-900">
+                {it.amount}
+              </span>
+            </span>
+          ))}
+        </div>
+      )}
+    </article>
   );
 }
 
@@ -1618,7 +1683,11 @@ export function PersonnelCostsScreen() {
         advancesData,
         expensesScopedOnly,
         branchNameById,
-        t("personnel.nonAdvanceExpenseBranchOrg")
+        t("personnel.nonAdvanceExpenseBranchOrg"),
+        t("personnel.costsPatronOutAdvanceLabel"),
+        t("personnel.costsPatronOutPersonnelExpenseLabel"),
+        t("personnel.costsPatronOutBranchExpenseLabel"),
+        t("personnel.costsPatronOutCentralExpenseLabel")
       ),
     [advancesData, expensesScopedOnly, branchNameById, t]
   );
@@ -1747,8 +1816,15 @@ export function PersonnelCostsScreen() {
   }, [personnelPortal, personnelCostsTableQuery.data]);
 
   const combinedRaw = useMemo(() => {
-    if (!personnelPortal) return paginatedRowsAdapted;
-    return buildPersonnelCostRows(advancesFiltered, expensesFiltered, tab, contractorPaymentsFiltered);
+    // Server-paginated endpoint date/month filtresini desteklemiyor; ay veya tarih aralığı
+    // aktifken paginated cache yanlış sayfayı gösterir (kullanıcı "ay bazında" kartına tıklayınca
+    // veri boş gözükür). Bu durumda yerelde tam veri üzerinden filtre yapan path'e düşelim.
+    const useLocalDataset =
+      personnelPortal || Boolean(monthFilter) || Boolean(dateFromFilter) || Boolean(dateToFilter);
+    if (useLocalDataset) {
+      return buildPersonnelCostRows(advancesFiltered, expensesFiltered, tab, contractorPaymentsFiltered);
+    }
+    return paginatedRowsAdapted;
   }, [
     personnelPortal,
     paginatedRowsAdapted,
@@ -1756,6 +1832,9 @@ export function PersonnelCostsScreen() {
     expensesFiltered,
     tab,
     contractorPaymentsFiltered,
+    monthFilter,
+    dateFromFilter,
+    dateToFilter,
   ]);
 
   const displaySort = useMemo(
@@ -1937,36 +2016,17 @@ export function PersonnelCostsScreen() {
             onMonthFilterChange={setMonthFilter}
             formatMonthLabel={formatMonthLabel}
           />
-          <details className="group mt-4 rounded-xl border border-zinc-200/90 bg-white/85 shadow-sm">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-3 text-sm font-semibold text-zinc-900 sm:px-4 [&::-webkit-details-marker]:hidden">
-              <span className="min-w-0 leading-snug">
-                {t("personnel.costsDetailSectionToggle")}
-              </span>
-              <svg
-                className="h-4 w-4 shrink-0 text-zinc-400 transition-transform duration-200 group-open:rotate-180"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                aria-hidden
-              >
-                <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </summary>
-            <div className="border-t border-zinc-100 px-3 pb-4 pt-3 sm:px-4">
-              <PersonnelCostsSummaryPanels
-                t={t}
-                locale={locale}
-                advancesPending={advancesPending}
-                expensesPending={expensesQuery.isPending}
-                patronByBranchRows={patronByBranchRows}
-                paymentSourceSplit={paymentSourceSplit}
-                advSums={advSums}
-                expSums={expSums}
-                personnelAmountStats={personnelAmountStats}
-              />
-            </div>
-          </details>
+          <div className="mt-3">
+            <PersonnelCostsSummaryPanels
+              t={t}
+              locale={locale}
+              advancesPending={advancesPending}
+              expensesPending={expensesQuery.isPending}
+              patronByBranchRows={patronByBranchRows}
+              paymentSourceSplit={paymentSourceSplit}
+              personnelAmountStats={personnelAmountStats}
+            />
+          </div>
         </PageContentSection>
       ) : null}
 
@@ -2200,7 +2260,7 @@ export function PersonnelCostsScreen() {
                       columns={costColumns}
                       rows={displayRowsFiltered}
                       getRowKey={(r) => r.key}
-                      tableClassName="w-full min-w-0 lg:min-w-[70rem] xl:min-w-[78rem]"
+                      tableClassName="w-full min-w-0 lg:min-w-[70rem] xl:min-w-[78rem] [&_td]:!py-1.5 [&_td]:!text-[13px] [&_td]:!leading-snug [&_th]:!py-2 [&_th]:!text-[11px]"
                     />
                   }
                 />
@@ -2212,7 +2272,8 @@ export function PersonnelCostsScreen() {
               </>
             ) : null}
             {!personnelPortal && personnelCostsTableQuery.data
-              && personnelCostsTableQuery.data.totalCount > 0 ? (
+              && personnelCostsTableQuery.data.totalCount > 0
+              && !monthFilter && !dateFromFilter && !dateToFilter ? (
               <TablePagination
                 page={tablePage + 1}
                 pageSize={tablePageSize}

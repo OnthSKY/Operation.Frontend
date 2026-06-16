@@ -74,8 +74,7 @@ export type FinancialReportTablesPanel =
   | "by-category"
   | "overhead"
   | "supplier-payments"
-  | "vehicle-off-register"
-  | "advances";
+  | "vehicle-off-register";
 
 function supplierPaySourceLabel(sourceType: string, t: TFn): string {
   const u = sourceType.trim().toUpperCase();
@@ -1258,105 +1257,6 @@ export function FinancialReportDetailTables({
             </ReportInteractiveRows>
           </>
         )}
-      </Card>
-      ) : null}
-      {show("advances") ? (
-      <Card title={t("reports.sectionAdvances")}>
-        <ReportInteractiveRows
-          interactive={interactive}
-          rows={data.advancesByCurrency}
-          defaultSortKey="amount"
-          sortOptions={[
-            { id: "currency", label: t("reports.colCurrency") },
-            { id: "amount", label: t("reports.colAdvAmount") },
-            { id: "count", label: t("reports.colAdvCount") },
-          ]}
-          getSearchHaystack={(r) => r.currencyCode}
-          getSortValue={(r, key) => {
-            switch (key) {
-              case "currency":
-                return r.currencyCode;
-              case "amount":
-                return r.totalAmount;
-              case "count":
-                return r.recordCount;
-              default:
-                return 0;
-            }
-          }}
-          t={t}
-        >
-          {({ displayRows, toolbar, emptyFiltered }) => (
-            <>
-              {toolbar}
-              {data.advancesByCurrency.length === 0 ? (
-                <p className="text-sm text-zinc-500">{t("reports.empty")}</p>
-              ) : emptyFiltered ? (
-                <p className="text-sm text-zinc-500">
-                  {t("reports.sectionNoSearchMatches")}
-                </p>
-              ) : (
-                <>
-                  <div className={mobileCardStack}>
-                    {displayRows.map((r) => (
-                      <MobileListCard key={r.currencyCode}>
-                        <dl className="flex min-w-0 flex-col gap-1">
-                        <MobileKv label={t("reports.colCurrency")}>
-                          {r.currencyCode}
-                        </MobileKv>
-                        <MobileKv
-                          label={t("reports.colAdvAmount")}
-                          valueClassName="tabular-nums"
-                        >
-                          {formatLocaleAmount(
-                            r.totalAmount,
-                            locale,
-                            r.currencyCode
-                          )}
-                        </MobileKv>
-                        <MobileKv
-                          label={t("reports.colAdvCount")}
-                          valueClassName="tabular-nums"
-                        >
-                          {r.recordCount}
-                        </MobileKv>
-                        </dl>
-                      </MobileListCard>
-                    ))}
-                  </div>
-                  <div className={`${tableWrap} hidden lg:block`}>
-                    <table className="min-w-full border-collapse">
-                      <thead>
-                        <tr>
-                          <th className={th}>{t("reports.colCurrency")}</th>
-                          <th className={th}>{t("reports.colAdvAmount")}</th>
-                          <th className={th}>{t("reports.colAdvCount")}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {displayRows.map((r) => (
-                          <tr key={r.currencyCode}>
-                            <td className={td}>{r.currencyCode}</td>
-                            <td className={`${td} tabular-nums`}>
-                              {formatLocaleAmount(
-                                r.totalAmount,
-                                locale,
-                                r.currencyCode
-                              )}
-                            </td>
-                            <td className={`${td} tabular-nums`}>
-                              {r.recordCount}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </>
-              )}
-            </>
-          )}
-        </ReportInteractiveRows>
       </Card>
       ) : null}
     </>

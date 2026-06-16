@@ -462,10 +462,22 @@ export function OasLinesStep(props: Props) {
                   value={line.amountText}
                   onChange={(e) => {
                     const v = e.target.value;
-                    setLines((prev) => prev.map((x) => (x.id === line.id ? { ...x, amountText: v } : x)));
+                    setLines((prev) =>
+                      prev.map((x) => (x.id === line.id ? { ...x, amountText: v, amountTouched: true } : x))
+                    );
                   }}
                   onBlur={() => {
-                    const n = parseLocaleAmount(line.amountText, locale);
+                    const trimmed = (line.amountText ?? "").trim();
+                    if (trimmed.length === 0) {
+                      // Boş bırakıldı → auto-apply'a yetki geri verilir.
+                      setLines((prev) =>
+                        prev.map((x) =>
+                          x.id === line.id ? { ...x, amountText: "", amountTouched: false } : x
+                        )
+                      );
+                      return;
+                    }
+                    const n = parseLocaleAmount(trimmed, locale);
                     if (!Number.isFinite(n)) return;
                     setLines((prev) =>
                       prev.map((x) =>
@@ -866,10 +878,21 @@ export function OasLinesStep(props: Props) {
                     value={line.amountText}
                     onChange={(e) => {
                       const v = e.target.value;
-                      setLines((prev) => prev.map((x) => (x.id === line.id ? { ...x, amountText: v } : x)));
+                      setLines((prev) =>
+                        prev.map((x) => (x.id === line.id ? { ...x, amountText: v, amountTouched: true } : x))
+                      );
                     }}
                     onBlur={() => {
-                      const n = parseLocaleAmount(line.amountText, locale);
+                      const trimmed = (line.amountText ?? "").trim();
+                      if (trimmed.length === 0) {
+                        setLines((prev) =>
+                          prev.map((x) =>
+                            x.id === line.id ? { ...x, amountText: "", amountTouched: false } : x
+                          )
+                        );
+                        return;
+                      }
+                      const n = parseLocaleAmount(trimmed, locale);
                       if (!Number.isFinite(n)) return;
                       setLines((prev) =>
                         prev.map((x) =>

@@ -7,6 +7,7 @@ import {
   branchTxGeneralOverheadLine,
   branchTxLinkedExpenseLine,
   branchTxLinkedSupplierInvoiceLine,
+  branchTxLinkedContractorLine,
   branchTxLinkedVehicleLine,
   branchTxUnpaidInvoice,
   expensePaymentSourceLabelShort,
@@ -74,6 +75,7 @@ export function BranchTransactionDetailDialog({
   const expenseLink = branchTxLinkedExpenseLine(row, t);
   const supplierLink = branchTxLinkedSupplierInvoiceLine(row, t);
   const vehicleLink = branchTxLinkedVehicleLine(row, t);
+  const contractorLink = branchTxLinkedContractorLine(row, t);
   const overheadLine = branchTxGeneralOverheadLine(row, t);
   const pocketLine = expensePocketSubline(row, t);
   const repayLine = expensePocketRepaySubline(row, t);
@@ -100,9 +102,8 @@ export function BranchTransactionDetailDialog({
       description={category}
       closeButtonLabel={t("common.close")}
       narrow
-      sheetMobile
     >
-      <div className="space-y-4 py-2">
+      <div className="space-y-3 py-2 sm:space-y-4">
         {!isIncome ? (
           <div className="flex flex-wrap items-center gap-2">
             <BranchExpenseKindBadge row={row} t={t} />
@@ -139,7 +140,7 @@ export function BranchTransactionDetailDialog({
             {amount}
           </DetailField>
           {isIncome && hasCashCardSplit ? (
-            <div className="mt-1 grid grid-cols-1 gap-2 rounded-lg border border-zinc-200 bg-zinc-50/70 p-2 text-xs sm:grid-cols-2">
+            <div className="mt-1 grid grid-cols-1 gap-2 rounded-lg border border-zinc-200 bg-zinc-50/70 p-2.5 text-sm sm:grid-cols-2 sm:p-2 sm:text-xs">
               <SplitRow
                 label={t("branch.txDetailGrossCash")}
                 value={formatMoneyDash(grossCash, "—", locale as Locale, row.currencyCode)}
@@ -182,7 +183,7 @@ export function BranchTransactionDetailDialog({
           </DetailSection>
         ) : null}
 
-        {linkedPersonnel || linkedAdvancePersonnel || linkedSalaryPersonnel || expenseLink || supplierLink || vehicleLink || overheadLine || row.hasReceiptPhoto ? (
+        {linkedPersonnel || linkedAdvancePersonnel || linkedSalaryPersonnel || expenseLink || supplierLink || vehicleLink || contractorLink || overheadLine || row.hasReceiptPhoto ? (
           <DetailSection title={t("branch.txDetailSectionLinks")}>
             {linkedPersonnel ? (
               <DetailField label={t("branch.expensePocketPersonLabel")}>{linkedPersonnel}</DetailField>
@@ -193,6 +194,11 @@ export function BranchTransactionDetailDialog({
             {linkedSalaryPersonnel ? (
               <DetailField label={t("branch.txLegacySalary")}>{linkedSalaryPersonnel}</DetailField>
             ) : null}
+            {contractorLink && row.linkedContractorName ? (
+              <DetailField label={t("branch.txLinkedContractor")}>
+                {row.linkedContractorName}
+              </DetailField>
+            ) : null}
             {expenseLink ? <p className="text-xs text-zinc-600">{expenseLink}</p> : null}
             {supplierLink ? <p className="text-xs text-zinc-600">{supplierLink}</p> : null}
             {vehicleLink ? <p className="text-xs text-zinc-600">{vehicleLink}</p> : null}
@@ -202,7 +208,7 @@ export function BranchTransactionDetailDialog({
                 href={branchTransactionReceiptPhotoUrl(row.id)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex min-h-[44px] items-center gap-1.5 self-start rounded-lg border border-blue-200 bg-blue-50/60 px-3 py-2 text-sm font-medium text-blue-800 hover:bg-blue-100"
+                className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 rounded-lg border border-blue-200 bg-blue-50/60 px-3 py-2 text-sm font-medium text-blue-800 hover:bg-blue-100 sm:w-auto sm:self-start sm:justify-start"
               >
                 <ExternalLink className="h-4 w-4" aria-hidden />
                 {t("branch.openReceiptPhoto")}
@@ -238,7 +244,7 @@ export function BranchTransactionDetailDialog({
       </div>
 
       {canDelete && onDelete ? (
-        <div className="flex border-t border-zinc-100 px-1 pt-3">
+        <div className="mt-3 flex border-t border-zinc-100 px-1 pt-3">
           <Button
             type="button"
             variant="secondary"
@@ -261,7 +267,7 @@ function DetailSection({ title, children }: { title: string; children: ReactNode
       <h3 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
         {title}
       </h3>
-      <div className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
+      <div className="flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-2.5 shadow-sm sm:p-3">
         {children}
       </div>
     </section>
@@ -278,9 +284,11 @@ function DetailField({
   valueClassName?: string;
 }) {
   return (
-    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
-      <span className="text-xs font-medium text-zinc-500">{label}</span>
-      <span className={cn("text-sm text-zinc-900 sm:text-right", valueClassName)}>
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3 sm:gap-y-0">
+      <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500 sm:text-xs sm:normal-case sm:tracking-normal">
+        {label}
+      </span>
+      <span className={cn("break-words text-[15px] text-zinc-900 sm:text-right sm:text-sm", valueClassName)}>
         {children}
       </span>
     </div>

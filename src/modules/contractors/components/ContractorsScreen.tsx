@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Contractor } from "@/modules/contractors/api/contractors-api";
 import {
+  contractorKeys,
   useContractors,
   useCreateContractor,
   useDeleteContractor,
@@ -20,6 +21,10 @@ import {
 } from "@/modules/branch/components/BranchQuickActionsMenu";
 import { useI18n } from "@/i18n/context";
 import { Card } from "@/shared/components/Card";
+import { EmptyState } from "@/shared/ui/EmptyState";
+import { Skeleton, SkeletonText } from "@/shared/ui/Skeleton";
+import { useQueryClient } from "@tanstack/react-query";
+import { confirmUndoableDelete } from "@/shared/lib/confirm-undoable-delete";
 import { PageScreenScaffold } from "@/shared/components/PageScreenScaffold";
 import { TABLE_TOOLBAR_ICON_BTN } from "@/shared/components/TableToolbar";
 import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
@@ -46,6 +51,7 @@ export function ContractorsScreen() {
   const createC = useCreateContractor();
   const updateC = useUpdateContractor();
   const deleteC = useDeleteContractor();
+  const qc = useQueryClient();
 
   const [modal, setModal] = useState<"add" | "edit" | null>(null);
   const [editC, setEditC] = useState<Contractor | null>(null);
@@ -151,12 +157,13 @@ export function ContractorsScreen() {
       cancelLabel: t("common.cancel"),
       confirmLabel: t("common.delete"),
       onConfirm: async () => {
-        try {
-          await deleteC.mutateAsync(c.id);
-          notify.success(t("contractors.toastDeleted"));
-        } catch (e) {
-          notify.error(toErrorMessage(e));
-        }
+        confirmUndoableDelete<{ id: number }>({
+          qc,
+          queryKeyPrefix: contractorKeys.all,
+          targetId: c.id,
+          deleteFn: () => deleteC.mutateAsync(c.id),
+          successMessage: t("contractors.toastDeleted"),
+        });
       },
     });
   };
@@ -240,9 +247,21 @@ export function ContractorsScreen() {
             {isError ? (
               <p className="text-sm text-red-600">{toErrorMessage(error)}</p>
             ) : isPending ? (
-              <p className="text-sm text-zinc-500">{t("common.loading")}</p>
+              <div className="space-y-2">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="rounded-lg border border-zinc-100 p-3">
+                    <Skeleton className="mb-2 h-4 w-1/3" />
+                    <SkeletonText lines={1} />
+                  </div>
+                ))}
+              </div>
             ) : contractors.length === 0 ? (
-              <p className="text-sm text-zinc-600">{t("contractors.empty")}</p>
+              <EmptyState
+                icon="🛠️"
+                title={t("contractors.empty")}
+                description="Müteahhit ekleyerek iş hesaplarını yönetmeye başlayın."
+                action={{ label: t("contractors.add"), onClick: openAdd }}
+              />
             ) : (
               <div className="-mx-1 px-1">
                 <ul className="flex flex-col gap-2 md:hidden">

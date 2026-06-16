@@ -4,6 +4,7 @@ import { useI18n } from "@/i18n/context";
 import { useUpdateBranch } from "@/modules/branch/hooks/useBranchQueries";
 import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
 import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
+import { useRowVersionConflict } from "@/shared/hooks/useRowVersionConflict";
 import type { Branch } from "@/types/branch";
 import type { Personnel } from "@/types/personnel";
 import { cn } from "@/lib/cn";
@@ -29,6 +30,9 @@ const TITLE_ID = "edit-branch-title";
 export function EditBranchModal({ open, branch, staff, onClose }: Props) {
   const { t, locale } = useI18n();
   const updateBranchMut = useUpdateBranch();
+  const handleRowVersionConflict = useRowVersionConflict({
+    invalidate: [["branches"], ["branch", branch?.id]],
+  });
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 
   const {
@@ -80,11 +84,13 @@ export function EditBranchModal({ open, branch, staff, onClose }: Props) {
           name: values.name.trim(),
           address: values.address.trim() || null,
           responsiblePersonnelIds: [...selectedIds].sort((a, b) => a - b),
+          rowVersion: branch.rowVersion,
         },
       });
       notify.success(t("toast.branchUpdated"));
       onClose();
     } catch (e) {
+      if (handleRowVersionConflict(e)) return;
       notify.error(toErrorMessage(e));
     }
   });

@@ -10,6 +10,7 @@ import {
   branchTxGeneralOverheadLine,
   branchTxLinkedExpenseLine,
   branchTxLinkedSupplierInvoiceLine,
+  branchTxLinkedContractorLine,
   branchTxLinkedVehicleLine,
   branchTxUnpaidInvoice,
   expensePaymentSourceLabelShort,
@@ -743,6 +744,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                     const expenseLinkLine = branchTxLinkedExpenseLine(row, t);
                     const supplierLine = branchTxLinkedSupplierInvoiceLine(row, t);
                     const vehicleLinkLine = branchTxLinkedVehicleLine(row, t);
+                    const contractorLinkLine = branchTxLinkedContractorLine(row, t);
                     const overheadLine = branchTxGeneralOverheadLine(row, t);
                     const pocketLine = expensePocketSubline(row, t);
                     const repayLine = expensePocketRepaySubline(row, t);
@@ -773,25 +775,63 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                           {formatMoneyDash(row.amount, t("personnel.dash"), locale, row.currencyCode)}
                         </span>
                       </div>
-                      <p className="mt-1 text-xs text-zinc-500">
-                        {formatLocaleDate(row.transactionDate, locale)}
-                      </p>
-                      <p className="mt-1 text-sm text-zinc-800">
-                        {txCategoryLine(row.mainCategory, row.category, t) || t("personnel.dash")}
-                      </p>
-                      {row.isBundledWithDayClose ? (
-                        <span
-                          className="mt-1 inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-800"
-                          title="Bu gider gün sonu ile birlikte yazıldı; gün sonu silinirse bu da silinir."
-                        >
-                          <span aria-hidden="true">🔗</span> Gün sonu ile
+                      <p className="mt-1 flex flex-wrap items-baseline gap-x-2 text-sm leading-snug text-zinc-800">
+                        <span className="font-medium">
+                          {txCategoryLine(row.mainCategory, row.category, t) || t("personnel.dash")}
                         </span>
-                      ) : null}
-                      {branchTxNonPnl(row) ? (
-                        <p className="mt-0.5 text-xs font-medium text-sky-800">
-                          {t("branch.txNonPnlBadge")}
-                        </p>
-                      ) : null}
+                        <span className="text-[11px] font-normal text-zinc-500">
+                          {formatLocaleDate(row.transactionDate, locale)}
+                        </span>
+                      </p>
+                      {/* Tüm ödeme kaynakları (kasa, patron, personel cebi) tek-düzen badge gösterimi.
+                          Eskiden patron için ayrı pill + diğerleri için düz metin vardı → görsel tutarsızlık. */}
+                      {(() => {
+                        const srcUpper = String(row.expensePaymentSource ?? "").trim().toUpperCase();
+                        const isUnpaidInvoice = branchTxUnpaidInvoice(row);
+                        const isNonPnl = branchTxNonPnl(row);
+                        const showSourceBadge =
+                          !pocketRepayMain && !isNonPnl && (isUnpaidInvoice || srcUpper.length > 0);
+                        const sourceBadgeClass = isUnpaidInvoice
+                          ? "border-rose-200 bg-rose-50 text-rose-800"
+                          : srcUpper === "PATRON"
+                            ? "border-amber-200 bg-amber-50 text-amber-800"
+                            : srcUpper === "PERSONNEL_POCKET" || srcUpper === "PERSONNEL_HELD_REGISTER_CASH"
+                              ? "border-violet-200 bg-violet-50 text-violet-800"
+                              : srcUpper === "REGISTER"
+                                ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                                : "border-zinc-200 bg-zinc-50 text-zinc-700";
+                        const sourceBadgeLabel = isUnpaidInvoice
+                          ? t("branch.invoiceUnpaidBadge")
+                          : expensePaymentSourceLabelShort(row.expensePaymentSource, t);
+                        return (
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                            {showSourceBadge && sourceBadgeLabel ? (
+                              <span
+                                className={cn(
+                                  "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                                  sourceBadgeClass
+                                )}
+                                title={t("branch.txColExpensePayment")}
+                              >
+                                {sourceBadgeLabel}
+                              </span>
+                            ) : null}
+                            {row.isBundledWithDayClose ? (
+                              <span
+                                className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2 py-0.5 text-[11px] font-medium text-indigo-800"
+                                title="Bu gider gün sonu ile birlikte yazıldı; gün sonu silinirse bu da silinir."
+                              >
+                                <span aria-hidden="true">🔗</span> Gün sonu ile
+                              </span>
+                            ) : null}
+                            {isNonPnl ? (
+                              <span className="inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-800">
+                                {t("branch.txNonPnlBadge")}
+                              </span>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
                       {expenseLinkLine ? (
                         <p className="mt-0.5 text-xs text-zinc-500">{expenseLinkLine}</p>
                       ) : null}
@@ -801,25 +841,11 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                       {vehicleLinkLine ? (
                         <p className="mt-0.5 text-xs text-zinc-500">{vehicleLinkLine}</p>
                       ) : null}
+                      {contractorLinkLine ? (
+                        <p className="mt-0.5 text-xs font-medium text-zinc-700">{contractorLinkLine}</p>
+                      ) : null}
                       {overheadLine ? (
                         <p className="mt-0.5 text-xs text-amber-800/90">{overheadLine}</p>
-                      ) : null}
-                      {!pocketRepayMain &&
-                      !branchTxNonPnl(row) &&
-                      (branchTxUnpaidInvoice(row)
-                        ? true
-                        : expensePaymentSourceLabelShort(row.expensePaymentSource, t)) ? (
-                        <p className="mt-0.5 text-xs text-zinc-500">
-                          {t("branch.txColExpensePayment")}:{" "}
-                          {branchTxUnpaidInvoice(row)
-                            ? t("branch.invoiceUnpaidBadge")
-                            : expensePaymentSourceLabelShort(row.expensePaymentSource, t)}
-                        </p>
-                      ) : null}
-                      {!branchTxNonPnl(row) && txFundedByPatron(row) ? (
-                        <span className="mt-0.5 inline-block rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800">
-                          {t("branch.expensesOffRegisterPatronBadge")}
-                        </span>
                       ) : null}
                       {pocketLine ? (
                         <p className="mt-0.5 text-xs text-zinc-500">{pocketLine}</p>
@@ -834,11 +860,29 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                         <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">
                           {t("branch.txColCreatedBy")}
                         </span>
-                        <CreatedByMeta
-                          row={row}
-                          locale={locale}
-                          dash={t("personnel.dash")}
-                        />
+                        <div className="min-w-0 flex-1">
+                          <CreatedByMeta
+                            row={row}
+                            locale={locale}
+                            dash={t("personnel.dash")}
+                          />
+                        </div>
+                        {canDeleteBranchTx ? (
+                          <div
+                            className="shrink-0"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <BranchTxDeleteRow
+                              transactionId={row.id}
+                              pendingId={txDeletePendingId}
+                              onSetPending={setTxDeletePendingId}
+                              onConfirm={confirmDeleteBranchTx}
+                              busy={deleteTxMut.isPending}
+                              show
+                              t={t}
+                            />
+                          </div>
+                        ) : null}
                       </div>
                       {row.hasReceiptPhoto ? (
                         <p className="mt-2" onClick={(e) => e.stopPropagation()}>
@@ -864,22 +908,6 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                         >
                           {t("branch.invoiceSettleSubmit")}
                         </Button>
-                      ) : null}
-                      {canDeleteBranchTx ? (
-                        <div
-                          className="mt-2 border-t border-zinc-100 pt-2"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <BranchTxDeleteRow
-                            transactionId={row.id}
-                            pendingId={txDeletePendingId}
-                            onSetPending={setTxDeletePendingId}
-                            onConfirm={confirmDeleteBranchTx}
-                            busy={deleteTxMut.isPending}
-                            show
-                            t={t}
-                          />
-                        </div>
                       ) : null}
                     </li>
                   );})}
@@ -908,6 +936,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                         const expenseLinkLine = branchTxLinkedExpenseLine(row, t);
                         const supplierLine = branchTxLinkedSupplierInvoiceLine(row, t);
                         const vehicleLinkLine = branchTxLinkedVehicleLine(row, t);
+                        const contractorLinkLine = branchTxLinkedContractorLine(row, t);
                         const overheadLine = branchTxGeneralOverheadLine(row, t);
                         const pocketLine = expensePocketSubline(row, t);
                         const repayLine = expensePocketRepaySubline(row, t);
@@ -962,6 +991,9 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                             ) : null}
                             {vehicleLinkLine ? (
                               <p className="mt-0.5 text-xs text-zinc-500">{vehicleLinkLine}</p>
+                            ) : null}
+                            {contractorLinkLine ? (
+                              <p className="mt-0.5 text-xs font-medium text-zinc-700">{contractorLinkLine}</p>
                             ) : null}
                             {overheadLine ? (
                               <p className="mt-0.5 text-xs text-amber-800/90">{overheadLine}</p>

@@ -362,6 +362,23 @@ export function branchTxLinkedVehicleLine(
   return plate ? `${t("branch.txLinkedVehicle")}: ${plate}` : t("branch.txLinkedVehicle");
 }
 
+export function branchTxLinkedContractorLine(
+  row: Pick<
+    BranchTransaction,
+    "type" | "linkedContractorPaymentId" | "linkedContractorName"
+  >,
+  t: (key: string) => string
+): string | null {
+  if (String(row.type ?? "").trim().toUpperCase() !== "OUT") return null;
+  const id =
+    row.linkedContractorPaymentId != null && row.linkedContractorPaymentId > 0
+      ? row.linkedContractorPaymentId
+      : null;
+  if (!id) return null;
+  const name = row.linkedContractorName?.trim();
+  return name ? `${t("branch.txLinkedContractor")}: ${name}` : t("branch.txLinkedContractor");
+}
+
 export function branchTxGeneralOverheadLine(
   row: Pick<BranchTransaction, "type" | "generalOverheadPoolId">,
   t: (key: string) => string
@@ -714,6 +731,7 @@ const ALL_LABEL_KEYS: Record<string, string> = Object.fromEntries([
   ["PATRON_CASH", "branch.txSubPatronCash"],
   ["OUT_PERSONNEL_POCKET_REPAY", "branch.txMainOutPocketRepay"],
   ["OUT_PATRON_DEBT_REPAY", "branch.txMainOutPatronDebtRepay"],
+  ["OUT_CONTRACTOR_PAYMENT", "branch.txSubContractorPayment"],
   ["POCKET_REPAY", "branch.txSubPocketRepay"],
   ["OUT_PERSONNEL_POCKET_CLAIM_TRANSFER", "branch.txMainOutPocketClaimTransfer"],
   ["POCKET_CLAIM_TRANSFER", "branch.txSubPocketClaimTransfer"],
@@ -738,5 +756,21 @@ export function txCodeLabel(
 ): string {
   if (code == null || code === "") return "";
   const key = ALL_LABEL_KEYS[code] ?? LEGACY_CATEGORY_KEYS[code];
-  return key ? t(key) : code;
+  if (key) return t(key);
+  // Map'lenmemiş kod → "OUT_FOO_BAR" yerine "Foo bar" göster (SQL identifier sızıntısını kapatır).
+  return humanizeLedgerCode(code);
+}
+
+/** "OUT_CONTRACTOR_PAYMENT" → "Contractor payment". Eksik bir mapping varsa SQL kodu yerine okunur metin. */
+function humanizeLedgerCode(code: string): string {
+  const trimmed = code.trim();
+  if (!trimmed) return "";
+  // İlk segment (IN_/OUT_/MEMO_) ekonomik yön; başlıkta tekrar etmesin.
+  const parts = trimmed.split("_");
+  const dropPrefix = parts[0] === "IN" || parts[0] === "OUT" || parts[0] === "MEMO"
+    ? parts.slice(1)
+    : parts;
+  if (dropPrefix.length === 0) return trimmed;
+  const joined = dropPrefix.join(" ").toLowerCase();
+  return joined.charAt(0).toUpperCase() + joined.slice(1);
 }

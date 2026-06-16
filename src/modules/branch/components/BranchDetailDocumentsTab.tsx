@@ -1,10 +1,13 @@
 "use client";
 
 import {
+  branchKeys,
   useBranchDocuments,
   useDeleteBranchDocument,
   useUploadBranchDocument,
 } from "@/modules/branch/hooks/useBranchQueries";
+import { useQueryClient } from "@tanstack/react-query";
+import { confirmUndoableDelete } from "@/shared/lib/confirm-undoable-delete";
 import { apiUrl } from "@/shared/api/client";
 import { fetchBranchDocumentBlob } from "@/modules/branch/api/branch-documents-api";
 import { ImagePreview } from "@/modules/documents/components/ImagePreview";
@@ -88,6 +91,7 @@ export function BranchDetailDocumentsTab({ branchId, active, readOnly = false }:
   const { data = [], isPending, isError, error, refetch } = useBranchDocuments(branchId, active);
   const uploadMut = useUploadBranchDocument(branchId);
   const deleteMut = useDeleteBranchDocument(branchId);
+  const qc = useQueryClient();
 
   const [formOpen, setFormOpen] = useState(false);
   const [kind, setKind] = useState<BranchDocumentKind>("TAX_BASE");
@@ -151,15 +155,17 @@ export function BranchDetailDocumentsTab({ branchId, active, readOnly = false }:
     }
   };
 
-  const confirmDelete = async () => {
+  const confirmDelete = () => {
     if (deleteId == null) return;
-    try {
-      await deleteMut.mutateAsync(deleteId);
-      notify.success(t("toast.branchDocumentDeleted"));
-      setDeleteId(null);
-    } catch (e) {
-      notify.error(toErrorMessage(e));
-    }
+    const targetId = deleteId;
+    setDeleteId(null);
+    confirmUndoableDelete<{ id: number }>({
+      qc,
+      queryKeyPrefix: branchKeys.documents(branchId),
+      targetId,
+      deleteFn: () => deleteMut.mutateAsync(targetId),
+      successMessage: t("toast.branchDocumentDeleted"),
+    });
   };
 
   const startDocumentAction = async (documentId: number) => {

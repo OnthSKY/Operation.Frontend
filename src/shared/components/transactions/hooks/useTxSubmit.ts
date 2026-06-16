@@ -4,6 +4,8 @@ import type { RefObject } from "react";
 import type { UseFormHandleSubmit } from "react-hook-form";
 import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
+import { recordRecent, RECENT_BUCKETS } from "@/shared/lib/recent-values-store";
+import { notifyMutationError } from "@/shared/lib/notify-mutation-error";
 import {
   branchTxFormIsSupplierInvoiceLine,
   isRegisterDayCloseIncomeRow,
@@ -60,6 +62,14 @@ export type UseTxSubmitInput = {
   personnelExpenseFlow: boolean;
   defaultLinkedPersonnelId: number | undefined;
   onClose: () => void;
+  /**
+   * "Kaydet ve devam et" akışı için opsiyonel callback. Set edilirse footer'da ikinci
+   * submit butonu sayesinde başarılı yazma sonrası modal kapanmaz, bunun yerine bu
+   * callback çalışır (caller formu reset eder + smart default seed'ini yeniler).
+   */
+  onSavedContinue?: () => void;
+  /** Footer'dan set edilen ref — true ise onSavedContinue, değilse onClose çalışır. */
+  continueAfterSaveRef?: RefObject<boolean>;
   // Locale:
   locale: Locale;
   // Sub-state:
@@ -117,8 +127,25 @@ export function useTxSubmit(input: UseTxSubmitInput) {
     createTx,
     createDayCloseBundleMut,
     createAdvanceMut,
+    onSavedContinue,
+    continueAfterSaveRef,
     tryTourismSeasonClosedRedirect,
   } = input;
+
+  /**
+   * Başarılı yazma sonrası modal kapatma kararı:
+   *   - continueAfterSaveRef.current true ise → onSavedContinue (form reset + modal açık kalır)
+   *   - aksi halde → onClose (modal kapanır)
+   */
+  const closeOrContinue = () => {
+    if (continueAfterSaveRef?.current && onSavedContinue) {
+      // Bayrağı düşür (sonraki tıklamada tekrar set edilebilir)
+      continueAfterSaveRef.current = false;
+      onSavedContinue();
+      return;
+    }
+    onClose();
+  };
 
   const onSubmit = handleSubmit(async (values) => {
     const cur = values.currencyCode.trim().toUpperCase() || DEFAULT_CURRENCY;
@@ -310,7 +337,7 @@ export function useTxSubmit(input: UseTxSubmitInput) {
           )
         );
         notify.success(t("toast.branchTxCreated"));
-        onClose();
+        closeOrContinue();
       } catch (e) {
         if (!tryTourismSeasonClosedRedirect(e, effBranchId)) {
           notify.error(`${t("branch.txAdvanceCreatedRegisterFailed")} ${toErrorMessage(e)}`);
@@ -408,7 +435,7 @@ export function useTxSubmit(input: UseTxSubmitInput) {
           ),
         });
         notify.success(t("toast.branchTxCreated"));
-        onClose();
+        closeOrContinue();
       } catch (e) {
         if (!tryTourismSeasonClosedRedirect(e, effBranchId)) {
           notify.error(toErrorMessage(e));
@@ -420,11 +447,22 @@ export function useTxSubmit(input: UseTxSubmitInput) {
 
     try {
       await createTx.mutateAsync(dayClosePayload);
+      // Akıllı default'lar — son kullanılan ödeme kaynağı + kasa devri tarafı; gün sonu hariç
+      // (gün sonu kendine ait özel default'lara sahip).
+      if (!registerDayCloseSubmit) {
+        if (effExpensePay) recordRecent(RECENT_BUCKETS.txExpensePaymentSource, effExpensePay);
+        if (cashSettlementParty) recordRecent(RECENT_BUCKETS.txCashSettlementParty, cashSettlementParty);
+      }
       notify.success(t("toast.branchTxCreated"));
-      onClose();
+      closeOrContinue();
     } catch (e) {
       if (!tryTourismSeasonClosedRedirect(e, effBranchId)) {
-        notify.error(toErrorMessage(e));
+        // Network / 5xx ise "Yeniden Dene" butonlu toast (form açık kalır)
+        notifyMutationError(e, () => {
+          void createTx.mutateAsync(dayClosePayload).catch(() => {
+            // Re-retry sessizce hata yutar — kullanıcı 2. toast'la tekrar tıklayabilir
+          });
+        });
       }
     }
     // expensePaymentSource intentionally unused

@@ -81,6 +81,7 @@ type PersonnelApiRow = {
   username?: string | null;
   driverHasSrc?: boolean | null;
   driverHasPsychotechnical?: boolean | null;
+  rowVersion?: number | null;
 };
 
 function normalizePositiveIntId(v: unknown): number | null {
@@ -175,6 +176,10 @@ function mapPersonnel(r: PersonnelApiRow): Personnel {
     username,
     driverHasSrc: normalizeBoolOrNull(r.driverHasSrc),
     driverHasPsychotechnical: normalizeBoolOrNull(r.driverHasPsychotechnical),
+    rowVersion:
+      typeof r.rowVersion === "number" && Number.isFinite(r.rowVersion)
+        ? r.rowVersion
+        : undefined,
   };
 }
 

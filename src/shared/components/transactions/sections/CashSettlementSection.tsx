@@ -8,6 +8,10 @@ import type {
 import { useI18n } from "@/i18n/context";
 import { Select } from "@/shared/ui/Select";
 import type { SelectOption } from "@/shared/ui/Select";
+import { InfoHint } from "@/shared/ui/InfoHint";
+import { domainHint } from "@/shared/lib/domain-hints";
+import { readRecentList, RECENT_BUCKETS } from "@/shared/lib/recent-values-store";
+import { useMemo } from "react";
 import type { Locale } from "@/i18n/messages";
 import type { TxFormValues } from "../lib/tx-form-types";
 import { DayCloseCashHandoverSummaryCard } from "./DayCloseCashHandoverSummaryCard";
@@ -71,12 +75,18 @@ export function CashSettlementSection(props: CashSettlementSectionProps) {
       <div className="min-w-0 lg:col-span-2">
         <Select
           label={t("branch.cashSettlementLabel")}
+          labelHint={<InfoHint content={domainHint("cashSettlementParty")} />}
           options={[
             { value: "", label: t("branch.cashSettlementUnset") },
             { value: "PATRON", label: t("branch.cashSettlementPatron") },
             { value: "BRANCH_MANAGER", label: t("branch.cashSettlementBranchManager") },
             { value: "REMAINS_AT_BRANCH", label: t("branch.cashSettlementRemainsAtBranch") },
           ]}
+          recentlyUsedValues={useMemo(
+            () => readRecentList(RECENT_BUCKETS.txCashSettlementParty, 3).map(String),
+            // Modal her açıldığında yeni snapshot; recordRecent yazıyor diye sürekli güncellemeye gerek yok.
+            []
+          )}
           name={cashSettlementField.name}
           value={String(cashSettlementField.value ?? "")}
           onChange={(e) => cashSettlementField.onChange(e.target.value)}

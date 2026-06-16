@@ -96,14 +96,6 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
                       route: "/reports/financial",
                       icon: "reports",
                     },
-                    {
-                      // Operasyonel /personnel/costs ekranı Personel'de kalır; bu yalnızca
-                      // analitik (salt-okunur) personel-gideri raporuna kısayol — keşfedilebilirlik.
-                      id: "reports-personnel-costs",
-                      labelKey: "reports.sidebarPersonnelCosts",
-                      route: "/reports/financial/tables/advances",
-                      icon: "reports",
-                    },
                   ]
                 : []),
               { id: "reports-position", labelKey: "reports.tabCashPosition", route: "/reports/position", icon: "reports" },

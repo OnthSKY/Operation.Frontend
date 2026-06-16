@@ -12,16 +12,18 @@ import type {
 
 export type LineDraft = OrderAccountLine & {
   amountText: string;
+  /**
+   * Kullanıcı tutar alanına bir kez elle dokunduysa true olur.
+   * `LineCalcBlock` öneri auto-apply effect'i bu flag true ise yazma yapmaz —
+   * istisnai durumlarda (yuvarlama, iskonto vb.) elle girilen değer korunur.
+   * Calc modal'ından "Uygula" yine flag'i false'a çekerek auto kontrolü geri alır.
+   */
+  amountTouched?: boolean;
   /** Form alanı: PDF adet sütununa yansır (boş bırakılabilir) */
   quantityText: string;
   /** Form alanı: PDF birim sütununa yansır (ör. kg, koli, adet). */
   unitText?: string;
-  /** Tutar önerisi: parça mı kg mı hesaplanacak */
-  priceCalcMode: "piece" | "kg";
-  qtyText: string;
   unitPriceText: string;
-  kgText: string;
-  tryPerKgText: string;
   selectedProductId?: number | null;
   parentProductId?: number | null;
   parentProductName?: string | null;

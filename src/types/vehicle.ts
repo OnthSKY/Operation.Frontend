@@ -81,6 +81,8 @@ export type VehicleDetail = VehicleListItem & {
   insurances: VehicleInsurance[];
   expenses: VehicleExpense[];
   maintenances?: VehicleMaintenance[];
+  /** PostgreSQL xmin'den türeyen optimistic concurrency token; PUT'ta backend'e geri gönderilmeli. */
+  rowVersion?: number;
 };
 
 export type VehicleExpenseSummaryRow = {

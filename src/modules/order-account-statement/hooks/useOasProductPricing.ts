@@ -79,9 +79,6 @@ export function useOasProductPricing(params: Params) {
           const suggestedUnitPrice = suggestion
             ? formatLocaleAmountInput(Math.max(0, Number(suggestion.unitCostExcludingVat) || 0), locale)
             : x.unitPriceText;
-          const suggestedTryPerKg = suggestion
-            ? formatLocaleAmountInput(Math.max(0, Number(suggestion.unitCostExcludingVat) || 0), locale)
-            : x.tryPerKgText;
           return {
             ...x,
             selectedProductId: p.id,
@@ -90,7 +87,6 @@ export function useOasProductPricing(params: Params) {
             description: p.name,
             unitText: nextUnitText,
             unitPriceText: suggestedUnitPrice,
-            tryPerKgText: x.priceCalcMode === "kg" ? suggestedTryPerKg : x.tryPerKgText,
           };
         })
       );
@@ -151,12 +147,13 @@ export function useOasProductPricing(params: Params) {
           quantityText: qty > 0 ? formatLocaleAmountInput(qty, locale) : "",
           amount: Math.max(0, amount),
           amountText: amount > 0 ? formatLocaleAmountInput(amount, locale) : "",
+          // Parent-merge: amount çocuk satırların toplamı; qty*unitPrice değil.
+          // Auto-apply'ı kilitle ki LineCalcBlock öneriyi üzerine yazmasın.
+          amountTouched: amount > 0,
           selectedProductId: parentId,
           parentProductId: null,
           parentProductName: null,
           unitPriceText: suggestedFromCost || line.unitPriceText || "",
-          tryPerKgText:
-            line.priceCalcMode === "kg" && suggestedFromCost ? suggestedFromCost : line.tryPerKgText,
           lineSource: "manual",
           manualReasonCode: "OPS_PARENT_MERGE",
           sourceShipmentLineId: null,
@@ -172,6 +169,7 @@ export function useOasProductPricing(params: Params) {
           quantityText: mergedQty > 0 ? formatLocaleAmountInput(mergedQty, locale) : "",
           amount: mergedAmount,
           amountText: mergedAmount > 0 ? formatLocaleAmountInput(mergedAmount, locale) : "",
+          amountTouched: mergedAmount > 0,
         });
       }
     }

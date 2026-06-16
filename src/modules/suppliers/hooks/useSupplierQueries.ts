@@ -24,6 +24,7 @@ import { fetchAuditLogs } from "@/lib/api/audit-logs-api";
 import { branchKeys } from "@/modules/branch/hooks/useBranchQueries";
 import { dashboardSummaryKeys } from "@/modules/dashboard/query-keys";
 import { reportsKeys } from "@/modules/reports/query-keys";
+import { createOptimisticListDelete } from "@/shared/lib/optimistic-list-delete";
 
 export const supplierKeys = {
   all: ["suppliers"] as const,
@@ -128,6 +129,7 @@ export function useUpdateSupplier() {
       notes?: string | null;
       defaultPaymentTermsDays?: number | null;
       currencyCode?: string;
+      rowVersion?: number;
     }) => {
       const { id, ...body } = input;
       return updateSupplier(id, body);
@@ -140,9 +142,15 @@ export function useUpdateSupplier() {
 
 export function useDeleteSupplier() {
   const qc = useQueryClient();
+  const optimistic = createOptimisticListDelete<{ id: number }>({
+    qc,
+    queryKeyPrefix: supplierKeys.all,
+    extractId: (s) => s.id,
+  });
   return useMutation({
     mutationFn: deleteSupplier,
-    onSuccess: () => {
+    ...optimistic((id) => id as number),
+    onSettled: () => {
       void qc.invalidateQueries({ queryKey: supplierKeys.all });
     },
   });

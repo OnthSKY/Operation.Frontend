@@ -338,7 +338,25 @@ export function useDeletePersonnelInsurancePeriod() {
   return useMutation({
     mutationFn: (vars: { personnelId: number; periodId: number }) =>
       deletePersonnelInsurancePeriod(vars.personnelId, vars.periodId),
-    onSuccess: (_data, vars) => {
+    /**
+     * Optimistic delete: insurancePeriods cache'inden o id'yi anlık çıkar; hata olursa rollback.
+     */
+    onMutate: async (vars) => {
+      const key = personnelKeys.insurancePeriods(vars.personnelId);
+      await qc.cancelQueries({ queryKey: key });
+      const snapshot = qc.getQueryData<Array<{ id: number }>>(key);
+      if (snapshot) {
+        qc.setQueryData<Array<{ id: number }>>(
+          key,
+          snapshot.filter((p) => p.id !== vars.periodId)
+        );
+      }
+      return { snapshot, key };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.snapshot) qc.setQueryData(ctx.key, ctx.snapshot);
+    },
+    onSettled: (_data, _err, vars) => {
       void qc.invalidateQueries({
         queryKey: personnelKeys.insurancePeriods(vars.personnelId),
       });

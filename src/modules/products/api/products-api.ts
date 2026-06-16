@@ -189,6 +189,7 @@ export async function updateProduct(
     isOrderable?: boolean;
     stockUnit?: string | null;
     stockTrackingMode?: StockTrackingMode;
+    rowVersion?: number;
   }
 ): Promise<ProductCreated> {
   return apiRequest<ProductCreated>(`/products/${id}`, {
@@ -205,6 +206,7 @@ export async function updateProduct(
       isOrderable: input.isOrderable ?? true,
       stockUnit: input.stockUnit?.trim() || null,
       stockTrackingMode: input.stockTrackingMode ?? "INHERIT",
+      rowVersion: input.rowVersion ?? null,
     }),
   });
 }

@@ -4,6 +4,7 @@ import { cn } from "@/lib/cn";
 import { useI18n } from "@/i18n/context";
 import {
   forwardRef,
+  Fragment,
   useCallback,
   useEffect,
   useId,
@@ -12,6 +13,7 @@ import {
   useRef,
   useState,
   type KeyboardEvent,
+  type ReactNode,
   type Ref,
 } from "react";
 import { createPortal } from "react-dom";
@@ -26,8 +28,16 @@ export type SelectProps = {
   /** When `label` is omitted, sets `aria-label` on the combobox input for accessibility. */
   ariaLabel?: string;
   labelRequired?: boolean;
+  /** Label'ın yanına render edilir — genelde domain açıklaması için &lt;InfoHint /&gt; */
+  labelHint?: ReactNode;
   error?: string;
   options: SelectOption[];
+  /**
+   * Son kullanılan opsiyon değerleri — dropdown'da arama boşken üstte
+   * "Son kullanılanlar" grubu olarak görünür. Max 5 önerilir; opsiyon listesinde
+   * bulunmayan id'ler sessizce yok sayılır.
+   */
+  recentlyUsedValues?: ReadonlyArray<string | number>;
   name: string;
   value: string;
   onChange: (event: { target: { value: string; name: string } }) => void;
@@ -37,6 +47,11 @@ export type SelectProps = {
   id?: string;
   /** Varsayılan: 130. Üst katmanda (ör. z-index 200 takvim) açılan listeler için yükseltin. */
   menuZIndex?: number;
+  /**
+   * Bir opsiyon seçilip commit (Enter veya tıklama) edildikten sonra çağrılır —
+   * çağıran sıradaki input'a focus alabilir (ör. ürün seçildi → miktar input'una git).
+   */
+  onAfterCommit?: () => void;
 };
 
 function mergeRefs<T>(...refs: (Ref<T> | undefined)[]) {
@@ -63,14 +78,17 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
       label,
       ariaLabel,
       labelRequired,
+      labelHint,
       error,
       options,
+      recentlyUsedValues,
       name,
       value,
       onChange,
       onBlur,
       disabled,
       menuZIndex,
+      onAfterCommit,
     },
     ref
   ) {
@@ -99,13 +117,43 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
       [options, value]
     );
 
+    /**
+     * Arama boşken üstte gösterilecek "Son kullanılanlar" listesi.
+     * recentlyUsedValues içinden options'ta var olanları MRU sırasında seç (max 5).
+     */
+    const recentOptions = useMemo(() => {
+      if (!recentlyUsedValues || recentlyUsedValues.length === 0) return [] as SelectOption[];
+      if (query.trim().length > 0) return [] as SelectOption[];
+      const byValue = new Map(options.map((o) => [String(o.value), o] as const));
+      const out: SelectOption[] = [];
+      const seen = new Set<string>();
+      for (const v of recentlyUsedValues) {
+        const key = String(v);
+        if (seen.has(key)) continue;
+        const opt = byValue.get(key);
+        if (!opt) continue;
+        seen.add(key);
+        out.push(opt);
+        if (out.length >= 5) break;
+      }
+      return out;
+    }, [recentlyUsedValues, options, query]);
+
     const filtered = useMemo(() => {
       const q = norm(query.trim());
-      if (!q) return options;
+      if (!q) {
+        // Arama yoksa: önce recent, sonra rest (duplicate hariç)
+        if (recentOptions.length === 0) return options;
+        const recentSet = new Set(recentOptions.map((o) => String(o.value)));
+        return [...recentOptions, ...options.filter((o) => !recentSet.has(String(o.value)))];
+      }
       return options.filter(
         (o) => norm(o.label).includes(q) || o.value === value
       );
-    }, [options, query, value]);
+    }, [options, query, value, recentOptions]);
+
+    /** Recent listesinin sınırı — index < boundary ise "Son kullanılanlar" group'a ait. */
+    const recentBoundary = query.trim().length > 0 ? 0 : recentOptions.length;
 
     const refreshMenuGeom = useCallback(() => {
       if (!containerRef.current) return;
@@ -163,8 +211,9 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
         setOpen(false);
         setQuery("");
         innerRef.current?.blur();
+        if (onAfterCommit) requestAnimationFrame(() => onAfterCommit());
       },
-      [name, onChange]
+      [name, onChange, onAfterCommit]
     );
 
     const displayValue = open ? query : selectedLabel;
@@ -261,25 +310,50 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
             {t("common.comboboxNoMatches")}
           </li>
         ) : (
-          filtered.map((o, idx) => (
-            <li
-              key={`${listboxId}-opt-${idx}`}
-              id={`${listboxId}-opt-${idx}`}
-              role="option"
-              aria-selected={o.value === value}
-              className={cn(
-                "cursor-pointer px-3 py-2.5 text-sm text-zinc-900",
-                idx === highlighted && "bg-zinc-100",
-                o.value === value && "font-medium"
-              )}
-              onMouseEnter={() => setHighlighted(idx)}
-              onMouseDown={(e) => e.preventDefault()}
-              onPointerDown={(e) => e.preventDefault()}
-              onClick={() => commit(o.value)}
-            >
-              {o.label}
-            </li>
-          ))
+          filtered.map((o, idx) => {
+            const isInRecent = idx < recentBoundary;
+            // Recent grubunun hemen altında ayraç
+            const showDivider = recentBoundary > 0 && idx === recentBoundary;
+            // Recent grubunun başına başlık ekle
+            const showRecentHeader = idx === 0 && recentBoundary > 0;
+            return (
+              <Fragment key={`${listboxId}-frag-${idx}`}>
+                {showRecentHeader ? (
+                  <li
+                    className="px-3 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500"
+                    aria-hidden
+                    role="presentation"
+                  >
+                    Son kullanılanlar
+                  </li>
+                ) : null}
+                {showDivider ? (
+                  <li className="my-1 border-t border-zinc-100" aria-hidden role="presentation" />
+                ) : null}
+                <li
+                  id={`${listboxId}-opt-${idx}`}
+                  role="option"
+                  aria-selected={o.value === value}
+                  className={cn(
+                    "cursor-pointer px-3 py-2.5 text-sm text-zinc-900",
+                    idx === highlighted && "bg-zinc-100",
+                    o.value === value && "font-medium"
+                  )}
+                  onMouseEnter={() => setHighlighted(idx)}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onPointerDown={(e) => e.preventDefault()}
+                  onClick={() => commit(o.value)}
+                >
+                  {isInRecent ? (
+                    <span className="mr-1.5 text-amber-600" aria-hidden>
+                      ★
+                    </span>
+                  ) : null}
+                  {o.label}
+                </li>
+              </Fragment>
+            );
+          })
         )}
       </ul>
     );
@@ -289,14 +363,15 @@ export const Select = forwardRef<HTMLInputElement, SelectProps>(
         {label && inputId && (
           <label
             htmlFor={inputId}
-            className="text-sm font-medium text-zinc-700"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-700"
           >
-            {label}
+            <span>{label}</span>
             {labelRequired ? (
-              <span className="ml-0.5 text-red-600" aria-hidden>
+              <span className="text-red-600" aria-hidden>
                 *
               </span>
             ) : null}
+            {labelHint ? <span className="inline-flex">{labelHint}</span> : null}
           </label>
         )}
         <div ref={containerRef} className="relative">

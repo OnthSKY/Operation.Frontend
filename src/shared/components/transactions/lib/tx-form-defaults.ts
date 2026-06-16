@@ -1,5 +1,6 @@
 import { defaultDateTimeFromInput } from "@/shared/lib/local-iso-date";
 import { DEFAULT_CURRENCY } from "@/shared/lib/iso4217-currencies";
+import { readLastUsed, RECENT_BUCKETS } from "@/shared/lib/recent-values-store";
 import { dayCloseDateTimeFromInput } from "./tx-day-close-helpers";
 import type { TxFormValues } from "./tx-form-types";
 
@@ -16,6 +17,13 @@ export type TxFormDefaultsInput = {
 export function buildTxFormDefaults(input: TxFormDefaultsInput): TxFormValues {
   const isDayClose =
     String(input.defaultMainCategory ?? "").trim().toUpperCase() === "IN_DAY_CLOSE";
+
+  // Akıllı default'lar: kullanıcının son kullandığı seçimleri localStorage'dan okur.
+  // Sadece gün sonu DIŞINDA uygulanır — gün sonunun kendine ait kuralları var.
+  // İlk açılışta veya localStorage boşsa "" kalır (mevcut davranış).
+  const lastExpensePaymentSource = isDayClose ? "" : String(readLastUsed(RECENT_BUCKETS.txExpensePaymentSource) ?? "");
+  const lastCashSettlementParty = isDayClose ? "" : String(readLastUsed(RECENT_BUCKETS.txCashSettlementParty) ?? "");
+
   return {
     type: input.defaultType ?? "IN",
     mainCategory: "",
@@ -28,9 +36,9 @@ export function buildTxFormDefaults(input: TxFormDefaultsInput): TxFormValues {
       ? dayCloseDateTimeFromInput(input.defaultTransactionDate)
       : defaultDateTimeFromInput(input.defaultTransactionDate),
     description: "",
-    cashSettlementParty: "",
+    cashSettlementParty: lastCashSettlementParty,
     cashSettlementPersonnelId: "",
-    expensePaymentSource: "",
+    expensePaymentSource: lastExpensePaymentSource,
     expensePocketPersonnelId: "",
     pocketClaimFromPersonnelId: "",
     invoicePaymentStatus: "",
