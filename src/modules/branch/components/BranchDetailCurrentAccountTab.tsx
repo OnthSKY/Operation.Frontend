@@ -30,7 +30,6 @@ import {
 } from "@/modules/branch/hooks/useBranchQueries";
 import { CurrentAccountReceiptModal } from "@/modules/order-account-statement/components/CurrentAccountReceiptModal";
 import { BranchCurrentAccountReceiptsPanel } from "./BranchCurrentAccountReceiptsPanel";
-import { BranchRunningLedgerPanel } from "./BranchRunningLedgerPanel";
 import type { Locale } from "@/i18n/messages";
 import { cn } from "@/lib/cn";
 import { useI18n } from "@/i18n/context";
@@ -94,7 +93,7 @@ function parseReceiptSigFromNote(note: string | null | undefined): string | null
   return m ? m[1] : null;
 }
 
-type CurrentAccountSubTabId = "invoices" | "receipts" | "ledger";
+type CurrentAccountSubTabId = "invoices" | "receipts";
 
 export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
   const { t, locale } = useI18n();
@@ -194,16 +193,16 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     return map;
   }, [docsQuery.data]);
 
-  const totals = useMemo(
+  const totalsRaw = useMemo(
     () =>
       rows.reduce(
         (acc, r) => {
           acc.invoiced += Number(r.linesTotal) || 0;
-          acc.paid += Number(r.paidTotal) || 0;
+          acc.paidRaw += Number(r.paidTotal) || 0;
           acc.open += Number(r.openAmount) || 0;
           return acc;
         },
-        { invoiced: 0, paid: 0, open: 0 }
+        { invoiced: 0, paidRaw: 0, open: 0 }
       ),
     [rows]
   );
@@ -271,6 +270,44 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
       ),
     [parseNoteAmount, rows]
   );
+
+  // Toplam breakdown — şu mantıkla ayrıştırıyoruz:
+  //   paidRaw (invoice_receipts.SUM)  =  nakit (cash/bank/check)  +  promosyon  +  ön ödeme
+  // Promosyon ve ön ödemeyi (fatura-bazlı kolondan veya receipt'lerden) ayrı topluyoruz,
+  // kalanı "tahsil edilen" (gerçek para) olarak gösteriyoruz. Hediye fatura-bazlı kolondan.
+  const totals = useMemo(() => {
+    let promo = 0;
+    let advance = 0;
+    let gift = 0;
+    rows.forEach((r) => {
+      promo += Math.max(
+        promoDeductionByInvoiceId.get(r.id) ?? 0,
+        receiptPromoByInvoiceId.get(r.id) ?? 0
+      );
+      advance += Math.max(
+        advanceDeductionByInvoiceId.get(r.id) ?? 0,
+        receiptAdvanceByInvoiceId.get(r.id) ?? 0
+      );
+      gift += giftByInvoiceId.get(r.id) ?? 0;
+    });
+    const cash = Math.max(0, totalsRaw.paidRaw - promo - advance);
+    return {
+      invoiced: totalsRaw.invoiced,
+      cash,
+      promo,
+      advance,
+      gift,
+      open: totalsRaw.open,
+    };
+  }, [
+    rows,
+    totalsRaw,
+    promoDeductionByInvoiceId,
+    advanceDeductionByInvoiceId,
+    giftByInvoiceId,
+    receiptPromoByInvoiceId,
+    receiptAdvanceByInvoiceId,
+  ]);
 
   useEffect(() => {
     let alive = true;
@@ -845,7 +882,6 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
   const subTabs: { id: CurrentAccountSubTabId; label: string }[] = [
     { id: "invoices", label: t("branch.currentAccountSubTabInvoices") },
     { id: "receipts", label: t("branch.currentAccountSubTabReceipts") },
-    { id: "ledger", label: t("branch.currentAccountSubTabLedger") },
   ];
 
   return (
@@ -885,22 +921,11 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
         />
       ) : null}
 
-      {subTab === "ledger" ? (
-        <BranchRunningLedgerPanel
-          counterpartyType="branch"
-          counterpartyId={branchId}
-          locale={locale as Locale}
-          t={t}
-          canEdit
-          active={active && subTab === "ledger"}
-        />
-      ) : null}
-
       {subTab !== "invoices" ? null : (
       <>
       <p className="text-sm text-zinc-600">{t("branch.currentAccountHint")}</p>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <div className="rounded-xl border border-zinc-200 bg-white p-3">
           <div className="text-xs text-zinc-500">{t("branch.currentAccountInvoicedTotal")}</div>
           <div className="mt-1 text-lg font-semibold text-zinc-900">
@@ -908,9 +933,27 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
           </div>
         </div>
         <div className="rounded-xl border border-zinc-200 bg-white p-3">
-          <div className="text-xs text-zinc-500">{t("branch.currentAccountPaidTotal")}</div>
+          <div className="text-xs text-zinc-500">{t("branch.currentAccountColPaid")}</div>
           <div className="mt-1 text-lg font-semibold text-emerald-700">
-            {formatLocaleAmount(totals.paid, locale, "TRY")}
+            {formatLocaleAmount(totals.cash, locale, "TRY")}
+          </div>
+        </div>
+        <div className="rounded-xl border border-zinc-200 bg-white p-3">
+          <div className="text-xs text-zinc-500">{t("branch.currentAccountColAdvance")}</div>
+          <div className="mt-1 text-lg font-semibold text-sky-700">
+            {formatLocaleAmount(totals.advance, locale, "TRY")}
+          </div>
+        </div>
+        <div className="rounded-xl border border-zinc-200 bg-white p-3">
+          <div className="text-xs text-zinc-500">{t("branch.currentAccountColPromo")}</div>
+          <div className="mt-1 text-lg font-semibold text-violet-700">
+            {formatLocaleAmount(totals.promo, locale, "TRY")}
+          </div>
+        </div>
+        <div className="rounded-xl border border-zinc-200 bg-white p-3">
+          <div className="text-xs text-zinc-500">{t("branch.currentAccountColGiftAmount")}</div>
+          <div className="mt-1 text-lg font-semibold text-fuchsia-700">
+            {formatLocaleAmount(totals.gift, locale, "TRY")}
           </div>
         </div>
         <div className="rounded-xl border border-zinc-200 bg-white p-3">
