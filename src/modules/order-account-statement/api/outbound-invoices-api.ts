@@ -79,7 +79,7 @@ export type OutboundInvoiceReceiptRequest = {
   amount: number;
   currencyCode: string;
   notes?: string | null;
-  receiptKind?: "cash" | "promo_discount" | "advance_payment" | "other";
+  receiptKind?: "cash" | "bank_transfer" | "check" | "promo_discount" | "advance_payment" | "other";
 };
 
 export type OutboundInvoiceReceiptResponse = {
@@ -89,13 +89,13 @@ export type OutboundInvoiceReceiptResponse = {
   amount: number;
   currencyCode: string;
   notes?: string | null;
-  receiptKind?: "cash" | "promo_discount" | "advance_payment" | "other";
+  receiptKind?: "cash" | "bank_transfer" | "check" | "promo_discount" | "advance_payment" | "other";
 };
 
 export type UpdateOutboundInvoiceReceiptRequest = {
   receiptDate: string;
   amount: number;
-  receiptKind?: "cash" | "promo_discount" | "advance_payment" | "other";
+  receiptKind?: "cash" | "bank_transfer" | "check" | "promo_discount" | "advance_payment" | "other";
   notes?: string | null;
 };
 

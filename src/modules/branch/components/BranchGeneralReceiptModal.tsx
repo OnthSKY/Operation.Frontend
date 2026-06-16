@@ -6,6 +6,7 @@ import {
   addCustomerAccountReceipt,
   type CustomerAccountReceiptKind,
 } from "@/modules/order-account-statement/api/customer-accounts-api";
+import { ReceiptKindSelect } from "@/modules/order-account-statement/components/ReceiptKindSelect";
 import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
 import { notify } from "@/shared/lib/notify";
@@ -13,15 +14,6 @@ import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatAmountInputOnBlur, parseLocaleAmount } from "@/shared/lib/locale-amount";
 import type { Locale } from "@/i18n/messages";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
-
-const KIND_KEYS: { value: CustomerAccountReceiptKind; labelKey: string }[] = [
-  { value: "cash", labelKey: "branch.ledgerModalKindCash" },
-  { value: "bank_transfer", labelKey: "branch.ledgerModalKindBankTransfer" },
-  { value: "check", labelKey: "branch.ledgerModalKindCheck" },
-  { value: "promo_discount", labelKey: "branch.ledgerModalKindPromo" },
-  { value: "advance_payment", labelKey: "branch.ledgerModalKindAdvance" },
-  { value: "other", labelKey: "branch.ledgerModalKindOther" },
-];
 
 type Props = {
   open: boolean;
@@ -128,20 +120,9 @@ export function BranchGeneralReceiptModal({
           />
         </label>
 
-        <label className="block text-sm">
-          <span className="text-zinc-700">{t("branch.ledgerModalKind")}</span>
-          <select
-            value={kind}
-            onChange={(e) => setKind(e.target.value as CustomerAccountReceiptKind)}
-            className="mt-1 h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 text-sm"
-          >
-            {KIND_KEYS.map((k) => (
-              <option key={k.value} value={k.value}>
-                {t(k.labelKey)}
-              </option>
-            ))}
-          </select>
-        </label>
+        <ReceiptKindSelect value={kind} onChange={setKind} label={t("branch.ledgerModalKind")} />
+        {/* Genel tahsilat — promo dahil tüm kindlar serbest (kullanıcı genel bir indirim de
+            kaydedebilir, ama önerimiz fatura bazlı promo'yu fatura ile birlikte girmesi). */}
 
         <label className="block text-sm">
           <span className="text-zinc-700">{t("branch.ledgerModalNotes")}</span>

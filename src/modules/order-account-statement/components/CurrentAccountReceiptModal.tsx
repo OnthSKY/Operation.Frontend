@@ -4,6 +4,8 @@ import { LocalImageFileThumb } from "@/shared/components/LocalImageFileThumb";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
 import { Modal } from "@/shared/ui/Modal";
+import type { CustomerAccountReceiptKind } from "@/modules/order-account-statement/api/customer-accounts-api";
+import { ReceiptKindSelect } from "@/modules/order-account-statement/components/ReceiptKindSelect";
 
 type Props = {
   open: boolean;
@@ -21,6 +23,13 @@ type Props = {
   onReceiptAmountBlur?: () => void;
   fillOpenAmountLabel: string;
   onFillOpenAmount?: () => void;
+  /** Tahsilat türü seçici (opsiyonel — verilmezse modal hiç göstermez, caller hardcoded değer kullanır) */
+  receiptKind?: CustomerAccountReceiptKind;
+  onReceiptKindChange?: (kind: CustomerAccountReceiptKind) => void;
+  receiptKindLabel?: string;
+  /** Bu modal fatura-bağlı tahsilat için — promo_discount fatura indirimine taşındığı için
+   *  default olarak promo gizlenir; sadece para hareketleri (cash/bank/check/advance/other) seçilebilir. */
+  receiptKindAllowed?: CustomerAccountReceiptKind[];
   receiptNoteLabel: string;
   receiptNote: string;
   onReceiptNoteChange: (value: string) => void;
@@ -52,6 +61,10 @@ export function CurrentAccountReceiptModal(props: Props) {
     onReceiptAmountBlur,
     fillOpenAmountLabel,
     onFillOpenAmount,
+    receiptKind,
+    onReceiptKindChange,
+    receiptKindLabel,
+    receiptKindAllowed,
     receiptNoteLabel,
     receiptNote,
     onReceiptNoteChange,
@@ -115,6 +128,15 @@ export function CurrentAccountReceiptModal(props: Props) {
             onBlur={onReceiptAmountBlur}
           />
         </div>
+
+        {receiptKind != null && onReceiptKindChange ? (
+          <ReceiptKindSelect
+            value={receiptKind}
+            onChange={onReceiptKindChange}
+            label={receiptKindLabel}
+            allowedKinds={receiptKindAllowed}
+          />
+        ) : null}
 
         <div className="space-y-1.5">
           <label htmlFor={`${titleId}-note`} className="block text-sm font-medium text-zinc-700">

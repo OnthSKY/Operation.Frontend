@@ -9,7 +9,10 @@ import {
   type OutboundInvoiceResponse,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
 import { addOutboundInvoiceReceipt } from "@/modules/order-account-statement/api/outbound-invoices-api";
-import { fetchCustomerAccountBalance } from "@/modules/order-account-statement/api/customer-accounts-api";
+import {
+  fetchCustomerAccountBalance,
+  type CustomerAccountReceiptKind,
+} from "@/modules/order-account-statement/api/customer-accounts-api";
 import { BranchGeneralReceiptModal } from "./BranchGeneralReceiptModal";
 import { computePriorOpenBalanceForInvoice } from "@/modules/order-account-statement/lib/compute-prior-open-balance-for-invoice";
 import {
@@ -105,6 +108,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
   const [receiptInvoice, setReceiptInvoice] = useState<OutboundInvoiceResponse | null>(null);
   const [receiptDate, setReceiptDate] = useState(localIsoDate());
   const [receiptAmount, setReceiptAmount] = useState("");
+  const [receiptKind, setReceiptKind] = useState<CustomerAccountReceiptKind>("cash");
   const [receiptNote, setReceiptNote] = useState("");
   const [receiptTransferImage, setReceiptTransferImage] = useState<File | null>(null);
   const [pdfOpeningId, setPdfOpeningId] = useState<number | null>(null);
@@ -669,7 +673,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
         receiptDate,
         amount,
         currencyCode,
-        receiptKind: "cash",
+        receiptKind,
         notes: receiptNote.trim() || null,
       });
       if (receiptTransferImage) {
@@ -690,6 +694,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
       setReceiptInvoice(null);
       setReceiptDate(localIsoDate());
       setReceiptAmount("");
+      setReceiptKind("cash");
       setReceiptNote("");
       setReceiptTransferImage(null);
     } catch (e) {
@@ -1629,6 +1634,10 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                 )
             : undefined
         }
+        receiptKind={receiptKind}
+        onReceiptKindChange={setReceiptKind}
+        receiptKindLabel={t("branch.ledgerModalKind")}
+        receiptKindAllowed={["cash", "bank_transfer", "check", "advance_payment", "other"]}
         receiptNoteLabel={t("branch.currentAccountReceiptNote")}
         receiptNote={receiptNote}
         onReceiptNoteChange={setReceiptNote}
