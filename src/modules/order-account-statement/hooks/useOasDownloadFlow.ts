@@ -219,6 +219,10 @@ export function useOasDownloadFlow(p: Params) {
           currencyCode: "TRY",
           shipmentLinkMode: effectiveShipmentLinkMode,
           autoPostLedger: invoicing.invoiceAutoPost,
+          // Promo, semantik olarak fatura indirimi → outbound_invoices.promo_amount kolonuna yazılır.
+          // Eskiden receipt olarak yazılıyordu (yanlış semantik), şimdi header kolonu.
+          promoAmount: promoDeductionTotal,
+          giftAmount: giftDeductionTotal,
           notes: buildOrderAccountDocumentMetadata({
             orderDocumentKey,
             companyName: safeCompany,
@@ -263,21 +267,13 @@ export function useOasDownloadFlow(p: Params) {
         if (!createdInvoice) {
           throw new Error("Invoice creation returned no result.");
         }
-        if (promoDeductionTotal > 0 || advanceLedgerDeduction > 0) {
+        // Advance (ön ödeme) — gerçek para, daha önceden alınmış, bu faturaya mahsup.
+        // Tahsilat (receipt) olarak yazılıyor; promo artık header kolonu olarak yazıldığı için
+        // bu blok sadece advance ile ilgilenir.
+        if (advanceLedgerDeduction > 0) {
           let remainingOpen = Math.max(0, createdInvoice.openAmount);
           const receiptDate = isoDateOnly(statementDate);
-          if (promoDeductionTotal > 0 && remainingOpen > 0) {
-            const promoApply = Math.min(promoDeductionTotal, remainingOpen);
-            createdInvoice = await addOutboundInvoiceReceipt(createdInvoice.id, {
-              receiptDate,
-              amount: promoApply,
-              currencyCode: "TRY",
-              receiptKind: "promo_discount",
-              notes: "source=promo_discount · Sipariş hesap dökümü promosyon düşümü",
-            });
-            remainingOpen = Math.max(0, remainingOpen - promoApply);
-          }
-          if (advanceLedgerDeduction > 0 && remainingOpen > 0) {
+          if (remainingOpen > 0) {
             const advanceApply = Math.min(advanceLedgerDeduction, remainingOpen);
             createdInvoice = await addOutboundInvoiceReceipt(createdInvoice.id, {
               receiptDate,
