@@ -9,6 +9,7 @@ import {
   type OutboundInvoiceResponse,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
 import { addOutboundInvoiceReceipt } from "@/modules/order-account-statement/api/outbound-invoices-api";
+import { fetchCustomerAccountBalance } from "@/modules/order-account-statement/api/customer-accounts-api";
 import { BranchGeneralReceiptModal } from "./BranchGeneralReceiptModal";
 import { computePriorOpenBalanceForInvoice } from "@/modules/order-account-statement/lib/compute-prior-open-balance-for-invoice";
 import {
@@ -135,6 +136,14 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
   const invoicesQuery = useQuery({
     queryKey: ["branchCurrentAccountInvoices", branchId],
     queryFn: fetchOutboundInvoices,
+    enabled: active && branchId > 0,
+  });
+
+  // Genel ödemeler (NULL-link customer_account_receipts) için bakiye query'si.
+  // Tahsilatlar tab ile aynı queryKey → modal'ın invalidate'i her ikisini de tetikler.
+  const balanceQuery = useQuery({
+    queryKey: ["customerAccountBalance", "branch", branchId],
+    queryFn: () => fetchCustomerAccountBalance("branch", branchId),
     enabled: active && branchId > 0,
   });
   const docsQuery = useBranchDocuments(branchId, active);
@@ -273,10 +282,12 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     [parseNoteAmount, rows]
   );
 
-  // Toplam breakdown — şu mantıkla ayrıştırıyoruz:
-  //   paidRaw (invoice_receipts.SUM)  =  nakit (cash/bank/check)  +  promosyon  +  ön ödeme
-  // Promosyon ve ön ödemeyi (fatura-bazlı kolondan veya receipt'lerden) ayrı topluyoruz,
-  // kalanı "tahsil edilen" (gerçek para) olarak gösteriyoruz. Hediye fatura-bazlı kolondan.
+  // Toplam breakdown — fatura-bazlı + genel ödeme birleşik:
+  //   Linked tarafı: paidRaw (invoice_receipts.SUM) = cash + promo + advance.
+  //     promo/advance ayrı (fatura kolonu veya receipt'ten), kalan "tahsil edilen" (gerçek para).
+  //   Genel ödeme tarafı (NULL-link customer_account_receipts): kind'a göre uygun karta eklenir,
+  //     böylece "Genel Tahsilat Al" ile alınan tutarlar da Tahsil/Ön ödeme/İndirim kartlarında görünür.
+  //   Hediye fatura-bazlı kolondan (lines_total'a zaten yansımış sayılır).
   const totals = useMemo(() => {
     let promo = 0;
     let advance = 0;
@@ -292,14 +303,39 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
       );
       gift += giftByInvoiceId.get(r.id) ?? 0;
     });
-    const cash = Math.max(0, totalsRaw.paidRaw - promo - advance);
+    const cashLinked = Math.max(0, totalsRaw.paidRaw - promo - advance);
+
+    // Genel ödemeler — NULL linkedOutboundInvoiceId
+    let cashGeneral = 0;
+    let promoGeneral = 0;
+    let advanceGeneral = 0;
+    for (const r of balanceQuery.data?.receipts ?? []) {
+      if (r.linkedOutboundInvoiceId != null) continue;
+      const amt = Number(r.amount) || 0;
+      switch (r.receiptKind) {
+        case "advance_payment":
+          advanceGeneral += amt;
+          break;
+        case "promo_discount":
+          promoGeneral += amt;
+          break;
+        default:
+          cashGeneral += amt;
+      }
+    }
+
+    const cash = cashLinked + cashGeneral;
+    const promoTotal = promo + promoGeneral;
+    const advanceTotal = advance + advanceGeneral;
+    // Açık bakiye gerçek = invoiced - (cash + promo + advance), 0'ın altına düşürmüyoruz.
+    const open = Math.max(0, totalsRaw.invoiced - cash - promoTotal - advanceTotal);
     return {
       invoiced: totalsRaw.invoiced,
       cash,
-      promo,
-      advance,
+      promo: promoTotal,
+      advance: advanceTotal,
       gift,
-      open: totalsRaw.open,
+      open,
     };
   }, [
     rows,
@@ -309,6 +345,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     giftByInvoiceId,
     receiptPromoByInvoiceId,
     receiptAdvanceByInvoiceId,
+    balanceQuery.data,
   ]);
 
   useEffect(() => {
@@ -735,10 +772,29 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
         acc.advance += advance;
         acc.promo += promo;
         acc.gift += gift;
-        acc.open += Number(row.openAmount) || 0;
         return acc;
       },
-      { invoiced: 0, paid: 0, advance: 0, promo: 0, gift: 0, open: 0 }
+      { invoiced: 0, paid: 0, advance: 0, promo: 0, gift: 0 }
+    );
+
+    // Genel ödemeleri (NULL-link customer_account_receipts) de footer toplamlarına ekle.
+    for (const r of balanceQuery.data?.receipts ?? []) {
+      if (r.linkedOutboundInvoiceId != null) continue;
+      const amt = Number(r.amount) || 0;
+      switch (r.receiptKind) {
+        case "advance_payment":
+          selectedTotals.advance += amt;
+          break;
+        case "promo_discount":
+          selectedTotals.promo += amt;
+          break;
+        default:
+          selectedTotals.paid += amt;
+      }
+    }
+    const computedOpen = Math.max(
+      0,
+      selectedTotals.invoiced - selectedTotals.paid - selectedTotals.promo - selectedTotals.advance
     );
 
     const footerTotals = {
@@ -753,7 +809,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
       giftLabel: t("branch.currentAccountColGiftAmount"),
       giftValue: formatLocaleAmount(selectedTotals.gift, locale, "TRY"),
       openLabel: t("branch.currentAccountOpenTotal"),
-      openValue: formatLocaleAmount(selectedTotals.open, locale, "TRY"),
+      openValue: formatLocaleAmount(computedOpen, locale, "TRY"),
     };
 
     return {
