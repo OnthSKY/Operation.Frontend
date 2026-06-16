@@ -9,6 +9,12 @@ export type CounterpartyInvoiceStylePdfRow = {
   issueDate: string;
   invoiceAmount: string;
   paidAmount: string;
+  /** Ön ödeme (advance_payment) — fatura bazlı veya tahsilattan */
+  advanceAmount?: string;
+  /** Promosyon / indirim (promo_discount) */
+  promoAmount?: string;
+  /** Hediye ürün tutarı */
+  giftAmount?: string;
   openAmount: string;
   paymentDate: string;
 };
@@ -37,6 +43,12 @@ export type CounterpartyInvoiceStylePdfMeta = {
     paidValue: string;
     openLabel: string;
     openValue: string;
+    advanceLabel?: string;
+    advanceValue?: string;
+    promoLabel?: string;
+    promoValue?: string;
+    giftLabel?: string;
+    giftValue?: string;
   };
 };
 
@@ -129,7 +141,10 @@ function createPaperNode(rows: CounterpartyInvoiceStylePdfRow[], meta: Counterpa
       <th style="padding:8px;border:1px solid #334155;text-align:left;">Fatura No</th>
       <th style="padding:8px;border:1px solid #334155;text-align:left;">Sipariş Tarihi</th>
       <th style="padding:8px;border:1px solid #334155;text-align:right;">Fatura Tutarı</th>
-      <th style="padding:8px;border:1px solid #334155;text-align:right;">Tahsilat</th>
+      <th style="padding:8px;border:1px solid #334155;text-align:right;">Tahsil Edilen</th>
+      <th style="padding:8px;border:1px solid #334155;text-align:right;">Ön Ödeme</th>
+      <th style="padding:8px;border:1px solid #334155;text-align:right;">İndirim</th>
+      <th style="padding:8px;border:1px solid #334155;text-align:right;">Hediye</th>
       <th style="padding:8px;border:1px solid #334155;text-align:right;">Açık</th>
       <th style="padding:8px;border:1px solid #334155;text-align:right;">Ödeme Tarihi</th>
     </tr>
@@ -146,8 +161,11 @@ function createPaperNode(rows: CounterpartyInvoiceStylePdfRow[], meta: Counterpa
       <td style="padding:7px 8px;border:1px solid #e2e8f0;">${escapeHtml(row.documentNumber)}</td>
       <td style="padding:7px 8px;border:1px solid #e2e8f0;">${escapeHtml(row.issueDate)}</td>
       <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;">${escapeHtml(row.invoiceAmount)}</td>
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;">${escapeHtml(row.paidAmount)}</td>
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;font-weight:700;color:#5b21b6;">${escapeHtml(row.openAmount)}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#166534;">${escapeHtml(row.paidAmount)}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#0369a1;">${escapeHtml(row.advanceAmount ?? "—")}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#6d28d9;">${escapeHtml(row.promoAmount ?? "—")}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#a21caf;">${escapeHtml(row.giftAmount ?? "—")}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;font-weight:700;color:#92400e;">${escapeHtml(row.openAmount)}</td>
       <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;">${escapeHtml(row.paymentDate)}</td>
     `;
     tbody.appendChild(tr);
@@ -162,20 +180,33 @@ function createPaperNode(rows: CounterpartyInvoiceStylePdfRow[], meta: Counterpa
     totalsWrap.style.borderRadius = "10px";
     totalsWrap.style.padding = "10px 12px";
     totalsWrap.style.background = "#f8fafc";
+    const ft = meta.footerTotals;
+    const advanceCell = ft.advanceLabel
+      ? `<div><div style="color:#64748b;">${escapeHtml(ft.advanceLabel)}</div><div style="font-weight:700;color:#0369a1;">${escapeHtml(ft.advanceValue ?? "—")}</div></div>`
+      : "";
+    const promoCell = ft.promoLabel
+      ? `<div><div style="color:#64748b;">${escapeHtml(ft.promoLabel)}</div><div style="font-weight:700;color:#6d28d9;">${escapeHtml(ft.promoValue ?? "—")}</div></div>`
+      : "";
+    const giftCell = ft.giftLabel
+      ? `<div><div style="color:#64748b;">${escapeHtml(ft.giftLabel)}</div><div style="font-weight:700;color:#a21caf;">${escapeHtml(ft.giftValue ?? "—")}</div></div>`
+      : "";
     totalsWrap.innerHTML = `
       <div style="font-size:11px;color:#334155;text-transform:uppercase;letter-spacing:0.03em;">Toplamlar</div>
-      <div style="margin-top:6px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;font-size:12px;">
+      <div style="margin-top:6px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;font-size:12px;">
         <div>
-          <div style="color:#64748b;">${escapeHtml(meta.footerTotals.invoicedLabel)}</div>
-          <div style="font-weight:700;color:#0f172a;">${escapeHtml(meta.footerTotals.invoicedValue)}</div>
+          <div style="color:#64748b;">${escapeHtml(ft.invoicedLabel)}</div>
+          <div style="font-weight:700;color:#0f172a;">${escapeHtml(ft.invoicedValue)}</div>
         </div>
         <div>
-          <div style="color:#64748b;">${escapeHtml(meta.footerTotals.paidLabel)}</div>
-          <div style="font-weight:700;color:#166534;">${escapeHtml(meta.footerTotals.paidValue)}</div>
+          <div style="color:#64748b;">${escapeHtml(ft.paidLabel)}</div>
+          <div style="font-weight:700;color:#166534;">${escapeHtml(ft.paidValue)}</div>
         </div>
+        ${advanceCell}
+        ${promoCell}
+        ${giftCell}
         <div>
-          <div style="color:#64748b;">${escapeHtml(meta.footerTotals.openLabel)}</div>
-          <div style="font-weight:700;color:#92400e;">${escapeHtml(meta.footerTotals.openValue)}</div>
+          <div style="color:#64748b;">${escapeHtml(ft.openLabel)}</div>
+          <div style="font-weight:700;color:#92400e;">${escapeHtml(ft.openValue)}</div>
         </div>
       </div>
     `;

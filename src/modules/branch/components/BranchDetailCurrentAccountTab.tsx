@@ -691,13 +691,27 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
       selectedRows.map(async (invoice) => {
         const receipts = await fetchOutboundInvoiceReceipts(invoice.id);
         const paymentDate = receipts.length > 0 ? receipts[0]?.receiptDate ?? null : null;
+        const promo = Math.max(
+          promoDeductionByInvoiceId.get(invoice.id) ?? 0,
+          receiptPromoByInvoiceId.get(invoice.id) ?? 0
+        );
+        const advance = Math.max(
+          advanceDeductionByInvoiceId.get(invoice.id) ?? 0,
+          receiptAdvanceByInvoiceId.get(invoice.id) ?? 0
+        );
+        const gift = giftByInvoiceId.get(invoice.id) ?? 0;
+        const cashPaid = Math.max(0, (Number(invoice.paidTotal) || 0) - promo - advance);
         return {
           counterpartyName: invoice.counterpartyName,
           counterpartyTypeLabel: t("reports.counterpartySummaryTypeBranch"),
           documentNumber: invoice.documentNumber,
           issueDate: formatLocaleDate(invoice.issueDate, locale),
           invoiceAmount: formatLocaleAmount(invoice.linesTotal, locale, invoice.currencyCode),
-          paidAmount: formatLocaleAmount(invoice.paidTotal, locale, invoice.currencyCode),
+          paidAmount: formatLocaleAmount(cashPaid, locale, invoice.currencyCode),
+          advanceAmount:
+            advance > 0 ? formatLocaleAmount(advance, locale, invoice.currencyCode) : "—",
+          promoAmount: promo > 0 ? formatLocaleAmount(promo, locale, invoice.currencyCode) : "—",
+          giftAmount: gift > 0 ? formatLocaleAmount(gift, locale, invoice.currencyCode) : "—",
           openAmount: formatLocaleAmount(invoice.openAmount, locale, invoice.currencyCode),
           paymentDate: paymentDate ? formatLocaleDate(paymentDate, locale) : "—",
         };
@@ -707,18 +721,37 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     const selectedTotals = selectedRows.reduce(
       (acc, row) => {
         acc.invoiced += Number(row.linesTotal) || 0;
-        acc.paid += Number(row.paidTotal) || 0;
+        const promo = Math.max(
+          promoDeductionByInvoiceId.get(row.id) ?? 0,
+          receiptPromoByInvoiceId.get(row.id) ?? 0
+        );
+        const advance = Math.max(
+          advanceDeductionByInvoiceId.get(row.id) ?? 0,
+          receiptAdvanceByInvoiceId.get(row.id) ?? 0
+        );
+        const gift = giftByInvoiceId.get(row.id) ?? 0;
+        const cashPaid = Math.max(0, (Number(row.paidTotal) || 0) - promo - advance);
+        acc.paid += cashPaid;
+        acc.advance += advance;
+        acc.promo += promo;
+        acc.gift += gift;
         acc.open += Number(row.openAmount) || 0;
         return acc;
       },
-      { invoiced: 0, paid: 0, open: 0 }
+      { invoiced: 0, paid: 0, advance: 0, promo: 0, gift: 0, open: 0 }
     );
 
     const footerTotals = {
       invoicedLabel: t("branch.currentAccountInvoicedTotal"),
       invoicedValue: formatLocaleAmount(selectedTotals.invoiced, locale, "TRY"),
-      paidLabel: t("branch.currentAccountPaidTotal"),
+      paidLabel: t("branch.currentAccountColPaid"),
       paidValue: formatLocaleAmount(selectedTotals.paid, locale, "TRY"),
+      advanceLabel: t("branch.currentAccountColAdvance"),
+      advanceValue: formatLocaleAmount(selectedTotals.advance, locale, "TRY"),
+      promoLabel: t("branch.currentAccountColPromo"),
+      promoValue: formatLocaleAmount(selectedTotals.promo, locale, "TRY"),
+      giftLabel: t("branch.currentAccountColGiftAmount"),
+      giftValue: formatLocaleAmount(selectedTotals.gift, locale, "TRY"),
       openLabel: t("branch.currentAccountOpenTotal"),
       openValue: formatLocaleAmount(selectedTotals.open, locale, "TRY"),
     };
@@ -732,7 +765,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
         title: t("branch.currentAccountPdfDocumentTitle"),
         issuedAtLabel: `${t("branch.currentAccountPdfGeneratedAt")}: ${new Date().toLocaleDateString(locale)}`,
         filtersLabel: `${t("branch.currentAccountPdfScope")}: ${t("branch.currentAccountPdfScopeBranchOnly")}`,
-        totalsLabel: `${t("branch.currentAccountPdfTotals")}: ${footerTotals.invoicedValue} / ${footerTotals.paidValue} / ${footerTotals.openValue}`,
+        totalsLabel: `${t("branch.currentAccountPdfTotals")}: ${footerTotals.invoicedValue} / ${footerTotals.paidValue} / ${footerTotals.openValue}`.trim(),
         fileName: buildPdfFileName(
           [
             selectedRows[0]?.counterpartyName,
