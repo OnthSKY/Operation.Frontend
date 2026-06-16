@@ -9,6 +9,7 @@ import {
   type OutboundInvoiceResponse,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
 import { addOutboundInvoiceReceipt } from "@/modules/order-account-statement/api/outbound-invoices-api";
+import { BranchGeneralReceiptModal } from "./BranchGeneralReceiptModal";
 import { computePriorOpenBalanceForInvoice } from "@/modules/order-account-statement/lib/compute-prior-open-balance-for-invoice";
 import {
   isOrderAccountStatementPdfNote,
@@ -113,6 +114,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
   const [receiptSaving, setReceiptSaving] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [generalReceiptOpen, setGeneralReceiptOpen] = useState(false);
   const [pdfPreviewUrl, setPdfPreviewUrl] = useState("");
   const [pdfPreviewLoading, setPdfPreviewLoading] = useState(false);
   const [pdfOptions, setPdfOptions] = useState<CurrentAccountPdfOptions>({
@@ -886,29 +888,67 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
 
   return (
     <div className="w-full min-w-0 space-y-4">
-      <div
-        role="tablist"
-        aria-label={t("branch.currentAccountSubTabsAria")}
-        className="-mx-1 flex w-full min-w-0 gap-1 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      >
-        {subTabs.map((x) => (
-          <button
-            key={x.id}
+      <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
+        <div
+          role="tablist"
+          aria-label={t("branch.currentAccountSubTabsAria")}
+          className="-mx-1 flex min-w-0 flex-1 gap-1 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {subTabs.map((x) => (
+            <button
+              key={x.id}
+              type="button"
+              role="tab"
+              aria-selected={subTab === x.id}
+              className={cn(
+                "min-h-[44px] shrink-0 whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold transition-all",
+                subTab === x.id
+                  ? "bg-zinc-900 text-white shadow-sm shadow-zinc-900/25 ring-1 ring-zinc-800"
+                  : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+              )}
+              onClick={() => setSubTab(x.id)}
+            >
+              {x.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Button
             type="button"
-            role="tab"
-            aria-selected={subTab === x.id}
-            className={cn(
-              "min-h-[44px] shrink-0 whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold transition-all",
-              subTab === x.id
-                ? "bg-zinc-900 text-white shadow-sm shadow-zinc-900/25 ring-1 ring-zinc-800"
-                : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
-            )}
-            onClick={() => setSubTab(x.id)}
+            variant="primary"
+            className="min-h-[44px]"
+            onClick={() => setGeneralReceiptOpen(true)}
           >
-            {x.label}
-          </button>
-        ))}
+            {t("branch.ledgerAddGeneralReceipt")}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            className="min-h-[44px]"
+            onClick={() => {
+              setSelectedPdfInvoiceIds(new Set(rows.map((r) => r.id)));
+              setPdfPreviewUrl((prev) => {
+                if (prev) URL.revokeObjectURL(prev);
+                return "";
+              });
+              setPdfModalOpen(true);
+            }}
+            disabled={isLoading || rows.length === 0 || exportingPdf}
+          >
+            {exportingPdf ? t("common.loading") : t("branch.currentAccountExportPdf")}
+          </Button>
+        </div>
       </div>
+
+      <BranchGeneralReceiptModal
+        open={generalReceiptOpen}
+        onClose={() => setGeneralReceiptOpen(false)}
+        counterpartyType="branch"
+        counterpartyId={branchId}
+        currency="TRY"
+        locale={locale as Locale}
+        t={t}
+      />
 
       {subTab === "receipts" ? (
         <BranchCurrentAccountReceiptsPanel
@@ -962,24 +1002,6 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
             {formatLocaleAmount(totals.open, locale, "TRY")}
           </div>
         </div>
-      </div>
-      <div className="flex justify-end">
-        <Button
-          type="button"
-          variant="secondary"
-          className="min-h-[44px]"
-          onClick={() => {
-            setSelectedPdfInvoiceIds(new Set(rows.map((r) => r.id)));
-            setPdfPreviewUrl((prev) => {
-              if (prev) URL.revokeObjectURL(prev);
-              return "";
-            });
-            setPdfModalOpen(true);
-          }}
-          disabled={isLoading || rows.length === 0 || exportingPdf}
-        >
-          {exportingPdf ? t("common.loading") : t("branch.currentAccountExportPdf")}
-        </Button>
       </div>
 
       {isError && errorText ? <p className="text-sm text-red-600">{errorText}</p> : null}
