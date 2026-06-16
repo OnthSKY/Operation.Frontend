@@ -8,11 +8,7 @@ import {
   type OutboundInvoiceReceiptResponse,
   type OutboundInvoiceResponse,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
-import { addOutboundInvoiceReceipt } from "@/modules/order-account-statement/api/outbound-invoices-api";
-import {
-  fetchCustomerAccountBalance,
-  type CustomerAccountReceiptKind,
-} from "@/modules/order-account-statement/api/customer-accounts-api";
+import { fetchCustomerAccountBalance } from "@/modules/order-account-statement/api/customer-accounts-api";
 import { BranchGeneralReceiptModal } from "./BranchGeneralReceiptModal";
 import { computePriorOpenBalanceForInvoice } from "@/modules/order-account-statement/lib/compute-prior-open-balance-for-invoice";
 import {
@@ -33,19 +29,17 @@ import {
   useDeleteBranchDocument,
   useUploadBranchDocument,
 } from "@/modules/branch/hooks/useBranchQueries";
-import { CurrentAccountReceiptModal } from "@/modules/order-account-statement/components/CurrentAccountReceiptModal";
 import { BranchCurrentAccountReceiptsPanel } from "./BranchCurrentAccountReceiptsPanel";
 import type { Locale } from "@/i18n/messages";
 import { cn } from "@/lib/cn";
 import { useI18n } from "@/i18n/context";
 import { apiFetch } from "@/shared/api/client";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
-import { formatAmountInputOnBlur, formatLocaleAmount, parseLocaleAmount } from "@/shared/lib/locale-amount";
+import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { buildPdfFileName } from "@/shared/lib/pdf-file-name";
 import { notify } from "@/shared/lib/notify";
 import { toErrorMessage } from "@/shared/lib/error-message";
-import { validateImageFileForUpload } from "@/shared/lib/validate-image-upload";
 import { Button } from "@/shared/ui/Button";
 import { Checkbox } from "@/shared/ui/Checkbox";
 import { Modal } from "@/shared/ui/Modal";
@@ -105,18 +99,11 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
   const qc = useQueryClient();
 
   const [subTab, setSubTab] = useState<CurrentAccountSubTabId>("invoices");
-  const [receiptInvoice, setReceiptInvoice] = useState<OutboundInvoiceResponse | null>(null);
-  const [receiptDate, setReceiptDate] = useState(localIsoDate());
-  const [receiptAmount, setReceiptAmount] = useState("");
-  const [receiptKind, setReceiptKind] = useState<CustomerAccountReceiptKind>("cash");
-  const [receiptNote, setReceiptNote] = useState("");
-  const [receiptTransferImage, setReceiptTransferImage] = useState<File | null>(null);
   const [pdfOpeningId, setPdfOpeningId] = useState<number | null>(null);
   const [pdfChoice, setPdfChoice] = useState<{ invoiceId: number; mode: "view" | "download" } | null>(null);
   // İndirme/görüntüleme sürümü: "v1" = faturalandırma PDF'i (orijinal), "v2" = tahsilatlı sürüm.
   const [pdfChoiceVariant, setPdfChoiceVariant] = useState<"v1" | "v2">("v1");
   const [transferOpeningId, setTransferOpeningId] = useState<number | null>(null);
-  const [receiptSaving, setReceiptSaving] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [generalReceiptOpen, setGeneralReceiptOpen] = useState(false);
@@ -646,63 +633,6 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     }
   };
 
-  const submitReceipt = async () => {
-    if (!receiptInvoice) return;
-    const amount = parseLocaleAmount(receiptAmount, locale);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      notify.error(t("branch.currentAccountInvalidReceiptAmount"));
-      return;
-    }
-    if (receiptTransferImage) {
-      const v = await validateImageFileForUpload(receiptTransferImage);
-      if (!v.ok) {
-        notify.error(
-          v.reason === "size"
-            ? t("common.imageUploadTooLarge")
-            : t("common.imageUploadNotImage")
-        );
-        return;
-      }
-    }
-    const currencyCode = receiptInvoice.currencyCode;
-    // Faturaya bağlı tahsilat → legacy endpoint (invoice_receipts + customer_account_receipts'e
-    // dual-write yapar). openAmount tutarlı kalır, drift olmaz.
-    setReceiptSaving(true);
-    try {
-      await addOutboundInvoiceReceipt(receiptInvoice.id, {
-        receiptDate,
-        amount,
-        currencyCode,
-        receiptKind,
-        notes: receiptNote.trim() || null,
-      });
-      if (receiptTransferImage) {
-        await uploadBranchDocumentMut.mutateAsync({
-          file: receiptTransferImage,
-          kind: "OTHER",
-          notes: `title=banka_dekontu · source=current_account_receipt · invoiceId=${receiptInvoice.id} · receiptDate=${receiptDate}`,
-        });
-      }
-      await Promise.all([
-        qc.invalidateQueries({ queryKey: ["branchCurrentAccountInvoices", branchId] }),
-        qc.invalidateQueries({ queryKey: ["customerAccountBalance", "branch", branchId] }),
-      ]);
-      notify.success(t("branch.currentAccountReceiptDistributedSaved")
-        .replace("{n}", "1")
-        .replace("{amount}", formatLocaleAmount(amount, locale, currencyCode))
-      );
-      setReceiptInvoice(null);
-      setReceiptDate(localIsoDate());
-      setReceiptAmount("");
-      setReceiptKind("cash");
-      setReceiptNote("");
-      setReceiptTransferImage(null);
-    } catch (e) {
-      notify.error(toErrorMessage(e));
-    } finally {
-      setReceiptSaving(false);
-    }
-  };
 
   const buildCurrentAccountPdfPayload = async () => {
     const selectedRows = rows.filter((r) => selectedPdfInvoiceIds.has(r.id));
@@ -1120,7 +1050,6 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                 <th className="px-3 py-2 text-right">{t("branch.currentAccountColOpen")}</th>
                 <th className="px-3 py-2 text-center">{t("branch.currentAccountColPdfStatus")}</th>
                 <th className="px-3 py-2 text-center">{t("branch.currentAccountColReceiptImageStatus")}</th>
-                <th className="px-3 py-2 text-center">{t("branch.currentAccountColActions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -1238,23 +1167,6 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                         <span className="inline-block text-xs text-zinc-400">—</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-center">
-                      <Button
-                        type="button"
-                        variant="primary"
-                        className="min-h-[44px] min-w-[44px] px-2 py-1 text-xs"
-                        disabled={Number(r.openAmount) <= 0}
-                        onClick={() => {
-                          setReceiptInvoice(r);
-                          setReceiptDate(localIsoDate());
-                          setReceiptAmount("");
-                          setReceiptNote("");
-                          setReceiptTransferImage(null);
-                        }}
-                      >
-                        {t("branch.currentAccountAddReceipt")}
-                      </Button>
-                    </td>
                   </tr>
                 );
               })}
@@ -1357,7 +1269,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                   </div>
                 </div>
 
-                <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="mt-3">
                   {hasPdf ? (
                     <div className="flex items-center gap-2">
                       {renderPdfIconButton({ hasPdf, action: "view", invoiceId: r.id })}
@@ -1366,21 +1278,6 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                   ) : (
                     <div className="flex items-center text-xs text-zinc-400">—</div>
                   )}
-                  <Button
-                    type="button"
-                    variant="primary"
-                    className="min-h-[44px] min-w-[44px] px-2 py-2 text-xs"
-                    disabled={Number(r.openAmount) <= 0}
-                    onClick={() => {
-                      setReceiptInvoice(r);
-                      setReceiptDate(localIsoDate());
-                      setReceiptAmount("");
-                      setReceiptNote("");
-                      setReceiptTransferImage(null);
-                    }}
-                  >
-                    {t("branch.currentAccountAddReceipt")}
-                  </Button>
                 </div>
                 <div className="mt-2 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-600">
                   {hasTransfer
@@ -1603,54 +1500,6 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
         </div>
       </Modal>
 
-      <CurrentAccountReceiptModal
-        open={receiptInvoice != null}
-        onClose={() => setReceiptInvoice(null)}
-        titleId="branch-current-account-receipt-modal-title"
-        title={t("branch.currentAccountReceiptModalTitle")}
-        closeButtonLabel={t("common.close")}
-        summaryText={
-          receiptInvoice
-            ? `${receiptInvoice.documentNumber} - ${formatLocaleAmount(
-                receiptInvoice.openAmount,
-                locale,
-                receiptInvoice.currencyCode
-              )}`
-            : ""
-        }
-        receiptDateLabel={t("branch.currentAccountReceiptDate")}
-        receiptDate={receiptDate}
-        onReceiptDateChange={setReceiptDate}
-        receiptAmountLabel={t("branch.currentAccountReceiptAmount")}
-        receiptAmount={receiptAmount}
-        onReceiptAmountChange={setReceiptAmount}
-        onReceiptAmountBlur={() => setReceiptAmount((x) => formatAmountInputOnBlur(x, locale))}
-        fillOpenAmountLabel={t("branch.currentAccountReceiptFillOpenAmount")}
-        onFillOpenAmount={
-          receiptInvoice
-            ? () =>
-                setReceiptAmount(
-                  formatAmountInputOnBlur(String(receiptInvoice.openAmount ?? ""), locale)
-                )
-            : undefined
-        }
-        receiptKind={receiptKind}
-        onReceiptKindChange={setReceiptKind}
-        receiptKindLabel={t("branch.ledgerModalKind")}
-        receiptKindAllowed={["cash", "bank_transfer", "check", "advance_payment", "other"]}
-        receiptNoteLabel={t("branch.currentAccountReceiptNote")}
-        receiptNote={receiptNote}
-        onReceiptNoteChange={setReceiptNote}
-        showImageUpload
-        receiptImageLabel={t("branch.currentAccountReceiptImage")}
-        receiptImageFile={receiptTransferImage}
-        onReceiptImageChange={setReceiptTransferImage}
-        cancelLabel={t("common.cancel")}
-        saveLabel={t("branch.currentAccountSaveReceipt")}
-        loadingLabel={t("common.loading")}
-        saving={receiptSaving}
-        onSubmit={() => void submitReceipt()}
-      />
     </div>
   );
 }

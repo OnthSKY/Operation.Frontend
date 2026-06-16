@@ -19,7 +19,6 @@ import {
   buildHtmlNodeSinglePagePdfBlob,
 } from "@/modules/order-account-statement/lib/download-preview-as-pdf";
 import {
-  addOutboundInvoiceReceipt,
   createOutboundInvoice,
   createShipmentInvoice,
   type OutboundInvoiceResponse,
@@ -267,23 +266,10 @@ export function useOasDownloadFlow(p: Params) {
         if (!createdInvoice) {
           throw new Error("Invoice creation returned no result.");
         }
-        // Advance (ön ödeme) — gerçek para, daha önceden alınmış, bu faturaya mahsup.
-        // Tahsilat (receipt) olarak yazılıyor; promo artık header kolonu olarak yazıldığı için
-        // bu blok sadece advance ile ilgilenir.
-        if (advanceLedgerDeduction > 0) {
-          let remainingOpen = Math.max(0, createdInvoice.openAmount);
-          const receiptDate = isoDateOnly(statementDate);
-          if (remainingOpen > 0) {
-            const advanceApply = Math.min(advanceLedgerDeduction, remainingOpen);
-            createdInvoice = await addOutboundInvoiceReceipt(createdInvoice.id, {
-              receiptDate,
-              amount: advanceApply,
-              currencyCode: "TRY",
-              receiptKind: "advance_payment",
-              notes: "source=advance_payment · Sipariş hesap dökümü ön ödeme düşümü",
-            });
-          }
-        }
+        // Advance (ön ödeme) — artık OAS akışı otomatik tahsilat yazmıyor.
+        // Kullanıcı PDF üretimi sonrası "+ Genel Tahsilat Al" ile receiptKind='advance_payment'
+        // seçerek manuel girer. Bu sayede her tahsilat kullanıcı kontrolünde, izlenebilir,
+        // ve invoice_receipts tablosuna yazılmayan tek tek source-of-truth: customer_account_receipts.
         const created = createdInvoice;
         invoicing.setLastCreatedInvoiceNo(created.documentNumber);
         invoicing.setLastCreatedInvoiceId(created.id);
