@@ -38,7 +38,7 @@ import { TablePagination } from "@/shared/ui/TablePagination";
 import { useBranchDetailOverlay } from "@/shared/branch-detail";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { MouseEvent } from "react";
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/cn";
 import { PlusIcon } from "@/shared/ui/EyeIcon";
 import { Tooltip } from "@/shared/ui/Tooltip";
@@ -876,12 +876,6 @@ export function BranchScreen() {
               <Table mobileCards={false}>
                 <TableHead>
                   <TableRow>
-                    <TableHeader
-                      className="w-[1%] whitespace-nowrap"
-                      title={t("branch.listMetricsToggle")}
-                    >
-                      <span className="sr-only">{t("branch.listMetricsToggle")}</span>
-                    </TableHeader>
                     <TableHeader>{t("branch.tableId")}</TableHeader>
                     <TableHeader>{t("branch.tableName")}</TableHeader>
                     <TableHeader
@@ -904,21 +898,14 @@ export function BranchScreen() {
                 <TableBody>
                   {list.map((b) => {
                     const active = branchDetailBranchId === b.id;
-                    const mOpen = Boolean(metricsOpen[b.id]);
                     return (
-                      <Fragment key={b.id}>
                       <TableRow
+                        key={b.id}
                         className={cn(
                           "transition-colors hover:bg-zinc-50",
                           active && "bg-zinc-50"
                         )}
                       >
-                        <TableCell
-                          className="w-[1%] whitespace-nowrap"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <BranchMetricsToggle open={mOpen} onToggle={toggleMetrics(b.id)} t={t} />
-                        </TableCell>
                         <TableCell className="font-mono text-zinc-600">
                           {b.id}
                         </TableCell>
@@ -1019,20 +1006,6 @@ export function BranchScreen() {
                           </div>
                         </TableCell>
                       </TableRow>
-                      {mOpen ? (
-                        <TableRow className="hover:bg-transparent">
-                          <TableCell colSpan={6} className="border-t-0 pt-0 pb-3">
-                            <BranchListMetricsPanel
-                              branchId={b.id}
-                              open={mOpen}
-                              monthUtcKey={dashboardMonthUtc}
-                              hideMoney={personnelPortal}
-                              seasonSummary={`${t("branch.tableSeason")}: ${seasonLabel(b.seasonStatus, t)}`}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ) : null}
-                      </Fragment>
                     );
                   })}
                 </TableBody>
