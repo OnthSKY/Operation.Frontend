@@ -298,7 +298,8 @@ function patronByBranchTotalsBody(
       {rows.map((row) => (
         <div key={row.key}>
           <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-zinc-600">
-            {row.label}
+            {row.kindLabel}
+            <span className="ml-1 text-zinc-500"> · {row.targetLabel}</span>
           </p>
           <div className="rounded-lg border border-zinc-100 bg-zinc-50/60 px-3 py-2">
             {splitPaymentSourceTotalsBody(row.totals, dash, locale, emptyLabel)}
