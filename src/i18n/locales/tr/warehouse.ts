@@ -135,6 +135,7 @@ export const warehouse = {
   movementApprovedBy: "Onaylayan",
   movementCreatedBy: "Giren",
   movementCreatedAt: "Oluşturulma",
+  movementLastModifiedAt: "Son düzenleme",
   depoInSharedNoteHint:
     "İsteğe bağlı; hareket kaydında görünür, depo girişi düzenlemeden sonra da değiştirilebilir.",
   invoicePhotoOptional:

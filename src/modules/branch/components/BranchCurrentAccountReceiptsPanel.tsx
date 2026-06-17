@@ -19,6 +19,7 @@ import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { notify } from "@/shared/lib/notify";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
+import { DateField } from "@/shared/ui/DateField";
 import { Modal } from "@/shared/ui/Modal";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Trash2 } from "lucide-react";
@@ -494,15 +495,11 @@ function EditReceiptModal({ receipt, locale, t, onClose, onSaved }: EditReceiptM
       title={t("branch.currentAccountReceiptUpdateModalTitle")}
     >
       <div className="space-y-3">
-        <label className="block text-sm">
-          <span className="text-zinc-700">{t("branch.ledgerModalDate")}</span>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="mt-1 h-11 w-full rounded-lg border border-zinc-300 px-3 text-sm"
-          />
-        </label>
+        <DateField
+          label={t("branch.ledgerModalDate")}
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+        />
         <label className="block text-sm">
           <span className="text-zinc-700">
             {t("branch.ledgerModalAmount")} ({receipt?.currencyCode ?? "TRY"})

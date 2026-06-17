@@ -11,6 +11,7 @@ import { ReceiptKindSelect } from "@/modules/order-account-statement/components/
 import { uploadBranchDocument } from "@/modules/branch/api/branch-documents-api";
 import { LocalImageFileThumb } from "@/shared/components/LocalImageFileThumb";
 import { Button } from "@/shared/ui/Button";
+import { DateField } from "@/shared/ui/DateField";
 import { Modal } from "@/shared/ui/Modal";
 import { RichCombobox } from "@/shared/ui/RichCombobox";
 import { notify } from "@/shared/lib/notify";
@@ -239,15 +240,11 @@ export function GeneralReceiptModal({ open, onClose, counterparty, locale, t, on
           </div>
         ) : null}
 
-        <label className="block text-sm">
-          <span className="text-zinc-700">{t("branch.ledgerModalDate")}</span>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="mt-1 h-11 w-full rounded-lg border border-zinc-300 px-3 text-sm"
-          />
-        </label>
+        <DateField
+          label={t("branch.ledgerModalDate")}
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+        />
 
         {/* Tutar + sağda Açık bakiye chip'i ("Tümü" tıklanır) */}
         <div className="space-y-1.5">

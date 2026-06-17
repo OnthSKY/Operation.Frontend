@@ -9,6 +9,7 @@ import {
 import { notify } from "@/shared/lib/notify";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Button } from "@/shared/ui/Button";
+import { DateField } from "@/shared/ui/DateField";
 import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
 import { useState } from "react";
@@ -144,17 +145,11 @@ function EditModalBody({
             .replace("{amount}", formatLocaleAmount(maxAllowable, locale, currencyCode))}
         </p>
 
-        <div>
-          <label className="mb-1 block text-sm font-medium text-zinc-700">
-            {t("branch.currentAccountReceiptDate")}
-          </label>
-          <input
-            type="date"
-            className="h-11 w-full rounded-lg border border-zinc-300 px-3 text-sm"
-            value={receiptDate}
-            onChange={(e) => setReceiptDate(e.target.value)}
-          />
-        </div>
+        <DateField
+          label={t("branch.currentAccountReceiptDate")}
+          value={receiptDate}
+          onChange={(e) => setReceiptDate(e.target.value)}
+        />
 
         <div>
           <label className="mb-1 block text-sm font-medium text-zinc-700">

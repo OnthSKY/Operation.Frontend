@@ -135,6 +135,7 @@ export const warehouse = {
   movementApprovedBy: "Approved by",
   movementCreatedBy: "Entered by",
   movementCreatedAt: "Created at",
+  movementLastModifiedAt: "Last modified",
   depoInSharedNoteHint:
     "Optional; stored on the movement and editable later from the receipt detail screen.",
   invoicePhotoOptional:

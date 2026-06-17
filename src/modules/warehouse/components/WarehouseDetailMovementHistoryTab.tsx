@@ -1769,11 +1769,22 @@ export function WarehouseDetailMovementHistoryTab({
                       </p>
                     </div>
                     <div className="min-w-0 rounded-lg border border-zinc-200 bg-zinc-50/60 px-2.5 py-1.5">
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{t("warehouse.movementCreatedAt")}</p>
+                      <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{t("warehouse.movementLastModifiedAt")}</p>
                       <p className="mt-0.5 truncate text-xs font-semibold text-zinc-900">
-                        {selectedDetailGroup.movements[0]?.createdAt
-                          ? fmtDate(selectedDetailGroup.movements[0].createdAt)
-                          : "—"}
+                        {(() => {
+                          // Grup içindeki en yeni hareketin oluşturulma zamanı = en son düzenleme.
+                          // Yeni kalem eklendiğinde bu güncellenir; eski kalemlerin tarihi korunur.
+                          const latestIso = selectedDetailGroup.movements.reduce<string | null>(
+                            (acc, m) => {
+                              const v = m.createdAt ?? null;
+                              if (!v) return acc;
+                              if (acc == null) return v;
+                              return v > acc ? v : acc;
+                            },
+                            null,
+                          );
+                          return latestIso ? fmtDate(latestIso) : "—";
+                        })()}
                       </p>
                     </div>
                   </div>

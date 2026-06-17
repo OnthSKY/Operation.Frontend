@@ -951,7 +951,8 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
         <div className="rounded-xl border border-zinc-200 bg-white p-3">
           <div className="text-xs text-zinc-500">{t("branch.currentAccountInvoicedTotal")}</div>
           <div className="mt-1 text-lg font-semibold text-zinc-900">
-            {formatLocaleAmount(totals.invoiced, locale, "TRY")}
+            {/* GROSS: invoiced + promo + gift = hiçbir indirim düşmemiş tam tutar. */}
+            {formatLocaleAmount(totals.invoiced + totals.promo + totals.gift, locale, "TRY")}
           </div>
         </div>
         <div className="rounded-xl border border-zinc-200 bg-white p-3">
@@ -1040,7 +1041,12 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                       ) : null}
                     </td>
                     <td className="px-3 py-2 text-right">
-                      {formatLocaleAmount(r.linesTotal, locale, r.currencyCode)}
+                      {/* GROSS fatura tutarı: lines + promo + gift = hiçbir indirim düşmeden. */}
+                      {formatLocaleAmount(
+                        (Number(r.linesTotal) || 0) + promoDeduction + giftAmount,
+                        locale,
+                        r.currencyCode,
+                      )}
                     </td>
                     <td className="px-3 py-2 text-right text-emerald-700">
                       <div>{formatLocaleAmount(cashCollected, locale, r.currencyCode)}</div>
@@ -1200,7 +1206,12 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-zinc-500">{t("branch.currentAccountColInvoiceTotal")}</span>
                     <span className="font-medium text-zinc-900">
-                      {formatLocaleAmount(r.linesTotal, locale, r.currencyCode)}
+                      {/* GROSS: lines + promo + gift = hiçbir indirim düşmemiş tam tutar. */}
+                      {formatLocaleAmount(
+                        (Number(r.linesTotal) || 0) + promoDeduction + giftAmount,
+                        locale,
+                        r.currencyCode,
+                      )}
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-2">
