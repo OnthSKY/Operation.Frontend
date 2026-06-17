@@ -150,35 +150,33 @@ export function BranchCurrentAccountReceiptsPanel({
   }, [balanceQuery.data, invoiceById, onlyWithReceipts, search, t]);
 
   const totals = useMemo(() => {
-    const receipts = balanceQuery.data?.receipts ?? [];
+    const b = balanceQuery.data;
+    const receipts = b?.receipts ?? [];
     let count = 0;
-    let cash = 0;
-    let advance = 0;
-    let promo = 0;
     let other = 0;
     let currency: string | undefined;
     let mixedCurrency = false;
     for (const r of receipts) {
       count += 1;
       const amt = Number(r.amount) || 0;
-      switch (r.receiptKind) {
-        case "advance_payment":
-          advance += amt;
-          break;
-        case "promo_discount":
-          promo += amt;
-          break;
-        case "cash":
-        case "bank_transfer":
-        case "check":
-          cash += amt;
-          break;
-        default:
-          other += amt;
+      if (
+        r.receiptKind !== "advance_payment" &&
+        r.receiptKind !== "promo_discount" &&
+        r.receiptKind !== "cash" &&
+        r.receiptKind !== "bank_transfer" &&
+        r.receiptKind !== "check"
+      ) {
+        other += amt;
       }
       if (!currency) currency = r.currencyCode;
       else if (currency !== r.currencyCode) mixedCurrency = true;
     }
+    // Backend canonical: advance/promo header + receipt'leri zaten birleştirir.
+    // cashTotal = cash/bank/check tahsilatlar. Bu sayede fatura header'ında girilen
+    // advance/promo da KPI'larda görünür.
+    const cash = Number(b?.cashTotal) || 0;
+    const advance = Number(b?.advanceTotal) || 0;
+    const promo = Number(b?.promoTotal) || 0;
     return {
       count,
       cash,
