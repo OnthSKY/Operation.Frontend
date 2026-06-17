@@ -14,7 +14,6 @@ export const search = {
   subBranding: "Company name and sidebar logo",
   subTourismSeasonPolicy: "Allow register flows when tourism season is closed",
   subReports: "Financial & stock period reports",
-  subBranchComparison: "Income, expense, net by branch",
   subBranch: "Branches",
   subDailyBranchRegister:
     "Per-branch cash, card/POS, register expenses and net for one register day",

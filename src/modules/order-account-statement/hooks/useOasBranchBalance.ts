@@ -4,10 +4,8 @@ import { useCallback, useMemo, useState } from "react";
 import { notify } from "@/shared/lib/notify";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatLocaleAmountInput } from "@/shared/lib/locale-amount";
-import {
-  fetchOutboundInvoices,
-  type CounterpartySuggestionRow,
-} from "@/modules/order-account-statement/api/outbound-invoices-api";
+import type { CounterpartySuggestionRow } from "@/modules/order-account-statement/api/outbound-invoices-api";
+import { fetchCustomerAccountBalance } from "@/modules/order-account-statement/api/customer-accounts-api";
 
 /**
  * Seçili sistem şubesinin açık bakiyesini "Önceki bakiye" alanına uygulama.
@@ -53,26 +51,22 @@ export function useOasBranchBalance({
     }
     setApplyBranchOpenBalanceBusy(true);
     try {
-      let amount = branchOpenAmountById.get(branchId);
-      if (amount == null || !Number.isFinite(amount)) {
-        // Fallback: öneri listesi boş/eksik geldiyse şubenin açık bakiyesini faturalardan yeniden topla.
-        const invoices = await fetchOutboundInvoices();
-        amount = invoices
-          .filter((x) => x.counterpartyType === "branch" && x.counterpartyId === branchId)
-          .reduce((sum, x) => sum + Math.max(0, Number(x.openAmount) || 0), 0);
-      }
-      if (!Number.isFinite(amount)) {
+      // Canonical kaynak — customer_account_receipts'ten hesaplanan açık bakiye
+      // (Faturalar tab + Cari Hesaplar sayfası ile aynı endpoint).
+      const balance = await fetchCustomerAccountBalance("branch", branchId);
+      const open = Number(balance?.openBalance);
+      if (!Number.isFinite(open)) {
         notify.error(t("reports.orderAccountStatementSystemBranchBalanceMissing"));
         return;
       }
-      setPreviousBalanceText(formatLocaleAmountInput(Math.max(0, amount), locale));
+      setPreviousBalanceText(formatLocaleAmountInput(Math.max(0, open), locale));
       notify.success(t("reports.orderAccountStatementSystemBranchBalanceApplied"));
     } catch (error) {
       notify.error(toErrorMessage(error));
     } finally {
       setApplyBranchOpenBalanceBusy(false);
     }
-  }, [branchOpenAmountById, linkedBranchId, locale, setPreviousBalanceText, t]);
+  }, [linkedBranchId, locale, setPreviousBalanceText, t]);
 
   return {
     branchOpenAmountById,

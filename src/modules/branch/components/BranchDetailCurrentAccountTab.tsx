@@ -9,7 +9,7 @@ import {
   type OutboundInvoiceResponse,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
 import { fetchCustomerAccountBalance } from "@/modules/order-account-statement/api/customer-accounts-api";
-import { BranchGeneralReceiptModal } from "./BranchGeneralReceiptModal";
+import { GeneralReceiptModal } from "@/modules/order-account-statement/components/GeneralReceiptModal";
 import { computePriorOpenBalanceForInvoice } from "@/modules/order-account-statement/lib/compute-prior-open-balance-for-invoice";
 import {
   isOrderAccountStatementPdfNote,
@@ -195,19 +195,6 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     return map;
   }, [docsQuery.data]);
 
-  const totalsRaw = useMemo(
-    () =>
-      rows.reduce(
-        (acc, r) => {
-          acc.invoiced += Number(r.linesTotal) || 0;
-          acc.paidRaw += Number(r.paidTotal) || 0;
-          acc.open += Number(r.openAmount) || 0;
-          return acc;
-        },
-        { invoiced: 0, paidRaw: 0, open: 0 }
-      ),
-    [rows]
-  );
 
   const parseNoteAmount = useCallback((note: string | null | undefined, key: string): number => {
     const raw = String(note ?? "");
@@ -273,71 +260,22 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     [parseNoteAmount, rows]
   );
 
-  // Toplam breakdown — fatura-bazlı + genel ödeme birleşik:
-  //   Linked tarafı: paidRaw (invoice_receipts.SUM) = cash + promo + advance.
-  //     promo/advance ayrı (fatura kolonu veya receipt'ten), kalan "tahsil edilen" (gerçek para).
-  //   Genel ödeme tarafı (NULL-link customer_account_receipts): kind'a göre uygun karta eklenir,
-  //     böylece "Genel Tahsilat Al" ile alınan tutarlar da Tahsil/Ön ödeme/İndirim kartlarında görünür.
-  //   Hediye fatura-bazlı kolondan (lines_total'a zaten yansımış sayılır).
+  // Toplamlar backend canonical: fetchCustomerAccountBalance kırılımı döner.
+  // UI'da hesap YOK — tek source of truth backend.
   const totals = useMemo(() => {
-    let promo = 0;
-    let advance = 0;
-    let gift = 0;
-    rows.forEach((r) => {
-      promo += Math.max(
-        promoDeductionByInvoiceId.get(r.id) ?? 0,
-        receiptPromoByInvoiceId.get(r.id) ?? 0
-      );
-      advance += Math.max(
-        advanceDeductionByInvoiceId.get(r.id) ?? 0,
-        receiptAdvanceByInvoiceId.get(r.id) ?? 0
-      );
-      gift += giftByInvoiceId.get(r.id) ?? 0;
-    });
-    const cashLinked = Math.max(0, totalsRaw.paidRaw - promo - advance);
-
-    // Genel ödemeler — NULL linkedOutboundInvoiceId
-    let cashGeneral = 0;
-    let promoGeneral = 0;
-    let advanceGeneral = 0;
-    for (const r of balanceQuery.data?.receipts ?? []) {
-      if (r.linkedOutboundInvoiceId != null) continue;
-      const amt = Number(r.amount) || 0;
-      switch (r.receiptKind) {
-        case "advance_payment":
-          advanceGeneral += amt;
-          break;
-        case "promo_discount":
-          promoGeneral += amt;
-          break;
-        default:
-          cashGeneral += amt;
-      }
+    const b = balanceQuery.data;
+    if (!b) {
+      return { invoiced: 0, cash: 0, promo: 0, advance: 0, gift: 0, open: 0 };
     }
-
-    const cash = cashLinked + cashGeneral;
-    const promoTotal = promo + promoGeneral;
-    const advanceTotal = advance + advanceGeneral;
-    // Açık bakiye gerçek = invoiced - (cash + promo + advance), 0'ın altına düşürmüyoruz.
-    const open = Math.max(0, totalsRaw.invoiced - cash - promoTotal - advanceTotal);
     return {
-      invoiced: totalsRaw.invoiced,
-      cash,
-      promo: promoTotal,
-      advance: advanceTotal,
-      gift,
-      open,
+      invoiced: Number(b.totalCharged) || 0,
+      cash: Number(b.cashTotal) || 0,
+      promo: Number(b.promoTotal) || 0,
+      advance: Number(b.advanceTotal) || 0,
+      gift: Number(b.giftTotal) || 0,
+      open: Math.max(0, Number(b.openBalance) || 0),
     };
-  }, [
-    rows,
-    totalsRaw,
-    promoDeductionByInvoiceId,
-    advanceDeductionByInvoiceId,
-    giftByInvoiceId,
-    receiptPromoByInvoiceId,
-    receiptAdvanceByInvoiceId,
-    balanceQuery.data,
-  ]);
+  }, [balanceQuery.data]);
 
   useEffect(() => {
     let alive = true;
@@ -949,10 +887,16 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
           <Button
             type="button"
             variant="primary"
-            className="min-h-[44px]"
+            className="inline-flex min-h-[44px] items-center gap-1.5"
             onClick={() => setGeneralReceiptOpen(true)}
           >
-            {t("branch.ledgerAddGeneralReceipt")}
+            <svg aria-hidden className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              {/* Banknote — "tahsilat / para alma" */}
+              <rect x="2" y="6" width="20" height="12" rx="2" />
+              <circle cx="12" cy="12" r="2.2" />
+              <path d="M6 12h.01M18 12h.01" />
+            </svg>
+            <span>{t("branch.ledgerAddGeneralReceipt")}</span>
           </Button>
           <Button
             type="button"
@@ -973,12 +917,15 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
         </div>
       </div>
 
-      <BranchGeneralReceiptModal
+      <GeneralReceiptModal
         open={generalReceiptOpen}
         onClose={() => setGeneralReceiptOpen(false)}
-        counterpartyType="branch"
-        counterpartyId={branchId}
-        currency="TRY"
+        counterparty={{
+          mode: "fixed",
+          counterpartyType: "branch",
+          counterpartyId: branchId,
+          currency: "TRY",
+        }}
         locale={locale as Locale}
         t={t}
       />
@@ -998,6 +945,8 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
       <>
       <p className="text-sm text-zinc-600">{t("branch.currentAccountHint")}</p>
 
+      {/* Para akışı hikayesi: Faturalanan → Ön ödeme → Tahsil → Promosyon → Açık.
+          Cari Hesaplar sayfası ile tutarlı sıra. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <div className="rounded-xl border border-zinc-200 bg-white p-3">
           <div className="text-xs text-zinc-500">{t("branch.currentAccountInvoicedTotal")}</div>
@@ -1006,15 +955,15 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
           </div>
         </div>
         <div className="rounded-xl border border-zinc-200 bg-white p-3">
-          <div className="text-xs text-zinc-500">{t("branch.currentAccountColPaid")}</div>
-          <div className="mt-1 text-lg font-semibold text-emerald-700">
-            {formatLocaleAmount(totals.cash, locale, "TRY")}
-          </div>
-        </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-3">
           <div className="text-xs text-zinc-500">{t("branch.currentAccountColAdvance")}</div>
           <div className="mt-1 text-lg font-semibold text-sky-700">
             {formatLocaleAmount(totals.advance, locale, "TRY")}
+          </div>
+        </div>
+        <div className="rounded-xl border border-zinc-200 bg-white p-3">
+          <div className="text-xs text-zinc-500">{t("branch.currentAccountColPaid")}</div>
+          <div className="mt-1 text-lg font-semibold text-emerald-700">
+            {formatLocaleAmount(totals.cash, locale, "TRY")}
           </div>
         </div>
         <div className="rounded-xl border border-zinc-200 bg-white p-3">
@@ -1056,7 +1005,6 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                 <th className="px-3 py-2 text-right">{t("branch.currentAccountColPaid")}</th>
                 <th className="px-3 py-2 text-right">{t("branch.currentAccountColPromo")}</th>
                 <th className="px-3 py-2 text-right">{t("branch.currentAccountColAdvance")}</th>
-                <th className="px-3 py-2 text-right">{t("branch.currentAccountColOpen")}</th>
                 <th className="px-3 py-2 text-center">{t("branch.currentAccountColPdfStatus")}</th>
                 <th className="px-3 py-2 text-center">{t("branch.currentAccountColReceiptImageStatus")}</th>
               </tr>
@@ -1125,9 +1073,6 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                       {advanceDeduction > 0
                         ? formatLocaleAmount(advanceDeduction, locale, r.currencyCode)
                         : "—"}
-                    </td>
-                    <td className="px-3 py-2 text-right text-amber-700">
-                      {formatLocaleAmount(r.openAmount, locale, r.currencyCode)}
                     </td>
                     <td className="px-3 py-2 text-center">
                       <div className="mb-1 text-xs text-zinc-500">
@@ -1289,12 +1234,6 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                       {advanceDeduction > 0
                         ? formatLocaleAmount(advanceDeduction, locale, r.currencyCode)
                         : "—"}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-zinc-500">{t("branch.currentAccountColOpen")}</span>
-                    <span className="font-medium text-amber-700">
-                      {formatLocaleAmount(r.openAmount, locale, r.currencyCode)}
                     </span>
                   </div>
                 </div>

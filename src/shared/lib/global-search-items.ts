@@ -41,14 +41,6 @@ export const GLOBAL_SEARCH_ITEMS: GlobalSearchItemDef[] = [
       "rapor reports finans financial stok stock dönem period özet kategori şube depo",
   },
   {
-    id: "reports-branch-comparison",
-    href: "/reports/branches",
-    titleKey: "reports.navBranchComparison",
-    subtitleKey: "search.subBranchComparison",
-    match:
-      "şube bazlı branch comparison karşılaştırma dönem period gelir gider net kasa register şubeler arası",
-  },
-  {
     id: "personnel",
     href: "/personnel",
     titleKey: "nav.personnel",

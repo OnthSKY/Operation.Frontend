@@ -79,5 +79,6 @@ export const common = {
   sectionInfoExplainButton: "Açıklama",
   search: "Ara…",
   noResults: "Sonuç yok",
+  select: "Seçin…",
   empty: "Kayıt yok",
 } as const;

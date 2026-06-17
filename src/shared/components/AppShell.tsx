@@ -39,7 +39,6 @@ function reportsHubLinkActive(pathname: string, href: string): boolean {
   if (href === "/reports/patron-flow") return p.startsWith("/reports/patron-flow");
   if (href === "/reports/cash") return p.startsWith("/reports/cash");
   if (href === "/reports/personnel-held-cash") return p.startsWith("/reports/personnel-held-cash");
-  if (href === "/reports/branches") return p.startsWith("/reports/branches");
   return p.startsWith(href);
 }
 
@@ -346,14 +345,8 @@ const reportsPersonnelSubNav: readonly ReportSidebarNavItem[] = [
   },
 ];
 
-/** Şube: performans karşılaştırma + gün sonları (nakit pozisyonu). */
+/** Şube: gün sonları (nakit pozisyonu). */
 const reportsBranchSubNav: readonly ReportSidebarNavItem[] = [
-  {
-    href: "/reports/branches",
-    labelKey: "reports.navBranchComparison",
-    icon: "reportCompare",
-    hintKey: "nav.tooltip.reportsHubBranches",
-  },
   {
     href: "/daily-branch-register",
     labelKey: "nav.dailyBranchRegister",

@@ -122,6 +122,11 @@ export type CounterpartySuggestionRow = {
   invoicedTotal: number;
   paidTotal: number;
   openAmount: number;
+  /** Backend canonical (yeni cari hesaplar API'sinden). Legacy suggestions endpoint'inde olmayabilir. */
+  cashTotal?: number;
+  advanceTotal?: number;
+  promoTotal?: number;
+  giftTotal?: number;
   lastInvoiceDate?: string | null;
   lastDocumentNumber?: string | null;
 };
@@ -142,6 +147,11 @@ export type CounterpartySummaryTotals = {
   openAmountTotal: number;
   counterpartyCount: number;
   invoiceCount: number;
+  /** Backend canonical (yeni cari hesaplar API'sinden). Legacy endpoint'inde olmayabilir. */
+  cashTotal?: number;
+  advanceTotal?: number;
+  promoTotal?: number;
+  giftTotal?: number;
 };
 
 export type CounterpartySummaryReport = {

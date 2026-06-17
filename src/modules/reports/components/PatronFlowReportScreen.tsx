@@ -44,6 +44,7 @@ import {
 } from "@/shared/ui/Table";
 import { cn } from "@/lib/cn";
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { useCallback, useMemo, useState } from "react";
 
 const eyeLinkClass =
@@ -719,6 +720,45 @@ export function PatronFlowReportScreen() {
     }
     return groups;
   }, [slice]);
+
+  // (10) Kategori grubuna göre toplu/açılır görünüm. Off → düz satır listesi.
+  // On → günler içinde bucket başlığı + her başlık tıklanarak satırlar açılır.
+  const [groupByBucket, setGroupByBucket] = useState(false);
+  const [expandedBuckets, setExpandedBuckets] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const slicedByDayBucketed = useMemo(() => {
+    return slicedByDay.map((g) => {
+      const map = new Map<
+        ExpenseBucket,
+        { sum: number; rows: PatronExpenseRow[] }
+      >();
+      for (const r of g.rows) {
+        const b = bucketFromRow(r);
+        const entry = map.get(b) ?? { sum: 0, rows: [] };
+        entry.sum += r.amount;
+        entry.rows.push(r);
+        map.set(b, entry);
+      }
+      const byBucket = BUCKET_ORDER.flatMap((b) => {
+        const e = map.get(b);
+        if (!e || e.rows.length === 0) return [];
+        return [{ bucket: b, sum: e.sum, rows: e.rows }];
+      });
+      return { date: g.date, total: g.total, byBucket };
+    });
+  }, [slicedByDay]);
+  const toggleBucketExpand = (date: string, bucket: ExpenseBucket) => {
+    const key = `${date}::${bucket}`;
+    setExpandedBuckets((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+  const isBucketExpanded = (date: string, bucket: ExpenseBucket) =>
+    expandedBuckets.has(`${date}::${bucket}`);
 
   const hasAnyData = rollups.length > 0;
   const hasMultipleCcy = rollups.length > 1;
@@ -1454,6 +1494,49 @@ export function PatronFlowReportScreen() {
                 </section>
 
                 {/* DETAIL ROWS */}
+                {/* (10) Kategori grubuna göre açılır görünüm toggle'ı. */}
+                {processed.length > 0 ? (
+                  <div className="mb-2 flex items-center justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setGroupByBucket((v) => !v);
+                        setExpandedBuckets(new Set());
+                      }}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ring-1 transition-colors",
+                        groupByBucket
+                          ? "bg-violet-600 text-white ring-violet-600"
+                          : "bg-white text-zinc-700 ring-zinc-200 hover:bg-violet-50 hover:text-violet-900 hover:ring-violet-200",
+                      )}
+                      aria-pressed={groupByBucket}
+                    >
+                      <span aria-hidden>▦</span>
+                      {t("reports.patronFlowGroupByBucket")}
+                    </button>
+                    {groupByBucket ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = new Set<string>();
+                          if (expandedBuckets.size === 0) {
+                            for (const g of slicedByDayBucketed) {
+                              for (const b of g.byBucket) {
+                                next.add(`${g.date}::${b.bucket}`);
+                              }
+                            }
+                          }
+                          setExpandedBuckets(next);
+                        }}
+                        className="rounded-full bg-white px-3 py-1 text-xs font-medium text-zinc-700 ring-1 ring-zinc-200 hover:bg-zinc-50"
+                      >
+                        {expandedBuckets.size === 0
+                          ? t("reports.patronFlowExpandAll")
+                          : t("reports.patronFlowCollapseAll")}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
                 {/* (2) Çok para birimi uyarısı: liste tek para birimi gösterir, diğerleri gizli. */}
                 {rollups.length > 1 && effectiveCcy ? (
                   <div className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
@@ -1470,18 +1553,8 @@ export function PatronFlowReportScreen() {
                   <section className="rounded-2xl border border-zinc-200 bg-white">
                     {/* MOBILE: gün-bazlı gruplanmış kart listesi */}
                     <div className="sm:hidden">
-                      {slicedByDay.map((g) => (
-                        <div key={g.date}>
-                          <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-y border-zinc-100 bg-zinc-50/95 px-3 py-1.5 backdrop-blur supports-[backdrop-filter]:bg-zinc-50/85">
-                            <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
-                              {formatLocaleDate(g.date, locale)}
-                            </span>
-                            <span className="text-[11px] font-bold tabular-nums text-zinc-900">
-                              {formatLocaleAmount(g.total, locale, activeRollup.currencyCode)}
-                            </span>
-                          </div>
-                          <ul className="divide-y divide-zinc-100">
-                            {g.rows.map((row) => {
+                      {(() => {
+                        const renderMobileRow = (row: PatronExpenseRow) => {
                         const catLine = txCategoryLine(
                           row.mainCategory,
                           row.category,
@@ -1643,10 +1716,65 @@ export function PatronFlowReportScreen() {
                             )}
                           </li>
                         );
-                      })}
-                          </ul>
-                        </div>
-                      ))}
+                        };
+                        return (groupByBucket ? slicedByDayBucketed : slicedByDay).map((g) => (
+                          <div key={g.date}>
+                            <div className="sticky top-0 z-10 flex items-center justify-between gap-2 border-y border-zinc-100 bg-zinc-50/95 px-3 py-1.5 backdrop-blur supports-[backdrop-filter]:bg-zinc-50/85">
+                              <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-600">
+                                {formatLocaleDate(g.date, locale)}
+                              </span>
+                              <span className="text-[11px] font-bold tabular-nums text-zinc-900">
+                                {formatLocaleAmount(g.total, locale, activeRollup.currencyCode)}
+                              </span>
+                            </div>
+                            {"byBucket" in g ? (
+                              <div>
+                                {g.byBucket.map((b) => {
+                                  const open = isBucketExpanded(g.date, b.bucket);
+                                  const tone = BUCKET_TONE[b.bucket];
+                                  return (
+                                    <div key={`mb-${g.date}-${b.bucket}`}>
+                                      <button
+                                        type="button"
+                                        onClick={() => toggleBucketExpand(g.date, b.bucket)}
+                                        className="flex w-full items-center justify-between gap-2 border-b border-zinc-100 bg-white px-3 py-2 text-left transition-colors hover:bg-zinc-50"
+                                        aria-expanded={open}
+                                      >
+                                        <span className="flex items-center gap-2 text-xs">
+                                          <span aria-hidden className="inline-block w-3 text-zinc-500">
+                                            {open ? "▾" : "▸"}
+                                          </span>
+                                          <span
+                                            className={cn(
+                                              "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+                                              tone.badge,
+                                            )}
+                                          >
+                                            {bucketLabel(t, b.bucket)}
+                                          </span>
+                                          <span className="text-zinc-500">({b.rows.length})</span>
+                                        </span>
+                                        <span className="text-xs font-bold tabular-nums text-zinc-900">
+                                          {formatLocaleAmount(b.sum, locale, activeRollup.currencyCode)}
+                                        </span>
+                                      </button>
+                                      {open ? (
+                                        <ul className="divide-y divide-zinc-100">
+                                          {b.rows.map(renderMobileRow)}
+                                        </ul>
+                                      ) : null}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              <ul className="divide-y divide-zinc-100">
+                                {g.rows.map(renderMobileRow)}
+                              </ul>
+                            )}
+                          </div>
+                        ));
+                      })()}
                     </div>
 
                     {/* DESKTOP: table with eye icon cell */}
@@ -1676,26 +1804,8 @@ export function PatronFlowReportScreen() {
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {slicedByDay.flatMap((g) => [
-                            <TableRow key={`day-${g.date}`}>
-                              <TableCell
-                                colSpan={7}
-                                className="sticky top-0 z-10 !bg-zinc-50 !py-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-600 backdrop-blur"
-                              >
-                                <span className="flex items-center justify-between gap-3">
-                                  <span>{formatLocaleDate(g.date, locale)}</span>
-                                  <span className="tabular-nums text-zinc-800">
-                                    Toplam:{" "}
-                                    {formatLocaleAmount(
-                                      g.total,
-                                      locale,
-                                      activeRollup.currencyCode,
-                                    )}
-                                  </span>
-                                </span>
-                              </TableCell>
-                            </TableRow>,
-                            ...g.rows.map((row) => {
+                          {(() => {
+                            const renderRow = (row: PatronExpenseRow) => {
                             const personnelFocus = rowPersonnelDetailFocus(row);
                             const isSupplier =
                               row.derivedFromSupplierPaymentId != null ||
@@ -1852,8 +1962,84 @@ export function PatronFlowReportScreen() {
                                 </TableCell>
                               </TableRow>
                             );
-                          }),
-                          ])}
+                            };
+                            const dayHeader = (g: { date: string; total: number }) => (
+                              <TableRow key={`day-${g.date}`}>
+                                <TableCell
+                                  colSpan={7}
+                                  className="sticky top-0 z-10 !bg-zinc-50 !py-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-600 backdrop-blur"
+                                >
+                                  <span className="flex items-center justify-between gap-3">
+                                    <span>{formatLocaleDate(g.date, locale)}</span>
+                                    <span className="tabular-nums text-zinc-800">
+                                      Toplam:{" "}
+                                      {formatLocaleAmount(
+                                        g.total,
+                                        locale,
+                                        activeRollup.currencyCode,
+                                      )}
+                                    </span>
+                                  </span>
+                                </TableCell>
+                              </TableRow>
+                            );
+                            if (!groupByBucket) {
+                              return slicedByDay.flatMap((g) => [
+                                dayHeader(g),
+                                ...g.rows.map(renderRow),
+                              ]);
+                            }
+                            return slicedByDayBucketed.flatMap((g) => {
+                              const out: ReactNode[] = [dayHeader(g)];
+                              for (const b of g.byBucket) {
+                                const open = isBucketExpanded(g.date, b.bucket);
+                                const tone = BUCKET_TONE[b.bucket];
+                                out.push(
+                                  <TableRow key={`bg-${g.date}-${b.bucket}`}>
+                                    <TableCell
+                                      colSpan={7}
+                                      className="!py-1.5"
+                                      onClick={() => toggleBucketExpand(g.date, b.bucket)}
+                                      role="button"
+                                    >
+                                      <span className="flex cursor-pointer items-center justify-between gap-3 text-xs">
+                                        <span className="inline-flex items-center gap-2">
+                                          <span
+                                            aria-hidden
+                                            className="inline-block w-3 text-zinc-500"
+                                          >
+                                            {open ? "▾" : "▸"}
+                                          </span>
+                                          <span
+                                            className={cn(
+                                              "rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                                              tone.badge,
+                                            )}
+                                          >
+                                            {bucketLabel(t, b.bucket)}
+                                          </span>
+                                          <span className="text-zinc-500">
+                                            ({b.rows.length})
+                                          </span>
+                                        </span>
+                                        <span className="tabular-nums font-semibold text-zinc-800">
+                                          {formatLocaleAmount(
+                                            b.sum,
+                                            locale,
+                                            activeRollup.currencyCode,
+                                          )}
+                                        </span>
+                                      </span>
+                                    </TableCell>
+                                  </TableRow>,
+                                );
+                                if (open) {
+                                  for (const r of b.rows) out.push(renderRow(r));
+                                }
+                              }
+                              return out;
+                            });
+                          })()}
                         </TableBody>
                       </Table>
                     </div>

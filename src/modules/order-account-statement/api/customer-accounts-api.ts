@@ -27,7 +27,16 @@ export type CustomerAccountBalanceResponse = {
   counterpartyType: "branch" | "customer";
   counterpartyId: number;
   totalCharged: number;
+  /** Tüm receipts (linked + general) toplamı — ham. */
   totalPaid: number;
+  /** Gerçek nakit: cash/bank/check/other receipts. */
+  cashTotal: number;
+  /** Ön ödeme — header advance + advance_payment receipts. */
+  advanceTotal: number;
+  /** İndirim — header promo + promo_discount receipts. */
+  promoTotal: number;
+  /** Hediye — header gift. */
+  giftTotal: number;
   openBalance: number;
   currencyCode: string;
   receipts: CustomerAccountReceiptResponse[];
@@ -98,7 +107,17 @@ export type CounterpartyLedgerSummaryItem = {
   counterpartyName: string;
   currencyCode: string;
   invoicedTotal: number;
+  /** Tüm tahsilatların ham toplamı (kind ayrımı olmadan). */
   paidTotal: number;
+  /** Gerçek nakit: cash/bank/check/other receipts. */
+  cashTotal: number;
+  /** Ön ödeme toplamı: header advance + advance_payment receipts. */
+  advanceTotal: number;
+  /** İndirim toplamı: header promo + promo_discount receipts. */
+  promoTotal: number;
+  /** Hediye ürün toplamı: header gift. */
+  giftTotal: number;
+  /** Açık bakiye = invoiced − (advance + promo + gift) − paid_total. */
   openAmount: number;
   lastInvoiceDate?: string | null;
   lastDocumentNumber?: string | null;
@@ -107,6 +126,10 @@ export type CounterpartyLedgerSummaryItem = {
 export type CounterpartyLedgerSummaryTotals = {
   invoicedTotal: number;
   paidTotal: number;
+  cashTotal: number;
+  advanceTotal: number;
+  promoTotal: number;
+  giftTotal: number;
   openAmountTotal: number;
   counterpartyCount: number;
   invoiceCount: number;
@@ -116,6 +139,49 @@ export type CounterpartyLedgerSummaryResponse = {
   items: CounterpartyLedgerSummaryItem[];
   totals: CounterpartyLedgerSummaryTotals;
 };
+
+export type AllReceiptsListItem = {
+  id: number;
+  receiptDate: string;
+  counterpartyType: "branch" | "customer";
+  counterpartyId: number;
+  counterpartyName: string;
+  amount: number;
+  currencyCode: string;
+  receiptKind: CustomerAccountReceiptKind;
+  linkedOutboundInvoiceId?: number | null;
+  linkedDocumentNumber?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  createdByUserId?: number | null;
+};
+
+export type AllReceiptsListFilters = {
+  counterpartyType?: "branch" | "customer" | "";
+  currencyCode?: string;
+  receiptDateFrom?: string;
+  receiptDateTo?: string;
+  receiptKind?: string;
+  search?: string;
+  limit?: number;
+};
+
+export async function fetchAllReceipts(
+  filters: AllReceiptsListFilters = {}
+): Promise<AllReceiptsListItem[]> {
+  const qs = new URLSearchParams();
+  if (filters.counterpartyType) qs.set("counterpartyType", filters.counterpartyType);
+  if (filters.currencyCode) qs.set("currencyCode", filters.currencyCode);
+  if (filters.receiptDateFrom) qs.set("receiptDateFrom", filters.receiptDateFrom);
+  if (filters.receiptDateTo) qs.set("receiptDateTo", filters.receiptDateTo);
+  if (filters.receiptKind) qs.set("receiptKind", filters.receiptKind);
+  if (filters.search) qs.set("search", filters.search);
+  if (filters.limit) qs.set("limit", String(filters.limit));
+  const tail = qs.toString();
+  return apiRequest<AllReceiptsListItem[]>(
+    `/customer-accounts/receipts/list${tail ? `?${tail}` : ""}`
+  );
+}
 
 export type CounterpartyLedgerSummaryFilters = {
   counterpartyType?: "branch" | "customer" | "";

@@ -107,30 +107,150 @@ function isAuthRefreshEligible(path: string): boolean {
   return true;
 }
 
+/**
+ * Refresh token rotation, server tarafında "reuse detection" yapar — aynı token iki kez
+ * kullanılırsa tüm session family revoke edilir (saldırı yakalama davranışı). Birden
+ * fazla sekme aynı anda 401 alıp paralel `/auth/refresh` atarsa, ikinci POST eski
+ * token'ı kullanmış sayılır ve **legitim oturum yanlışlıkla uçar**.
+ *
+ * Burada sekmeler arası tek bir refresh garantilenir:
+ *   - In-memory `refreshInFlight` aynı sekmede çift refresh'i durdurur.
+ *   - `localStorage` lock + `BroadcastChannel` sekmeler arası tek-leader yapısı sağlar.
+ *   - Lider POST'u atıp sonucu broadcast eder; diğer sekmeler aynı sonucu döner.
+ *   - Lider tab kapanırsa/donduysa lock 8 sn sonra "stale" sayılıp başka sekme devreye girer.
+ */
+const REFRESH_LOCK_KEY = "operations.auth.refresh.lock";
+const REFRESH_RESULT_KEY = "operations.auth.refresh.result";
+const REFRESH_LOCK_TIMEOUT_MS = 8000;
+
+const refreshChannel: BroadcastChannel | null =
+  typeof window !== "undefined" && typeof BroadcastChannel !== "undefined"
+    ? new BroadcastChannel("operations-auth-refresh")
+    : null;
+
+type RefreshResultMessage = { type: "refresh-result"; ok: boolean; at: number };
+
 let refreshInFlight: Promise<boolean> | null = null;
+
+function readRefreshLockStartedAt(): number | null {
+  if (typeof localStorage === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(REFRESH_LOCK_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { startedAt?: number };
+    return typeof parsed.startedAt === "number" ? parsed.startedAt : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeRefreshLock(): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(REFRESH_LOCK_KEY, JSON.stringify({ startedAt: Date.now() }));
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearRefreshLock(): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.removeItem(REFRESH_LOCK_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+function broadcastRefreshResult(ok: boolean): void {
+  const payload: RefreshResultMessage = { type: "refresh-result", ok, at: Date.now() };
+  try {
+    refreshChannel?.postMessage(payload);
+  } catch {
+    /* ignore */
+  }
+  if (typeof localStorage !== "undefined") {
+    try {
+      // Storage event fallback: BroadcastChannel olmayan tarayıcılarda da diğer sekmeler haber alır.
+      localStorage.setItem(REFRESH_RESULT_KEY, JSON.stringify(payload));
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+function waitForOtherTabRefresh(): Promise<boolean> {
+  return new Promise<boolean>((resolve) => {
+    let settled = false;
+    const finish = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      refreshChannel?.removeEventListener("message", onMsg);
+      if (typeof window !== "undefined") window.removeEventListener("storage", onStorage);
+      clearTimeout(timeoutId);
+      resolve(ok);
+    };
+    const onMsg = (e: MessageEvent<RefreshResultMessage>) => {
+      if (e.data?.type === "refresh-result") finish(Boolean(e.data.ok));
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== REFRESH_RESULT_KEY || !e.newValue) return;
+      try {
+        const parsed = JSON.parse(e.newValue) as RefreshResultMessage;
+        if (parsed?.type === "refresh-result") finish(Boolean(parsed.ok));
+      } catch {
+        /* ignore */
+      }
+    };
+    refreshChannel?.addEventListener("message", onMsg);
+    if (typeof window !== "undefined") window.addEventListener("storage", onStorage);
+    // Lider tab donmuş/kapanmış olabilir — timeout'ta false dön, çağıran logout'a düşer.
+    const timeoutId = setTimeout(() => finish(false), REFRESH_LOCK_TIMEOUT_MS + 1000);
+  });
+}
+
+async function performSessionRefresh(): Promise<boolean> {
+  try {
+    const r = await apiFetch("/auth/refresh", { method: "POST" });
+    const t = await r.text();
+    if (!r.ok) return false;
+    const p = t ? (JSON.parse(t) as unknown) : null;
+    return (
+      typeof p === "object" &&
+      p !== null &&
+      "success" in p &&
+      (p as { success: boolean }).success === true
+    );
+  } catch {
+    return false;
+  }
+}
 
 async function trySessionRefresh(): Promise<boolean> {
   if (refreshInFlight) return refreshInFlight;
 
-  refreshInFlight = (async () => {
-    try {
-      const r = await apiFetch("/auth/refresh", { method: "POST" });
-      const t = await r.text();
-      if (!r.ok) return false;
-      const p = t ? (JSON.parse(t) as unknown) : null;
-      return (
-        typeof p === "object" &&
-        p !== null &&
-        "success" in p &&
-        (p as { success: boolean }).success === true
-      );
-    } catch {
-      return false;
-    } finally {
+  // Başka bir sekme zaten refresh tetikledi mi? (lock taze ise)
+  const otherStartedAt = readRefreshLockStartedAt();
+  if (
+    otherStartedAt != null &&
+    Date.now() - otherStartedAt < REFRESH_LOCK_TIMEOUT_MS
+  ) {
+    refreshInFlight = waitForOtherTabRefresh().finally(() => {
       refreshInFlight = null;
-    }
-  })();
+    });
+    return refreshInFlight;
+  }
 
+  // Lider biz olalım: lock al, POST at, sonucu broadcast et.
+  writeRefreshLock();
+  refreshInFlight = (async () => {
+    const ok = await performSessionRefresh();
+    broadcastRefreshResult(ok);
+    return ok;
+  })().finally(() => {
+    clearRefreshLock();
+    refreshInFlight = null;
+  });
   return refreshInFlight;
 }
 

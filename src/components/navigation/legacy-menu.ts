@@ -101,7 +101,6 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
               { id: "reports-position", labelKey: "reports.tabCashPosition", route: "/reports/position", icon: "reports" },
               { id: "reports-personnel-held-cash", labelKey: "reports.sidebarPersonnelHeldCash", route: "/reports/personnel-held-cash", icon: "reports" },
               { id: "reports-patron-flow", labelKey: "reports.finNavCashFlow", route: "/reports/patron-flow", icon: "reports" },
-              { id: "reports-branches", labelKey: "reports.navBranchComparison", route: "/reports/branches", icon: "reports" },
               { id: "reports-stock", labelKey: "reports.tabStock", route: "/reports/stock", icon: "reports" },
             ]
           : []),
@@ -231,19 +230,39 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
                   { id: "product-sales-price-history", labelKey: "nav.productSalesPriceHistory", route: "/products/sales-price-history", icon: "cost" },
                 ],
               },
-              // Cari & Sipariş (alt menü): cari hesaplar + PDF hesap dökümü
-              {
-                id: "commercial-sub",
-                labelKey: "nav.subCommercial",
-                route: "/products/order-account-statement",
-                icon: "invoices",
-                children: [
-                  { id: "order-account-statement", labelKey: "reports.sidebarOrderAccountStatement", route: "/products/order-account-statement", icon: "invoices" },
-                  { id: "counterparty-summary", labelKey: "reports.sidebarCounterpartySummary", route: "/products/order-account-statement/summary", icon: "reports" },
-                ],
-              },
             ]
           : []),
+      ],
+    });
+  }
+
+  // Muhasebe / Finansal — ayrı üst grup: OAS + Cari hesaplar + Tahsilatlar
+  if (showProducts) {
+    items.push({
+      id: "accounting",
+      labelKey: "nav.groupAccounting",
+      route: "/products/order-account-statement/summary",
+      icon: "invoices",
+      mobileVisible: true,
+      children: [
+        {
+          id: "counterparty-summary",
+          labelKey: "reports.sidebarCounterpartySummary",
+          route: "/products/order-account-statement/summary",
+          icon: "reports",
+        },
+        {
+          id: "all-receipts",
+          labelKey: "reports.sidebarAllReceipts",
+          route: "/products/order-account-statement/summary?tab=receipts",
+          icon: "invoices",
+        },
+        {
+          id: "order-account-statement",
+          labelKey: "reports.sidebarOrderAccountStatement",
+          route: "/products/order-account-statement",
+          icon: "invoices",
+        },
       ],
     });
   }

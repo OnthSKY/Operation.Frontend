@@ -44,6 +44,65 @@ function needsTransferFromOtherBranch(p: Personnel, targetBranchId: number): boo
   return p.branchId != null && p.branchId > 0 && p.branchId !== targetBranchId;
 }
 
+function WizardProgress({
+  step,
+  pickLabel,
+  confirmLabel,
+}: {
+  step: Step;
+  pickLabel: string;
+  confirmLabel: string;
+}) {
+  const items: { key: Step; label: string; index: number }[] = [
+    { key: "pick", label: pickLabel, index: 1 },
+    { key: "confirm", label: confirmLabel, index: 2 },
+  ];
+  return (
+    <ol
+      className="flex items-center gap-2 px-4 pb-3 pt-1 sm:px-6"
+      aria-label="wizard"
+    >
+      {items.map((it, i) => {
+        const active = it.key === step;
+        const completed =
+          (it.key === "pick" && step === "confirm") ? true : false;
+        return (
+          <li key={it.key} className="flex flex-1 items-center gap-2">
+            <span
+              className={cn(
+                "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-colors",
+                active && "border-violet-600 bg-violet-600 text-white",
+                completed && "border-violet-600 bg-violet-100 text-violet-700",
+                !active && !completed && "border-zinc-300 bg-white text-zinc-500"
+              )}
+              aria-current={active ? "step" : undefined}
+            >
+              {completed ? "✓" : it.index}
+            </span>
+            <span
+              className={cn(
+                "truncate text-xs font-medium sm:text-sm",
+                active ? "text-zinc-900" : "text-zinc-500"
+              )}
+            >
+              {it.label}
+            </span>
+            {i === 0 ? (
+              <span
+                className={cn(
+                  "ml-1 h-px flex-1 transition-colors",
+                  step === "confirm" ? "bg-violet-300" : "bg-zinc-200"
+                )}
+                aria-hidden
+              />
+            ) : null}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 export function AssignPersonnelToBranchModal({
   open,
   onClose,
@@ -79,7 +138,6 @@ export function AssignPersonnelToBranchModal({
     return candidates.filter((p) => p.fullName.toLowerCase().includes(q));
   }, [candidates, filter]);
 
-  /** Tüm seçim (süzgeç satırları dışında kalan seçili kayıtlar dahil) eklemede kullanılır. */
   const orderedSelected = useMemo(
     () => candidates.filter((p) => selectedIds.has(p.id)),
     [candidates, selectedIds]
@@ -175,67 +233,6 @@ export function AssignPersonnelToBranchModal({
     onClose,
   });
 
-  const confirmBody =
-    pendingBatch && pendingBatch.length > 0 ? (
-      (() => {
-        const transfers = pendingBatch.filter((p) =>
-          needsTransferFromOtherBranch(p, targetBranch.id)
-        );
-        const alsoUnassigned = pendingBatch.length - transfers.length;
-        const singleTransferOnly =
-          pendingBatch.length === 1 && transfers.length === 1;
-        const only = singleTransferOnly ? pendingBatch[0] : null;
-
-        if (singleTransferOnly && only) {
-          return (
-            <p className="text-base leading-relaxed text-zinc-800 sm:text-sm sm:text-zinc-700">
-              {t("branch.assignPersonnelConfirmBody")
-                .replace("{name}", only.fullName)
-                .replace("{fromBranch}", currentBranchLabel(only))
-                .replace("{toBranch}", targetBranch.name)}
-            </p>
-          );
-        }
-
-        return (
-          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto">
-            {transfers.length > 0 ? (
-              <div>
-                <p className="text-sm font-medium text-zinc-800">
-                  {t("branch.assignPersonnelConfirmBatchTransfersTitle")}
-                </p>
-                <ul className="mt-2 list-inside list-disc space-y-1.5 text-sm text-zinc-700">
-                  {transfers.map((p) => (
-                    <li key={p.id}>
-                      <span className="font-medium text-zinc-900">{p.fullName}</span>
-                      <span className="text-zinc-600">
-                        {" "}
-                        — {currentBranchLabel(p)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            {alsoUnassigned > 0 ? (
-              <p className="text-sm leading-relaxed text-zinc-700">
-                {t("branch.assignPersonnelConfirmBatchAlsoUnassigned").replace(
-                  "{n}",
-                  String(alsoUnassigned)
-                )}
-              </p>
-            ) : null}
-            <p className="text-sm leading-relaxed text-zinc-700">
-              {t("branch.assignPersonnelConfirmBatchFooter").replace(
-                "{toBranch}",
-                targetBranch.name
-              )}
-            </p>
-          </div>
-        );
-      })()
-    ) : null;
-
   return (
     <Modal
       open={open}
@@ -248,10 +245,61 @@ export function AssignPersonnelToBranchModal({
       wideFixedHeight
       className="max-sm:max-h-[min(100dvh,100svh)] max-sm:rounded-b-none max-sm:rounded-t-2xl max-sm:border-x-0 max-sm:border-b-0"
     >
+      <WizardProgress
+        step={step}
+        pickLabel={t("branch.assignPersonnelStepPickLabel")}
+        confirmLabel={t("branch.assignPersonnelStepConfirmLabel")}
+      />
       {step === "confirm" && pendingBatch && pendingBatch.length > 0 ? (
         <div className="flex min-h-0 flex-1 flex-col px-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] pt-2 sm:px-6 sm:pb-6">
-          {confirmBody}
-          <div className="mt-auto flex flex-col gap-2 pt-6 sm:mt-4 sm:flex-row sm:justify-end sm:pt-4">
+          <div className="shrink-0">
+            <p className="text-sm leading-relaxed text-zinc-700">
+              {t("branch.assignPersonnelConfirmSummary")
+                .replace("{n}", String(pendingBatch.length))
+                .replace("{toBranch}", targetBranch.name)}
+            </p>
+            <p className="mt-2 text-xs font-medium uppercase tracking-wide text-zinc-500">
+              {t("branch.assignPersonnelConfirmListTitle")}
+            </p>
+          </div>
+          <ul className="mt-2 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain pr-1">
+            {pendingBatch.map((p) => {
+              const from = currentBranchLabel(p);
+              const isTransfer = needsTransferFromOtherBranch(p, targetBranch.id);
+              return (
+                <li
+                  key={p.id}
+                  className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-zinc-900">
+                        {p.fullName}
+                      </p>
+                      <p className="mt-0.5 truncate text-xs text-zinc-600">
+                        {t("branch.assignPersonnelConfirmRowFromTo")
+                          .replace("{from}", from)
+                          .replace("{to}", targetBranch.name)}
+                      </p>
+                    </div>
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                        isTransfer
+                          ? "bg-amber-100 text-amber-800"
+                          : "bg-emerald-100 text-emerald-800"
+                      )}
+                    >
+                      {isTransfer
+                        ? t("branch.assignPersonnelConfirmBatchTransfersTitle").replace(":", "")
+                        : t("branch.assignPersonnelNoBranch")}
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="mt-3 flex flex-col gap-2 border-t border-zinc-100 pt-4 sm:flex-row sm:justify-end">
             <Button
               type="button"
               variant="secondary"

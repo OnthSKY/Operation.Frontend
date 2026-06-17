@@ -79,9 +79,6 @@
   patronHubGuideLinkPatronFlowLabel: "Owner pocket outflows (full page)",
   patronHubGuideLinkPatronFlowDesc:
     "Owner cash in plus owner-paid expenses in one filtered list.",
-  patronHubGuideLinkBranchCompareLabel: "Branch comparison (full page)",
-  patronHubGuideLinkBranchCompareDesc:
-    "Side-by-side branches for the same period: operating income, operating expense, net.",
   patronHubGuideLinkFinancialHubLabel: "Financial summary (hub)",
   patronHubGuideLinkFinancialHubDesc:
     "Operating income, operating expense, and net for the selected period (KPI scope).",
@@ -144,11 +141,13 @@
   cashPositionLead: "Date & scope:",
   cashPositionEmpty:
     "No branches match. Uncheck â€œOnly branches with tourism season openâ€ to include every branch.",
-  cashColDrawer: "Est. cash (drawer)",
-  cashColHeldPersonnel: "Register cash with staff",
-  cashColPocketDebt: "Net staff pocket debt",
+  cashColDrawer: "Register balance (total)",
+  cashColHeldPersonnel: "Held by personnel",
+  cashColPocketDebt: "Net staff pocket debt (legacy)",
   cashColPatronDebt: "Net owner debt",
   cashTotalsRow: "Total",
+  cashDrawerIncludesHeldNote:
+    "“Register balance” is the accounting balance; “Held by personnel” is the physical portion sitting with staff within that total. Physical drawer = Total − Held by personnel.",
   hubFilterEffectsTitle: "Where your selections apply",
   hubFilterEffectsScopeLeadCash:
     "This is not a period P&L: it is an as-of snapshot of estimated drawer cash and register debts for the report date; summary and tables share the same date and scope.",
@@ -548,12 +547,12 @@
   navStockTables: "Stock â€” full tables",
   navCashReport: "Cash â€” full table",
   navPatronFlow: "Patron-Paid Expenses",
-  navBranchComparison: "Branch comparison",
   navBackToReportsHub: "All reports",
   sidebarFinances: "Income & expense",
   sidebarPersonnelHeldCash: "Cash with personnel",
   sidebarOrderAccountStatement: "Order / account statement",
   sidebarCounterpartySummary: "Counterparty Summary",
+  sidebarAllReceipts: "Receipts",
   hubOpenCashFullTable: "Full cash table (sort & export)",
   hubOpenStockFullTables: "Stock â€” full tables page",
   finReportsLayoutTitle: "Financial reports",
@@ -650,6 +649,9 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   patronFlowScopeNote:
     "â€œPaid from your pocketâ€ here means OUT rows with expense payment source Owner (split into supplier / accounting / other flow types). Cash you put in and income share lines are separate. If a line is not tagged Owner (e.g. salary defaults to register), it will not appear as owner-pocket outflow â€” different from the financial summary.",
   patronFlowColExpenseGroup: "Group",
+  patronFlowGroupByBucket: "Group by bucket",
+  patronFlowExpandAll: "Expand all",
+  patronFlowCollapseAll: "Collapse all",
   patronFlowOutPaging:
     "Page {{page}} / {{totalPages}} · {{shown}} rows on this page ({{total}} after filters)",
   patronFlowOutPrevPage: "Previous page",
@@ -696,36 +698,6 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   patronFlowBeneficiaryOther: "Other",
   patronFlowPickBranchFirst: "Choose a branch first.",
   patronFlowPersonnelRequired: "Pick branch personnel when beneficiary is personnel.",
-  tablesPageBranchComparisonTitle: "Branch Comparison Report",
-  tablesPageBranchComparisonSubtitle:
-    "Operating income, operating expense, and net by branch and currency. Use the row chevron to open cash/card/owner-tagged income and expense-by-payment-source splits.",
-  branchComparisonKpiScopeCallout:
-    "Income and expense columns use the same KPI rules as the financial summary (internal routing INs excluded from income; pocket and owner-debt repayments from the register excluded from expense). Drawer cash on the Cash tab is a physical snapshot and can differ.",
-  branchComparisonScopeNote:
-    "Branch comparison uses the same operating-income and operating-expense definitions as the financial report for the selected date range â€” not raw â€œevery IN/OUTâ€ register turnover.",
-  branchComparisonCrossRefToFinTables:
-    "To filter by category, payment source or period delta:",
-  branchComparisonCrossRefToFinTablesLink: "Financial Tables -> Branch",
-  byBranchCrossRefToBranchComparison:
-    "For per-branch deep dive (income/expense breakdown, pagination):",
-  byBranchCrossRefToBranchComparisonLink: "Branch Comparison",
-  branchComparisonPeriodHelp:
-    "Uses branch register transactions in the date range. Sort columns by clicking headers.",
-  branchComparisonSortHint: "Click a column title to sort; click again to reverse.",
-  branchComparisonSortHintMobile:
-    "In card view the text on the left is the column name. Sort using the table headers on a wider screen or in landscape.",
-  branchComparisonExpandShow: "Show income & expense breakdown",
-  branchComparisonExpandHide: "Hide breakdown",
-  branchComparisonDetailIncomeTitle: "Operating income â€” cash vs card",
-  branchComparisonDetailExpenseTitle: "Expense â€” payment source",
-  branchComparisonIncomeCash: "Cash (income)",
-  branchComparisonIncomeCard: "Card / POS (income)",
-  branchComparisonIncomeCashPatron: "Cash leg tagged to owner",
-  branchComparisonEmpty: "No rows for this period and filters.",
-  branchComparisonPageSize: "Rows per page",
-  branchComparisonPaging: "Page {{page}} / {{totalPages}} Â· {{total}} rows total",
-  branchComparisonPrev: "Previous",
-  branchComparisonNext: "Next",
   sectionFilter: "Filter rows",
   sectionSearchPlaceholder: "Type to narrowâ€¦",
   sectionSortBy: "Sort by",
@@ -907,6 +879,7 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   counterpartySummaryCounterpartyCount: "Counterparty count",
   counterpartySummaryInvoiceCount: "Invoice count",
   counterpartySummaryColName: "Counterparty",
+  counterpartySummarySelectRequired: "Please select a counterparty",
   counterpartySummaryColType: "Type",
   counterpartySummaryColInvoiced: "Invoiced",
   counterpartySummaryColPaid: "Paid",
@@ -931,6 +904,12 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   counterpartySummaryPdfNotFound:
     "No stored PDF found for this invoice. The document may not have been saved into system documents.",
   counterpartySummaryExportPdf: "Download current account PDF",
+  counterpartySummaryExportPdfCounterparty: "Counterparty PDF",
+  counterpartySummaryExportPdfInvoice: "Invoice PDF",
+  counterpartySummaryTabSummary: "Counterparties",
+  counterpartySummaryTabReceipts: "Receipts",
+  counterpartySummaryFilterDateFrom: "From",
+  counterpartySummaryFilterDateTo: "To",
   counterpartySummaryPdfTitle: "Current account movement summary",
   counterpartySummaryPdfBranch: "Branch",
   counterpartySummaryPdfFilters: "Filters",
@@ -1072,4 +1051,20 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   summaryTreeVehicleHint: "By plate, broken down by expense type.",
   summaryTreeBranchOnlyAllBranches:
     "Vehicle and other branch expenses are itemized only when “All branches” is selected.",
+  summaryTreeIncomeGross: "Money in (gross, expense excluded)",
+  summaryTreeExpenseBySource: "Money out — payment source",
+  summaryTreeExpenseByCategory: "Money out — category",
+  summaryTreeSourceUnset: "Unset",
+  summaryTreeOpsExpenseTotal: "Operational expense total",
+  summaryTreeNetHint: "Income − all operational outflows (advance + salary + every OUT category)",
+  summaryTreeAdvanceNote:
+    "Advance is not a P&L expense; it uses cash position (later closed by salary/expense).",
+  summaryTreeBranchScopeWarn:
+    "Vehicle and general overhead figures are whole-company totals while a branch is selected.",
+  summaryTreeSupplierAttributed: "Of that, paid to suppliers",
+  summaryTreeSupplierInBucket: "Supplier share",
+  summaryTreeUnsetWarn:
+    "Expenses with unknown payment source total {amount} ({count} entries). Open branch expenses and assign a payment source to each row.",
+  summaryTreeUnsetBadge: "Unknown",
+  summaryTreeTwoViewsHint: "Same total — two views: by payment source and by category.",
 } as const;

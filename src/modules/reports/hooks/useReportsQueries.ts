@@ -3,7 +3,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { upsertBranchPosSettlementProfile } from "@/modules/branch/api/branches-api";
 import {
-  fetchBranchComparison,
   fetchCashPositionReport,
   fetchFinancialBranchMonthly,
   fetchFinancialReport,
@@ -12,7 +11,6 @@ import {
   fetchPatronFlowOverview,
   fetchPatronFlowPosProfiles,
   fetchStockReport,
-  type BranchComparisonParams,
   type CashPositionParams,
   type FinancialReportFilterOptionsParams,
   type FinancialReportParams,
@@ -102,21 +100,6 @@ export function useCashPositionReport(params: CashPositionParams, enabled: boole
     queryKey: reportsKeys.cashPosition(params),
     queryFn: () => fetchCashPositionReport(params),
     enabled: enabled && Boolean(params.asOfDate),
-  });
-}
-
-export function useBranchComparisonReport(
-  params: BranchComparisonParams,
-  enabled: boolean
-) {
-  return useQuery({
-    queryKey: reportsKeys.branchComparison(params),
-    queryFn: () => fetchBranchComparison(params),
-    enabled:
-      enabled &&
-      Boolean(params.dateFrom) &&
-      Boolean(params.dateTo) &&
-      params.dateFrom <= params.dateTo,
   });
 }
 

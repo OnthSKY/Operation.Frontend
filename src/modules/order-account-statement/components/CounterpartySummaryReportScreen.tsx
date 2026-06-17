@@ -28,7 +28,6 @@ import {
   fetchSystemBranding,
 } from "@/modules/admin/api/system-branding-api";
 import { downloadCounterpartyInvoiceStylePdf } from "@/modules/order-account-statement/lib/download-counterparty-invoice-style-pdf";
-import { CurrentAccountReceiptModal } from "@/modules/order-account-statement/components/CurrentAccountReceiptModal";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { notify } from "@/shared/lib/notify";
 import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
@@ -49,7 +48,14 @@ import { Checkbox } from "@/shared/ui/Checkbox";
 import { DateField } from "@/shared/ui/DateField";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import { Tooltip } from "@/shared/ui/Tooltip";
+import {
+  GeneralReceiptModal,
+  type CounterpartyOption,
+} from "@/modules/order-account-statement/components/GeneralReceiptModal";
+import { buildPdfFileName } from "@/shared/lib/pdf-file-name";
+import { AllReceiptsTab } from "@/modules/order-account-statement/components/AllReceiptsTab";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 
 const defaultReport: CounterpartySummaryReport = {
@@ -68,6 +74,8 @@ type TableRow = CounterpartySuggestionRow & {
   promoTotal?: number;
   giftTotal?: number;
   advanceTotal?: number;
+  /** Gerçek nakit tahsilat (paid - promo - advance). Backend canonical. */
+  cashTotal?: number;
 };
 
 type BranchInvoiceArtifacts = {
@@ -113,15 +121,33 @@ export function CounterpartySummaryReportScreen() {
   const [advanceByCounterparty, setAdvanceByCounterparty] = useState<Map<string, number>>(() => new Map());
   const [giftByCounterparty, setGiftByCounterparty] = useState<Map<string, number>>(() => new Map());
   const [showInvoiceRows, setShowInvoiceRows] = useState(true);
+  // URL query param `?tab=receipts` ile sidebar'dan direkt erişim destekli.
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const initialTab = searchParams?.get("tab") === "receipts" ? "receipts" : "summary";
+  const [activeTab, setActiveTab] = useState<"summary" | "receipts">(initialTab);
+  // URL param değişirse (sidebar tıklaması), tab'i senkronla.
+  useEffect(() => {
+    const next = searchParams?.get("tab") === "receipts" ? "receipts" : "summary";
+    setActiveTab(next);
+  }, [searchParams]);
+  // Tab değişimini URL'e yansıt (deep-link / paylaşılabilir).
+  const handleTabChange = useCallback(
+    (next: "summary" | "receipts") => {
+      setActiveTab(next);
+      const sp = new URLSearchParams(Array.from(searchParams?.entries() ?? []));
+      if (next === "receipts") sp.set("tab", "receipts");
+      else sp.delete("tab");
+      const qs = sp.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams]
+  );
   const [errorText, setErrorText] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [receiptTarget, setReceiptTarget] = useState<CounterpartySuggestionRow | null>(null);
-  const [receiptDate, setReceiptDate] = useState(localIsoDate());
-  const [receiptAmount, setReceiptAmount] = useState("");
-  const [receiptNote, setReceiptNote] = useState("");
-  const [receiptTransferImage, setReceiptTransferImage] = useState<File | null>(null);
-  const [receiptSaving, setReceiptSaving] = useState(false);
   const [selectedBranchId, setSelectedBranchId] = useState("");
+  const [generalReceiptOpen, setGeneralReceiptOpen] = useState(false);
   const [filters, setFilters] = useState<CounterpartySummaryFilters>({
     counterpartyType: "",
     currencyCode: "TRY",
@@ -315,13 +341,10 @@ export function CounterpartySummaryReportScreen() {
       : report.items.filter(
       (row) => row.counterpartyType === "branch" && row.counterpartyId === branchId
     );
-    return rows.map((row) => ({
-      ...row,
-      promoTotal: promoByCounterparty.get(counterpartyKey(row.counterpartyType, row.counterpartyId, row.currencyCode || "TRY")) ?? 0,
-      giftTotal: giftByCounterparty.get(counterpartyKey(row.counterpartyType, row.counterpartyId, row.currencyCode || "TRY")) ?? 0,
-      advanceTotal: advanceByCounterparty.get(counterpartyKey(row.counterpartyType, row.counterpartyId, row.currencyCode || "TRY")) ?? 0,
-    }));
-  }, [advanceByCounterparty, counterpartyKey, giftByCounterparty, promoByCounterparty, report.items, selectedBranchId]);
+    // Backend canonical: advanceTotal/promoTotal/giftTotal/cashTotal hepsi report.items içinde gelir.
+    // FE override yok — UI'da hesap yapmıyoruz.
+    return rows.map((row) => ({ ...row }));
+  }, [report.items, selectedBranchId]);
 
   const invoiceItems = useMemo<TableRow[]>(() => {
     const selectedBranchNumericId = Number.parseInt(selectedBranchId, 10);
@@ -368,29 +391,39 @@ export function CounterpartySummaryReportScreen() {
 
   const tableItems = showInvoiceRows ? invoiceItems : reportItems;
 
-  const reportTotals = useMemo(
-    () =>
-      reportItems.reduce(
-        (acc, row) => {
-          acc.invoicedTotal += row.invoicedTotal;
-          acc.paidTotal += row.paidTotal;
-          acc.openAmountTotal += row.openAmount;
-          acc.counterpartyCount += 1;
-          acc.invoiceCount += Number(
-            row.lastDocumentNumber && String(row.lastDocumentNumber).trim() !== "" ? 1 : 0
-          );
-          return acc;
-        },
-        {
-          invoicedTotal: 0,
-          paidTotal: 0,
-          openAmountTotal: 0,
-          counterpartyCount: 0,
-          invoiceCount: 0,
-        }
-      ),
-    [reportItems]
-  );
+  // Toplamlar backend'den geliyor (canonical). UI'da hesap yok — tek source of truth backend.
+  // report.totals: { invoicedTotal, paidTotal, cashTotal, advanceTotal, promoTotal, giftTotal,
+  //                  openAmountTotal, counterpartyCount, invoiceCount }
+  const reportTotals = report.totals;
+
+  // Genel tahsilat modal'ında counterparty seçmek için unique liste — name'e göre sıralı.
+  // Kaynaklar: ham `report.items` (filtresiz, backend ledger summary) + `invoiceRows`
+  // (tüm faturalar). Sayfa filtreleri (counterpartyType / currency / branch) burada
+  // UYGULANMAZ — modal her zaman tüm cariler arasından seçim sunsun.
+  const counterpartyOptions = useMemo<CounterpartyOption[]>(() => {
+    const m = new Map<string, CounterpartyOption>();
+    for (const row of report.items) {
+      const key = `${row.counterpartyType}:${row.counterpartyId}`;
+      if (m.has(key)) continue;
+      m.set(key, {
+        counterpartyType: row.counterpartyType as "branch" | "customer",
+        counterpartyId: row.counterpartyId,
+        name: row.counterpartyName,
+        currencyCode: row.currencyCode || "TRY",
+      });
+    }
+    for (const inv of invoiceRows) {
+      const key = `${inv.counterpartyType}:${inv.counterpartyId}`;
+      if (m.has(key)) continue;
+      m.set(key, {
+        counterpartyType: inv.counterpartyType as "branch" | "customer",
+        counterpartyId: inv.counterpartyId,
+        name: inv.counterpartyName,
+        currencyCode: inv.currencyCode || "TRY",
+      });
+    }
+    return Array.from(m.values()).sort((a, b) => a.name.localeCompare(b.name, locale));
+  }, [report.items, invoiceRows, locale]);
 
   const resolveBranchInvoiceArtifacts = useCallback(async (row: CounterpartySuggestionRow): Promise<BranchInvoiceArtifacts> => {
     const invoices = await fetchOutboundInvoices();
@@ -588,114 +621,96 @@ export function CounterpartySummaryReportScreen() {
     [filters, load, t]
   );
 
-  const openReceiptModal = useCallback((row: CounterpartySuggestionRow) => {
-    setReceiptTarget(row);
-    setReceiptDate(localIsoDate());
-    setReceiptAmount("");
-    setReceiptNote("");
-    setReceiptTransferImage(null);
-  }, []);
 
-  const submitReceipt = useCallback(async () => {
-    if (!receiptTarget) return;
-    const amount = parseLocaleAmount(receiptAmount, locale);
-    if (!Number.isFinite(amount) || amount <= 0) {
-      notify.error(t("branch.currentAccountInvalidReceiptAmount"));
-      return;
-    }
-    if (receiptTransferImage) {
-      const v = await validateImageFileForUpload(receiptTransferImage);
-      if (!v.ok) {
-        notify.error(
-          v.reason === "size"
-            ? t("common.imageUploadTooLarge")
-            : t("common.imageUploadNotImage")
-        );
-        return;
-      }
-    }
-    const currencyCode = (receiptTarget.currencyCode || "TRY").trim().toUpperCase();
-    setReceiptSaving(true);
-    setErrorText("");
-    try {
-      // C planı: counterparty-level genel tahsilat (FIFO yok). linkedInvoiceId boş bırakılır,
-      // ödeme bakiyeyi doğrudan azaltır. Backend overpay'i credit olarak tutar.
-      await addCustomerAccountReceipt({
-        counterpartyType: receiptTarget.counterpartyType,
-        counterpartyId: receiptTarget.counterpartyId,
-        receiptDate,
-        amount,
-        currencyCode,
-        receiptKind: "cash",
-        linkedOutboundInvoiceId: null,
-        branchId:
-          receiptTarget.counterpartyType === "branch" ? receiptTarget.counterpartyId : null,
-        notes: receiptNote.trim() || null,
-      });
-      if (receiptTransferImage && receiptTarget.counterpartyType === "branch") {
-        await uploadBranchDocument(receiptTarget.counterpartyId, {
-          file: receiptTransferImage,
-          kind: "OTHER",
-          notes: `title=banka_dekontu · source=current_account_receipt · receiptDate=${receiptDate}`,
-        });
-      }
-      await load(filters);
-      notify.success(
-        t("branch.currentAccountReceiptDistributedSaved")
-          .replace("{n}", "1")
-          .replace("{amount}", formatLocaleAmount(amount, locale, currencyCode))
-      );
-      setReceiptTarget(null);
-      setReceiptTransferImage(null);
-    } catch (error) {
-      const msg = toErrorMessage(error);
-      setErrorText(msg);
-      notify.error(msg);
-    } finally {
-      setReceiptSaving(false);
-    }
-  }, [filters, load, locale, receiptAmount, receiptDate, receiptNote, receiptTarget, receiptTransferImage, t]);
-
-  const downloadSummaryPdf = useCallback(async () => {
+  const downloadSummaryPdf = useCallback(async (mode: "invoice" | "counterparty") => {
     setExportBusy(true);
     setErrorText("");
     try {
-      const invoices = await fetchOutboundInvoices();
       const selectedBranchNumericId = Number.parseInt(selectedBranchId, 10);
       const selectedCounterpartyType = (filters.counterpartyType ?? "").trim();
       const selectedCurrency = (filters.currencyCode ?? "").trim().toUpperCase();
       const selectedSearch = (filters.search ?? "").trim().toLowerCase();
 
-      const filteredInvoices = invoices.filter((invoice) => {
-        if (selectedCounterpartyType && invoice.counterpartyType !== selectedCounterpartyType) return false;
-        if (selectedCurrency && invoice.currencyCode.toUpperCase() !== selectedCurrency) return false;
-        if (filters.issueDateFrom && invoice.issueDate < filters.issueDateFrom) return false;
-        if (filters.issueDateTo && invoice.issueDate > filters.issueDateTo) return false;
-        if (
-          Number.isFinite(selectedBranchNumericId) &&
-          selectedBranchNumericId > 0 &&
-          invoice.counterpartyType === "branch" &&
-          invoice.counterpartyId !== selectedBranchNumericId
-        ) {
-          return false;
-        }
-        if (selectedSearch) {
-          const haystack = `${invoice.counterpartyName} ${invoice.documentNumber}`.toLowerCase();
-          if (!haystack.includes(selectedSearch)) return false;
-        }
-        if (filters.onlyWithOpenBalance && Number(invoice.openAmount) <= 0) return false;
-        return true;
-      });
+      const useInvoiceMode = mode === "invoice";
 
-      if (filteredInvoices.length === 0) {
+      // Counterparty modu için tableItems'in counterparty hali — checkbox state'inden bağımsız
+      const counterpartyItems = useInvoiceMode ? [] : reportItems;
+      if (!useInvoiceMode && counterpartyItems.length === 0) {
         setErrorText(t("reports.counterpartySummaryEmpty"));
         return;
       }
 
-      const rows = await Promise.all(
-        filteredInvoices.map(async (invoice) => {
+      const kindLabel = (k?: string) => {
+        switch (k) {
+          case "cash":
+            return t("branch.ledgerModalKindCash");
+          case "bank_transfer":
+            return t("branch.ledgerModalKindBankTransfer");
+          case "check":
+            return t("branch.ledgerModalKindCheck");
+          case "promo_discount":
+            return t("branch.ledgerModalKindPromo");
+          case "advance_payment":
+            return t("branch.ledgerModalKindAdvance");
+          default:
+            return t("branch.ledgerModalKindOther");
+        }
+      };
+
+      // INVOICE MODE — her invoice ayrı satır + alt tahsilat detayı
+      // COUNTERPARTY MODE — her cari ayrı satır, tahsilat detayı yok (toplam)
+      const invoicesForPdf = useInvoiceMode
+        ? (await fetchOutboundInvoices()).filter((invoice) => {
+            if (selectedCounterpartyType && invoice.counterpartyType !== selectedCounterpartyType) return false;
+            if (selectedCurrency && invoice.currencyCode.toUpperCase() !== selectedCurrency) return false;
+            if (filters.issueDateFrom && invoice.issueDate < filters.issueDateFrom) return false;
+            if (filters.issueDateTo && invoice.issueDate > filters.issueDateTo) return false;
+            if (
+              Number.isFinite(selectedBranchNumericId) &&
+              selectedBranchNumericId > 0 &&
+              invoice.counterpartyType === "branch" &&
+              invoice.counterpartyId !== selectedBranchNumericId
+            ) {
+              return false;
+            }
+            if (selectedSearch) {
+              const haystack = `${invoice.counterpartyName} ${invoice.documentNumber}`.toLowerCase();
+              if (!haystack.includes(selectedSearch)) return false;
+            }
+            if (filters.onlyWithOpenBalance && Number(invoice.openAmount) <= 0) return false;
+            return true;
+          })
+        : [];
+
+      if (useInvoiceMode && invoicesForPdf.length === 0) {
+        setErrorText(t("reports.counterpartySummaryEmpty"));
+        return;
+      }
+
+      const invoiceModeRows = await Promise.all(
+        invoicesForPdf.map(async (invoice) => {
           const receipts = await fetchCustomerAccountReceiptsByInvoice(invoice.id);
           const lastPaymentDate = receipts.length > 0 ? receipts[0]?.receiptDate ?? null : null;
+          const ccy = invoice.currencyCode || "TRY";
+          const advance = Number(invoice.advanceAmount) || 0;
+          const promo = Number(invoice.promoAmount) || 0;
+          const gift = Number(invoice.giftAmount) || 0;
+          const linkedReceipts = receipts
+            .filter(
+              (r) =>
+                r.receiptKind === "cash" ||
+                r.receiptKind === "bank_transfer" ||
+                r.receiptKind === "check" ||
+                r.receiptKind === "other"
+            )
+            .reduce((s, r) => s + (Number(r.amount) || 0), 0);
+          const receiptItems = [...receipts]
+            .sort((a, b) => (b.receiptDate ?? "").localeCompare(a.receiptDate ?? ""))
+            .map((r) => ({
+              date: formatLocaleDate(r.receiptDate, locale),
+              amount: formatLocaleAmount(Number(r.amount) || 0, locale, ccy),
+              kindLabel: kindLabel(r.receiptKind),
+            }));
           return {
             counterpartyName: invoice.counterpartyName,
             counterpartyTypeLabel:
@@ -704,17 +719,70 @@ export function CounterpartySummaryReportScreen() {
                 : t("reports.counterpartySummaryTypeCustomer"),
             documentNumber: invoice.documentNumber,
             issueDate: formatLocaleDate(invoice.issueDate, locale),
-            invoiceAmount: formatLocaleAmount(invoice.linesTotal, locale, invoice.currencyCode || "TRY"),
-            paidAmount: formatLocaleAmount(invoice.paidTotal, locale, invoice.currencyCode || "TRY"),
-            openAmount: formatLocaleAmount(invoice.openAmount, locale, invoice.currencyCode || "TRY"),
+            invoiceAmount: formatLocaleAmount(invoice.linesTotal, locale, ccy),
+            paidAmount: formatLocaleAmount(linkedReceipts, locale, ccy),
+            advanceAmount: advance > 0 ? formatLocaleAmount(advance, locale, ccy) : "—",
+            promoAmount: promo > 0 ? formatLocaleAmount(promo, locale, ccy) : "—",
+            giftAmount: gift > 0 ? formatLocaleAmount(gift, locale, ccy) : "—",
+            promoCombinedAmount:
+              promo + gift > 0 ? formatLocaleAmount(promo + gift, locale, ccy) : "—",
+            openAmount: formatLocaleAmount(invoice.openAmount, locale, ccy),
             paymentDate: lastPaymentDate ? formatLocaleDate(lastPaymentDate, locale) : "—",
+            receipts: receiptItems,
+            // Raw values — PDF lib alt toplam satırı için
+            _raw: {
+              lines: Number(invoice.linesTotal) || 0,
+              cash: linkedReceipts,
+              advance,
+              promo,
+              gift,
+              open: Number(invoice.openAmount) || 0,
+            },
           };
         })
       );
 
-      const invoiceTotal = filteredInvoices.reduce((acc, item) => acc + (Number(item.linesTotal) || 0), 0);
-      const paidTotal = filteredInvoices.reduce((acc, item) => acc + (Number(item.paidTotal) || 0), 0);
-      const openTotal = filteredInvoices.reduce((acc, item) => acc + (Number(item.openAmount) || 0), 0);
+      // COUNTERPARTY MODE — reportItems'tan canonical kırılım ile satır türet
+      const counterpartyModeRows = useInvoiceMode
+        ? []
+        : counterpartyItems.map((row) => {
+            const ccy = row.currencyCode || "TRY";
+            const invoiced = Number(row.invoicedTotal) || 0;
+            const cash = Number(row.cashTotal) || 0;
+            const advance = Number(row.advanceTotal) || 0;
+            const promo = Number(row.promoTotal) || 0;
+            const gift = Number(row.giftTotal) || 0;
+            const open = Number(row.openAmount) || 0;
+            return {
+              counterpartyName: row.counterpartyName,
+              counterpartyTypeLabel:
+                row.counterpartyType === "branch"
+                  ? t("reports.counterpartySummaryTypeBranch")
+                  : t("reports.counterpartySummaryTypeCustomer"),
+              documentNumber: row.lastDocumentNumber || "—",
+              issueDate: row.lastInvoiceDate ?? "—",
+              invoiceAmount: formatLocaleAmount(invoiced, locale, ccy),
+              paidAmount: formatLocaleAmount(cash, locale, ccy),
+              advanceAmount: advance > 0 ? formatLocaleAmount(advance, locale, ccy) : "—",
+              promoAmount: promo > 0 ? formatLocaleAmount(promo, locale, ccy) : "—",
+              giftAmount: gift > 0 ? formatLocaleAmount(gift, locale, ccy) : "—",
+              promoCombinedAmount:
+                promo + gift > 0 ? formatLocaleAmount(promo + gift, locale, ccy) : "—",
+              openAmount: formatLocaleAmount(open, locale, ccy),
+              paymentDate: "—", // cari toplamda anlamsız
+              receipts: undefined, // counterparty modunda alt-satır tahsilat detayı yok
+              _raw: { lines: invoiced, cash, advance, promo, gift, open },
+            };
+          });
+
+      const rows = useInvoiceMode ? invoiceModeRows : counterpartyModeRows;
+
+      const invoiceTotal = rows.reduce((s, r) => s + r._raw.lines, 0);
+      const cashTotal = rows.reduce((s, r) => s + r._raw.cash, 0);
+      const advanceTotalSum = rows.reduce((s, r) => s + r._raw.advance, 0);
+      const promoTotalSum = rows.reduce((s, r) => s + r._raw.promo, 0);
+      const giftTotalSum = rows.reduce((s, r) => s + r._raw.gift, 0);
+      const openTotal = rows.reduce((s, r) => s + r._raw.open, 0);
       const branchName =
         Number.isFinite(selectedBranchNumericId) && selectedBranchNumericId > 0
           ? branches.find((b) => b.id === selectedBranchNumericId)?.name ?? `#${selectedBranchNumericId}`
@@ -740,6 +808,7 @@ export function CounterpartySummaryReportScreen() {
         }
       }
 
+      const pdfCurrency = selectedCurrency || "TRY";
       await downloadCounterpartyInvoiceStylePdf(rows, {
         companyName,
         branchName,
@@ -747,20 +816,55 @@ export function CounterpartySummaryReportScreen() {
         title: t("reports.counterpartySummaryPdfTitle"),
         issuedAtLabel: `${t("reports.counterpartySummaryPdfGeneratedAt")}: ${new Date().toLocaleDateString(locale)}`,
         filtersLabel: `${t("reports.counterpartySummaryPdfFilters")}: ${[
+          useInvoiceMode ? "Fatura bazlı" : "Cari bazlı",
           selectedCounterpartyType || t("reports.counterpartySummaryTypeAll"),
           selectedCurrency || "TRY",
           filters.issueDateFrom || "—",
           filters.issueDateTo || "—",
         ].join(" · ")}`,
-        totalsLabel: `${t("reports.counterpartySummaryPdfTotals")}: ${formatLocaleAmount(invoiceTotal, locale, selectedCurrency || "TRY")} / ${formatLocaleAmount(paidTotal, locale, selectedCurrency || "TRY")} / ${formatLocaleAmount(openTotal, locale, selectedCurrency || "TRY")}`,
-        fileName: `cari_hesap_faturasi_${new Date().toISOString().slice(0, 10)}.pdf`,
+        // Üst-sağ "Toplamlar" satırı kaldırıldı — alt toplam satırı table footer'da.
+        totalsLabel: "",
+        footerTotals: {
+          invoicedLabel: t("branch.currentAccountInvoicedTotal"),
+          invoicedValue: formatLocaleAmount(invoiceTotal, locale, pdfCurrency),
+          paidLabel: t("branch.currentAccountColPaid"),
+          paidValue: formatLocaleAmount(cashTotal, locale, pdfCurrency),
+          advanceLabel: t("branch.currentAccountColAdvance"),
+          advanceValue: formatLocaleAmount(advanceTotalSum, locale, pdfCurrency),
+          promoLabel: t("branch.currentAccountColPromo"),
+          promoValue: formatLocaleAmount(promoTotalSum, locale, pdfCurrency),
+          giftLabel: t("branch.currentAccountColGiftAmount"),
+          giftValue: formatLocaleAmount(giftTotalSum, locale, pdfCurrency),
+          promoCombinedValue: formatLocaleAmount(promoTotalSum + giftTotalSum, locale, pdfCurrency),
+          openLabel: t("branch.currentAccountOpenTotal"),
+          openValue: formatLocaleAmount(openTotal, locale, pdfCurrency),
+        },
+        fileName: buildPdfFileName(
+          [
+            t("reports.counterpartySummaryPdfTitle"),
+            useInvoiceMode
+              ? t("reports.counterpartySummaryExportPdfInvoice")
+              : t("reports.counterpartySummaryExportPdfCounterparty"),
+            // Spesifik şube seçiliyse adı, değilse "Tüm şubeler"
+            Number.isFinite(selectedBranchNumericId) && selectedBranchNumericId > 0
+              ? branchName
+              : null,
+            // Tarih aralığı varsa
+            filters.issueDateFrom || filters.issueDateTo
+              ? `${filters.issueDateFrom || "…"}_${filters.issueDateTo || "…"}`
+              : null,
+            // Üretim tarihi (yerel ISO)
+            localIsoDate(),
+          ],
+          { fallback: "cari-hareket-ozeti" }
+        ),
       });
     } catch (error) {
       setErrorText(toErrorMessage(error));
     } finally {
       setExportBusy(false);
     }
-  }, [branches, filters, locale, selectedBranchId, t]);
+  }, [branches, filters, locale, reportItems, selectedBranchId, t]);
 
   return (
     <div className="min-w-0 w-full space-y-4 pb-1">
@@ -777,270 +881,350 @@ export function CounterpartySummaryReportScreen() {
         </Link>
       </div>
 
-      <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 sm:p-4">
-        <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end lg:justify-between">
-          <div className="min-w-0 w-full lg:max-w-md lg:flex-1">
-            <label className="mb-1 block text-xs font-medium text-zinc-600">
+      {/* Tab switcher — Cariler / Tahsilatlar */}
+      <div className="flex w-full gap-1 overflow-x-auto" role="tablist">
+        {([
+          { id: "summary" as const, label: t("reports.counterpartySummaryTabSummary") },
+          { id: "receipts" as const, label: t("reports.counterpartySummaryTabReceipts") },
+        ]).map((x) => (
+          <button
+            key={x.id}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === x.id}
+            onClick={() => handleTabChange(x.id)}
+            className={`min-h-[44px] shrink-0 whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+              activeTab === x.id
+                ? "bg-zinc-900 text-white shadow-sm shadow-zinc-900/25 ring-1 ring-zinc-800"
+                : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+            }`}
+          >
+            {x.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "receipts" ? (
+        <AllReceiptsTab
+          initialFilters={{
+            counterpartyType: (filters.counterpartyType as "branch" | "customer" | "") || "",
+            currencyCode: filters.currencyCode || "TRY",
+          }}
+          counterpartyOptions={counterpartyOptions}
+        />
+      ) : null}
+
+      {activeTab !== "summary" ? null : (
+      <>
+      <div className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-2 sm:p-4">
+        {/* Mobil: 2 sıkı satır. Desktop (lg): tek satır geniş layout. */}
+        <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:flex-wrap lg:items-end lg:justify-between lg:gap-3">
+          {/* Satır 1 — label (sadece desktop) ÜSTTE, altta combobox + funnel aynı baseline'da */}
+          <div className="min-w-0 lg:max-w-md lg:flex-1">
+            <label className="mb-0.5 hidden text-xs font-medium text-zinc-600 lg:block">
               {t("reports.counterpartySummaryBranchFilterLabel")}
             </label>
-            <RichCombobox
-              value={selectedBranchId}
-              onChange={setSelectedBranchId}
-              options={branchOptions}
-              placeholder={t("reports.counterpartySummaryBranchFilterPlaceholder")}
-              searchPlaceholder={t("reports.counterpartySummaryBranchFilterSearch")}
-              emptyText={t("reports.counterpartySummaryBranchFilterEmpty")}
-            />
-          </div>
-          <div className="flex min-w-0 w-full flex-row flex-wrap items-center gap-2 sm:items-stretch sm:justify-end lg:w-auto lg:max-w-none lg:flex-initial">
-            <label className="inline-flex min-h-11 w-auto min-w-0 flex-initial cursor-pointer items-center gap-2 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs leading-snug text-zinc-700 sm:w-auto sm:max-w-[min(100%,20rem)] sm:self-center sm:py-0">
-              <Checkbox checked={showInvoiceRows} onCheckedChange={(v) => setShowInvoiceRows(v === true)} />
-              <span className="min-w-0">Fatura bazli liste</span>
-            </label>
-            <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 sm:flex-initial">
+            <div className="flex min-w-0 items-center gap-1.5 lg:gap-2">
+              <div className="min-w-0 flex-1">
+                <RichCombobox
+                  value={selectedBranchId}
+                  onChange={setSelectedBranchId}
+                  options={branchOptions}
+                  placeholder={t("reports.counterpartySummaryBranchFilterPlaceholder")}
+                  searchPlaceholder={t("reports.counterpartySummaryBranchFilterSearch")}
+                  emptyText={t("reports.counterpartySummaryBranchFilterEmpty")}
+                />
+              </div>
               <Tooltip content={t("common.filters")} delayMs={200}>
                 <button
                   type="button"
-                  className="relative flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50/90 text-zinc-700 shadow-sm transition hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70"
+                  className="relative flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-700 shadow-sm transition hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70"
                   aria-label={t("common.filters")}
                   aria-expanded={filtersOpen}
                   onClick={() => setFiltersOpen(true)}
                 >
-                  <FilterFunnelIcon className="h-5 w-5" />
+                  <FilterFunnelIcon className="h-4 w-4 lg:h-5 lg:w-5" />
                   {filtersActive ? (
                     <span
-                      className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-violet-500 ring-2 ring-white"
+                      className="absolute right-1 top-1 h-2 w-2 rounded-full bg-violet-500 ring-2 ring-white"
                       aria-hidden
                     />
                   ) : null}
                 </button>
               </Tooltip>
-              <Tooltip content={t("reports.counterpartySummaryRefresh")} delayMs={200}>
+            </div>
+          </div>
+
+          {/* Satır 2 — Fatura bazlı checkbox (sol) + iconlar (sağ).
+              Mobilde tüm aksiyon butonları icon-only; desktop'ta metin ile birlikte. */}
+          <div className="flex min-w-0 items-center justify-between gap-1.5 lg:justify-end lg:gap-2">
+            <label className="inline-flex h-10 min-w-0 shrink cursor-pointer items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2 text-[11px] leading-tight text-zinc-700 lg:h-11 lg:gap-2 lg:rounded-xl lg:px-3 lg:text-xs">
+              <Checkbox checked={showInvoiceRows} onCheckedChange={(v) => setShowInvoiceRows(v === true)} />
+              <span className="whitespace-nowrap">Fatura bazlı</span>
+            </label>
+            <div className="flex shrink-0 items-center gap-1.5 lg:gap-2">
+              <Tooltip content={t("branch.ledgerAddGeneralReceipt")} delayMs={200}>
+                <Button
+                  type="button"
+                  variant="primary"
+                  className="inline-flex h-10 w-10 min-h-0 min-w-0 shrink-0 items-center justify-center gap-1.5 rounded-lg p-0 lg:h-11 lg:w-auto lg:rounded-xl lg:px-3 lg:min-w-[9rem]"
+                  onClick={() => setGeneralReceiptOpen(true)}
+                  disabled={busy}
+                  aria-label={t("branch.ledgerAddGeneralReceipt")}
+                >
+                  <svg aria-hidden className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    {/* Banknote — "tahsilat / para alma" */}
+                    <rect x="2" y="6" width="20" height="12" rx="2" />
+                    <circle cx="12" cy="12" r="2.2" />
+                    <path d="M6 12h.01M18 12h.01" />
+                  </svg>
+                  <span className="hidden lg:inline">{t("branch.ledgerAddGeneralReceipt")}</span>
+                </Button>
+              </Tooltip>
+              {/* İki ayrı PDF butonu — kullanıcı mode'u seçer (UI checkbox'tan bağımsız) */}
+              <Tooltip content={t("reports.counterpartySummaryExportPdfCounterparty")} delayMs={200}>
                 <Button
                   type="button"
                   variant="secondary"
-                  className={TABLE_TOOLBAR_ICON_BTN}
-                  onClick={() => void load(filters)}
-                  disabled={busy}
-                  aria-label={t("reports.counterpartySummaryRefresh")}
+                  className="inline-flex h-10 w-10 min-h-0 min-w-0 shrink-0 items-center justify-center gap-1.5 rounded-lg p-0 lg:h-11 lg:w-auto lg:rounded-xl lg:px-3"
+                  onClick={() => void downloadSummaryPdf("counterparty")}
+                  disabled={busy || exportBusy}
+                  aria-label={t("reports.counterpartySummaryExportPdfCounterparty")}
                 >
-                  <svg
-                    aria-hidden
-                    className="h-5 w-5"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M20 11a8 8 0 1 0 2.3 5.7" />
-                    <path d="M20 4v7h-7" />
+                  <svg aria-hidden className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    {/* Users (cari/grup) ikonu + indir oku */}
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M22 11v6" />
+                    <path d="m19 14 3 3 3-3" transform="translate(-3 0)" />
                   </svg>
+                  <span className="hidden lg:inline">
+                    {exportBusy ? t("common.loading") : t("reports.counterpartySummaryExportPdfCounterparty")}
+                  </span>
                 </Button>
               </Tooltip>
-              <Button
-                type="button"
-                variant="secondary"
-                className="h-11 min-h-[44px] flex-initial px-3 sm:min-w-[9rem]"
-                onClick={() => void downloadSummaryPdf()}
-                disabled={busy || exportBusy}
-              >
-                {exportBusy ? t("common.loading") : t("reports.counterpartySummaryExportPdf")}
-              </Button>
+              <Tooltip content={t("reports.counterpartySummaryExportPdfInvoice")} delayMs={200}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="inline-flex h-10 w-10 min-h-0 min-w-0 shrink-0 items-center justify-center gap-1.5 rounded-lg p-0 lg:h-11 lg:w-auto lg:rounded-xl lg:px-3"
+                  onClick={() => void downloadSummaryPdf("invoice")}
+                  disabled={busy || exportBusy}
+                  aria-label={t("reports.counterpartySummaryExportPdfInvoice")}
+                >
+                  <svg aria-hidden className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    {/* Fatura (file) ikonu + indir oku */}
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="12" y1="12" x2="12" y2="18" />
+                    <polyline points="9 15 12 18 15 15" />
+                  </svg>
+                  <span className="hidden lg:inline">
+                    {exportBusy ? t("common.loading") : t("reports.counterpartySummaryExportPdfInvoice")}
+                  </span>
+                </Button>
+              </Tooltip>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <SummaryCard title={t("reports.counterpartySummaryInvoicedTotal")} value={formatLocaleAmount(reportTotals.invoicedTotal, locale, filters.currencyCode || "TRY")} />
-        <SummaryCard title={t("reports.counterpartySummaryPaidTotal")} value={formatLocaleAmount(reportTotals.paidTotal, locale, filters.currencyCode || "TRY")} />
-        <SummaryCard title={t("reports.counterpartySummaryOpenTotal")} value={formatLocaleAmount(reportTotals.openAmountTotal, locale, filters.currencyCode || "TRY")} />
-        <SummaryCard title={t("reports.counterpartySummaryCounterpartyCount")} value={String(reportTotals.counterpartyCount)} />
-        <SummaryCard title={t("reports.counterpartySummaryInvoiceCount")} value={String(reportTotals.invoiceCount)} />
+      {/* Para akışı hikayesi: ne kesildi → ne ile düşüldü (önceden alınan + sonra alınan + indirim) → kalan
+          Sıra: Faturalanan → Ön ödeme → Tahsil edilen → Promosyon → Açık bakiye */}
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <SummaryCard
+          title={t("reports.counterpartySummaryInvoicedTotal")}
+          value={formatLocaleAmount(reportTotals.invoicedTotal, locale, filters.currencyCode || "TRY")}
+        />
+        <SummaryCard
+          title={t("branch.currentAccountColAdvance")}
+          value={formatLocaleAmount(reportTotals.advanceTotal ?? 0, locale, filters.currencyCode || "TRY")}
+          valueClassName="text-sky-700"
+        />
+        <SummaryCard
+          title={t("branch.currentAccountColPaid")}
+          value={formatLocaleAmount(reportTotals.cashTotal ?? 0, locale, filters.currencyCode || "TRY")}
+          valueClassName="text-emerald-700"
+        />
+        <SummaryCard
+          title={t("branch.currentAccountColPromo")}
+          value={formatLocaleAmount(
+            (reportTotals.promoTotal ?? 0) + (reportTotals.giftTotal ?? 0),
+            locale,
+            filters.currencyCode || "TRY"
+          )}
+          valueClassName="text-violet-700"
+          detail={
+            (reportTotals.promoTotal ?? 0) > 0 || (reportTotals.giftTotal ?? 0) > 0
+              ? `${t("branch.currentAccountColPromoMoney")}: ${formatLocaleAmount(
+                  reportTotals.promoTotal ?? 0,
+                  locale,
+                  filters.currencyCode || "TRY"
+                )} · ${t("branch.currentAccountColGiftAmount")}: ${formatLocaleAmount(
+                  reportTotals.giftTotal ?? 0,
+                  locale,
+                  filters.currencyCode || "TRY"
+                )}`
+              : undefined
+          }
+        />
+        <SummaryCard
+          title={t("reports.counterpartySummaryOpenTotal")}
+          value={formatLocaleAmount(reportTotals.openAmountTotal, locale, filters.currencyCode || "TRY")}
+          valueClassName="text-amber-700"
+          detail={`${t("reports.counterpartySummaryCounterpartyCount")}: ${reportTotals.counterpartyCount} · ${t(
+            "reports.counterpartySummaryInvoiceCount"
+          )}: ${reportTotals.invoiceCount}`}
+        />
       </div>
 
       {errorText ? <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{errorText}</p> : null}
       {busy ? <p className="text-sm text-zinc-500">{t("reports.loading")}</p> : null}
 
-      <div className="space-y-3 lg:hidden">
-        {tableItems.map((row) => (
-          <div
-            key={`${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}-${row.lastDocumentNumber ?? "summary"}`}
-            className={`min-w-0 rounded-xl border p-3 sm:p-4 ${
-              isOpenBalance(Number(row.openAmount))
-                ? "border-amber-200 bg-amber-50/30"
-                : "border-emerald-200 bg-emerald-50/30"
-            }`}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="break-words text-sm font-semibold text-zinc-900">{row.counterpartyName}</p>
-                <p className="text-xs text-zinc-600">
-                  {row.counterpartyType === "branch"
-                    ? t("reports.counterpartySummaryTypeBranch")
-                    : t("reports.counterpartySummaryTypeCustomer")}
-                </p>
+      <div className="space-y-2 lg:hidden">
+        {tableItems.map((row) => {
+          const currency = row.currencyCode || "TRY";
+          const open = Number(row.openAmount) || 0;
+          const isOpen = isOpenBalance(open);
+          // Backend canonical değerler — UI hesap yapmıyor
+          const advance = Number(row.advanceTotal) || 0;
+          const promoCombined = (Number(row.promoTotal) || 0) + (Number(row.giftTotal) || 0);
+          const cash = Number(row.cashTotal) || 0;
+          return (
+            <div
+              key={`${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}-${row.lastDocumentNumber ?? "summary"}`}
+              className={`min-w-0 rounded-xl border bg-white p-2.5 shadow-sm ${
+                showInvoiceRows
+                  ? "border-zinc-200"
+                  : isOpen
+                    ? "border-amber-200"
+                    : "border-emerald-200"
+              }`}
+            >
+              {/* Üst satır: isim + tip · ref/tarih (sol) | açık bakiye (sağ) */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="break-words text-sm font-semibold leading-tight text-zinc-900">
+                    {row.counterpartyType === "branch" ? "🏢 " : "👤 "}
+                    {row.counterpartyName}
+                  </p>
+                  <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+                    {row.lastDocumentNumber || "—"}
+                    {row.lastInvoiceDate ? ` · ${row.lastInvoiceDate}` : ""}
+                  </p>
+                </div>
+                {/* Açık bakiye sağ üstte SADECE counterparty modunda — fatura modunda yanıltıcı
+                    (genel ödemeler per-invoice düşülmediği için). */}
+                {!showInvoiceRows ? (
+                  <div className="shrink-0 text-right">
+                    <p
+                      className={`text-base font-bold tabular-nums leading-tight ${
+                        isOpen ? "text-amber-700" : "text-emerald-700"
+                      }`}
+                    >
+                      {formatLocaleAmount(open, locale, currency)}
+                    </p>
+                    <p
+                      className={`text-[10px] font-semibold uppercase tracking-wide ${
+                        isOpen ? "text-amber-600" : "text-emerald-600"
+                      }`}
+                    >
+                      {isOpen
+                        ? t("reports.counterpartySummaryBalanceOpenBadge")
+                        : t("reports.counterpartySummaryBalanceClosedBadge")}
+                    </p>
+                  </div>
+                ) : null}
               </div>
-              <p className="shrink-0 text-right text-sm font-semibold tabular-nums text-violet-800">
-                {formatLocaleAmount(row.openAmount, locale, row.currencyCode || "TRY")}
-              </p>
-            </div>
-            <div className="mt-2">
-              <span
-                className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
-                  isOpenBalance(Number(row.openAmount))
-                    ? "border-amber-200 bg-amber-50 text-amber-700"
-                    : "border-emerald-200 bg-emerald-50 text-emerald-700"
-                }`}
-              >
-                {isOpenBalance(Number(row.openAmount))
-                  ? t("reports.counterpartySummaryBalanceOpenBadge")
-                  : t("reports.counterpartySummaryBalanceClosedBadge")}
-              </span>
-            </div>
-            <dl className="mt-3 grid grid-cols-1 gap-2 text-xs min-[400px]:grid-cols-2 sm:text-sm">
-              <div>
-                <dt className="text-zinc-500">{t("reports.counterpartySummaryColInvoiced")}</dt>
-                <dd className="font-medium tabular-nums text-zinc-900">
-                  {formatLocaleAmount(row.invoicedTotal, locale, row.currencyCode || "TRY")}
-                </dd>
+
+              {/* Alt grid: 4 kompakt sütun — Faturalanan → Ön ödeme → Tahsil → Promosyon (üst kartlarla aynı sıra) */}
+              <div className="mt-2 grid grid-cols-4 gap-1.5 rounded-lg bg-zinc-50 px-2 py-1.5">
+                <div className="min-w-0">
+                  <p className="text-[10px] leading-tight text-zinc-500">
+                    {t("reports.counterpartySummaryColInvoiced")}
+                  </p>
+                  <p className="truncate text-xs font-semibold tabular-nums text-zinc-900">
+                    {formatLocaleAmount(row.invoicedTotal, locale, currency)}
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] leading-tight text-zinc-500">{t("branch.currentAccountColAdvance")}</p>
+                  <p className="truncate text-xs font-semibold tabular-nums text-sky-700">
+                    {advance > 0 ? formatLocaleAmount(advance, locale, currency) : "—"}
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] leading-tight text-zinc-500">{t("branch.currentAccountColPaid")}</p>
+                  <p className="truncate text-xs font-semibold tabular-nums text-emerald-700">
+                    {formatLocaleAmount(cash, locale, currency)}
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] leading-tight text-zinc-500">{t("branch.currentAccountColPromo")}</p>
+                  <p className="truncate text-xs font-semibold tabular-nums text-violet-700">
+                    {promoCombined > 0 ? formatLocaleAmount(promoCombined, locale, currency) : "—"}
+                  </p>
+                </div>
               </div>
-              <div>
-                <dt className="text-zinc-500">{t("reports.counterpartySummaryColPaid")}</dt>
-                <dd className="font-medium tabular-nums text-zinc-900">
-                  {formatLocaleAmount(
-                    Math.max(
-                      0,
-                      (Number(row.paidTotal) || 0) -
-                        (Number(row.promoTotal) || 0) -
-                        (Number(row.advanceTotal) || 0)
-                    ),
-                    locale,
-                    row.currencyCode || "TRY"
-                  )}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-zinc-500">{t("reports.counterpartySummaryColPromo")}</dt>
-                <dd className="font-medium tabular-nums text-violet-700">
-                  {(Number(row.promoTotal) || 0) > 0
-                    ? formatLocaleAmount(Number(row.promoTotal) || 0, locale, row.currencyCode || "TRY")
-                    : "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-zinc-500">{t("reports.counterpartySummaryColGiftAmount")}</dt>
-                <dd className="font-medium tabular-nums text-fuchsia-700">
-                  {(Number(row.giftTotal) || 0) > 0
-                    ? formatLocaleAmount(Number(row.giftTotal) || 0, locale, row.currencyCode || "TRY")
-                    : "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-zinc-500">{t("reports.counterpartySummaryColAdvance")}</dt>
-                <dd className="font-medium tabular-nums text-sky-700">
-                  {(Number(row.advanceTotal) || 0) > 0
-                    ? formatLocaleAmount(Number(row.advanceTotal) || 0, locale, row.currencyCode || "TRY")
-                    : "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-zinc-500">{t("reports.counterpartySummaryColInvoiceRef")}</dt>
-                <dd className="break-all font-medium tabular-nums text-zinc-900">{row.lastDocumentNumber || "—"}</dd>
-              </div>
-              <div>
-                <dt className="text-zinc-500">{t("reports.counterpartySummaryColIssueDate")}</dt>
-                <dd className="font-medium tabular-nums text-zinc-900">{row.lastInvoiceDate || "—"}</dd>
-              </div>
-            </dl>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                className={detailOpenIconButtonClass}
-                aria-label={t("branch.currentAccountAddReceipt")}
-                disabled={Number(row.openAmount) <= 0}
-                onClick={() => openReceiptModal(row)}
-              >
-                +
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                className={detailOpenIconButtonClass}
-                aria-label={t("reports.counterpartySummaryPdfPreview")}
-                disabled={
-                  row.counterpartyType !== "branch" ||
-                  !row.lastDocumentNumber ||
-                  pdfBusyKey === `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`
-                }
-                onClick={() => void previewLastInvoicePdf(row)}
-              >
-                <EyeIcon className="h-4 w-4" />
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                className={detailOpenIconButtonClass}
-                aria-label={t("reports.counterpartySummaryPdfDownload")}
-                disabled={
-                  row.counterpartyType !== "branch" ||
-                  !row.lastDocumentNumber ||
-                  pdfBusyKey === `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`
-                }
-                onClick={() => void openLastInvoicePdf(row)}
-              >
-                <svg
-                  aria-hidden
-                  className="h-4 w-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.75"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+              <div className="mt-2 flex items-center justify-end gap-1">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="h-9 w-9 min-h-0 min-w-0 p-0"
+                  aria-label={t("reports.counterpartySummaryPdfPreview")}
+                  disabled={
+                    row.counterpartyType !== "branch" ||
+                    !row.lastDocumentNumber ||
+                    pdfBusyKey === `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`
+                  }
+                  onClick={() => void previewLastInvoicePdf(row)}
                 >
-                  <path d="M12 3v12" />
-                  <path d="m7 10 5 5 5-5" />
-                  <path d="M5 21h14" />
-                </svg>
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                className={detailOpenIconButtonClass}
-                aria-label={t("reports.counterpartySummaryDeleteInvoice")}
-                disabled={
-                  (row.counterpartyType === "branch" && !row.lastDocumentNumber) ||
-                  (row.counterpartyType !== "branch" && row.counterpartyType !== "customer") ||
-                  pdfBusyKey === `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`
-                }
-                onClick={() =>
-                  row.counterpartyType === "customer"
-                    ? void deleteCustomerCounterparty(row)
-                    : void deleteLastInvoiceWithPdf(row)
-                }
-              >
-                <svg
-                  aria-hidden
-                  className="h-4 w-4"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.75"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+                  <EyeIcon className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="h-9 w-9 min-h-0 min-w-0 p-0"
+                  aria-label={t("reports.counterpartySummaryPdfDownload")}
+                  disabled={
+                    row.counterpartyType !== "branch" ||
+                    !row.lastDocumentNumber ||
+                    pdfBusyKey === `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`
+                  }
+                  onClick={() => void openLastInvoicePdf(row)}
                 >
-                  <path d="M3 6h18" />
-                  <path d="M8 6V4h8v2" />
-                  <path d="M19 6l-1 14H6L5 6" />
-                </svg>
-              </Button>
+                  <svg aria-hidden className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 3v12" />
+                    <path d="m7 10 5 5 5-5" />
+                    <path d="M5 21h14" />
+                  </svg>
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="h-9 w-9 min-h-0 min-w-0 p-0 text-rose-600"
+                  aria-label={t("reports.counterpartySummaryDeleteInvoice")}
+                  disabled={
+                    (row.counterpartyType === "branch" && !row.lastDocumentNumber) ||
+                    (row.counterpartyType !== "branch" && row.counterpartyType !== "customer") ||
+                    pdfBusyKey === `${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}`
+                  }
+                  onClick={() =>
+                    row.counterpartyType === "customer"
+                      ? void deleteCustomerCounterparty(row)
+                      : void deleteLastInvoiceWithPdf(row)
+                  }
+                >
+                  <svg aria-hidden className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 6h18" />
+                    <path d="M8 6V4h8v2" />
+                    <path d="M19 6l-1 14H6L5 6" />
+                  </svg>
+                </Button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         {tableItems.length === 0 && !busy ? (
           <p className="rounded-xl border border-zinc-200 bg-white px-3 py-4 text-center text-sm text-zinc-500">
             {t("reports.counterpartySummaryEmpty")}
@@ -1057,11 +1241,14 @@ export function CounterpartySummaryReportScreen() {
               <th className="px-3 py-2 text-left">{t("reports.counterpartySummaryColName")}</th>
               <th className="px-3 py-2 text-left">{t("reports.counterpartySummaryColType")}</th>
               <th className="px-3 py-2 text-right">{t("reports.counterpartySummaryColInvoiced")}</th>
+              <th className="px-3 py-2 text-right">{t("reports.counterpartySummaryColAdvance")}</th>
               <th className="px-3 py-2 text-right">{t("reports.counterpartySummaryColPaid")}</th>
               <th className="px-3 py-2 text-right">{t("reports.counterpartySummaryColPromo")}</th>
-              <th className="px-3 py-2 text-right">{t("reports.counterpartySummaryColGiftAmount")}</th>
-              <th className="px-3 py-2 text-right">{t("reports.counterpartySummaryColAdvance")}</th>
-              <th className="px-3 py-2 text-right">{t("reports.counterpartySummaryColOpen")}</th>
+              {/* "Açık" sadece counterparty modunda anlamlı — fatura modunda genel ödemeler
+                  düşülmediği için per-invoice açık yanıltıcı olur. */}
+              {!showInvoiceRows ? (
+                <th className="px-3 py-2 text-right">{t("reports.counterpartySummaryColOpen")}</th>
+              ) : null}
               <th className="px-3 py-2 text-center">{t("branch.currentAccountColPdfStatus")}</th>
               <th className="px-3 py-2 text-center">{t("branch.currentAccountColReceiptImageStatus")}</th>
               <th className="px-3 py-2 text-center">{t("branch.currentAccountColActions")}</th>
@@ -1097,45 +1284,50 @@ export function CounterpartySummaryReportScreen() {
                 <td className="px-3 py-2 text-right tabular-nums">
                   {formatLocaleAmount(row.invoicedTotal, locale, row.currencyCode || "TRY")}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums">
-                  {formatLocaleAmount(
-                    Math.max(
-                      0,
-                      (Number(row.paidTotal) || 0) -
-                        (Number(row.promoTotal) || 0) -
-                        (Number(row.advanceTotal) || 0)
-                    ),
-                    locale,
-                    row.currencyCode || "TRY"
-                  )}
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums text-violet-700">
-                  {(Number(row.promoTotal) || 0) > 0
-                    ? formatLocaleAmount(Number(row.promoTotal) || 0, locale, row.currencyCode || "TRY")
-                    : "—"}
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums text-fuchsia-700">
-                  {(Number(row.giftTotal) || 0) > 0
-                    ? formatLocaleAmount(Number(row.giftTotal) || 0, locale, row.currencyCode || "TRY")
-                    : "—"}
-                </td>
                 <td className="px-3 py-2 text-right tabular-nums text-sky-700">
                   {(Number(row.advanceTotal) || 0) > 0
                     ? formatLocaleAmount(Number(row.advanceTotal) || 0, locale, row.currencyCode || "TRY")
                     : "—"}
                 </td>
-                <td className="px-3 py-2 text-right tabular-nums font-semibold text-violet-800">
-                  <div>{formatLocaleAmount(row.openAmount, locale, row.currencyCode || "TRY")}</div>
-                  <div
-                    className={`mt-0.5 text-[11px] font-semibold ${
-                      isOpenBalance(Number(row.openAmount)) ? "text-amber-700" : "text-emerald-700"
-                    }`}
-                  >
-                    {isOpenBalance(Number(row.openAmount))
-                      ? t("reports.counterpartySummaryBalanceOpenBadge")
-                      : t("reports.counterpartySummaryBalanceClosedBadge")}
-                  </div>
+                <td className="px-3 py-2 text-right tabular-nums text-emerald-700">
+                  {formatLocaleAmount(Number(row.cashTotal) || 0, locale, row.currencyCode || "TRY")}
                 </td>
+                <td className="px-3 py-2 text-right tabular-nums text-violet-700">
+                  {(() => {
+                    const promo = Number(row.promoTotal) || 0;
+                    const gift = Number(row.giftTotal) || 0;
+                    const total = promo + gift;
+                    if (total <= 0) return "—";
+                    return (
+                      <div>
+                        <div className="font-semibold">
+                          {formatLocaleAmount(total, locale, row.currencyCode || "TRY")}
+                        </div>
+                        <div className="mt-0.5 text-[10px] leading-tight font-normal text-zinc-500">
+                          {t("branch.currentAccountColPromoMoney")}:{" "}
+                          {formatLocaleAmount(promo, locale, row.currencyCode || "TRY")}
+                          <br />
+                          {t("branch.currentAccountColGiftAmount")}:{" "}
+                          {formatLocaleAmount(gift, locale, row.currencyCode || "TRY")}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </td>
+                {!showInvoiceRows ? (
+                  <td className="px-3 py-2 text-right tabular-nums font-semibold text-violet-800">
+                    <div>{formatLocaleAmount(row.openAmount, locale, row.currencyCode || "TRY")}</div>
+                    <div
+                      className={`mt-0.5 text-[11px] font-semibold ${
+                        isOpenBalance(Number(row.openAmount)) ? "text-amber-700" : "text-emerald-700"
+                      }`}
+                    >
+                      {isOpenBalance(Number(row.openAmount))
+                        ? t("reports.counterpartySummaryBalanceOpenBadge")
+                        : t("reports.counterpartySummaryBalanceClosedBadge")}
+                    </div>
+                  </td>
+                ) : null}
                 <td className="px-3 py-2 text-center">
                   <div className="mb-1 text-xs text-zinc-500">
                     {hasPdfAsset
@@ -1240,17 +1432,6 @@ export function CounterpartySummaryReportScreen() {
                   <div className="flex items-center justify-center gap-1">
                     <Button
                       type="button"
-                      variant="primary"
-                      className="min-h-[44px] min-w-[44px] px-2 py-1 text-xs"
-                      aria-label={t("branch.currentAccountAddReceipt")}
-                      title={t("branch.currentAccountAddReceipt")}
-                      disabled={Number(row.openAmount) <= 0}
-                      onClick={() => openReceiptModal(row)}
-                    >
-                      {t("branch.currentAccountAddReceipt")}
-                    </Button>
-                    <Button
-                      type="button"
                       variant="secondary"
                       className={detailOpenIconButtonClass}
                       aria-label={t("reports.counterpartySummaryDeleteInvoice")}
@@ -1351,60 +1532,39 @@ export function CounterpartySummaryReportScreen() {
           </label>
         </div>
       </RightDrawer>
+      </>
+      )}
 
-      <CurrentAccountReceiptModal
-        open={receiptTarget != null}
-        onClose={() => setReceiptTarget(null)}
-        titleId="counterparty-summary-receipt-modal-title"
-        title={t("branch.currentAccountReceiptModalTitle")}
-        closeButtonLabel={t("common.close")}
-        summaryText={
-          receiptTarget
-            ? `${receiptTarget.counterpartyName} · ${formatLocaleAmount(
-                receiptTarget.openAmount,
-                locale,
-                receiptTarget.currencyCode || "TRY"
-              )}`
-            : "—"
-        }
-        receiptDateLabel={t("branch.currentAccountReceiptDate")}
-        receiptDate={receiptDate}
-        onReceiptDateChange={setReceiptDate}
-        receiptAmountLabel={t("branch.currentAccountReceiptAmount")}
-        receiptAmount={receiptAmount}
-        onReceiptAmountChange={setReceiptAmount}
-        onReceiptAmountBlur={() => setReceiptAmount((x) => formatAmountInputOnBlur(x, locale))}
-        fillOpenAmountLabel={t("branch.currentAccountReceiptFillOpenAmount")}
-        onFillOpenAmount={
-          receiptTarget
-            ? () =>
-                setReceiptAmount(
-                  formatAmountInputOnBlur(String(receiptTarget.openAmount ?? ""), locale)
-                )
-            : undefined
-        }
-        receiptNoteLabel={t("branch.currentAccountReceiptNote")}
-        receiptNote={receiptNote}
-        onReceiptNoteChange={setReceiptNote}
-        showImageUpload={receiptTarget?.counterpartyType === "branch"}
-        receiptImageLabel={t("branch.currentAccountReceiptImage")}
-        receiptImageFile={receiptTransferImage}
-        onReceiptImageChange={setReceiptTransferImage}
-        cancelLabel={t("common.cancel")}
-        saveLabel={t("branch.currentAccountSaveReceipt")}
-        loadingLabel={t("common.loading")}
-        saving={receiptSaving}
-        onSubmit={() => void submitReceipt()}
+      <GeneralReceiptModal
+        open={generalReceiptOpen}
+        onClose={() => setGeneralReceiptOpen(false)}
+        counterparty={{ mode: "selectable", options: counterpartyOptions }}
+        locale={locale}
+        t={t}
+        onSaved={() => load(filters)}
       />
     </div>
   );
 }
 
-function SummaryCard({ title, value }: { title: string; value: string }) {
+function SummaryCard({
+  title,
+  value,
+  detail,
+  valueClassName,
+}: {
+  title: string;
+  value: string;
+  detail?: string;
+  valueClassName?: string;
+}) {
   return (
     <div className="min-w-0 rounded-lg border border-zinc-200 bg-white px-3 py-2">
       <p className="text-[10px] font-medium uppercase leading-tight tracking-wide text-zinc-500 sm:text-xs">{title}</p>
-      <p className="mt-1 break-words text-base font-semibold tabular-nums text-zinc-900 sm:text-lg">{value}</p>
+      <p className={`mt-1 break-words text-base font-semibold tabular-nums sm:text-lg ${valueClassName ?? "text-zinc-900"}`}>
+        {value}
+      </p>
+      {detail ? <p className="mt-0.5 text-[10px] leading-tight text-zinc-500">{detail}</p> : null}
     </div>
   );
 }

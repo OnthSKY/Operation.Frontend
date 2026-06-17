@@ -14,7 +14,6 @@ export const search = {
   subBranding: "Şirket adı ve sol menü logosu",
   subTourismSeasonPolicy: "Turizm kapalıyken kasa akışlarına izin verme",
   subReports: "Finans ve stok dönem raporları",
-  subBranchComparison: "Şubelere göre gelir, gider, net",
   subBranch: "Şubeler",
   subDailyBranchRegister:
     "Tek kasa gününde şube bazında nakit, kart/POS, kasadan gider ve net",

@@ -72,7 +72,6 @@ export function FinancialReportsShell({ children }: { children: ReactNode }) {
     const elsewhere = [
       { href: "/branches", labelKey: "reports.patronHubGuideLinkBranchesLabel", descKey: "reports.patronHubGuideLinkBranchesDesc" },
       { href: "/reports/patron-flow", labelKey: "reports.patronHubGuideLinkPatronFlowLabel", descKey: "reports.patronHubGuideLinkPatronFlowDesc" },
-      { href: "/reports/branches", labelKey: "reports.patronHubGuideLinkBranchCompareLabel", descKey: "reports.patronHubGuideLinkBranchCompareDesc" },
     ].map((item) => ({
       href: item.href,
       label: t(item.labelKey),

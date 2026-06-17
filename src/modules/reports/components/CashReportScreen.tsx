@@ -66,6 +66,17 @@ export function CashReportScreen() {
   );
 
   const rows: CashPositionBranchRow[] = cash.data?.branches ?? [];
+  // Legacy POCKET kolonu yalnız herhangi bir satırda sıfır olmayan değer varsa görünür.
+  const showPocketCol = useMemo(
+    () =>
+      rows.some(
+        (r) => Math.abs(r.cumulativeNetRegisterOwesPersonnelPocket) > 0.005,
+      ) ||
+      Math.abs(
+        cash.data?.totals.cumulativeNetRegisterOwesPersonnelPocket ?? 0,
+      ) > 0.005,
+    [rows, cash.data?.totals.cumulativeNetRegisterOwesPersonnelPocket],
+  );
 
   return (
     <ReportTablesPageShell
@@ -188,7 +199,9 @@ export function CashReportScreen() {
                 { id: "season", label: t("branch.tableSeason") },
                 { id: "drawer", label: t("reports.cashColDrawer") },
                 { id: "held", label: t("reports.cashColHeldPersonnel") },
-                { id: "pocket", label: t("reports.cashColPocketDebt") },
+                ...(showPocketCol
+                  ? [{ id: "pocket", label: t("reports.cashColPocketDebt") }]
+                  : []),
                 { id: "patron", label: t("reports.cashColPatronDebt") },
               ]}
               getSearchHaystack={(r) =>
@@ -216,8 +229,11 @@ export function CashReportScreen() {
             >
               {({ displayRows, toolbar, emptyFiltered }) => (
                 <div className="rounded-2xl border border-zinc-200 bg-white px-3 py-4 sm:px-5 sm:py-6">
-                  <p className="mb-3 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-zinc-400">
+                  <p className="mb-2 text-[0.65rem] font-bold uppercase tracking-[0.2em] text-zinc-400">
                     {t("reports.cashPositionSectionTitle")}
+                  </p>
+                  <p className="mb-3 rounded-lg border border-sky-200/70 bg-sky-50/70 px-3 py-2 text-[11px] leading-relaxed text-sky-950 sm:text-xs">
+                    {t("reports.cashDrawerIncludesHeldNote")}
                   </p>
                   {toolbar}
                   {emptyFiltered ? (
@@ -275,17 +291,19 @@ export function CashReportScreen() {
                                   )}
                                 </dd>
                               </div>
-                              <div className="flex flex-col gap-0.5 border-b border-zinc-100 pb-2">
-                                <dt className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
-                                  {t("reports.cashColPocketDebt")}
-                                </dt>
-                                <dd className="text-sm tabular-nums text-zinc-800">
-                                  {formatLocaleAmount(
-                                    row.cumulativeNetRegisterOwesPersonnelPocket,
-                                    locale
-                                  )}
-                                </dd>
-                              </div>
+                              {showPocketCol ? (
+                                <div className="flex flex-col gap-0.5 border-b border-zinc-100 pb-2">
+                                  <dt className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
+                                    {t("reports.cashColPocketDebt")}
+                                  </dt>
+                                  <dd className="text-sm tabular-nums text-zinc-800">
+                                    {formatLocaleAmount(
+                                      row.cumulativeNetRegisterOwesPersonnelPocket,
+                                      locale,
+                                    )}
+                                  </dd>
+                                </div>
+                              ) : null}
                               <div className="flex flex-col gap-0.5">
                                 <dt className="text-[0.65rem] font-semibold uppercase tracking-wide text-zinc-500">
                                   {t("reports.cashColPatronDebt")}
@@ -313,9 +331,11 @@ export function CashReportScreen() {
                               <TableHeader className="text-right tabular-nums">
                                 {t("reports.cashColHeldPersonnel")}
                               </TableHeader>
-                              <TableHeader className="text-right tabular-nums">
-                                {t("reports.cashColPocketDebt")}
-                              </TableHeader>
+                              {showPocketCol ? (
+                                <TableHeader className="text-right tabular-nums">
+                                  {t("reports.cashColPocketDebt")}
+                                </TableHeader>
+                              ) : null}
                               <TableHeader className="text-right tabular-nums">
                                 {t("reports.cashColPatronDebt")}
                               </TableHeader>
@@ -349,12 +369,14 @@ export function CashReportScreen() {
                                     locale
                                   )}
                                 </TableCell>
-                                <TableCell className="text-right tabular-nums text-zinc-800">
-                                  {formatLocaleAmount(
-                                    row.cumulativeNetRegisterOwesPersonnelPocket,
-                                    locale
-                                  )}
-                                </TableCell>
+                                {showPocketCol ? (
+                                  <TableCell className="text-right tabular-nums text-zinc-800">
+                                    {formatLocaleAmount(
+                                      row.cumulativeNetRegisterOwesPersonnelPocket,
+                                      locale,
+                                    )}
+                                  </TableCell>
+                                ) : null}
                                 <TableCell className="text-right tabular-nums text-zinc-800">
                                   {formatLocaleAmount(
                                     row.cumulativeNetRegisterOwesPatron,
@@ -382,13 +404,15 @@ export function CashReportScreen() {
                                   locale
                                 )}
                               </TableCell>
-                              <TableCell className="bg-zinc-50/90 text-right tabular-nums font-semibold text-zinc-900">
-                                {formatLocaleAmount(
-                                  cash.data.totals
-                                    .cumulativeNetRegisterOwesPersonnelPocket,
-                                  locale
-                                )}
-                              </TableCell>
+                              {showPocketCol ? (
+                                <TableCell className="bg-zinc-50/90 text-right tabular-nums font-semibold text-zinc-900">
+                                  {formatLocaleAmount(
+                                    cash.data.totals
+                                      .cumulativeNetRegisterOwesPersonnelPocket,
+                                    locale,
+                                  )}
+                                </TableCell>
+                              ) : null}
                               <TableCell className="bg-zinc-50/90 text-right tabular-nums font-semibold text-zinc-900">
                                 {formatLocaleAmount(
                                   cash.data.totals.cumulativeNetRegisterOwesPatron,

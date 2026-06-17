@@ -77,5 +77,6 @@ export const common = {
   sectionInfoExplainButton: "Explanation",
   search: "Search…",
   noResults: "No results",
+  select: "Select…",
   empty: "No records",
 } as const;

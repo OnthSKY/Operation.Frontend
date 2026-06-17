@@ -79,9 +79,6 @@
   patronHubGuideLinkPatronFlowLabel: "Cebimden neye gitti (tam sayfa)",
   patronHubGuideLinkPatronFlowDesc:
     "Patrondan nakit giriş ve patron ödemeli gider satırlarının tek listede toplanmış hali.",
-  patronHubGuideLinkBranchCompareLabel: "Şube karşılaştırma (tam sayfa)",
-  patronHubGuideLinkBranchCompareDesc:
-    "Şubeleri aynı dönemde faaliyet geliri, operasyonel gider ve net ile kıyaslamak için.",
   patronHubGuideLinkFinancialHubLabel: "Finans özeti (hub)",
   patronHubGuideLinkFinancialHubDesc:
     "Seçilen dönemde faaliyet geliri, operasyonel gider ve net (KPI kapsamı).",
@@ -145,11 +142,13 @@
   cashPositionLead: "Tarih ve kapsam:",
   cashPositionEmpty:
     "Seçilen kriterlere uyan şube yok. Tüm şubeleri görmek için “Yalnız turizm sezonu açık şubeler” seçimini kaldırın.",
-  cashColDrawer: "Tahmini nakit (çekmece)",
-  cashColHeldPersonnel: "Personelde kasa nakiti",
-  cashColPocketDebt: "Net pers. cebi borcu",
+  cashColDrawer: "Kasa bakiyesi (toplam)",
+  cashColHeldPersonnel: "Personel zimmetinde",
+  cashColPocketDebt: "Net pers. cebi borcu (legacy)",
   cashColPatronDebt: "Net patron borcu",
   cashTotalsRow: "Toplam",
+  cashDrawerIncludesHeldNote:
+    "«Kasa bakiyesi» muhasebe bakiyesidir; «Personel zimmetinde» bu toplamın içinde fiziksel olarak personelde duran kısımdır. Fiziksel çekmece = Toplam − Personel zimmetinde.",
   hubFilterEffectsTitle: "Seçimlerin uygulandığı yerler",
   hubFilterEffectsScopeLeadCash:
     "Bu ekran dönemsel gelir–gider özeti değildir: rapor tarihine göre anlık tahmini çekmece ve kasa borçlarıdır; özet ile tablolar aynı tarih ve kapsamı paylaşır.",
@@ -550,12 +549,12 @@
   navStockTables: "Stok — tüm tablolar",
   navCashReport: "Kasa — tam tablo",
   navPatronFlow: "Patron Cebinden Ödemeler",
-  navBranchComparison: "Şube karşılaştırma",
   navBackToReportsHub: "Tüm raporlar",
   sidebarFinances: "Gelir-gider özeti",
   sidebarPersonnelHeldCash: "Personeldeki kasa",
   sidebarOrderAccountStatement: "Sipariş / hesap dökümü",
   sidebarCounterpartySummary: "Cari Hesaplar",
+  sidebarAllReceipts: "Tahsilatlar",
   hubOpenCashFullTable: "Tam kasa tablosu (sıralama, dışa aktarma)",
   hubOpenStockFullTables: "Stok — tam tablolar sayfası",
   finReportsLayoutTitle: "Finans raporları",
@@ -651,6 +650,9 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   patronExpenseBucketNonPnl: "Kâr-zarar dışı",
   patronExpenseBucketOther: "Diğer",
   patronFlowColExpenseGroup: "Grup",
+  patronFlowGroupByBucket: "Gruplara ayır",
+  patronFlowExpandAll: "Tümünü aç",
+  patronFlowCollapseAll: "Tümünü kapat",
   patronFlowOutPaging:
     "Sayfa {{page}} / {{totalPages}} · bu sayfada {{shown}} satır (filtre sonrası {{total}})",
   patronFlowOutPrevPage: "Önceki sayfa",
@@ -680,36 +682,6 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   patronFlowBeneficiaryOther: "Diğer",
   patronFlowPickBranchFirst: "Önce şube seçin.",
   patronFlowPersonnelRequired: "Lehtar personel ise şube personeli seçin.",
-  tablesPageBranchComparisonTitle: "Şube Karşılaştırma Raporu",
-  tablesPageBranchComparisonSubtitle:
-    "Seçilen dönemde şube ve para birimine göre faaliyet geliri, operasyonel gider ve net. Satırdaki okla geliri nakit/kart/patron nakit, giderleri ödeme kaynağına göre açın.",
-  branchComparisonKpiScopeCallout:
-    "Gelir ve gider sütunları finans özetiyle aynı KPI kurallarını kullanır (gelirde iç nakit IN’ler yok; giderde kasadan cebi ve patron borcu kapatma yok). Nakit sekmesindeki çekmece bakiyesi fiili anlık görünüm olabilir, farklıdır.",
-  branchComparisonScopeNote:
-    "Şube karşılaştırma, seçilen aralıkta finans raporundaki faaliyet geliri ve operasyonel gider tanımlarını kullanır — ham «tüm IN/OUT ciro» değildir.",
-  branchComparisonCrossRefToFinTables:
-    "Kategori, ödeme kaynağı veya dönem farkıyla filtrelemek istiyorsanız:",
-  branchComparisonCrossRefToFinTablesLink: "Finansal Tablolar → Şube",
-  byBranchCrossRefToBranchComparison:
-    "Şubeye göre detay (gelir/gider kırılımı, sayfalama) için:",
-  byBranchCrossRefToBranchComparisonLink: "Şube Karşılaştırma",
-  branchComparisonPeriodHelp:
-    "Tarih aralığındaki şube kasası hareketlerine dayanır. Sütun başlığına tıklayarak sıralayın.",
-  branchComparisonSortHint: "Sıralamak için sütun başlığına tıklayın; tekrar ters çevirir.",
-  branchComparisonSortHintMobile:
-    "Kart görünümünde soldaki yazı sütun adıdır. Sıralamak için geniş ekran veya yatay modda tablo başlıklarını kullanın.",
-  branchComparisonExpandShow: "Gelir/gider ayrıntısını göster",
-  branchComparisonExpandHide: "Ayrıntıyı gizle",
-  branchComparisonDetailIncomeTitle: "Faaliyet geliri — nakit ve kart",
-  branchComparisonDetailExpenseTitle: "Gider — ödeme kaynağı",
-  branchComparisonIncomeCash: "Nakit (gelir)",
-  branchComparisonIncomeCard: "Kart / POS (gelir)",
-  branchComparisonIncomeCashPatron: "Nakit içinden patrona yazılan",
-  branchComparisonEmpty: "Bu dönem ve filtreler için satır yok.",
-  branchComparisonPageSize: "Sayfa başına satır",
-  branchComparisonPaging: "Sayfa {{page}} / {{totalPages}} · toplam {{total}} satır",
-  branchComparisonPrev: "Önceki",
-  branchComparisonNext: "Sonraki",
   sectionFilter: "Satır filtrele",
   sectionSearchPlaceholder: "Daraltmak için yazın…",
   sectionSortBy: "Sırala",
@@ -892,6 +864,7 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   counterpartySummaryCounterpartyCount: "Cari sayısı",
   counterpartySummaryInvoiceCount: "Fatura sayısı",
   counterpartySummaryColName: "Cari",
+  counterpartySummarySelectRequired: "Lütfen bir cari seçin",
   counterpartySummaryColType: "Tip",
   counterpartySummaryColInvoiced: "Faturalanan",
   counterpartySummaryColPaid: "Tahsilat",
@@ -916,6 +889,12 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   counterpartySummaryPdfNotFound:
     "Bu fatura için sistemde kayıtlı PDF bulunamadı. Belge sisteme kaydedilmemiş olabilir.",
   counterpartySummaryExportPdf: "Cari detay PDF indir",
+  counterpartySummaryExportPdfCounterparty: "Cari bazlı PDF",
+  counterpartySummaryExportPdfInvoice: "Fatura bazlı PDF",
+  counterpartySummaryTabSummary: "Cariler",
+  counterpartySummaryTabReceipts: "Tahsilatlar",
+  counterpartySummaryFilterDateFrom: "Başlangıç",
+  counterpartySummaryFilterDateTo: "Bitiş",
   counterpartySummaryPdfTitle: "Cari hareket özeti",
   counterpartySummaryPdfBranch: "Şube",
   counterpartySummaryPdfFilters: "Filtre",
@@ -1057,5 +1036,21 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   summaryTreeVehicleHint: "Plaka bazlı, gider türüne göre kırılım.",
   summaryTreeBranchOnlyAllBranches:
     "Araç ve diğer şube giderleri yalnızca «Tüm şubeler» seçiliyken kırılımlı gösterilir.",
+  summaryTreeIncomeGross: "Gelen para (gider hariç)",
+  summaryTreeExpenseBySource: "Giden para — ödeme kaynağı",
+  summaryTreeExpenseByCategory: "Giden para — kategori",
+  summaryTreeSourceUnset: "Belirsiz",
+  summaryTreeOpsExpenseTotal: "Operasyonel gider toplamı",
+  summaryTreeNetHint: "Gelir − operasyonel giderler (avans + maaş + tüm OUT kategoriler)",
+  summaryTreeAdvanceNote:
+    "Avans P&L gideri değil; nakit pozisyonu kullanır (sonraki dönem maaş/gider kapatır).",
+  summaryTreeBranchScopeWarn:
+    "Şube seçiliyken araç ve genel gider sayıları tüm şirket toplamıdır.",
+  summaryTreeSupplierAttributed: "Bunun tedarikçiye giden kısmı",
+  summaryTreeSupplierInBucket: "Tedarikçi payı",
+  summaryTreeUnsetWarn:
+    "Ödeme kaynağı belirsiz {amount} tutarında gider var ({count} işlem). Bu satırlara dokunup kaynağı düzeltmek için şube giderleri sayfasından ödeme yöntemini seç.",
+  summaryTreeUnsetBadge: "Belirsiz",
+  summaryTreeTwoViewsHint: "Aynı toplam — iki farklı bakış: ödeme yöntemi ve gider türü.",
 } as const;
 

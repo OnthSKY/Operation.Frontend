@@ -19,6 +19,8 @@ export type CounterpartyInvoiceStylePdfRow = {
   promoCombinedAmount?: string;
   openAmount: string;
   paymentDate: string;
+  /** Fatura altında listelenecek tahsilat hareketleri (tarih, tutar, yöntem). */
+  receipts?: Array<{ date: string; amount: string; kindLabel: string }>;
 };
 
 export type CounterpartyInvoiceStylePdfMeta = {
@@ -110,10 +112,10 @@ function createPaperNode(rows: CounterpartyInvoiceStylePdfRow[], meta: Counterpa
   rightMeta.style.alignItems = "flex-end";
   rightMeta.style.gap = "4px";
   rightMeta.style.fontSize = "12px";
+  // Üst-sağ meta sadeleşti: Üretilme + filtre (toplamlar tablonun alt satırında).
   rightMeta.innerHTML = `
     <div><b>${escapeHtml(meta.issuedAtLabel)}</b></div>
     <div>${escapeHtml(meta.filtersLabel)}</div>
-    <div>${escapeHtml(meta.totalsLabel)}</div>
   `;
 
   top.appendChild(logoWrap);
@@ -124,9 +126,9 @@ function createPaperNode(rows: CounterpartyInvoiceStylePdfRow[], meta: Counterpa
   titleArea.style.marginTop = "10px";
   titleArea.style.textAlign = "center";
   titleArea.innerHTML = `
-    <div style="font-size:28px;font-weight:800;letter-spacing:0.02em;text-transform:uppercase;">${meta.showCompanyName === false ? "—" : escapeHtml(meta.companyName || "—")}</div>
-    <div style="font-size:14px;color:#475569;margin-top:2px;">${escapeHtml(meta.branchName || "—")}</div>
-    <div style="margin-top:8px;border:1px solid #94a3b8;background:#f1f5f9;padding:8px 10px;font-size:18px;font-weight:800;text-transform:uppercase;">${escapeHtml(meta.title)}</div>
+    <div style="font-size:24px;font-weight:700;letter-spacing:0.02em;text-transform:uppercase;color:#0f172a;">${meta.showCompanyName === false ? "—" : escapeHtml(meta.companyName || "—")}</div>
+    <div style="font-size:13px;color:#64748b;margin-top:2px;">${escapeHtml(meta.branchName || "—")}</div>
+    <div style="margin-top:8px;border:1px solid #e2e8f0;background:#f8fafc;padding:6px 12px;border-radius:8px;font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:#334155;">${escapeHtml(meta.title)}</div>
   `;
   header.appendChild(titleArea);
   root.appendChild(header);
@@ -137,88 +139,126 @@ function createPaperNode(rows: CounterpartyInvoiceStylePdfRow[], meta: Counterpa
   table.style.borderCollapse = "collapse";
   table.style.fontSize = "12px";
 
+  // Soft palet — açık zemin + slate metin (kâğıt üstünde nazik).
   const thead = document.createElement("thead");
   thead.innerHTML = `
-    <tr style="background:#0f172a;color:#f8fafc;">
-      <th style="padding:8px;border:1px solid #334155;text-align:left;">Cari</th>
-      <th style="padding:8px;border:1px solid #334155;text-align:left;">Tip</th>
-      <th style="padding:8px;border:1px solid #334155;text-align:left;">Fatura No</th>
-      <th style="padding:8px;border:1px solid #334155;text-align:left;">Sipariş Tarihi</th>
-      <th style="padding:8px;border:1px solid #334155;text-align:right;">Fatura Tutarı</th>
-      <th style="padding:8px;border:1px solid #334155;text-align:right;">Tahsil Edilen</th>
-      <th style="padding:8px;border:1px solid #334155;text-align:right;">Ön Ödeme</th>
-      <th style="padding:8px;border:1px solid #334155;text-align:right;">Promosyon<br/><span style="font-weight:400;font-size:10px;opacity:0.75;">(Para + Ürün hediye)</span></th>
-      <th style="padding:8px;border:1px solid #334155;text-align:right;">Açık</th>
-      <th style="padding:8px;border:1px solid #334155;text-align:right;">Ödeme Tarihi</th>
+    <tr style="background:#f1f5f9;color:#334155;">
+      <th style="padding:8px;border:1px solid #e2e8f0;text-align:left;font-weight:600;">Cari</th>
+      <th style="padding:8px;border:1px solid #e2e8f0;text-align:left;font-weight:600;">Tip</th>
+      <th style="padding:8px;border:1px solid #e2e8f0;text-align:left;font-weight:600;">Fatura No</th>
+      <th style="padding:8px;border:1px solid #e2e8f0;text-align:left;font-weight:600;">Sipariş Tarihi</th>
+      <th style="padding:8px;border:1px solid #e2e8f0;text-align:right;font-weight:600;">Fatura Tutarı</th>
+      <th style="padding:8px;border:1px solid #e2e8f0;text-align:right;font-weight:600;">Tahsil Edilen</th>
+      <th style="padding:8px;border:1px solid #e2e8f0;text-align:right;font-weight:600;">Ön Ödeme</th>
+      <th style="padding:8px;border:1px solid #e2e8f0;text-align:right;font-weight:600;">Promosyon<br/><span style="font-weight:400;font-size:10px;color:#64748b;">(Para + Ürün hediye)</span></th>
+      <th style="padding:8px;border:1px solid #e2e8f0;text-align:right;font-weight:600;">Açık</th>
+      <th style="padding:8px;border:1px solid #e2e8f0;text-align:right;font-weight:600;">Ödeme Tarihi</th>
     </tr>
   `;
   table.appendChild(thead);
 
+  const COL_COUNT = 10;
   const tbody = document.createElement("tbody");
   rows.forEach((row, index) => {
+    const bg = index % 2 === 1 ? "#f8fafc" : "#ffffff";
     const tr = document.createElement("tr");
-    if (index % 2 === 1) tr.style.background = "#f8fafc";
+    tr.style.background = bg;
     tr.innerHTML = `
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;">${escapeHtml(row.counterpartyName)}</td>
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;">${escapeHtml(row.counterpartyTypeLabel)}</td>
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;">${escapeHtml(row.documentNumber)}</td>
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;">${escapeHtml(row.issueDate)}</td>
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;">${escapeHtml(row.invoiceAmount)}</td>
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#166534;">${escapeHtml(row.paidAmount)}</td>
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#0369a1;">${escapeHtml(row.advanceAmount ?? "—")}</td>
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#6d28d9;">
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;color:#0f172a;">${escapeHtml(row.counterpartyName)}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;color:#475569;">${escapeHtml(row.counterpartyTypeLabel)}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;color:#475569;">${escapeHtml(row.documentNumber)}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;color:#475569;">${escapeHtml(row.issueDate)}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#0f172a;">${escapeHtml(row.invoiceAmount)}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#15803d;">${escapeHtml(row.paidAmount)}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#0284c7;">${escapeHtml(row.advanceAmount ?? "—")}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#7c3aed;">
         ${escapeHtml(row.promoCombinedAmount ?? row.promoAmount ?? "—")}
-        ${row.promoAmount || row.giftAmount ? `<div style="margin-top:2px;font-size:9px;font-weight:400;color:#64748b;line-height:1.2;">Para: ${escapeHtml(row.promoAmount ?? "—")} · Hediye: ${escapeHtml(row.giftAmount ?? "—")}</div>` : ""}
+        ${row.promoAmount || row.giftAmount ? `<div style="margin-top:2px;font-size:9px;font-weight:400;color:#94a3b8;line-height:1.2;">Para: ${escapeHtml(row.promoAmount ?? "—")} · Hediye: ${escapeHtml(row.giftAmount ?? "—")}</div>` : ""}
       </td>
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;font-weight:700;color:#92400e;">${escapeHtml(row.openAmount)}</td>
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;">${escapeHtml(row.paymentDate)}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;font-weight:600;color:#b45309;">${escapeHtml(row.openAmount)}</td>
+      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#64748b;">${escapeHtml(row.paymentDate)}</td>
     `;
     tbody.appendChild(tr);
+
+    // Tahsilatlar alt satır olarak — colspan ile satır birleştir, kompakt liste.
+    if (row.receipts && row.receipts.length > 0) {
+      const trReceipts = document.createElement("tr");
+      trReceipts.style.background = bg;
+      const items = row.receipts
+        .map(
+          (r) =>
+            `<div style="display:flex;align-items:center;gap:8px;padding:3px 0;border-top:1px dotted #e2e8f0;">
+              <span style="color:#64748b;min-width:80px;">${escapeHtml(r.date)}</span>
+              <span style="color:#166534;font-weight:600;min-width:110px;text-align:right;">${escapeHtml(r.amount)}</span>
+              <span style="display:inline-block;font-size:10px;font-weight:500;padding:1px 8px;border-radius:999px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;">${escapeHtml(r.kindLabel)}</span>
+            </div>`
+        )
+        .join("");
+      trReceipts.innerHTML = `
+        <td colspan="${COL_COUNT}" style="padding:6px 12px 8px 24px;border:1px solid #e2e8f0;border-top:none;font-size:11px;">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#475569;margin-bottom:2px;">↳ Tahsilatlar</div>
+          ${items}
+        </td>
+      `;
+      tbody.appendChild(trReceipts);
+    }
   });
+
   table.appendChild(tbody);
   root.appendChild(table);
 
+  // Sağ alt özet kartı — soft palet, kâğıt üstünde nazik (eski tablo footer satırı kaldırıldı)
   if (meta.footerTotals) {
-    const totalsWrap = document.createElement("div");
-    totalsWrap.style.marginTop = "14px";
-    totalsWrap.style.border = "1px solid #cbd5e1";
-    totalsWrap.style.borderRadius = "10px";
-    totalsWrap.style.padding = "10px 12px";
-    totalsWrap.style.background = "#f8fafc";
     const ft = meta.footerTotals;
-    const advanceCell = ft.advanceLabel
-      ? `<div><div style="color:#64748b;">${escapeHtml(ft.advanceLabel)}</div><div style="font-weight:700;color:#0369a1;">${escapeHtml(ft.advanceValue ?? "—")}</div></div>`
-      : "";
-    // Promosyon birleşik (para + hediye) — kart başlığında toplam, altında detay.
-    const promoCombined = ft.promoCombinedValue ?? ft.promoValue ?? "—";
-    const promoBreakdown =
-      ft.promoValue || ft.giftValue
-        ? `<div style="margin-top:2px;font-size:10px;color:#64748b;line-height:1.3;">Para: ${escapeHtml(ft.promoValue ?? "—")} · Hediye: ${escapeHtml(ft.giftValue ?? "—")}</div>`
-        : "";
-    const promoCell = ft.promoLabel
-      ? `<div><div style="color:#64748b;">${escapeHtml(ft.promoLabel)}</div><div style="font-weight:700;color:#6d28d9;">${escapeHtml(promoCombined)}</div>${promoBreakdown}</div>`
-      : "";
-    totalsWrap.innerHTML = `
-      <div style="font-size:11px;color:#334155;text-transform:uppercase;letter-spacing:0.03em;">Toplamlar</div>
-      <div style="margin-top:6px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;font-size:12px;">
-        <div>
-          <div style="color:#64748b;">${escapeHtml(ft.invoicedLabel)}</div>
-          <div style="font-weight:700;color:#0f172a;">${escapeHtml(ft.invoicedValue)}</div>
-        </div>
-        <div>
-          <div style="color:#64748b;">${escapeHtml(ft.paidLabel)}</div>
-          <div style="font-weight:700;color:#166534;">${escapeHtml(ft.paidValue)}</div>
-        </div>
-        ${advanceCell}
-        ${promoCell}
-        <div>
-          <div style="color:#64748b;">${escapeHtml(ft.openLabel)}</div>
-          <div style="font-weight:700;color:#92400e;">${escapeHtml(ft.openValue)}</div>
-        </div>
+    const summaryWrap = document.createElement("div");
+    summaryWrap.style.marginTop = "16px";
+    summaryWrap.style.display = "flex";
+    summaryWrap.style.justifyContent = "flex-end";
+    const card = document.createElement("div");
+    card.style.minWidth = "320px";
+    card.style.maxWidth = "420px";
+    card.style.border = "1px solid #e2e8f0";
+    card.style.borderRadius = "12px";
+    card.style.background = "#f8fafc";
+    card.style.padding = "12px 14px";
+    card.style.fontSize = "12px";
+    const row = (label: string, value: string, color: string) =>
+      `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;">
+        <span style="color:#64748b;">${escapeHtml(label)}</span>
+        <span style="color:${color};font-weight:600;font-variant-numeric:tabular-nums;">${escapeHtml(value)}</span>
+      </div>`;
+    card.innerHTML = `
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#475569;border-bottom:1px solid #e2e8f0;padding-bottom:6px;margin-bottom:6px;">Özet</div>
+      ${row(ft.invoicedLabel, ft.invoicedValue, "#0f172a")}
+      ${row(ft.paidLabel, ft.paidValue, "#15803d")}
+      ${ft.advanceLabel ? row(ft.advanceLabel, ft.advanceValue ?? "—", "#0284c7") : ""}
+      ${
+        ft.promoLabel
+          ? `<div style="padding:4px 0;">
+              <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                <span style="color:#64748b;">${escapeHtml(ft.promoLabel)}</span>
+                <span style="color:#7c3aed;font-weight:600;font-variant-numeric:tabular-nums;">${escapeHtml(ft.promoCombinedValue ?? ft.promoValue ?? "—")}</span>
+              </div>
+              ${
+                ft.promoValue || ft.giftValue
+                  ? `<div style="display:flex;justify-content:flex-end;gap:10px;font-size:10px;color:#94a3b8;margin-top:1px;">
+                      <span>Para: <span style="font-variant-numeric:tabular-nums;">${escapeHtml(ft.promoValue ?? "—")}</span></span>
+                      <span>Hediye: <span style="font-variant-numeric:tabular-nums;">${escapeHtml(ft.giftValue ?? "—")}</span></span>
+                    </div>`
+                  : ""
+              }
+            </div>`
+          : ""
+      }
+      <div style="border-top:1px solid #e2e8f0;margin-top:4px;padding-top:6px;">
+        ${row(ft.openLabel, ft.openValue, "#b45309")}
       </div>
     `;
-    root.appendChild(totalsWrap);
+    summaryWrap.appendChild(card);
+    root.appendChild(summaryWrap);
   }
+
+  // Alt toplam satırı artık table footer'da (tek satır, koyu zemin). Eski 5-hücreli kart kaldırıldı.
 
   const iban = meta.paymentInfo?.iban?.trim() ?? "";
   const accountHolder = meta.paymentInfo?.accountHolder?.trim() ?? "";

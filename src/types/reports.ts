@@ -153,6 +153,35 @@ export type FinancialReport = {
   /** «Personel gideri» kovası: OUT_PER_* (avans + maaş hariç) kategori kırılımı. */
   personnelExpenseByCategory?: FinancialCategoryBreakdownRow[];
   incomeRegisterBreakdownByCurrency?: FinancialIncomeRegisterBreakdownRow[];
+  /** «Tek bakışta giden para» özeti: ödeme yöntemi × gider türü + tedarikçi atfı. Backend tarafından hazır gelir. */
+  expenseAtAGlanceByCurrency?: ExpenseAtAGlanceRow[];
+};
+
+/** Backend tarafından hazır gelen «tek bakışta giden para» kırılımı. */
+export type ExpenseAtAGlanceRow = {
+  currencyCode: string;
+  /** Operasyonel gider + avans + maaş toplamı (nakit akış). */
+  totalOutflow: number;
+  /** Toplam giden içinden tedarikçi atfı. */
+  supplierAttributedTotal: number;
+  bySource: ExpenseSourceSlice[];
+  byUsage: ExpenseUsageSlice[];
+};
+
+export type ExpenseSourceSlice = {
+  /** REGISTER | PATRON | PERSONNEL_POCKET | PERSONNEL_HELD_REGISTER_CASH | BANK | UNSET */
+  source: string;
+  amount: number;
+  lineCount: number;
+};
+
+export type ExpenseUsageSlice = {
+  /** PERSONNEL | BRANCH_OPS | VEHICLE | OVERHEAD */
+  usage: string;
+  amount: number;
+  /** Bu gider türü içinden tedarikçi atfı (ör. şube gideri içindeki tedarikçi faturası). */
+  supplierAttributedAmount: number;
+  lineCount: number;
 };
 
 export type WarehousePeriodSummaryRow = {

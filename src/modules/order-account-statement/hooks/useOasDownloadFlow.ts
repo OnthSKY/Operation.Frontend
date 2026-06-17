@@ -218,10 +218,14 @@ export function useOasDownloadFlow(p: Params) {
           currencyCode: "TRY",
           shipmentLinkMode: effectiveShipmentLinkMode,
           autoPostLedger: invoicing.invoiceAutoPost,
-          // Promo, semantik olarak fatura indirimi → outbound_invoices.promo_amount kolonuna yazılır.
-          // Eskiden receipt olarak yazılıyordu (yanlış semantik), şimdi header kolonu.
+          // Promo, gift ve advance — hepsi outbound_invoices header kolonlarına yazılır.
+          // Eskiden advance ayrıca receipt olarak da yazılıyordu (otomatik); kaldırdık.
+          // Kullanıcı fiilen alınan ön ödeme nakdini "+ Genel Tahsilat Al" → kind=advance_payment
+          // ile ayrıca girer (izlenebilirlik için), ama bu header değeri zaten fatura için
+          // beklenen ön ödeme tutarını kaydeder ve Cari Hesaplar sayfasında görünür.
           promoAmount: promoDeductionTotal,
           giftAmount: giftDeductionTotal,
+          advanceAmount: advanceLedgerDeduction,
           notes: buildOrderAccountDocumentMetadata({
             orderDocumentKey,
             companyName: safeCompany,

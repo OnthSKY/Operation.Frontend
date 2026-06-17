@@ -1,6 +1,8 @@
 "use client";
 
+import { useMemo } from "react";
 import { useI18n } from "@/i18n/context";
+import { RichCombobox } from "@/shared/ui/RichCombobox";
 import type { CustomerAccountReceiptKind } from "@/modules/order-account-statement/api/customer-accounts-api";
 
 const KIND_KEYS: { value: CustomerAccountReceiptKind; labelKey: string }[] = [
@@ -22,28 +24,31 @@ type Props = {
 
 /**
  * Tahsilat türü seçici — Faturalar tab'inde fatura bazlı tahsilat dialog'unda
- * ve "+ Genel Tahsilat Al" modal'ında ortak kullanılır. Tek kaynak → tutarlı UX.
+ * ve "+ Genel Tahsilat Al" modal'ında ortak kullanılır.
+ * Shared RichCombobox üstüne — aramalı, modal-friendly z-index'li, codebase standardı.
  */
 export function ReceiptKindSelect({ value, onChange, label, allowedKinds }: Props) {
   const { t } = useI18n();
-  const items = allowedKinds
-    ? KIND_KEYS.filter((k) => allowedKinds.includes(k.value))
-    : KIND_KEYS;
+  const items = useMemo(
+    () => (allowedKinds ? KIND_KEYS.filter((k) => allowedKinds.includes(k.value)) : KIND_KEYS),
+    [allowedKinds]
+  );
+  const options = useMemo(
+    () => items.map((k) => ({ value: k.value, title: t(k.labelKey) })),
+    [items, t]
+  );
   const heading = label ?? t("branch.ledgerModalKind");
   return (
     <div className="space-y-1.5">
       <label className="block text-sm font-medium text-zinc-700">{heading}</label>
-      <select
+      <RichCombobox
         value={value}
-        onChange={(e) => onChange(e.target.value as CustomerAccountReceiptKind)}
-        className="block h-11 min-h-[44px] w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-900 outline-none transition focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/80 sm:h-12 sm:text-base"
-      >
-        {items.map((k) => (
-          <option key={k.value} value={k.value}>
-            {t(k.labelKey)}
-          </option>
-        ))}
-      </select>
+        onChange={(v) => onChange(v as CustomerAccountReceiptKind)}
+        options={options}
+        placeholder={t("common.select")}
+        searchPlaceholder={t("common.search")}
+        emptyText={t("common.noResults")}
+      />
     </div>
   );
 }

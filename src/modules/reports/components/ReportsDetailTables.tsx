@@ -326,15 +326,6 @@ export function FinancialReportDetailTables({
         title={t("reports.sectionByBranch")}
         description={`${t("reports.sectionTotalsFinancialKpiNote")} ${t("reports.sectionByBranchExpenseSourceHint")}`}
       >
-        <p className="mb-3 flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-lg border border-sky-200/80 bg-sky-50/70 px-3 py-2 text-xs leading-relaxed text-sky-950 sm:text-sm">
-          <span>{t("reports.byBranchCrossRefToBranchComparison")}</span>
-          <Link
-            href="/reports/branches"
-            className="font-semibold text-sky-800 underline underline-offset-2 hover:text-sky-900"
-          >
-            {t("reports.byBranchCrossRefToBranchComparisonLink")}
-          </Link>
-        </p>
         <ReportInteractiveRows
           interactive={interactive}
           rows={data.byBranch}
