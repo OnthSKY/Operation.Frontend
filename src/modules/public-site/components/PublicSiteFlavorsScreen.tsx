@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Card } from "@/shared/components/Card";
 import { notify } from "@/shared/lib/notify";
+import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { Pencil } from "lucide-react";
 import { Button } from "@/shared/ui/Button";
@@ -185,15 +186,24 @@ export function PublicSiteFlavorsScreen() {
     }
   };
 
-  const onDelete = async (f: Flavor) => {
-    if (!window.confirm(`"${f.name}" silinsin mi?`)) return;
-    try {
-      await remove.mutateAsync(f.id);
-      notify.success("Çeşit silindi.");
-      if (editing?.id === f.id) setEditing(null);
-    } catch (e) {
-      notify.error(toErrorMessage(e));
-    }
+  const onDelete = (f: Flavor) => {
+    notifyConfirmToast({
+      toastId: `delete-flavor-${f.id}`,
+      title: "Çeşidi sil",
+      message: `"${f.name}" silinsin mi? Bu işlem geri alınamaz.`,
+      cancelLabel: "Vazgeç",
+      confirmLabel: "Sil",
+      tone: "warning",
+      onConfirm: async () => {
+        try {
+          await remove.mutateAsync(f.id);
+          notify.success("Çeşit silindi.");
+          if (editing?.id === f.id) setEditing(null);
+        } catch (e) {
+          notify.error(toErrorMessage(e));
+        }
+      },
+    });
   };
 
   const saving = create.isPending || update.isPending || uploadImg.isPending || deleteImg.isPending;

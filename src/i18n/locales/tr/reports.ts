@@ -928,6 +928,11 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   orderAccountStatementMultiActionConfirmCta: "Devam et",
   orderAccountStatementProgressRunning: "İşlemler sürüyor…",
   orderAccountStatementProgressPercent: "%{percent} tamamlandı",
+  orderAccountStatementProgressDoneTitle: "Tamamlandı",
+  orderAccountStatementProgressRedirectIn:
+    "{seconds} sn sonra Cari Hesaplar sayfasına yönlendiriliyorsunuz…",
+  orderAccountStatementProgressRedirectNow: "Şimdi git",
+  orderAccountStatementProgressStay: "Burada kal",
   orderAccountStatementCreationMode: "Belge oluşturma modu",
   orderAccountStatementCreationModeManual: "Manuel",
   orderAccountStatementCreationModeShipment: "Depo çıkışına göre",

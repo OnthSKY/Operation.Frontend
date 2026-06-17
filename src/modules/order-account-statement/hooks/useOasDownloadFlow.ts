@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, type RefObject } from "react";
+import { useCallback, useRef, useState, type RefObject } from "react";
 import type { useRouter } from "next/navigation";
 import type { OpenBranchDetailOptions } from "@/shared/branch-detail";
 import { notify } from "@/shared/lib/notify";
@@ -95,6 +95,31 @@ export function useOasDownloadFlow(p: Params) {
 
   const [busy, setBusy] = useState(false);
   const hasMultipleActions = invoicing.saveAsInvoice || invoicing.saveToSystem;
+  // Akış sonu geri sayım/yönlendirme için. Modal'daki "Şimdi git" butonu bu ref'i tetikler.
+  const pendingRedirectRef = useRef<{
+    timeoutId: ReturnType<typeof setTimeout>;
+    intervalId: ReturnType<typeof setInterval>;
+    navigate: () => void;
+  } | null>(null);
+
+  const onRedirectNow = useCallback(() => {
+    const pending = pendingRedirectRef.current;
+    if (!pending) return;
+    clearTimeout(pending.timeoutId);
+    clearInterval(pending.intervalId);
+    pendingRedirectRef.current = null;
+    multiAction.setRedirectInSec(0);
+    multiAction.close();
+    pending.navigate();
+  }, [multiAction]);
+
+  const cancelPendingRedirect = useCallback(() => {
+    const pending = pendingRedirectRef.current;
+    if (!pending) return;
+    clearTimeout(pending.timeoutId);
+    clearInterval(pending.intervalId);
+    pendingRedirectRef.current = null;
+  }, []);
 
   const onDownloadPdf = useCallback(async () => {
     const el = previewRef.current;
@@ -298,7 +323,6 @@ export function useOasDownloadFlow(p: Params) {
             ),
           ].slice(0, 10)
         );
-        notify.success(t("reports.orderAccountStatementInvoiceSaved"));
         setStepState("invoice", "done");
       }
 
@@ -340,15 +364,51 @@ export function useOasDownloadFlow(p: Params) {
             notes: note,
           });
           invoicing.setLastSavedDocumentId(saved.id);
-          notify.success(t("reports.orderAccountStatementSystemSaved"));
           setStepState("system", "done");
         }
       }
 
-      if (invoicing.saveToSystem && Number.isFinite(parsedBranchId) && parsedBranchId > 0) {
-        openBranchDetail(parsedBranchId, { initialTab: "currentAccount" });
-      } else if (invoicing.saveAsInvoice) {
-        router.push("/products/order-account-statement/summary");
+      // Akış başarılı tamamlandı; modal'da geri sayım göster + 3 sn sonra yönlendir.
+      // Bu, ayrı ayrı toast spam'ini önler ve kullanıcıya sonucu özümseme süresi verir.
+      if (showMultiActionProgress) {
+        const navigateToTarget = () => {
+          if (
+            invoicing.saveToSystem &&
+            Number.isFinite(parsedBranchId) &&
+            parsedBranchId > 0
+          ) {
+            openBranchDetail(parsedBranchId, { initialTab: "currentAccount" });
+          } else if (invoicing.saveAsInvoice) {
+            router.push("/reports/financial/current-accounts");
+          }
+        };
+        multiAction.setRedirectInSec(3);
+        const intervalId = setInterval(() => {
+          multiAction.setRedirectInSec((s: number) => Math.max(0, s - 1));
+        }, 1000);
+        const timeoutId = setTimeout(() => {
+          clearInterval(intervalId);
+          pendingRedirectRef.current = null;
+          multiAction.setRedirectInSec(0);
+          multiAction.close();
+          navigateToTarget();
+        }, 3000);
+        pendingRedirectRef.current = {
+          timeoutId,
+          intervalId,
+          navigate: navigateToTarget,
+        };
+      } else {
+        // Modal kullanılmadıysa eski davranış: direkt yönlendir.
+        if (
+          invoicing.saveToSystem &&
+          Number.isFinite(parsedBranchId) &&
+          parsedBranchId > 0
+        ) {
+          openBranchDetail(parsedBranchId, { initialTab: "currentAccount" });
+        } else if (invoicing.saveAsInvoice) {
+          router.push("/reports/financial/current-accounts");
+        }
       }
     } catch (error) {
       if (showMultiActionProgress) multiAction.setError(toErrorMessage(error));
@@ -396,6 +456,8 @@ export function useOasDownloadFlow(p: Params) {
     hasMultipleActions,
     onDownloadPdf,
     onDownloadPdfClick,
+    onRedirectNow,
+    cancelPendingRedirect,
   };
 }
 

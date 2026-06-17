@@ -378,7 +378,7 @@ export function OrderAccountStatementScreen() {
     shipmentPrefillActive: shipmentPrefillParams != null,
   });
 
-  const { busy, hasMultipleActions, onDownloadPdfClick } = useOasDownloadFlow({
+  const { busy, hasMultipleActions, onDownloadPdfClick, onRedirectNow, cancelPendingRedirect } = useOasDownloadFlow({
     t,
     locale,
     previewRef,
@@ -600,7 +600,12 @@ export function OrderAccountStatementScreen() {
         running={multiAction.running}
         steps={multiAction.steps}
         error={multiAction.error}
-        onClose={multiAction.close}
+        redirectInSec={multiAction.redirectInSec}
+        onClose={() => {
+          cancelPendingRedirect();
+          multiAction.close();
+        }}
+        onRedirectNow={onRedirectNow}
       />
       <OasProductPricingModal
         open={productPricingOpen}

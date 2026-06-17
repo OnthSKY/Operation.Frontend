@@ -19,35 +19,41 @@ export function useOasMultiAction() {
   const [steps, setSteps] = useState<MultiActionStep[]>([]);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
+  /** Akış tamamlandıktan sonra geri sayım (sn). 0 = inaktif. */
+  const [redirectInSec, setRedirectInSec] = useState(0);
 
   const setStepState = useCallback((id: MultiActionStepId, state: MultiActionStepState) => {
     setSteps((prev) => prev.map((x) => (x.id === id ? { ...x, state } : x)));
   }, []);
 
-  /** Yeni bir oturum başlat — hata temizle, adımları yerleştir, running'i aç. */
   const begin = useCallback((initialSteps: readonly MultiActionStep[]) => {
     setError("");
     setRunning(true);
+    setRedirectInSec(0);
     setSteps(initialSteps.slice());
   }, []);
 
-  /** Onay modal'ını sadece aç (henüz running başlatmadan). */
   const openConfirm = useCallback(() => {
     setOpen(true);
     setError("");
   }, []);
 
-  const close = useCallback(() => setOpen(false), []);
+  const close = useCallback(() => {
+    setOpen(false);
+    setRedirectInSec(0);
+  }, []);
 
   return {
     open,
     steps,
     running,
     error,
+    redirectInSec,
     setOpen,
     setRunning,
     setError,
     setStepState,
+    setRedirectInSec,
     begin,
     openConfirm,
     close,

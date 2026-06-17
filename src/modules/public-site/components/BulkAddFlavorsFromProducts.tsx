@@ -95,15 +95,12 @@ export function BulkAddFlavorsFromProducts({ open, onClose, existing }: Props) {
     onClose();
   };
 
-  const onAdd = async () => {
-    const picks = (products ?? [])
-      .filter((p) => selected.has(p.id) && !existingSlugs.has(slugify(p.name)))
-      .map((p) => p);
-    if (picks.length === 0) {
+  /** Verilen pick listesini sırayla ekle (paylaşılan iç akış). */
+  const performAdd = async (picks: typeof products extends (infer U)[] | undefined ? U[] : never) => {
+    if (!picks || picks.length === 0) {
       notify.error("Hiç ürün seçilmedi.");
       return;
     }
-
     setSaving(true);
     let baseOrder = existing.reduce((max, f) => Math.max(max, f.sortOrder), 0);
     let ok = 0;
@@ -144,9 +141,28 @@ export function BulkAddFlavorsFromProducts({ open, onClose, existing }: Props) {
     if (failed.length === 0) {
       close();
     } else {
-      // Başarısızları seçili bırak ki tekrar denenebilsin.
       setSelected(new Set((products ?? []).filter((p) => failed.includes(p.name)).map((p) => p.id)));
     }
+  };
+
+  const onAdd = async () => {
+    const picks = (products ?? []).filter(
+      (p) => selected.has(p.id) && !existingSlugs.has(slugify(p.name))
+    );
+    await performAdd(picks as never);
+  };
+
+  /** Hızlı seç: mevcut olmayan TÜM ürünleri otomatik seçer. Kullanıcı sonra "Seçilenleri ekle"yi tıklar. */
+  const onQuickSelectAll = () => {
+    const addable = (products ?? []).filter((p) => !existingSlugs.has(slugify(p.name)));
+    if (addable.length === 0) {
+      notify.info("Eklenecek yeni ürün yok — hepsi zaten vitrinde.");
+      return;
+    }
+    // Arama filtresini temizle, tüm eklenebilir ürünleri seçili işaretle
+    setQuery("");
+    setSelected(new Set(addable.map((p) => p.id)));
+    notify.success(`${addable.length} ürün seçildi. "Seçilenleri ekle" ile eklemeyi tamamlayın.`);
   };
 
   const selectedCount = selected.size;
@@ -164,15 +180,29 @@ export function BulkAddFlavorsFromProducts({ open, onClose, existing }: Props) {
       closeButtonLabel="Kapat"
     >
       <div className="flex min-h-0 flex-1 flex-col">
-        {/* Arama + tümünü seç */}
+        {/* Arama + hızlı ekle + tümünü seç */}
         <div className="shrink-0 border-b border-zinc-100 px-4 py-3 sm:px-6">
-          <Input
-            type="search"
-            placeholder="Ürün veya kategori ara…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            aria-label="Ürün ara"
-          />
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+            <div className="min-w-0 flex-1">
+              <Input
+                type="search"
+                placeholder="Ürün veya kategori ara…"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                aria-label="Ürün ara"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onQuickSelectAll}
+              disabled={saving || isLoading || (products?.length ?? 0) === 0}
+              className="shrink-0"
+              title="Mevcut olmayan tüm ürünleri seçer (eklemek için onayla)"
+            >
+              ⚡ Hepsini seç
+            </Button>
+          </div>
           <div className="mt-2 flex items-center justify-between gap-2">
             <button
               type="button"

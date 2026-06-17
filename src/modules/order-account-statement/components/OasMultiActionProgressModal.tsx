@@ -26,10 +26,22 @@ type Props = {
   running: boolean;
   steps: readonly MultiActionStep[];
   error: string;
+  /** >0 ise akış tamamlandı; geri sayım sonunda Cari Hesaplar'a yönlendirilecek. */
+  redirectInSec?: number;
   onClose: () => void;
+  /** "Şimdi git" → countdown'ı atlayıp hemen yönlendir. */
+  onRedirectNow?: () => void;
 };
 
-export function OasMultiActionProgressModal({ open, running, steps, error, onClose }: Props) {
+export function OasMultiActionProgressModal({
+  open,
+  running,
+  steps,
+  error,
+  redirectInSec = 0,
+  onClose,
+  onRedirectNow,
+}: Props) {
   const { t } = useI18n();
 
   const progressPercent = useMemo(() => {
@@ -37,6 +49,8 @@ export function OasMultiActionProgressModal({ open, running, steps, error, onClo
     const completed = steps.filter((s) => s.state === "done" || s.state === "skipped").length;
     return Math.round((completed / steps.length) * 100);
   }, [steps]);
+
+  const showRedirect = !running && !error && redirectInSec > 0;
 
   return (
     <Modal
@@ -77,31 +91,67 @@ export function OasMultiActionProgressModal({ open, running, steps, error, onClo
             {error}
           </p>
         ) : null}
-        <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-700">
+        {showRedirect ? (
           <div
-            className="h-2 overflow-hidden rounded-full bg-zinc-100"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={progressPercent}
-            aria-label={t("reports.orderAccountStatementProgressRunning")}
+            role="status"
+            className="flex flex-col items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-3 text-center"
           >
-            <div
-              className="h-full rounded-full bg-violet-600 transition-[width] duration-300"
-              style={{ width: `${progressPercent}%` }}
-            />
+            <p className="text-sm font-semibold text-emerald-900">
+              ✓ {t("reports.orderAccountStatementProgressDoneTitle")}
+            </p>
+            <p className="text-xs text-emerald-800">
+              {t("reports.orderAccountStatementProgressRedirectIn").replace(
+                "{seconds}",
+                String(redirectInSec),
+              )}
+            </p>
           </div>
-          <p className="mt-2">
-            {t("reports.orderAccountStatementProgressPercent").replace(
-              "{percent}",
-              String(progressPercent)
-            )}
-          </p>
-        </div>
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="secondary" disabled={running} onClick={onClose}>
-            {running ? t("reports.orderAccountStatementProgressRunning") : t("common.close")}
+        ) : (
+          <div className="rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs text-zinc-700">
+            <div
+              className="h-2 overflow-hidden rounded-full bg-zinc-100"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progressPercent}
+              aria-label={t("reports.orderAccountStatementProgressRunning")}
+            >
+              <div
+                className="h-full rounded-full bg-violet-600 transition-[width] duration-300"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <p className="mt-2">
+              {t("reports.orderAccountStatementProgressPercent").replace(
+                "{percent}",
+                String(progressPercent),
+              )}
+            </p>
+          </div>
+        )}
+        <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={running}
+            onClick={onClose}
+            className="w-full sm:w-auto"
+          >
+            {running
+              ? t("reports.orderAccountStatementProgressRunning")
+              : showRedirect
+                ? t("reports.orderAccountStatementProgressStay")
+                : t("common.close")}
           </Button>
+          {showRedirect && onRedirectNow ? (
+            <Button
+              type="button"
+              onClick={onRedirectNow}
+              className="w-full sm:w-auto"
+            >
+              {t("reports.orderAccountStatementProgressRedirectNow")}
+            </Button>
+          ) : null}
         </div>
       </div>
     </Modal>

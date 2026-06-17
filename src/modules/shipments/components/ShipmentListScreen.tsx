@@ -10,8 +10,8 @@ import { useShipmentList, useRegenerateDeliverySlip } from "@/modules/shipments/
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { useWarehousesList } from "@/modules/warehouse/hooks/useWarehouseQueries";
 import { Button } from "@/shared/ui/Button";
+import { DateField } from "@/shared/ui/DateField";
 import { EmptyState } from "@/shared/ui/EmptyState";
-import { Input } from "@/shared/ui/Input";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import { Skeleton, SkeletonText } from "@/shared/ui/Skeleton";
 import { notify } from "@/shared/lib/notify";
@@ -207,16 +207,14 @@ export function ShipmentListScreen() {
             onChange={(e) => setWarehouseId(e.target.value)}
             onBlur={() => undefined}
           />
-          <Input
+          <DateField
             name="dateFrom"
-            type="date"
             label={t("shipments.list.dateFromLabel")}
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
           />
-          <Input
+          <DateField
             name="dateTo"
-            type="date"
             label={t("shipments.list.dateToLabel")}
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}

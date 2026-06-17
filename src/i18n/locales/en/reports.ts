@@ -943,6 +943,11 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   orderAccountStatementMultiActionConfirmCta: "Continue",
   orderAccountStatementProgressRunning: "Actions are running…",
   orderAccountStatementProgressPercent: "{percent}% completed",
+  orderAccountStatementProgressDoneTitle: "Completed",
+  orderAccountStatementProgressRedirectIn:
+    "Redirecting to Current Accounts in {seconds}s…",
+  orderAccountStatementProgressRedirectNow: "Go now",
+  orderAccountStatementProgressStay: "Stay here",
   orderAccountStatementCreationMode: "Document creation mode",
   orderAccountStatementCreationModeManual: "Manual",
   orderAccountStatementCreationModeShipment: "From outbound shipment",
