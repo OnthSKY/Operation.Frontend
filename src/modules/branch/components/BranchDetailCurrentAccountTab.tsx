@@ -951,8 +951,8 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
         <div className="rounded-xl border border-zinc-200 bg-white p-3">
           <div className="text-xs text-zinc-500">{t("branch.currentAccountInvoicedTotal")}</div>
           <div className="mt-1 text-lg font-semibold text-zinc-900">
-            {/* GROSS: invoiced + promo + gift = hiçbir indirim düşmemiş tam tutar. */}
-            {formatLocaleAmount(totals.invoiced + totals.promo + totals.gift, locale, "TRY")}
+            {/* Tam kalemler tutarı = invoiced + gift (promo ayrı indirim, eklenmez). */}
+            {formatLocaleAmount(totals.invoiced + totals.gift, locale, "TRY")}
           </div>
         </div>
         <div className="rounded-xl border border-zinc-200 bg-white p-3">
@@ -1041,9 +1041,10 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                       ) : null}
                     </td>
                     <td className="px-3 py-2 text-right">
-                      {/* GROSS fatura tutarı: lines + promo + gift = hiçbir indirim düşmeden. */}
+                      {/* Tam kalemler tutarı = lines_total + gift = (kalemler-gift)+difiriz+gift
+                          = kalemler + difiriz. promo ayrı bir indirim, kalem değil — eklenmez. */}
                       {formatLocaleAmount(
-                        (Number(r.linesTotal) || 0) + promoDeduction + giftAmount,
+                        (Number(r.linesTotal) || 0) + giftAmount,
                         locale,
                         r.currencyCode,
                       )}
@@ -1206,9 +1207,9 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-zinc-500">{t("branch.currentAccountColInvoiceTotal")}</span>
                     <span className="font-medium text-zinc-900">
-                      {/* GROSS: lines + promo + gift = hiçbir indirim düşmemiş tam tutar. */}
+                      {/* Tam kalemler tutarı = lines_total + gift (promo ayrı indirim, eklenmez). */}
                       {formatLocaleAmount(
-                        (Number(r.linesTotal) || 0) + promoDeduction + giftAmount,
+                        (Number(r.linesTotal) || 0) + giftAmount,
                         locale,
                         r.currencyCode,
                       )}

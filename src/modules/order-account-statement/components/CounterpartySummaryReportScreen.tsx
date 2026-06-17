@@ -1034,11 +1034,9 @@ export function CounterpartySummaryReportScreen() {
       <div className="grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <SummaryCard
           title={t("reports.counterpartySummaryInvoicedTotal")}
-          /* GROSS: invoiced + promo + gift = hiçbir indirim düşmemiş tam tutar. */
+          /* Tam kalemler tutarı = invoiced + gift (promo ayrı indirim, eklenmez). */
           value={formatLocaleAmount(
-            reportTotals.invoicedTotal +
-              (reportTotals.promoTotal ?? 0) +
-              (reportTotals.giftTotal ?? 0),
+            reportTotals.invoicedTotal + (reportTotals.giftTotal ?? 0),
             locale,
             filters.currencyCode || "TRY",
           )}
@@ -1151,11 +1149,9 @@ export function CounterpartySummaryReportScreen() {
                     {t("reports.counterpartySummaryColInvoiced")}
                   </p>
                   <p className="truncate text-xs font-semibold tabular-nums text-zinc-900">
-                    {/* GROSS: invoiced + promo + gift = hiçbir indirim düşmemiş tam tutar. */}
+                    {/* Tam kalemler tutarı = invoiced + gift (promo ayrı indirim, eklenmez). */}
                     {formatLocaleAmount(
-                      (Number(row.invoicedTotal) || 0) +
-                        (Number(row.promoTotal) || 0) +
-                        (Number(row.giftTotal) || 0),
+                      (Number(row.invoicedTotal) || 0) + (Number(row.giftTotal) || 0),
                       locale,
                       currency,
                     )}
@@ -1296,11 +1292,9 @@ export function CounterpartySummaryReportScreen() {
                     : t("reports.counterpartySummaryTypeCustomer")}
                 </td>
                 <td className="px-3 py-2 text-right tabular-nums">
-                  {/* GROSS: invoiced + promo + gift = hiçbir indirim düşmemiş tam tutar. */}
+                  {/* Tam kalemler tutarı = invoiced + gift (promo ayrı indirim, eklenmez). */}
                   {formatLocaleAmount(
-                    (Number(row.invoicedTotal) || 0) +
-                      (Number(row.promoTotal) || 0) +
-                      (Number(row.giftTotal) || 0),
+                    (Number(row.invoicedTotal) || 0) + (Number(row.giftTotal) || 0),
                     locale,
                     row.currencyCode || "TRY",
                   )}
