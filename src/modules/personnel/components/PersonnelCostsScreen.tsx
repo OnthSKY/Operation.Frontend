@@ -137,9 +137,14 @@ type PatronBranchBucket = {
   targetLabel: string;
   /** Görsel ton (avans=violet, gider=zinc). */
   tone: "violet" | undefined;
-  /** Sıralama önceliği: avans önce, sonra personel gider, sonra şube, en sonda merkezi. */
+  /** Sıralama önceliği: personel (avans+gider) önce, sonra şube, en sonda merkezi. */
   sortOrder: number;
+  /** Avans + gider birleşik (para birimi başına) toplam. */
   totals: Map<string, number>;
+  /** Yalnız avans kısmı (kırılım için). */
+  advanceTotals: Map<string, number>;
+  /** Yalnız gider kısmı (kırılım için). */
+  expenseTotals: Map<string, number>;
 };
 type SourceBucketKey = "PATRON" | "PERSONNEL_HELD_REGISTER" | "REGISTER";
 type SourceBucketSummary = {
@@ -187,23 +192,29 @@ function buildPatronTotalsByBranch(
     tone: "violet" | undefined;
     sortOrder: number;
     totals: Map<string, number>;
+    advanceTotals: Map<string, number>;
+    expenseTotals: Map<string, number>;
   };
   const buckets = new Map<string, Group>();
 
-  const touch = (key: string, init: Omit<Group, "totals">) => {
+  const touch = (key: string, init: Omit<Group, "totals" | "advanceTotals" | "expenseTotals">) => {
     if (!buckets.has(key))
       buckets.set(key, {
         ...init,
         totals: new Map<string, number>(),
+        advanceTotals: new Map<string, number>(),
+        expenseTotals: new Map<string, number>(),
       });
     return buckets.get(key)!;
   };
 
+  // Personel başına avans ve gider AYNI bucket'ta birleşir (key: `p:{pid}`) ki kartta
+  // tek satırda "toplam + avans/gider kırılımı" gösterilebilsin.
   for (const a of advances) {
     if (String(a.sourceType ?? "").trim().toUpperCase() !== "PATRON") continue;
     const pid = a.personnelId;
     const pname = a.personnelFullName?.trim() || `#${pid ?? "?"}`;
-    const key = `adv:p:${pid ?? "?"}`;
+    const key = `p:${pid ?? "?"}`;
     const g = touch(key, {
       kindLabel: advanceLabel,
       targetLabel: pname,
@@ -211,6 +222,7 @@ function buildPatronTotalsByBranch(
       sortOrder: 0,
     });
     bumpCurrencyMap(g.totals, a.currencyCode, a.amount);
+    bumpCurrencyMap(g.advanceTotals, a.currencyCode, a.amount);
   }
 
   const personnelLookup = (r: BranchTransaction): { pid: number; name: string } | null => {
@@ -237,14 +249,15 @@ function buildPatronTotalsByBranch(
       continue;
     const p = personnelLookup(r);
     let key: string;
-    let init: Omit<Group, "totals">;
+    let init: Omit<Group, "totals" | "advanceTotals" | "expenseTotals">;
     if (p) {
-      key = `exp:p:${p.pid}`;
+      // Personel gideri, aynı personelin avans bucket'ına eklenir (birleşik kart).
+      key = `p:${p.pid}`;
       init = {
         kindLabel: personnelExpenseLabel,
         targetLabel: p.name,
-        tone: undefined,
-        sortOrder: 1,
+        tone: "violet",
+        sortOrder: 0,
       };
     } else if (r.branchId != null && r.branchId > 0) {
       const bname = branchNameById.get(r.branchId)?.trim() || `#${r.branchId}`;
@@ -266,6 +279,7 @@ function buildPatronTotalsByBranch(
     }
     const g = touch(key, init);
     bumpCurrencyMap(g.totals, r.currencyCode, r.amount);
+    bumpCurrencyMap(g.expenseTotals, r.currencyCode, r.amount);
   }
 
   const rows: PatronBranchBucket[] = [...buckets.entries()].map(([key, g]) => ({
@@ -275,6 +289,8 @@ function buildPatronTotalsByBranch(
     tone: g.tone,
     sortOrder: g.sortOrder,
     totals: g.totals,
+    advanceTotals: g.advanceTotals,
+    expenseTotals: g.expenseTotals,
   }));
 
   rows.sort((x, y) => {
@@ -934,19 +950,42 @@ function PersonnelCostsSummaryPanels({
     return v > 0 ? formatMoneyDash(v, dash, locale, "TRY") : empty;
   };
   const branchTotalCcyKeys = [...paymentSourceSplit.branch.keys()].sort();
+  const tryOf = (m: Map<string, number>) => m.get("TRY") ?? 0;
+  const advLabel = t("personnel.costsPatronOutAdvanceShort");
+  const expLabel = t("personnel.costsPatronOutExpenseShort");
   return (
     <div className="flex flex-col gap-2">
       <CompactStripCard
         title={t("personnel.costsPatronOutCardTitle")}
         pending={pending}
         empty={empty}
-        items={patronByBranchRows.map((r) => ({
-          key: r.key,
-          title: r.kindLabel,
-          subtitle: r.targetLabel,
-          amount: renderTry(r.totals),
-          tone: r.tone,
-        }))}
+        items={patronByBranchRows.map((r) => {
+          // Personel bucket'ı (key `p:`) → toplam + avans/gider kırılımlı zengin chip.
+          if (r.key.startsWith("p:")) {
+            const adv = tryOf(r.advanceTotals);
+            const exp = tryOf(r.expenseTotals);
+            const parts: string[] = [];
+            if (adv > 0)
+              parts.push(`${formatMoneyDash(adv, dash, locale, "TRY")} ${advLabel}`);
+            if (exp > 0)
+              parts.push(`${formatMoneyDash(exp, dash, locale, "TRY")} ${expLabel}`);
+            return {
+              key: r.key,
+              title: r.targetLabel,
+              total: renderTry(r.totals),
+              breakdown: parts.join(" · "),
+              tone: r.tone,
+            };
+          }
+          // Şube / merkezi gider → eski tekil tutar chip'i.
+          return {
+            key: r.key,
+            title: r.kindLabel,
+            subtitle: r.targetLabel,
+            amount: renderTry(r.totals),
+            tone: r.tone,
+          };
+        })}
       />
       <CompactStripCard
         title={t("personnel.costsBranchOutCardTitle")}
@@ -1006,8 +1045,13 @@ function CompactStripCard({
     key: string;
     title: string;
     subtitle?: string;
-    amount: string;
+    /** Tekil tutar chip'i için (zengin chip'te `total` kullanılır). */
+    amount?: string;
     tone?: "violet";
+    /** Varsa chip'in en üstünde kalın gösterilen toplam (ör. avans+gider). */
+    total?: string;
+    /** Varsa toplamın altında küçük kırılım satırı (ör. "1.000 ₺ avans · 1.500 ₺ gider"). */
+    breakdown?: string;
   }[];
   className?: string;
 }) {
@@ -1029,44 +1073,79 @@ function CompactStripCard({
         <p className="text-xs text-zinc-600">{empty}</p>
       ) : (
         <div className="-mx-2.5 flex snap-x snap-mandatory gap-1 overflow-x-auto px-2.5 pb-1 [scrollbar-width:thin] sm:-mx-3 sm:px-3">
-          {items.map((it) => (
-            <span
-              key={it.key}
-              title={
-                it.subtitle
-                  ? `${it.title} · ${it.subtitle} · ${it.amount}`
-                  : `${it.title} · ${it.amount}`
-              }
-              className={cn(
-                "flex min-w-[7.5rem] max-w-[12rem] shrink-0 snap-start flex-col gap-0.5 rounded-md border px-2 py-1.5",
-                it.tone === "violet"
-                  ? "border-violet-200 bg-violet-50/70"
-                  : "border-zinc-200 bg-white"
-              )}
-            >
+          {items.map((it) =>
+            it.total !== undefined ? (
+              // Zengin chip: üstte toplam, ortada ad, altta avans/gider kırılımı.
               <span
+                key={it.key}
+                title={
+                  it.breakdown
+                    ? `${it.title} · ${it.total} (${it.breakdown})`
+                    : `${it.title} · ${it.total}`
+                }
                 className={cn(
-                  "text-[10px] font-semibold uppercase leading-tight tracking-wide",
-                  it.tone === "violet" ? "text-violet-700" : "text-zinc-500"
+                  "flex min-w-[7.5rem] max-w-[14rem] shrink-0 snap-start flex-col gap-0.5 rounded-md border px-2 py-1.5",
+                  it.tone === "violet"
+                    ? "border-violet-200 bg-violet-50/70"
+                    : "border-zinc-200 bg-white"
                 )}
               >
-                {it.title}
-              </span>
-              {it.subtitle ? (
                 <span
                   className={cn(
                     "break-words text-[12px] font-semibold leading-tight",
                     it.tone === "violet" ? "text-violet-900" : "text-zinc-900"
                   )}
                 >
-                  {it.subtitle}
+                  {it.title}
                 </span>
-              ) : null}
-              <span className="break-words font-mono text-[11px] tabular-nums text-zinc-900">
-                {it.amount}
+                <span className="break-words font-mono text-[13px] font-semibold tabular-nums leading-tight text-zinc-900">
+                  {it.total}
+                </span>
+                {it.breakdown ? (
+                  <span className="break-words text-[10px] leading-tight text-zinc-500">
+                    {it.breakdown}
+                  </span>
+                ) : null}
               </span>
-            </span>
-          ))}
+            ) : (
+              <span
+                key={it.key}
+                title={
+                  it.subtitle
+                    ? `${it.title} · ${it.subtitle} · ${it.amount ?? ""}`
+                    : `${it.title} · ${it.amount ?? ""}`
+                }
+                className={cn(
+                  "flex min-w-[7.5rem] max-w-[12rem] shrink-0 snap-start flex-col gap-0.5 rounded-md border px-2 py-1.5",
+                  it.tone === "violet"
+                    ? "border-violet-200 bg-violet-50/70"
+                    : "border-zinc-200 bg-white"
+                )}
+              >
+                <span
+                  className={cn(
+                    "text-[10px] font-semibold uppercase leading-tight tracking-wide",
+                    it.tone === "violet" ? "text-violet-700" : "text-zinc-500"
+                  )}
+                >
+                  {it.title}
+                </span>
+                {it.subtitle ? (
+                  <span
+                    className={cn(
+                      "break-words text-[12px] font-semibold leading-tight",
+                      it.tone === "violet" ? "text-violet-900" : "text-zinc-900"
+                    )}
+                  >
+                    {it.subtitle}
+                  </span>
+                ) : null}
+                <span className="break-words font-mono text-[11px] tabular-nums text-zinc-900">
+                  {it.amount ?? ""}
+                </span>
+              </span>
+            )
+          )}
         </div>
       )}
     </article>
