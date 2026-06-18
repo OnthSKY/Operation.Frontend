@@ -272,6 +272,16 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
     if (v > ceil + 1e-9) v = ceil;
     return v;
   }, [ccy, ctx?.suggestedAmount, ctxCcy, poolCeiling]);
+  const fromInitials = useMemo(() => {
+    const nm = personnel ? personnelDisplayName(personnel) : "";
+    const ini = nm
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0]?.toUpperCase() ?? "")
+      .join("");
+    return ini || "•";
+  }, [personnel]);
 
   return (
     <Modal
@@ -284,35 +294,56 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
       nested
     >
       {personnel ? (
-        <div className="mx-auto flex max-w-lg flex-col gap-4 text-sm">
-          <div className="rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-2.5 text-zinc-800">
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              {t("personnel.pocketClaimDialogFromLabel")}
-            </p>
-            <p className="font-semibold text-zinc-900">{personnelDisplayName(personnel)}</p>
-            {branchSelectOptions.length > 1 ? (
-              <div className="mt-2">
-                <Select
-                  name="handoverPatronBranch"
-                  label="Şube"
-                  labelRequired
-                  options={branchSelectOptions}
-                  value={String(branchId)}
-                  onChange={(e) => {
-                    const v = Number.parseInt(e.target.value, 10);
-                    if (Number.isFinite(v) && v > 0) setBranchId(v);
-                  }}
-                  onBlur={() => {}}
-                  menuZIndex={320}
-                />
-                <p className="mt-1 text-[11px] leading-snug text-zinc-500">
-                  Birden çok şubeye dağılmış cep parası — her şube için ayrı
-                  devir yapılır.
+        <div className="mx-auto flex w-full max-w-lg flex-col gap-4 text-sm">
+          <div className="rounded-2xl border border-violet-200/80 bg-gradient-to-br from-violet-50 to-white px-4 py-3.5 shadow-sm">
+            <div className="flex items-start gap-3">
+              <span
+                aria-hidden
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-600 text-sm font-semibold text-white shadow-sm"
+              >
+                {fromInitials}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
+                  {t("personnel.pocketClaimDialogFromLabel")}
                 </p>
+                <p className="truncate text-[15px] font-semibold text-zinc-900">
+                  {personnelDisplayName(personnel)}
+                </p>
+                {branchSelectOptions.length > 1 ? (
+                  <div className="mt-2.5">
+                    <Select
+                      name="handoverPatronBranch"
+                      label={t("personnel.handoverPatronTransferBranchLabel")}
+                      labelRequired
+                      options={branchSelectOptions}
+                      value={String(branchId)}
+                      onChange={(e) => {
+                        const v = Number.parseInt(e.target.value, 10);
+                        if (Number.isFinite(v) && v > 0) setBranchId(v);
+                      }}
+                      onBlur={() => {}}
+                      menuZIndex={320}
+                    />
+                    <p className="mt-1 text-[11px] leading-snug text-zinc-500">
+                      {t("personnel.handoverPatronTransferMultiBranchHint")}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="mt-0.5 truncate text-xs text-zinc-600">{branchLabel}</p>
+                )}
               </div>
-            ) : (
-              <p className="mt-1 text-xs text-zinc-600">{branchLabel}</p>
-            )}
+            </div>
+            {!linesQuery.isError && !linesQuery.isPending && openLines.length > 0 ? (
+              <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-violet-100 bg-white/70 px-3 py-2">
+                <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
+                  {t("personnel.handoverPatronTransferAvailableLabel")}
+                </span>
+                <span className="font-mono text-base font-semibold tabular-nums text-violet-900">
+                  {formatLocaleAmount(poolCeiling, loc, ccy)}
+                </span>
+              </div>
+            ) : null}
           </div>
 
           {linesQuery.isError ? (
@@ -356,12 +387,6 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
                 </>
               ) : (
                 <>
-                  <p className="text-xs leading-relaxed text-zinc-600">
-                    {t("personnel.handoverPatronTransferPoolTotalHint").replace(
-                      "{amount}",
-                      formatLocaleAmount(poolCeiling, loc, ccy)
-                    )}
-                  </p>
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-start sm:gap-4">
                     <Select
                       name="handoverPatronCurrencyForm"
@@ -394,6 +419,18 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
                       error={amountExceeds ? t("personnel.handoverPatronTransferAmountExceeds") : undefined}
                     />
                   </div>
+                  {poolCeiling > 0.009 ? (
+                    <div className="-mt-1 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setAmount(formatLocaleAmountInput(poolCeiling, loc))}
+                        className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-violet-700 transition-colors hover:bg-violet-100"
+                      >
+                        {t("personnel.handoverPatronTransferMaxButton")} ·{" "}
+                        {formatLocaleAmount(poolCeiling, loc, ccy)}
+                      </button>
+                    </div>
+                  ) : null}
                   <DateField
                     name="handoverPatronWhen"
                     label={t("personnel.handoverPatronTransferDateLabel")}
