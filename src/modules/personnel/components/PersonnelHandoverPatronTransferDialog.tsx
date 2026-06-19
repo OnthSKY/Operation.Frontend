@@ -4,6 +4,7 @@ import { useI18n } from "@/i18n/context";
 import type { Locale } from "@/i18n/messages";
 import { fetchPersonnelCashHandoverLinesPaged } from "@/modules/personnel/api/personnel-api";
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
+import { cn } from "@/lib/cn";
 import { useCreateBranchTransaction } from "@/modules/branch/hooks/useBranchQueries";
 import {
   formatLocaleAmount,
@@ -145,6 +146,7 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
   );
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
+  const [infoOpen, setInfoOpen] = useState(false);
 
   useEffect(() => {
     if (!open || ctx == null) return;
@@ -288,60 +290,83 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
       open={dialogOpen}
       onClose={requestClose}
       titleId={TITLE_ID}
-      title={t("personnel.handoverPatronTransferTitle")}
-      description={t("personnel.handoverPatronTransferLead")}
+      title={
+        <span className="flex items-start gap-2">
+          <span className="min-w-0 flex-1 break-words leading-snug">
+            {t("personnel.handoverPatronTransferTitle")}
+          </span>
+          <button
+            type="button"
+            aria-label={t("common.sectionInfoExplainButton")}
+            aria-expanded={infoOpen}
+            onClick={() => setInfoOpen((v) => !v)}
+            className={cn(
+              "mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border text-[11px] font-bold transition-colors",
+              infoOpen
+                ? "border-violet-300 bg-violet-100 text-violet-700"
+                : "border-zinc-300 bg-white text-zinc-500 hover:border-violet-300 hover:text-violet-600"
+            )}
+          >
+            i
+          </button>
+        </span>
+      }
       narrow
       nested
+      className="lg:!max-w-md xl:!max-w-md 2xl:!max-w-md"
     >
       {personnel ? (
-        <div className="mx-auto flex w-full max-w-lg flex-col gap-4 text-sm">
-          <div className="rounded-2xl border border-violet-200/80 bg-gradient-to-br from-violet-50 to-white px-4 py-3.5 shadow-sm">
-            <div className="flex items-start gap-3">
+        <div className="flex w-full flex-col gap-3 text-sm">
+          {infoOpen ? (
+            <div className="rounded-lg border border-violet-100 bg-violet-50/60 px-3 py-2 text-[11px] leading-relaxed text-zinc-600">
+              {t("personnel.handoverPatronTransferLead")}
+            </div>
+          ) : null}
+          <div className="rounded-xl border border-violet-200/70 bg-gradient-to-br from-violet-50 to-white px-3 py-2.5">
+            <div className="flex items-center gap-2.5">
               <span
                 aria-hidden
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-600 text-sm font-semibold text-white shadow-sm"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-600 text-xs font-semibold text-white"
               >
                 {fromInitials}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-700">
+                <p className="text-[10px] font-semibold uppercase leading-none tracking-wide text-violet-700">
                   {t("personnel.pocketClaimDialogFromLabel")}
                 </p>
-                <p className="truncate text-[15px] font-semibold text-zinc-900">
+                <p className="truncate text-sm font-semibold leading-tight text-zinc-900">
                   {personnelDisplayName(personnel)}
                 </p>
-                {branchSelectOptions.length > 1 ? (
-                  <div className="mt-2.5">
-                    <Select
-                      name="handoverPatronBranch"
-                      label={t("personnel.handoverPatronTransferBranchLabel")}
-                      labelRequired
-                      options={branchSelectOptions}
-                      value={String(branchId)}
-                      onChange={(e) => {
-                        const v = Number.parseInt(e.target.value, 10);
-                        if (Number.isFinite(v) && v > 0) setBranchId(v);
-                      }}
-                      onBlur={() => {}}
-                      menuZIndex={320}
-                    />
-                    <p className="mt-1 text-[11px] leading-snug text-zinc-500">
-                      {t("personnel.handoverPatronTransferMultiBranchHint")}
-                    </p>
-                  </div>
-                ) : (
-                  <p className="mt-0.5 truncate text-xs text-zinc-600">{branchLabel}</p>
-                )}
+                {branchSelectOptions.length <= 1 ? (
+                  <p className="truncate text-[11px] leading-tight text-zinc-500">{branchLabel}</p>
+                ) : null}
               </div>
+              {!linesQuery.isError && !linesQuery.isPending && openLines.length > 0 ? (
+                <div className="shrink-0 text-right">
+                  <p className="text-[9px] font-medium uppercase leading-none tracking-wide text-zinc-500">
+                    {t("personnel.handoverPatronTransferAvailableLabel")}
+                  </p>
+                  <p className="font-mono text-[15px] font-semibold leading-tight tabular-nums text-violet-900">
+                    {formatLocaleAmount(poolCeiling, loc, ccy)}
+                  </p>
+                </div>
+              ) : null}
             </div>
-            {!linesQuery.isError && !linesQuery.isPending && openLines.length > 0 ? (
-              <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-violet-100 bg-white/70 px-3 py-2">
-                <span className="text-[11px] font-medium uppercase tracking-wide text-zinc-500">
-                  {t("personnel.handoverPatronTransferAvailableLabel")}
-                </span>
-                <span className="font-mono text-base font-semibold tabular-nums text-violet-900">
-                  {formatLocaleAmount(poolCeiling, loc, ccy)}
-                </span>
+            {branchSelectOptions.length > 1 ? (
+              <div className="mt-2">
+                <Select
+                  name="handoverPatronBranch"
+                  label={t("personnel.handoverPatronTransferBranchLabel")}
+                  labelRequired
+                  options={branchSelectOptions}
+                  value={String(branchId)}
+                  onChange={(e) => {
+                    const v = Number.parseInt(e.target.value, 10);
+                    if (Number.isFinite(v) && v > 0) setBranchId(v);
+                  }}
+                  onBlur={() => {}}
+                  menuZIndex={320}
+                />
               </div>
             ) : null}
           </div>
@@ -387,7 +412,7 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
                 </>
               ) : (
                 <>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:items-start sm:gap-4">
+                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:items-start">
                     <Select
                       name="handoverPatronCurrencyForm"
                       label={t("branch.txCurrency")}
@@ -398,39 +423,41 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
                       onBlur={() => {}}
                       menuZIndex={320}
                     />
-                    <Input
-                      name="handoverPatronAmount"
-                      label={t("personnel.handoverPatronTransferAmountLabel")}
-                      labelRequired
-                      required
-                      inputMode="decimal"
-                      autoComplete="off"
-                      placeholder={
-                        suggestedHint > 0.009 ? formatLocaleAmountInput(suggestedHint, loc) : undefined
-                      }
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      onBlur={(e) => {
-                        const n = parseLocaleAmount(e.target.value, loc);
-                        if (Number.isFinite(n) && n >= 0) {
-                          setAmount(formatLocaleAmountInput(n, loc));
+                    <div className="flex flex-col gap-1.5">
+                      <Input
+                        name="handoverPatronAmount"
+                        label={t("personnel.handoverPatronTransferAmountLabel")}
+                        labelRequired
+                        required
+                        inputMode="decimal"
+                        autoComplete="off"
+                        placeholder={
+                          suggestedHint > 0.009 ? formatLocaleAmountInput(suggestedHint, loc) : undefined
                         }
-                      }}
-                      error={amountExceeds ? t("personnel.handoverPatronTransferAmountExceeds") : undefined}
-                    />
-                  </div>
-                  {poolCeiling > 0.009 ? (
-                    <div className="-mt-1 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => setAmount(formatLocaleAmountInput(poolCeiling, loc))}
-                        className="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-semibold text-violet-700 transition-colors hover:bg-violet-100"
-                      >
-                        {t("personnel.handoverPatronTransferMaxButton")} ·{" "}
-                        {formatLocaleAmount(poolCeiling, loc, ccy)}
-                      </button>
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        onBlur={(e) => {
+                          const n = parseLocaleAmount(e.target.value, loc);
+                          if (Number.isFinite(n) && n >= 0) {
+                            setAmount(formatLocaleAmountInput(n, loc));
+                          }
+                        }}
+                        error={amountExceeds ? t("personnel.handoverPatronTransferAmountExceeds") : undefined}
+                      />
+                      {poolCeiling > 0.009 ? (
+                        <button
+                          type="button"
+                          onClick={() => setAmount(formatLocaleAmountInput(poolCeiling, loc))}
+                          className="flex w-full items-center justify-between gap-2 rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1 text-[10px] font-semibold text-violet-700 transition-colors hover:bg-violet-100"
+                        >
+                          <span>{t("personnel.handoverPatronTransferMaxButton")}</span>
+                          <span className="font-mono tabular-nums">
+                            {formatLocaleAmount(poolCeiling, loc, ccy)}
+                          </span>
+                        </button>
+                      ) : null}
                     </div>
-                  ) : null}
+                  </div>
                   <DateField
                     name="handoverPatronWhen"
                     label={t("personnel.handoverPatronTransferDateLabel")}

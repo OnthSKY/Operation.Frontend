@@ -73,6 +73,9 @@ function invalidatePersonnelCashHandoverUiQueries(qc: QueryClient) {
     ["personnel", "cash-handover-overview-lines"],
     ["personnel", "handover-patron-transfer-lines"],
     ["personnel", "pocket-claim-handover-remain"],
+    // Zimmet (cep) kasa bakiyesi şube kırılımı — devir/ödeme sonrası "Zimmetteki kasa parası"
+    // sekmesi ve patrona-devret dialog'undaki havuz/bakiye anında güncellensin.
+    ["personnel", "cash-account-branch-breakdown"],
   ] as const;
   for (const queryKey of prefixes) {
     void qc.invalidateQueries({ queryKey: [...queryKey], exact: false });

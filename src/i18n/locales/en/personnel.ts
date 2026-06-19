@@ -1061,13 +1061,13 @@ export const personnel = {
   detailMgmtHandoverHeroIncomingTotal: "Total received",
   detailMgmtHandoverHeroSpentTotal: "Total spent",
   detailMgmtHandoverHeroSpentHint: "Formula: Total received - Total remaining",
-  detailMgmtCashAccountTotalIn: "Total received into personnel's cash",
+  detailMgmtCashAccountTotalIn: "Total received into personnel's custody",
   detailMgmtCashAccountTotalInHint:
     "Branch handovers + claim transfers received from other personnel (all time).",
   detailMgmtCashAccountCurrentBalance: "Current balance",
   detailMgmtCashAccountCurrentBalanceHint:
     "{count} entries · Formula: in - out.",
-  detailMgmtCashAccountTotalOut: "Total spent from personnel's cash",
+  detailMgmtCashAccountTotalOut: "Total spent from personnel's custody",
   detailMgmtCashAccountTotalOutHint:
     "Branch / general / personnel expenses + transfers to other personnel or owner (all time).",
   detailMgmtCashAccountPatronTransferButton: "Transfer to owner",

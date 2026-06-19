@@ -1074,13 +1074,13 @@ export const personnel = {
   detailMgmtHandoverHeroIncomingTotal: "Gelen toplam",
   detailMgmtHandoverHeroSpentTotal: "Harcanan toplam",
   detailMgmtHandoverHeroSpentHint: "Formül: Gelen toplam − Kalan toplam",
-  detailMgmtCashAccountTotalIn: "Personel cebine gelen toplam",
+  detailMgmtCashAccountTotalIn: "Personel zimmetine gelen toplam",
   detailMgmtCashAccountTotalInHint:
     "Şube kasasından devir + başka personelden gelen cep alacağı devirleri (tüm zaman).",
   detailMgmtCashAccountCurrentBalance: "Mevcut bakiye",
   detailMgmtCashAccountCurrentBalanceHint:
     "{count} hareket · Formül: gelen − harcanan.",
-  detailMgmtCashAccountTotalOut: "Personel cebinden harcanan toplam",
+  detailMgmtCashAccountTotalOut: "Personel zimmetinden harcanan toplam",
   detailMgmtCashAccountTotalOutHint:
     "Şube/merkez giderleri + başka personele ya da patrona devir + personele ödeme (tüm zaman).",
   detailMgmtCashAccountPatronTransferButton: "Patrona devret",
