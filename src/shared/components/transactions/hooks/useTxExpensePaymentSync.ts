@@ -61,6 +61,17 @@ export function useTxExpensePaymentSync(input: UseTxExpensePaymentSyncInput): vo
     setValue("expensePaymentSource", "");
   }, [resolvedBranchId, expensePayWatch, personnelExpenseFlow, setValue]);
 
+  // 1b) Personel gideri akışı: ödeme kaynağı şube kasası (REGISTER/HELD) değilse
+  //     seçili target branch temizlenir. PATRON/cep ödemesi şubeden bağımsızdır;
+  //     aksi halde gider yanlışlıkla personelin şubesine yazılır.
+  useEffect(() => {
+    if (!personnelExpenseFlow) return;
+    const pay = String(expensePayWatch ?? "").trim().toUpperCase();
+    if (pay === "REGISTER" || pay === "PERSONNEL_HELD_REGISTER_CASH") return;
+    if (!String(getValues("personnelExpenseBranchId") ?? "").trim()) return;
+    setValue("personnelExpenseBranchId", "");
+  }, [personnelExpenseFlow, expensePayWatch, getValues, setValue]);
+
   // 2) personnelExpenseBranchId validasyonunu re-tetikle.
   useEffect(() => {
     void trigger("personnelExpenseBranchId");
@@ -133,7 +144,4 @@ export function useTxExpensePaymentSync(input: UseTxExpensePaymentSyncInput): vo
   useEffect(() => {
     void trigger("expensePocketPersonnelId");
   }, [expensePayWatch, mainCategoryWatch, trigger]);
-
-  // getValues kullanılmıyor ama gelecekte değer kontrolü için API'de tutuldu.
-  void getValues;
 }

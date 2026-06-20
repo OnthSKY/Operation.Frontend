@@ -33,10 +33,17 @@ export function resolveSubmitBranch(input: SubmitBranchInput): SubmitBranchResul
     String(values.personnelExpenseBranchId ?? "").trim(),
     10
   );
+  // Personel gideri akışında şube yalnızca ödeme kaynağı şube kasası
+  // (REGISTER / zimmetli kasa) iken gönderilir. PATRON/cep gibi kaynaklar
+  // şubeden bağımsızdır; seçili şube yok sayılır.
+  const isRegisterBasedPay =
+    effExpensePay === "REGISTER" ||
+    effExpensePay === "PERSONNEL_HELD_REGISTER_CASH";
   const branchForTx =
     propBranchId != null && propBranchId > 0
       ? propBranchId
       : personnelExpenseFlow &&
+          isRegisterBasedPay &&
           Number.isFinite(pickBranchSubmit) &&
           pickBranchSubmit > 0
         ? pickBranchSubmit

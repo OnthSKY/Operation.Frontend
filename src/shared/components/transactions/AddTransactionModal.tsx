@@ -247,18 +247,6 @@ export function AddTransactionModal({
     return Number.isFinite(n) && n > 0 ? n : null;
   }, [propBranchId, personnelExpenseFlow, personnelExpenseBranchWatch]);
 
-  // Personel gideri akışı: bağlı personelin ana şubesini target branch'e default'lat
-  // (modal her açıldığında bir kez; kullanıcı sonradan değiştirebilir).
-  useEffect(() => {
-    if (!open || !personnelExpenseFlow) return;
-    if (defaultLinkedPersonnelId == null || defaultLinkedPersonnelId <= 0) return;
-    const cur = String(getValues("personnelExpenseBranchId") ?? "").trim();
-    if (cur) return;
-    const linked = allPersonnel.find((p) => p.id === defaultLinkedPersonnelId);
-    if (linked?.branchId != null && linked.branchId > 0) {
-      setValue("personnelExpenseBranchId", String(linked.branchId));
-    }
-  }, [open, personnelExpenseFlow, defaultLinkedPersonnelId, allPersonnel, getValues, setValue]);
   const useOrgExpenseLinks = resolvedBranchId == null;
   const prevType = useRef(txType);
   const prevMain = useRef(mainCategoryWatch);
@@ -548,6 +536,31 @@ export function AddTransactionModal({
 
   const expensePayWatch = useWatch({ control, name: "expensePaymentSource" });
   const transactionDateWatch = useWatch({ control, name: "transactionDate" });
+
+  // Personel gideri akışı: target branch yalnızca ödeme kaynağı şube kasası
+  // (REGISTER / zimmetli kasa) iken anlamlıdır. Bu durumda bağlı personelin ana
+  // şubesini default'lat (alan boşsa; kullanıcı sonradan değiştirebilir).
+  // PATRON/cep gibi şubeyle ilgisiz kaynaklarda alan useTxExpensePaymentSync'te
+  // temizlenir; burada doldurulmaz.
+  useEffect(() => {
+    if (!open || !personnelExpenseFlow) return;
+    const pay = String(expensePayWatch ?? "").trim().toUpperCase();
+    if (pay !== "REGISTER" && pay !== "PERSONNEL_HELD_REGISTER_CASH") return;
+    if (defaultLinkedPersonnelId == null || defaultLinkedPersonnelId <= 0) return;
+    if (String(getValues("personnelExpenseBranchId") ?? "").trim()) return;
+    const linked = allPersonnel.find((p) => p.id === defaultLinkedPersonnelId);
+    if (linked?.branchId != null && linked.branchId > 0) {
+      setValue("personnelExpenseBranchId", String(linked.branchId));
+    }
+  }, [
+    open,
+    personnelExpenseFlow,
+    expensePayWatch,
+    defaultLinkedPersonnelId,
+    allPersonnel,
+    getValues,
+    setValue,
+  ]);
 
   const asOfDateYmd = useMemo(() => {
     const s = String(transactionDateWatch ?? "").trim().slice(0, 10);
