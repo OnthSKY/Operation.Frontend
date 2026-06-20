@@ -20,6 +20,8 @@ type Props = {
   onChange: (unitName: string) => void;
   disabled?: boolean;
   label?: string;
+  /** Satır-içi kompakt mod: tek birimde büyük chip yerine küçük metin, çok birimde dar select. */
+  compact?: boolean;
 };
 
 /**
@@ -41,6 +43,7 @@ export function ProductUnitPicker({
   onChange,
   disabled,
   label = "Birim",
+  compact = false,
 }: Props) {
   const { data: units = [] } = useProductUnits(productId ?? null);
   // Caller baseUnit/legacyUnit paslamadıysa catalog'tan çek — başka tüm formda
@@ -76,12 +79,10 @@ export function ProductUnitPicker({
   // sütun boş kalmasın, kullanıcı ana birimi yine de görebilsin.
   if (options.length <= 1 && units.length === 0) {
     if (!base) return null;
-    return (
-      <StaticUnitChip label={label} unit={base} />
-    );
+    return <StaticUnitChip label={label} unit={base} compact={compact} />;
   }
   if (options.length === 1) {
-    return <StaticUnitChip label={label} unit={base || options[0].value} />;
+    return <StaticUnitChip label={label} unit={base || options[0].value} compact={compact} />;
   }
 
   // İlk render: değer boş ve productId varsa preferredContext default'una set et.
@@ -98,9 +99,10 @@ export function ProductUnitPicker({
     queueMicrotask(() => onChange(initial));
   }
 
-  return (
+  const select = (
     <Select
-      label={label}
+      label={compact ? undefined : label}
+      ariaLabel={compact ? label || "Birim" : undefined}
       name="product-unit-picker"
       options={options}
       value={value || initial}
@@ -109,9 +111,25 @@ export function ProductUnitPicker({
       disabled={disabled}
     />
   );
+  return compact ? <div className="w-28">{select}</div> : select;
 }
 
-function StaticUnitChip({ label, unit }: { label: string; unit: string }) {
+function StaticUnitChip({
+  label,
+  unit,
+  compact,
+}: {
+  label: string;
+  unit: string;
+  compact?: boolean;
+}) {
+  if (compact) {
+    return (
+      <span className="inline-flex items-center whitespace-nowrap text-xs font-medium text-zinc-500">
+        {unit}
+      </span>
+    );
+  }
   return (
     <div className="flex min-w-0 flex-col gap-1">
       {label ? (

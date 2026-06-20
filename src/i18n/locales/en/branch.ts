@@ -241,7 +241,7 @@ export const branch = {
   personnelSummaryCardNetRegisterOwes: "Net owed to staff (pocket)",
   tabIncome: "Income",
   tabExpenses: "Expenses",
-  tabStock: "Stock in",
+  tabStock: "Branch warehouse",
   tabTourismSeason: "Tourism season",
   tabZReportAccounting: "Z report (accounting)",
   tabNotes: "Notes",

@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  fetchBranchConsumedTotals,
   fetchBranchProductBalances,
   fetchBranchStockConsumptions,
   recordBranchStockAdjustment,
@@ -36,6 +37,8 @@ export const branchStockConsumptionKeys = {
     ] as const,
   balances: (branchId: number, productIdsKey: string) =>
     [...branchStockConsumptionKeys.all, "balances", branchId, productIdsKey] as const,
+  consumedTotals: (branchId: number, dateFrom: string, dateTo: string) =>
+    [...branchStockConsumptionKeys.all, "consumed-totals", branchId, dateFrom, dateTo] as const,
 };
 
 function productIdsKey(ids?: number[]): string {
@@ -83,6 +86,22 @@ export function useBranchProductBalances(
   return useQuery({
     queryKey: branchStockConsumptionKeys.balances(branchId, productIdsKey(productIds)),
     queryFn: () => fetchBranchProductBalances(branchId, productIds),
+    enabled: enabled && branchId > 0,
+  });
+}
+
+export function useBranchConsumedTotals(
+  branchId: number,
+  params?: { dateFrom?: string; dateTo?: string },
+  enabled: boolean = true
+) {
+  return useQuery({
+    queryKey: branchStockConsumptionKeys.consumedTotals(
+      branchId,
+      params?.dateFrom ?? "",
+      params?.dateTo ?? ""
+    ),
+    queryFn: () => fetchBranchConsumedTotals(branchId, params),
     enabled: enabled && branchId > 0,
   });
 }

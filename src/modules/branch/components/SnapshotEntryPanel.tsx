@@ -1,14 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { Search, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useI18n } from "@/i18n/context";
 import { useProductsCatalog } from "@/modules/products/hooks/useProductQueries";
 import { ProductUnitPicker } from "@/modules/products/components/ProductUnitPicker";
 import type { ProductListItem } from "@/types/product";
 import { Button } from "@/shared/ui/Button";
+import { DateField } from "@/shared/ui/DateField";
 import { Modal } from "@/shared/ui/Modal";
-import { ModalFormLayout, FormSection } from "@/shared/components/ModalFormLayout";
+import { ModalFormLayout } from "@/shared/components/ModalFormLayout";
 import { notify } from "@/shared/lib/notify";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
@@ -81,6 +83,9 @@ function SnapshotFormBody({ onClose, branchId }: { onClose: () => void; branchId
   const [globalNote, setGlobalNote] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Yeni eklenen satırın adet inputunu otomatik focuslamak için.
+  const [lastAddedId, setLastAddedId] = useState<number | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const balanceByProductId = useMemo(() => {
     const m = new Map<number, number>();
@@ -104,8 +109,8 @@ function SnapshotFormBody({ onClose, branchId }: { onClose: () => void; branchId
   }, [leafProducts, search, rows]);
 
   const addRow = (p: ProductListItem) => {
+    // Yeni satır listenin EN ÜSTÜNE eklenir (aramanın hemen altı) — kullanıcı aşağı kaymak zorunda kalmaz.
     setRows((prev) => [
-      ...prev,
       {
         productId: p.id,
         productName: p.name,
@@ -115,7 +120,9 @@ function SnapshotFormBody({ onClose, branchId }: { onClose: () => void; branchId
         snapshotText: "",
         unitName: "",
       },
+      ...prev,
     ]);
+    setLastAddedId(p.id);
     setSearch("");
   };
 
@@ -185,24 +192,37 @@ function SnapshotFormBody({ onClose, branchId }: { onClose: () => void; branchId
     }
   };
 
+  const filledCount = rows.filter((r) => parseDecimal(r.snapshotText) !== null).length;
+
   return (
     <ModalFormLayout
       body={
         <>
-          <FormSection
-            title={t("branchStockConsumption.snapshotEntryHeading")}
-            description={t("branchStockConsumption.snapshotEntryDescription")}
-          >
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t("branchStockConsumption.searchPlaceholder")}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
-              disabled={isSubmitting}
-            />
+          {/* Sticky arama — liste uzasa da hep erişilebilir; ürün seçince satır en üste eklenir, adet otomatik focuslanır. */}
+          <div className="sticky -top-1 z-20 -mx-4 border-b border-zinc-100 bg-white/95 px-4 pb-3 pt-1 backdrop-blur sm:-mx-6 sm:px-6">
+            <div className="relative">
+              <Search
+                aria-hidden
+                className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+              />
+              <input
+                ref={searchRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && matched.length > 0) {
+                    e.preventDefault();
+                    addRow(matched[0]!);
+                  }
+                }}
+                placeholder={t("branchStockConsumption.searchPlaceholder")}
+                className="w-full rounded-xl border border-zinc-300 bg-white py-2.5 pl-9 pr-3 text-sm shadow-sm transition focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+                disabled={isSubmitting}
+              />
+            </div>
             {search.trim() ? (
-              <ul className="max-h-48 overflow-y-auto rounded-md border border-zinc-200">
+              <ul className="mt-2 max-h-56 overflow-y-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
                 {catalogPending ? (
                   <li className="px-3 py-2 text-xs text-zinc-500">{t("branchStockConsumption.loadingProducts")}</li>
                 ) : matched.length === 0 ? (
@@ -212,7 +232,7 @@ function SnapshotFormBody({ onClose, branchId }: { onClose: () => void; branchId
                     <li key={p.id} className="border-b border-zinc-100 last:border-b-0">
                       <button
                         type="button"
-                        className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-zinc-50 active:bg-zinc-100"
+                        className="flex min-h-[44px] w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-blue-50/50 active:bg-blue-100/50"
                         onClick={() => addRow(p)}
                       >
                         <span className="min-w-0 flex-1">
@@ -230,15 +250,23 @@ function SnapshotFormBody({ onClose, branchId }: { onClose: () => void; branchId
                 )}
               </ul>
             ) : null}
-          </FormSection>
+          </div>
 
-          <FormSection title={t("branchStockConsumption.snapshotRowsHeading")}>
-            {rows.length === 0 ? (
-              <p className="rounded-md border border-dashed border-zinc-300 bg-zinc-50 px-3 py-4 text-center text-xs text-zinc-500">
-                {t("branchStockConsumption.snapshotEmptyHint")}
-              </p>
-            ) : (
-              <ul className="space-y-2.5">
+          {rows.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-3 py-6 text-center text-xs text-zinc-500">
+              {t("branchStockConsumption.snapshotEmptyHint")}
+            </p>
+          ) : (
+            <>
+              <div className="flex items-center justify-between px-0.5 text-xs text-zinc-500">
+                <span className="font-medium text-zinc-700">
+                  {rows.length} {t("branchStockConsumption.snapshotRowsHeading")}
+                </span>
+                <span className="tabular-nums">
+                  {filledCount}/{rows.length}
+                </span>
+              </div>
+              <ul className="space-y-2">
                 {rows.map((r) => {
                   const snapshotValue = parseDecimal(r.snapshotText);
                   // Kullanıcı temel/legacy dışı bir birim seçtiyse client-side diff yanıltıcı
@@ -268,94 +296,101 @@ function SnapshotFormBody({ onClose, branchId }: { onClose: () => void; branchId
                   return (
                     <li
                       key={r.productId}
-                      className="rounded-xl border border-zinc-200 bg-white p-3 transition-colors sm:p-3.5"
+                      className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-white px-2.5 py-2 shadow-sm transition-colors sm:gap-3 sm:px-3"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-medium text-zinc-900">{r.productName}</div>
-                          <div className="mt-0.5 text-xs text-zinc-500">
-                            {t("branchStockConsumption.currentBalanceLabel")}: {r.currentBalance}
-                            {r.unit ? ` ${r.unit}` : ""}
-                          </div>
+                      {/* Sol: ürün adı + mevcut bakiye */}
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium text-zinc-900">{r.productName}</div>
+                        <div className="mt-0.5 text-[11px] text-zinc-500">
+                          {t("branchStockConsumption.currentBalanceLabel")}: {r.currentBalance}
+                          {r.unit ? ` ${r.unit}` : ""}
                         </div>
-                        <button
-                          type="button"
-                          className="-mr-1.5 -mt-1.5 shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-rose-700 transition-colors hover:bg-rose-50 disabled:opacity-50"
-                          onClick={() => removeRow(r.productId)}
+                      </div>
+                      {/* Birim seçici (kompakt) — tek birimde küçük metin, çok birimde dar select */}
+                      <div className="shrink-0">
+                        <ProductUnitPicker
+                          productId={r.productId}
+                          baseUnit={r.stockUnit}
+                          legacyUnit={r.unit}
+                          preferredContext="SALE"
+                          value={r.unitName}
+                          onChange={(v) => updateRowUnit(r.productId, v)}
                           disabled={isSubmitting}
+                          label=""
+                          compact
+                        />
+                      </div>
+                      {/* Adet inputu — eklenince otomatik focus, Enter ile aramaya dön */}
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        autoFocus={r.productId === lastAddedId}
+                        value={r.snapshotText}
+                        onChange={(e) => updateRowSnapshot(r.productId, e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            searchRef.current?.focus();
+                          }
+                        }}
+                        placeholder={t("branchStockConsumption.remainingPlaceholder")}
+                        className="w-16 shrink-0 rounded-lg border border-zinc-300 px-2 py-2 text-center text-sm tabular-nums focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 disabled:opacity-50"
+                        disabled={isSubmitting}
+                      />
+                      {/* Fark rozeti — sabit genişlik, hizalı */}
+                      {diffLabel !== null ? (
+                        <span
+                          className={cn(
+                            "w-12 shrink-0 rounded-full py-0.5 text-center text-[11px] font-medium tabular-nums",
+                            diffBadgeClass
+                          )}
                         >
-                          {t("common.remove")}
-                        </button>
-                      </div>
-                      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            inputMode="decimal"
-                            value={r.snapshotText}
-                            onChange={(e) => updateRowSnapshot(r.productId, e.target.value)}
-                            placeholder={t("branchStockConsumption.remainingPlaceholder")}
-                            className="w-28 rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none disabled:opacity-50"
-                            disabled={isSubmitting}
-                          />
-                          <span className="whitespace-nowrap text-xs text-zinc-500">
-                            {r.unitName.trim() || r.stockUnit || r.unit || ""}
-                          </span>
-                        </div>
-                        <div className="min-w-[140px]">
-                          <ProductUnitPicker
-                            productId={r.productId}
-                            baseUnit={r.stockUnit}
-                            legacyUnit={r.unit}
-                            preferredContext="SALE"
-                            value={r.unitName}
-                            onChange={(v) => updateRowUnit(r.productId, v)}
-                            disabled={isSubmitting}
-                            label=""
-                          />
-                        </div>
-                        {diffLabel !== null ? (
-                          <span
-                            className={cn(
-                              "ml-auto rounded-full px-2.5 py-1 text-xs font-medium tabular-nums",
-                              diffBadgeClass
-                            )}
-                          >
-                            {diffLabel}
-                          </span>
-                        ) : (
-                          <span className="ml-auto text-xs text-zinc-400">—</span>
-                        )}
-                      </div>
+                          {diffLabel}
+                        </span>
+                      ) : (
+                        <span className="w-12 shrink-0 text-center text-[11px] text-zinc-300">—</span>
+                      )}
+                      {/* Kaldır — X ikonu */}
+                      <button
+                        type="button"
+                        aria-label={t("common.remove")}
+                        className="shrink-0 rounded-md p-1.5 text-zinc-400 transition-colors hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+                        onClick={() => removeRow(r.productId)}
+                        disabled={isSubmitting}
+                      >
+                        <X className="h-4 w-4" aria-hidden />
+                      </button>
                     </li>
                   );
                 })}
               </ul>
-            )}
-          </FormSection>
+            </>
+          )}
 
-          <FormSection title={t("branchStockConsumption.dateLabel")}>
-            <input
-              type="date"
-              value={dateText}
-              max={localIsoDate()}
-              onChange={(e) => setDateText(e.target.value)}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none sm:w-auto"
-              disabled={isSubmitting}
-            />
-          </FormSection>
-
-          <FormSection title={t("branchStockConsumption.noteLabel")}>
-            <textarea
-              value={globalNote}
-              onChange={(e) => setGlobalNote(e.target.value)}
-              placeholder={t("branchStockConsumption.notePlaceholder")}
-              rows={2}
-              maxLength={500}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
-              disabled={isSubmitting}
-            />
-          </FormSection>
+          <div className="flex flex-col gap-3 border-t border-zinc-100 pt-3 sm:flex-row sm:items-start sm:gap-4">
+            <div className="w-full sm:w-48">
+              <DateField
+                mode="date"
+                label={t("branchStockConsumption.dateLabel")}
+                value={dateText}
+                max={localIsoDate()}
+                onChange={(e) => setDateText(e.target.value)}
+                disabled={isSubmitting}
+              />
+            </div>
+            <label className="flex flex-1 flex-col gap-1 text-xs text-zinc-500">
+              <span className="font-medium text-zinc-700">{t("branchStockConsumption.noteLabel")}</span>
+              <input
+                type="text"
+                value={globalNote}
+                onChange={(e) => setGlobalNote(e.target.value)}
+                placeholder={t("branchStockConsumption.notePlaceholder")}
+                maxLength={500}
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
+                disabled={isSubmitting}
+              />
+            </label>
+          </div>
 
           {formError ? (
             <p className="whitespace-pre-line rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-900">
@@ -369,7 +404,7 @@ function SnapshotFormBody({ onClose, branchId }: { onClose: () => void; branchId
           <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
             {t("common.cancel")}
           </Button>
-          <Button onClick={submit} disabled={isSubmitting || rows.length === 0}>
+          <Button onClick={submit} disabled={isSubmitting || filledCount === 0}>
             {isSubmitting ? t("common.saving") : t("branchStockConsumption.saveSnapshot")}
           </Button>
         </>

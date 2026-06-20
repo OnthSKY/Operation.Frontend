@@ -2,13 +2,21 @@ export const branchStockConsumption = {
   subTabsAria: "Branch stock sub-tabs",
   subTabInbound: "Inbound",
   subTabConsumption: "Usage & remaining",
+  subTabUsed: "Used products",
   subTabBalances: "Current stock",
+
+  // Used products (total consumption) panel
+  usedHeading: "Used products",
+  usedHint: "Total quantities consumed at this branch to date. Sub-products and their total are shown under each main product.",
+  usedGroupTotal: "Total used",
+  usedEmpty: "No products used yet.",
 
   // Current stock (on-hand balances) panel
   balancesHeading: "Current stock on hand",
   balancesHint: "Quantities currently in the branch. Only products with a non-zero balance are listed.",
   balancesColUnit: "Unit",
   balancesColBalance: "Balance",
+  balancesGroupTotal: "Total",
   balancesEmpty: "No products currently in stock.",
   balancesSearchEmpty: "No products match your search.",
 

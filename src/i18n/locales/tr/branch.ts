@@ -247,7 +247,7 @@ export const branch = {
   personnelSummaryCardNetRegisterOwes: "Personele net borç (cep)",
   tabIncome: "Gelirler",
   tabExpenses: "Giderler",
-  tabStock: "Şubeye gelen ürün",
+  tabStock: "Şube deposu",
   tabTourismSeason: "Turizm sezonu",
   tabZReportAccounting: "Z raporu (muhasebe)",
   tabNotes: "Notlar",

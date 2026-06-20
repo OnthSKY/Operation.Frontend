@@ -2,13 +2,21 @@ export const branchStockConsumption = {
   subTabsAria: "Şube stok alt sekmeleri",
   subTabInbound: "Gelen mal",
   subTabConsumption: "Kullanım & kalan",
+  subTabUsed: "Kullanılan ürünler",
   subTabBalances: "Güncel stok",
+
+  // Kullanılan ürünler (toplam tüketim) paneli
+  usedHeading: "Kullanılan ürünler",
+  usedHint: "Şubede bugüne dek kullanılan (tüketilen) toplam miktarlar. Ana ürün altında alt ürünler ve toplamı görünür.",
+  usedGroupTotal: "Toplam kullanım",
+  usedEmpty: "Henüz kullanılan ürün yok.",
 
   // Güncel stok (anlık bakiye) paneli
   balancesHeading: "Güncel stok durumu",
   balancesHint: "Şu an şubede bulunan miktarlar. Yalnız bakiyesi sıfır olmayan ürünler listelenir.",
   balancesColUnit: "Birim",
   balancesColBalance: "Bakiye",
+  balancesGroupTotal: "Toplam",
   balancesEmpty: "Şu an stokta görünen ürün yok.",
   balancesSearchEmpty: "Aramayla eşleşen ürün yok.",
   drillHint: "Bu ürünün son hareketleri — kim, ne zaman, ne kadar (gelen + harcanan)",

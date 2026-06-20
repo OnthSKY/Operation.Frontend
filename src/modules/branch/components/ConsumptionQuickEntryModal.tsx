@@ -94,7 +94,8 @@ function QuickEntryFormBody({
 
   const [search, setSearch] = useState("");
   const [productId, setProductId] = useState<number | null>(null);
-  const [quantityText, setQuantityText] = useState("");
+  // Hızlı kullanım (consume) modunda miktar 1 ile gelir — tek tıkla hızlı düşüm kolaylığı.
+  const [quantityText, setQuantityText] = useState(mode === "consume" ? "1" : "");
   const [dateText, setDateText] = useState(() => localIsoDate());
   const [direction, setDirection] = useState<BranchStockDirection>("OUT");
   const [note, setNote] = useState("");

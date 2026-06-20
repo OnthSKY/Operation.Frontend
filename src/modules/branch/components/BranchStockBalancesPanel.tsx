@@ -1,15 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown, Search } from "lucide-react";
 import { useI18n } from "@/i18n/context";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/shared/ui/Table";
 import { Modal } from "@/shared/ui/Modal";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatLocaleDate, formatLocaleDateTime } from "@/shared/lib/locale-date";
@@ -37,12 +30,88 @@ export function BranchStockBalancesPanel({ branchId, active }: Props) {
 
   const [search, setSearch] = useState("");
   const [drillProduct, setDrillProduct] = useState<{ id: number; name: string; unit: string | null } | null>(null);
+  // Açık/kapalı ana ürün grupları — varsayılan: hepsi açık. Sadece kapatılanları tutarız.
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const toggleGroup = (key: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
-  const rows = useMemo(() => {
+  // Ana ürün bazlı gruplama: parent_product_id olan satırlar ana ürün altında toplanır,
+  // grup başlığında o ana ürünün toplam bakiyesi gösterilir. Parent'ı olmayan ürünler
+  // tek başına (başlıksız) satır olur. Birim ancak tüm alt ürünlerde aynıysa gösterilir.
+  const groups = useMemo(() => {
     const all = data ?? [];
     const q = search.trim().toLocaleLowerCase("tr");
-    if (!q) return all;
-    return all.filter((r) => r.productName.toLocaleLowerCase("tr").includes(q));
+    const filtered = q
+      ? all.filter(
+          (r) =>
+            r.productName.toLocaleLowerCase("tr").includes(q) ||
+            (r.parentProductName?.toLocaleLowerCase("tr").includes(q) ?? false)
+        )
+      : all;
+
+    const byParent = new Map<
+      number,
+      { parentId: number; parentName: string; children: typeof all }
+    >();
+    const standalone: typeof all = [];
+
+    for (const r of filtered) {
+      if (r.parentProductId != null) {
+        const g = byParent.get(r.parentProductId);
+        if (g) {
+          g.children.push(r);
+        } else {
+          byParent.set(r.parentProductId, {
+            parentId: r.parentProductId,
+            parentName: r.parentProductName ?? r.productName,
+            children: [r],
+          });
+        }
+      } else {
+        standalone.push(r);
+      }
+    }
+
+    type Group = {
+      key: string;
+      isGroup: boolean;
+      name: string;
+      total: number;
+      unit: string | null;
+      children: typeof all;
+    };
+
+    const result: Group[] = [];
+    for (const g of byParent.values()) {
+      const total = g.children.reduce((sum, c) => sum + c.balance, 0);
+      const units = new Set(g.children.map((c) => c.productUnit ?? ""));
+      const unit = units.size === 1 ? g.children[0]?.productUnit ?? null : null;
+      result.push({
+        key: `p-${g.parentId}`,
+        isGroup: true,
+        name: g.parentName,
+        total,
+        unit,
+        children: g.children,
+      });
+    }
+    for (const r of standalone) {
+      result.push({
+        key: `u-${r.productId}`,
+        isGroup: false,
+        name: r.productName,
+        total: r.balance,
+        unit: r.productUnit ?? null,
+        children: [r],
+      });
+    }
+    result.sort((a, b) => a.name.localeCompare(b.name, "tr"));
+    return result;
   }, [data, search]);
 
   return (
@@ -56,13 +125,19 @@ export function BranchStockBalancesPanel({ branchId, active }: Props) {
         </p>
       </div>
 
-      <input
-        type="search"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        placeholder={t("branchStockConsumption.searchPlaceholder")}
-        className="w-full max-w-xs rounded-md border border-zinc-300 px-2 py-1.5 text-sm focus:border-zinc-900 focus:outline-none"
-      />
+      <div className="relative w-full sm:max-w-xs">
+        <Search
+          aria-hidden
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+        />
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder={t("branchStockConsumption.searchPlaceholder")}
+          className="w-full rounded-xl border border-zinc-300 bg-white py-2.5 pl-9 pr-3 text-sm shadow-sm transition focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
+        />
+      </div>
 
       {isPending ? (
         <p className="text-sm text-zinc-500">{t("common.loading")}</p>
@@ -72,53 +147,38 @@ export function BranchStockBalancesPanel({ branchId, active }: Props) {
         </div>
       ) : (data ?? []).length === 0 ? (
         <p className="text-sm text-zinc-500">{t("branchStockConsumption.balancesEmpty")}</p>
-      ) : rows.length === 0 ? (
+      ) : groups.length === 0 ? (
         <p className="text-sm text-zinc-500">{t("branchStockConsumption.balancesSearchEmpty")}</p>
       ) : (
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableHeader>{t("branchStockConsumption.colProduct")}</TableHeader>
-              <TableHeader>{t("branchStockConsumption.balancesColUnit")}</TableHeader>
-              <TableHeader className="text-right">
-                {t("branchStockConsumption.balancesColBalance")}
-              </TableHeader>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {rows.map((r) => (
-              <TableRow
-                key={r.productId}
-                className="cursor-pointer transition hover:bg-zinc-50/80"
+        <div className="space-y-2.5">
+          {groups.map((g) =>
+            g.isGroup ? (
+              <BalanceGroupCard
+                key={g.key}
+                group={g}
+                open={!collapsed.has(g.key)}
+                onToggle={() => toggleGroup(g.key)}
+                t={t}
+                onPick={(r) =>
+                  setDrillProduct({ id: r.productId, name: r.productName, unit: r.productUnit ?? null })
+                }
+              />
+            ) : (
+              <StandaloneBalanceCard
+                key={g.key}
+                row={g.children[0]!}
+                t={t}
                 onClick={() =>
                   setDrillProduct({
-                    id: r.productId,
-                    name: r.productName,
-                    unit: r.productUnit ?? null,
+                    id: g.children[0]!.productId,
+                    name: g.children[0]!.productName,
+                    unit: g.children[0]!.productUnit ?? null,
                   })
                 }
-              >
-                <TableCell dataLabel={t("branchStockConsumption.colProduct")}>
-                  <span className="font-medium text-blue-700 underline decoration-blue-700/40 underline-offset-2 hover:text-blue-800">
-                    {r.productName}
-                  </span>
-                </TableCell>
-                <TableCell dataLabel={t("branchStockConsumption.balancesColUnit")}>
-                  <span className="text-xs text-zinc-600">{r.productUnit ?? "—"}</span>
-                </TableCell>
-                <TableCell
-                  dataLabel={t("branchStockConsumption.balancesColBalance")}
-                  className="text-right font-semibold tabular-nums text-zinc-900"
-                >
-                  {r.balance}
-                  {r.productUnit ? (
-                    <span className="ml-1 text-xs font-normal text-zinc-500">{r.productUnit}</span>
-                  ) : null}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+              />
+            )
+          )}
+        </div>
       )}
 
       {drillProduct ? (
@@ -130,6 +190,127 @@ export function BranchStockBalancesPanel({ branchId, active }: Props) {
         />
       ) : null}
     </div>
+  );
+}
+
+type BalanceLeaf = {
+  productId: number;
+  productName: string;
+  productUnit: string | null;
+  balance: number;
+};
+
+type BalanceGroup = {
+  key: string;
+  isGroup: boolean;
+  name: string;
+  total: number;
+  unit: string | null;
+  children: BalanceLeaf[];
+};
+
+/** Ana ürün kartı — başlıkta toplam, açılınca alt ürünler. Mobil öncelikli, dokunmatik hedefler ≥44px. */
+function BalanceGroupCard({
+  group,
+  open,
+  onToggle,
+  t,
+  onPick,
+}: {
+  group: BalanceGroup;
+  open: boolean;
+  onToggle: () => void;
+  t: (k: string) => string;
+  onPick: (row: BalanceLeaf) => void;
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="flex w-full items-center gap-3 px-3 py-3 text-left transition hover:bg-zinc-50 sm:px-4"
+      >
+        <ChevronDown
+          aria-hidden
+          className={cn(
+            "h-5 w-5 shrink-0 text-zinc-400 transition-transform duration-200",
+            open ? "rotate-0" : "-rotate-90"
+          )}
+        />
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <span className="truncate text-sm font-semibold text-zinc-900 sm:text-base">
+            {group.name}
+          </span>
+          <span className="shrink-0 rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-zinc-600">
+            {group.children.length}
+          </span>
+        </div>
+        <div className="flex shrink-0 flex-col items-end">
+          <span className="text-base font-bold tabular-nums text-zinc-900 sm:text-lg">
+            {group.total}
+            {group.unit ? (
+              <span className="ml-1 text-xs font-medium text-zinc-400">{group.unit}</span>
+            ) : null}
+          </span>
+          <span className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+            {t("branchStockConsumption.balancesGroupTotal")}
+          </span>
+        </div>
+      </button>
+
+      {open ? (
+        <ul className="divide-y divide-zinc-100 border-t border-zinc-100">
+          {group.children.map((r) => (
+            <li key={r.productId}>
+              <button
+                type="button"
+                onClick={() => onPick(r)}
+                className="flex min-h-[44px] w-full items-center justify-between gap-3 px-3 py-2.5 pl-10 text-left transition hover:bg-blue-50/40 sm:px-4 sm:pl-12"
+              >
+                <span className="truncate text-sm font-medium text-blue-700 underline decoration-blue-700/30 underline-offset-2">
+                  {r.productName}
+                </span>
+                <span className="shrink-0 text-sm font-semibold tabular-nums text-zinc-900">
+                  {r.balance}
+                  {r.productUnit ? (
+                    <span className="ml-1 text-xs font-normal text-zinc-400">{r.productUnit}</span>
+                  ) : null}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
+/** Ana ürünü olmayan tekil ürün — tek satırlık kompakt kart. */
+function StandaloneBalanceCard({
+  row,
+  onClick,
+}: {
+  row: BalanceLeaf;
+  t: (k: string) => string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex min-h-[52px] w-full items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white px-3 py-3 text-left shadow-sm transition hover:bg-blue-50/40 sm:px-4"
+    >
+      <span className="truncate text-sm font-medium text-blue-700 underline decoration-blue-700/30 underline-offset-2 sm:text-base">
+        {row.productName}
+      </span>
+      <span className="shrink-0 text-base font-bold tabular-nums text-zinc-900">
+        {row.balance}
+        {row.productUnit ? (
+          <span className="ml-1 text-xs font-medium text-zinc-400">{row.productUnit}</span>
+        ) : null}
+      </span>
+    </button>
   );
 }
 

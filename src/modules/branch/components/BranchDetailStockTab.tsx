@@ -8,8 +8,9 @@ import { cn } from "@/lib/cn";
 import { BranchStockInboundPanel } from "./BranchStockInboundPanel";
 import { BranchStockConsumptionPanel } from "./BranchStockConsumptionPanel";
 import { BranchStockBalancesPanel } from "./BranchStockBalancesPanel";
+import { BranchStockUsedPanel } from "./BranchStockUsedPanel";
 
-type StockSubTabId = "inbound" | "consumption" | "balances";
+type StockSubTabId = "inbound" | "consumption" | "balances" | "used";
 
 type Props = {
   branchId: number;
@@ -36,6 +37,7 @@ export function BranchDetailStockTab({
     ...(mayConsume
       ? [
           { id: "consumption" as const, label: t("branchStockConsumption.subTabConsumption") },
+          { id: "used" as const, label: t("branchStockConsumption.subTabUsed") },
           { id: "balances" as const, label: t("branchStockConsumption.subTabBalances") },
         ]
       : []),
@@ -75,6 +77,9 @@ export function BranchDetailStockTab({
       ) : null}
       {subTab === "consumption" && mayConsume ? (
         <BranchStockConsumptionPanel branchId={branchId} active={active} />
+      ) : null}
+      {subTab === "used" && mayConsume ? (
+        <BranchStockUsedPanel branchId={branchId} active={active} />
       ) : null}
       {subTab === "balances" && mayConsume ? (
         <BranchStockBalancesPanel branchId={branchId} active={active} />

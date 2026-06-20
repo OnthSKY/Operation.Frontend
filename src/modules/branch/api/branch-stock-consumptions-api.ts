@@ -34,6 +34,9 @@ export type BranchProductBalanceRow = {
   balance: number;
   /** Şubeye sevkiyatla net giren miktar (depo→şube IN − şube→depo OUT). IN düzeltme tavanı: netShippedIn − balance. */
   netShippedIn: number;
+  /** Ana ürün (varsa); UI bakiyeleri ana ürün altında alt ürün olarak gruplar. */
+  parentProductId: number | null;
+  parentProductName: string | null;
 };
 
 export type BranchStockConsumptionListPage = {
@@ -132,6 +135,16 @@ function normalizeBalance(r: Record<string, unknown>): BranchProductBalanceRow {
         : null,
     balance: Number(r.balance ?? r.Balance ?? 0) || 0,
     netShippedIn: Number(r.netShippedIn ?? r.NetShippedIn ?? 0) || 0,
+    parentProductId:
+      (Number(r.parentProductId ?? r.ParentProductId) || 0) > 0
+        ? Number(r.parentProductId ?? r.ParentProductId)
+        : null,
+    parentProductName:
+      r.parentProductName != null && String(r.parentProductName).trim() !== ""
+        ? String(r.parentProductName).trim()
+        : r.ParentProductName != null && String(r.ParentProductName).trim() !== ""
+          ? String(r.ParentProductName).trim()
+          : null,
   };
 }
 
@@ -174,6 +187,51 @@ export async function fetchBranchProductBalances(
     `/branches/${branchId}/stock-balances${qs ? `?${qs}` : ""}`
   );
   return (rows ?? []).map(normalizeBalance);
+}
+
+export type BranchProductConsumedRow = {
+  productId: number;
+  productName: string;
+  productUnit: string | null;
+  totalConsumed: number;
+  parentProductId: number | null;
+  parentProductName: string | null;
+};
+
+function normalizeConsumed(r: Record<string, unknown>): BranchProductConsumedRow {
+  return {
+    productId: Number(r.productId ?? r.ProductId) || 0,
+    productName: String(r.productName ?? r.ProductName ?? "").trim(),
+    productUnit:
+      r.productUnit != null && String(r.productUnit).trim() !== ""
+        ? String(r.productUnit).trim()
+        : null,
+    totalConsumed: Number(r.totalConsumed ?? r.TotalConsumed ?? 0) || 0,
+    parentProductId:
+      (Number(r.parentProductId ?? r.ParentProductId) || 0) > 0
+        ? Number(r.parentProductId ?? r.ParentProductId)
+        : null,
+    parentProductName:
+      r.parentProductName != null && String(r.parentProductName).trim() !== ""
+        ? String(r.parentProductName).trim()
+        : r.ParentProductName != null && String(r.ParentProductName).trim() !== ""
+          ? String(r.ParentProductName).trim()
+          : null,
+  };
+}
+
+export async function fetchBranchConsumedTotals(
+  branchId: number,
+  params?: { dateFrom?: string; dateTo?: string }
+): Promise<BranchProductConsumedRow[]> {
+  const q = new URLSearchParams();
+  if (params?.dateFrom) q.set("dateFrom", params.dateFrom);
+  if (params?.dateTo) q.set("dateTo", params.dateTo);
+  const qs = q.toString();
+  const rows = await apiRequest<Record<string, unknown>[]>(
+    `/branches/${branchId}/stock-consumed-totals${qs ? `?${qs}` : ""}`
+  );
+  return (rows ?? []).map(normalizeConsumed);
 }
 
 export async function recordBranchStockConsumption(
