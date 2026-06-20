@@ -771,7 +771,10 @@ export function PersonnelDetailModal({
           orgBranchTx?.kind === "pocket-repay" ||
           orgBranchTx?.kind === "handover-pool-expense-register"
             ? orgBranchTx.branchId
-            : (personnel?.branchId ?? null)
+            : // Normal personel gideri: şube personelin ana şubesinden DEĞİL,
+              // ödeme kaynağından belirlenir. null geç → yalnızca REGISTER seçilince
+              // target-branch seçicisi devreye girer; patron/cep'te şubesiz kalır.
+              null
         }
         heldRegisterAggregateBranchIds={branchIdsForPocketMoney}
         defaultLinkedPersonnelId={
