@@ -70,7 +70,7 @@ export function AuthorizationMatrixScreen() {
 
   // Sistem rolleri (UI heuristik; backend güvenlik için ayrıca enforce eder).
   const SYSTEM_ROLE_CODES = useMemo(
-    () => new Set(["ADMIN", "STAFF", "PERSONNEL", "DRIVER", "VIEWER", "FINANCE", "PROCUREMENT", "BRANCH_DAY_REGISTER"]),
+    () => new Set(["ADMIN", "STAFF", "PERSONNEL", "DRIVER", "VIEWER", "FINANCE", "PROCUREMENT", "BRANCH_DAY_REGISTER", "PUBLIC_SITE_EDITOR", "BRANCH_WAREHOUSE_STAFF"]),
     [],
   );
 

@@ -26,6 +26,8 @@ export const dashboard = {
   dailyRegisterBranchFilterAll: "Tüm şubeler",
   dailyRegisterBranchFilterHint: "İsteğe bağlı: kartları ve özet şeridini tek şubeye daraltır.",
   dailyRegisterBranchFilterNoRows: "Bu kapsamda seçilen şube için özet satırı yok.",
+  dailyRegisterHideEmptyToggle: "Gün sonu girilmeyen şubeleri gizle",
+  dailyRegisterHideEmptyHint: "Bu kapsamda hiç hareketi olmayan ({n}) şube kartları gizlenir.",
   dailyRegisterStoryBadge: "Bu sayfayı nasıl okuyayım?",
   dailyRegisterStoryStep1:
     "Filtre panelinden kapsamı seçin: tek gün, tek sezon, sezon yılı aralığı veya başlangıç–bitiş tarihleri (günler üst üste toplanır).",

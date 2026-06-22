@@ -50,6 +50,7 @@ export const users = {
   roleFinance: "Finance / Accounting Lead",
   roleProcurement: "Procurement & Warehouse Lead",
   roleBranchDayRegister: "Branch Day Register Clerk",
+  roleBranchWarehouseStaff: "Branch Warehouse Staff",
   roleDetailAdmin:
     "Full control over system settings, user/role management, the authorization matrix, and per-user data scopes. The system.admin wildcard grants access to every module and API; only admin.users.data_scopes still requires an explicit grant.",
   roleDetailStaff:
@@ -66,6 +67,8 @@ export const users = {
     "Procurement, warehouse, and shipment focused role. Branches, warehouse movements, products, and suppliers are open; warehouse.driver code also grants access to driver flows. General overhead and insurance modules are closed.",
   roleDetailBranchDayRegister:
     "Day-end cashier for assigned branches. Limited to today's register entries (branch.transactions.today_only). Can only create register-cash advances for personnel marked as ADVANCE_DELEGATE_TARGET in data scopes. No full Branches module access; cannot leave the branches assigned via user_branch_scopes.",
+  roleDetailBranchWarehouseStaff:
+    "Sees stock and records movements/transfers only in assigned warehouse(s). No financial (register/income/expense) or cross-branch access; cannot delete/reverse. If no warehouse data scope is set, sees ALL warehouses — so you are redirected to the scopes screen after assignment; pick the relevant branch's warehouse.",
   branchDayRegisterSetupTitle: "Finish setup for this role",
   branchDayRegisterSetupIntro:
     "The account cannot work until you assign branches (and optional advance targets) in Data scopes.",
@@ -333,6 +336,8 @@ export const users = {
   scopesUpdated: "Saved. That user must sign in again (sessions ended).",
   branchScopesTitle: "Branch scopes",
   warehouseScopesTitle: "Warehouse scopes",
+  warehouseScopeEmptyWarning:
+    "No warehouse scope set — this user can see ALL warehouses. Add specific warehouses above to restrict access (e.g. only their own branch's warehouse).",
   personnelScopesTitle: "Personnel scopes",
   personnelScopeImpliedTitle: "Automatic (branch manager on branch card)",
   personnelScopeImpliedPrefix: "Branch:",

@@ -42,6 +42,7 @@ export const profile = {
   roleFinance: "Finance / Accounting Lead",
   roleProcurement: "Procurement & Warehouse Lead",
   roleBranchDayRegister: "Branch Day Register Clerk",
+  roleBranchWarehouseStaff: "Branch Warehouse Staff",
   roleUnknown: "Unknown role",
   sectionActivity: "Your activity",
   auditEmpty: "No actions recorded for your account yet.",

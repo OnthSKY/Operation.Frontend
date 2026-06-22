@@ -6,7 +6,8 @@ export type AppUserRole =
   | "VIEWER"
   | "FINANCE"
   | "PROCUREMENT"
-  | "BRANCH_DAY_REGISTER";
+  | "BRANCH_DAY_REGISTER"
+  | "BRANCH_WAREHOUSE_STAFF";
 
 export type UserListItem = {
   id: number;

@@ -21,6 +21,8 @@ export function accountRoleLabel(
       return t("profile.roleProcurement");
     case "BRANCH_DAY_REGISTER":
       return t("profile.roleBranchDayRegister");
+    case "BRANCH_WAREHOUSE_STAFF":
+      return t("profile.roleBranchWarehouseStaff");
     default:
       return t("profile.roleUnknown");
   }
@@ -52,6 +54,8 @@ export function adminUsersRoleTitle(
       return t("users.roleProcurement");
     case "BRANCH_DAY_REGISTER":
       return t("users.roleBranchDayRegister");
+    case "BRANCH_WAREHOUSE_STAFF":
+      return t("users.roleBranchWarehouseStaff");
     default:
       return "";
   }
@@ -97,6 +101,8 @@ export function adminUsersRoleDescription(
         return "users.roleDetailProcurement";
       case "BRANCH_DAY_REGISTER":
         return "users.roleDetailBranchDayRegister";
+      case "BRANCH_WAREHOUSE_STAFF":
+        return "users.roleDetailBranchWarehouseStaff";
       default:
         return "";
     }

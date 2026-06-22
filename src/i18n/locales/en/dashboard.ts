@@ -26,6 +26,8 @@ export const dashboard = {
   dailyRegisterBranchFilterAll: "All branches",
   dailyRegisterBranchFilterHint: "Optional: narrow cards and totals to one branch.",
   dailyRegisterBranchFilterNoRows: "No summary row for this branch in the current scope.",
+  dailyRegisterHideEmptyToggle: "Hide branches with no day-end",
+  dailyRegisterHideEmptyHint: "Hides cards for the ({n}) branches with no activity in this scope.",
   dailyRegisterStoryBadge: "How to read this page",
   dailyRegisterStoryStep1:
     "In the filter panel, set scope: one day, one season, multiple season years, or a from–to date range (days are added up).",

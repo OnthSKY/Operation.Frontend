@@ -42,6 +42,7 @@ export const profile = {
   roleFinance: "Muhasebe / Finans Sorumlusu",
   roleProcurement: "Satınalma ve Depo Sorumlusu",
   roleBranchDayRegister: "Şube Gün Sonu Kasiyeri",
+  roleBranchWarehouseStaff: "Şube Deposu Personeli",
   roleUnknown: "Tanımsız rol",
   sectionActivity: "Hareketleriniz",
   auditEmpty: "Hesabınız için henüz kayıt yok.",

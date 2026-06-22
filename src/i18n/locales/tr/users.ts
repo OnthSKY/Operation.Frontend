@@ -51,6 +51,7 @@ export const users = {
   roleFinance: "Muhasebe / Finans Sorumlusu",
   roleProcurement: "Satınalma ve Depo Sorumlusu",
   roleBranchDayRegister: "Şube Gün Sonu Kasiyeri",
+  roleBranchWarehouseStaff: "Şube Deposu Personeli",
   roleDetailAdmin:
     "Tüm sistem ayarları, kullanıcı/rol yönetimi, yetki matrisi ve veri kapsamlarını düzenler. system.admin jokeri sayesinde tüm modül ve API'lere açıktır; admin.users.data_scopes hariç hiçbir kapsamla kısıtlanamaz.",
   roleDetailStaff:
@@ -67,6 +68,8 @@ export const users = {
     "Satınalma, depo ve sevkiyat odaklı rol. Şubeler, depo hareketleri, ürünler ve tedarikçi modülleri açıktır; warehouse.driver kapsamı ile şoför akışlarına da erişebilir. Genel gider ve sigorta modülleri kapalıdır.",
   roleDetailBranchDayRegister:
     "Atanmış şubelerde gün sonu kasası tutar. Yalnız bugünün kasa kayıtlarını görüp/yazıp/siler (branch.transactions.today_only). Sadece veri kapsamında «Avans hedefi» (ADVANCE_DELEGATE_TARGET) işaretli personellere kasadan avans verebilir. Tam Şubeler modülü açık değildir; user_branch_scopes ile atanmış şubeler dışına çıkamaz.",
+  roleDetailBranchWarehouseStaff:
+    "Yalnızca atanmış depo(lar)da stok görür ve hareket/transfer girer. Finansal (kasa/gelir/gider) ve cross-branch erişimi yoktur; silme/ters kayıt yapamaz. Veri kapsamı (depo) tanımlanmazsa TÜM depoları görür — bu yüzden atama sonrası kapsam ekranına yönlendirilirsiniz; ilgili şubenin deposunu seçin.",
   branchDayRegisterSetupTitle: "Bu rol için kurulumu tamamlayın",
   branchDayRegisterSetupIntro:
     "Şube ve (isteğe bağlı) avans hedefi satırları «Veri kapsamları»nda tanımlanmadan hesap çalışmaz.",
@@ -335,6 +338,8 @@ export const users = {
   scopesUpdated: "Kaydedildi. Bu kullanıcı tekrar giriş yapmalıdır (oturumlar sonlandırıldı).",
   branchScopesTitle: "Şube kapsamları",
   warehouseScopesTitle: "Depo kapsamları",
+  warehouseScopeEmptyWarning:
+    "Depo kapsamı tanımlı değil — bu kullanıcı TÜM depoları görür. Yalnızca belirli depolara (örn. kendi şubesinin deposuna) kısıtlamak için yukarıdan «Ekle» ile depo seçin.",
   personnelScopesTitle: "Personel kapsamları",
   personnelScopeImpliedTitle: "Otomatik (şube kartında sorumlu)",
   personnelScopeImpliedPrefix: "Şube:",

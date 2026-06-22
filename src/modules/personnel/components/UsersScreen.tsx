@@ -348,6 +348,7 @@ export function UsersScreen() {
       { value: "FINANCE", label: t("users.roleFinance") },
       { value: "PROCUREMENT", label: t("users.roleProcurement") },
       { value: "BRANCH_DAY_REGISTER", label: t("users.roleBranchDayRegister") },
+      { value: "BRANCH_WAREHOUSE_STAFF", label: t("users.roleBranchWarehouseStaff") },
     ],
     [t]
   );
@@ -368,6 +369,13 @@ export function UsersScreen() {
     [matrixData]
   );
 
+  // Rol-bazlı scope-requirement: tetikleyici izin geniş rollerce de tutulduğunda (ör. ui.warehouse
+  // → PROCUREMENT) yanlış pozitif olmasın diye bazı roller doğrudan rol koduyla işaretlenir.
+  const scopeRequiringRoleSet = useMemo(
+    () => new Set((matrixData?.scopeRequiringRoleCodes ?? []).map((c) => c.toUpperCase())),
+    [matrixData]
+  );
+
   const rolePermsByCode = useMemo(() => {
     const m = new Map<string, string[]>();
     for (const row of matrixData?.roles ?? []) {
@@ -379,9 +387,12 @@ export function UsersScreen() {
   // Verilen rol kodları kümesi kapsam gerektiriyor mu? (izin birleşimi ∩ scopeRequiringCodeSet)
   const rolesRequireScope = useCallback(
     (roleCodes: string[]) => {
-      if (scopeRequiringCodeSet.size === 0) return false;
       for (const rc of roleCodes) {
-        const perms = rolePermsByCode.get(rc.toUpperCase());
+        const rcUpper = rc.toUpperCase();
+        // Rol-bazlı işaret (ör. BRANCH_WAREHOUSE_STAFF) → doğrudan kapsam gerektirir.
+        if (scopeRequiringRoleSet.has(rcUpper)) return true;
+        // İzin-bazlı işaret: rolün izinleri scope-gerektiren kodlardan birini içeriyor mu.
+        const perms = rolePermsByCode.get(rcUpper);
         if (!perms) continue;
         for (const p of perms) {
           if (scopeRequiringCodeSet.has(p.toUpperCase())) return true;
@@ -389,7 +400,7 @@ export function UsersScreen() {
       }
       return false;
     },
-    [scopeRequiringCodeSet, rolePermsByCode]
+    [scopeRequiringCodeSet, scopeRequiringRoleSet, rolePermsByCode]
   );
 
   // Kullanıcı kapsam-gerektiren bir role sahip ama hiç kapsam tanımı yoksa → eksik (uyarı göster).

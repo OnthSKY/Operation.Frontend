@@ -33,8 +33,8 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
   const showReports = canSeeUiModule(user, PERM.uiReports);
   const showFinancialReports = canSeeFinancialReports(user);
   const showDailyBranchRegister = canSeeDailyBranchRegister(user);
-  const reportsGroupLanding =
-    showFinancialReports ? "/reports/financial" : showReports ? "/reports/position" : "/daily-branch-register";
+  // finance-reporting grubu yalnızca showReports iken render edilir.
+  const reportsGroupLanding = showFinancialReports ? "/reports/financial" : "/reports/position";
   const showPersonnelFull = !personnelPortal && canSeeUiModule(user, PERM.uiPersonnel);
   const showPersonnelAdvancesOnly = personnelPortal && canSeeUiModule(user, PERM.uiMyAdvances);
   const showBranchesNav = canOpenBranchesWorkspace(user);
@@ -76,7 +76,25 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
     });
   }
 
-  if (showReports || showDailyBranchRegister) {
+  if (showDailyBranchRegister) {
+    items.push({
+      id: "daily-branch-register-group",
+      labelKey: "nav.dailyBranchRegister",
+      route: "/daily-branch-register",
+      icon: "reports",
+      mobileVisible: true,
+      children: [
+        {
+          id: "daily-branch-register",
+          labelKey: "nav.dailyBranchRegister",
+          route: "/daily-branch-register",
+          icon: "reports",
+        },
+      ],
+    });
+  }
+
+  if (showReports) {
     items.push({
       id: "finance-reporting",
       labelKey: "nav.groupFinanceReporting",
@@ -86,27 +104,20 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
       mobileVisible: true,
       badgeKey: "notifications",
       children: [
-        ...(showReports
+        ...(showFinancialReports
           ? [
-              ...(showFinancialReports
-                ? [
-                    {
-                      id: "reports-financial",
-                      labelKey: "reports.sidebarFinances",
-                      route: "/reports/financial",
-                      icon: "reports",
-                    },
-                  ]
-                : []),
-              { id: "reports-position", labelKey: "reports.tabCashPosition", route: "/reports/position", icon: "reports" },
-              { id: "reports-personnel-held-cash", labelKey: "reports.sidebarPersonnelHeldCash", route: "/reports/personnel-held-cash", icon: "reports" },
-              { id: "reports-patron-flow", labelKey: "reports.finNavCashFlow", route: "/reports/patron-flow", icon: "reports" },
-              { id: "reports-stock", labelKey: "reports.tabStock", route: "/reports/stock", icon: "reports" },
+              {
+                id: "reports-financial",
+                labelKey: "reports.sidebarFinances",
+                route: "/reports/financial",
+                icon: "reports",
+              },
             ]
           : []),
-        ...(showDailyBranchRegister
-          ? [{ id: "daily-branch-register", labelKey: "nav.dailyBranchRegister", route: "/daily-branch-register", icon: "reports" }]
-          : []),
+        { id: "reports-position", labelKey: "reports.tabCashPosition", route: "/reports/position", icon: "reports" },
+        { id: "reports-personnel-held-cash", labelKey: "reports.sidebarPersonnelHeldCash", route: "/reports/personnel-held-cash", icon: "reports" },
+        { id: "reports-patron-flow", labelKey: "reports.finNavCashFlow", route: "/reports/patron-flow", icon: "reports" },
+        { id: "reports-stock", labelKey: "reports.tabStock", route: "/reports/stock", icon: "reports" },
       ],
     });
   }

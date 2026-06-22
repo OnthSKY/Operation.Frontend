@@ -39,6 +39,7 @@ import { RightDrawer } from "@/shared/components/RightDrawer";
 import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
 import { Select, type SelectOption } from "@/shared/ui/Select";
+import { Switch } from "@/shared/ui/Switch";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import { Modal } from "@/shared/ui/Modal";
 import { EyeIcon } from "@/shared/ui/EyeIcon";
@@ -312,6 +313,7 @@ export function DailyBranchRegisterScreen() {
   const [rangeFrom, setRangeFrom] = useState(() => addDaysToLocalIsoDate(localIsoDate(), -6));
   const [rangeTo, setRangeTo] = useState(() => localIsoDate());
   const [branchFilterBranchId, setBranchFilterBranchId] = useState(BRANCH_FILTER_ALL);
+  const [hideEmptyBranches, setHideEmptyBranches] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [expenseDetailRow, setExpenseDetailRow] = useState<BranchTodayRow | null>(null);
   const [breakdownTotal, setBreakdownTotal] = useState<number | null>(null);
@@ -395,7 +397,12 @@ export function DailyBranchRegisterScreen() {
     t,
   ]);
 
-  const visibleRows = useMemo(() => {
+  // "Gün sonu girilmiş" = bu kapsamda hareketi olan satır (gelir veya gider > 0).
+  // Finansalı gizli satırlar bilerek gizlenmiştir; "boş" sayılmazlar, gösterilir.
+  const branchHasDayEnd = (r: BranchTodayRow) =>
+    r.financialHidden || r.income > EXP_DETAIL_EPS || r.totalExpenseOut > EXP_DETAIL_EPS;
+
+  const scopedRows = useMemo(() => {
     if (state.kind !== "ok") return [];
     const rows = state.branchTodayRows;
     if (branchFilterBranchId === BRANCH_FILTER_ALL) return rows;
@@ -403,6 +410,16 @@ export function DailyBranchRegisterScreen() {
     if (!Number.isFinite(id) || id <= 0) return rows;
     return rows.filter((r) => r.branchId === id);
   }, [state, branchFilterBranchId]);
+
+  const emptyBranchCount = useMemo(
+    () => scopedRows.filter((r) => !branchHasDayEnd(r)).length,
+    [scopedRows]
+  );
+
+  const visibleRows = useMemo(
+    () => (hideEmptyBranches ? scopedRows.filter(branchHasDayEnd) : scopedRows),
+    [scopedRows, hideEmptyBranches]
+  );
 
   const totalsStrip = useMemo(() => {
     if (state.kind !== "ok") return null;
@@ -856,6 +873,32 @@ export function DailyBranchRegisterScreen() {
                 ? t("dashboard.dailyRegisterBranchFilterNoRows")
                 : t("dashboard.dailyRegisterEmpty")}
             </p>
+          ) : null}
+
+          {state.kind === "ok" && (emptyBranchCount > 0 || hideEmptyBranches) ? (
+            <div className="flex items-start justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-3.5 py-3 shadow-sm">
+              <div className="min-w-0">
+                <label
+                  htmlFor="daily-register-hide-empty"
+                  className="block cursor-pointer text-sm font-semibold text-zinc-900"
+                >
+                  {t("dashboard.dailyRegisterHideEmptyToggle")}
+                </label>
+                <p className="mt-0.5 text-xs leading-relaxed text-zinc-500">
+                  {t("dashboard.dailyRegisterHideEmptyHint").replace(
+                    "{n}",
+                    String(emptyBranchCount)
+                  )}
+                </p>
+              </div>
+              <Switch
+                id="daily-register-hide-empty"
+                checked={hideEmptyBranches}
+                onCheckedChange={setHideEmptyBranches}
+                aria-label={t("dashboard.dailyRegisterHideEmptyToggle")}
+                className="mt-0.5"
+              />
+            </div>
           ) : null}
 
           {totalsStrip ? (
