@@ -2,6 +2,7 @@ import { fetchBranchNotes } from "@/modules/branch/api/branch-notes-api";
 import {
   fetchAllBranchStockReceipts,
   fetchAllBranchTransactionsPaged,
+  fetchBranchHeldRegisterCashByPerson,
 } from "@/modules/branch/api/branches-api";
 import { fetchAllNonAdvancePersonnelAttributedExpenses } from "@/modules/branch/api/branch-transactions-api";
 import {
@@ -96,6 +97,8 @@ export async function buildPersonnelSettlementDocument(
   let generalNotes: { body: string; createdAt: string }[] = [];
   let stockRows: BranchStockReceiptRow[] = [];
   let registerTx: BranchTransaction[] = [];
+  // Personel zimmetindeki kasa nakdi: kanonik net bakiye (uygulama raporuyla aynı).
+  const heldCashByPerson = new Map<number, number>();
 
   {
     if (target.scope === "personnel") {
@@ -145,14 +148,22 @@ export async function buildPersonnelSettlementDocument(
         ? fetchBranchNotes(bid).catch(() => [] as { body: string; createdAt: string }[])
         : Promise.resolve([] as { body: string; createdAt: string }[]);
 
-      const [expensePool, advRaw, stockRowsRaw, registerTxRaw, notesRaw] =
+      // Kanonik personel zimmet bakiyesi (held register cash) — uygulama raporuyla aynı net.
+      const heldCashPromise = bpdf.includeRegisterLedger
+        ? fetchBranchHeldRegisterCashByPerson(bid, localIsoDate()).catch(() => [])
+        : Promise.resolve([] as { personnelId: number | null; amount: number }[]);
+
+      const [expensePool, advRaw, stockRowsRaw, registerTxRaw, notesRaw, heldCashRaw] =
         await Promise.all([
           expensePoolPromise,
           advPromise,
           stockPromise,
           regPromise,
           notesPromise,
+          heldCashPromise,
         ]);
+      for (const r of heldCashRaw)
+        if (r.personnelId != null) heldCashByPerson.set(r.personnelId, r.amount);
 
       advances = bpdf.includeAdvances ? sortAdvancesDesc(advRaw) : [];
       expenses = bpdf.includePersonnelNonAdvanceExpenses
@@ -487,7 +498,7 @@ export async function buildPersonnelSettlementDocument(
 
   const sourceBreakdownHtml =
     byBranch && bp
-      ? buildBranchSourceBreakdownHtml(advances, expenses, registerTx, bp, t, locale, dash)
+      ? buildBranchSourceBreakdownHtml(advances, expenses, registerTx, bp, t, locale, dash, heldCashByPerson)
       : "";
 
   // Şube özeti (P&L + kaynak dağılımı + nakit nerede). Şubede: yönetici özeti olarak ÜSTTE.

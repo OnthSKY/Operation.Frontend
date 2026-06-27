@@ -153,7 +153,9 @@ export function buildBranchSourceBreakdownHtml(
   bp: BranchSettlementPdfOptions,
   t: (k: string) => string,
   locale: Locale,
-  dash: string
+  dash: string,
+  /** Kanonik personel zimmet net bakiyesi (personnelId → tutar); kalan bunu kullanır. */
+  heldCashByPerson: Map<number, number> = new Map()
 ): string {
   const esc = escapeHtml;
   const addTo = (m: Map<string, number>, ccy: string, v: number) =>
@@ -240,12 +242,18 @@ export function buildBranchSourceBreakdownHtml(
   // Şubenin nakiti nerede (gün sonu): eline geçen nakit (received) ve harcama sonrası kalan (remaining).
   let cashCard = "";
   if (bp.includeRegisterLedger) {
-    type Holder = { label: string; accent: string; received: Map<string, number>; spent: Map<string, number> };
+    type Holder = {
+      label: string;
+      accent: string;
+      pid?: number;
+      received: Map<string, number>;
+      spent: Map<string, number>;
+    };
     const holders = new Map<string, Holder>();
-    const ensure = (key: string, label: string, accent: string): Holder => {
+    const ensure = (key: string, label: string, accent: string, pid?: number): Holder => {
       let h = holders.get(key);
       if (!h) {
-        h = { label, accent, received: new Map<string, number>(), spent: new Map<string, number>() };
+        h = { label, accent, pid, received: new Map<string, number>(), spent: new Map<string, number>() };
         holders.set(key, h);
       }
       return h;
@@ -264,7 +272,8 @@ export function buildBranchSourceBreakdownHtml(
       else if (party === "BRANCH_MANAGER") {
         const name = r.cashSettlementPersonnelFullName?.trim();
         const base = t("branch.branchPdfCashHolderPersonnel");
-        h = ensure(`P:${r.cashSettlementPersonnelId ?? name ?? ""}`, name ? `${base}: ${name}` : base, PALETTE.personnel);
+        const pid = r.cashSettlementPersonnelId ?? undefined;
+        h = ensure(`P:${pid ?? name ?? ""}`, name ? `${base}: ${name}` : base, PALETTE.personnel, pid);
       } else h = ensure("NA", t("branch.branchPdfCashHolderUnassigned"), PALETTE.neutral);
       addTo(h.received, ccy, cash);
     }
@@ -283,7 +292,8 @@ export function buildBranchSourceBreakdownHtml(
       else if (src === "PERSONNEL_HELD_REGISTER_CASH") {
         const name = r.expensePocketPersonnelFullName?.trim();
         const base = t("branch.branchPdfCashHolderPersonnel");
-        h = ensure(`P:${r.expensePocketPersonnelId ?? name ?? ""}`, name ? `${base}: ${name}` : base, PALETTE.personnel);
+        const pid = r.expensePocketPersonnelId ?? undefined;
+        h = ensure(`P:${pid ?? name ?? ""}`, name ? `${base}: ${name}` : base, PALETTE.personnel, pid);
       }
       // REGISTER (şube kasası) ve PERSONNEL_POCKET (personelin kendi cebi) burada düşülmez.
       if (h) addTo(h.spent, ccy, amt);
@@ -300,7 +310,12 @@ export function buildBranchSourceBreakdownHtml(
       const totRem = new Map<string, number>();
       const rows = ordered
         .map((h) => {
-          const rem = sub(h.received, h.spent);
+          // Personel zimmeti: kalan = uygulamanın kanonik net bakiyesi (cep alacağı devri +
+          // kasa devri dahil). Diğer taraflar: eline geçen − harcanan.
+          const rem =
+            h.pid != null && heldCashByPerson.has(h.pid)
+              ? new Map<string, number>([["TRY", heldCashByPerson.get(h.pid) ?? 0]])
+              : sub(h.received, h.spent);
           for (const [c, v] of h.received) totR.set(c, (totR.get(c) ?? 0) + v);
           for (const [c, v] of rem) totRem.set(c, (totRem.get(c) ?? 0) + v);
           return `<tr>

@@ -150,10 +150,66 @@ async function htmlToPdfBlob(html: string): Promise<Blob> {
     const ptPerPx = imgWidthPt / fullCanvas.width;
     const pageSlicePx = Math.max(1, Math.floor(contentHeightPt / ptPerPx));
 
+    // Akıllı sayfa kesimi: bir öğeyi (başlık, tablo satırı, kart) sayfa sınırında
+    // ortadan bölme; başlık + tablo başlığını sonraki içeriğe yapıştır (orphan olmasın).
+    const SCALE = 2; // html2canvas scale ile aynı
+    const EPS = 4;
+    const bodyTop = idoc.body.getBoundingClientRect().top;
+    const atoms: { top: number; bottom: number }[] = [];
+    idoc
+      .querySelectorAll(
+        "h2, h3, .report-header, .salary-cost-disclaimer, .season-tenure-callout, .src-card, .src-total-bar, .cash-where-card, .pnl-profit, .settlement-note-card, table tr"
+      )
+      .forEach((node) => {
+        const el = node as HTMLElement;
+        const r = el.getBoundingClientRect();
+        const top = (r.top - bodyTop) * SCALE;
+        const bottom = (r.bottom - bodyTop) * SCALE;
+        if (bottom <= top) return;
+        atoms.push({ top, bottom });
+        // Başlık / thead satırı → hemen sonraki bloğa yapıştır (birleşik straddle aralığı).
+        const tag = el.tagName.toLowerCase();
+        const isHeading = tag === "h2" || tag === "h3" || el.classList.contains("reg-sub");
+        const inThead = !!el.closest("thead");
+        if (isHeading || (tag === "tr" && inThead)) {
+          let nextBottom = bottom;
+          let nextTop = Infinity;
+          idoc
+            .querySelectorAll(
+              "h2, h3, .src-card, .src-total-bar, .cash-where-card, .pnl-profit, .settlement-note-card, table tr"
+            )
+            .forEach((n2) => {
+              const e2 = n2 as HTMLElement;
+              if (e2 === el) return;
+              const t2 = (e2.getBoundingClientRect().top - bodyTop) * SCALE;
+              const b2 = (e2.getBoundingClientRect().bottom - bodyTop) * SCALE;
+              if (t2 >= bottom - EPS && t2 < nextTop) {
+                nextTop = t2;
+                nextBottom = b2;
+              }
+            });
+          if (nextBottom > bottom) atoms.push({ top, bottom: nextBottom });
+        }
+      });
+    const isValidBreak = (y: number) =>
+      !atoms.some((a) => a.top < y - EPS && a.bottom > y + EPS);
+
     let renderedPx = 0;
     let firstPage = true;
     while (renderedPx < fullCanvas.height) {
-      const sliceHeightPx = Math.min(pageSlicePx, fullCanvas.height - renderedPx);
+      const idealEnd = Math.min(renderedPx + pageSlicePx, fullCanvas.height);
+      let sliceEnd = idealEnd;
+      if (idealEnd < fullCanvas.height) {
+        // idealEnd'i aşmayan en büyük GEÇERLİ kesim noktasını ara.
+        let chosen = -1;
+        for (const a of atoms) {
+          const y = a.top;
+          if (y <= renderedPx + EPS || y > idealEnd) continue;
+          if (y > chosen && isValidBreak(y)) chosen = y;
+        }
+        if (chosen > renderedPx + 1) sliceEnd = chosen; // yoksa: tam sayfa (öğe sayfadan büyük)
+      }
+      const sliceHeightPx = Math.max(1, Math.round(sliceEnd - renderedPx));
       const pageCanvas = document.createElement("canvas");
       pageCanvas.width = fullCanvas.width;
       pageCanvas.height = sliceHeightPx;
