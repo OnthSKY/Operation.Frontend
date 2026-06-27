@@ -19,7 +19,7 @@ import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const TITLE_ID = "branch-pos-profile-title";
 
@@ -235,6 +235,13 @@ export function BranchPosSettlementProfileModal({
   const open = branch != null;
   const posProfiles = usePatronFlowPosProfiles(open);
   const [closeGuard, setCloseGuard] = useState<(() => void) | null>(null);
+  // Inner form bir fonksiyon kaydeder. setState'e doğrudan fonksiyon geçilirse React
+  // onu "updater" sanıp render sırasında çağırır (→ parent'ta setState-in-render hatası).
+  // Bu yüzden updater ile sarıp gerçek değeri saklıyoruz.
+  const registerCloseGuard = useCallback(
+    (fn: (() => void) | null) => setCloseGuard(() => fn),
+    [],
+  );
   useEffect(() => {
     if (!open) setCloseGuard(null);
   }, [open]);
@@ -293,7 +300,7 @@ export function BranchPosSettlementProfileModal({
           personnel={personnel}
           listData={posProfiles.data}
           onClose={onClose}
-          onRegisterCloseGuard={setCloseGuard}
+          onRegisterCloseGuard={registerCloseGuard}
         />
       ) : posProfiles.isPending && branch ? (
         <p className="px-4 pb-4 text-sm text-zinc-500">{t("common.loading")}</p>

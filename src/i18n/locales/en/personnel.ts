@@ -210,11 +210,9 @@ export const personnel = {
   settlementPrintClosureCardSalary: "Earned salary (this season)",
   settlementPrintClosureCardPaid: "Paid at closure",
   settlementPrintClosureCardPaidNone: "Not paid",
-  settlementPrintDocTitleBranch:
-    "Branch settlement summary (advances & personnel expenses for this branch)",
+  settlementPrintDocTitleBranch: "Branch settlement summary",
   settlementPrintScopeLinePersonnel: "Scope: selected person (all their advances and expense lines).",
-  settlementPrintScopeLineBranch:
-    "Scope: selected branch (all advances and personnel expense lines booked to this branch).",
+  settlementPrintScopeLineBranch: "Selected branch",
   settlementPrintColPersonnel: "Personnel",
   settlementPrintBranchAdvancesCapNote:
     "Advance rows for this branch are capped at the {n} most recent records from the list API.",
@@ -225,9 +223,11 @@ export const personnel = {
   settlementPrintColCombined: "Combined",
   settlementPrintGenerated: "Generated:",
   settlementPrintActionPrint: "Print",
-  settlementPrintActionDownload: "Download",
+  settlementPrintActionDownload: "Download PDF",
+  settlementPrintActionShare: "Share",
+  settlementPrintPreparing: "Preparing PDF…",
   settlementPrintToolbarHint:
-    "Download saves this page as an HTML file. Open it and use Print → Save as PDF if you need a PDF.",
+    "“Download PDF” saves the report as a PDF file; on a phone use “Share” to send it straight to WhatsApp.",
   settlementPrintToolbarAria: "Report actions",
   settlementPrintFooterHint:
     "Use Print for your printer or Save as PDF from the print dialog. Download keeps an HTML copy on your device. Nothing is stored on the server.",

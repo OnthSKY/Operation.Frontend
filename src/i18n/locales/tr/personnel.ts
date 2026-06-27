@@ -213,12 +213,10 @@ export const personnel = {
   settlementPrintClosureCardSalary: "Hak edilen maaş (bu sezon)",
   settlementPrintClosureCardPaid: "Kapanışta ödenen",
   settlementPrintClosureCardPaidNone: "Ödenmedi",
-  settlementPrintDocTitleBranch:
-    "Şube hesap özeti (bu şubeye yazılan avanslar ve personel giderleri)",
+  settlementPrintDocTitleBranch: "Şube hesap özeti",
   settlementPrintScopeLinePersonnel:
     "Kapsam: seçilen personel (tüm avansları ve gider satırları).",
-  settlementPrintScopeLineBranch:
-    "Kapsam: seçilen şube (bu şubeye kayıtlı avanslar ve personel gider satırları).",
+  settlementPrintScopeLineBranch: "Seçilen şube",
   settlementPrintColPersonnel: "Personel",
   settlementPrintBranchAdvancesCapNote:
     "Bu şube için avans satırları liste API’sinde en fazla {n} kayıt ile sınırlıdır.",
@@ -229,9 +227,11 @@ export const personnel = {
   settlementPrintColCombined: "Toplam",
   settlementPrintGenerated: "Oluşturulma:",
   settlementPrintActionPrint: "Yazdır",
-  settlementPrintActionDownload: "İndir",
+  settlementPrintActionDownload: "PDF indir",
+  settlementPrintActionShare: "Paylaş",
+  settlementPrintPreparing: "PDF hazırlanıyor…",
   settlementPrintToolbarHint:
-    "İndir, bu sayfayı HTML dosyası olarak kaydeder. PDF isterseniz dosyayı açıp Yazdır → PDF olarak kaydet kullanın.",
+    "«PDF indir» raporu PDF dosyası olarak kaydeder; telefonda «Paylaş» ile doğrudan WhatsApp'a gönderebilirsiniz.",
   settlementPrintToolbarAria: "Rapor işlemleri",
   settlementPrintFooterHint:
     "Yazdır ile yazıcı veya yazdır penceresinden PDF olarak kaydet. İndir ile cihazınıza HTML kopyası alınır. Sunucuya dosya kaydedilmez.",

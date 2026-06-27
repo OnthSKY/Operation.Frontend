@@ -124,6 +124,14 @@ export function BranchPdfSettlementOptionsFields({ value, onChange }: Props) {
         onCheckedChange={(v) => patch({ stockShowPricing: v })}
         disabled={!value.includeStockInbound}
       />
+      <OptRow
+        id="bp-stock-group"
+        label={t("branch.branchPdfOptStockGroupByParent")}
+        hint={t("branch.branchPdfOptStockGroupByParentHint")}
+        checked={value.stockGroupByParent}
+        onCheckedChange={(v) => patch({ stockGroupByParent: v })}
+        disabled={!value.includeStockInbound}
+      />
       <div>
         <OptRow
           id="bp-adv"
