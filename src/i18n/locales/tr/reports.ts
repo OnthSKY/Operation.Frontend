@@ -766,7 +766,7 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   orderAccountStatementAdvanceLine: "ALINAN ÖN ÖDEME",
   orderAccountStatementPaidOnBehalfTitle: "Bizden çıkmayan, alınana ödediğiniz",
   orderAccountStatementPaidOnBehalfHelp:
-    "Örneğin tedarikçiye sizin ödediğiniz ama stoğu size gelmeyen kalemler. Net tutara eklenir.",
+    "Sizin ödediğiniz ama stoğu size gelmeyen kalemler; net tutara eklenir.",
   orderAccountStatementAddPaidLine: "Bu gruba satır ekle",
   orderAccountStatementGross: "KALEMLER TOPLAMI",
   orderAccountStatementSubtotal: "ARA TOPLAM",
@@ -788,9 +788,9 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   orderAccountStatementLinePlaceholder: "Örn. 304 Küvet (1.216 kg)",
   orderAccountStatementAddPromoLine: "Promosyon satırı ekle",
   orderAccountStatementGiftAutoHint:
-    "«Hediye» işaretli kalemlerin tutarları genel toplamdan otomatik düşer; PDF ve önizlemede ayrı satır olarak gösterilir.",
+    "«Hediye» işaretliler toplamdan otomatik düşer, PDF'te ayrı satır.",
   orderAccountStatementPromoLinesHelp:
-    "Ek indirim veya kampanyayı açıklama + tutar ile satır ekleyin (ör. «Sepet indirimi»). Tutar genel toplamdan düşülür; hediye işaretli ürünler ayrıca otomatik düşer.",
+    "İndirim/kampanya satırı; tutar genel toplamdan düşülür.",
   orderAccountStatementPromoLinesEmpty: "Henüz promosyon satırı yok — ek indirim yoksa boş bırakabilirsiniz.",
   orderAccountStatementPromoLineDesc: "Promosyon açıklaması",
   orderAccountStatementPromoLineAmount: "Tutar (₺)",

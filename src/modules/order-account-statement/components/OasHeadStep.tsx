@@ -101,7 +101,6 @@ export function OasHeadStep(props: Props) {
     suggestionsBusy,
     flowCurrentStep,
     loadShipmentGroupIntoForm,
-    suggestions,
   } = props;
   // Aliases — block içeriğinde yerel isimlerle uyumlu kalmak için.
   const {
@@ -387,51 +386,6 @@ export function OasHeadStep(props: Props) {
         applyBranchOpenBalanceBusy={applyBranchOpenBalanceBusy}
         suggestionsBusy={suggestionsBusy}
       />
-      <div className="mt-2.5 rounded-lg border border-zinc-200 bg-zinc-50/70 p-2.5">
-        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
-          {t("reports.orderAccountStatementReceiptSectionTitle")}
-        </p>
-        <p className="mt-1 text-[11px] text-zinc-500">
-          {t("reports.orderAccountStatementReceiptMovedOutHelp")}
-        </p>
-        <div className="mt-2">
-          <Link
-            href="/products/order-account-statement/summary"
-            className="inline-flex rounded-md border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-violet-700"
-          >
-            {t("reports.orderAccountStatementReceiptOpenSummaryCta")}
-          </Link>
-        </div>
-      </div>
-      <div className="mt-2.5 rounded-lg border border-zinc-200 bg-zinc-50/70 p-2.5">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
-            {t("reports.orderAccountStatementSuggestionsTitle")}
-          </p>
-          <Link
-            href="/products/order-account-statement/summary"
-            className="text-xs font-semibold text-violet-700 underline decoration-violet-300 underline-offset-2 hover:decoration-violet-600"
-          >
-            {t("reports.orderAccountStatementSuggestionsOpenReport")}
-          </Link>
-        </div>
-        {suggestionsBusy ? (
-          <p className="mt-1 text-xs text-zinc-500">{t("reports.loading")}</p>
-        ) : suggestions.length === 0 ? (
-          <p className="mt-1 text-xs text-zinc-500">{t("reports.orderAccountStatementSuggestionsEmpty")}</p>
-        ) : (
-          <ul className="mt-2 space-y-1 text-xs text-zinc-700">
-            {suggestions.slice(0, 5).map((s) => (
-              <li key={`${s.counterpartyType}-${s.counterpartyId}`} className="flex items-center justify-between gap-2">
-                <span className="truncate">{s.counterpartyName}</span>
-                <span className="shrink-0 tabular-nums">
-                  {formatLocaleAmount(s.openAmount, locale, "TRY")}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
       <label className="mt-3 flex cursor-pointer items-start gap-2.5 text-sm">
         <Checkbox
           className="mt-0.5"

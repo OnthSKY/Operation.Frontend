@@ -781,7 +781,7 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   orderAccountStatementAdvanceLine: "RECEIVED PREPAYMENT",
   orderAccountStatementPaidOnBehalfTitle: "Paid by you, not received into stock",
   orderAccountStatementPaidOnBehalfHelp:
-    "Example: supplier items you paid for that do not ship to you. These amounts are added after the subtotal.",
+    "Items you paid for but didn't receive; added to the net total.",
   orderAccountStatementAddPaidLine: "Add line in this group",
   orderAccountStatementGross: "LINE ITEMS TOTAL",
   orderAccountStatementSubtotal: "SUBTOTAL",
@@ -803,9 +803,9 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   orderAccountStatementLinePlaceholder: "e.g. 304 tub ice cream (1.216 kg)",
   orderAccountStatementAddPromoLine: "Add promotion line",
   orderAccountStatementGiftAutoHint:
-    "Amounts on rows marked â€œGiftâ€ are subtracted from the gross automatically and shown as a separate line on the PDF.",
+    "\"Gift\" items auto-deduct from the total; shown as a separate PDF line.",
   orderAccountStatementPromoLinesHelp:
-    "Add extra discounts or campaigns as lines (description + amount). Amounts reduce the gross; gift-marked product rows are also subtracted automatically.",
+    "Discount/promo line; the amount is deducted from the total.",
   orderAccountStatementPromoLinesEmpty: "No promotion lines yet â€” leave empty if there is no extra discount.",
   orderAccountStatementPromoLineDesc: "Promotion description",
   orderAccountStatementPromoLineAmount: "Amount (â‚º)",
