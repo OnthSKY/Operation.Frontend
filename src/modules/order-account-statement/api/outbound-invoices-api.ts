@@ -295,7 +295,19 @@ export async function fetchCounterpartySummaryReport(
   );
 }
 
-export type SalesPriceSuggestionBatchItem = SalesPriceSuggestion & { productId: number };
+export type SalesPriceSuggestionBatchItem = SalesPriceSuggestion & {
+  productId: number;
+  unit?: string | null;
+};
+
+/**
+ * Fiyat önerisi eşleştirme anahtarı = ürün + NORMALİZE birim. Aynı ürünün "paket" ve
+ * "adet" satırları ayrı fiyat alır (paket fiyatı adet satırına uygulanmaz). Birim
+ * normalizasyonu backend ile aynı: trim + küçük harf; boş birim tek kovada toplanır.
+ */
+export function salesPriceKey(productId: number, unit: string | null | undefined): string {
+  return `${productId}::${(unit ?? "").trim().toLowerCase()}`;
+}
 
 export async function fetchSalesPriceSuggestionsBatch(params: {
   productIds: number[];
@@ -303,7 +315,7 @@ export async function fetchSalesPriceSuggestionsBatch(params: {
   counterpartyId: number;
   currencyCode?: string;
   lookbackDays?: number;
-}): Promise<Record<number, SalesPriceSuggestion>> {
+}): Promise<Record<string, SalesPriceSuggestion>> {
   const ids = Array.from(new Set(params.productIds.filter((x) => Number.isFinite(x) && x > 0)));
   if (ids.length === 0) return {};
   const body = {
@@ -317,10 +329,11 @@ export async function fetchSalesPriceSuggestionsBatch(params: {
     "/outbound-invoices/price-suggestions/batch",
     { method: "POST", body: JSON.stringify(body) }
   );
-  const map: Record<number, SalesPriceSuggestion> = {};
+  // (ürün, birim) bazlı: her satır kendi biriminin önerisini bulur.
+  const map: Record<string, SalesPriceSuggestion> = {};
   for (const it of res.items ?? []) {
-    const { productId, ...rest } = it;
-    map[productId] = rest;
+    const { productId, unit, ...rest } = it;
+    map[salesPriceKey(productId, unit)] = rest;
   }
   return map;
 }
@@ -331,6 +344,7 @@ export async function fetchSalesPriceSuggestion(params: {
   counterpartyId: number;
   currencyCode?: string;
   lookbackDays?: number;
+  unit?: string | null;
 }): Promise<SalesPriceSuggestion | null> {
   const q = new URLSearchParams({
     productId: String(params.productId),
@@ -339,6 +353,8 @@ export async function fetchSalesPriceSuggestion(params: {
     currencyCode: (params.currencyCode ?? "TRY").trim().toUpperCase(),
     lookbackDays: String(Math.max(1, params.lookbackDays ?? 90)),
   });
+  // Birim verilirse aynı-birim önerisi (paket≠adet). Boşsa birimsiz kovaya bakılır.
+  if ((params.unit ?? "").trim()) q.set("unit", params.unit!.trim());
   return apiRequest<SalesPriceSuggestion | null>(`/outbound-invoices/price-suggestions?${q.toString()}`);
 }
 

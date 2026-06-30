@@ -743,7 +743,7 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   orderAccountStatementGiftSuffix: "Hediye",
   orderAccountStatementPickProduct: "Ürün kataloğundan açıklama doldur",
   orderAccountStatementCatalogNone: "— seçin —",
-  orderAccountStatementSuggestedCostShort: "Önerilen maliyet",
+  orderAccountStatementSuggestedCostShort: "Girilmiş maliyet",
   orderAccountStatementCostIncVatShort: "KDV dahil",
   orderAccountStatementCostSuggestionMissing: "Bu ürün için kayıtlı maliyet bulunamadı.",
   orderAccountStatementPricingInfoTitle: "Maliyet ve satış özeti",

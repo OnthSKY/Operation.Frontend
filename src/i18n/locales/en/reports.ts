@@ -758,7 +758,7 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   orderAccountStatementGiftSuffix: "Gift",
   orderAccountStatementPickProduct: "Fill description from product catalog",
   orderAccountStatementCatalogNone: "â€” pick a product â€”",
-  orderAccountStatementSuggestedCostShort: "Suggested cost",
+  orderAccountStatementSuggestedCostShort: "Entered cost",
   orderAccountStatementCostIncVatShort: "Incl. VAT",
   orderAccountStatementCostSuggestionMissing: "No saved cost found for this product.",
   orderAccountStatementPricingInfoTitle: "Cost & sale reference",

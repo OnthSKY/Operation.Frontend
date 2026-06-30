@@ -8,6 +8,7 @@ import {
   fetchSalesPriceHistory,
   fetchSalesPriceSuggestion,
   fetchSalesPriceSuggestionsBatch,
+  salesPriceKey,
   type SalesPriceSuggestion,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
 import type { LineDraft } from "@/modules/order-account-statement/components/oas-types";
@@ -75,8 +76,14 @@ export function useOasPricingEffects(p: Params) {
   }, [p.linkedBranchId, p.customerAccountIdText]);
 
   const loadSalesSuggestionForLine = useCallback(
-    async (lineId: string, productId: number, applyIfEmpty = true) => {
+    async (lineId: string, productId: number, applyIfEmpty = true, unitOverride?: string) => {
       if (!activeCounterparty || !Number.isFinite(productId) || productId <= 0) return;
+      // Birim: çağıran verirse onu (yeni seçilen ürün biriminde state henüz güncel olmayabilir),
+      // yoksa satırın güncel birimini kullan. Aynı-birim önerisi gelir (paket≠adet).
+      const unit =
+        unitOverride ??
+        p.linesRef.current.find((l) => l.id === lineId)?.unitText ??
+        "";
       try {
         const suggestion: SalesPriceSuggestion | null = await fetchSalesPriceSuggestion({
           productId,
@@ -84,6 +91,7 @@ export function useOasPricingEffects(p: Params) {
           counterpartyId: activeCounterparty.counterpartyId,
           currencyCode: "TRY",
           lookbackDays: 90,
+          unit,
         });
         setLinePriceSuggestionByLineId((prev) => ({
           ...prev,
@@ -106,7 +114,7 @@ export function useOasPricingEffects(p: Params) {
         setLinePriceSuggestionByLineId((prev) => ({ ...prev, [lineId]: undefined }));
       }
     },
-    [activeCounterparty, p.locale, p.setLines, setLinePriceSuggestionByLineId]
+    [activeCounterparty, p.linesRef, p.locale, p.setLines, setLinePriceSuggestionByLineId]
   );
 
   /** Modaldaki "Bu fiyatı kullan": ekranda görünen öneriyi satırın birim
@@ -133,21 +141,24 @@ export function useOasPricingEffects(p: Params) {
       return;
     }
     const lineList = p.linesRef.current;
-    const lineByProduct = new Map<number, string[]>();
+    // (ürün + birim) bazlı grupla: aynı ürünün paket/adet satırları AYRI fiyat alır.
+    const groups = new Map<string, { productId: number; unit: string; lineIds: string[] }>();
     for (const line of lineList) {
       const pid = line.selectedProductId ?? 0;
       if (pid <= 0) continue;
-      const arr = lineByProduct.get(pid) ?? [];
-      arr.push(line.id);
-      lineByProduct.set(pid, arr);
+      const unit = (line.unitText ?? "").trim();
+      const key = salesPriceKey(pid, unit);
+      const g = groups.get(key) ?? { productId: pid, unit, lineIds: [] };
+      g.lineIds.push(line.id);
+      groups.set(key, g);
     }
-    const productIds = Array.from(lineByProduct.keys());
+    const productIds = Array.from(new Set([...groups.values()].map((g) => g.productId)));
     if (productIds.length === 0) {
       notify.error("Fiyat getirilecek ürünlü satır yok.");
       return;
     }
     try {
-      const mapByProduct = await fetchSalesPriceSuggestionsBatch({
+      const mapByKey = await fetchSalesPriceSuggestionsBatch({
         productIds,
         counterpartyType: activeCounterparty.counterpartyType,
         counterpartyId: activeCounterparty.counterpartyId,
@@ -156,21 +167,21 @@ export function useOasPricingEffects(p: Params) {
       });
       setLinePriceSuggestionByLineId((prev) => {
         const next = { ...prev };
-        for (const [pid, lineIds] of lineByProduct) {
-          const suggestion = mapByProduct[pid];
-          for (const lid of lineIds) next[lid] = suggestion ?? undefined;
+        for (const g of groups.values()) {
+          const suggestion = mapByKey[salesPriceKey(g.productId, g.unit)];
+          for (const lid of g.lineIds) next[lid] = suggestion ?? undefined;
         }
         return next;
       });
       const priceByLineId = new Map<string, string>();
-      for (const [pid, lineIds] of lineByProduct) {
-        const suggestion = mapByProduct[pid];
+      for (const g of groups.values()) {
+        const suggestion = mapByKey[salesPriceKey(g.productId, g.unit)];
         if (!suggestion) continue;
         const normalized = formatLocaleAmountInput(
           Math.max(0, Number(suggestion.suggestedUnitPrice) || 0),
           p.locale
         );
-        for (const lid of lineIds) priceByLineId.set(lid, normalized);
+        for (const lid of g.lineIds) priceByLineId.set(lid, normalized);
       }
       if (priceByLineId.size === 0) {
         notify.info("Bu cariye uygun satış önerisi bulunamadı.");
@@ -226,15 +237,17 @@ export function useOasPricingEffects(p: Params) {
   useEffect(() => {
     if (!activeCounterparty) return;
     const lineList = p.linesRef.current;
-    const lineByProduct = new Map<number, string[]>();
+    const groups = new Map<string, { productId: number; unit: string; lineIds: string[] }>();
     for (const line of lineList) {
       const pid = line.selectedProductId ?? 0;
       if (pid <= 0) continue;
-      const arr = lineByProduct.get(pid) ?? [];
-      arr.push(line.id);
-      lineByProduct.set(pid, arr);
+      const unit = (line.unitText ?? "").trim();
+      const key = salesPriceKey(pid, unit);
+      const g = groups.get(key) ?? { productId: pid, unit, lineIds: [] };
+      g.lineIds.push(line.id);
+      groups.set(key, g);
     }
-    const productIds = Array.from(lineByProduct.keys());
+    const productIds = Array.from(new Set([...groups.values()].map((g) => g.productId)));
     if (productIds.length === 0) return;
 
     let cancelled = false;
@@ -245,13 +258,13 @@ export function useOasPricingEffects(p: Params) {
       currencyCode: "TRY",
       lookbackDays: 90,
     })
-      .then((mapByProduct) => {
+      .then((mapByKey) => {
         if (cancelled) return;
         setLinePriceSuggestionByLineId((prev) => {
           const next = { ...prev };
-          for (const [pid, lineIds] of lineByProduct) {
-            const suggestion = mapByProduct[pid];
-            for (const lid of lineIds) next[lid] = suggestion ?? undefined;
+          for (const g of groups.values()) {
+            const suggestion = mapByKey[salesPriceKey(g.productId, g.unit)];
+            for (const lid of g.lineIds) next[lid] = suggestion ?? undefined;
           }
           return next;
         });

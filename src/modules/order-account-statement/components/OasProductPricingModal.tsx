@@ -31,6 +31,20 @@ type Props = {
   onUseSalesPrice: (lineId: string) => void;
 };
 
+/** Ham basis kodunu (counterparty_90d…) kullanıcı diline çevirir. */
+function basisLabel(basis: string): string {
+  switch (basis) {
+    case "counterparty_90d":
+      return "Son 90 gün · bu cari";
+    case "counterparty_all":
+      return "Tüm zaman · bu cari";
+    case "product_global":
+      return "Genel · tüm cariler";
+    default:
+      return basis;
+  }
+}
+
 export function OasProductPricingModal(props: Props) {
   const {
     open,
@@ -134,18 +148,21 @@ export function OasProductPricingModal(props: Props) {
                   {formatLocaleAmount(Number(sales.suggestedUnitPrice || 0), locale, sales.currencyCode)}
                 </p>
                 <p className="mt-1 text-[11px] uppercase tracking-wide text-zinc-500">
-                  Bu cariye önerilen
+                  Önerilen · medyan
                 </p>
-                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-violet-100 pt-2.5 text-[11px] text-zinc-600">
-                  <span className="inline-flex items-center gap-1">
-                    <span className="text-zinc-400">Yöntem:</span>
-                    <span className="font-medium text-zinc-700">{sales.basis}</span>
+                <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 border-t border-violet-100 pt-2.5 text-[11px]">
+                  <span className="text-zinc-400">Ortalama</span>
+                  <span className="text-right tabular-nums font-medium text-zinc-700">
+                    {formatLocaleAmount(Number(sales.avgUnitPrice || 0), locale, sales.currencyCode)}
                   </span>
-                  <span className="inline-flex items-center gap-1">
-                    <span className="text-zinc-400">Örneklem:</span>
-                    <span className="font-medium text-zinc-700">n={sales.sampleCount}</span>
+                  <span className="text-zinc-400">Son satış</span>
+                  <span className="text-right tabular-nums font-medium text-zinc-700">
+                    {formatLocaleAmount(Number(sales.lastUnitPrice || 0), locale, sales.currencyCode)}
                   </span>
                 </div>
+                <p className="mt-2 text-[11px] text-zinc-500">
+                  {basisLabel(sales.basis)} · {sales.sampleCount} satıştan
+                </p>
                 <button
                   type="button"
                   disabled={!productPricingLineId}

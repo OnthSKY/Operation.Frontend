@@ -30,7 +30,12 @@ type Params = {
   catalog: ProductListItem[];
   latestCostByProductId: Map<number, ProductCostHistoryRow>;
   activeCounterparty: { counterpartyType: string; counterpartyId: number } | null;
-  loadSalesSuggestionForLine: (lineId: string, productId: number, force: boolean) => Promise<void>;
+  loadSalesSuggestionForLine: (
+    lineId: string,
+    productId: number,
+    force: boolean,
+    unit?: string
+  ) => Promise<void>;
 };
 
 export function useOasProductPricing(params: Params) {
@@ -92,7 +97,8 @@ export function useOasProductPricing(params: Params) {
       );
       suggestions.setLinePriceSuggestionByLineId((prev) => ({ ...prev, [lineId]: undefined }));
       if (activeCounterparty) {
-        void loadSalesSuggestionForLine(lineId, p.id, true);
+        // Yeni seçilen ürünün birimini açıkça geçir (state henüz güncel olmayabilir).
+        void loadSalesSuggestionForLine(lineId, p.id, true, p.unit?.trim() || undefined);
       }
     },
     [activeCounterparty, latestCostByProductId, loadSalesSuggestionForLine, locale, setLines, suggestions]
@@ -184,7 +190,7 @@ export function useOasProductPricing(params: Params) {
       window.setTimeout(() => {
         for (const l of merged) {
           const pid = l.selectedProductId ?? 0;
-          if (pid > 0) void loadSalesSuggestionForLine(l.id, pid, false);
+          if (pid > 0) void loadSalesSuggestionForLine(l.id, pid, false, l.unitText);
         }
       }, 0);
     }
