@@ -653,7 +653,7 @@ export function WarehouseGlobalMovementsScreen() {
       shipmentMovementId: String(row.id),
       shipmentMovementIds: movementIds.join(","),
     });
-    router.push(`/products/order-account-statement?${params.toString()}`);
+    window.open(`/products/order-account-statement?${params.toString()}`, "_blank", "noopener,noreferrer");
   };
   const openShipmentPdfDocuments = (group: ShipmentGroupSummary) => {
     const movementIds = Array.from(
