@@ -69,7 +69,7 @@ export function OasPromoLinesStep({
         </OasIconButton>
       }
     >
-      <p className="mb-3 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-2 text-[11px] text-zinc-800 ring-1 ring-zinc-950/[0.04]">
+      <p className="mb-2 rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-[11px] text-zinc-600">
         {t("reports.orderAccountStatementGiftAutoHint")}
       </p>
       {promoLines.length === 0 ? (
@@ -150,24 +150,15 @@ export function OasPromoLinesStep({
           </div>
         </>
       )}
-      <div className="mt-4">
-        <section className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-3 shadow-sm ring-1 ring-zinc-950/[0.02]">
-          <label className="block text-sm">
-            <span className="mb-1.5 inline-flex items-center gap-2 text-zinc-700">
-              <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-white text-zinc-700 shadow-sm ring-1 ring-zinc-200">
-                <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
-                  <path
-                    fillRule="evenodd"
-                    d="M10 2.75a.75.75 0 01.75.75v.87a5.75 5.75 0 014.88 4.88h.87a.75.75 0 010 1.5h-.87a5.75 5.75 0 01-4.88 4.88v.87a.75.75 0 01-1.5 0v-.87a5.75 5.75 0 01-4.88-4.88h-.87a.75.75 0 010-1.5h.87a5.75 5.75 0 014.88-4.88V3.5a.75.75 0 01.75-.75zm0 3a4.25 4.25 0 100 8.5 4.25 4.25 0 000-8.5z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </span>
-              <span className="font-medium">{t("reports.orderAccountStatementAdvanceShort")}</span>
+      <div className="mt-3">
+        <section className="rounded-lg border border-zinc-200 bg-zinc-50/70 p-2.5">
+          <label className="flex items-center gap-2 text-sm">
+            <span className="shrink-0 text-xs font-medium text-zinc-700">
+              {t("reports.orderAccountStatementAdvanceShort")}
             </span>
             <input
               inputMode="decimal"
-              className="w-full rounded-xl border border-zinc-200 bg-white px-3.5 py-2.5 text-sm tabular-nums shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-300/60"
+              className="min-w-0 flex-1 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm tabular-nums outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-zinc-300/60"
               placeholder="0"
               value={advanceText}
               onChange={(e) => setAdvanceText(e.target.value)}
