@@ -414,7 +414,7 @@ export function OrderAccountStatementScreen() {
     <div className="w-full min-w-0 px-2.5 pb-24 pt-3 sm:px-4 sm:pb-28 sm:pt-4 md:px-6 md:py-6 md:pb-32 lg:px-8">
       <OasPageHeader />
 
-      <div className="min-w-0 space-y-6">
+      <div className="min-w-0 space-y-4">
           <OasHeadStep
             identity={identity}
             branchSelectOptions={branchSelectOptions}

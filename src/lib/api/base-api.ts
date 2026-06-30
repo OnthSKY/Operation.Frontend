@@ -262,6 +262,11 @@ function isPublicAuthPath(pathname: string): boolean {
 
 function recoverFromUnauthorized(path: string): void {
   if (!isAuthRefreshEligible(path)) return;
+  // /auth/me oturum yoklama ucudur; 401'i normaldir. Buradaki kararı (refresh
+  // dene, yoksa login'e götür) AuthProvider verir ve soft router.replace ile
+  // yönlendirir. Burada sert window.location.assign yaparsak hem AuthProvider'ın
+  // açılış refresh'ini yarıda keseriz hem de Network log'unu sileriz.
+  if (path.toLowerCase().includes("/auth/me")) return;
   if (typeof window === "undefined") return;
   if (unauthorizedRecoveryStarted) return;
   unauthorizedRecoveryStarted = true;

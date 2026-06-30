@@ -144,7 +144,7 @@ export function OasHeadStep(props: Props) {
       stepVisual={{ tone: "indigo", icon: "header" }}
       scopeKinds={["document", "system"]}
     >
-      <div className="mb-3 rounded-lg border border-violet-200 bg-violet-50/60 px-3 py-2">
+      <div className="mb-2 rounded-lg border border-violet-200 bg-violet-50/60 px-3 py-2">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-800">
           {t("reports.orderAccountStatementFlowTitle")}
         </p>
@@ -174,7 +174,7 @@ export function OasHeadStep(props: Props) {
           </p>
         ) : null}
       </div>
-      <div className="mb-3 rounded-xl border border-zinc-200 bg-zinc-50/70 p-3">
+      <div className="mb-2 rounded-xl border border-zinc-200 bg-zinc-50/70 p-2.5">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-zinc-700">
           {t("reports.orderAccountStatementModeCardTitle")}
@@ -354,7 +354,7 @@ export function OasHeadStep(props: Props) {
         </div>
       </div>
       {/* Marka/belge görünümü ikincil → varsayılan kapalı (kompakt); gerekince aç. */}
-      <details className="mb-3 rounded-xl border border-zinc-200 bg-zinc-50/70">
+      <details className="mb-2 rounded-xl border border-zinc-200 bg-zinc-50/70">
         <summary className="cursor-pointer list-none px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-700 marker:hidden">
           ▸ {t("reports.orderAccountStatementBrandingSection")}
         </summary>
@@ -391,7 +391,7 @@ export function OasHeadStep(props: Props) {
         applyBranchOpenBalanceBusy={applyBranchOpenBalanceBusy}
         suggestionsBusy={suggestionsBusy}
       />
-      <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50/70 p-3">
+      <div className="mt-2.5 rounded-lg border border-zinc-200 bg-zinc-50/70 p-2.5">
         <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
           {t("reports.orderAccountStatementReceiptSectionTitle")}
         </p>
@@ -407,7 +407,7 @@ export function OasHeadStep(props: Props) {
           </Link>
         </div>
       </div>
-      <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50/70 p-3">
+      <div className="mt-2.5 rounded-lg border border-zinc-200 bg-zinc-50/70 p-2.5">
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
             {t("reports.orderAccountStatementSuggestionsTitle")}

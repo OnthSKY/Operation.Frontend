@@ -284,6 +284,37 @@ export function OasLinesStep(props: Props) {
                   onKeyDown={(e) => handleMobileLineEnter(e, line.id, "description")}
                   placeholder={t("reports.orderAccountStatementLinePlaceholder")}
                 />
+                {canPickProducts ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenPickerLineId((cur) => (cur === line.id ? null : line.id))
+                    }
+                    title={
+                      line.selectedProductId
+                        ? t("reports.orderAccountStatementChangeProduct")
+                        : t("reports.orderAccountStatementBindProduct")
+                    }
+                    aria-label={
+                      line.selectedProductId
+                        ? t("reports.orderAccountStatementChangeProduct")
+                        : t("reports.orderAccountStatementBindProduct")
+                    }
+                    className={cn(
+                      "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md border transition",
+                      openPickerLineId === line.id
+                        ? "border-violet-300 bg-violet-50 text-violet-700"
+                        : line.selectedProductId
+                          ? "border-emerald-200 bg-emerald-50/60 text-emerald-700"
+                          : "border-zinc-200 text-zinc-500"
+                    )}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                      <circle cx="11" cy="11" r="7" />
+                      <path d="m21 21-4.3-4.3" />
+                    </svg>
+                  </button>
+                ) : null}
                 {line.selectedProductId ? (
                   <OrderAccountProductPricingIconButton
                     ariaLabel={t("reports.orderAccountStatementPricingInfoAria")}
@@ -400,14 +431,17 @@ export function OasLinesStep(props: Props) {
               ) : null}
               </>
             ) : null}
-            {canPickProducts ? (
+            {canPickProducts && openPickerLineId === line.id ? (
               <OrderAccountLineProductPicker
                 key={line.id}
                 lineId={line.id}
                 selectedProductId={line.selectedProductId}
                 description={line.description}
                 parentProductName={line.parentProductName}
-                onSelectProduct={(p) => applyProductListItemToLine(line.id, p)}
+                onSelectProduct={(p) => {
+                  applyProductListItemToLine(line.id, p);
+                  setOpenPickerLineId(null);
+                }}
                 latestCostByProductId={latestCostByProductId}
                 locale={locale}
                 t={t}
