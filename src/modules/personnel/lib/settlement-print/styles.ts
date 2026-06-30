@@ -202,6 +202,15 @@ export const DOC_STYLES = `
     th { background: #e2e8f0; text-align: left; font-weight: 700; color: var(--doc-ink); }
     td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
     tr { break-inside: avoid; }
+    /* Personel gider/avans tablosu — tür rozeti ve alt toplam çubuğu */
+    .otype { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 9.5px; font-weight: 700; color: #fff; white-space: nowrap; }
+    .otype-adv { background: #7c3aed; } /* avans — violet */
+    .otype-exp { background: #be123c; } /* gider — rose */
+    .src-br { color: #64748b; font-weight: 600; } /* kaynak kasa ise şube adı */
+    .outflow-foot { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: flex-end; margin: 4px 0 2px; font-size: 10px; }
+    .outflow-foot .of-k { color: var(--doc-muted, #64748b); font-weight: 600; }
+    .outflow-foot .of-v { font-weight: 800; font-variant-numeric: tabular-nums; }
+    .outflow-foot .of-total .of-v { color: #be123c; }
     thead { display: table-header-group; }
     @media screen and (max-width: 640px) {
       table { font-size: 9px; }

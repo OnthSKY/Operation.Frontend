@@ -1,5 +1,7 @@
 export const dashboard = {
   title: "Overview",
+  amountsShow: "Show amounts",
+  amountsHide: "Hide amounts",
   subtitle: "Register day, cumulative net, and live inventory in one place",
   seasonYearPlaceholder: "— year —",
   seasonYearFieldLabel: "Season year",

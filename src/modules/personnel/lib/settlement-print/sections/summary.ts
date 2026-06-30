@@ -214,8 +214,8 @@ export function buildBranchSourceBreakdownHtml(
     return s;
   };
 
-  const kAdv = esc(t("branch.branchPdfPnlAdvancesToStaff"));
-  const kPexp = esc(t("personnel.settlementPrintSectionExpenses"));
+  // Personel gideri + avans tek satırda (ikisi de personel ekseni gideri).
+  const kPexp = esc(t("branch.branchPdfSourcePersonnelExpense"));
   const kBexp = esc(t("branch.branchPdfSourceBranchExpense"));
   const kTot = esc(t("branch.branchPdfSummaryColTotal"));
 
@@ -228,7 +228,11 @@ export function buildBranchSourceBreakdownHtml(
       if (!val) return "";
       return `<div class="src-line${total ? " src-line-total" : ""}"><span class="src-k">${label}</span><span class="src-v num">${val}</span></div>`;
     };
-    const rows = line(kAdv, g.adv) + line(kPexp, g.pexp) + line(kBexp, g.bexp);
+    // Personel gideri + avans → tek satır (ikisi de personel gideri).
+    const persExp = new Map<string, number>();
+    for (const m of [g.adv, g.pexp])
+      for (const [c, v] of m) persExp.set(c, (persExp.get(c) ?? 0) + v);
+    const rows = line(kPexp, persExp) + line(kBexp, g.bexp);
     if (!rows) continue;
     const totalVal = moneyJoin(sumKinds(g));
     const accent = srcBucketColor(b);

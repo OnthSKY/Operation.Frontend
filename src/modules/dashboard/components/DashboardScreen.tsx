@@ -43,6 +43,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 const DASH = "—";
+/** Finansal maske: gizliyken para değerleri bunun yerine gösterilir. */
+const MONEY_MASK = "••••••";
 
 export function DashboardScreen() {
   const { t, locale } = useI18n();
@@ -86,6 +88,10 @@ export function DashboardScreen() {
     allowed && canBranches && showFinancials
   );
 
+  // Finansal değerler omuz-üstü bakışa karşı varsayılan GİZLİ; her yüklemede
+  // tekrar gizlenir (kalıcı değil). Bu bir sunum maskesi — gerçek gizlilik için
+  // backend yetki kontrolü gerekir, veri yine de istemciye geliyor.
+  const [amountsHidden, setAmountsHidden] = useState(true);
   const [advanceOpen, setAdvanceOpen] = useState(false);
   const [persExpensePickerOpen, setPersExpensePickerOpen] = useState(false);
   const [persExpensePersonnelId, setPersExpensePersonnelId] = useState<
@@ -332,9 +338,11 @@ export function DashboardScreen() {
 
 
   const fmtMoney = (n: number | null | undefined, currency?: string) =>
-    n == null || Number.isNaN(n)
-      ? DASH
-      : formatLocaleAmount(n, locale, currency);
+    amountsHidden
+      ? MONEY_MASK
+      : n == null || Number.isNaN(n)
+        ? DASH
+        : formatLocaleAmount(n, locale, currency);
   const fmtNum = (n: number | null | undefined) =>
     n == null || Number.isNaN(n) ? DASH : new Intl.NumberFormat(locale).format(n);
 
@@ -359,19 +367,47 @@ export function DashboardScreen() {
           }
           description={t("dashboard.subtitle")}
           actions={
-            today.state.kind === "error" || overview.isError ? (
+            <div className="flex items-center gap-2">
               <Button
                 type="button"
                 variant="secondary"
-                className="min-h-11 flex-1 sm:flex-none"
-                onClick={() => {
-                  void today.refetch();
-                  void overview.refetch();
-                }}
+                className="min-h-11 flex-none"
+                aria-pressed={!amountsHidden}
+                title={amountsHidden ? t("dashboard.amountsShow") : t("dashboard.amountsHide")}
+                aria-label={amountsHidden ? t("dashboard.amountsShow") : t("dashboard.amountsHide")}
+                onClick={() => setAmountsHidden((v) => !v)}
               >
-                {t("common.retry")}
+                {amountsHidden ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+                    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+                    <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+                    <line x1="2" y1="2" x2="22" y2="22" />
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                )}
+                <span className="ml-1.5 hidden sm:inline">
+                  {amountsHidden ? t("dashboard.amountsShow") : t("dashboard.amountsHide")}
+                </span>
               </Button>
-            ) : null
+              {today.state.kind === "error" || overview.isError ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="min-h-11 flex-1 sm:flex-none"
+                  onClick={() => {
+                    void today.refetch();
+                    void overview.refetch();
+                  }}
+                >
+                  {t("common.retry")}
+                </Button>
+              ) : null}
+            </div>
           }
         />
       }

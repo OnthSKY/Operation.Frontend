@@ -2,7 +2,7 @@ import { fetchBranchNotes } from "@/modules/branch/api/branch-notes-api";
 import {
   fetchAllBranchStockReceipts,
   fetchAllBranchTransactionsPaged,
-  fetchBranchHeldRegisterCashByPersonLedger,
+  fetchBranchHeldRegisterCashByPerson,
 } from "@/modules/branch/api/branches-api";
 import { fetchAllNonAdvancePersonnelAttributedExpenses } from "@/modules/branch/api/branch-transactions-api";
 import {
@@ -23,6 +23,10 @@ import {
   defaultBranchSettlementPdfOptions,
   emptyNote,
 } from "@/modules/personnel/lib/settlement-print/options";
+import {
+  srcBucketOfAdvance,
+  srcBucketOfExpense,
+} from "@/modules/personnel/lib/settlement-print/buckets";
 import { buildBranchStockSectionHtml } from "@/modules/personnel/lib/settlement-print/sections/stock";
 import {
   renderBranchSalaryCostSection,
@@ -150,8 +154,11 @@ export async function buildPersonnelSettlementDocument(
 
       // Kanonik personel zimmet bakiyesi: personnel_cash_ledger (personel kasa raporuyla
       // BİREBİR aynı net). Legacy branch_transactions türetmesi değil.
+      // Yıl-filtreli PDF: o yılın sonuna (asOf) kadarki net — PDF'in geri kalanı da o yıla
+      // scope'lu olduğu için tutarlı. Filtresiz PDF: güncel net = personel raporuyla birebir.
+      const heldCashAsOf = yf != null ? `${yf}-12-31` : undefined;
       const heldCashPromise = bpdf.includeRegisterLedger
-        ? fetchBranchHeldRegisterCashByPersonLedger(bid, "TRY").catch(() => [])
+        ? fetchBranchHeldRegisterCashByPerson(bid, heldCashAsOf).catch(() => [])
         : Promise.resolve(
             [] as { personnelId: number | null; fullName: string; amount: number }[]
           );
@@ -462,6 +469,133 @@ export async function buildPersonnelSettlementDocument(
         : `<h2 class="sec-exp">${secExp} (${expenses.length})</h2>${emptyNote(t)}`
     : "";
 
+  // Birleşik "Personel giderleri — avans + gider" tablosu (kompakt, tür rozetli, tek başlık).
+  // İkisi de detay modundaysa tek tabloda birleşir; kaynak kasa ise hangi şube olduğu yazılır.
+  // Biri özet modundaysa eski ayrı tablolara düşülür (davranış korunur).
+  const advSummaryMode = byBranch && bp!.advancesDetailMode === "summary";
+  const expSummaryMode = byBranch && bp!.personnelExpensesDetailMode === "summary";
+  const canMergeOutflow =
+    !advSummaryMode && !expSummaryMode && (showAdvSection || showExpSection);
+
+  let personnelOutflowHtml: string;
+  if (canMergeOutflow) {
+    const badgeAdv = `<span class="otype otype-adv">${escapeHtml(t("branch.branchPdfOutflowBadgeAdvance"))}</span>`;
+    const badgeExp = `<span class="otype otype-exp">${escapeHtml(t("branch.branchPdfOutflowBadgeExpense"))}</span>`;
+    const srcWithBranch = (
+      label: string,
+      isRegister: boolean,
+      bid: number | null | undefined
+    ): string => {
+      const safe = escapeHtml(label?.trim() || dash);
+      if (!isRegister) return safe;
+      const nm = bid != null && bid > 0 ? branchNameById.get(bid)?.trim() ?? "" : "";
+      return nm ? `${safe} <span class="src-br">(${escapeHtml(nm)})</span>` : safe;
+    };
+    const outRows: { key: string; html: string }[] = [];
+    if (showAdvSection) {
+      for (const a of advances) {
+        const person = byBranch
+          ? `<td>${escapeHtml(
+              (a as AdvanceListItem).personnelFullName?.trim() ||
+                a.heldRegisterSourcePersonnelFullName?.trim() ||
+                dash
+            )}</td>`
+          : "";
+        const detay = a.description?.trim()
+          ? escapeHtml(a.description.trim())
+          : escapeHtml(String(a.effectiveYear ?? dash));
+        const kaynak = srcWithBranch(
+          sourceAbbrev(t, a.sourceType),
+          srcBucketOfAdvance(a.sourceType) === "REGISTER",
+          a.branchId
+        );
+        outRows.push({
+          key: String(a.advanceDate ?? ""),
+          html: `<tr>
+        <td>${escapeHtml(formatLocaleDate(a.advanceDate, locale, dash))}</td>
+        <td>${badgeAdv}</td>
+        ${person}
+        <td>${detay}</td>
+        <td>${kaynak}</td>
+        <td class="num">${escapeHtml(formatMoneyDash(a.amount, dash, locale, a.currencyCode))}</td>
+      </tr>`,
+        });
+      }
+    }
+    if (showExpSection) {
+      for (const row of expenses) {
+        const { employeeName } = resolveNonAdvanceRow(row, dash);
+        const person = byBranch ? `<td>${escapeHtml(employeeName)}</td>` : "";
+        const cat = txCategoryLine(row.mainCategory, row.category, t)?.trim() || dash;
+        const isReg =
+          (srcBucketOfExpense(row.expensePaymentSource) ?? "REGISTER") === "REGISTER";
+        const kaynak = srcWithBranch(
+          expensePaymentSourceLabel(row.expensePaymentSource, t) || dash,
+          isReg,
+          row.branchId
+        );
+        outRows.push({
+          key: String(row.transactionDate ?? ""),
+          html: `<tr>
+        <td>${escapeHtml(formatLocaleDate(row.transactionDate, locale, dash))}</td>
+        <td>${badgeExp}</td>
+        ${person}
+        <td>${escapeHtml(cat)}</td>
+        <td>${kaynak}</td>
+        <td class="num">${escapeHtml(formatMoneyDash(row.amount, dash, locale, row.currencyCode))}</td>
+      </tr>`,
+        });
+      }
+    }
+    outRows.sort((x, y) => y.key.localeCompare(x.key));
+
+    const joinTot = (m: Map<string, number>): string => {
+      const ks = [...m.keys()].filter((c) => Math.abs(m.get(c) ?? 0) > 1e-9).sort();
+      return ks
+        .map((c) => escapeHtml(formatMoneyDash(m.get(c) ?? 0, dash, locale, c)))
+        .join(" · ");
+    };
+    const grandOut = new Map<string, number>();
+    if (showAdvSection) for (const [c, v] of advTotals) grandOut.set(c, (grandOut.get(c) ?? 0) + v);
+    if (showExpSection) for (const [c, v] of expTotals) grandOut.set(c, (grandOut.get(c) ?? 0) + v);
+    const seg = (k: string, v: string, total = false) =>
+      `<span class="of-seg${total ? " of-total" : ""}"><span class="of-k">${escapeHtml(k)}:</span> <span class="of-v">${v}</span></span>`;
+    const footParts: string[] = [];
+    if (showAdvSection && joinTot(advTotals))
+      footParts.push(seg(t("branch.branchPdfOutflowSubtotalAdvance"), joinTot(advTotals)));
+    if (showExpSection && joinTot(expTotals))
+      footParts.push(seg(t("branch.branchPdfOutflowSubtotalExpense"), joinTot(expTotals)));
+    if (joinTot(grandOut))
+      footParts.push(seg(t("branch.branchPdfOutflowSubtotalTotal"), joinTot(grandOut), true));
+    const foot = footParts.length
+      ? `<div class="outflow-foot">${footParts.join("")}</div>`
+      : "";
+
+    const count = (showAdvSection ? advances.length : 0) + (showExpSection ? expenses.length : 0);
+    const headPerson = byBranch ? `<th>${colPersonnel}</th>` : "";
+    const title = `<h2 class="sec-exp">${escapeHtml(t("branch.branchPdfOutflowTitle"))} (${count})</h2>`;
+    personnelOutflowHtml = outRows.length
+      ? `${title}
+  <table>
+    <thead>
+      <tr>
+        <th>${escapeHtml(t("personnel.nonAdvanceExpensesColDate"))}</th>
+        <th>${escapeHtml(t("branch.branchPdfOutflowColType"))}</th>
+        ${headPerson}
+        <th>${escapeHtml(t("branch.branchPdfOutflowColDetail"))}</th>
+        <th>${escapeHtml(t("branch.branchPdfOutflowColSource"))}</th>
+        <th class="num">${escapeHtml(t("personnel.nonAdvanceExpensesColAmount"))}</th>
+      </tr>
+    </thead>
+    <tbody>${outRows.map((r) => r.html).join("")}</tbody>
+  </table>
+  ${foot}`
+      : `${title}${emptyNote(t)}`;
+  } else {
+    personnelOutflowHtml = `${advTableHtml}
+  ${expTableHtml}`;
+  }
+
   const totalsCardsHtml =
     byBranch && bp
       ? buildBranchTotalsCardsHtml(t, locale, dash, bp, {
@@ -698,8 +832,7 @@ export async function buildPersonnelSettlementDocument(
   ${isClosure ? "" : seasonTenureSectionHtml}
   ${salaryCostSectionHtml}
   ${stockSectionHtml}
-  ${advTableHtml}
-  ${expTableHtml}
+  ${personnelOutflowHtml}
   ${registerSectionHtml}
 
   ${byBranch ? "" : summaryBlockHtml}

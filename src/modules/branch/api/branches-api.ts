@@ -694,37 +694,27 @@ export async function fetchBranchPersonnelMoneySummaries(
   }));
 }
 
-/** GET /branches/{id}/held-register-cash-by-person — seçilen tarihe kadar net kasa parası (tutar &gt; 0). */
+/**
+ * GET /branches/{id}/held-register-cash-by-person — seçilen tarihe kadar (entry_date &lt;= tarih)
+ * personel başına net zimmet kasa parası.
+ * TEK KAYNAK: endpoint artık kanonik personnel_cash_ledger üzerinden (personel kasa raporuyla
+ * birebir aynı; legacy branch_transactions türetmesi değil) ve gün-görevlisi yetki filtresini
+ * uygular. Şube ekranı / day-close akışı / şube PDF'i hep aynı motoru kullanır.
+ */
 export async function fetchBranchHeldRegisterCashByPerson(
   branchId: number,
-  asOfIsoDate: string
+  asOfIsoDate?: string
 ): Promise<IncomeCashBranchManagerPersonRow[]> {
   const id = Number(branchId);
   if (!Number.isFinite(id) || id <= 0) {
     throw new Error("Invalid branch id");
   }
-  const q = new URLSearchParams({ asOfDate: asOfIsoDate });
+  // asOfIsoDate verilmezse backend bugünü (Türkiye saati) kullanır = güncel net.
+  const q = new URLSearchParams();
+  if (asOfIsoDate) q.set("asOfDate", asOfIsoDate);
+  const qs = q.toString();
   const raw = await apiRequest<unknown>(
-    `/branches/${id}/held-register-cash-by-person?${q.toString()}`
-  );
-  return normalizeIncomeCashBranchManagerByPersonRows(raw);
-}
-
-/**
- * GET /branches/{id}/held-register-cash-by-person-ledger — kanonik personnel_cash_ledger
- * üzerinden personel başına net zimmet kasa bakiyesi (personel kasa raporuyla birebir aynı).
- */
-export async function fetchBranchHeldRegisterCashByPersonLedger(
-  branchId: number,
-  currencyCode = "TRY"
-): Promise<IncomeCashBranchManagerPersonRow[]> {
-  const id = Number(branchId);
-  if (!Number.isFinite(id) || id <= 0) {
-    throw new Error("Invalid branch id");
-  }
-  const q = new URLSearchParams({ currency: currencyCode });
-  const raw = await apiRequest<unknown>(
-    `/branches/${id}/held-register-cash-by-person-ledger?${q.toString()}`
+    `/branches/${id}/held-register-cash-by-person${qs ? `?${qs}` : ""}`
   );
   return normalizeIncomeCashBranchManagerByPersonRows(raw);
 }

@@ -1,5 +1,7 @@
 export const dashboard = {
   title: "Genel bakış",
+  amountsShow: "Tutarları göster",
+  amountsHide: "Tutarları gizle",
   subtitle: "Kasa günü, birikmiş net ve güncel envanter tek ekranda",
   seasonYearPlaceholder: "— yıl —",
   seasonYearFieldLabel: "Sezon yılı",
