@@ -28,6 +28,7 @@ type Props = {
   priceHistoryBusy: boolean;
   productPricingCostRows: ProductCostHistoryRow[];
   onRefreshSales: (lineId: string, productId: number) => void;
+  onUseSalesPrice: (lineId: string) => void;
 };
 
 export function OasProductPricingModal(props: Props) {
@@ -45,6 +46,7 @@ export function OasProductPricingModal(props: Props) {
     priceHistoryBusy,
     productPricingCostRows,
     onRefreshSales,
+    onUseSalesPrice,
   } = props;
   const { t } = useI18n();
 
@@ -144,6 +146,16 @@ export function OasProductPricingModal(props: Props) {
                     <span className="font-medium text-zinc-700">n={sales.sampleCount}</span>
                   </span>
                 </div>
+                <button
+                  type="button"
+                  disabled={!productPricingLineId}
+                  onClick={() => {
+                    if (productPricingLineId) onUseSalesPrice(productPricingLineId);
+                  }}
+                  className="mt-3 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl bg-violet-600 px-3 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:pointer-events-none disabled:opacity-40"
+                >
+                  Bu fiyatı kullan
+                </button>
               </>
             ) : (
               <p className="mt-4 text-sm text-zinc-600">

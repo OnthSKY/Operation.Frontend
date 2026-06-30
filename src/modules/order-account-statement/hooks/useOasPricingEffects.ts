@@ -109,6 +109,86 @@ export function useOasPricingEffects(p: Params) {
     [activeCounterparty, p.locale, p.setLines, setLinePriceSuggestionByLineId]
   );
 
+  /** Modaldaki "Bu fiyatı kullan": ekranda görünen öneriyi satırın birim
+   *  fiyatına (üzerine yazarak) uygular. Yeniden fetch etmez. */
+  const applySuggestedSalesPriceToLine = useCallback(
+    (lineId: string, suggestion: SalesPriceSuggestion | null | undefined) => {
+      if (!suggestion) return;
+      const normalized = formatLocaleAmountInput(
+        Math.max(0, Number(suggestion.suggestedUnitPrice) || 0),
+        p.locale
+      );
+      p.setLines((prev) =>
+        prev.map((line) => (line.id === lineId ? { ...line, unitPriceText: normalized } : line))
+      );
+    },
+    [p.locale, p.setLines]
+  );
+
+  /** Üstteki "Tüm fiyatları getir": ürünü olan tüm satırlar için tek batch
+   *  isteğiyle satış önerisini çekip, mevcut fiyatların ÜZERİNE yazar. */
+  const applyAllSalesSuggestions = useCallback(async () => {
+    if (!activeCounterparty) {
+      notify.error("Önce bir cari (şube/müşteri) seçin.");
+      return;
+    }
+    const lineList = p.linesRef.current;
+    const lineByProduct = new Map<number, string[]>();
+    for (const line of lineList) {
+      const pid = line.selectedProductId ?? 0;
+      if (pid <= 0) continue;
+      const arr = lineByProduct.get(pid) ?? [];
+      arr.push(line.id);
+      lineByProduct.set(pid, arr);
+    }
+    const productIds = Array.from(lineByProduct.keys());
+    if (productIds.length === 0) {
+      notify.error("Fiyat getirilecek ürünlü satır yok.");
+      return;
+    }
+    try {
+      const mapByProduct = await fetchSalesPriceSuggestionsBatch({
+        productIds,
+        counterpartyType: activeCounterparty.counterpartyType,
+        counterpartyId: activeCounterparty.counterpartyId,
+        currencyCode: "TRY",
+        lookbackDays: 90,
+      });
+      setLinePriceSuggestionByLineId((prev) => {
+        const next = { ...prev };
+        for (const [pid, lineIds] of lineByProduct) {
+          const suggestion = mapByProduct[pid];
+          for (const lid of lineIds) next[lid] = suggestion ?? undefined;
+        }
+        return next;
+      });
+      const priceByLineId = new Map<string, string>();
+      for (const [pid, lineIds] of lineByProduct) {
+        const suggestion = mapByProduct[pid];
+        if (!suggestion) continue;
+        const normalized = formatLocaleAmountInput(
+          Math.max(0, Number(suggestion.suggestedUnitPrice) || 0),
+          p.locale
+        );
+        for (const lid of lineIds) priceByLineId.set(lid, normalized);
+      }
+      if (priceByLineId.size === 0) {
+        notify.info("Bu cariye uygun satış önerisi bulunamadı.");
+        return;
+      }
+      p.setLines((prev) =>
+        prev.map((line) =>
+          priceByLineId.has(line.id)
+            ? { ...line, unitPriceText: priceByLineId.get(line.id)! }
+            : line
+        )
+      );
+      notify.success(`${priceByLineId.size} satırın fiyatı güncellendi.`);
+    } catch (e) {
+      notify.error(toErrorMessage(e));
+    }
+  }, [activeCounterparty, p.linesRef, p.locale, p.setLines, setLinePriceSuggestionByLineId]);
+
   // Ürün-fiyat modal açıkken ilgili price history'yi çek.
   useEffect(() => {
     if (!productPricingOpen) return;
@@ -192,5 +272,7 @@ export function useOasPricingEffects(p: Params) {
     productPricingCostRows,
     activeCounterparty,
     loadSalesSuggestionForLine,
+    applySuggestedSalesPriceToLine,
+    applyAllSalesSuggestions,
   };
 }

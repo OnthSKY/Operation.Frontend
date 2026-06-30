@@ -280,6 +280,8 @@ export function OrderAccountStatementScreen() {
     productPricingCostRows,
     activeCounterparty,
     loadSalesSuggestionForLine,
+    applySuggestedSalesPriceToLine,
+    applyAllSalesSuggestions,
   } = useOasPricingEffects({
     locale,
     linkedBranchId,
@@ -474,6 +476,7 @@ export function OrderAccountStatementScreen() {
             applyProductListItemToLine={applyProductListItemToLine}
             openProductPricingPanel={openProductPricingPanel}
             collapseLinesToParentProduct={collapseLinesToParentProduct}
+            applyAllSalesSuggestions={applyAllSalesSuggestions}
           />
           </div>
 
@@ -621,6 +624,9 @@ export function OrderAccountStatementScreen() {
         priceHistoryBusy={priceHistoryBusy}
         productPricingCostRows={productPricingCostRows}
         onRefreshSales={(lineId, productId) => void loadSalesSuggestionForLine(lineId, productId, true)}
+        onUseSalesPrice={(lineId) =>
+          applySuggestedSalesPriceToLine(lineId, linePriceSuggestionByLineId[lineId])
+        }
       />
     </div>
   );

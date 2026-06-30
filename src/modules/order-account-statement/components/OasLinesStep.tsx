@@ -75,6 +75,7 @@ type Props = {
   applyProductListItemToLine: (lineId: string, p: ProductListItem) => void;
   openProductPricingPanel: (line: LineDraft) => void;
   collapseLinesToParentProduct: () => void;
+  applyAllSalesSuggestions: () => void;
 };
 
 export function OasLinesStep(props: Props) {
@@ -106,6 +107,7 @@ export function OasLinesStep(props: Props) {
     applyProductListItemToLine,
     openProductPricingPanel,
     collapseLinesToParentProduct,
+    applyAllSalesSuggestions,
   } = props;
   const { t } = useI18n();
 
@@ -133,6 +135,15 @@ export function OasLinesStep(props: Props) {
     >
       <p className="mb-2 text-[11px] text-zinc-500 lg:hidden">{t("reports.orderAccountStatementTableScrollHint")}</p>
       <div className="mb-2 flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          variant="primary"
+          className="min-h-9 px-3 text-xs"
+          onClick={applyAllSalesSuggestions}
+          title="Tüm ürünlerin satış önerisini getirip fiyatların üzerine yazar"
+        >
+          Tüm fiyatları getir
+        </Button>
         <Button
           type="button"
           variant="secondary"

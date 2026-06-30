@@ -2,7 +2,7 @@ import { fetchBranchNotes } from "@/modules/branch/api/branch-notes-api";
 import {
   fetchAllBranchStockReceipts,
   fetchAllBranchTransactionsPaged,
-  fetchBranchHeldRegisterCashByPerson,
+  fetchBranchHeldRegisterCashByPersonLedger,
 } from "@/modules/branch/api/branches-api";
 import { fetchAllNonAdvancePersonnelAttributedExpenses } from "@/modules/branch/api/branch-transactions-api";
 import {
@@ -148,9 +148,10 @@ export async function buildPersonnelSettlementDocument(
         ? fetchBranchNotes(bid).catch(() => [] as { body: string; createdAt: string }[])
         : Promise.resolve([] as { body: string; createdAt: string }[]);
 
-      // Kanonik personel zimmet bakiyesi (held register cash) — uygulama raporuyla aynı net.
+      // Kanonik personel zimmet bakiyesi: personnel_cash_ledger (personel kasa raporuyla
+      // BİREBİR aynı net). Legacy branch_transactions türetmesi değil.
       const heldCashPromise = bpdf.includeRegisterLedger
-        ? fetchBranchHeldRegisterCashByPerson(bid, localIsoDate()).catch(() => [])
+        ? fetchBranchHeldRegisterCashByPersonLedger(bid, "TRY").catch(() => [])
         : Promise.resolve([] as { personnelId: number | null; amount: number }[]);
 
       const [expensePool, advRaw, stockRowsRaw, registerTxRaw, notesRaw, heldCashRaw] =

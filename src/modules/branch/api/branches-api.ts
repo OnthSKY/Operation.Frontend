@@ -710,6 +710,25 @@ export async function fetchBranchHeldRegisterCashByPerson(
   return normalizeIncomeCashBranchManagerByPersonRows(raw);
 }
 
+/**
+ * GET /branches/{id}/held-register-cash-by-person-ledger — kanonik personnel_cash_ledger
+ * üzerinden personel başına net zimmet kasa bakiyesi (personel kasa raporuyla birebir aynı).
+ */
+export async function fetchBranchHeldRegisterCashByPersonLedger(
+  branchId: number,
+  currencyCode = "TRY"
+): Promise<IncomeCashBranchManagerPersonRow[]> {
+  const id = Number(branchId);
+  if (!Number.isFinite(id) || id <= 0) {
+    throw new Error("Invalid branch id");
+  }
+  const q = new URLSearchParams({ currency: currencyCode });
+  const raw = await apiRequest<unknown>(
+    `/branches/${id}/held-register-cash-by-person-ledger?${q.toString()}`
+  );
+  return normalizeIncomeCashBranchManagerByPersonRows(raw);
+}
+
 function normalizeCurrency(v: unknown): string {
   const s = String(v ?? "TRY").trim().toUpperCase();
   return /^[A-Z]{3}$/.test(s) ? s : "TRY";
