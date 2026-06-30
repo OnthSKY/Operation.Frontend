@@ -49,6 +49,7 @@ export type DashboardWarehouseStockStory = {
   distinctProductCount: number;
   totalUnitsApprox: number;
   topByQuantity: DashboardWarehouseStockTopRow[];
+  topByMainProduct: DashboardWarehouseStockTopRow[];
 };
 
 export type DashboardOverview = {

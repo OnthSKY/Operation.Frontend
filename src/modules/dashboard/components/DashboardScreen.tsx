@@ -92,6 +92,8 @@ export function DashboardScreen() {
   // tekrar gizlenir (kalıcı değil). Bu bir sunum maskesi — gerçek gizlilik için
   // backend yetki kontrolü gerekir, veri yine de istemciye geliyor.
   const [amountsHidden, setAmountsHidden] = useState(true);
+  // Depo özeti: kalem (ürün kartı) bazlı mı, ana ürün bazlı mı gösterilsin.
+  const [stockView, setStockView] = useState<"item" | "main">("item");
   const [advanceOpen, setAdvanceOpen] = useState(false);
   const [persExpensePickerOpen, setPersExpensePickerOpen] = useState(false);
   const [persExpensePersonnelId, setPersExpensePersonnelId] = useState<
@@ -721,29 +723,65 @@ export function DashboardScreen() {
                     ),
                   })}
                 </p>
-                {ov?.operations.warehouseStock.topByQuantity?.length ? (
-                  <>
-                    <p className="mt-1 text-xs font-medium text-zinc-500">
-                      {t("dashboard.ovTopStock")}
-                    </p>
-                    <ul className="space-y-1 text-xs text-zinc-700">
-                      {ov.operations.warehouseStock.topByQuantity
-                        .slice(0, 3)
-                        .map((row) => (
-                          <li
-                            key={row.productId}
-                            className="flex items-center justify-between gap-2"
-                          >
-                            <span className="truncate">{row.productName}</span>
-                            <span className="tabular-nums text-zinc-900">
-                              {fmtNum(row.quantity)}
-                              {row.unit ? ` ${row.unit}` : ""}
-                            </span>
-                          </li>
-                        ))}
-                    </ul>
-                  </>
-                ) : null}
+                {(() => {
+                  const stock = ov?.operations.warehouseStock;
+                  const rows =
+                    stockView === "main"
+                      ? stock?.topByMainProduct
+                      : stock?.topByQuantity;
+                  const pick = (mode: "item" | "main") => (e: React.MouseEvent) => {
+                    // Kart bir <Link>; navigasyonu engelle.
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setStockView(mode);
+                  };
+                  const segBtn = (mode: "item" | "main", label: string) => (
+                    <button
+                      type="button"
+                      onClick={pick(mode)}
+                      aria-pressed={stockView === mode}
+                      className={
+                        "rounded-md px-2 py-0.5 text-[11px] font-medium transition " +
+                        (stockView === mode
+                          ? "bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200"
+                          : "text-zinc-500 hover:text-zinc-800")
+                      }
+                    >
+                      {label}
+                    </button>
+                  );
+                  return (
+                    <>
+                      <div className="mt-1 flex items-center justify-between gap-2">
+                        <p className="text-xs font-medium text-zinc-500">
+                          {t("dashboard.ovTopStock")}
+                        </p>
+                        <div className="inline-flex shrink-0 items-center gap-0.5 rounded-lg bg-zinc-100 p-0.5">
+                          {segBtn("item", t("dashboard.ovStockByItem"))}
+                          {segBtn("main", t("dashboard.ovStockByMainProduct"))}
+                        </div>
+                      </div>
+                      {rows?.length ? (
+                        <ul className="space-y-1 text-xs text-zinc-700">
+                          {rows.slice(0, 3).map((row) => (
+                            <li
+                              key={row.productId}
+                              className="flex items-center justify-between gap-2"
+                            >
+                              <span className="truncate">{row.productName}</span>
+                              <span className="tabular-nums text-zinc-900">
+                                {fmtNum(row.quantity)}
+                                {row.unit ? ` ${row.unit}` : ""}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-xs text-zinc-400">{t("dashboard.ovTopStockEmpty")}</p>
+                      )}
+                    </>
+                  );
+                })()}
               </DashCard>
             ) : null}
 

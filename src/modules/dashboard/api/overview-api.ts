@@ -32,15 +32,19 @@ export async function fetchDashboardOverview(): Promise<DashboardOverview> {
 export function normalizeWarehouseStock(
   raw: DashboardOverview["operations"]["warehouseStock"] | null | undefined
 ): DashboardOverview["operations"]["warehouseStock"] {
-  const top = Array.isArray(raw?.topByQuantity) ? raw!.topByQuantity : [];
-  return {
-    distinctProductCount: Number(raw?.distinctProductCount) || 0,
-    totalUnitsApprox: Number(raw?.totalUnitsApprox) || 0,
-    topByQuantity: top.map((r) => ({
+  const mapRows = (
+    rows: DashboardOverview["operations"]["warehouseStock"]["topByQuantity"] | null | undefined
+  ) =>
+    (Array.isArray(rows) ? rows : []).map((r) => ({
       productId: Number(r.productId) || 0,
       productName: typeof r.productName === "string" ? r.productName.trim() : "",
       unit: r.unit != null && String(r.unit).trim() ? String(r.unit).trim() : null,
       quantity: Number(r.quantity) || 0,
-    })),
+    }));
+  return {
+    distinctProductCount: Number(raw?.distinctProductCount) || 0,
+    totalUnitsApprox: Number(raw?.totalUnitsApprox) || 0,
+    topByQuantity: mapRows(raw?.topByQuantity),
+    topByMainProduct: mapRows(raw?.topByMainProduct),
   };
 }
