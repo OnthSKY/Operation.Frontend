@@ -409,6 +409,16 @@ function ShipmentGroupExpandedLineBlock({ group }: { group: ShipmentGroupSummary
 export function WarehouseGlobalMovementsScreen() {
   const { t, locale } = useI18n();
   const router = useRouter();
+  /** Depo perspektifli tür etiketi: giriş / çıkış / şubeye sevk (çıkış = şube girişi). */
+  const movementTypeLabel = useCallback(
+    (m: Pick<WarehouseGlobalMovementRow, "type" | "isDepotToBranchShipment">) => {
+      if (m.type === "IN") return t("warehouse.movementsTypeSegmentInbound");
+      return m.isDepotToBranchShipment
+        ? t("warehouse.movementKindWarehouseOutboundToBranch")
+        : t("warehouse.movementKindWarehouseOutbound");
+    },
+    [t]
+  );
   const { data: warehouses = [] } = useWarehousesList();
   const { data: branches = [] } = useBranchesList();
   const [scope, setScope] = useState<WarehouseScopeFiltersValue>(() => ({ ...EMPTY_SCOPE }));
@@ -555,8 +565,8 @@ export function WarehouseGlobalMovementsScreen() {
   const typeOptions: SelectOption[] = useMemo(
     () => [
       { value: "", label: t("products.filterTypeAll") },
-      { value: "IN", label: t("products.typeIn") },
-      { value: "OUT", label: t("products.typeOut") },
+      { value: "IN", label: t("warehouse.movementsTypeSegmentInbound") },
+      { value: "OUT", label: t("warehouse.movementKindWarehouseOutbound") },
     ],
     [t]
   );
@@ -756,7 +766,7 @@ export function WarehouseGlobalMovementsScreen() {
     const batchCell = formatWarehouseShipmentDisplay(rep.inBatchGroupId, rep.id);
     const destBranch = shipmentOutboundBranchSummary(g.rows);
     const detailType = rep.type;
-    const typeLabel = detailType === "IN" ? t("products.typeIn") : t("products.typeOut");
+    const typeLabel = movementTypeLabel(rep);
     const isOut = rep.type === "OUT";
     const mainGroups = shipmentMainProductGroups(g.rows);
     const hasPdfActions = rep.type === "OUT";
@@ -1231,7 +1241,7 @@ export function WarehouseGlobalMovementsScreen() {
                         ) : null}
                       </div>
                       <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold", m.type === "IN" ? "bg-emerald-100 text-emerald-900" : "bg-red-100 text-red-900")}>
-                        {m.type === "IN" ? t("products.typeIn") : t("products.typeOut")}
+                        {movementTypeLabel(m)}
                       </span>
                     </div>
                     <button
@@ -1340,7 +1350,7 @@ export function WarehouseGlobalMovementsScreen() {
                         </button>
                       </td>
                       <td className="px-3 py-2">
-                        {m.type === "IN" ? t("products.typeIn") : t("products.typeOut")}
+                        {movementTypeLabel(m)}
                       </td>
                       <td className={cn("px-3 py-2", shipmentIdLabelClassName)}>{batchCell.text}</td>
                       <td
@@ -1441,7 +1451,7 @@ export function WarehouseGlobalMovementsScreen() {
                             row.type === "IN" ? "bg-emerald-100 text-emerald-900" : "bg-red-100 text-red-900"
                           )}
                         >
-                          {row.type === "IN" ? t("products.typeIn") : t("products.typeOut")}
+                          {movementTypeLabel(row)}
                         </span>
                         <ChevronDown
                           className="h-5 w-5 shrink-0 text-zinc-300 transition-transform duration-200 group-open:rotate-180"

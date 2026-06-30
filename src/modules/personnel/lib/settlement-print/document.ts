@@ -98,7 +98,7 @@ export async function buildPersonnelSettlementDocument(
   let stockRows: BranchStockReceiptRow[] = [];
   let registerTx: BranchTransaction[] = [];
   // Personel zimmetindeki kasa nakdi: kanonik net bakiye (uygulama raporuyla aynı).
-  const heldCashByPerson = new Map<number, number>();
+  const heldCashByPerson = new Map<number, { amount: number; fullName: string }>();
 
   {
     if (target.scope === "personnel") {
@@ -152,7 +152,9 @@ export async function buildPersonnelSettlementDocument(
       // BİREBİR aynı net). Legacy branch_transactions türetmesi değil.
       const heldCashPromise = bpdf.includeRegisterLedger
         ? fetchBranchHeldRegisterCashByPersonLedger(bid, "TRY").catch(() => [])
-        : Promise.resolve([] as { personnelId: number | null; amount: number }[]);
+        : Promise.resolve(
+            [] as { personnelId: number | null; fullName: string; amount: number }[]
+          );
 
       const [expensePool, advRaw, stockRowsRaw, registerTxRaw, notesRaw, heldCashRaw] =
         await Promise.all([
@@ -164,7 +166,8 @@ export async function buildPersonnelSettlementDocument(
           heldCashPromise,
         ]);
       for (const r of heldCashRaw)
-        if (r.personnelId != null) heldCashByPerson.set(r.personnelId, r.amount);
+        if (r.personnelId != null)
+          heldCashByPerson.set(r.personnelId, { amount: r.amount, fullName: r.fullName ?? "" });
 
       advances = bpdf.includeAdvances ? sortAdvancesDesc(advRaw) : [];
       expenses = bpdf.includePersonnelNonAdvanceExpenses

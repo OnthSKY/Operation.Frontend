@@ -154,8 +154,8 @@ export function buildBranchSourceBreakdownHtml(
   t: (k: string) => string,
   locale: Locale,
   dash: string,
-  /** Kanonik personel zimmet net bakiyesi (personnelId → tutar); kalan bunu kullanır. */
-  heldCashByPerson: Map<number, number> = new Map()
+  /** Kanonik personel zimmet net bakiyesi (personnelId → {tutar, ad}); personel satırları bundan sürülür. */
+  heldCashByPerson: Map<number, { amount: number; fullName: string }> = new Map()
 ): string {
   const esc = escapeHtml;
   const addTo = (m: Map<string, number>, ccy: string, v: number) =>
@@ -239,97 +239,89 @@ export function buildBranchSourceBreakdownHtml(
     </div>`);
   }
 
-  // Şubenin nakiti nerede (gün sonu): eline geçen nakit (received) ve harcama sonrası kalan (remaining).
+  // Şubenin nakiti nerede (gün sonu): eline geçen nakit + harcama sonrası kalan.
+  // PERSONEL satırları KANONIK ledger'dan (uygulama kasa raporuyla birebir); diğerleri gün-sonundan.
   let cashCard = "";
   if (bp.includeRegisterLedger) {
-    type Holder = {
-      label: string;
-      accent: string;
-      pid?: number;
-      received: Map<string, number>;
-      spent: Map<string, number>;
-    };
-    const holders = new Map<string, Holder>();
-    const ensure = (key: string, label: string, accent: string, pid?: number): Holder => {
-      let h = holders.get(key);
-      if (!h) {
-        h = { label, accent, pid, received: new Map<string, number>(), spent: new Map<string, number>() };
-        holders.set(key, h);
-      }
-      return h;
-    };
-    // Eline geçen: gün sonu IN satırlarının nakit kısmı, devir tarafına göre.
+    // Personel-dışı taraflar (şube kasası / patron / atanmamış): gün-sonu nakdi.
+    const branchRec = new Map<string, number>();
+    const patronRec = new Map<string, number>();
+    const patronSpent = new Map<string, number>();
+    const naRec = new Map<string, number>();
+    // Personelin gün-sonu eline geçeni ("Eline geçen" sütunu) + gün-sonu adı (yedek).
+    const persReceived = new Map<number, Map<string, number>>();
+    const persName = new Map<number, string>();
+
     for (const r of registerTx) {
       if (!isRegisterDayCloseIncomeRow(r.type, r.mainCategory, r.category)) continue;
       const cash = moneyNum(r.cashAmount);
       if (cash <= 1e-9) continue;
       const ccy = ccyKey(r.currencyCode);
       const party = String(r.cashSettlementParty ?? "").trim().toUpperCase();
-      let h: Holder;
-      if (party === "PATRON") h = ensure("PATRON", t("branch.branchPdfCashHolderPatron"), PALETTE.goods);
-      else if (party === "REMAINS_AT_BRANCH")
-        h = ensure("BRANCH", t("branch.branchPdfCashHolderBranch"), PALETTE.income);
-      else if (party === "BRANCH_MANAGER") {
-        const name = r.cashSettlementPersonnelFullName?.trim();
-        const base = t("branch.branchPdfCashHolderPersonnel");
-        const pid = r.cashSettlementPersonnelId ?? undefined;
-        h = ensure(`P:${pid ?? name ?? ""}`, name ? `${base}: ${name}` : base, PALETTE.personnel, pid);
-      } else h = ensure("NA", t("branch.branchPdfCashHolderUnassigned"), PALETTE.neutral);
-      addTo(h.received, ccy, cash);
+      if (party === "PATRON") addTo(patronRec, ccy, cash);
+      else if (party === "REMAINS_AT_BRANCH") addTo(branchRec, ccy, cash);
+      else if (party === "BRANCH_MANAGER" && r.cashSettlementPersonnelId != null) {
+        const pid = r.cashSettlementPersonnelId;
+        const m = persReceived.get(pid) ?? new Map<string, number>();
+        addTo(m, ccy, cash);
+        persReceived.set(pid, m);
+        const nm = r.cashSettlementPersonnelFullName?.trim();
+        if (nm) persName.set(pid, nm);
+      } else addTo(naRec, ccy, cash);
     }
-    // Harcanan: yalnız nakdi ELİNE GEÇEN tarafın (patron / personel zimmeti) o nakitten
-    // yaptığı harcama düşülür. Şube kasası (REGISTER) gideri ÜSTTEKİ şube özetinde — burada
-    // düşülmez (yoksa kasaya hiç gün-sonu nakdi devredilmediği halde negatif "kalan" çıkar).
+    // Patron'un kendi cebinden ödediği şube gideri → patron "kalan"ından düşülür.
     for (const r of registerTx) {
       if (String(r.type ?? "").toUpperCase() === "IN") continue;
       if (isNonExpenseOutRow(r)) continue;
-      const src = String(r.expensePaymentSource ?? "").trim().toUpperCase();
+      if (String(r.expensePaymentSource ?? "").trim().toUpperCase() !== "PATRON") continue;
       const amt = moneyNum(r.amount);
-      if (amt <= 1e-9) continue;
-      const ccy = ccyKey(r.currencyCode);
-      let h: Holder | null = null;
-      if (src === "PATRON") h = ensure("PATRON", t("branch.branchPdfCashHolderPatron"), PALETTE.goods);
-      else if (src === "PERSONNEL_HELD_REGISTER_CASH") {
-        const name = r.expensePocketPersonnelFullName?.trim();
-        const base = t("branch.branchPdfCashHolderPersonnel");
-        const pid = r.expensePocketPersonnelId ?? undefined;
-        h = ensure(`P:${pid ?? name ?? ""}`, name ? `${base}: ${name}` : base, PALETTE.personnel, pid);
-      }
-      // REGISTER (şube kasası) ve PERSONNEL_POCKET (personelin kendi cebi) burada düşülmez.
-      if (h) addTo(h.spent, ccy, amt);
+      if (amt > 1e-9) addTo(patronSpent, ccyKey(r.currencyCode), amt);
     }
     const sub = (a: Map<string, number>, b: Map<string, number>): Map<string, number> => {
       const m = new Map(a);
       for (const [c, v] of b) m.set(c, (m.get(c) ?? 0) - v);
       return m;
     };
-    // Yalnız nakdi eline geçen taraflar (received > 0); sadece-harcama satırları gösterilmez.
-    const ordered = [...holders.values()].filter((h) => moneyJoin(h.received));
-    if (ordered.length > 0) {
-      const totR = new Map<string, number>();
-      const totRem = new Map<string, number>();
-      const rows = ordered
-        .map((h) => {
-          // Personel zimmeti: kalan = uygulamanın kanonik net bakiyesi (cep alacağı devri +
-          // kasa devri dahil). Diğer taraflar: eline geçen − harcanan.
-          const rem =
-            h.pid != null && heldCashByPerson.has(h.pid)
-              ? new Map<string, number>([["TRY", heldCashByPerson.get(h.pid) ?? 0]])
-              : sub(h.received, h.spent);
-          for (const [c, v] of h.received) totR.set(c, (totR.get(c) ?? 0) + v);
-          for (const [c, v] of rem) totRem.set(c, (totRem.get(c) ?? 0) + v);
-          return `<tr>
-            <td class="cw-label" style="border-left-color:${h.accent};color:${h.accent}">${esc(h.label)}</td>
-            <td class="num">${moneyJoin(h.received) || esc(dash)}</td>
-            <td class="num cw-rem">${moneyJoin(rem) || esc(dash)}</td>
-          </tr>`;
-        })
-        .join("");
+
+    const totR = new Map<string, number>();
+    const totRem = new Map<string, number>();
+    const rowHtml: string[] = [];
+    const pushRow = (label: string, accent: string, received: Map<string, number>, rem: Map<string, number>) => {
+      const recV = moneyJoin(received);
+      const remV = moneyJoin(rem);
+      if (!recV && !remV) return;
+      for (const [c, v] of received) totR.set(c, (totR.get(c) ?? 0) + v);
+      for (const [c, v] of rem) totRem.set(c, (totRem.get(c) ?? 0) + v);
+      rowHtml.push(`<tr>
+            <td class="cw-label" style="border-left-color:${accent};color:${accent}">${esc(label)}</td>
+            <td class="num">${recV || esc(dash)}</td>
+            <td class="num cw-rem">${remV || esc(dash)}</td>
+          </tr>`);
+    };
+
+    // Şube kasası: kalan = received (kasa gideri üst özette; burada düşülmez).
+    pushRow(t("branch.branchPdfCashHolderBranch"), PALETTE.income, branchRec, branchRec);
+    // Patron: kalan = received − patron harcaması.
+    pushRow(t("branch.branchPdfCashHolderPatron"), PALETTE.goods, patronRec, sub(patronRec, patronSpent));
+    // Atanmamış / diğer.
+    pushRow(t("branch.branchPdfCashHolderUnassigned"), PALETTE.neutral, naRec, naRec);
+    // Personel zimmeti — KANONIK ledger listesinden sür (kalan = kanonik net bakiye).
+    const base = t("branch.branchPdfCashHolderPersonnel");
+    const persEntries = [...heldCashByPerson.entries()].sort((a, b) => b[1].amount - a[1].amount);
+    for (const [pid, info] of persEntries) {
+      const name = info.fullName?.trim() || persName.get(pid) || "";
+      const label = name ? `${base}: ${name}` : base;
+      const received = persReceived.get(pid) ?? new Map<string, number>();
+      const rem = new Map<string, number>([["TRY", info.amount]]);
+      pushRow(label, PALETTE.personnel, received, rem);
+    }
+
+    if (rowHtml.length > 0) {
       cashCard = `<div class="cash-where-card">
         <div class="cash-where-head">${esc(t("branch.branchPdfBranchCashWhereTitle"))}</div>
         <table class="cash-where-table">
           <thead><tr><th>${esc(t("branch.branchPdfCashWhereWho"))}</th><th class="num">${esc(t("branch.branchPdfCashReceived"))}</th><th class="num">${esc(t("branch.branchPdfCashRemaining"))}</th></tr></thead>
-          <tbody>${rows}
+          <tbody>${rowHtml.join("")}
             <tr class="cw-total"><td>${esc(t("branch.branchPdfBranchCashTotal"))}</td><td class="num">${moneyJoin(totR) || esc(dash)}</td><td class="num cw-rem">${moneyJoin(totRem) || esc(dash)}</td></tr>
           </tbody>
         </table>

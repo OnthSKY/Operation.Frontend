@@ -158,6 +158,8 @@ export const warehouse = {
   movementsTypeSegmentAll: "All",
   movementsTypeSegmentInbound: "Warehouse inbound",
   movementsTypeSegmentOutbound: "Warehouse outbound (branch shipment)",
+  movementKindWarehouseOutbound: "Warehouse outbound",
+  movementKindWarehouseOutboundToBranch: "Warehouse outbound (branch inbound)",
   editInboundBatchTitle: "Correct warehouse receipt dates",
   editInboundBatchHint:
     "Updates business dates for every inbound line in the batch and syncs related branch stock movements; the change is written to the audit log.",

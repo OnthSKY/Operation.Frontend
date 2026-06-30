@@ -158,6 +158,8 @@ export const warehouse = {
   movementsTypeSegmentAll: "Tümü",
   movementsTypeSegmentInbound: "Depo girişi",
   movementsTypeSegmentOutbound: "Şube Sevkiyatı",
+  movementKindWarehouseOutbound: "Depo çıkışı",
+  movementKindWarehouseOutboundToBranch: "Depo çıkışı (şube girişi)",
   editInboundBatchTitle: "Depo girişi tarihlerini düzelt",
   editInboundBatchHint:
     "Aynı partideki tüm giriş satırları ve ilişkili şube stok hareketlerinin iş günü tarihi güncellenir; işlem denetim kaydına yazılır.",
