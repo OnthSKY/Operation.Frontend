@@ -76,37 +76,31 @@ export function OasPromoLinesStep({
         <p className="mt-3 text-xs text-zinc-400">{t("reports.orderAccountStatementPromoLinesEmpty")}</p>
       ) : (
         <>
-          {/* Mobile: cards */}
-          <ul className="mt-3 space-y-3 lg:hidden">
+          {/* Mobile: kompakt tek satır (index + açıklama + tutar + sil) */}
+          <ul className="mt-3 space-y-2 lg:hidden">
             {promoLines.map((row, rowIndex) => (
-              <li key={row.id} className="rounded-lg border border-zinc-200 bg-zinc-50/40 p-3 shadow-sm">
-                <div className="flex items-center justify-between border-b border-zinc-200/80 pb-2">
-                  <span className="inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-md bg-zinc-200/90 text-xs font-bold text-zinc-800">
-                    {rowIndex + 1}
-                  </span>
-                  <OasTrashButton
-                    label={t("reports.orderAccountStatementRemove")}
-                    onClick={() => removeRow(row.id)}
-                  />
-                </div>
-                <label className="mt-2 block text-xs font-medium text-zinc-600">
-                  {t("reports.orderAccountStatementPromoLineDesc")}
-                  <input
-                    className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-2 py-2 text-sm"
-                    value={row.description}
-                    onChange={(e) => updateRow(row.id, { description: e.target.value })}
-                  />
-                </label>
-                <label className="mt-2 block text-xs font-medium text-zinc-600">
-                  {t("reports.orderAccountStatementPromoLineAmount")}
-                  <input
-                    inputMode="decimal"
-                    className="mt-1 w-full rounded-md border border-zinc-200 bg-white px-2 py-2 text-right text-sm tabular-nums"
-                    value={row.amountText}
-                    onChange={(e) => updateRow(row.id, { amountText: e.target.value })}
-                    onBlur={() => blurAmount(row.id, row.amountText)}
-                  />
-                </label>
+              <li key={row.id} className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-zinc-50/40 p-2">
+                <span className="inline-flex h-7 min-w-[1.5rem] shrink-0 items-center justify-center rounded-md bg-zinc-200/90 text-[11px] font-bold text-zinc-800">
+                  {rowIndex + 1}
+                </span>
+                <input
+                  className="min-w-0 flex-1 rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs"
+                  placeholder={t("reports.orderAccountStatementPromoLineDesc")}
+                  value={row.description}
+                  onChange={(e) => updateRow(row.id, { description: e.target.value })}
+                />
+                <input
+                  inputMode="decimal"
+                  className="w-24 shrink-0 rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-right text-xs tabular-nums"
+                  placeholder={t("reports.orderAccountStatementPromoLineAmount")}
+                  value={row.amountText}
+                  onChange={(e) => updateRow(row.id, { amountText: e.target.value })}
+                  onBlur={() => blurAmount(row.id, row.amountText)}
+                />
+                <OasTrashButton
+                  label={t("reports.orderAccountStatementRemove")}
+                  onClick={() => removeRow(row.id)}
+                />
               </li>
             ))}
           </ul>
