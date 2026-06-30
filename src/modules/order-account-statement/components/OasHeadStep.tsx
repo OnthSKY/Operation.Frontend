@@ -25,6 +25,7 @@ import {
   IcPlay,
   IcLoader,
 } from "@/modules/order-account-statement/components/oas-icons";
+import { useState } from "react";
 import type { ChangeEvent, RefObject } from "react";
 import type {
   StatementLayoutVariant,
@@ -78,6 +79,8 @@ type Props = {
 
 export function OasHeadStep(props: Props) {
   const { t } = useI18n();
+  // Sevkiyat seçildikten sonra seçim kontrollerini katla (kompakt). "Değiştir" ile geri açılır.
+  const [shipmentPickerOpen, setShipmentPickerOpen] = useState(false);
   const {
     identity,
     branchSelectOptions,
@@ -142,43 +145,51 @@ export function OasHeadStep(props: Props) {
       scopeKinds={["document", "system"]}
     >
       <div className="mb-3 rounded-lg border border-violet-200 bg-violet-50/60 px-3 py-2">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-800">Doldurma sirasi</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wide text-violet-800">
+          {t("reports.orderAccountStatementFlowTitle")}
+        </p>
         <div className="mt-1.5 flex flex-wrap gap-1.5">
-          <FlowStepPill index={1} label="Mod secimi" state={flowCurrentStep > 1 ? "done" : "current"} />
+          <FlowStepPill index={1} label={t("reports.orderAccountStatementFlowStep1")} state={flowCurrentStep > 1 ? "done" : "current"} />
           <FlowStepPill
             index={2}
-            label={creationMode === "shipmentBased" ? "Sevkiyat secimi" : "Belge icerigi"}
+            label={
+              creationMode === "shipmentBased"
+                ? t("reports.orderAccountStatementFlowStep2Shipment")
+                : t("reports.orderAccountStatementFlowStep2Manual")
+            }
             state={flowCurrentStep > 2 ? "done" : flowCurrentStep === 2 ? "current" : "todo"}
           />
           <FlowStepPill
             index={3}
-            label="Kalemler ve tutarlar"
+            label={t("reports.orderAccountStatementFlowStep3")}
             state={flowCurrentStep > 3 ? "done" : flowCurrentStep === 3 ? "current" : "todo"}
           />
-          <FlowStepPill index={4} label="Onizle ve indir" state={flowCurrentStep === 4 ? "current" : "todo"} />
+          <FlowStepPill index={4} label={t("reports.orderAccountStatementFlowStep4")} state={flowCurrentStep === 4 ? "current" : "todo"} />
         </div>
-        {creationMode === "shipmentBased" ? (
+        {flowCurrentStep <= 2 ? (
           <p className="mt-1.5 text-[11px] text-violet-800">
-            Sevkiyat bazli akista once sevkiyat secin; sistem kalemleri ve sube bilgisini otomatik doldurur.
+            {creationMode === "shipmentBased"
+              ? t("reports.orderAccountStatementFlowHintShipment")
+              : t("reports.orderAccountStatementFlowHintManual")}
           </p>
-        ) : (
-          <p className="mt-1.5 text-[11px] text-violet-800">
-            Manuel akista once belge icerigini, sonra kalem/tutar alanlarini doldurup onizleme gecin.
-          </p>
-        )}
+        ) : null}
       </div>
       <div className="mb-3 rounded-xl border border-zinc-200 bg-zinc-50/70 p-3">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-zinc-700">
-          2A · Sevkiyat / Mod
+          {t("reports.orderAccountStatementModeCardTitle")}
         </p>
-        <span className="inline-flex rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-medium text-zinc-600">
-          Once bunu secin
-        </span>
+        {!selectedShipmentSource ? (
+          <span className="inline-flex rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-medium text-zinc-600">
+            {t("reports.orderAccountStatementSelectFirstBadge")}
+          </span>
+        ) : null}
         </div>
-        <p className="mb-2 text-[11px] text-zinc-600">
-          Bu kart, verinin nereden gelecegini belirler (manuel / sevkiyat).
-        </p>
+        {!selectedShipmentSource ? (
+          <p className="mb-2 text-[11px] text-zinc-600">
+            {t("reports.orderAccountStatementModeCardHelp")}
+          </p>
+        ) : null}
         <div className="grid gap-3 md:grid-cols-2">
         <Select
           label={t("reports.orderAccountStatementCreationMode")}
@@ -207,7 +218,7 @@ export function OasHeadStep(props: Props) {
           <div className="md:col-span-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-900">
             {!selectedShipmentSource ? (
               <p className="mb-2 rounded-md border border-violet-200 bg-white/70 px-2 py-1.5 text-[11px]">
-                1) Sevkiyat secin, 2) kalemler otomatik gelir, 3) sadece eksikleri duzenleyin.
+                {t("reports.orderAccountStatementShipmentPreselectHint")}
               </p>
             ) : null}
             {selectedShipmentSource ? (
@@ -264,6 +275,27 @@ export function OasHeadStep(props: Props) {
                 </div>
               </>
             )}
+            {selectedShipmentSource && !shipmentPickerOpen ? (
+              <div className="mt-2 flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setShipmentPickerOpen(true)}
+                  className="min-h-8 text-xs"
+                >
+                  {t("reports.orderAccountStatementShipmentChange")}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setShipmentDetailOpen(true)}
+                  disabled={!selectedShipmentDetail}
+                  className="min-h-8 text-xs"
+                >
+                  {t("reports.orderAccountStatementShipmentDetailButton")}
+                </Button>
+              </div>
+            ) : (
             <div className="mt-2 grid gap-2">
               <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
                 <RichCombobox
@@ -273,6 +305,7 @@ export function OasHeadStep(props: Props) {
                     const selected = shipmentOptions.find((x) => x.key === nextKey);
                     if (!selected) return;
                     void loadShipmentGroupIntoForm(selected, "manual");
+                    setShipmentPickerOpen(false);
                   }}
                   options={shipmentComboboxOptions}
                   placeholder={t("reports.orderAccountStatementShipmentSelectPlaceholder")}
@@ -315,26 +348,35 @@ export function OasHeadStep(props: Props) {
                 />
               </div>
             </div>
+            )}
           </div>
         ) : null}
         </div>
       </div>
-      <OrderAccountStatementDocumentContentSection
-        t={t}
-        companyName={companyName}
-        setCompanyName={setCompanyName}
-        branchName={branchName}
-        setBranchName={setBranchName}
-        emblemDataUrl={emblemDataUrl}
-        setEmblemDataUrl={setEmblemDataUrl}
-        emblemFileInputRef={emblemFileInputRef}
-        onEmblemFileChange={onEmblemFileChange}
-        onUseBrandingEmblem={onUseBrandingEmblem}
-        brandingLogoBusy={brandingLogoBusy}
-        documentTitle={documentTitle}
-        setDocumentTitle={setDocumentTitle}
-        showDocumentTagline={showDocumentTagline}
-      />
+      {/* Marka/belge görünümü ikincil → varsayılan kapalı (kompakt); gerekince aç. */}
+      <details className="mb-3 rounded-xl border border-zinc-200 bg-zinc-50/70">
+        <summary className="cursor-pointer list-none px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-700 marker:hidden">
+          ▸ {t("reports.orderAccountStatementBrandingSection")}
+        </summary>
+        <div className="px-3 pb-3">
+          <OrderAccountStatementDocumentContentSection
+            t={t}
+            companyName={companyName}
+            setCompanyName={setCompanyName}
+            branchName={branchName}
+            setBranchName={setBranchName}
+            emblemDataUrl={emblemDataUrl}
+            setEmblemDataUrl={setEmblemDataUrl}
+            emblemFileInputRef={emblemFileInputRef}
+            onEmblemFileChange={onEmblemFileChange}
+            onUseBrandingEmblem={onUseBrandingEmblem}
+            brandingLogoBusy={brandingLogoBusy}
+            documentTitle={documentTitle}
+            setDocumentTitle={setDocumentTitle}
+            showDocumentTagline={showDocumentTagline}
+          />
+        </div>
+      </details>
       <OrderAccountStatementActionsSection
         t={t}
         locale={locale}

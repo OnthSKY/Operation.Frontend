@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, type MutableRefObject } from "react";
+import { useI18n } from "@/i18n/context";
 import { fetchSystemBranding } from "@/modules/admin/api/system-branding-api";
 import type { useOasIdentity } from "@/modules/order-account-statement/hooks/useOasIdentity";
 
@@ -18,6 +19,7 @@ type Params = {
 };
 
 export function useOasBrandingDefaults({ identity, loadBrandingLogoAsDataUrl, loadedRef }: Params) {
+  const { t } = useI18n();
   useEffect(() => {
     if (loadedRef.current) return;
     loadedRef.current = true;
@@ -29,7 +31,10 @@ export function useOasBrandingDefaults({ identity, loadBrandingLogoAsDataUrl, lo
         if (brandingCompany) {
           identity.setDefaultCompanyName(brandingCompany);
           if (!identity.companyName.trim()) identity.setCompanyName(brandingCompany);
-          if (!identity.documentTitle.trim()) identity.setDocumentTitle(brandingCompany);
+          // Belge başlığı firma adı OLMAMALI (PDF'te firma adı zaten büyük başlıkta;
+          // ikisi aynı olursa "Tekin Usta Dondurma" iki kez yazılır). Belge türü başlığı kullan.
+          if (!identity.documentTitle.trim())
+            identity.setDocumentTitle(t("reports.orderAccountStatementDefaultDocumentTitle"));
         }
         if (branding.hasLogo) {
           try {

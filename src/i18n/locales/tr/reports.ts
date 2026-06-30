@@ -705,6 +705,7 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   orderAccountStatementEmblemFetchError: "Kurum görseli alınamadı. Önce sistem logonuzu yükleyip tekrar deneyin.",
   orderAccountStatementEmblemClear: "Amblemi kaldır",
   orderAccountStatementDocTitle: "Belge başlığı",
+  orderAccountStatementDefaultDocumentTitle: "SİPARİŞ VE HESAP DÖKÜMÜ",
   orderAccountStatementShowTagline: "PDF’te “Sipariş özeti · Hesap dökümü” satırını göster",
   orderAccountStatementShowTaglineHelp:
     "Kapatırsanız bu alt başlık belgede ve indirilen PDF’te yer almaz.",
@@ -742,6 +743,8 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   orderAccountStatementGift: "Hediye",
   orderAccountStatementGiftSuffix: "Hediye",
   orderAccountStatementPickProduct: "Ürün kataloğundan açıklama doldur",
+  orderAccountStatementBindProduct: "Katalogdan ürün bağla",
+  orderAccountStatementChangeProduct: "Bağlı ürünü değiştir",
   orderAccountStatementCatalogNone: "— seçin —",
   orderAccountStatementSuggestedCostShort: "Girilmiş maliyet",
   orderAccountStatementCostIncVatShort: "KDV dahil",
@@ -953,6 +956,24 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   orderAccountStatementShipmentSearchPlaceholder: "Sevkiyat ara (depo, ürün, şube, tarih)...",
   orderAccountStatementShipmentSelectPlaceholder: "Sistemden sevkiyat seçin...",
   orderAccountStatementShipmentDetailButton: "Detay",
+  orderAccountStatementShipmentChange: "Sevkiyatı değiştir",
+  orderAccountStatementBrandingSection: "Belge görünümü / marka (logo, başlık)",
+  orderAccountStatementFlowTitle: "Doldurma sırası",
+  orderAccountStatementFlowStep1: "Mod seçimi",
+  orderAccountStatementFlowStep2Shipment: "Sevkiyat seçimi",
+  orderAccountStatementFlowStep2Manual: "Belge içeriği",
+  orderAccountStatementFlowStep3: "Kalemler ve tutarlar",
+  orderAccountStatementFlowStep4: "Önizle ve indir",
+  orderAccountStatementFlowHintShipment:
+    "Sevkiyat bazlı akışta önce sevkiyat seçin; sistem kalemleri ve şube bilgisini otomatik doldurur.",
+  orderAccountStatementFlowHintManual:
+    "Manuel akışta önce belge içeriğini, sonra kalem/tutar alanlarını doldurup önizlemeye geçin.",
+  orderAccountStatementModeCardTitle: "2A · Sevkiyat / Mod",
+  orderAccountStatementSelectFirstBadge: "Önce bunu seçin",
+  orderAccountStatementModeCardHelp:
+    "Bu kart, verinin nereden geleceğini belirler (manuel / sevkiyat).",
+  orderAccountStatementShipmentPreselectHint:
+    "1) Sevkiyat seçin, 2) kalemler otomatik gelir, 3) sadece eksikleri düzenleyin.",
   orderAccountStatementShipmentDetailTitle: "Sevkiyat detayı",
   orderAccountStatementShipmentDetailWarehouseId: "Depo",
   orderAccountStatementShipmentDetailMovementId: "Hareket",

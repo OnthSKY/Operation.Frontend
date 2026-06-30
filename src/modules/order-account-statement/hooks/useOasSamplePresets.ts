@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { useI18n } from "@/i18n/context";
 import { formatLocaleAmountInput } from "@/shared/lib/locale-amount";
 import {
   emptyLine,
@@ -39,6 +40,7 @@ type Params = {
 };
 
 export function useOasSamplePresets(params: Params) {
+  const { t } = useI18n();
   const {
     locale,
     identity,
@@ -53,7 +55,7 @@ export function useOasSamplePresets(params: Params) {
   const fillTekinSample = useCallback(() => {
     identity.setCompanyName("TEKİN USTA DONDURMA");
     identity.setBranchName("Denizli Şubesi");
-    identity.setDocumentTitle("SİPARİŞ VE HESAP DÖKÜMÜ");
+    identity.setDocumentTitle(t("reports.orderAccountStatementDefaultDocumentTitle"));
     linesState.setLines(
       SAMPLE_LINES.map((s) => ({
         ...s,
@@ -83,12 +85,12 @@ export function useOasSamplePresets(params: Params) {
     ]);
     preview.setShowQuantityColumn(true);
     preview.setContentPreset("tekin");
-  }, [identity, linesState, locale, preview]);
+  }, [identity, linesState, locale, preview, t]);
 
   const fillCafeSample = useCallback(() => {
     identity.setCompanyName("Örnek İşletme A.Ş.");
     identity.setBranchName("Merkez Şube");
-    identity.setDocumentTitle("SİPARİŞ VE HESAP DÖKÜMÜ");
+    identity.setDocumentTitle(t("reports.orderAccountStatementDefaultDocumentTitle"));
     linesState.setLines(
       SAMPLE_CAFE.map((s) => ({
         ...s,
@@ -102,12 +104,12 @@ export function useOasSamplePresets(params: Params) {
     linesState.setPaidLines([]);
     preview.setShowQuantityColumn(true);
     preview.setContentPreset("cafe");
-  }, [identity, linesState, locale, preview]);
+  }, [identity, linesState, locale, preview, t]);
 
   const fillBakerySample = useCallback(() => {
     identity.setCompanyName(locale === "tr" ? "Örnek Fırın Unlu Mamuller" : "Sample Bakery Co.");
     identity.setBranchName(locale === "tr" ? "Merkez üretim" : "Central production");
-    identity.setDocumentTitle("SİPARİŞ VE HESAP DÖKÜMÜ");
+    identity.setDocumentTitle(t("reports.orderAccountStatementDefaultDocumentTitle"));
     linesState.setLines(
       SAMPLE_BAKERY.map((s) => ({
         ...s,
@@ -128,12 +130,12 @@ export function useOasSamplePresets(params: Params) {
     linesState.setPaidLines([]);
     preview.setShowQuantityColumn(true);
     preview.setContentPreset("bakery");
-  }, [identity, linesState, locale, preview]);
+  }, [identity, linesState, locale, preview, t]);
 
   const fillCateringSample = useCallback(() => {
     identity.setCompanyName(locale === "tr" ? "Örnek Catering Hizmetleri" : "Sample Catering Services");
     identity.setBranchName(locale === "tr" ? "Etkinlik: Gala gecesi" : "Event: gala dinner");
-    identity.setDocumentTitle("SİPARİŞ VE HESAP DÖKÜMÜ");
+    identity.setDocumentTitle(t("reports.orderAccountStatementDefaultDocumentTitle"));
     linesState.setLines(
       SAMPLE_CATERING.map((s) => ({
         ...s,
@@ -154,7 +156,7 @@ export function useOasSamplePresets(params: Params) {
     ]);
     preview.setShowQuantityColumn(true);
     preview.setContentPreset("catering");
-  }, [identity, linesState, locale, preview]);
+  }, [identity, linesState, locale, preview, t]);
 
   const applyContentPreset = useCallback(
     (v: OrderAccountContentPreset) => {
@@ -194,7 +196,7 @@ export function useOasSamplePresets(params: Params) {
     invoicing.setLastSavedDocumentId(null);
     setOrderDocumentKey(`oas-${Date.now().toString(36)}`);
     identity.setEmblemDataUrl(identity.defaultEmblemDataUrl);
-    identity.setDocumentTitle(identity.defaultCompanyName);
+    identity.setDocumentTitle(t("reports.orderAccountStatementDefaultDocumentTitle"));
     identity.setShowDocumentTagline(true);
     linesState.setLines([emptyLine()]);
     linesState.setPaidLines([]);
@@ -217,6 +219,7 @@ export function useOasSamplePresets(params: Params) {
     setOrderDocumentKey,
     shipment,
     shipmentPrefillActive,
+    t,
   ]);
 
   return {

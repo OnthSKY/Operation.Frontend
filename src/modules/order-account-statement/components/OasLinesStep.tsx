@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { cn } from "@/lib/cn";
 import { useI18n } from "@/i18n/context";
 import {
@@ -40,8 +40,6 @@ type Props = {
   setLines: React.Dispatch<React.SetStateAction<LineDraft[]>>;
   showQuantityColumn: boolean;
   setShowQuantityColumn: (v: boolean) => void;
-  desktopLineDetailsOpen: boolean;
-  setDesktopLineDetailsOpen: React.Dispatch<React.SetStateAction<boolean>>;
 
   // computed
   lineAddBlocked: boolean;
@@ -84,8 +82,6 @@ export function OasLinesStep(props: Props) {
     setLines,
     showQuantityColumn,
     setShowQuantityColumn,
-    desktopLineDetailsOpen,
-    setDesktopLineDetailsOpen,
     lineAddBlocked,
     lineCompact,
     lineDense,
@@ -110,6 +106,8 @@ export function OasLinesStep(props: Props) {
     applyAllSalesSuggestions,
   } = props;
   const { t } = useI18n();
+  // Masaüstü: ürün seçici satır-bazında ihtiyaç halinde açılır (kompakt). Aynı anda tek satır.
+  const [openPickerLineId, setOpenPickerLineId] = useState<string | null>(null);
 
   return (
     <StatementFormStep
@@ -151,14 +149,6 @@ export function OasLinesStep(props: Props) {
           onClick={collapseLinesToParentProduct}
         >
           {t("reports.orderAccountStatementParentMergeButton")}
-        </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          className="hidden min-h-9 px-3 text-xs lg:inline-flex"
-          onClick={() => setDesktopLineDetailsOpen((v) => !v)}
-        >
-          {desktopLineDetailsOpen ? "Masaustu sade gorunum" : "Masaustu detaylari goster"}
         </Button>
       </div>
       {creationMode === "shipmentBased" && shipmentLinkMode === "strict" ? (
@@ -714,6 +704,38 @@ export function OasLinesStep(props: Props) {
                       }}
                       placeholder={t("reports.orderAccountStatementLinePlaceholder")}
                     />
+                    {canPickProducts ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setOpenPickerLineId((cur) => (cur === line.id ? null : line.id))
+                        }
+                        title={
+                          line.selectedProductId
+                            ? t("reports.orderAccountStatementChangeProduct")
+                            : t("reports.orderAccountStatementBindProduct")
+                        }
+                        aria-label={
+                          line.selectedProductId
+                            ? t("reports.orderAccountStatementChangeProduct")
+                            : t("reports.orderAccountStatementBindProduct")
+                        }
+                        className={cn(
+                          "inline-flex shrink-0 items-center justify-center rounded-md border transition hover:bg-zinc-50",
+                          openPickerLineId === line.id
+                            ? "border-violet-300 bg-violet-50 text-violet-700"
+                            : line.selectedProductId
+                              ? "border-emerald-200 bg-emerald-50/60 text-emerald-700"
+                              : "border-zinc-200 text-zinc-500",
+                          lineDense ? "h-6 w-6" : "h-7 w-7"
+                        )}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                          <circle cx="11" cy="11" r="7" />
+                          <path d="m21 21-4.3-4.3" />
+                        </svg>
+                      </button>
+                    ) : null}
                     {line.selectedProductId ? (
                       <OrderAccountProductPricingIconButton
                         ariaLabel={t("reports.orderAccountStatementPricingInfoAria")}
@@ -721,14 +743,17 @@ export function OasLinesStep(props: Props) {
                       />
                     ) : null}
                   </div>
-                  {canPickProducts && desktopLineDetailsOpen ? (
+                  {canPickProducts && openPickerLineId === line.id ? (
                     <OrderAccountLineProductPicker
                       key={`${line.id}-desktop`}
                       lineId={line.id}
                       selectedProductId={line.selectedProductId}
                       description={line.description}
                       parentProductName={line.parentProductName}
-                      onSelectProduct={(p) => applyProductListItemToLine(line.id, p)}
+                      onSelectProduct={(p) => {
+                        applyProductListItemToLine(line.id, p);
+                        setOpenPickerLineId(null);
+                      }}
                       latestCostByProductId={latestCostByProductId}
                       locale={locale}
                       t={t}
@@ -741,58 +766,16 @@ export function OasLinesStep(props: Props) {
                       )}
                     />
                   ) : null}
-                  {line.selectedProductId && desktopLineDetailsOpen ? (
-                    (() => {
-                      const cost = latestCostByProductId.get(line.selectedProductId);
-                      if (!cost) {
-                        return (
-                          <div className="mt-1 space-y-1">
-                            <p className="text-[11px] text-zinc-500">
-                              {t("reports.orderAccountStatementCostSuggestionMissing")}
-                            </p>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              className="h-auto min-h-0 px-0 py-0 text-[11px] font-medium text-violet-700 hover:bg-transparent hover:underline"
-                              onClick={() => openProductPricingPanel(line)}
-                            >
-                              Maliyet, satış önerisi ve geçmiş
-                            </Button>
-                          </div>
-                        );
-                      }
-                      return (
-                        <div className="mt-1 space-y-1">
-                          <p className="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] text-emerald-800">
-                            {t("reports.orderAccountStatementSuggestedCostShort")}:{" "}
-                            {formatLocaleAmount(Number(cost.unitCostExcludingVat || 0), locale, cost.currencyCode)}
-                            {" · "}
-                            {t("reports.orderAccountStatementCostIncVatShort")}:{" "}
-                            {formatLocaleAmount(Number(cost.unitCostIncludingVat || 0), locale, cost.currencyCode)}
-                          </p>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            className="h-auto min-h-0 px-0 py-0 text-[11px] font-medium text-violet-700 hover:bg-transparent hover:underline"
-                            onClick={() => openProductPricingPanel(line)}
-                          >
-                            Maliyet, satış önerisi ve geçmiş
-                          </Button>
-                        </div>
-                      );
-                    })()
-                  ) : null}
-                  {desktopLineDetailsOpen ? (
-                    <LineCalcBlock
-                      line={line}
-                      locale={locale}
-                      t={t}
-                      setLines={setLines}
-                      compact={lineCompact}
-                      ultraCompact={lineDense}
-                      className={cn("max-w-xl", lineDense ? "mt-1" : "mt-1.5")}
-                    />
-                  ) : null}
+                  {/* Öneri toplamı + auto-apply; öneri yoksa kendini gizler (kompakt). */}
+                  <LineCalcBlock
+                    line={line}
+                    locale={locale}
+                    t={t}
+                    setLines={setLines}
+                    compact={lineCompact}
+                    ultraCompact={lineDense}
+                    className={cn("max-w-xl", lineDense ? "mt-1" : "mt-1.5")}
+                  />
                 </td>
                   {showQuantityColumn ? (
                     <td

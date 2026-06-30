@@ -19,7 +19,6 @@ export function useOasPreview() {
   const [layoutVariant, setLayoutVariant] = useState<StatementLayoutVariant>("corporate");
   const [contentPreset, setContentPreset] = useState<OrderAccountContentPreset>("custom");
   const [showQuantityColumn, setShowQuantityColumn] = useState(true);
-  const [desktopLineDetailsOpen, setDesktopLineDetailsOpen] = useState(false);
 
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [previewToolsCollapsed, setPreviewToolsCollapsed] = useState(false);
@@ -35,8 +34,6 @@ export function useOasPreview() {
     setContentPreset,
     showQuantityColumn,
     setShowQuantityColumn,
-    desktopLineDetailsOpen,
-    setDesktopLineDetailsOpen,
 
     previewModalOpen,
     setPreviewModalOpen,

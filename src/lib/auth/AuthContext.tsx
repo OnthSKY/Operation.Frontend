@@ -41,7 +41,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const me = await apiRequest<AuthUser>("/auth/me");
         if (!cancelled) setUser(me);
       } catch {
-        if (!cancelled) setUser(null);
+        // /auth/me başarısız — büyük olasılıkla access token (kısa ömürlü) yok.
+        // Login'e DÜŞMEDEN ÖNCE açıkça refresh dene: /auth/refresh yanıtı user'ı
+        // taşır. Böylece "refresh başarılı ama yeni cookie cross-site retry'a
+        // anlık yetişmedi" yarışından bağımsız, deterministik karar veririz.
+        // (refresh token httpOnly olduğu için JS'ten okunamaz; geçerliliğini
+        // ancak refresh çağrısı söyler.)
+        try {
+          const refreshed = await apiRequest<AuthUser | null>("/auth/refresh", {
+            method: "POST",
+          });
+          if (!cancelled) setUser(refreshed ?? null);
+        } catch {
+          if (!cancelled) setUser(null);
+        }
       } finally {
         if (!cancelled) setIsReady(true);
       }

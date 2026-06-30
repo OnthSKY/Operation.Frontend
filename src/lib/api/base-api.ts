@@ -85,12 +85,8 @@ export async function apiFetch(pathOrUrl: string, init?: RequestInit): Promise<R
   }
 }
 
-async function clearSessionOnServer(): Promise<void> {
-  try {
-    await apiFetch("/auth/logout", { method: "POST" });
-  } catch {
-    /* ignore */
-  }
+/** Yalnızca istemci tarafı CSRF cache'ini temizler — sunucuya logout ATMAZ. */
+function clearClientCsrf(): void {
   inMemoryCsrfToken = null;
   if (typeof localStorage !== "undefined") {
     try { localStorage.removeItem(CSRF_STORAGE_KEY); } catch { /* ignore */ }
@@ -269,12 +265,15 @@ function recoverFromUnauthorized(path: string): void {
   if (typeof window === "undefined") return;
   if (unauthorizedRecoveryStarted) return;
   unauthorizedRecoveryStarted = true;
-  void (async () => {
-    await clearSessionOnServer();
-    if (!isPublicAuthPath(window.location.pathname)) {
-      window.location.assign("/login");
-    }
-  })();
+  // Gönülsüz 401: sunucuya logout ATMA. Logout artık tüm refresh-family'yi iptal
+  // ediyor; geçici bir hatada bunu yapmak hâlâ geçerli olabilecek oturumu kalıcı
+  // öldürür ("refresh token var ama login'e atıyor" döngüsü). Sadece istemci CSRF
+  // cache'ini temizle + login'e yönlendir; refresh cookie canlı kalsın ki sonraki
+  // denemede oturum kendini iyileştirebilsin.
+  clearClientCsrf();
+  if (!isPublicAuthPath(window.location.pathname)) {
+    window.location.assign("/login");
+  }
 }
 
 /** Pass via `init.headers` when retrying the same logical mutation with the same key. */

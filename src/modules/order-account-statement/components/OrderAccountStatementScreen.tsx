@@ -140,8 +140,6 @@ export function OrderAccountStatementScreen() {
     contentPreset,
     showQuantityColumn,
     setShowQuantityColumn,
-    desktopLineDetailsOpen,
-    setDesktopLineDetailsOpen,
     previewModalOpen,
     setPreviewModalOpen,
     previewToolsCollapsed,
@@ -453,8 +451,6 @@ export function OrderAccountStatementScreen() {
             setLines={setLines}
             showQuantityColumn={showQuantityColumn}
             setShowQuantityColumn={setShowQuantityColumn}
-            desktopLineDetailsOpen={desktopLineDetailsOpen}
-            setDesktopLineDetailsOpen={setDesktopLineDetailsOpen}
             lineAddBlocked={lineAddBlocked}
             lineCompact={lineCompact}
             lineDense={lineDense}
