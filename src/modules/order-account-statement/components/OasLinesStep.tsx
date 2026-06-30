@@ -108,6 +108,19 @@ export function OasLinesStep(props: Props) {
   const { t } = useI18n();
   // Masaüstü: ürün seçici satır-bazında ihtiyaç halinde açılır (kompakt). Aynı anda tek satır.
   const [openPickerLineId, setOpenPickerLineId] = useState<string | null>(null);
+  // "Fiyatları getir" async — çalışırken buton loading (busy) gösterir.
+  const [fetchingAllPrices, setFetchingAllPrices] = useState(false);
+  // Mobil: HTML5 drag dokunmada çalışmaz → satırı ▲▼ ile bir yukarı/aşağı taşı.
+  const moveLineBy = (lineId: string, dir: -1 | 1) => {
+    setLines((prev) => {
+      const i = prev.findIndex((x) => x.id === lineId);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+  };
 
   return (
     <StatementFormStep
@@ -132,23 +145,49 @@ export function OasLinesStep(props: Props) {
       collapseLabelCollapse={t("reports.orderAccountStatementLinesSectionCollapse")}
     >
       <p className="mb-2 text-[11px] text-zinc-500 lg:hidden">{t("reports.orderAccountStatementTableScrollHint")}</p>
-      <div className="mb-2 flex flex-wrap items-center gap-2">
+      <div className="mb-2 flex flex-wrap items-center gap-1.5">
         <Button
           type="button"
           variant="primary"
-          className="min-h-9 px-3 text-xs"
-          onClick={applyAllSalesSuggestions}
-          title="Tüm ürünlerin satış önerisini getirip fiyatların üzerine yazar"
+          className="!min-h-8 !w-auto gap-1.5 px-2.5 text-[11px]"
+          busy={fetchingAllPrices}
+          onClick={async () => {
+            if (fetchingAllPrices) return;
+            setFetchingAllPrices(true);
+            try {
+              await applyAllSalesSuggestions();
+            } finally {
+              setFetchingAllPrices(false);
+            }
+          }}
+          title={t("reports.orderAccountStatementFetchAllPricesHint")}
         >
-          Tüm fiyatları getir
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden
+            className={cn(fetchingAllPrices && "animate-spin")}
+          >
+            <path d="M21 12a9 9 0 1 1-3-6.7" />
+            <path d="M21 4v5h-5" />
+          </svg>
+          {fetchingAllPrices
+            ? t("reports.loading")
+            : t("reports.orderAccountStatementFetchAllPrices")}
         </Button>
         <Button
           type="button"
           variant="secondary"
-          className="min-h-9 px-3 text-xs"
+          className="!min-h-8 !w-auto gap-1.5 px-2.5 text-[11px]"
           onClick={collapseLinesToParentProduct}
+          title={t("reports.orderAccountStatementParentMergeButton")}
         >
-          {t("reports.orderAccountStatementParentMergeButton")}
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M8 6h13M8 12h13M3 6h.01M3 12h.01M6 18l-3-3 3-3" /></svg>
+          {t("reports.orderAccountStatementParentMergeShort")}
         </Button>
       </div>
       {creationMode === "shipmentBased" && shipmentLinkMode === "strict" ? (
@@ -227,13 +266,36 @@ export function OasLinesStep(props: Props) {
               >
                 {rowIndex + 1}
               </span>
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">surukle</span>
-              {lines.length > 1 ? (
-                <OasTrashButton
-                  label={t("reports.orderAccountStatementRemove")}
-                  onClick={() => setLines((prev) => prev.filter((x) => x.id !== line.id))}
-                />
-              ) : null}
+              <div className="flex items-center gap-1">
+                {lines.length > 1 ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => moveLineBy(line.id, -1)}
+                      disabled={rowIndex === 0}
+                      aria-label={t("reports.orderAccountStatementMoveUp")}
+                      title={t("reports.orderAccountStatementMoveUp")}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 text-zinc-500 transition hover:bg-zinc-50 disabled:opacity-30"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="m18 15-6-6-6 6" /></svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveLineBy(line.id, 1)}
+                      disabled={rowIndex === lines.length - 1}
+                      aria-label={t("reports.orderAccountStatementMoveDown")}
+                      title={t("reports.orderAccountStatementMoveDown")}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-zinc-200 text-zinc-500 transition hover:bg-zinc-50 disabled:opacity-30"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="m6 9 6 6 6-6" /></svg>
+                    </button>
+                    <OasTrashButton
+                      label={t("reports.orderAccountStatementRemove")}
+                      onClick={() => setLines((prev) => prev.filter((x) => x.id !== line.id))}
+                    />
+                  </>
+                ) : null}
+              </div>
             </div>
             <label
               className={cn(
@@ -246,7 +308,10 @@ export function OasLinesStep(props: Props) {
               <div className="mt-1 flex items-center gap-1.5">
                 <input
                   className={cn(
-                    "min-w-0 flex-1 rounded-md border border-zinc-200 bg-white",
+                    "min-w-0 flex-1 rounded-md border bg-white transition-colors",
+                    openPickerLineId === line.id
+                      ? "border-violet-200 bg-zinc-100 text-zinc-400"
+                      : "border-zinc-200",
                     lineDense
                       ? "px-1.5 py-1 text-[11px]"
                       : lineCompact
@@ -323,6 +388,26 @@ export function OasLinesStep(props: Props) {
                 ) : null}
               </div>
             </label>
+            {canPickProducts && openPickerLineId === line.id ? (
+              <OrderAccountLineProductPicker
+                key={line.id}
+                lineId={line.id}
+                selectedProductId={line.selectedProductId}
+                description={line.description}
+                parentProductName={line.parentProductName}
+                onSelectProduct={(p) => {
+                  applyProductListItemToLine(line.id, p);
+                  setOpenPickerLineId(null);
+                }}
+                latestCostByProductId={latestCostByProductId}
+                locale={locale}
+                t={t}
+                emptyResultsText={t("products.catalogSearchNoResults")}
+                loadingListText={t("common.loading")}
+                enabled={canPickProducts}
+                className={cn("mt-1.5")}
+              />
+            ) : null}
             {showQuantityColumn ? (
               <>
               <div className="mt-1.5 grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -430,39 +515,6 @@ export function OasLinesStep(props: Props) {
                 </p>
               ) : null}
               </>
-            ) : null}
-            {canPickProducts && openPickerLineId === line.id ? (
-              <OrderAccountLineProductPicker
-                key={line.id}
-                lineId={line.id}
-                selectedProductId={line.selectedProductId}
-                description={line.description}
-                parentProductName={line.parentProductName}
-                onSelectProduct={(p) => {
-                  applyProductListItemToLine(line.id, p);
-                  setOpenPickerLineId(null);
-                }}
-                latestCostByProductId={latestCostByProductId}
-                locale={locale}
-                t={t}
-                emptyResultsText={t("products.catalogSearchNoResults")}
-                loadingListText={t("common.loading")}
-                enabled={canPickProducts}
-                className={cn(lineDense ? "mt-1" : lineCompact ? "mt-1.5" : "mt-2")}
-              />
-            ) : null}
-            {line.selectedProductId ? (
-              <Button
-                type="button"
-                variant="secondary"
-                className={cn(
-                  "mt-1.5 w-full gap-1.5 text-xs font-medium sm:w-auto",
-                  lineDense ? "min-h-8" : "min-h-9"
-                )}
-                onClick={() => openProductPricingPanel(line)}
-              >
-                Maliyet, satış önerisi ve geçmiş
-              </Button>
             ) : null}
             <LineCalcBlock
               line={line}
@@ -711,6 +763,9 @@ export function OasLinesStep(props: Props) {
                         lineDense ? "px-1 py-0.5" : lineCompact ? "px-1.5 py-1" : "px-2 py-1.5"
                       )}
                       data-line-desc-id={line.id}
+                      data-line-id={line.id}
+                      data-line-field="description"
+                      onKeyDown={(e) => handleMobileLineEnter(e, line.id, "description")}
                       value={line.description}
                       onChange={(e) => {
                         const v = e.target.value;
@@ -895,6 +950,9 @@ export function OasLinesStep(props: Props) {
                 >
                   <input
                     inputMode="decimal"
+                    data-line-id={line.id}
+                    data-line-field="amount"
+                    onKeyDown={(e) => handleMobileLineEnter(e, line.id, "amount")}
                     className={cn(
                       "w-full rounded-md border border-zinc-200 text-right tabular-nums",
                       lineDense

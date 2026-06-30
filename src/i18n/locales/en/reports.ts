@@ -751,15 +751,18 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   orderAccountStatementUnitPlaceholder: "kg / case / pcs",
   orderAccountStatementShowQtyColumn: "Show qty, unit, and unit price in PDF",
   orderAccountStatementShowQtyColumnHelp:
-    "When enabled, each line can include qty, unit, and unit price; they are shown as separate columns in PDF. If qty and unit price are entered, an automatic amount suggestion is calculated.",
+    "Qty × unit price → amount auto-suggested.",
   orderAccountStatementAmount: "Amount",
   orderAccountStatementAddLine: "Add line",
   orderAccountStatementRemove: "Remove",
+  orderAccountStatementMoveUp: "Move up",
+  orderAccountStatementMoveDown: "Move down",
   orderAccountStatementGift: "Gift",
   orderAccountStatementGiftSuffix: "Gift",
   orderAccountStatementPickProduct: "Fill description from product catalog",
   orderAccountStatementBindProduct: "Bind product from catalog",
   orderAccountStatementChangeProduct: "Change bound product",
+  orderAccountStatementPricingButton: "Cost, sale suggestion & history",
   orderAccountStatementCatalogNone: "â€” pick a product â€”",
   orderAccountStatementSuggestedCostShort: "Entered cost",
   orderAccountStatementCostIncVatShort: "Incl. VAT",
@@ -822,7 +825,7 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   orderAccountStatementColRow: "#",
   orderAccountStatementColActions: "Action",
   orderAccountStatementTableScrollHint:
-    "On small screens each row is a card; from tablet width up, rows appear in a table.",
+    "Phone: cards · tablet+: table.",
   orderAccountStatementQty: "Qty",
   orderAccountStatementUnitPrice: "Unit price (â‚º)",
   orderAccountStatementSuggestedTotal: "Suggested total",
@@ -921,7 +924,11 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   counterpartySummaryEmpty: "No records for these filters.",
   orderAccountStatementSystemBranchLabel: "System branch mapping",
   orderAccountStatementSystemBranchHelp:
-    "Choose which branch will own this document in the system.",
+    "Document is saved under this branch; auto-fills the \"Branch\" field.",
+  orderAccountStatementOpenBalanceTitle: "Opening balance (carryover)",
+  orderAccountStatementOpenBalanceHint: "Added to total, shown separately in PDF",
+  orderAccountStatementPriceApplied: "Unit price applied.",
+  orderAccountStatementAutoTitleShipment: "{branch} · {date} · Shipment #{no}",
   orderAccountStatementSystemBranchBalanceUse: "Use branch open balance",
   orderAccountStatementSystemBranchBalanceSelectFirst:
     "Select the system branch first.",
@@ -1009,7 +1016,7 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   orderAccountStatementShipmentAlreadyInvoicedHint:
     "No invoiceable remainder is visible for this shipment; it may already be fully invoiced.",
   orderAccountStatementStrictModeManualBlocked:
-    "Manual line add is disabled in strict mode. Switch link policy to Partial for flexible input.",
+    "Manual lines disabled in strict mode — set policy to Partial for flexible input.",
   orderAccountStatementMetadataLinkHint:
     "Order, invoice and PDF relation is saved as metadata; search by orderKey in Documents.",
   orderAccountStatementGoToRelatedInvoice: "Go to related invoice",
@@ -1031,6 +1038,9 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
     "Enter at least one invoice amount for manual allocation.",
   orderAccountStatementReceiptSaved: "Receipt was posted.",
   orderAccountStatementParentMergeButton: "Merge sub-products into parent line",
+  orderAccountStatementParentMergeShort: "Merge into parent",
+  orderAccountStatementFetchAllPrices: "Fetch prices",
+  orderAccountStatementFetchAllPricesHint: "Fetches sale suggestions for all products and overwrites prices",
   orderAccountStatementParentMergeApplied: "Sub-product lines were merged into parent product.",
   orderAccountStatementParentMergeNoop:
     "No mergeable sub-product line found. Continue by selecting products.",

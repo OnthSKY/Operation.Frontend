@@ -36,6 +36,8 @@ export function OasMobileActionBar({
     <div
       className={cn(
         "fixed inset-x-0 bottom-0 border-t border-zinc-200/90 bg-white/95 px-3 py-2.5 backdrop-blur supports-[backdrop-filter]:bg-white/80 sm:px-4 sm:py-3",
+        // Masaüstü: full-width çubuk yerine sağ-altta yüzen kompakt buton — sidebar'ı ezmez.
+        "lg:inset-x-auto lg:bottom-5 lg:right-6 lg:w-auto lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none lg:supports-[backdrop-filter]:bg-transparent",
         OVERLAY_Z_TW.branchDetailSheet
       )}
     >
@@ -70,7 +72,7 @@ export function OasMobileActionBar({
         <Button
           type="button"
           variant="primary"
-          className="w-full justify-center gap-2 py-3 text-sm font-semibold sm:w-full sm:text-base lg:w-auto lg:min-w-[clamp(14rem,40vw,20rem)] lg:px-8"
+          className="w-full justify-center gap-2 py-3 text-sm font-semibold sm:w-full sm:text-base lg:w-auto lg:min-w-0 lg:gap-2 lg:rounded-full lg:px-6 lg:py-3 lg:text-sm lg:shadow-xl lg:shadow-zinc-900/25 lg:ring-1 lg:ring-white/10"
           title={t("reports.orderAccountStatementOpenFullscreenPreview")}
           aria-label={t("reports.orderAccountStatementOpenFullscreenPreview")}
           onClick={onOpenPreview}

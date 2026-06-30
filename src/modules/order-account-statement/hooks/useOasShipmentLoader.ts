@@ -4,6 +4,7 @@ import { useCallback } from "react";
 import { notify } from "@/shared/lib/notify";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatLocaleAmountInput } from "@/shared/lib/locale-amount";
+import { formatLocaleDate } from "@/shared/lib/locale-date";
 import {
   emptyLine,
   newId,
@@ -115,6 +116,22 @@ export function useOasShipmentLoader(params: Params) {
       shipment.setManualShipmentMovementIdText(String(firstMovementId));
       identity.setBranchName(first.branchName?.trim() || option.branchName || "");
       identity.setLinkedBranchId(String(first.branchId));
+      // Belge başlığı: şube + tarih + sevkiyat no'dan kurumsal kısa öneri.
+      // Yalnız boş ya da varsayılan başlıkta — kullanıcı manuel yazdıysa dokunma.
+      {
+        const curTitle = (identity.documentTitle ?? "").trim();
+        const defTitle = t("reports.orderAccountStatementDefaultDocumentTitle");
+        if (!curTitle || curTitle === defTitle) {
+          const branch = (first.branchName?.trim() || option.branchName || "").trim();
+          const dateStr = formatLocaleDate(first.businessDate, locale, "");
+          identity.setDocumentTitle(
+            t("reports.orderAccountStatementAutoTitleShipment")
+              .replace("{branch}", branch || "—")
+              .replace("{date}", dateStr)
+              .replace("{no}", String(firstMovementId))
+          );
+        }
+      }
       preview.setShowQuantityColumn(true);
       invoicing.setSaveAsInvoice(true);
       invoicing.setSaveToSystem(true);
@@ -158,7 +175,7 @@ export function useOasShipmentLoader(params: Params) {
       );
       shipment.setShipmentInvoiceability(invoiceabilityGroups.flat());
     },
-    [catalog, identity, invoicing, linesState, locale, preview, shipment, shipmentPrefillDraftMode]
+    [catalog, identity, invoicing, linesState, locale, preview, shipment, shipmentPrefillDraftMode, t]
   );
 
   const onLoadManualShipment = useCallback(async () => {

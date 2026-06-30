@@ -49,9 +49,13 @@ export function useOasFlowDerived(p: Params) {
   const focusLineField = useCallback(
     (lineId: string, field: "description" | "amount") => {
       window.setTimeout(() => {
-        const el = document.querySelector<HTMLInputElement>(
+        // Mobil kart ve masaüstü tablo aynı attr'ları taşır; o an GÖRÜNÜR olanı seç
+        // (gizli olanın offsetParent'ı null). Böylece akış her iki düzende çalışır.
+        const candidates = document.querySelectorAll<HTMLInputElement>(
           `[data-line-id="${lineId}"][data-line-field="${field}"]`
         );
+        const el =
+          Array.from(candidates).find((x) => x.offsetParent !== null) ?? candidates[0];
         if (!el) return;
         el.focus();
         try {

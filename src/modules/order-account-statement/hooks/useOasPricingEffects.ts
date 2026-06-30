@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, type MutableRefObject } from "react";
+import { useI18n } from "@/i18n/context";
 import { notify } from "@/shared/lib/notify";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatLocaleAmountInput } from "@/shared/lib/locale-amount";
@@ -39,6 +40,7 @@ type Params = {
 };
 
 export function useOasPricingEffects(p: Params) {
+  const { t } = useI18n();
   const {
     setLinePriceSuggestionByLineId,
     productPricingOpen,
@@ -129,8 +131,9 @@ export function useOasPricingEffects(p: Params) {
       p.setLines((prev) =>
         prev.map((line) => (line.id === lineId ? { ...line, unitPriceText: normalized } : line))
       );
+      notify.success(t("reports.orderAccountStatementPriceApplied"));
     },
-    [p.locale, p.setLines]
+    [p.locale, p.setLines, t]
   );
 
   /** Üstteki "Tüm fiyatları getir": ürünü olan tüm satırlar için tek batch

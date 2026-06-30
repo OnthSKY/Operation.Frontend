@@ -736,15 +736,18 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   orderAccountStatementUnitPlaceholder: "kg / koli / adet",
   orderAccountStatementShowQtyColumn: "PDF'te adet, birim ve birim fiyatı göster",
   orderAccountStatementShowQtyColumnHelp:
-    "Açıkken her satıra adet, birim ve birim fiyatı girebilirsiniz; PDF'te ayrı sütunlarda görünür. Adet ve birim fiyat birlikte girilirse otomatik tutar önerisi hesaplanır.",
+    "Adet × birim fiyat → tutar otomatik önerilir.",
   orderAccountStatementAmount: "Tutar",
   orderAccountStatementAddLine: "Satır ekle",
   orderAccountStatementRemove: "Sil",
+  orderAccountStatementMoveUp: "Yukarı taşı",
+  orderAccountStatementMoveDown: "Aşağı taşı",
   orderAccountStatementGift: "Hediye",
   orderAccountStatementGiftSuffix: "Hediye",
   orderAccountStatementPickProduct: "Ürün kataloğundan açıklama doldur",
   orderAccountStatementBindProduct: "Katalogdan ürün bağla",
   orderAccountStatementChangeProduct: "Bağlı ürünü değiştir",
+  orderAccountStatementPricingButton: "Maliyet, satış önerisi ve geçmiş",
   orderAccountStatementCatalogNone: "— seçin —",
   orderAccountStatementSuggestedCostShort: "Girilmiş maliyet",
   orderAccountStatementCostIncVatShort: "KDV dahil",
@@ -807,7 +810,7 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   orderAccountStatementColRow: "Sıra",
   orderAccountStatementColActions: "İşlem",
   orderAccountStatementTableScrollHint:
-    "Telefonda her satır kart olarak listelenir; tablet ve üzeri genişlikte satırlar tabloya eklenir.",
+    "Telefonda kart, tablet+ tablo görünümü.",
   orderAccountStatementQty: "Adet",
   orderAccountStatementUnitPrice: "Birim tutar (₺)",
   orderAccountStatementSuggestedTotal: "Önerilen tutar",
@@ -906,7 +909,11 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   counterpartySummaryEmpty: "Bu filtrelerle kayıt bulunamadı.",
   orderAccountStatementSystemBranchLabel: "Sistem eşleşme şubesi",
   orderAccountStatementSystemBranchHelp:
-    "Belgenin hangi şube altında görüneceğini seçin. Seçili şubenin belge listesine kaydedilir.",
+    "Belge bu şube altına kaydedilir; \"Şube\" alanını otomatik doldurur.",
+  orderAccountStatementOpenBalanceTitle: "Açık bakiye (devreden)",
+  orderAccountStatementOpenBalanceHint: "Toplama eklenir, PDF'te ayrı gösterilir",
+  orderAccountStatementPriceApplied: "Birim fiyat uygulandı.",
+  orderAccountStatementAutoTitleShipment: "{branch} · {date} · Sevk #{no}",
   orderAccountStatementSystemBranchBalanceUse: "Şube bakiyesini getir",
   orderAccountStatementSystemBranchBalanceSelectFirst:
     "Önce sistem eşleşme şubesini seçin.",
@@ -994,7 +1001,7 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   orderAccountStatementShipmentAlreadyInvoicedHint:
     "Bu sevkiyatın faturalanabilir kalan miktarı görünmüyor; daha önce tamamen faturalanmış olabilir.",
   orderAccountStatementStrictModeManualBlocked:
-    "Strict modda manuel satır ekleme kapalıdır. Esnek giriş için bağlantı politikasını Partial yapın.",
+    "Strict modda manuel satır eklenemez — esnek giriş için politikayı Partial yapın.",
   orderAccountStatementMetadataLinkHint:
     "Sipariş, fatura ve PDF ilişkisi metadata ile saklanır; Belgeler ekranında orderKey ile aranabilir.",
   orderAccountStatementGoToRelatedInvoice: "İlgili faturaya git",
@@ -1016,6 +1023,9 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
     "Tahsilat dağıtımı için en az bir fatura tutarı girilmeli.",
   orderAccountStatementReceiptSaved: "Tahsilat kaydı işlendi.",
   orderAccountStatementParentMergeButton: "Alt ürünleri ana üründe birleştir",
+  orderAccountStatementParentMergeShort: "Ana üründe birleştir",
+  orderAccountStatementFetchAllPrices: "Fiyatları getir",
+  orderAccountStatementFetchAllPricesHint: "Tüm ürünlerin satış önerisini getirip fiyatların üzerine yazar",
   orderAccountStatementParentMergeApplied: "Alt ürün satırları ana ürüne göre birleştirildi.",
   orderAccountStatementParentMergeNoop:
     "Birleştirilecek alt ürün satırı bulunamadı. Ürün seçimi ile devam edebilirsiniz.",

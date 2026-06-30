@@ -17,7 +17,6 @@ import { OrderAccountStatementActionsSection } from "@/modules/order-account-sta
 import { OrderAccountStatementDocumentContentSection } from "@/modules/order-account-statement/components/OrderAccountStatementDocumentContentSection";
 import type { CounterpartySuggestionRow } from "@/modules/order-account-statement/api/outbound-invoices-api";
 import type { ShipmentOption } from "@/modules/order-account-statement/hooks/useOasShipmentSelection";
-import { OasTemplatePickers } from "@/modules/order-account-statement/components/oas-template-pickers";
 import {
   IcDownload,
   IcEraser,
@@ -93,12 +92,6 @@ export function OasHeadStep(props: Props) {
     shipmentInvoiceability,
     onLoadManualShipment,
     locale,
-    layoutVariant,
-    setLayoutVariant,
-    contentPreset,
-    applyContentPreset,
-    layoutSelectOptions,
-    contentSelectOptions,
     saveToSystem,
     setSaveToSystem,
     setPreviousBalanceText,
@@ -223,33 +216,36 @@ export function OasHeadStep(props: Props) {
             ) : null}
             {selectedShipmentSource ? (
               <>
-                <p className="font-semibold text-violet-900">
-                  {t("reports.orderAccountStatementShipmentSourceSelected")
-                    .replace("{warehouseId}", String(selectedShipmentSource.warehouseId))
-                    .replace("{movementId}", String(selectedShipmentSource.primaryMovementId))}
-                </p>
-                <p className="mt-0.5">
-                  {shipmentInvoiceabilityBusy
-                    ? t("reports.loading")
-                    : shipmentInvoiceability.length > 0
-                      ? t("reports.orderAccountStatementShipmentInvoiceabilityHint").replace(
-                          "{remaining}",
-                          formatLocaleAmount(
-                            shipmentInvoiceability.reduce((sum, x) => sum + Math.max(0, Number(x.remainingQuantity) || 0), 0),
-                            locale,
-                            "TRY"
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px]">
+                  <span className="font-semibold text-violet-900">
+                    {t("reports.orderAccountStatementShipmentSourceSelected")
+                      .replace("{warehouseId}", String(selectedShipmentSource.warehouseId))
+                      .replace("{movementId}", String(selectedShipmentSource.primaryMovementId))}
+                  </span>
+                  <span className="text-violet-400">·</span>
+                  <span>
+                    {shipmentInvoiceabilityBusy
+                      ? t("reports.loading")
+                      : shipmentInvoiceability.length > 0
+                        ? t("reports.orderAccountStatementShipmentInvoiceabilityHint").replace(
+                            "{remaining}",
+                            formatLocaleAmount(
+                              shipmentInvoiceability.reduce((sum, x) => sum + Math.max(0, Number(x.remainingQuantity) || 0), 0),
+                              locale,
+                              "TRY"
+                            )
                           )
-                        )
-                      : t("reports.orderAccountStatementShipmentNoInvoiceability")}
-                </p>
-                <p className="mt-0.5">
-                  {t("reports.orderAccountStatementShipmentProductKindLabel")}:{" "}
-                  {selectedShipmentProductKind === "child"
-                    ? t("reports.orderAccountStatementShipmentProductKindChild")
-                    : selectedShipmentProductKind === "parent"
-                      ? t("reports.orderAccountStatementShipmentProductKindParent")
-                      : t("reports.orderAccountStatementShipmentProductKindUnknown")}
-                </p>
+                        : t("reports.orderAccountStatementShipmentNoInvoiceability")}
+                  </span>
+                  <span className="text-violet-400">·</span>
+                  <span>
+                    {selectedShipmentProductKind === "child"
+                      ? t("reports.orderAccountStatementShipmentProductKindChild")
+                      : selectedShipmentProductKind === "parent"
+                        ? t("reports.orderAccountStatementShipmentProductKindParent")
+                        : t("reports.orderAccountStatementShipmentProductKindUnknown")}
+                  </span>
+                </div>
                 {shipmentInvoiceability.length > 0 &&
                 shipmentInvoiceability.reduce((sum, x) => sum + Math.max(0, Number(x.remainingQuantity) || 0), 0) <= 0 ? (
                   <p className="mt-1 text-amber-900">
@@ -449,17 +445,6 @@ export function OasHeadStep(props: Props) {
           </span>
         </span>
       </label>
-      <div className="mt-4">
-        <OasTemplatePickers
-          layoutVariant={layoutVariant}
-          onLayoutChange={setLayoutVariant}
-          contentPreset={contentPreset}
-          onContentPresetChange={applyContentPreset}
-          layoutOptions={layoutSelectOptions}
-          contentOptions={contentSelectOptions}
-          nameSuffix="form"
-        />
-      </div>
     </StatementFormStep>
 
   );
