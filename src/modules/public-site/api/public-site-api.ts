@@ -52,6 +52,16 @@ export type UpsertBranchPublicProfile = {
 
 export type HomeFeature = { title: string; text: string };
 
+/** Dijital menü (/menu) self servis akışı. */
+export type MenuSelfService = { title: string | null; steps: string[] };
+
+/** Dijital menü (/menu) ayarları — vitrinden yönetilir. Tümü opsiyonel. */
+export type MenuSettings = {
+  notice: string | null;
+  footerNote: string | null;
+  selfService: MenuSelfService | null;
+};
+
 export type SiteContentAdmin = {
   brandName: string;
   brandTagline: string | null;
@@ -63,6 +73,7 @@ export type SiteContentAdmin = {
   contactPhone: string | null;
   footerNote: string | null;
   homeFeatures: HomeFeature[];
+  menu: MenuSettings | null;
 };
 
 // ---------------- Şube profilleri ----------------

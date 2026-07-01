@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Plus, X } from "lucide-react";
 import { Card } from "@/shared/components/Card";
 import { notify } from "@/shared/lib/notify";
 import { toErrorMessage } from "@/shared/lib/error-message";
@@ -21,6 +22,7 @@ const EMPTY: SiteContentAdmin = {
   contactPhone: "",
   footerNote: "",
   homeFeatures: [],
+  menu: { notice: "", footerNote: "", selfService: { title: "", steps: [] } },
 };
 
 // Ana sayfadaki kartların ikonları tasarım gereği slota sabit — panelde yalnız metin düzenlenir.
@@ -65,6 +67,14 @@ export function PublicSiteContentScreen() {
         contactPhone: data.contactPhone ?? "",
         footerNote: data.footerNote ?? "",
         homeFeatures: data.homeFeatures ?? [],
+        menu: {
+          notice: data.menu?.notice ?? "",
+          footerNote: data.menu?.footerNote ?? "",
+          selfService: {
+            title: data.menu?.selfService?.title ?? "",
+            steps: data.menu?.selfService?.steps ?? [],
+          },
+        },
       });
     }
   }, [data]);
@@ -78,8 +88,31 @@ export function PublicSiteContentScreen() {
       homeFeatures: f.homeFeatures.map((feat, i) => (i === index ? { ...feat, ...patch } : feat)),
     }));
 
+  // Menü alt-durumu — daima somut nesne (null gelmez); kaydederken boşlar null'a çevrilir.
+  const menu = form.menu ?? { notice: "", footerNote: "", selfService: { title: "", steps: [] } };
+  const self = menu.selfService ?? { title: "", steps: [] };
+  const setMenu = (patch: Partial<NonNullable<SiteContentAdmin["menu"]>>) =>
+    set("menu", { ...menu, ...patch });
+  const setSelf = (patch: Partial<{ title: string | null; steps: string[] }>) =>
+    setMenu({ selfService: { ...self, ...patch } });
+  const setStep = (i: number, value: string) =>
+    setSelf({ steps: self.steps.map((s, idx) => (idx === i ? value : s)) });
+  const addStep = () => setSelf({ steps: [...self.steps, ""] });
+  const removeStep = (i: number) => setSelf({ steps: self.steps.filter((_, idx) => idx !== i) });
+
   const onSave = async () => {
     try {
+      // Menü: boş adım/başlıkları temizle, tüm alanlar boşsa null gönder (menüde gizlenir).
+      const steps = self.steps.map((s) => s.trim()).filter(Boolean);
+      const noticeOut = menu.notice?.trim() || null;
+      const menuFooterOut = menu.footerNote?.trim() || null;
+      const titleOut = self.title?.trim() || null;
+      const selfOut = titleOut || steps.length > 0 ? { title: titleOut, steps } : null;
+      const menuOut =
+        noticeOut || menuFooterOut || selfOut
+          ? { notice: noticeOut, footerNote: menuFooterOut, selfService: selfOut }
+          : null;
+
       await save.mutateAsync({
         ...form,
         brandTagline: form.brandTagline || null,
@@ -91,6 +124,7 @@ export function PublicSiteContentScreen() {
         contactPhone: form.contactPhone || null,
         footerNote: form.footerNote || null,
         homeFeatures: form.homeFeatures,
+        menu: menuOut,
       });
       notify.success("Site içeriği kaydedildi.");
     } catch (e) {
@@ -143,6 +177,66 @@ export function PublicSiteContentScreen() {
 
       <Card title="Footer" description="Sitenin altındaki marka açıklaması.">
         <TextArea label="Footer metni" value={form.footerNote ?? ""} onChange={(v) => set("footerNote", v)} />
+      </Card>
+
+      <Card
+        title="Dijital Menü (QR)"
+        description="QR ile açılan /menu sayfası. Boş bırakılan alanlar menüde gizlenir."
+      >
+        <div className="grid gap-4">
+          <Input
+            label="Üst bilgi şeridi"
+            value={menu.notice ?? ""}
+            onChange={(e) => setMenu({ notice: e.target.value })}
+            placeholder="ör. Self servis — reyondan seçip kasada ödeyiniz."
+          />
+
+          <div className="rounded-xl border border-zinc-200 bg-zinc-50/60 p-3">
+            <p className="mb-2 text-xs font-semibold text-zinc-500">Self servis akışı</p>
+            <div className="grid gap-3">
+              <Input
+                label="Başlık"
+                value={self.title ?? ""}
+                onChange={(e) => setSelf({ title: e.target.value })}
+                placeholder="ör. Self Servis · Nasıl Çalışır?"
+              />
+              <div className="flex flex-col gap-2">
+                <span className="text-sm font-medium text-zinc-700">Adımlar</span>
+                {self.steps.map((step, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-200 text-xs font-semibold text-zinc-600">
+                      {i + 1}
+                    </span>
+                    <Input
+                      value={step}
+                      onChange={(e) => setStep(i, e.target.value)}
+                      placeholder={`Adım ${i + 1}`}
+                      className="flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeStep(i)}
+                      aria-label="Adımı sil"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-300 text-zinc-500 transition hover:bg-zinc-100 hover:text-red-600"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                ))}
+                <Button variant="secondary" onClick={addStep} className="w-fit gap-1.5">
+                  <Plus size={15} /> Adım ekle
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <Input
+            label="Alt not"
+            value={menu.footerNote ?? ""}
+            onChange={(e) => setMenu({ footerNote: e.target.value })}
+            placeholder="ör. Çeşitler mevsime göre değişebilir."
+          />
+        </div>
       </Card>
 
       <Card title="İletişim">
