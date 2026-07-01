@@ -926,11 +926,11 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   orderAccountStatementSystemBranchHelp:
     "Document is saved under this branch; auto-fills the \"Branch\" field.",
   orderAccountStatementSystemBranchFillsTitle: "Fills the branch field in the document header",
-  orderAccountStatementOpenBalanceTitle: "Opening balance (carryover)",
-  orderAccountStatementOpenBalanceHint: "Added to total, shown separately in PDF",
+  orderAccountStatementOpenBalanceTitle: "Branch debt (carryover)",
+  orderAccountStatementOpenBalanceHint: "Current-account debt; added to total, separate PDF line — creates no new debt record",
   orderAccountStatementPriceApplied: "Unit price applied.",
   orderAccountStatementAutoTitleShipment: "{branch} · {date} · Shipment #{no}",
-  orderAccountStatementSystemBranchBalanceUse: "Use branch open balance",
+  orderAccountStatementSystemBranchBalanceUse: "Get branch debt",
   orderAccountStatementSystemBranchBalanceSelectFirst:
     "Select the system branch first.",
   orderAccountStatementSystemBranchBalanceMissing:

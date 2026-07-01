@@ -911,11 +911,11 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   orderAccountStatementSystemBranchHelp:
     "Belge bu şube altına kaydedilir; \"Şube\" alanını otomatik doldurur.",
   orderAccountStatementSystemBranchFillsTitle: "Belge başlığındaki şube alanını doldurur",
-  orderAccountStatementOpenBalanceTitle: "Açık bakiye (devreden)",
-  orderAccountStatementOpenBalanceHint: "Toplama eklenir, PDF'te ayrı gösterilir",
+  orderAccountStatementOpenBalanceTitle: "Şube borcu (devreden cari)",
+  orderAccountStatementOpenBalanceHint: "Cari borç; toplama eklenir, PDF'te ayrı satır — yeni borç kaydı yaratmaz",
   orderAccountStatementPriceApplied: "Birim fiyat uygulandı.",
   orderAccountStatementAutoTitleShipment: "{branch} · {date} · Sevk #{no}",
-  orderAccountStatementSystemBranchBalanceUse: "Şube bakiyesini getir",
+  orderAccountStatementSystemBranchBalanceUse: "Şube borcunu getir",
   orderAccountStatementSystemBranchBalanceSelectFirst:
     "Önce sistem eşleşme şubesini seçin.",
   orderAccountStatementSystemBranchBalanceMissing:
