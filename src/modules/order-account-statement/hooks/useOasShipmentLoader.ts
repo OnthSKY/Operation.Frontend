@@ -69,6 +69,19 @@ export function useOasShipmentLoader(params: Params) {
       shipment.setManualShipmentMovementIdText(String(movementId));
       identity.setBranchName(sh.branchName?.trim() || "");
       identity.setLinkedBranchId(String(sh.branchId));
+      // Belge başlığı: şube + tarih + sevkiyat no'dan kurumsal kısa öneri (manuel yazılmadıysa).
+      {
+        const curTitle = (identity.documentTitle ?? "").trim();
+        const defTitle = t("reports.orderAccountStatementDefaultDocumentTitle");
+        if (!curTitle || curTitle === defTitle) {
+          identity.setDocumentTitle(
+            t("reports.orderAccountStatementAutoTitleShipment")
+              .replace("{branch}", sh.branchName?.trim() || "—")
+              .replace("{date}", formatLocaleDate(sh.businessDate, locale, ""))
+              .replace("{no}", String(movementId))
+          );
+        }
+      }
       preview.setShowQuantityColumn(true);
       invoicing.setSaveAsInvoice(true);
       invoicing.setSaveToSystem(true);
@@ -103,7 +116,7 @@ export function useOasShipmentLoader(params: Params) {
       const rows = await fetchShipmentInvoiceability(movementId);
       shipment.setShipmentInvoiceability(rows);
     },
-    [catalog, identity, invoicing, linesState, locale, preview, shipment, shipmentPrefillDraftMode]
+    [catalog, identity, invoicing, linesState, locale, preview, shipment, shipmentPrefillDraftMode, t]
   );
 
   const loadShipmentGroupIntoForm = useCallback(
