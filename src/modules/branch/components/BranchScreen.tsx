@@ -38,7 +38,7 @@ import { TablePagination } from "@/shared/ui/TablePagination";
 import { useBranchDetailOverlay } from "@/shared/branch-detail";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { MouseEvent } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { PlusIcon } from "@/shared/ui/EyeIcon";
 import { Tooltip } from "@/shared/ui/Tooltip";
@@ -574,6 +574,19 @@ export function BranchScreen() {
     const id = Number.parseInt(raw, 10);
     return Number.isFinite(id) && id > 0;
   }, [searchParams]);
+
+  // Bildirim "Gün sonu al" hızlı işlemi: /branches?openBranch=ID&quick=dayClose
+  // ile gelince ilgili şubenin gün-sonu giriş modalını doğrudan aç (bir kez).
+  const quickDayCloseHandledRef = useRef(false);
+  useEffect(() => {
+    if (quickDayCloseHandledRef.current) return;
+    const raw = searchParams.get("openBranch");
+    if (searchParams.get("quick") !== "dayClose" || !raw) return;
+    const id = Number.parseInt(raw, 10);
+    if (!Number.isFinite(id) || id <= 0) return;
+    quickDayCloseHandledRef.current = true;
+    openBranchQuickDayClose(id);
+  }, [searchParams, openBranchQuickDayClose]);
 
   const confirmBranchSoftDelete = useCallback(async () => {
     const target = branchPendingDelete;

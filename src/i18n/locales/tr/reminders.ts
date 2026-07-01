@@ -4,6 +4,7 @@ export const reminders = {
   sectionDayClose: "Gün sonu — önceki gün",
   sectionZReport: "Z raporu muhasebe — geçmiş aylar",
   dayCloseHint: "Kasa hareketi var ama «gün sonu» gelir satırı yok.",
+  dayCloseAction: "Gün sonu al",
   zReportHint: "Geçmiş ayların Z raporlarını muhasebeye gönderdiğinizde işaretleyin (içinde bulunulan ay gösterilmez).",
   zReportActiveSeason: "Aktif turizm sezonu",
   zReportSeasonStillOpen: "hâlâ açık",

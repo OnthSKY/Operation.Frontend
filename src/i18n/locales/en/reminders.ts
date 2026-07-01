@@ -4,6 +4,7 @@ export const reminders = {
   sectionDayClose: "Day close — previous day",
   sectionZReport: "Z reports to accounting — past months",
   dayCloseHint: "There was register activity but no «day close» income line.",
+  dayCloseAction: "Take day-close",
   zReportHint: "Confirm when Z reports for past months were sent to accounting (the current calendar month is not listed).",
   zReportActiveSeason: "Active tourism season",
   zReportSeasonStillOpen: "still open",

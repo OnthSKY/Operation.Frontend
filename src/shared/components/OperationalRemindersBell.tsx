@@ -226,12 +226,22 @@ export function OperationalRemindersBell() {
                       {data.missingDayClose.map((r) => (
                         <li
                           key={`dc-${r.branchId}-${r.date}`}
-                          className="rounded-lg bg-amber-50/90 px-2.5 py-2 text-sm text-amber-950 ring-1 ring-amber-200/80"
+                          className="flex flex-col gap-2 rounded-lg bg-amber-50/90 px-2.5 py-2 text-sm text-amber-950 ring-1 ring-amber-200/80 sm:flex-row sm:items-center sm:justify-between"
                         >
-                          <span className="break-words font-semibold">{r.branchName}</span>
-                          <span className="mt-0.5 block text-xs text-amber-900/80">
-                            {formatDay(r.date, loc)}
-                          </span>
+                          <div className="min-w-0">
+                            <span className="break-words font-semibold">{r.branchName}</span>
+                            <span className="mt-0.5 block text-xs text-amber-900/80">
+                              {formatDay(r.date, loc)}
+                            </span>
+                          </div>
+                          <Link
+                            href={`/branches?openBranch=${r.branchId}&quick=dayClose`}
+                            onClick={() => setOpen(false)}
+                            className="inline-flex shrink-0 items-center justify-center gap-1 self-start rounded-md bg-amber-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-700 active:bg-amber-800 sm:self-auto"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                            {t("reminders.dayCloseAction")}
+                          </Link>
                         </li>
                       ))}
                     </ul>
