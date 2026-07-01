@@ -166,17 +166,22 @@ export function OasHeadStep(props: Props) {
           </p>
         ) : null}
       </div>
-      <div className="mb-2 rounded-xl border border-zinc-200 bg-zinc-50/70 p-2.5">
-        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-700">
-          {t("reports.orderAccountStatementModeCardTitle")}
-        </p>
-        {!selectedShipmentSource ? (
-          <span className="inline-flex rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-medium text-zinc-600">
-            {t("reports.orderAccountStatementSelectFirstBadge")}
-          </span>
-        ) : null}
-        </div>
+      <details className="mb-2 rounded-xl border border-zinc-200 bg-zinc-50/70">
+        <summary className="flex cursor-pointer list-none items-center gap-2 px-2.5 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-700 marker:hidden">
+          <span>▸ {t("reports.orderAccountStatementModeCardTitle")}</span>
+          {selectedShipmentSource ? (
+            <span className="ml-auto text-[10px] font-normal normal-case text-violet-700">
+              {t("reports.orderAccountStatementShipmentSourceSelected")
+                .replace("{warehouseId}", String(selectedShipmentSource.warehouseId))
+                .replace("{movementId}", String(selectedShipmentSource.primaryMovementId))}
+            </span>
+          ) : (
+            <span className="ml-auto inline-flex rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-[10px] font-medium normal-case text-zinc-600">
+              {t("reports.orderAccountStatementSelectFirstBadge")}
+            </span>
+          )}
+        </summary>
+        <div className="px-2.5 pb-2.5">
         {!selectedShipmentSource ? (
           <p className="mb-2 text-[11px] text-zinc-600">
             {t("reports.orderAccountStatementModeCardHelp")}
@@ -347,7 +352,8 @@ export function OasHeadStep(props: Props) {
           </div>
         ) : null}
         </div>
-      </div>
+        </div>
+      </details>
       {/* Marka/belge görünümü ikincil → varsayılan kapalı (kompakt); gerekince aç. */}
       <details className="mb-2 rounded-xl border border-zinc-200 bg-zinc-50/70">
         <summary className="cursor-pointer list-none px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-700 marker:hidden">
