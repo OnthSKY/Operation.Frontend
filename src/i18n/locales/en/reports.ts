@@ -937,6 +937,10 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
     "No open balance found for the selected branch.",
   orderAccountStatementSystemBranchBalanceApplied:
     "Selected branch open balance was applied to carried-forward balance.",
+  orderAccountStatementSystemBranchDebtApplied:
+    "Branch debt {amount} written to the carryover field.",
+  orderAccountStatementSystemBranchNoDebt:
+    "This branch has no open debt — carryover set to 0.",
   orderAccountStatementSystemBranchNone: "Select branch...",
   orderAccountStatementSystemBranchRequired:
     "Select a branch to save this document in the system.",

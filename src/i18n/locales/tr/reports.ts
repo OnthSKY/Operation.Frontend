@@ -922,6 +922,10 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
     "Seçili şube için açık bakiye bulunamadı.",
   orderAccountStatementSystemBranchBalanceApplied:
     "Şubenin açık bakiyesi devreden bakiye alanına yazıldı.",
+  orderAccountStatementSystemBranchDebtApplied:
+    "Şube borcu {amount} devreden alanına yazıldı.",
+  orderAccountStatementSystemBranchNoDebt:
+    "Bu şubenin açık borcu yok — devreden alanı 0 yapıldı.",
   orderAccountStatementSystemBranchNone: "Şube seçin…",
   orderAccountStatementSystemBranchRequired:
     "Sisteme kaydetmek için bir şube seçin.",

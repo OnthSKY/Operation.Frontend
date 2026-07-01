@@ -3,7 +3,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { notify } from "@/shared/lib/notify";
 import { toErrorMessage } from "@/shared/lib/error-message";
-import { formatLocaleAmountInput } from "@/shared/lib/locale-amount";
+import { formatLocaleAmount, formatLocaleAmountInput } from "@/shared/lib/locale-amount";
 import type { CounterpartySuggestionRow } from "@/modules/order-account-statement/api/outbound-invoices-api";
 import { fetchCustomerAccountBalance } from "@/modules/order-account-statement/api/customer-accounts-api";
 
@@ -59,8 +59,19 @@ export function useOasBranchBalance({
         notify.error(t("reports.orderAccountStatementSystemBranchBalanceMissing"));
         return;
       }
-      setPreviousBalanceText(formatLocaleAmountInput(Math.max(0, open), locale));
-      notify.success(t("reports.orderAccountStatementSystemBranchBalanceApplied"));
+      const applied = Math.max(0, open);
+      setPreviousBalanceText(formatLocaleAmountInput(applied, locale));
+      if (applied <= 0) {
+        // Borç yok → alanı sıfırladık; kullanıcıya net söyle.
+        notify.info(t("reports.orderAccountStatementSystemBranchNoDebt"));
+      } else {
+        notify.success(
+          t("reports.orderAccountStatementSystemBranchDebtApplied").replace(
+            "{amount}",
+            formatLocaleAmount(applied, locale, "TRY")
+          )
+        );
+      }
     } catch (error) {
       notify.error(toErrorMessage(error));
     } finally {
