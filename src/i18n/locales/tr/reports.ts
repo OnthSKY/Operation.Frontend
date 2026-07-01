@@ -910,6 +910,7 @@ Gelirde iç nakit IN’ler, giderde kasadan cebi/borç kapatma OUT’ları KPI d
   orderAccountStatementSystemBranchLabel: "Sistem eşleşme şubesi",
   orderAccountStatementSystemBranchHelp:
     "Belge bu şube altına kaydedilir; \"Şube\" alanını otomatik doldurur.",
+  orderAccountStatementSystemBranchFillsTitle: "Belge başlığındaki şube alanını doldurur",
   orderAccountStatementOpenBalanceTitle: "Açık bakiye (devreden)",
   orderAccountStatementOpenBalanceHint: "Toplama eklenir, PDF'te ayrı gösterilir",
   orderAccountStatementPriceApplied: "Birim fiyat uygulandı.",

@@ -925,6 +925,7 @@ Prior-period deltas (Î”) and branch comparisons are summarized on â€œBy b
   orderAccountStatementSystemBranchLabel: "System branch mapping",
   orderAccountStatementSystemBranchHelp:
     "Document is saved under this branch; auto-fills the \"Branch\" field.",
+  orderAccountStatementSystemBranchFillsTitle: "Fills the branch field in the document header",
   orderAccountStatementOpenBalanceTitle: "Opening balance (carryover)",
   orderAccountStatementOpenBalanceHint: "Added to total, shown separately in PDF",
   orderAccountStatementPriceApplied: "Unit price applied.",
