@@ -127,6 +127,11 @@ const refreshChannel: BroadcastChannel | null =
 type RefreshResultMessage = { type: "refresh-result"; ok: boolean; at: number };
 
 let refreshInFlight: Promise<boolean> | null = null;
+// Aynı tabda ard arda gelen 401'ler: son refresh sonucunu kısa süre önbelleğe al.
+// Böylece ROTATED refresh token'ı ikinci kez POST edip reuse-detection tetiklemeyiz
+// (ki bu, "refresh var ama login'e atıyor" flapping'inin ana sebeplerinden biriydi).
+let refreshResultCache: { ok: boolean; at: number } | null = null;
+const REFRESH_RESULT_CACHE_MS = 2500;
 
 function readRefreshLockStartedAt(): number | null {
   if (typeof localStorage === "undefined") return null;
@@ -225,6 +230,11 @@ async function performSessionRefresh(): Promise<boolean> {
 async function trySessionRefresh(): Promise<boolean> {
   if (refreshInFlight) return refreshInFlight;
 
+  // Yakın zamanda refresh yapıldıysa sonucu tekrar kullan (ard arda 401'ler için).
+  if (refreshResultCache && Date.now() - refreshResultCache.at < REFRESH_RESULT_CACHE_MS) {
+    return refreshResultCache.ok;
+  }
+
   // Başka bir sekme zaten refresh tetikledi mi? (lock taze ise)
   const otherStartedAt = readRefreshLockStartedAt();
   if (
@@ -241,6 +251,7 @@ async function trySessionRefresh(): Promise<boolean> {
   writeRefreshLock();
   refreshInFlight = (async () => {
     const ok = await performSessionRefresh();
+    refreshResultCache = { ok, at: Date.now() };
     broadcastRefreshResult(ok);
     return ok;
   })().finally(() => {
@@ -277,8 +288,19 @@ function recoverFromUnauthorized(path: string): void {
   // denemede oturum kendini iyileştirebilsin.
   clearClientCsrf();
   if (!isPublicAuthPath(window.location.pathname)) {
-    window.location.assign("/login");
+    // SERT window.location.assign YAPMA: sayfayı reload eder, bu modül-seviye
+    // guard'ı sıfırlar → boot→refresh→home→401→redirect döngüsü (flapping).
+    // Bunun yerine SOFT event: AuthProvider deterministik bir refresh dener;
+    // başarılıysa oturumu kurtarır (redirect yok, react-query kendini toparlar),
+    // gerçekten ölmüşse yumuşak router.replace("/login") yapar. Reload olmadığı
+    // için unauthorizedRecoveryStarted guard'ı kalıcı → tek atış.
+    window.dispatchEvent(new CustomEvent("operations:auth-expired"));
   }
+}
+
+/** 2xx başarıdan sonra guard'ı yeniden kur: gelecekteki gerçek expiry tekrar tetiklesin. */
+function markAuthHealthy(): void {
+  unauthorizedRecoveryStarted = false;
 }
 
 /** Pass via `init.headers` when retrying the same logical mutation with the same key. */
@@ -393,6 +415,16 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
   if (res.status === 401 && isAuthRefreshEligible(path)) {
     const refreshed = await trySessionRefresh();
     if (refreshed) ({ res, text } = await run());
+  }
+
+  // Oturum sağlıklı: guard'ı yeniden kur ki gelecekteki gerçek 401 tekrar tetiklensin.
+  if (res.ok) markAuthHealthy();
+
+  // Başarılı /auth/refresh (AuthProvider boot / onExpired dahil) sonucu önbelleğe al:
+  // hemen ardından 401 alan query'ler EKSTRA refresh POST'u atmadan bunu kullanır
+  // (rotated token'ı yeniden kullanıp reuse-detection tetiklemeyi engeller).
+  if (res.ok && path.toLowerCase().includes("/auth/refresh")) {
+    refreshResultCache = { ok: true, at: Date.now() };
   }
 
   let parsed: unknown;

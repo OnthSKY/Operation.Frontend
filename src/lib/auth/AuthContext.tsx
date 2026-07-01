@@ -64,6 +64,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // base-api'nin SOFT "auth-expired" event'i (sert redirect yerine). Bir 401 refresh
+  // ile toparlanamayınca gelir. Burada SON bir deterministik refresh deneriz:
+  //   - başarılı → oturumu kurtar (setUser), redirect YOK; react-query kendini toparlar.
+  //   - başarısız → oturum gerçekten ölmüş → yumuşak /login (reload yok → flapping yok).
+  useEffect(() => {
+    let handling = false;
+    const onExpired = async () => {
+      if (handling) return;
+      handling = true;
+      try {
+        let refreshed: AuthUser | null = null;
+        try {
+          refreshed = await apiRequest<AuthUser | null>("/auth/refresh", { method: "POST" });
+        } catch {
+          refreshed = null;
+        }
+        if (refreshed) {
+          setUser(refreshed);
+          return;
+        }
+        setUser(null);
+        if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+          router.replace("/login");
+        }
+      } finally {
+        handling = false;
+      }
+    };
+    window.addEventListener("operations:auth-expired", onExpired as EventListener);
+    return () => window.removeEventListener("operations:auth-expired", onExpired as EventListener);
+  }, [router]);
+
   const login = useCallback(async (username: string, password: string, rememberMe: boolean) => {
     const data = await apiRequest<LoginResultPayload>("/auth/login", {
       method: "POST",
