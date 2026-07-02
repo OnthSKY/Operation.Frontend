@@ -9,7 +9,7 @@ import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
 import { notify } from "@/shared/lib/notify";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 
 const LOGIN_TOTP_MODAL_TITLE_ID = "login-totp-modal-title";
 
@@ -83,7 +83,7 @@ function TotpDialogIcon() {
   );
 }
 
-export default function LoginPage() {
+function LoginPageContent() {
   const { t } = useI18n();
   const router = useRouter();
   const { user, isReady, login, completeTotpLogin } = useAuth();
@@ -449,5 +449,15 @@ export default function LoginPage() {
         </form>
       </Modal>
     </div>
+  );
+}
+
+// useSearchParams() statik prerender'da Suspense sınırı ister (Next 16 CSR bailout).
+// İçeriği Suspense ile sarıyoruz ki /login build sırasında prerender hatası vermesin.
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageContent />
+    </Suspense>
   );
 }
