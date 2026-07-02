@@ -11,6 +11,8 @@ export const auth = {
   submit: "Giriş yap",
   signingIn: "Giriş yapılıyor…",
   loginFailed: "Kullanıcı adı veya şifre hatalı.",
+  sessionNotEstablished:
+    "Oturum kurulamadı. Lütfen tekrar giriş yapın; sorun sürerse yöneticinize bildirin.",
   networkError:
     "API'ye ulaşılamıyor. NEXT_PUBLIC_API_BASE_URL'i Swagger ile aynı yapın (ör. https://localhost:7152/api veya http://localhost:5177/api). HTTPS için geliştirme sertifikasını tarayıcıda güvenilir kabul edin.",
   logout: "Çıkış",

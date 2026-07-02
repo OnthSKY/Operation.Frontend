@@ -8,7 +8,7 @@ import type { Locale } from "@/i18n/messages";
 import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
 import { notify } from "@/shared/lib/notify";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 const LOGIN_TOTP_MODAL_TITLE_ID = "login-totp-modal-title";
@@ -95,6 +95,10 @@ export default function LoginPage() {
   const [totpChallengeToken, setTotpChallengeToken] = useState<string | null>(null);
   const [totpCode, setTotpCode] = useState("");
   const totpInputRef = useRef<HTMLInputElement>(null);
+
+  // AuthProvider circuit breaker'ı oturum kurulamayınca /login?reason=session'a yönlendirir
+  // (refresh 200 dönse de access cookie oturmuyorsa). Kullanıcıya sebebi göster.
+  const sessionNotice = useSearchParams().get("reason") === "session";
 
   useEffect(() => {
     if (isReady && user) router.replace(postLoginHomePath(user));
@@ -233,6 +237,18 @@ export default function LoginPage() {
           <div className="-mt-4 flex flex-col border-x-0 border-t border-zinc-200/90 bg-white px-5 pb-[max(1.75rem,env(safe-area-inset-bottom,0px))] pt-7 shadow-[0_-12px_40px_-8px_rgba(15,23,42,0.1)] max-lg:flex-1 max-lg:rounded-b-none max-lg:rounded-t-[1.625rem] max-lg:border-b-0 sm:-mt-5 sm:px-6 sm:pb-[max(2rem,env(safe-area-inset-bottom,0px))] sm:pt-8 lg:mt-0 lg:rounded-2xl lg:border lg:border-zinc-200/80 lg:p-10 lg:shadow-2xl lg:shadow-indigo-950/[0.06] xl:rounded-3xl xl:border-white/70 xl:bg-white/75 xl:p-12 xl:shadow-[0_24px_80px_-12px_rgba(15,23,42,0.12)] xl:ring-1 xl:ring-zinc-900/[0.04] xl:backdrop-blur-xl 2xl:p-14 supports-[backdrop-filter]:xl:bg-white/65">
             <h1 className="text-[1.375rem] font-semibold leading-snug tracking-tight text-zinc-900 sm:text-2xl lg:text-[1.75rem] xl:text-4xl">{t("auth.title")}</h1>
             <p className="mt-1.5 text-sm leading-relaxed text-zinc-500 sm:mt-2 sm:text-[15px] lg:mt-3 lg:text-base xl:text-lg">{t("auth.subtitle")}</p>
+
+            {sessionNotice && (
+              <div
+                role="alert"
+                className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-3 text-sm leading-snug text-amber-800"
+              >
+                <svg className="mt-0.5 h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m0 3.75h.007M12 3l9 16.5H3L12 3z" />
+                </svg>
+                <span>{t("auth.sessionNotEstablished")}</span>
+              </div>
+            )}
 
             <ul className="mt-5 space-y-3 border-t border-zinc-100 pt-5 text-[0.9375rem] leading-snug text-zinc-600 sm:mt-6 sm:space-y-2.5 sm:pt-6 sm:text-sm lg:hidden">
               {features.map((line) => (

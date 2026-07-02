@@ -133,6 +133,40 @@ let refreshInFlight: Promise<boolean> | null = null;
 let refreshResultCache: { ok: boolean; at: number } | null = null;
 const REFRESH_RESULT_CACHE_MS = 2500;
 
+// --- Phantom-refresh guard --------------------------------------------------
+// Kırık kurulum: /auth/refresh 200 + {success:true} döner AMA yeni access cookie
+// tarayıcıya OTURMAZ (ör. ters proxy /api/auth/* cevaplarındaki Set-Cookie'yi düşürür,
+// ya da cookie boyutu/attribute'u yüzünden reddedilir). O zaman "refresh başarılı"
+// sanılıp istek yenilenir, yine 401 gelir — ve bu SONSUZA DEK sürer, üstelik UI
+// kullanıcıyı sahte biçimde "içeride" gösterir.
+//
+// Guard: refresh "başarılı" dediği hâlde hemen ardından yapılan GERÇEK istek yine
+// 401 ise → oturumu KURTARILAMAZ işaretle. Cooldown boyunca yeni /auth/refresh POST'u
+// atılmaz (döngü kesilir) ve UI login'e düşürülür. İlk gerçek 2xx'te otomatik temizlenir.
+let sessionUnrecoverableAt: number | null = null;
+const SESSION_UNRECOVERABLE_COOLDOWN_MS = 10_000;
+
+/** Refresh 200 dönse de session çalışmıyor (access cookie oturmuyor) — cooldown içinde mi? */
+export function isSessionUnrecoverable(): boolean {
+  return (
+    sessionUnrecoverableAt != null &&
+    Date.now() - sessionUnrecoverableAt < SESSION_UNRECOVERABLE_COOLDOWN_MS
+  );
+}
+
+function markSessionUnrecoverable(): void {
+  sessionUnrecoverableAt = Date.now();
+  refreshResultCache = null; // sahte "ok" cache'ini iptal et
+  if (typeof window !== "undefined") {
+    // AuthProvider bunu dinler: refresh denemeden doğrudan login'e düşer.
+    window.dispatchEvent(new CustomEvent("operations:session-unrecoverable"));
+  }
+}
+
+function clearSessionUnrecoverable(): void {
+  sessionUnrecoverableAt = null;
+}
+
 function readRefreshLockStartedAt(): number | null {
   if (typeof localStorage === "undefined") return null;
   try {
@@ -228,6 +262,9 @@ async function performSessionRefresh(): Promise<boolean> {
 }
 
 async function trySessionRefresh(): Promise<boolean> {
+  // Oturum kurtarılamaz işaretliyse (refresh 200 diyor ama cookie oturmuyor) yeni
+  // POST atma — aksi hâlde sonsuz refresh→401 döngüsü sürer.
+  if (isSessionUnrecoverable()) return false;
   if (refreshInFlight) return refreshInFlight;
 
   // Yakın zamanda refresh yapıldıysa sonucu tekrar kullan (ard arda 401'ler için).
@@ -299,8 +336,15 @@ function recoverFromUnauthorized(path: string): void {
 }
 
 /** 2xx başarıdan sonra guard'ı yeniden kur: gelecekteki gerçek expiry tekrar tetiklesin. */
-function markAuthHealthy(): void {
+function markAuthHealthy(path: string): void {
   unauthorizedRecoveryStarted = false;
+  // Unrecoverable bayrağını YALNIZCA access token gerektiren gerçek bir istek başarılıysa
+  // temizle. /auth/refresh ve /auth/login 200 dönse de yeni access cookie'nin tarayıcıya
+  // oturduğunu KANITLAMAZ (phantom refresh) — bunlarda bayrağı bırakma, aksi hâlde cooldown
+  // her sahte refresh 200'ünde sıfırlanıp döngü kapanmaz.
+  const p = path.toLowerCase();
+  if (p.includes("/auth/refresh") || p.includes("/auth/login")) return;
+  clearSessionUnrecoverable();
 }
 
 /** Pass via `init.headers` when retrying the same logical mutation with the same key. */
@@ -414,11 +458,18 @@ export async function apiRequest<T>(path: string, init?: RequestInit): Promise<T
 
   if (res.status === 401 && isAuthRefreshEligible(path)) {
     const refreshed = await trySessionRefresh();
-    if (refreshed) ({ res, text } = await run());
+    if (refreshed) {
+      ({ res, text } = await run());
+      // PHANTOM: refresh "başarılı" dedi ama retry HÂLÂ 401 → yeni access cookie
+      // oturmamış (proxy Set-Cookie düşürüyor / cookie yazılamıyor). Döngüyü burada
+      // kes; oturumu kurtarılamaz işaretle → başka istekler refresh POST'lamaz, UI
+      // login'e düşer.
+      if (res.status === 401) markSessionUnrecoverable();
+    }
   }
 
   // Oturum sağlıklı: guard'ı yeniden kur ki gelecekteki gerçek 401 tekrar tetiklensin.
-  if (res.ok) markAuthHealthy();
+  if (res.ok) markAuthHealthy(path);
 
   // Başarılı /auth/refresh (AuthProvider boot / onExpired dahil) sonucu önbelleğe al:
   // hemen ardından 401 alan query'ler EKSTRA refresh POST'u atmadan bunu kullanır

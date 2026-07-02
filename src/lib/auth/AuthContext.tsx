@@ -1,6 +1,6 @@
 "use client";
 
-import { apiRequest } from "@/lib/api/base-api";
+import { apiRequest, isSessionUnrecoverable } from "@/lib/api/base-api";
 import { postLoginHomePath } from "@/lib/auth/roles";
 import type { AuthUser, LoginResultPayload } from "@/lib/auth/types";
 import { useRouter } from "next/navigation";
@@ -42,16 +42,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!cancelled) setUser(me);
       } catch {
         // /auth/me başarısız — büyük olasılıkla access token (kısa ömürlü) yok.
-        // Login'e DÜŞMEDEN ÖNCE açıkça refresh dene: /auth/refresh yanıtı user'ı
-        // taşır. Böylece "refresh başarılı ama yeni cookie cross-site retry'a
-        // anlık yetişmedi" yarışından bağımsız, deterministik karar veririz.
-        // (refresh token httpOnly olduğu için JS'ten okunamaz; geçerliliğini
-        // ancak refresh çağrısı söyler.)
+        // Login'e düşmeden önce refresh dene; refresh token httpOnly olduğu için
+        // geçerliliğini ancak refresh çağrısı söyler.
         try {
           const refreshed = await apiRequest<AuthUser | null>("/auth/refresh", {
             method: "POST",
           });
-          if (!cancelled) setUser(refreshed ?? null);
+          if (!refreshed) {
+            if (!cancelled) setUser(null);
+            return;
+          }
+          // DOĞRULAMA: refresh 200 + user dönmesi, yeni access cookie'nin tarayıcıya
+          // GERÇEKTEN oturduğunu kanıtlamaz (ör. ters proxy Set-Cookie'yi düşürüyorsa
+          // refresh "başarılı" görünür ama access cookie yoktur). Bu yüzden access
+          // token gerektiren /auth/me'yi tekrar çağırıp teyit ederiz; başarısızsa
+          // kullanıcıyı sahte biçimde içeri ALMAYIZ. (Set-Cookie, fetch promise'i
+          // çözülmeden önce jar'a yazıldığı için ardışık çağrıda cookie yarışı yoktur.)
+          const confirmed = await apiRequest<AuthUser>("/auth/me");
+          if (!cancelled) setUser(confirmed);
         } catch {
           if (!cancelled) setUser(null);
         }
@@ -70,30 +78,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   //   - başarısız → oturum gerçekten ölmüş → yumuşak /login (reload yok → flapping yok).
   useEffect(() => {
     let handling = false;
+    const goLogin = (reason?: string) => {
+      setUser(null);
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+        router.replace(reason ? `/login?reason=${reason}` : "/login");
+      }
+    };
     const onExpired = async () => {
       if (handling) return;
       handling = true;
       try {
+        // Refresh 200 dönse de session çalışmıyorsa (access cookie oturmuyor) yeniden
+        // refresh denemek sahte "kurtardım" sonucu üretip kullanıcıyı boş bir dashboard'da
+        // sonsuz 401 döngüsünde tutar. Doğrudan login'e düş.
+        if (isSessionUnrecoverable()) {
+          goLogin();
+          return;
+        }
         let refreshed: AuthUser | null = null;
         try {
           refreshed = await apiRequest<AuthUser | null>("/auth/refresh", { method: "POST" });
         } catch {
           refreshed = null;
         }
-        if (refreshed) {
+        // refresh body başarılı olsa bile, ardından tetiklenen bir istek phantom'u
+        // yakalamış olabilir — bu durumda oturumu kurtarılmış sayma.
+        if (refreshed && !isSessionUnrecoverable()) {
           setUser(refreshed);
           return;
         }
-        setUser(null);
-        if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-          router.replace("/login");
-        }
+        goLogin();
       } finally {
         handling = false;
       }
     };
+    // Circuit breaker: refresh 200 diyor ama access cookie oturmuyor → refresh DENEMEDEN login'e düş.
+    const onUnrecoverable = () => goLogin("session");
     window.addEventListener("operations:auth-expired", onExpired as EventListener);
-    return () => window.removeEventListener("operations:auth-expired", onExpired as EventListener);
+    window.addEventListener("operations:session-unrecoverable", onUnrecoverable as EventListener);
+    return () => {
+      window.removeEventListener("operations:auth-expired", onExpired as EventListener);
+      window.removeEventListener("operations:session-unrecoverable", onUnrecoverable as EventListener);
+    };
   }, [router]);
 
   const login = useCallback(async (username: string, password: string, rememberMe: boolean) => {

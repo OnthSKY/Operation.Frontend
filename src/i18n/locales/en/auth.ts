@@ -11,6 +11,8 @@ export const auth = {
   submit: "Sign in",
   signingIn: "Signing in…",
   loginFailed: "Invalid username or password.",
+  sessionNotEstablished:
+    "Couldn't establish your session. Please sign in again; if it keeps happening, contact your administrator.",
   networkError:
     "Cannot reach the API. Set NEXT_PUBLIC_API_BASE_URL to match Swagger (e.g. https://localhost:7152/api or http://localhost:5177/api). Trust the dev HTTPS certificate if needed.",
   logout: "Sign out",
