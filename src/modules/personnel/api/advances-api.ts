@@ -86,6 +86,8 @@ export type FetchAllAdvancesParams = {
   personnelId?: number;
   branchId?: number;
   limit?: number;
+  /** branchId ile: şube atanmamış avansları personelin şubesine göre de dahil et (şube PDF'i). */
+  includeHomeBranchForNull?: boolean;
 };
 
 export async function fetchAllAdvances(
@@ -103,6 +105,9 @@ export async function fetchAllAdvances(
   }
   if (params?.branchId != null && params.branchId > 0) {
     q.set("branchId", String(Math.trunc(params.branchId)));
+    if (params.includeHomeBranchForNull) {
+      q.set("includeHomeBranchForNull", "true");
+    }
   }
   if (
     params?.limit != null &&

@@ -137,6 +137,8 @@ export async function buildPersonnelSettlementDocument(
             branchId: bid,
             limit: BRANCH_ADVANCES_PRINT_LIMIT,
             effectiveYear: yf ?? undefined,
+            // Şube atanmamış (branch_id NULL) avansları da personelin şubesine göre dahil et.
+            includeHomeBranchForNull: true,
           })
         : Promise.resolve([] as AdvanceListItem[]);
 
