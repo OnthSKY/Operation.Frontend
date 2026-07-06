@@ -9,7 +9,7 @@ import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import type { BranchTransaction } from "@/types/branch-transaction";
 import { escapeHtml, moneyNum } from "../format";
-import { isNonExpenseOutRow } from "../buckets";
+import { PALETTE, isNonExpenseOutRow, srcBucketOfExpense } from "../buckets";
 import { emptyNote, type BranchSettlementPdfOptions } from "../options";
 
 export function buildBranchRegisterSectionHtml(
@@ -117,9 +117,48 @@ export function buildBranchRegisterSectionHtml(
   </table>`
       : "";
 
+  // Çıkışların ödeme grubuna göre toplamları — çıkış tablosunun üstünde 3 kart.
+  // Kasadan (REGISTER) · Patron cebi (PATRON) · Personel (cep + zimmet birleşik).
+  const outByGroup = new Map<string, Map<string, number>>();
+  const addOut = (key: string, ccy: string, v: number) => {
+    const m = outByGroup.get(key) ?? new Map<string, number>();
+    m.set(ccy, (m.get(ccy) ?? 0) + v);
+    outByGroup.set(key, m);
+  };
+  for (const row of outflowRows) {
+    const b = srcBucketOfExpense(row.expensePaymentSource);
+    if (b == null) continue;
+    const key =
+      b === "PERSONNEL_POCKET" || b === "PERSONNEL_HELD_REGISTER_CASH" ? "PERSONNEL" : b;
+    addOut(key, String(row.currencyCode ?? "TRY").toUpperCase(), moneyNum(row.amount));
+  }
+  const groupCard = (label: string, color: string, key: string): string => {
+    const m = outByGroup.get(key);
+    const val =
+      m == null
+        ? money(0)
+        : [...m.entries()]
+            .filter(([, v]) => Math.abs(v) > 1e-9)
+            .map(([c, v]) => money(v, c))
+            .join(" · ") || money(0);
+    return `<div class="reg-card" style="border-left-color:${color}">
+      <div class="reg-card-k" style="color:${color}">${esc(label)}</div>
+      <div class="reg-card-v num">${val}</div>
+    </div>`;
+  };
+  const outflowCards =
+    outflowRows.length > 0
+      ? `<div class="reg-cards">
+    ${groupCard(t("branch.expensePayRegister"), PALETTE.income, "REGISTER")}
+    ${groupCard(t("branch.expensePayPatron"), PALETTE.goods, "PATRON")}
+    ${groupCard(t("branch.branchPdfExpenseGroupPersonnel"), PALETTE.personnel, "PERSONNEL")}
+  </div>`
+      : "";
+
   const outflowSection =
     outflowRows.length > 0
       ? `<h3 class="reg-sub out">${esc(t("branch.branchPdfRegisterTypeOut"))} (${outflowRows.length})</h3>
+  ${outflowCards}
   <table class="reg-table">
     <thead><tr>
       <th>${colDate}</th><th>${colCat}</th><th>${colPay}</th><th class="num">${colAmt}</th><th>${colNote}</th>

@@ -22,6 +22,7 @@ import {
   type MutableRefObject,
 } from "react";
 import { createPortal } from "react-dom";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   DayPicker,
   type Matcher,
@@ -253,7 +254,7 @@ const dayPickerClassNames = {
 const SELECT_LIST_IN_CALENDAR_Z = OVERLAY_Z_INDEX.dateFieldPopover + 10;
 
 function DatePickerMonthCaption(props: MonthCaptionProps) {
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const captionId = useId();
   const df = locale === "tr" ? dfTr : dfEn;
   const { goToMonth, dayPickerProps } = useDayPicker();
@@ -296,14 +297,39 @@ function DatePickerMonthCaption(props: MonthCaptionProps) {
     return opts;
   }, [startY, endY]);
 
+  // Ok butonlarıyla hızlı ay geçişi; aralık sınırlarında (start/end month) pasifleşir.
+  const curMonthTime = new Date(y, mIdx, 1).getTime();
+  const prevDisabled =
+    disableNav ||
+    (startMonth != null &&
+      curMonthTime <=
+        new Date(startMonth.getFullYear(), startMonth.getMonth(), 1).getTime());
+  const nextDisabled =
+    disableNav ||
+    (endMonth != null &&
+      curMonthTime >=
+        new Date(endMonth.getFullYear(), endMonth.getMonth(), 1).getTime());
+
+  const arrowBtn =
+    "inline-flex h-11 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 shadow-sm transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40 sm:h-10 sm:w-8";
+
   return (
     <div
       className={cn("mb-1 w-full min-w-0 px-0.5", className)}
       style={style}
       {...divProps}
     >
-      <div className="flex w-full min-w-0 flex-col items-stretch justify-center gap-2 min-[360px]:flex-row min-[360px]:flex-wrap sm:gap-2">
-        <div className="min-w-0 w-full flex-[2] basis-0 min-[360px]:min-w-[min(100%,9rem)] min-[360px]:basis-[min(100%,12rem)]">
+      <div className="flex w-full min-w-0 items-stretch justify-center gap-1.5">
+        <button
+          type="button"
+          className={arrowBtn}
+          disabled={prevDisabled}
+          aria-label={t("common.datePickerPrevMonth")}
+          onClick={() => goToMonth(new Date(y, mIdx - 1, 1))}
+        >
+          <ChevronLeft className="h-4 w-4" aria-hidden />
+        </button>
+        <div className="min-w-0 flex-[2] basis-0">
           <Select
             name={`${captionId}-mo-${displayIndex}`}
             options={monthOptions}
@@ -319,7 +345,7 @@ function DatePickerMonthCaption(props: MonthCaptionProps) {
             className="min-h-11 sm:min-h-10 sm:[&_input]:text-sm"
           />
         </div>
-        <div className="min-w-0 w-full flex-1 basis-auto min-[360px]:basis-[6.5rem]">
+        <div className="min-w-0 flex-1 basis-0">
           <Select
             name={`${captionId}-yr-${displayIndex}`}
             options={yearOptions}
@@ -335,6 +361,15 @@ function DatePickerMonthCaption(props: MonthCaptionProps) {
             className="min-h-11 sm:min-h-10 sm:[&_input]:text-sm"
           />
         </div>
+        <button
+          type="button"
+          className={arrowBtn}
+          disabled={nextDisabled}
+          aria-label={t("common.datePickerNextMonth")}
+          onClick={() => goToMonth(new Date(y, mIdx + 1, 1))}
+        >
+          <ChevronRight className="h-4 w-4" aria-hidden />
+        </button>
       </div>
     </div>
   );

@@ -40,6 +40,8 @@ export const common = {
   datePickerChoose: "Tarih seç",
   datePickerChooseDateTime: "Tarih ve saat seç",
   datePickerOpenCalendar: "Takvimi aç",
+  datePickerPrevMonth: "Önceki ay",
+  datePickerNextMonth: "Sonraki ay",
   datePickerPlaceholderDate: "GG.AA.YYYY",
   datePickerPlaceholderDateTime: "GG.AA.YYYY",
   datePickerTime: "Saat",

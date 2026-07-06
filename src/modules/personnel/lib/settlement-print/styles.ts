@@ -229,6 +229,24 @@ export const DOC_STYLES = `
     }
     h3.reg-sub.in  { color: #0f766e; border-left-color: #0f766e; }
     h3.reg-sub.out { color: #be123c; border-left-color: #be123c; }
+    .reg-cards {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 12px 0 4px 8px;
+      break-inside: avoid;
+    }
+    .reg-card {
+      flex: 1 1 150px;
+      min-width: 150px;
+      padding: 7px 10px;
+      background: #f8fafc;
+      border: 1px solid var(--doc-rule);
+      border-left: 3px solid var(--doc-border);
+      border-radius: 6px;
+    }
+    .reg-card-k { font-size: 9px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+    .reg-card-v { margin-top: 3px; font-size: 13px; font-weight: 800; color: var(--doc-ink); font-variant-numeric: tabular-nums; }
     .dist-strip {
       display: flex;
       flex-wrap: wrap;
@@ -341,6 +359,18 @@ export const DOC_STYLES = `
     .salary-cost-highlight-row td { font-weight: 600; background: #fef9c3; }
     .settlement-totals-wrap { display: block; margin-bottom: 8px; max-width: 100%; }
     .src-section { margin-top: 6px; }
+    .src-block {
+      border: 1px solid var(--doc-border);
+      border-radius: 10px;
+      background: #fafafa;
+      padding: 11px 12px 6px;
+      margin: 12px 0 10px;
+      break-inside: avoid;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .src-block .src-subhead { margin: 0 0 9px; padding-bottom: 8px; border-bottom: 1px solid var(--doc-rule); }
+    .src-block .src-total-bar { margin: 4px 0 5px; }
     .src-subhead {
       font-size: 11px;
       font-weight: 800;
@@ -582,6 +612,10 @@ export const DOC_STYLES = `
     .pnl-line-total .pnl-k, .pnl-line-total .pnl-v { font-weight: 800; }
     .pnl-line-held .pnl-k { color: #7c3aed; font-weight: 700; }
     .pnl-line-held .pnl-v { color: #7c3aed; }
+    .pnl-line-inhand { padding: 0 0 1px 28px; font-size: 9px; }
+    .pnl-line-inhand .pnl-k { color: #0f766e; font-weight: 500; font-style: italic; }
+    .pnl-line-inhand .pnl-k::before { content: "└ "; color: var(--doc-border); font-style: normal; }
+    .pnl-line-inhand .pnl-v { font-weight: 600; color: #0f766e; font-style: italic; }
     .pnl-profit {
       display: flex;
       justify-content: space-between;

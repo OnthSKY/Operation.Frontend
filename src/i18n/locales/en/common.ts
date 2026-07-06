@@ -40,6 +40,8 @@ export const common = {
   datePickerChoose: "Choose date",
   datePickerChooseDateTime: "Choose date and time",
   datePickerOpenCalendar: "Open calendar",
+  datePickerPrevMonth: "Previous month",
+  datePickerNextMonth: "Next month",
   datePickerPlaceholderDate: "DD.MM.YYYY",
   datePickerPlaceholderDateTime: "DD.MM.YYYY",
   datePickerTime: "Time",

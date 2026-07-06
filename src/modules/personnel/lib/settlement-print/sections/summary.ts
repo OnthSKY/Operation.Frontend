@@ -91,12 +91,16 @@ export function buildBranchTotalsCardsHtml(
       const totalGider = outReg + outPatron + outHeld + outPocket;
       const kar = ri - totalGider;
 
-      // HASILAT: toplam (altında nakit/kart) → kasadan harcanan → net hasılat
+      // HASILAT: toplam → kazanılan nakit / ele geçen nakit / kart → net hasılat.
+      // Kazanılan nakit = toplam hasılat − kart (kazanılan + kart = toplam hasılat, tam tutar).
+      // Ele geçen nakit  = gün sonu çekmecede kalan nakit (kasadan harcama düşülmüş) = regInCash.
       const inCash = regInCash.get(ccy) ?? 0;
       const inCard = regInCard.get(ccy) ?? 0;
+      const cashEarned = ri - inCard;
       const cashCardSub =
-        (inCash > 1e-9 ? line(t("branch.txCashShort"), inCash, " pnl-line-sub") : "") +
-        (inCard > 1e-9 ? line(t("branch.txCardShort"), inCard, " pnl-line-sub") : "");
+        (inCard > 1e-9 ? line(t("branch.txCardShort"), inCard, " pnl-line-sub") : "") +
+        (cashEarned > 1e-9 ? line(t("branch.branchPdfPnlCashEarned"), cashEarned, " pnl-line-sub") : "") +
+        (inCash > 1e-9 ? line(t("branch.branchPdfPnlCashInHand"), inCash, " pnl-line-inhand") : "");
       groups.push(`<div class="pnl-group">
         <div class="pnl-head">${esc(t("branch.branchPdfPnlRevenue"))}</div>
         ${line(t("branch.branchPdfPnlGrossRevenue"), ri)}
@@ -344,9 +348,11 @@ export function buildBranchSourceBreakdownHtml(
       ? `<div class="src-total-bar"><span class="src-total-k">${esc(t("branch.branchPdfSourceGrandTotal"))}</span><span class="src-total-v num">${grandVal}</span></div>`
       : "";
   const srcSection = cards.length
-    ? `<p class="src-subhead">${esc(t("branch.branchPdfSourceBreakdownTitle"))} <span class="src-subhead-note">${esc(t("branch.branchPdfSourceBreakdownNote"))}</span></p>
-    <div class="src-grid">${cards.join("")}</div>
-    ${totalBar}`
+    ? `<div class="src-block">
+      <p class="src-subhead">${esc(t("branch.branchPdfSourceBreakdownTitle"))} <span class="src-subhead-note">${esc(t("branch.branchPdfSourceBreakdownNote"))}</span></p>
+      <div class="src-grid">${cards.join("")}</div>
+      ${totalBar}
+    </div>`
     : "";
   const cashSection = cashCard ? cashCard : "";
   return `<div class="src-section">${srcSection}${cashSection}</div>`;
