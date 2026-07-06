@@ -137,6 +137,13 @@ export function BranchPdfSettlementOptionsFields({ value, onChange }: Props) {
           onChange={(registerLedgerDetailMode) => patch({ registerLedgerDetailMode })}
           disabled={!value.includeRegisterLedger}
         />
+        <OptRow
+          id="bp-cari"
+          label={t("branch.branchPdfOptCurrentAccount")}
+          hint={t("branch.branchPdfOptCurrentAccountHint")}
+          checked={value.includeBranchCurrentAccount}
+          onCheckedChange={(v) => patch({ includeBranchCurrentAccount: v })}
+        />
       </Section>
 
       <Section title={t("branch.branchPdfSectionGroupPersonnel")}>

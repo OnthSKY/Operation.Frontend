@@ -25,6 +25,8 @@ export type BranchSettlementPdfOptions = {
   includeRegisterLedger: boolean;
   /** Kasa gelir/gider: tüm satırlar veya döviz bazlı gelir/gider/net özeti. */
   registerLedgerDetailMode: BranchPdfDetailMode;
+  /** Şube cari: sevkiyat/fatura tutarı + tahsilat + kalan + durum (kalem detayı yok). */
+  includeBranchCurrentAccount: boolean;
   includeNotes: boolean;
 };
 
@@ -40,6 +42,8 @@ export function defaultBranchSettlementPdfOptions(): BranchSettlementPdfOptions 
     includePersonnelSalaryCost: false,
     includeRegisterLedger: true,
     registerLedgerDetailMode: "detail",
+    // Varsayılan kapalı; modal açılınca cari borç varsa otomatik açılır (yoksa gizli).
+    includeBranchCurrentAccount: false,
     includeNotes: true,
   };
 }

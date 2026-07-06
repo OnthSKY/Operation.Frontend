@@ -18,7 +18,7 @@ export const nav = {
   groupPeopleOrganization: "İnsan & Organizasyon",
   groupDocumentsRecords: "Doküman & Kayıt",
   groupProcurement: "Tedarik & Satın Alma",
-  groupAccounting: "Muhasebe",
+  groupAccounting: "Şube cari",
   contractors: "Dış çalışanlar",
   publicSiteSection: "Vitrin (web sitesi)",
   publicSiteBranches: "Şube vitrinleri",

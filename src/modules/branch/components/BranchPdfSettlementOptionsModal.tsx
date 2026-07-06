@@ -8,6 +8,7 @@ import {
   type BranchSettlementPdfOptions,
   openPersonnelSettlementPrintWindow,
 } from "@/modules/personnel/lib/personnel-settlement-print";
+import { fetchOutboundInvoices } from "@/modules/order-account-statement/api/outbound-invoices-api";
 import { FormSection, ModalFormLayout } from "@/shared/components/ModalFormLayout";
 import { useDirtyGuard } from "@/shared/hooks/useDirtyGuard";
 import {
@@ -43,19 +44,45 @@ export function BranchPdfSettlementOptionsModal({
   );
   const [busy, setBusy] = useState(false);
   const [seasonChoice, setSeasonChoice] = useState("");
+  // Cari toggle her zaman görünür (eklemeyi sorar). Açık bakiye (cari borç) varsa
+  // default açık; yoksa kapalı. baseline = otomatik-ayarlı kirlilik tabanı.
+  const [baseline, setBaseline] = useState<BranchSettlementPdfOptions>(() =>
+    defaultBranchSettlementPdfOptions()
+  );
 
   useEffect(() => {
-    if (branch) {
-      setOpts(defaultBranchSettlementPdfOptions());
-      setSeasonChoice("");
-    }
+    if (!branch) return;
+    const base = defaultBranchSettlementPdfOptions();
+    setOpts(base);
+    setBaseline(base);
+    setSeasonChoice("");
+    let cancelled = false;
+    void (async () => {
+      try {
+        const all = await fetchOutboundInvoices();
+        if (cancelled) return;
+        const openSum = all
+          .filter((i) => i.counterpartyType === "branch" && i.counterpartyId === branch.id)
+          .reduce((s, i) => s + (Number(i.openAmount) || 0), 0);
+        if (openSum > 0.009) {
+          const next = { ...base, includeBranchCurrentAccount: true };
+          setOpts(next);
+          setBaseline(next);
+        }
+      } catch {
+        // Cari çekilemezse default kapalı kalır; PDF'in kalanı etkilenmez.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [branch]);
 
   const open = branch != null;
   const requestClose = useDirtyGuard({
     isDirty:
       seasonChoice.trim() !== "" ||
-      JSON.stringify(opts) !== JSON.stringify(defaultBranchSettlementPdfOptions()),
+      JSON.stringify(opts) !== JSON.stringify(baseline),
     isBlocked: busy,
     confirmMessage: t("common.unsavedChangesConfirm"),
     onClose,

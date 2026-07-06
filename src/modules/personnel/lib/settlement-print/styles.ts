@@ -187,6 +187,15 @@ export const DOC_STYLES = `
     h2.sec-salary { --sec: #7c3aed; --sec-tint: #f5f3ff; } /* violet — personel ekseni */
     h2.sec-tot    { --sec: #0f766e; --sec-tint: #f0fdfa; } /* teal — toplam (kahraman) */
     h2.sec-notes  { --sec: #475569; --sec-tint: #f8fafc; } /* slate — nötr */
+    h2.sec-cari   { --sec: #2563eb; --sec-tint: #eff6ff; } /* blue — cari / fatura */
+    .ca-table td.ca-doc { font-weight: 700; color: var(--doc-ink); }
+    .ca-table td.ca-strong { font-weight: 800; }
+    .ca-table tr.ca-total td { border-top: 1.5px solid var(--doc-border); font-weight: 800; }
+    .ca-table td.ca-open-strong { color: #be123c; }
+    .ca-status { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 9px; font-weight: 700; white-space: nowrap; }
+    .ca-status.ca-paid { background: #dcfce7; color: #166534; }
+    .ca-status.ca-partial { background: #fef9c3; color: #854d0e; }
+    .ca-status.ca-open { background: #fee2e2; color: #991b1b; }
     .meta { color: var(--doc-muted); margin-bottom: 12px; font-size: 11px; line-height: 1.45; }
     .meta-compact { font-size: 9.5px; line-height: 1.35; margin: 0 0 6px; }
     table {

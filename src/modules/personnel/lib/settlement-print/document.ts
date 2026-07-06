@@ -34,6 +34,11 @@ import {
   renderSalaryCostLoadFailedSection,
 } from "@/modules/personnel/lib/settlement-print/sections/salary";
 import { buildBranchRegisterSectionHtml } from "@/modules/personnel/lib/settlement-print/sections/register";
+import { buildBranchCurrentAccountSectionHtml } from "@/modules/personnel/lib/settlement-print/sections/current-account";
+import {
+  fetchOutboundInvoices,
+  type OutboundInvoiceResponse,
+} from "@/modules/order-account-statement/api/outbound-invoices-api";
 import {
   buildBranchSourceBreakdownHtml,
   buildBranchTotalsCardsHtml,
@@ -101,6 +106,7 @@ export async function buildPersonnelSettlementDocument(
   let generalNotes: { body: string; createdAt: string }[] = [];
   let stockRows: BranchStockReceiptRow[] = [];
   let registerTx: BranchTransaction[] = [];
+  let cariInvoices: OutboundInvoiceResponse[] = [];
   // Personel zimmetindeki kasa nakdi: kanonik net bakiye (uygulama raporuyla aynı).
   const heldCashByPerson = new Map<number, { amount: number; fullName: string }>();
 
@@ -154,6 +160,12 @@ export async function buildPersonnelSettlementDocument(
         ? fetchBranchNotes(bid).catch(() => [] as { body: string; createdAt: string }[])
         : Promise.resolve([] as { body: string; createdAt: string }[]);
 
+      // Şube cari: outbound faturalar (liste), bu şubeye ait olanlar. Kalem detayı yok
+      // (yalnız fatura tutarı) → per-fatura detay çekmeye gerek yok.
+      const cariPromise = bpdf.includeBranchCurrentAccount
+        ? fetchOutboundInvoices().catch(() => [] as OutboundInvoiceResponse[])
+        : Promise.resolve([] as OutboundInvoiceResponse[]);
+
       // Kanonik personel zimmet bakiyesi: personnel_cash_ledger (personel kasa raporuyla
       // BİREBİR aynı net). Legacy branch_transactions türetmesi değil.
       // Yıl-filtreli PDF: o yılın sonuna (asOf) kadarki net — PDF'in geri kalanı da o yıla
@@ -165,7 +177,7 @@ export async function buildPersonnelSettlementDocument(
             [] as { personnelId: number | null; fullName: string; amount: number }[]
           );
 
-      const [expensePool, advRaw, stockRowsRaw, registerTxRaw, notesRaw, heldCashRaw] =
+      const [expensePool, advRaw, stockRowsRaw, registerTxRaw, notesRaw, heldCashRaw, cariRaw] =
         await Promise.all([
           expensePoolPromise,
           advPromise,
@@ -173,6 +185,7 @@ export async function buildPersonnelSettlementDocument(
           regPromise,
           notesPromise,
           heldCashPromise,
+          cariPromise,
         ]);
       for (const r of heldCashRaw)
         if (r.personnelId != null)
@@ -187,6 +200,9 @@ export async function buildPersonnelSettlementDocument(
       stockRows = stockRowsRaw;
       registerTx = sortExpensesDesc(registerTxRaw);
       generalNotes = notesRaw;
+      cariInvoices = cariRaw.filter(
+        (inv) => inv.counterpartyType === "branch" && inv.counterpartyId === bid
+      );
     }
 
     if (yf != null) {
@@ -641,6 +657,11 @@ export async function buildPersonnelSettlementDocument(
       ? buildBranchSourceBreakdownHtml(advances, expenses, registerTx, bp, t, locale, dash, heldCashByPerson)
       : "";
 
+  const currentAccountSectionHtml =
+    byBranch && bp && bp.includeBranchCurrentAccount
+      ? buildBranchCurrentAccountSectionHtml(cariInvoices, t, locale, dash)
+      : "";
+
   // Şube özeti (P&L + kaynak dağılımı + nakit nerede). Şubede: yönetici özeti olarak ÜSTTE.
   const summaryTitle = byBranch
     ? escapeHtml(t("branch.branchPdfSummaryTitle"))
@@ -836,6 +857,7 @@ export async function buildPersonnelSettlementDocument(
   ${stockSectionHtml}
   ${personnelOutflowHtml}
   ${registerSectionHtml}
+  ${currentAccountSectionHtml}
 
   ${byBranch ? "" : summaryBlockHtml}
   ${notesBlocksHtml}
