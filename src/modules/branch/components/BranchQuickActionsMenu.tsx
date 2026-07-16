@@ -1,29 +1,21 @@
 "use client";
 
 import { cn } from "@/lib/cn";
-import { OVERLAY_Z_TW } from "@/shared/overlays/z-layers";
 import { Button } from "@/shared/ui/Button";
+import { Modal } from "@/shared/ui/Modal";
 import { detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type MouseEvent as ReactMouseEvent,
-} from "react";
-import { createPortal } from "react-dom";
+import { useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { ChevronRight } from "lucide-react";
 import { ToolbarGlyphLightning } from "@/shared/ui/ToolbarGlyph";
-import {
-  getVisualViewportHeightPx,
-  getVisualViewportWidthPx,
-} from "@/shared/lib/visual-viewport-bottom";
-import { rafThrottle } from "@/shared/lib/viewport-raf-throttle";
 
 export type QuickActionsMenuItem = {
   id: string;
   label: string;
   onSelect: () => void;
+  /** Leading glyph shown in a rounded chip; keep to ~18px lucide icons. */
+  icon?: ReactNode;
+  /** "danger" paints the tile red (destructive actions). */
+  tone?: "default" | "danger";
 };
 
 /** Short “story” heading above a group of actions (register, reports, etc.). */
@@ -43,20 +35,20 @@ type Props = {
   onTriggerClick?: (e: ReactMouseEvent<HTMLButtonElement>) => void;
 };
 
-/** Used for flip-above logic; row height matches min-h on menu items. */
-function estimateMenuHeightPx(sections: QuickActionsMenuSection[]): number {
-  const headerH = 22;
-  const rowH = 46;
-  const pad = 12;
-  let h = pad;
-  for (let i = 0; i < sections.length; i++) {
-    const sec = sections[i];
-    if (i > 0) h += 8;
-    h += headerH;
-    h += Math.max(1, sec.items.length) * rowH;
-  }
-  return h;
-}
+const tileBaseClass =
+  "group flex min-h-[3.25rem] w-full items-center gap-3 rounded-2xl border px-3.5 py-3 text-left text-sm font-medium shadow-sm transition-all duration-150 active:scale-[0.985]";
+
+const toneTile = {
+  default:
+    "border-zinc-200/90 bg-white text-zinc-800 hover:border-violet-300 hover:bg-violet-50/70 hover:shadow-md hover:shadow-violet-500/[0.06]",
+  danger:
+    "border-rose-200 bg-white text-rose-700 hover:border-rose-300 hover:bg-rose-50 hover:shadow-md hover:shadow-rose-500/[0.06]",
+} as const;
+
+const toneChip = {
+  default: "bg-violet-50 text-violet-600 group-hover:bg-violet-100",
+  danger: "bg-rose-50 text-rose-600 group-hover:bg-rose-100",
+} as const;
 
 export function BranchQuickActionsMenu({
   menuId,
@@ -67,220 +59,10 @@ export function BranchQuickActionsMenu({
   onTriggerClick,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const anchorRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [layout, setLayout] = useState<{
-    top: number;
-    left: number;
-    width: number;
-    maxHeight: number;
-    narrow: boolean;
-    /** Mobile: panel fixed to viewport center (top/left ignored). */
-    centered: boolean;
-  } | null>(null);
-
-  const updatePosition = useCallback(() => {
-    const el = anchorRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const vw = getVisualViewportWidthPx();
-    const vh = getVisualViewportHeightPx();
-    const margin = 10;
-    const narrow = vw < 640;
-    const menuWidth = narrow
-      ? Math.min(320, vw - margin * 2)
-      : Math.min(248, vw - margin * 2);
-
-    const estimatedContent = estimateMenuHeightPx(sections);
-    const viewportCap = Math.floor(vh * 0.78);
-
-    if (narrow) {
-      const maxHeight = Math.max(
-        148,
-        Math.min(estimatedContent + 10, viewportCap, vh - margin * 2)
-      );
-      setLayout({
-        top: 0,
-        left: 0,
-        width: menuWidth,
-        maxHeight,
-        narrow: true,
-        centered: true,
-      });
-      return;
-    }
-
-    let left = r.right - menuWidth;
-    left = Math.max(margin, Math.min(left, vw - menuWidth - margin));
-
-    let maxHeight = Math.min(estimatedContent + 10, viewportCap);
-
-    const gap = 6;
-    let top = r.bottom + gap;
-    if (top + maxHeight > vh - margin) {
-      const aboveTop = r.top - maxHeight - gap;
-      if (aboveTop >= margin) {
-        top = aboveTop;
-      } else {
-        top = margin;
-        maxHeight = Math.min(maxHeight, vh - top - margin);
-      }
-    }
-    maxHeight = Math.min(maxHeight, vh - top - margin);
-    maxHeight = Math.max(148, maxHeight);
-
-    setLayout({
-      top,
-      left,
-      width: menuWidth,
-      maxHeight,
-      narrow: false,
-      centered: false,
-    });
-  }, [sections]);
-
-  useLayoutEffect(() => {
-    if (!open) {
-      setLayout(null);
-      return;
-    }
-    updatePosition();
-  }, [open, updatePosition]);
-
-  useEffect(() => {
-    if (!open) return;
-    const throttled = rafThrottle(updatePosition);
-    throttled.flush();
-    const onScroll = throttled.schedule;
-    window.addEventListener("scroll", onScroll, true);
-    window.addEventListener("resize", onScroll);
-    const vv = window.visualViewport;
-    vv?.addEventListener("resize", onScroll);
-    vv?.addEventListener("scroll", onScroll);
-    return () => {
-      throttled.cancel();
-      window.removeEventListener("scroll", onScroll, true);
-      window.removeEventListener("resize", onScroll);
-      vv?.removeEventListener("resize", onScroll);
-      vv?.removeEventListener("scroll", onScroll);
-    };
-  }, [open, updatePosition]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent | TouchEvent) => {
-      const t = e.target as Node;
-      if (anchorRef.current?.contains(t) || menuRef.current?.contains(t))
-        return;
-      setOpen(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("touchstart", onDown, { passive: true });
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("touchstart", onDown);
-    };
-  }, [open]);
-
-  const portal =
-    open &&
-    layout &&
-    typeof document !== "undefined" &&
-    createPortal(
-      <>
-        {layout.narrow ? (
-          <button
-            type="button"
-            tabIndex={-1}
-            aria-hidden
-            className={cn(
-              "fixed inset-0 cursor-default border-0 bg-zinc-950/20 p-0 backdrop-blur-[2px] transition-opacity duration-150 sm:hidden",
-              OVERLAY_Z_TW.menuMobileBackdrop
-            )}
-            onClick={() => setOpen(false)}
-          />
-        ) : null}
-        <div
-          ref={menuRef}
-          id={menuId}
-          role="menu"
-          className={cn(
-            "fixed overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border border-zinc-200/90 bg-white/95 py-1.5 shadow-xl shadow-zinc-900/10 ring-1 ring-zinc-950/[0.04] backdrop-blur-md outline-none [-webkit-overflow-scrolling:touch]",
-            OVERLAY_Z_TW.menuPanel,
-            layout.centered && "left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-          )}
-          style={
-            layout.centered
-              ? {
-                  width: layout.width,
-                  maxHeight: layout.maxHeight,
-                  paddingBottom:
-                    "max(0.5rem, env(safe-area-inset-bottom, 0px))",
-                }
-              : {
-                  top: layout.top,
-                  left: layout.left,
-                  width: layout.width,
-                  maxHeight: layout.maxHeight,
-                  paddingBottom: "0.375rem",
-                }
-          }
-        >
-          {sections.map((sec, si) => (
-            <div
-              key={si}
-              role="group"
-              aria-label={sec.storyTitle}
-              className={cn(si > 0 && "mt-1.5 border-t border-zinc-100/90 pt-1.5")}
-            >
-              <p className="px-3 pb-0.5 pt-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400 sm:px-2.5 sm:text-[11px] sm:tracking-wide">
-                {sec.storyTitle}
-              </p>
-              <ul className="list-none px-1 pb-0.5 sm:px-1">
-                {sec.items.map((item) => (
-                  <li key={item.id}>
-                    <button
-                      role="menuitem"
-                      type="button"
-                      className={cn(
-                        "touch-manipulation",
-                        "flex min-h-11 w-full items-center rounded-xl px-3 py-2.5 text-left text-[15px] leading-snug text-zinc-800 antialiased",
-                        "transition-[background-color,transform] duration-150 active:scale-[0.99] sm:active:scale-100",
-                        "hover:bg-violet-50/90 active:bg-violet-100/70",
-                        "sm:min-h-[44px] sm:rounded-lg sm:px-2.5 sm:py-2 sm:text-[13px] sm:leading-normal"
-                      )}
-                      onClick={() => {
-                        item.onSelect();
-                        setOpen(false);
-                      }}
-                    >
-                      {item.label}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      </>,
-      document.body
-    );
 
   return (
     <>
-      <div
-        ref={anchorRef}
-        className={cn(fillTrigger ? "flex min-w-0 flex-1" : "inline-flex")}
-      >
+      <div className={cn(fillTrigger ? "flex min-w-0 flex-1" : "inline-flex")}>
         <Button
           type="button"
           variant="secondary"
@@ -291,14 +73,13 @@ export function BranchQuickActionsMenu({
             fillTrigger && "min-h-11 w-full min-w-0 justify-center gap-2 px-3"
           )}
           aria-label={triggerLabel}
+          aria-haspopup="dialog"
           aria-expanded={open}
-          aria-haspopup="menu"
-          aria-controls={open ? menuId : undefined}
           title={triggerLabel}
           onClick={(e) => {
             onTriggerClick?.(e);
             e.stopPropagation();
-            setOpen((o) => !o);
+            setOpen(true);
           }}
         >
           <ToolbarGlyphLightning className="h-5 w-5 shrink-0" />
@@ -307,7 +88,64 @@ export function BranchQuickActionsMenu({
           ) : null}
         </Button>
       </div>
-      {portal}
+
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        titleId={menuId}
+        title={triggerLabel}
+        closeButtonLabel={triggerLabel}
+        narrow
+        sheetMobile
+        bodyScroll
+        className="lg:!max-w-[36rem] xl:!max-w-[36rem]"
+      >
+        <div className="flex flex-col gap-5">
+          {sections.map((sec, si) => (
+            <section key={si} aria-label={sec.storyTitle} className="space-y-2.5">
+              <p className="px-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                {sec.storyTitle}
+              </p>
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                {sec.items.map((item) => {
+                  const tone = item.tone ?? "default";
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={cn(tileBaseClass, toneTile[tone])}
+                      onClick={() => {
+                        item.onSelect();
+                        setOpen(false);
+                      }}
+                    >
+                      {item.icon ? (
+                        <span
+                          className={cn(
+                            "grid h-9 w-9 shrink-0 place-items-center rounded-xl transition-colors [&_svg]:h-[18px] [&_svg]:w-[18px]",
+                            toneChip[tone]
+                          )}
+                          aria-hidden
+                        >
+                          {item.icon}
+                        </span>
+                      ) : null}
+                      <span className="min-w-0 flex-1 leading-snug">{item.label}</span>
+                      <ChevronRight
+                        className={cn(
+                          "h-4 w-4 shrink-0 transition-transform duration-150 group-hover:translate-x-0.5",
+                          tone === "danger" ? "text-rose-300" : "text-zinc-300 group-hover:text-zinc-400"
+                        )}
+                        aria-hidden
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
+        </div>
+      </Modal>
     </>
   );
 }

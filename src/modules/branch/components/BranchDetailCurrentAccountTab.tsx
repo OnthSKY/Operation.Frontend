@@ -859,11 +859,11 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
 
   return (
     <div className="w-full min-w-0 space-y-4">
-      <div className="flex w-full min-w-0 flex-wrap items-center gap-2">
+      <div className="flex w-full min-w-0 flex-col gap-3">
         <div
           role="tablist"
           aria-label={t("branch.currentAccountSubTabsAria")}
-          className="-mx-1 flex min-w-0 flex-1 gap-1 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="-mx-1 flex min-w-0 gap-1 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {subTabs.map((x) => (
             <button
@@ -883,11 +883,11 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
             </button>
           ))}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
           <Button
             type="button"
             variant="primary"
-            className="inline-flex min-h-[44px] items-center gap-1.5"
+            className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 sm:w-auto"
             onClick={() => setGeneralReceiptOpen(true)}
           >
             <svg aria-hidden className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -901,7 +901,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
           <Button
             type="button"
             variant="secondary"
-            className="min-h-[44px]"
+            className="min-h-[44px] w-full justify-center sm:w-auto"
             onClick={() => {
               setSelectedPdfInvoiceIds(new Set(rows.map((r) => r.id)));
               setPdfPreviewUrl((prev) => {

@@ -89,6 +89,8 @@ export const branchStockConsumption = {
   historyEmpty: "Seçili aralıkta kullanım kaydı yok.",
   restore: "Geri al",
   deletedAtBy: "{date} tarihinde {name} tarafından silindi",
+  deleteConfirmTitle: "Kullanım kaydını sil",
+  deleteConfirmMessage: "Bu kullanım kaydını silmek istediğinize emin misiniz? Silinen kayıtlardan daha sonra geri alabilirsiniz.",
 
   // Sayfalama
   paginationPrevious: "Önceki",

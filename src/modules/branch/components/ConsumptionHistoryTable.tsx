@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+import { RotateCcw } from "lucide-react";
 import { useI18n } from "@/i18n/context";
 import {
   Table,
@@ -10,6 +12,9 @@ import {
   TableRow,
 } from "@/shared/ui/Table";
 import { Button } from "@/shared/ui/Button";
+import { Modal } from "@/shared/ui/Modal";
+import { Tooltip } from "@/shared/ui/Tooltip";
+import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { cn } from "@/lib/cn";
 import { formatLocaleDate, formatLocaleDateTime } from "@/shared/lib/locale-date";
 import { notify } from "@/shared/lib/notify";
@@ -45,6 +50,10 @@ function typeLabel(t: (k: string) => string, type: BranchStockConsumptionType): 
   return t("branchStockConsumption.typeAdjustment");
 }
 
+/** Geri al ikon düğmesi — sil düğmesiyle (trashIconActionButtonClass) aynı boyut/hover, yeşil tema. */
+const restoreIconActionButtonClass =
+  "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-emerald-600 transition-colors hover:bg-emerald-50 active:bg-emerald-100 disabled:pointer-events-none disabled:opacity-40";
+
 function directionBadgeClass(direction: BranchStockDirection): string {
   return direction === "OUT"
     ? "bg-rose-50 text-rose-800 ring-rose-200"
@@ -67,13 +76,18 @@ export function ConsumptionHistoryTable({
   const { t } = useI18n();
   const deleteMut = useSoftDeleteBranchStockConsumption(branchId);
   const restoreMut = useRestoreBranchStockConsumption(branchId);
+  // Yanlışlıkla silmeyi önlemek için onay modalı; tıklanan satırın id'sini tutar.
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
 
-  const onDelete = async (id: number) => {
+  const confirmDelete = async () => {
+    if (pendingDeleteId == null) return;
+    const id = pendingDeleteId;
     try {
       await deleteMut.mutateAsync(id);
       notify.success(t("toast.branchStockConsumptionDeleted"));
+      setPendingDeleteId(null);
     } catch (e) {
       notify.error(toErrorMessage(e));
     }
@@ -175,25 +189,35 @@ export function ConsumptionHistoryTable({
                 </p>
               ) : null}
               {canManage ? (
-                <div className="border-t border-zinc-100 bg-zinc-50/40">
+                <div className="flex justify-end border-t border-zinc-100 bg-zinc-50/40 px-2 py-1.5">
                   {isDeleted ? (
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-zinc-700 transition hover:bg-white"
-                      onClick={() => onRestore(r.id)}
-                      disabled={restoreMut.isPending}
-                    >
-                      {t("branchStockConsumption.restore")}
-                    </button>
+                    <Tooltip content={t("branchStockConsumption.restore")} delayMs={200}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className={restoreIconActionButtonClass}
+                        aria-label={t("branchStockConsumption.restore")}
+                        title={t("branchStockConsumption.restore")}
+                        onClick={() => onRestore(r.id)}
+                        disabled={restoreMut.isPending}
+                      >
+                        <RotateCcw className="h-5 w-5" aria-hidden />
+                      </Button>
+                    </Tooltip>
                   ) : (
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-rose-700 transition hover:bg-rose-50"
-                      onClick={() => onDelete(r.id)}
-                      disabled={deleteMut.isPending}
-                    >
-                      {t("common.delete")}
-                    </button>
+                    <Tooltip content={t("common.delete")} delayMs={200}>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className={trashIconActionButtonClass}
+                        aria-label={t("common.delete")}
+                        title={t("common.delete")}
+                        onClick={() => setPendingDeleteId(r.id)}
+                        disabled={deleteMut.isPending}
+                      >
+                        <TrashIcon />
+                      </Button>
+                    </Tooltip>
                   )}
                 </div>
               ) : null}
@@ -274,21 +298,33 @@ export function ConsumptionHistoryTable({
                 <TableCell dataLabel={t("common.actions")} className="text-right">
                   {canManage ? (
                     isDeleted ? (
-                      <Button
-                        variant="secondary"
-                        onClick={() => onRestore(r.id)}
-                        disabled={restoreMut.isPending}
-                      >
-                        {t("branchStockConsumption.restore")}
-                      </Button>
+                      <Tooltip content={t("branchStockConsumption.restore")} delayMs={200}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className={restoreIconActionButtonClass}
+                          aria-label={t("branchStockConsumption.restore")}
+                          title={t("branchStockConsumption.restore")}
+                          onClick={() => onRestore(r.id)}
+                          disabled={restoreMut.isPending}
+                        >
+                          <RotateCcw className="h-5 w-5" aria-hidden />
+                        </Button>
+                      </Tooltip>
                     ) : (
-                      <Button
-                        variant="secondary"
-                        onClick={() => onDelete(r.id)}
-                        disabled={deleteMut.isPending}
-                      >
-                        {t("common.delete")}
-                      </Button>
+                      <Tooltip content={t("common.delete")} delayMs={200}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className={trashIconActionButtonClass}
+                          aria-label={t("common.delete")}
+                          title={t("common.delete")}
+                          onClick={() => setPendingDeleteId(r.id)}
+                          disabled={deleteMut.isPending}
+                        >
+                          <TrashIcon />
+                        </Button>
+                      </Tooltip>
                     )
                   ) : null}
                 </TableCell>
@@ -322,6 +358,38 @@ export function ConsumptionHistoryTable({
           </Button>
         </div>
       ) : null}
+
+      <Modal
+        open={pendingDeleteId != null}
+        onClose={() => setPendingDeleteId(null)}
+        titleId="branch-stock-consumption-delete-confirm-title"
+        title={t("branchStockConsumption.deleteConfirmTitle")}
+        closeButtonLabel={t("common.close")}
+        nested
+        className="max-w-md"
+      >
+        <p className="text-sm text-zinc-600">
+          {t("branchStockConsumption.deleteConfirmMessage")}
+        </p>
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setPendingDeleteId(null)}
+            disabled={deleteMut.isPending}
+          >
+            {t("common.cancel")}
+          </Button>
+          <Button
+            type="button"
+            className="bg-red-600 hover:bg-red-700"
+            disabled={deleteMut.isPending}
+            onClick={() => void confirmDelete()}
+          >
+            {deleteMut.isPending ? t("common.loading") : t("common.delete")}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

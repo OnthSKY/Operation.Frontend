@@ -11,11 +11,35 @@ import {
 
 const MobileCardsContext = createContext(true);
 
+/**
+ * Yatay kaydırmada ilk kolonu (kimlik: ad) donuk tut — geniş tablolarda sağa
+ * kayınca satırın kime ait olduğu görünür kalsın. Yalnız md+ (mobilde kart düzeni).
+ * Donuk hücre solid yüzey arka planı taşır (satır tonunu ezmemek için tr'ye
+ * dokunulmaz); hover'da hafif tint, sağ kenara ince ayraç gölgesi eklenir.
+ */
+const stickyFirstColumnClass = cn(
+  // border-collapse sticky hücreleri bozuyor → md+ için separate model.
+  "md:border-separate md:[border-spacing:0]",
+  // Collapse'ta gelen satır/başlık çizgileri separate'te hücre alt-kenarına taşınır.
+  "md:[&_thead_th]:border-b md:[&_thead_th]:border-zinc-200",
+  "md:[&_tbody_td]:border-b md:[&_tbody_td]:border-zinc-200",
+  // İlk kolonu (kimlik) dondur.
+  "md:[&_thead_th:first-child]:sticky md:[&_thead_th:first-child]:left-0 md:[&_thead_th:first-child]:z-20 md:[&_thead_th:first-child]:bg-zinc-50",
+  "md:[&_tbody_td:first-child]:sticky md:[&_tbody_td:first-child]:left-0 md:[&_tbody_td:first-child]:z-10 md:[&_tbody_td:first-child]:bg-white",
+  "md:[&_tbody_tr:hover_td:first-child]:bg-zinc-50",
+  "md:[&_tr>*:first-child]:shadow-[1px_0_0_0_#e4e4e7]"
+);
+
 export function Table({
   className,
   mobileCards = true,
+  stickyFirstColumn = false,
   ...props
-}: HTMLAttributes<HTMLTableElement> & { mobileCards?: boolean }) {
+}: HTMLAttributes<HTMLTableElement> & {
+  mobileCards?: boolean;
+  /** Yatay kaydırmada ilk kolonu donuk tut (md+). */
+  stickyFirstColumn?: boolean;
+}) {
   return (
     <MobileCardsContext.Provider value={mobileCards}>
       <div
@@ -30,6 +54,7 @@ export function Table({
             "w-full min-w-[320px] border-collapse text-left text-xs sm:text-sm md:text-base",
             mobileCards &&
               "max-md:block max-md:min-w-0 max-md:border-separate max-md:border-spacing-y-3 max-md:bg-transparent",
+            stickyFirstColumn && stickyFirstColumnClass,
             className
           )}
           {...props}

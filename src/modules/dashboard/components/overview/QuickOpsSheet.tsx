@@ -117,16 +117,16 @@ export function QuickOpsSheet({
         const orderedGroups = GROUP_ORDER.filter((g) => grouped.has(g));
         let globalIdx = 0;
         return (
-          <div className="-mx-1 flex flex-col gap-5 pt-2">
+          <div className="-mx-1 flex flex-col gap-3.5 pt-1">
             {orderedGroups.map((g) => {
               const groupItems = grouped.get(g)!;
               return (
                 <section key={g} aria-label={GROUP_LABELS[g]} className="px-1">
-                  <h3 className="mb-2.5 flex items-center gap-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                  <h3 className="mb-1.5 flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                     {GROUP_LABELS[g]}
                     <span aria-hidden className="h-px flex-1 bg-gradient-to-r from-zinc-200 to-transparent" />
                   </h3>
-                  <ul className="grid grid-cols-3 gap-1 sm:grid-cols-3 sm:gap-2" role="list">
+                  <ul className="grid grid-cols-4 gap-0.5 sm:gap-1.5" role="list">
                     {groupItems.map((it) => {
                       const tone = TONE[it.tone ?? "blue"];
                       const i = globalIdx++;
@@ -135,7 +135,7 @@ export function QuickOpsSheet({
                           key={it.key}
                           style={{
                             animation: open
-                              ? `quick-op-pop 320ms cubic-bezier(.22,1.2,.36,1) ${i * 35}ms both`
+                              ? `quick-op-pop 320ms cubic-bezier(.22,1.2,.36,1) ${i * 30}ms both`
                               : undefined,
                           }}
                         >
@@ -145,15 +145,15 @@ export function QuickOpsSheet({
                               onClose();
                               it.onClick();
                             }}
-                            className="group flex w-full flex-col items-center justify-start gap-2 rounded-2xl bg-transparent px-1 py-2 text-center text-zinc-900 transition active:scale-[0.95] focus-visible:outline-none"
+                            className="group flex w-full flex-col items-center justify-start gap-1.5 rounded-xl bg-transparent px-0.5 py-1.5 text-center text-zinc-900 transition active:scale-[0.95] focus-visible:outline-none"
                           >
                             <span
                               aria-hidden
-                              className={`flex h-14 w-14 items-center justify-center rounded-[1.25rem] bg-gradient-to-br ${tone.wrap} ${tone.icon} shadow-sm ring-1 ${tone.ring} transition group-hover:-translate-y-0.5 group-hover:shadow-md group-active:shadow-sm sm:h-16 sm:w-16`}
+                              className={`flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br ${tone.wrap} ${tone.icon} shadow-sm ring-1 ${tone.ring} transition group-hover:-translate-y-0.5 group-hover:shadow-md group-active:shadow-sm [&_svg]:h-[18px] [&_svg]:w-[18px] sm:h-12 sm:w-12`}
                             >
                               {it.icon}
                             </span>
-                            <span className="line-clamp-2 text-[11px] font-medium leading-tight text-zinc-700 sm:text-xs">
+                            <span className="line-clamp-2 text-[10px] font-medium leading-tight text-zinc-700 sm:text-[11px]">
                               {it.label}
                             </span>
                           </button>

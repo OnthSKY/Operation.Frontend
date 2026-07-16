@@ -7,6 +7,7 @@ import { ProductUnitPicker } from "@/modules/products/components/ProductUnitPick
 import type { ProductListItem } from "@/types/product";
 import { Modal } from "@/shared/ui/Modal";
 import { Button } from "@/shared/ui/Button";
+import { DateField } from "@/shared/ui/DateField";
 import { ModalFormLayout, FormSection } from "@/shared/components/ModalFormLayout";
 import { notify } from "@/shared/lib/notify";
 import { toErrorMessage } from "@/shared/lib/error-message";
@@ -329,12 +330,10 @@ function QuickEntryFormBody({
           </FormSection>
 
           <FormSection title={t("branchStockConsumption.dateLabel")}>
-            <input
-              type="date"
+            <DateField
               value={dateText}
               max={localIsoDate()}
               onChange={(e) => setDateText(e.target.value)}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:border-zinc-900 focus:outline-none"
               disabled={isSubmitting}
             />
           </FormSection>

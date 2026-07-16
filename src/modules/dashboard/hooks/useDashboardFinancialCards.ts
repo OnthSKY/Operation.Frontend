@@ -6,7 +6,7 @@ import {
   fetchFinancialSummaryLifetime,
   fetchFinancialSummaryReport,
 } from "@/modules/reports/api/reports-api";
-import { localIsoDate } from "@/shared/lib/local-iso-date";
+import { addDaysToLocalIsoDate, localIsoDate } from "@/shared/lib/local-iso-date";
 
 export type FinancialBucketSums = {
   income: number;
@@ -64,9 +64,14 @@ export type CashFlowSums = {
 };
 
 export function useDashboardFinancialCards(enabled: boolean) {
-  const today = localIsoDate();
-  const year = new Date().getFullYear();
+  const now = new Date();
+  const today = localIsoDate(now);
+  const year = now.getFullYear();
   const seasonFrom = `${year}-01-01`;
+  // Ay: takvim ayının 1'i → bugün. Hafta: bu haftanın Pazartesi'si → bugün.
+  const monthFrom = localIsoDate(new Date(year, now.getMonth(), 1));
+  const daysFromMonday = (now.getDay() + 6) % 7; // Pzt=0 … Paz=6
+  const weekFrom = addDaysToLocalIsoDate(today, -daysFromMonday);
 
   // Tek istek — backend'in lifetime endpoint'i 25 yıllık üst limitle chunk'sız döner.
   // Önceki sürüm yıllık parçalara böldüğü için tek başına 7-8 HTTP isteği ediyordu.
@@ -80,6 +85,20 @@ export function useDashboardFinancialCards(enabled: boolean) {
     queryKey: ["dashboard", "financial-summary", "season", year],
     queryFn: () =>
       fetchFinancialSummaryReport({ dateFrom: seasonFrom, dateTo: today }),
+    enabled,
+    staleTime: 60_000,
+  });
+  const monthQ = useQuery({
+    queryKey: ["dashboard", "financial-summary", "month", monthFrom, today],
+    queryFn: () =>
+      fetchFinancialSummaryReport({ dateFrom: monthFrom, dateTo: today }),
+    enabled,
+    staleTime: 60_000,
+  });
+  const weekQ = useQuery({
+    queryKey: ["dashboard", "financial-summary", "week", weekFrom, today],
+    queryFn: () =>
+      fetchFinancialSummaryReport({ dateFrom: weekFrom, dateTo: today }),
     enabled,
     staleTime: 60_000,
   });
@@ -122,11 +141,22 @@ export function useDashboardFinancialCards(enabled: boolean) {
       ? pickPrimary(lifetimeQ.data.byCurrency)
       : emptyBucket(),
     season: seasonQ.data ? pickPrimary(seasonQ.data.byCurrency) : emptyBucket(),
+    month: monthQ.data ? pickPrimary(monthQ.data.byCurrency) : emptyBucket(),
+    week: weekQ.data ? pickPrimary(weekQ.data.byCurrency) : emptyBucket(),
     today: todayQ.data ? pickPrimary(todayQ.data.byCurrency) : emptyBucket(),
     cashFlow:
       cashFlowQ.data ?? { toPatron: 0, toPersonnel: 0, currency: "TRY" },
     isLoading:
-      lifetimeQ.isPending || seasonQ.isPending || todayQ.isPending,
-    isError: lifetimeQ.isError || seasonQ.isError || todayQ.isError,
+      lifetimeQ.isPending ||
+      seasonQ.isPending ||
+      monthQ.isPending ||
+      weekQ.isPending ||
+      todayQ.isPending,
+    isError:
+      lifetimeQ.isError ||
+      seasonQ.isError ||
+      monthQ.isError ||
+      weekQ.isError ||
+      todayQ.isError,
   };
 }

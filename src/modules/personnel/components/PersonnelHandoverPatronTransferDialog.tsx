@@ -138,7 +138,38 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
     () => openLines.reduce((s, x) => s + toCents(x.remainingHandoverAmount), 0),
     [openLines]
   );
-  const poolCeiling = useMemo(() => fromCents(poolTotalCents), [poolTotalCents]);
+
+  // Cash-account (gerçek zimmet) tavanı — seçili şubenin net bakiyesi (ctx.branchOptions),
+  // yani karttaki KALAN. OUT_POCKET_CLAIM_TO_PATRON açık bir HANDOVER_IN satırına bağlanmaz;
+  // devredilebilir gerçek tutar elde tutulan nakittir = bu net bakiye. Breakdown ctx para
+  // biriminde geldiği için yalnızca ccy === ctx.currencyCode iken YETKİLİ.
+  const ctxCcyNorm = (ctx?.currencyCode ?? "TRY").trim().toUpperCase() || "TRY";
+  const accountCeilingAuthoritative = ccy === ctxCcyNorm;
+  const branchAccountCeiling = useMemo(() => {
+    if (!accountCeilingAuthoritative) return 0;
+    const opts = ctx?.branchOptions ?? [];
+    if (opts.length > 0) {
+      const match = opts.find((o) => o.branchId === branchId);
+      return match && match.amount > 0.009 ? match.amount : 0;
+    }
+    const sug = ctx?.suggestedAmount ?? 0;
+    return sug > 0.009 ? sug : 0;
+  }, [accountCeilingAuthoritative, ctx?.branchOptions, ctx?.suggestedAmount, branchId]);
+
+  // Tavan = cash-account net bakiye (gerçek devredilebilir). Net yetkiliyken doğrudan onu
+  // kullan — elde tutulandan fazlası devredilemez (max(pool, net) fazla izin verebilirdi).
+  // Yalnız net hesaplanamadığında (para birimi ctx'ten farklı) FIFO havuza düş.
+  const effectiveCeilingCents = useMemo(
+    () =>
+      accountCeilingAuthoritative
+        ? toCents(branchAccountCeiling)
+        : poolTotalCents,
+    [accountCeilingAuthoritative, branchAccountCeiling, poolTotalCents]
+  );
+  const effectiveCeiling = useMemo(
+    () => fromCents(effectiveCeilingCents),
+    [effectiveCeilingCents]
+  );
 
   const [amount, setAmount] = useState("");
   const [transactionDate, setTransactionDate] = useState(() =>
@@ -170,15 +201,14 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
     [amountNum]
   );
   const amountMissing = amount.trim() === "";
-  const amountExceeds = amountCents > poolTotalCents;
+  const amountExceeds = amountCents > effectiveCeilingCents;
 
   const submitDisabled =
     saving ||
     createTx.isPending ||
     linesQuery.isPending ||
     linesQuery.isError ||
-    openLines.length === 0 ||
-    poolTotalCents <= 0 ||
+    effectiveCeilingCents <= 0 ||
     amountMissing ||
     amountExceeds ||
     (!amountMissing && (!Number.isFinite(amountNum) || amountNum <= 0));
@@ -206,7 +236,7 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
       return;
     }
     const targetCents = toCents(amt);
-    if (targetCents > poolTotalCents) {
+    if (targetCents > effectiveCeilingCents) {
       notify.error(t("personnel.handoverPatronTransferAmountExceeds"));
       return;
     }
@@ -243,11 +273,10 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
     createTx,
     ctx,
     description,
+    effectiveCeilingCents,
     loc,
     onClose,
-    openLines,
     personnel,
-    poolTotalCents,
     t,
     transactionDate,
   ]);
@@ -265,15 +294,14 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
     );
   }, [ctx?.branchOptions, ctx?.branchName, branchId, t]);
   const branchLabel = currentBranchName;
-  const ctxCcy = (ctx?.currencyCode ?? "TRY").trim().toUpperCase() || "TRY";
   const suggestedHint = useMemo(() => {
-    const ceil = poolCeiling;
+    const ceil = effectiveCeiling;
     const fromCtx = ctx?.suggestedAmount ?? 0;
     let v =
-      ccy === ctxCcy && fromCtx > 0.009 ? fromCtx : ceil > 0.009 ? ceil : 0;
+      ccy === ctxCcyNorm && fromCtx > 0.009 ? fromCtx : ceil > 0.009 ? ceil : 0;
     if (v > ceil + 1e-9) v = ceil;
     return v;
-  }, [ccy, ctx?.suggestedAmount, ctxCcy, poolCeiling]);
+  }, [ccy, ctx?.suggestedAmount, ctxCcyNorm, effectiveCeiling]);
   const fromInitials = useMemo(() => {
     const nm = personnel ? personnelDisplayName(personnel) : "";
     const ini = nm
@@ -341,13 +369,13 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
                   <p className="truncate text-[11px] leading-tight text-zinc-500">{branchLabel}</p>
                 ) : null}
               </div>
-              {!linesQuery.isError && !linesQuery.isPending && openLines.length > 0 ? (
+              {!linesQuery.isError && !linesQuery.isPending && effectiveCeilingCents > 0 ? (
                 <div className="shrink-0 text-right">
                   <p className="text-[9px] font-medium uppercase leading-none tracking-wide text-zinc-500">
                     {t("personnel.handoverPatronTransferAvailableLabel")}
                   </p>
                   <p className="font-mono text-[15px] font-semibold leading-tight tabular-nums text-violet-900">
-                    {formatLocaleAmount(poolCeiling, loc, ccy)}
+                    {formatLocaleAmount(effectiveCeiling, loc, ccy)}
                   </p>
                 </div>
               ) : null}
@@ -389,7 +417,7 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
                   />
                   <p className="text-sm text-zinc-500">{t("personnel.handoverPatronTransferLoading")}</p>
                 </>
-              ) : openLines.length === 0 ? (
+              ) : effectiveCeilingCents <= 0 ? (
                 <>
                   <Select
                     name="handoverPatronCurrencyEmpty"
@@ -444,15 +472,15 @@ export function PersonnelHandoverPatronTransferDialog({ open, ctx, onClose }: Pr
                         }}
                         error={amountExceeds ? t("personnel.handoverPatronTransferAmountExceeds") : undefined}
                       />
-                      {poolCeiling > 0.009 ? (
+                      {effectiveCeiling > 0.009 ? (
                         <button
                           type="button"
-                          onClick={() => setAmount(formatLocaleAmountInput(poolCeiling, loc))}
+                          onClick={() => setAmount(formatLocaleAmountInput(effectiveCeiling, loc))}
                           className="flex w-full items-center justify-between gap-2 rounded-md border border-violet-200 bg-violet-50 px-2.5 py-1 text-[10px] font-semibold text-violet-700 transition-colors hover:bg-violet-100"
                         >
                           <span>{t("personnel.handoverPatronTransferMaxButton")}</span>
                           <span className="font-mono tabular-nums">
-                            {formatLocaleAmount(poolCeiling, loc, ccy)}
+                            {formatLocaleAmount(effectiveCeiling, loc, ccy)}
                           </span>
                         </button>
                       ) : null}

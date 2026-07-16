@@ -35,7 +35,18 @@ import { Input } from "@/shared/ui/Input";
 import { Select } from "@/shared/ui/Select";
 import { EyeIcon, detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
-import { ShieldCheck, ShieldAlert } from "lucide-react";
+import {
+  ShieldCheck,
+  ShieldAlert,
+  UserPlus,
+  HandCoins,
+  ReceiptText,
+  StickyNote,
+  Landmark,
+  Crown,
+  UsersRound,
+  FileText,
+} from "lucide-react";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import {
   Table,
@@ -372,6 +383,7 @@ function buildPersonnelRowMenuSections(params: {
         {
           id: "systemUser",
           label: t("personnel.createSystemUserTitle"),
+          icon: <UserPlus />,
           onSelect: onCreateSystemUser,
         },
       ],
@@ -379,15 +391,22 @@ function buildPersonnelRowMenuSections(params: {
   }
   if (!p.isDeleted) {
     const moneyItems: QuickActionsMenuSection["items"] = [
-      { id: "advance", label: t("personnel.advance"), onSelect: onAdvance },
+      {
+        id: "advance",
+        label: t("personnel.advance"),
+        icon: <HandCoins />,
+        onSelect: onAdvance,
+      },
       {
         id: "expense",
         label: t("personnel.cardQuickAddPersonnelExpense"),
+        icon: <ReceiptText />,
         onSelect: onAddExpense,
       },
       {
         id: "notes",
         label: t("personnel.cardQuickNotes"),
+        icon: <StickyNote />,
         onSelect: onNotes,
       },
     ];
@@ -402,6 +421,7 @@ function buildPersonnelRowMenuSections(params: {
           {
             id: "personnelCashHandoverToPatron",
             label: t("personnel.listMenuHandoverPatronPool"),
+            icon: <Landmark />,
             onSelect: onPersonnelCashHandoverToPatron,
           },
         ],
@@ -419,11 +439,13 @@ function buildPersonnelRowMenuSections(params: {
           {
             id: "pocketClaimToPatron",
             label: t("personnel.listMenuPocketClaimToPatron"),
+            icon: <Crown />,
             onSelect: onPocketClaimToPatron,
           },
           {
             id: "pocketClaimToStaff",
             label: t("personnel.listMenuPocketClaimToStaff"),
+            icon: <UsersRound />,
             onSelect: onPocketClaimToStaff,
           },
         ],
@@ -435,6 +457,7 @@ function buildPersonnelRowMenuSections(params: {
         {
           id: "insuranceIntake",
           label: t("personnel.quickMenuInsuranceIntake"),
+          icon: <ShieldCheck />,
           onSelect: onInsuranceIntake,
         },
       ],
@@ -446,6 +469,7 @@ function buildPersonnelRowMenuSections(params: {
       {
         id: "pdfSettlement",
         label: t("personnel.rowMenuPdfSettlement"),
+        icon: <FileText />,
         onSelect: onPdfSettlement,
       },
     ],
@@ -1339,8 +1363,8 @@ export function PersonnelScreen() {
               </div>
 
               {/* Tablo: md ve üstü */}
-              <div className="-mx-1 hidden overflow-x-auto px-1 md:block sm:mx-0 sm:overflow-visible sm:px-0">
-                <Table mobileCards={false}>
+              <div className="hidden md:block">
+                <Table mobileCards={false} stickyFirstColumn>
                   <TableHead>
                     <TableRow>
                       <TableHeader>{t("personnel.tableName")}</TableHeader>

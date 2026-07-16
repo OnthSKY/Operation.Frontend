@@ -8,11 +8,16 @@ const defaultApiUrl = "http://localhost:5177/api";
 
 function publicApiOrigin(): string {
   const raw = process.env.NEXT_PUBLIC_API_BASE_URL?.trim();
-  const base = raw && raw.length > 0 ? raw.replace(/\/$/, "") : defaultApiUrl.replace(/\/$/, "");
+  // .env değeri varsa onu kullan; yoksa yalnızca dev'de localhost'a düş (production'da ezme).
+  const fallback = process.env.NODE_ENV === "production" ? "" : defaultApiUrl.replace(/\/$/, "");
+  const base = raw && raw.length > 0 ? raw.replace(/\/$/, "") : fallback;
+  if (!base) {
+    return "";
+  }
   try {
     return new URL(base).origin;
   } catch {
-    return new URL(defaultApiUrl).origin;
+    return "";
   }
 }
 
@@ -30,9 +35,9 @@ export function buildContentSecurityPolicyReportOnly(): string {
     "script-src 'self' 'unsafe-inline'",
     // Tailwind / styled-jsx benzeri inline stil yoksa ileride 'unsafe-inline' kaldırılabilir.
     "style-src 'self' 'unsafe-inline'",
-    `img-src 'self' data: blob: ${apiOrigin}`,
+    `img-src 'self' data: blob:${apiOrigin ? ` ${apiOrigin}` : ""}`,
     "font-src 'self' data:",
-    `connect-src 'self' ${apiOrigin}`,
+    `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ""}`,
   ];
   return directives.join("; ");
 }

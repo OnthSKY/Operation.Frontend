@@ -82,6 +82,8 @@ export const branchStockConsumption = {
   historyEmpty: "No usage records in the selected range.",
   restore: "Restore",
   deletedAtBy: "Deleted by {name} on {date}",
+  deleteConfirmTitle: "Delete usage record",
+  deleteConfirmMessage: "Are you sure you want to delete this usage record? You can restore it later from deleted records.",
 
   // Generic pagination text reused only here for now
   paginationPrevious: "Previous",

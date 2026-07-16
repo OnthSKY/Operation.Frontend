@@ -2,6 +2,7 @@
 
 import { useI18n } from "@/i18n/context";
 import { isPersonnelPortalRole } from "@/lib/auth/roles";
+import { canConsumeBranchStock } from "@/lib/auth/permissions";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   useBranchesList,
@@ -36,6 +37,21 @@ import {
 } from "@/shared/ui/Table";
 import { TablePagination } from "@/shared/ui/TablePagination";
 import { useBranchDetailOverlay } from "@/shared/branch-detail";
+import {
+  ArrowDownCircle,
+  ArrowUpCircle,
+  CalendarCheck,
+  CreditCard,
+  FileText,
+  Landmark,
+  PackageMinus,
+  Pencil,
+  ReceiptText,
+  SlidersHorizontal,
+  Trash2,
+  UserPlus,
+  Wallet,
+} from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { MouseEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -56,6 +72,10 @@ import {
 import { AssignPersonnelToBranchModal } from "./AssignPersonnelToBranchModal";
 import { BranchPdfSettlementOptionsModal } from "./BranchPdfSettlementOptionsModal";
 import { BranchPosSettlementProfileModal } from "./BranchPosSettlementProfileModal";
+import {
+  ConsumptionQuickEntryModal,
+  type ConsumptionQuickEntryMode,
+} from "./ConsumptionQuickEntryModal";
 
 function seasonLabel(status: BranchSeasonStatus, t: (key: string) => string): string {
   switch (status) {
@@ -367,6 +387,10 @@ export function BranchScreen() {
     preset: "income" | "expense" | "dayClose";
     nonce: number;
   } | null>(null);
+  const [quickStock, setQuickStock] = useState<{
+    branchId: number;
+    mode: ConsumptionQuickEntryMode;
+  } | null>(null);
   const [metricsOpen, setMetricsOpen] = useState<Record<number, boolean>>({});
   const [assignBranchId, setAssignBranchId] = useState<number | null>(null);
   const [pdfBranch, setPdfBranch] = useState<Branch | null>(null);
@@ -429,6 +453,16 @@ export function BranchScreen() {
     [openBranchDetailOverlay]
   );
 
+  const openBranchCurrentAccount = useCallback(
+    (id: number) => {
+      openBranchDetailOverlay(id, { initialTab: "currentAccount" });
+      setQuickTx(null);
+      setEditOpen(false);
+      setEditBranchId(null);
+    },
+    [openBranchDetailOverlay]
+  );
+
   const openBranchEdit = useCallback((id: number) => {
     setEditBranchId(id);
     setEditOpen(true);
@@ -442,6 +476,13 @@ export function BranchScreen() {
   }, []);
   const openBranchQuickDayClose = useCallback((id: number) => {
     setQuickTx({ branchId: id, preset: "dayClose", nonce: Date.now() });
+  }, []);
+  const mayConsume = canConsumeBranchStock(user);
+  const openBranchQuickConsume = useCallback((id: number) => {
+    setQuickStock({ branchId: id, mode: "consume" });
+  }, []);
+  const openBranchQuickAdjust = useCallback((id: number) => {
+    setQuickStock({ branchId: id, mode: "adjust" });
   }, []);
   const goSupplierInvoiceFor = useCallback(
     (id: number) => {
@@ -484,55 +525,109 @@ export function BranchScreen() {
           {
             id: "in",
             label: t("branch.quickAddIncome"),
+            icon: <ArrowDownCircle />,
             onSelect: () => openBranchQuickIncome(b.id),
           },
           {
             id: "out",
             label: t("branch.expenseAddOps"),
+            icon: <ArrowUpCircle />,
             onSelect: () => openBranchQuickExpense(b.id),
           },
           {
             id: "outSupplier",
             label: t("branch.expenseAddSupplier"),
+            icon: <ReceiptText />,
             onSelect: () => goSupplierInvoiceFor(b.id),
           },
           {
             id: "outOverhead",
             label: t("branch.expenseAddOverhead"),
+            icon: <Wallet />,
             onSelect: () => goGeneralOverheadFor(b.id),
           },
           {
             id: "dayClose",
             label: t("branch.quickAddDayClose"),
+            icon: <CalendarCheck />,
             onSelect: () => openBranchQuickDayClose(b.id),
           },
         ],
       };
-      if (personnelPortal) return [register];
+      const stock: QuickActionsMenuSection | null = mayConsume
+        ? {
+            storyTitle: t("branch.quickMenuStoryStock"),
+            items: [
+              {
+                id: "quickConsume",
+                label: t("branchStockConsumption.actionQuickConsume"),
+                icon: <PackageMinus />,
+                onSelect: () => openBranchQuickConsume(b.id),
+              },
+              {
+                id: "stockAdjust",
+                label: t("branchStockConsumption.actionAdjust"),
+                icon: <SlidersHorizontal />,
+                onSelect: () => openBranchQuickAdjust(b.id),
+              },
+            ],
+          }
+        : null;
+      // Detayı aç satırda göz ikonu olarak zaten var; menüde düzenle + cari yeterli. Staff-only.
+      const navigation: QuickActionsMenuSection | null = personnelPortal
+        ? null
+        : {
+            storyTitle: t("branch.quickMenuStoryBranch"),
+            items: [
+              {
+                id: "editBranch",
+                label: t("branch.edit"),
+                icon: <Pencil />,
+                onSelect: () => openBranchEdit(b.id),
+              },
+              {
+                id: "currentAccount",
+                label: t("branch.quickCurrentAccount"),
+                icon: <Landmark />,
+                onSelect: () => openBranchCurrentAccount(b.id),
+              },
+            ],
+          };
+      // Sıra: Şube (navigasyon) → Kasa → Stok → geri kalan (personel/tehlike).
+      const compose = (sections: QuickActionsMenuSection[]): QuickActionsMenuSection[] => [
+        ...(navigation ? [navigation] : []),
+        sections[0],
+        ...(stock ? [stock] : []),
+        ...sections.slice(1),
+      ];
+      if (personnelPortal) return compose([register]);
       const staffAndReports: QuickActionsMenuSection = {
         storyTitle: t("branch.quickMenuStoryPersonnelReports"),
         items: [
           {
             id: "pdf",
             label: t("branch.listRowPdfSettlement"),
+            icon: <FileText />,
             onSelect: () => setPdfBranch(b),
           },
           {
             id: "posProfile",
             label: t("branch.listRowPosProfile"),
+            icon: <CreditCard />,
             onSelect: () => setPosProfileBranch(b),
           },
           {
             id: "assign",
             label: t("branch.listRowAddPersonnel"),
+            icon: <UserPlus />,
             onSelect: () => setAssignBranchId(b.id),
           },
         ],
       };
       if (b.personnelAssignedCount > 0) {
-        return [register, staffAndReports];
+        return compose([register, staffAndReports]);
       }
-      return [
+      return compose([
         register,
         staffAndReports,
         {
@@ -541,18 +636,25 @@ export function BranchScreen() {
             {
               id: "deleteBranch",
               label: t("branch.deleteBranch"),
+              icon: <Trash2 />,
+              tone: "danger" as const,
               onSelect: () => setBranchPendingDelete(b),
             },
           ],
         },
-      ];
+      ]);
     },
     [
       t,
       personnelPortal,
+      mayConsume,
+      openBranchEdit,
+      openBranchCurrentAccount,
       openBranchQuickIncome,
       openBranchQuickExpense,
       openBranchQuickDayClose,
+      openBranchQuickConsume,
+      openBranchQuickAdjust,
       goSupplierInvoiceFor,
       goGeneralOverheadFor,
     ]
@@ -885,8 +987,8 @@ export function BranchScreen() {
               })}
             </div>
 
-            <div className="-mx-1 hidden overflow-x-auto px-1 md:block sm:mx-0 sm:overflow-visible sm:px-0">
-              <Table mobileCards={false}>
+            <div className="hidden md:block">
+              <Table mobileCards={false} stickyFirstColumn>
                 <TableHead>
                   <TableRow>
                     <TableHeader>{t("branch.tableId")}</TableHeader>
@@ -1065,6 +1167,15 @@ export function BranchScreen() {
             quickTx.preset === "dayClose" ? "IN_DAY_CLOSE" : undefined
           }
           onClose={() => setQuickTx(null)}
+        />
+      ) : null}
+
+      {quickStock != null ? (
+        <ConsumptionQuickEntryModal
+          open
+          branchId={quickStock.branchId}
+          mode={quickStock.mode}
+          onClose={() => setQuickStock(null)}
         />
       ) : null}
 

@@ -53,7 +53,30 @@ import {
   TableRow,
 } from "@/shared/ui/Table";
 import { useQueries } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
+
+/** Kasa defteri karşı-taraf türü → i18n anahtar soneki. */
+const CASH_KIND_LABEL_SUFFIX: Record<string, string> = {
+  BRANCH_REGISTER: "BranchRegister",
+  OTHER_PERSONNEL: "OtherPersonnel",
+  BRANCH_EXPENSE: "BranchExpense",
+  GENERAL_EXPENSE: "GeneralExpense",
+  PERSONNEL_PAYOUT: "PersonnelPayout",
+  PATRON: "Patron",
+};
+
+/**
+ * "Şube" yalnızca karşı taraftan FARKLI bir bilgi taşıdığında gösterilir (şube/merkez gider →
+ * kaynak şube). Şube kasasına girişte karşı taraf zaten şubedir → tek "Para kaynağı" satırı
+ * yazılır, ayrı Şube gösterilmez. Kişiye/patrona devir satırlarında da şube gizli.
+ */
+const CASH_BRANCH_VISIBLE_KINDS = new Set(["BRANCH_EXPENSE", "GENERAL_EXPENSE"]);
 
 function formatHireShort(iso: string, locale: Locale, dash: string): string {
   const d = iso?.slice(0, 10);
@@ -818,6 +841,39 @@ export function PersonnelManagementSnapshotSection({
     [ledgerEntryTarget, personnelOverlay, branchOverlay]
   );
 
+  // Kasa defteri satırının karşı-taraf metni (kimden/kime) — masaüstü + mobil ortak.
+  const ledgerCounterpartyText = useCallback(
+    (row: PersonnelCashLedgerEntry) =>
+      row.counterpartyLabel ||
+      t(
+        `personnel.detailMgmtCashAccountKind${
+          CASH_KIND_LABEL_SUFFIX[row.counterpartyKind] ?? "Patron"
+        }`
+      ),
+    [t]
+  );
+
+  // Tıklanabilir satır etkileşim prop'ları (kaynağı aç) — masaüstü satırı + mobil kart ortak.
+  const ledgerRowInteractiveProps = useCallback(
+    (row: PersonnelCashLedgerEntry, clickable: boolean) =>
+      clickable
+        ? {
+            onClick: () => openLedgerEntryDetail(row),
+            role: "button" as const,
+            tabIndex: 0,
+            title: t("personnel.detailMgmtCashAccountLedgerRowOpenHint"),
+            "aria-label": t("personnel.detailMgmtCashAccountLedgerRowOpenHint"),
+            onKeyDown: (e: ReactKeyboardEvent) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                openLedgerEntryDetail(row);
+              }
+            },
+          }
+        : {},
+    [openLedgerEntryDetail, t]
+  );
+
   const branchIdsForPocket = useMemo(() => {
     if (!personnel || personnel.isDeleted) return [];
     const ids = new Set<number>();
@@ -1368,147 +1424,230 @@ export function PersonnelManagementSnapshotSection({
                         {t("personnel.detailMgmtCashAccountLedgerEmpty")}
                       </p>
                     ) : (
-                      <div className="overflow-x-auto">
-                        <Table className="w-full min-w-0 lg:min-w-[60rem]">
-                          <TableHead>
-                            <TableRow>
-                              <TableHeader>
-                                {t("personnel.detailMgmtCashAccountLedgerColDate")}
-                              </TableHeader>
-                              <TableHeader className="text-right">
-                                {t("personnel.detailMgmtCashAccountLedgerColAmount")}
-                              </TableHeader>
-                              <TableHeader className="text-right">
-                                {t("personnel.detailMgmtCashAccountLedgerColBalanceAfter")}
-                              </TableHeader>
-                              <TableHeader>
-                                {t("personnel.detailMgmtCashAccountLedgerColCounterparty")}
-                              </TableHeader>
-                              <TableHeader>
-                                {t("personnel.detailMgmtCashAccountLedgerColBranch")}
-                              </TableHeader>
-                              <TableHeader>
-                                {t("personnel.detailMgmtCashAccountLedgerColDescription")}
-                              </TableHeader>
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {ledgerQuery.data!.items.map((row) => {
-                              const isReversal = row.entryKind === "REVERSAL";
-                              const isIn = row.direction === "IN";
-                              const sign = isIn ? "+" : "−";
-                              const amtClass = isIn
-                                ? "text-emerald-700"
-                                : "text-rose-700";
-                              const clickable = ledgerEntryHasSource(row);
-                              return (
-                                <TableRow
-                                  key={row.id}
-                                  onClick={
-                                    clickable ? () => openLedgerEntryDetail(row) : undefined
-                                  }
-                                  role={clickable ? "button" : undefined}
-                                  tabIndex={clickable ? 0 : undefined}
-                                  title={
-                                    clickable
-                                      ? t("personnel.detailMgmtCashAccountLedgerRowOpenHint")
-                                      : undefined
-                                  }
-                                  aria-label={
-                                    clickable
-                                      ? t("personnel.detailMgmtCashAccountLedgerRowOpenHint")
-                                      : undefined
-                                  }
-                                  onKeyDown={
-                                    clickable
-                                      ? (e) => {
-                                          if (e.key === "Enter" || e.key === " ") {
-                                            e.preventDefault();
-                                            openLedgerEntryDetail(row);
-                                          }
-                                        }
-                                      : undefined
-                                  }
+                      <>
+                        {/* Masaüstü: tam banka-ekstresi tablosu (önceki + sonraki bakiye). */}
+                        <div className="hidden overflow-x-auto md:block">
+                          <Table mobileCards={false} className="w-full min-w-0 lg:min-w-[64rem]">
+                            <TableHead>
+                              <TableRow>
+                                <TableHeader>
+                                  {t("personnel.detailMgmtCashAccountLedgerColDate")}
+                                </TableHeader>
+                                <TableHeader className="text-right">
+                                  {t("personnel.detailMgmtCashAccountLedgerColAmount")}
+                                </TableHeader>
+                                <TableHeader className="text-right">
+                                  {t("personnel.detailMgmtCashAccountLedgerColBalanceBefore")}
+                                </TableHeader>
+                                <TableHeader className="text-right">
+                                  {t("personnel.detailMgmtCashAccountLedgerColBalanceAfter")}
+                                </TableHeader>
+                                <TableHeader>
+                                  {t("personnel.detailMgmtCashAccountLedgerColCounterparty")}
+                                </TableHeader>
+                                <TableHeader>
+                                  {t("personnel.detailMgmtCashAccountLedgerColBranch")}
+                                </TableHeader>
+                                <TableHeader>
+                                  {t("personnel.detailMgmtCashAccountLedgerColDescription")}
+                                </TableHeader>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {ledgerQuery.data!.items.map((row) => {
+                                const isReversal = row.entryKind === "REVERSAL";
+                                const isIn = row.direction === "IN";
+                                const sign = isIn ? "+" : "−";
+                                const amtClass = isIn
+                                  ? "text-emerald-700"
+                                  : "text-rose-700";
+                                const clickable = ledgerEntryHasSource(row);
+                                return (
+                                  <TableRow
+                                    key={row.id}
+                                    {...ledgerRowInteractiveProps(row, clickable)}
+                                    className={cn(
+                                      isReversal && "opacity-60",
+                                      clickable &&
+                                        "cursor-pointer transition-colors hover:bg-sky-50/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500",
+                                    )}
+                                  >
+                                    <TableCell className="whitespace-nowrap">
+                                      {formatLocaleDate(row.entryDate, locale, dash)}
+                                    </TableCell>
+                                    <TableCell
+                                      className={cn(
+                                        "text-right font-mono font-semibold tabular-nums",
+                                        amtClass,
+                                      )}
+                                    >
+                                      <span className="mr-0.5">{sign}</span>
+                                      {formatMoneyDash(row.amount, dash, locale, row.currencyCode)}
+                                    </TableCell>
+                                    <TableCell className="text-right font-mono tabular-nums text-zinc-500">
+                                      {formatMoneyDash(row.balanceBefore, dash, locale, row.currencyCode)}
+                                    </TableCell>
+                                    <TableCell className="text-right font-mono tabular-nums text-zinc-900">
+                                      {formatMoneyDash(row.balanceAfter, dash, locale, row.currencyCode)}
+                                    </TableCell>
+                                    <TableCell className="max-w-[14rem]">
+                                      <div className="text-sm text-zinc-800">
+                                        {ledgerCounterpartyText(row)}
+                                      </div>
+                                      {isReversal ? (
+                                        <span className="mt-0.5 inline-block rounded bg-zinc-200 px-1.5 text-[0.65rem] font-semibold uppercase text-zinc-700">
+                                          {t("personnel.detailMgmtCashAccountLedgerReversalBadge")}
+                                        </span>
+                                      ) : null}
+                                    </TableCell>
+                                    <TableCell>{row.sourceBranchName || dash}</TableCell>
+                                    <TableCell className="max-w-[16rem] text-zinc-600">
+                                      <span
+                                        className="block truncate md:max-w-[16rem]"
+                                        title={row.description ?? undefined}
+                                      >
+                                        {row.description || dash}
+                                      </span>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
+
+                        {/* Mobil: kart düzeni — tarih sağ üstte, önceki→sonraki bakiye,
+                            kimden/kime, şube yalnızca ilgili satırlarda. */}
+                        <ul className="space-y-3 md:hidden">
+                          {ledgerQuery.data!.items.map((row) => {
+                            const isReversal = row.entryKind === "REVERSAL";
+                            const isIn = row.direction === "IN";
+                            const sign = isIn ? "+" : "−";
+                            const amtClass = isIn ? "text-emerald-700" : "text-rose-700";
+                            const clickable = ledgerEntryHasSource(row);
+                            const counterpartyText = ledgerCounterpartyText(row);
+                            // Şube kasasından giriş: para gerçekten şubeden gelir → tek "Para kaynağı" satırı.
+                            const isBranchSource =
+                              isIn && row.counterpartyKind === "BRANCH_REGISTER";
+                            const partyLabel = isBranchSource
+                              ? t("personnel.detailMgmtCashAccountLedgerColSource")
+                              : isIn
+                                ? t("personnel.detailMgmtCashAccountLedgerColFrom")
+                                : t("personnel.detailMgmtCashAccountLedgerColTo");
+                            // Şube yalnız karşı taraftan farklıysa (tekrar değilse) gösterilir.
+                            const showBranch =
+                              Boolean(row.sourceBranchName) &&
+                              CASH_BRANCH_VISIBLE_KINDS.has(row.counterpartyKind) &&
+                              row.sourceBranchName !== counterpartyText;
+                            return (
+                              <li key={row.id}>
+                                <div
+                                  {...ledgerRowInteractiveProps(row, clickable)}
                                   className={cn(
+                                    "rounded-xl border border-zinc-200 bg-white p-3 shadow-sm",
                                     isReversal && "opacity-60",
                                     clickable &&
-                                      "cursor-pointer transition-colors hover:bg-sky-50/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500",
+                                      "cursor-pointer transition-colors hover:bg-sky-50/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500",
                                   )}
                                 >
-                                  <TableCell
-                                    dataLabel={t("personnel.detailMgmtCashAccountLedgerColDate")}
-                                    className="whitespace-nowrap"
-                                  >
-                                    {formatLocaleDate(row.entryDate, locale, dash)}
-                                  </TableCell>
-                                  <TableCell
-                                    dataLabel={t("personnel.detailMgmtCashAccountLedgerColAmount")}
-                                    className={cn(
-                                      "text-right font-mono font-semibold tabular-nums",
-                                      amtClass,
-                                    )}
-                                  >
-                                    <span className="mr-0.5">{sign}</span>
-                                    {formatMoneyDash(row.amount, dash, locale, row.currencyCode)}
-                                  </TableCell>
-                                  <TableCell
-                                    dataLabel={t("personnel.detailMgmtCashAccountLedgerColBalanceAfter")}
-                                    className="text-right font-mono tabular-nums text-zinc-900"
-                                  >
-                                    {formatMoneyDash(
-                                      row.balanceAfter,
-                                      dash,
-                                      locale,
-                                      row.currencyCode,
-                                    )}
-                                  </TableCell>
-                                  <TableCell
-                                    dataLabel={t("personnel.detailMgmtCashAccountLedgerColCounterparty")}
-                                    className="max-w-[14rem]"
-                                  >
-                                    <div className="text-sm text-zinc-800">
-                                      {row.counterpartyLabel ||
-                                        t(
-                                          `personnel.detailMgmtCashAccountKind${
-                                            {
-                                              BRANCH_REGISTER: "BranchRegister",
-                                              OTHER_PERSONNEL: "OtherPersonnel",
-                                              BRANCH_EXPENSE: "BranchExpense",
-                                              GENERAL_EXPENSE: "GeneralExpense",
-                                              PERSONNEL_PAYOUT: "PersonnelPayout",
-                                              PATRON: "Patron",
-                                            }[row.counterpartyKind] ?? "Patron"
-                                          }`,
-                                        )}
-                                    </div>
-                                    {isReversal ? (
-                                      <span className="mt-0.5 inline-block rounded bg-zinc-200 px-1.5 text-[0.65rem] font-semibold uppercase text-zinc-700">
-                                        {t("personnel.detailMgmtCashAccountLedgerReversalBadge")}
-                                      </span>
-                                    ) : null}
-                                  </TableCell>
-                                  <TableCell
-                                    dataLabel={t("personnel.detailMgmtCashAccountLedgerColBranch")}
-                                  >
-                                    {row.sourceBranchName || dash}
-                                  </TableCell>
-                                  <TableCell
-                                    dataLabel={t("personnel.detailMgmtCashAccountLedgerColDescription")}
-                                    className="max-w-[16rem] text-zinc-600"
-                                  >
-                                    <span
-                                      className="block truncate md:max-w-[16rem]"
-                                      title={row.description ?? undefined}
+                                  {/* Başlık: tutar solda, tarih sağ üstte */}
+                                  <div className="flex items-start justify-between gap-3">
+                                    <div
+                                      className={cn(
+                                        "font-mono text-base font-semibold tabular-nums",
+                                        amtClass,
+                                      )}
                                     >
-                                      {row.description || dash}
+                                      <span className="mr-0.5">{sign}</span>
+                                      {formatMoneyDash(row.amount, dash, locale, row.currencyCode)}
+                                    </div>
+                                    <time className="shrink-0 whitespace-nowrap text-xs font-medium text-zinc-500">
+                                      {formatLocaleDate(row.entryDate, locale, dash)}
+                                    </time>
+                                  </div>
+
+                                  {/* Önceki bakiye → Sonraki bakiye */}
+                                  <div className="mt-2.5 flex items-center justify-between gap-2 rounded-lg bg-zinc-50 px-3 py-2">
+                                    <div className="min-w-0">
+                                      <div className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+                                        {t("personnel.detailMgmtCashAccountLedgerColBalanceBefore")}
+                                      </div>
+                                      <div className="font-mono text-sm tabular-nums text-zinc-600">
+                                        {formatMoneyDash(row.balanceBefore, dash, locale, row.currencyCode)}
+                                      </div>
+                                    </div>
+                                    <svg
+                                      width="16"
+                                      height="16"
+                                      viewBox="0 0 24 24"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="2"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      className="shrink-0 text-zinc-300"
+                                      aria-hidden
+                                    >
+                                      <path d="M5 12h14M13 6l6 6-6 6" />
+                                    </svg>
+                                    <div className="min-w-0 text-right">
+                                      <div className="text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+                                        {t("personnel.detailMgmtCashAccountLedgerColBalanceAfter")}
+                                      </div>
+                                      <div className="font-mono text-sm font-semibold tabular-nums text-zinc-900">
+                                        {formatMoneyDash(row.balanceAfter, dash, locale, row.currencyCode)}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Kimden / Kime / Para kaynağı */}
+                                  <div className="mt-2 flex items-baseline justify-between gap-3">
+                                    <span className="shrink-0 text-xs font-medium text-zinc-500">
+                                      {partyLabel}
                                     </span>
-                                  </TableCell>
-                                </TableRow>
-                              );
-                            })}
-                          </TableBody>
-                        </Table>
-                      </div>
+                                    <span className="min-w-0 break-words text-right text-sm text-zinc-800">
+                                      {counterpartyText}
+                                    </span>
+                                  </div>
+
+                                  {/* Şube — yalnızca şube-kaynaklı satırlarda */}
+                                  {showBranch ? (
+                                    <div className="mt-1.5 flex items-baseline justify-between gap-3">
+                                      <span className="shrink-0 text-xs font-medium text-zinc-500">
+                                        {t("personnel.detailMgmtCashAccountLedgerColBranch")}
+                                      </span>
+                                      <span className="min-w-0 break-words text-right text-sm text-zinc-700">
+                                        {row.sourceBranchName}
+                                      </span>
+                                    </div>
+                                  ) : null}
+
+                                  {/* Not — varsa */}
+                                  {row.description ? (
+                                    <div className="mt-1.5 flex items-baseline justify-between gap-3">
+                                      <span className="shrink-0 text-xs font-medium text-zinc-500">
+                                        {t("personnel.detailMgmtCashAccountLedgerColDescription")}
+                                      </span>
+                                      <span
+                                        className="min-w-0 break-words text-right text-sm text-zinc-600"
+                                        title={row.description}
+                                      >
+                                        {row.description}
+                                      </span>
+                                    </div>
+                                  ) : null}
+
+                                  {isReversal ? (
+                                    <span className="mt-2 inline-block rounded bg-zinc-200 px-1.5 text-[0.65rem] font-semibold uppercase text-zinc-700">
+                                      {t("personnel.detailMgmtCashAccountLedgerReversalBadge")}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </>
                     )}
                     {(ledgerQuery.data?.totalCount ?? 0) > ledgerPageSize ? (
                       <div className="flex items-center justify-between gap-2 border-t border-zinc-200/80 bg-zinc-50/60 px-3 py-2">
@@ -1550,7 +1689,11 @@ export function PersonnelManagementSnapshotSection({
                 ) : null}
 
 
-                {!personnel.isDeleted &&
+                {/* GEÇİCİ KAPATILDI (silinmedi — ileride geri açılabilir): "Şube kasası — cep"
+                    bölümü. Kendi cebinden harcama akışı kapatıldığı için gizlendi. Geri açmak
+                    için koşulun başındaki `false &&` kısmını kaldırın; veri hook'ları
+                    (pocketMoneyByBranch / pocketMoneyPending) ve render aynen duruyor. */}
+                {false && !personnel.isDeleted &&
                 (pocketMoneyPending || pocketMoneyByBranch.length > 0) ? (
                   <div className="rounded-xl border border-violet-200/80 bg-violet-50/30 p-3 sm:p-4">
                     <div className="flex flex-wrap items-start justify-between gap-2">
