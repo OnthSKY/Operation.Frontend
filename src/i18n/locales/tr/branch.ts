@@ -521,6 +521,9 @@ export const branch = {
   docKindShipmentDeliverySlip: "Sevkiyat irsaliyesi",
   docKindOther: "Diğer",
   documentsGroupShipmentStatement: "Sevkiyat / cari PDF'leri",
+  documentsTabSystem: "Sistem PDF'leri",
+  documentsTabUploaded: "Yüklenen belgeler",
+  documentsFilterAll: "Tümü",
   documentsBadgeOriginal: "Orijinal (v1)",
   documentsBadgeWithReceipts: "Tahsilatlı (v2)",
   documentsIntro:

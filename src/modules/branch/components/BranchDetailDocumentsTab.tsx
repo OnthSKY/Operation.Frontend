@@ -26,7 +26,17 @@ import { detailOpenIconButtonClass, DownloadIcon, EyeIcon } from "@/shared/ui/Ey
 import { Modal } from "@/shared/ui/Modal";
 import { Select } from "@/shared/ui/Select";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
-import { useEffect, useMemo, useState, type FocusEventHandler } from "react";
+import {
+  AlignLeft,
+  Briefcase,
+  Clock,
+  File as FileIcon,
+  FileText,
+  Landmark,
+  Leaf,
+  Truck,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type FocusEventHandler } from "react";
 
 /** Belge dosya türü için kompakt sol-üst tile (PDF/IMG/etc). */
 function DocFileTile({ contentType }: { contentType: string }) {
@@ -79,6 +89,9 @@ const GROUP_ORDER: string[] = [
   "AGRICULTURE_CERT",
   "OTHER",
 ];
+
+/** Sistemin sevkiyattan türettiği belge grupları; gerisi elle yüklenendir. */
+const SYSTEM_GROUP_KEYS = new Set<string>([SHIPMENT_STATEMENT_GROUP, "SHIPMENT_DELIVERY_SLIP"]);
 
 function isPdfV2Note(note: string | null | undefined): boolean {
   return /(?:^|[;,\s·])version=v2(?:$|[;,\s·])/i.test(String(note ?? ""));
@@ -248,6 +261,162 @@ export function BranchDetailDocumentsTab({ branchId, active, readOnly = false }:
     return orderedKeys.map((key) => ({ key, items: map.get(key)! }));
   }, [data]);
 
+  // Sistem-üretimi (sevkiyat) belgeleri ile elle yüklenenleri iki alt sekmeye böl.
+  const { systemGroups, uploadedGroups } = useMemo(() => {
+    const system: typeof groupedDocuments = [];
+    const uploaded: typeof groupedDocuments = [];
+    for (const g of groupedDocuments) {
+      (SYSTEM_GROUP_KEYS.has(g.key) ? system : uploaded).push(g);
+    }
+    return { systemGroups: system, uploadedGroups: uploaded };
+  }, [groupedDocuments]);
+  const systemCount = systemGroups.reduce((n, g) => n + g.items.length, 0);
+  const uploadedCount = uploadedGroups.reduce((n, g) => n + g.items.length, 0);
+
+  const [docTab, setDocTab] = useState<"uploaded" | "system">("uploaded");
+  // İlk yükte, yüklenen belge yok ama sistem PDF'i varsa sistem sekmesiyle aç.
+  const tabInitRef = useRef(false);
+  useEffect(() => {
+    if (tabInitRef.current || data.length === 0) return;
+    tabInitRef.current = true;
+    if (uploadedCount === 0 && systemCount > 0) setDocTab("system");
+  }, [data.length, uploadedCount, systemCount]);
+  const tabGroups = docTab === "system" ? systemGroups : uploadedGroups;
+
+  // Aktif sekme içinde kategoriye (gruba) göre filtre; null = tümü.
+  const [catFilter, setCatFilter] = useState<string | null>(null);
+  const activeGroups = catFilter ? tabGroups.filter((g) => g.key === catFilter) : tabGroups;
+  const tabTotal = tabGroups.reduce((n, g) => n + g.items.length, 0);
+
+  const groupIcon = (key: string) => {
+    const cls = "h-3.5 w-3.5 shrink-0";
+    if (key === SHIPMENT_STATEMENT_GROUP) return <FileText className={cls} aria-hidden />;
+    if (key === "SHIPMENT_DELIVERY_SLIP") return <Truck className={cls} aria-hidden />;
+    if (key === "TAX_BASE") return <Landmark className={cls} aria-hidden />;
+    if (key === "WORK_PERMIT") return <Briefcase className={cls} aria-hidden />;
+    if (key === "AGRICULTURE_CERT") return <Leaf className={cls} aria-hidden />;
+    return <FileIcon className={cls} aria-hidden />;
+  };
+
+  const renderGroup = (group: { key: string; items: BranchDocument[] }) => (
+    <section key={group.key} className="space-y-2">
+      <div className="flex items-center gap-2 border-b border-zinc-100 pb-1.5">
+        {groupIcon(group.key)}
+        <h3 className="text-sm font-semibold text-zinc-800">{groupLabel(group.key)}</h3>
+        <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-600 tabular-nums">
+          {group.items.length}
+        </span>
+      </div>
+      <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+        {group.items.map((row) => {
+          const shipmentNo = extractShipmentNo(row);
+          const isStatement = group.key === SHIPMENT_STATEMENT_GROUP;
+          const isV2 = isStatement && isPdfV2Note(row.notes);
+          return (
+            <li
+              key={row.id}
+              className="group flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-3 transition-colors hover:border-zinc-300 hover:shadow-sm"
+            >
+              <div className="flex gap-3">
+                <DocFileTile contentType={row.contentType} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPreviewDoc(row)}
+                      className="min-w-0 flex-1 truncate text-left font-medium text-zinc-900 hover:text-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 rounded"
+                      title={row.originalFileName ?? undefined}
+                    >
+                      {row.originalFileName ?? row.contentType}
+                    </button>
+                    <span className="flex shrink-0 items-center gap-1 text-[11px] font-medium text-zinc-500 tabular-nums">
+                      <Clock className="h-3 w-3" aria-hidden />
+                      {formatLocaleDateTime(row.createdAt, locale)}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-800">
+                      {groupIcon(group.key)}
+                      {groupLabel(group.key)}
+                    </span>
+                    {isStatement ? (
+                      <span
+                        className={
+                          isV2
+                            ? "rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800"
+                            : "rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-800"
+                        }
+                      >
+                        {isV2
+                          ? t("branch.documentsBadgeWithReceipts")
+                          : t("branch.documentsBadgeOriginal")}
+                      </span>
+                    ) : null}
+                    {shipmentNo ? (
+                      <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-800">
+                        {t("branch.documentsShipmentNo")}: {shipmentNo}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+              {row.notes ? (
+                <div
+                  className="flex items-start gap-1.5 text-xs text-zinc-500"
+                  title={row.notes}
+                >
+                  <AlignLeft className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-400" aria-hidden />
+                  <span className="line-clamp-2">{summarizeNotes(row.notes)}</span>
+                </div>
+              ) : null}
+              <div className="flex justify-end gap-1.5 border-t border-zinc-100 pt-2">
+                <Tooltip content={t("branch.documentsView")} delayMs={200}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className={detailOpenIconButtonClass}
+                    aria-label={t("branch.documentsView")}
+                    title={t("branch.documentsView")}
+                    onClick={() => setPreviewDoc(row)}
+                  >
+                    <EyeIcon />
+                  </Button>
+                </Tooltip>
+                <Tooltip content={t("branch.documentsStartAction")} delayMs={200}>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className={detailOpenIconButtonClass}
+                    disabled={loadingDocAction?.id === row.id}
+                    aria-label={t("branch.documentsStartAction")}
+                    title={t("branch.documentsStartAction")}
+                    onClick={() => void startDocumentAction(row.id)}
+                  >
+                    <DownloadIcon />
+                  </Button>
+                </Tooltip>
+                {!readOnly ? (
+                  <Tooltip content={t("common.delete")} delayMs={200}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className={trashIconActionButtonClass}
+                      aria-label={t("common.delete")}
+                      title={t("common.delete")}
+                      onClick={() => setDeleteId(row.id)}
+                    >
+                      <TrashIcon />
+                    </Button>
+                  </Tooltip>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+
   return (
     <div className="w-full min-w-0 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -287,114 +456,88 @@ export function BranchDetailDocumentsTab({ branchId, active, readOnly = false }:
       ) : data.length === 0 ? (
         <p className="text-sm text-zinc-500">{t("branch.documentsEmpty")}</p>
       ) : (
-        <div className="space-y-5">
-          {groupedDocuments.map((group) => (
-            <section key={group.key} className="space-y-2">
-              <div className="flex items-center gap-2 border-b border-zinc-100 pb-1.5">
-                <h3 className="text-sm font-semibold text-zinc-800">{groupLabel(group.key)}</h3>
-                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-600 tabular-nums">
-                  {group.items.length}
+        <div className="space-y-4">
+          <div className="flex gap-1 rounded-xl bg-zinc-100 p-1">
+            {(
+              [
+                { id: "uploaded", label: t("branch.documentsTabUploaded"), count: uploadedCount },
+                { id: "system", label: t("branch.documentsTabSystem"), count: systemCount },
+              ] as const
+            ).map((tb) => {
+              const isActive = docTab === tb.id;
+              return (
+                <button
+                  key={tb.id}
+                  type="button"
+                  onClick={() => {
+                    setDocTab(tb.id);
+                    setCatFilter(null);
+                  }}
+                  aria-pressed={isActive}
+                  className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    isActive
+                      ? "bg-white text-zinc-900 shadow-sm"
+                      : "text-zinc-600 hover:text-zinc-900"
+                  }`}
+                >
+                  {tb.label}
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums ${
+                      isActive ? "bg-zinc-100 text-zinc-700" : "bg-zinc-200/70 text-zinc-600"
+                    }`}
+                  >
+                    {tb.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {tabGroups.length > 1 ? (
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => setCatFilter(null)}
+                aria-pressed={catFilter === null}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[13px] font-medium transition-colors ${
+                  catFilter === null
+                    ? "border-violet-300 bg-violet-50 text-violet-800"
+                    : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300"
+                }`}
+              >
+                {t("branch.documentsFilterAll")}
+                <span className="rounded-full bg-zinc-100 px-1.5 text-[11px] font-semibold text-zinc-600 tabular-nums">
+                  {tabTotal}
                 </span>
-              </div>
-              <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2">
-                {group.items.map((row) => {
-                  const shipmentNo = extractShipmentNo(row);
-                  const isStatement = group.key === SHIPMENT_STATEMENT_GROUP;
-                  const isV2 = isStatement && isPdfV2Note(row.notes);
-                  return (
-                    <li
-                      key={row.id}
-                      className="group flex gap-3 rounded-xl border border-zinc-200 bg-white p-3 transition-colors hover:border-zinc-300 hover:shadow-sm"
-                    >
-                      <DocFileTile contentType={row.contentType} />
-                      <div className="min-w-0 flex-1">
-                        <button
-                          type="button"
-                          onClick={() => setPreviewDoc(row)}
-                          className="block w-full truncate text-left font-medium text-zinc-900 hover:text-violet-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 rounded"
-                          title={row.originalFileName ?? undefined}
-                        >
-                          {row.originalFileName ?? row.contentType}
-                        </button>
-                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                          <span className="inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-800">
-                            {groupLabel(group.key)}
-                          </span>
-                          {isStatement ? (
-                            <span
-                              className={
-                                isV2
-                                  ? "rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-800"
-                                  : "rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-semibold text-violet-800"
-                              }
-                            >
-                              {isV2
-                                ? t("branch.documentsBadgeWithReceipts")
-                                : t("branch.documentsBadgeOriginal")}
-                            </span>
-                          ) : null}
-                          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700">
-                            {formatLocaleDateTime(row.createdAt, locale)}
-                          </span>
-                          {shipmentNo ? (
-                            <span className="rounded-full bg-sky-100 px-2 py-0.5 text-[11px] font-semibold text-sky-800">
-                              {t("branch.documentsShipmentNo")}: {shipmentNo}
-                            </span>
-                          ) : null}
-                        </div>
-                        {row.notes ? (
-                          <div className="mt-1 line-clamp-2 text-xs text-zinc-500" title={row.notes}>
-                            {summarizeNotes(row.notes)}
-                          </div>
-                        ) : null}
-                      </div>
-                      <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row sm:items-start">
-                        <Tooltip content={t("branch.documentsView")} delayMs={200}>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className={detailOpenIconButtonClass}
-                            aria-label={t("branch.documentsView")}
-                            title={t("branch.documentsView")}
-                            onClick={() => setPreviewDoc(row)}
-                          >
-                            <EyeIcon />
-                          </Button>
-                        </Tooltip>
-                        <Tooltip content={t("branch.documentsStartAction")} delayMs={200}>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className={detailOpenIconButtonClass}
-                            disabled={loadingDocAction?.id === row.id}
-                            aria-label={t("branch.documentsStartAction")}
-                            title={t("branch.documentsStartAction")}
-                            onClick={() => void startDocumentAction(row.id)}
-                          >
-                            <DownloadIcon />
-                          </Button>
-                        </Tooltip>
-                        {!readOnly ? (
-                          <Tooltip content={t("common.delete")} delayMs={200}>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              className={trashIconActionButtonClass}
-                              aria-label={t("common.delete")}
-                              title={t("common.delete")}
-                              onClick={() => setDeleteId(row.id)}
-                            >
-                              <TrashIcon />
-                            </Button>
-                          </Tooltip>
-                        ) : null}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </section>
-          ))}
+              </button>
+              {tabGroups.map((g) => {
+                const isActive = catFilter === g.key;
+                return (
+                  <button
+                    key={g.key}
+                    type="button"
+                    onClick={() => setCatFilter(g.key)}
+                    aria-pressed={isActive}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[13px] font-medium transition-colors ${
+                      isActive
+                        ? "border-violet-300 bg-violet-50 text-violet-800"
+                        : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300"
+                    }`}
+                  >
+                    {groupIcon(g.key)}
+                    {groupLabel(g.key)}
+                    <span className="rounded-full bg-zinc-100 px-1.5 text-[11px] font-semibold text-zinc-600 tabular-nums">
+                      {g.items.length}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+          {activeGroups.length === 0 ? (
+            <p className="text-sm text-zinc-500">{t("branch.documentsEmpty")}</p>
+          ) : (
+            <div className="space-y-5">{activeGroups.map(renderGroup)}</div>
+          )}
         </div>
       )}
 

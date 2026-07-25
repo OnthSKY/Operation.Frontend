@@ -514,6 +514,9 @@ export const branch = {
   docKindShipmentDeliverySlip: "Shipment delivery slip",
   docKindOther: "Other",
   documentsGroupShipmentStatement: "Shipment / account PDFs",
+  documentsTabSystem: "System PDFs",
+  documentsTabUploaded: "Uploaded documents",
+  documentsFilterAll: "All",
   documentsBadgeOriginal: "Original (v1)",
   documentsBadgeWithReceipts: "With collections (v2)",
   documentsIntro:

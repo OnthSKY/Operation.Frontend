@@ -8,6 +8,9 @@ export type BranchStockConsumptionRow = {
   productId: number;
   productName: string;
   productUnit: string | null;
+  /** Ana ürün (varsa); gün özeti alt ürünleri ana ürün altında toplar. null = kendisi ana üründür. */
+  parentProductId: number | null;
+  parentProductName: string | null;
   type: BranchStockConsumptionType;
   direction: BranchStockDirection;
   quantity: number;
@@ -79,6 +82,16 @@ function normalizeRow(r: Record<string, unknown>): BranchStockConsumptionRow {
       r.productUnit != null && String(r.productUnit).trim() !== ""
         ? String(r.productUnit).trim()
         : null,
+    parentProductId:
+      (Number(r.parentProductId ?? r.ParentProductId) || 0) > 0
+        ? Number(r.parentProductId ?? r.ParentProductId)
+        : null,
+    parentProductName:
+      r.parentProductName != null && String(r.parentProductName).trim() !== ""
+        ? String(r.parentProductName).trim()
+        : r.ParentProductName != null && String(r.ParentProductName).trim() !== ""
+          ? String(r.ParentProductName).trim()
+          : null,
     type: String(r.type ?? r.Type ?? "CONSUMPTION") as BranchStockConsumptionType,
     direction: String(r.direction ?? r.Direction ?? "OUT") as BranchStockDirection,
     quantity: Number(r.quantity ?? r.Quantity ?? 0) || 0,
