@@ -24,6 +24,7 @@ export const TX_MAIN_IN: { value: string; labelKey: string }[] = [
  */
 export const TX_MAIN_OUT_BRANCH_MODAL_ORDER = [
   "OUT_OPS",
+  "OUT_CAPEX",
 ] as const;
 
 /**
@@ -32,6 +33,7 @@ export const TX_MAIN_OUT_BRANCH_MODAL_ORDER = [
  */
 const TX_MAIN_OUT_LABEL_KEYS: Record<string, string> = {
   OUT_OPS: "branch.txMainOutOps",
+  OUT_CAPEX: "branch.txMainOutCapex",
   OUT_TAX: "branch.txMainOutTax",
   OUT_GOODS: "branch.txMainOutGoods",
   OUT_OTHER: "branch.txMainOutOther",
@@ -48,6 +50,7 @@ const TX_MAIN_OUT_LABEL_KEYS: Record<string, string> = {
  */
 export const TX_MAIN_OUT: { value: string; labelKey: string }[] = [
   { value: "OUT_OPS", labelKey: TX_MAIN_OUT_LABEL_KEYS.OUT_OPS },
+  { value: "OUT_CAPEX", labelKey: TX_MAIN_OUT_LABEL_KEYS.OUT_CAPEX },
 ];
 
 /** txMainOptions çıktısında ilk eleman boş placeholder; OUT satırlarını sürdürülebilir sıraya koyar. */
@@ -129,6 +132,14 @@ const SUB: Record<string, { value: string; labelKey: string }[]> = {
     { value: "OPS_FUEL", labelKey: "branch.txSubOpsFuel" },
     { value: "OPS_CARGO", labelKey: "branch.txSubOpsCargo" },
     { value: "OPS_OTHER", labelKey: "branch.txSubOpsOther" },
+  ],
+  /** Demirbaş / yatırım (CAPEX): cihaz → mobilya → tadilat → diğer. Tek seferde giderleşir;
+   *  amortisman muhasebe modülüne bırakıldı. Bkz. docs/BRANCH-EXPENSE-CLASSIFICATION-ROADMAP.md */
+  OUT_CAPEX: [
+    { value: "CAPEX_EQUIPMENT", labelKey: "branch.txSubCapexEquipment" },
+    { value: "CAPEX_FURNITURE", labelKey: "branch.txSubCapexFurniture" },
+    { value: "CAPEX_FITOUT", labelKey: "branch.txSubCapexFitout" },
+    { value: "CAPEX_OTHER", labelKey: "branch.txSubCapexOther" },
   ],
   /** Stopaj & KDV → SGK → POS / özel → belediye / ÖTV → diğer. */
   OUT_TAX: [
@@ -231,6 +242,7 @@ export function umbrellaTxMainForSubOptions(mainCategory: string): string {
     return "OUT_PERSONNEL_POCKET_CLAIM_TRANSFER";
   }
   if (m === "OUT_OPS" || (m.startsWith("OUT_OPS_") && m !== "OUT_OPS_INVOICE")) return "OUT_OPS";
+  if (m === "OUT_CAPEX" || m.startsWith("OUT_CAPEX_")) return "OUT_CAPEX";
   if (m.startsWith("OUT_GOODS_")) return "OUT_GOODS";
   if (m.startsWith("OUT_TAX_")) return "OUT_TAX";
   if (m.startsWith("OUT_PER_")) return "OUT_PERSONNEL";
@@ -288,6 +300,7 @@ export function txMainNeedsSubCategory(type: string, mainCategory: string): bool
   if (ty === "OUT") {
     if (m === "OUT_OPS_INVOICE") return false;
     if (m.startsWith("OUT_OPS_")) return false;
+    if (m.startsWith("OUT_CAPEX_")) return false;
     if (m.startsWith("OUT_GOODS_")) return false;
     if (m.startsWith("OUT_TAX_")) return false;
     if (m.startsWith("OUT_PER_")) return false;
@@ -296,6 +309,7 @@ export function txMainNeedsSubCategory(type: string, mainCategory: string): bool
       m === "OUT_PERSONNEL" ||
       m === "OUT_GOODS" ||
       m === "OUT_OPS" ||
+      m === "OUT_CAPEX" ||
       m === "OUT_TAX" ||
       m === "OUT_PERSONNEL_POCKET_CLAIM_TRANSFER"
     );
@@ -636,6 +650,22 @@ export function txCategoryLine(
   return m || c || "";
 }
 
+/**
+ * Granüler classification_code'dan (ör. OUT_OPS_RENT) şemsiye ana + alt kategori etiketlerini üretir.
+ * Kod zaten şemsiye ise (ör. OUT_OPS) alt boş döner. UI'de ana üstte / alt altta gösterilir.
+ */
+export function txCategoryMainSub(
+  classificationCode: string | null | undefined,
+  t: (key: string) => string
+): { main: string; sub: string | null } {
+  const code = String(classificationCode ?? "").trim();
+  if (!code) return { main: "", sub: null };
+  const umbrella = umbrellaTxMainForSubOptions(code);
+  const subLabel = code !== umbrella ? txCodeLabel(code, t) : null;
+  const mainLabel = txCodeLabel(umbrella, t) || txCodeLabel(code, t);
+  return { main: mainLabel, sub: subLabel };
+}
+
 const SETTLEMENT_JOB_TITLE_KEYS = new Set([
   "GENERAL_MANAGER",
   "BRANCH_SUPERVISOR",
@@ -688,6 +718,9 @@ function buildLedgerClassificationLabelKeys(): Record<string, string> {
     if (canon) m[canon] = row.labelKey;
   }
   for (const row of SUB.OUT_OPS) {
+    m[`OUT_${row.value}`] = row.labelKey;
+  }
+  for (const row of SUB.OUT_CAPEX) {
     m[`OUT_${row.value}`] = row.labelKey;
   }
   for (const row of SUB.OUT_TAX) {

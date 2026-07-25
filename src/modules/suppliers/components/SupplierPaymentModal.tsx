@@ -13,6 +13,7 @@ import { toErrorMessage } from "@/shared/lib/error-message";
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import {
   useCreateSupplierPayment,
+  useHeldCashPersonnelPool,
   useSupplierOpenInvoices,
 } from "@/modules/suppliers/hooks/useSupplierQueries";
 
@@ -86,10 +87,30 @@ export function SupplierPaymentModal(p: Props) {
   const [amount, setAmount] = useState("");
   const [source, setSource] = useState("PATRON");
   const [branchId, setBranchId] = useState("");
+  const [personnelId, setPersonnelId] = useState("");
   const [desc, setDesc] = useState("");
   const [mode, setMode] = useState<AllocMode>("advance");
   const [manualAlloc, setManualAlloc] = useState<Record<number, string>>({});
   const [error, setError] = useState<string | null>(null);
+
+  // Havuz modeli: personel zimmetindeki kasa parası — tüm şubelerden zimmeti > 0 olanlar.
+  const heldPoolQ = useHeldCashPersonnelPool(
+    cur,
+    date,
+    p.open && source === "PERSONNEL_HELD_REGISTER_CASH",
+  );
+  const personnelOptions = useMemo<SelectOption[]>(
+    () => [
+      { value: "", label: tr ? "Personel seçin" : "Pick personnel" },
+      ...(heldPoolQ.data ?? [])
+        .filter((r) => (r.amount ?? 0) > 0)
+        .map((r) => ({
+          value: String(r.personnelId),
+          label: `${r.fullName} · ${formatLocaleAmount(r.amount, locale, r.currencyCode)}`,
+        })),
+    ],
+    [heldPoolQ.data, tr, locale],
+  );
 
   // Reset when modal opens
   useEffect(() => {
@@ -98,6 +119,7 @@ export function SupplierPaymentModal(p: Props) {
     setAmount("");
     setSource("PATRON");
     setBranchId("");
+    setPersonnelId("");
     setDesc("");
     setMode("advance");
     setManualAlloc({});
@@ -153,12 +175,14 @@ export function SupplierPaymentModal(p: Props) {
 
   const needsBranch =
     source === "CASH" || source === "PERSONNEL_HELD_REGISTER_CASH";
+  const needsPersonnel = source === "PERSONNEL_HELD_REGISTER_CASH";
 
   const canSave =
     !saving &&
     numAmount > 0 &&
     !overOpen &&
     (!needsBranch || branchId !== "") &&
+    (!needsPersonnel || personnelId !== "") &&
     (mode === "auto" || allocatedTotal <= numAmount + 0.001) &&
     // manuelde her bir alloc kendi fatura open'ını aşmasın
     (mode === "auto" ||
@@ -177,6 +201,7 @@ export function SupplierPaymentModal(p: Props) {
         currencyCode: cur,
         sourceType: source,
         branchId: needsBranch ? Number(branchId) || null : null,
+        personnelId: needsPersonnel ? Number(personnelId) || null : null,
         description: desc.trim() || null,
         allocations,
       });
@@ -282,21 +307,42 @@ export function SupplierPaymentModal(p: Props) {
               options={sourceOptions}
               value={source}
               onChange={(e) => {
-                setSource(e.target.value);
-                if (
-                  e.target.value !== "CASH" &&
-                  e.target.value !== "PERSONNEL_HELD_REGISTER_CASH"
-                )
-                  setBranchId("");
+                const v = e.target.value;
+                setSource(v);
+                if (v !== "CASH" && v !== "PERSONNEL_HELD_REGISTER_CASH") setBranchId("");
+                if (v !== "PERSONNEL_HELD_REGISTER_CASH") setPersonnelId("");
               }}
               onBlur={() => {}}
               className="min-h-11 sm:min-h-10 sm:text-sm"
             />
           </div>
+          {/* Havuz modeli: önce personel (fon kaynağında şubeye bakılmaz), sonra atıf şubesi. */}
+          {needsPersonnel ? (
+            <div>
+              <Select
+                name="paymentPersonnel"
+                label={t("branch.expenseHeldRegisterPersonLabel")}
+                labelRequired
+                options={personnelOptions}
+                value={personnelId}
+                onChange={(e) => setPersonnelId(e.target.value)}
+                onBlur={() => {}}
+                disabled={heldPoolQ.isPending}
+                className="min-h-11 sm:min-h-10 sm:text-sm"
+              />
+              <p className="mt-1 text-xs text-zinc-500">
+                {t("suppliers.paymentHeldPoolHint")}
+              </p>
+            </div>
+          ) : null}
           {needsBranch ? (
             <Select
               name="paymentBranch"
-              label={t("suppliers.paymentBranch")}
+              label={
+                needsPersonnel
+                  ? t("suppliers.paymentAttributionBranch")
+                  : t("suppliers.paymentBranch")
+              }
               labelRequired
               options={branchOptions}
               value={branchId}

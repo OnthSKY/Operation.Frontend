@@ -156,6 +156,8 @@ export const suppliers = {
   sourcePatron: "Owner (patron)",
   sourcePersonnelHeldRegisterCash: "Branch cash held by personnel",
   paymentBranch: "Branch the cash was paid from",
+  paymentAttributionBranch: "Attribution branch (which branch this is for)",
+  paymentHeldPoolHint: "Funds are drawn from the personnel's held-cash pool (all branches); the branch is only what this payment is attributed to.",
   allocationsHint: "This payment is applied to the selected invoice only.",
   noInvoices: "No invoices match the filter.",
   noPayments: "No payments for this supplier yet.",

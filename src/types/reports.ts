@@ -60,6 +60,8 @@ export type FinancialCategoryBreakdownRow = {
   mainCategory: string | null;
   category: string;
   currencyCode: string;
+  /** Maliyet davranışı: FIXED / VARIABLE / CAPEX / NONE. Sabit/değişken gider kırılımı için. */
+  costBehavior?: "FIXED" | "VARIABLE" | "CAPEX" | "NONE";
   totalAmount: number;
   lineCount: number;
   typeLabelKey?: string;

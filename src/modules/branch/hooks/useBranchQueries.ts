@@ -108,6 +108,7 @@ export const branchKeys = {
       p.dateFrom ?? "",
       p.dateTo ?? "",
       p.mainCategory ?? "",
+      p.subCategory ?? "",
       p.cashSettlementParty ?? "",
       p.expensePaymentSource ?? "",
       p.expensePocketPersonnelId ?? 0,

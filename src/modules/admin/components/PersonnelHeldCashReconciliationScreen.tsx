@@ -254,6 +254,12 @@ export function PersonnelHeldCashReconciliationScreen() {
                     >
                       Patrona iade
                     </th>
+                    <th
+                      className="px-3 py-2 text-right"
+                      title="Zimmetteki kasadan yapılan tedarikçi ödemeleri (supplier_payments)"
+                    >
+                      Tedarikçi öd.
+                    </th>
                     <th className="px-3 py-2 text-right">Yeni Net</th>
                     <th className="px-3 py-2 text-right">Eski (buglı)</th>
                     <th className="px-3 py-2 text-right">Fark</th>
@@ -288,6 +294,11 @@ export function PersonnelHeldCashReconciliationScreen() {
                       <td className="px-3 py-2 text-right tabular-nums text-rose-700">
                         {r.handoverSettled > 0
                           ? `−${formatAmount(r.handoverSettled, r.currencyCode)}`
+                          : "—"}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-rose-700">
+                        {r.supplierPaid > 0
+                          ? `−${formatAmount(r.supplierPaid, r.currencyCode)}`
                           : "—"}
                       </td>
                       <td className={cn(

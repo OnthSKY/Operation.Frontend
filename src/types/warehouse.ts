@@ -43,6 +43,8 @@ export type WarehouseMovementItem = {
   parentProductId?: number | null;
   parentProductName?: string | null;
   type: "IN" | "OUT";
+  /** true = stok sayım/düzeltme hareketi (ADJUSTMENT_INCREASE/DECREASE); giriş düzenleme kontrolleri gösterilmez. */
+  isAdjustment?: boolean;
   quantity: number;
   movementDate: string;
   description: string | null;

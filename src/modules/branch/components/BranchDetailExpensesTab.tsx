@@ -14,12 +14,12 @@ import {
   branchTxLinkedVehicleLine,
   branchTxUnpaidInvoice,
   expensePaymentSourceLabelShort,
-  txCategoryLine,
+  txCategoryMainSub,
   txFundedByPatron,
 } from "@/modules/branch/lib/branch-transaction-options";
 import type { BranchRegisterSummary } from "@/types/branch";
 import type { BranchTransaction } from "@/types/branch-transaction";
-import { formatMoneyDash } from "@/shared/lib/locale-amount";
+import { formatLocaleAmount, formatMoneyDash } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import { localIsoDate } from "@/shared/lib/local-iso-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
@@ -53,6 +53,7 @@ import {
 } from "./BranchDetailTabs.shared";
 import { BranchMobileInsightJumpRail } from "@/modules/branch/components/BranchMobileInsightJumpRail";
 import type { ExpenseTabPeriodBreakdown } from "@/types/branch";
+import type { BranchHeldSupplierPayment } from "@/modules/suppliers/api/suppliers-api";
 
 export type BranchDetailExpensesTabProps = {
   t: (key: string) => string;
@@ -60,6 +61,8 @@ export type BranchDetailExpensesTabProps = {
   employeeSelfService: boolean;
   branchIdForTourismLink?: number | null;
   tabIsActive: boolean;
+  /** Personel zimmetinden yapılan tedarikçi ödemeleri — "personel zimmetinden" filtresinde salt-okunur gösterilir. */
+  heldSupplierPayments?: BranchHeldSupplierPayment[];
   /** İşaretlenecek branch_transaction id (cep kasası ledger'ından gelir). */
   focusTransactionId?: number | null;
   expenseOverviewDetail: {
@@ -119,13 +122,20 @@ export type BranchDetailExpensesTabProps = {
   expenseFiltersOpen: boolean;
   setExpenseFiltersOpen: (v: boolean) => void;
   expFiltersActive: boolean;
-  expMainFilterOpts: { value: string; label: string }[];
+  expCategoryOpts: { value: string; label: string }[];
+  expFilterCategory: string;
+  onExpCategoryChange: (v: string) => void;
   expPayFilterOpts: { value: string; label: string }[];
   expKindFilterOpts: { value: string; label: string }[];
   expFilterMain: string;
   setExpFilterMain: (v: string) => void;
+  expFilterSub: string;
+  setExpFilterSub: (v: string) => void;
   expFilterPay: string;
   setExpFilterPay: (v: string) => void;
+  expHeldPersonnelOpts: { value: string; label: string }[];
+  expFilterHeldPersonnel: string;
+  setExpFilterHeldPersonnel: (v: string) => void;
   expFilterKind: string;
   setExpFilterKind: (v: string) => void;
   refetchExp: () => unknown;
@@ -149,6 +159,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
     employeeSelfService,
     branchIdForTourismLink,
     tabIsActive,
+    heldSupplierPayments,
     focusTransactionId,
     expenseOverviewDetail,
     setExpenseOverviewDetail,
@@ -178,13 +189,20 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
     expenseFiltersOpen,
     setExpenseFiltersOpen,
     expFiltersActive,
-    expMainFilterOpts,
+    expCategoryOpts,
+    expFilterCategory,
+    onExpCategoryChange,
     expPayFilterOpts,
     expKindFilterOpts,
     expFilterMain,
     setExpFilterMain,
+    expFilterSub,
+    setExpFilterSub,
     expFilterPay,
     setExpFilterPay,
+    expHeldPersonnelOpts,
+    expFilterHeldPersonnel,
+    setExpFilterHeldPersonnel,
     expFilterKind,
     setExpFilterKind,
     refetchExp,
@@ -225,18 +243,19 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
   }, [highlightTxId, expData]);
 
   const todayIso = localIsoDate();
-  const expMainLabel =
-    expMainFilterOpts.find((x) => x.value === expFilterMain)?.label ?? expFilterMain;
+  const expCategoryLabel = (
+    expCategoryOpts.find((x) => x.value === expFilterCategory)?.label ?? expFilterCategory
+  ).replace(/^›\s*/, "");
   const expPayLabel =
     expPayFilterOpts.find((x) => x.value === expFilterPay)?.label ?? expFilterPay;
   const showExpDateFrom = expFrom.length === 10 && expFrom !== todayIso;
   const showExpDateTo = expTo.length === 10 && expTo !== todayIso;
   const hasExpDateFilters = showExpDateFrom || showExpDateTo;
-  const hasExpMainFilter = expFilterMain.trim().length > 0;
+  const hasExpCategoryFilter = expFilterCategory.trim().length > 0;
   const hasExpPayFilter = expFilterPay.trim().length > 0;
   const expActiveFilterCount =
     (hasExpDateFilters ? 1 : 0) +
-    (hasExpMainFilter ? 1 : 0) +
+    (hasExpCategoryFilter ? 1 : 0) +
     (hasExpPayFilter ? 1 : 0);
   const showHeldRegisterInExpenseTab =
     expFilterPay.trim().toUpperCase() === "PERSONNEL_HELD_REGISTER_CASH";
@@ -248,6 +267,32 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
       return src !== "PERSONNEL_HELD_REGISTER_CASH";
     });
   }, [expData?.items, showHeldRegisterInExpenseTab]);
+
+  // Tedarikçi ödemeleri bloğu — tedarikçiye göre filtre + sıralama. Personel filtresi ana
+  // filtredeki (expFilterHeldPersonnel) seçime bağlıdır (tek personel filtresi).
+  const [heldSupSupplier, setHeldSupSupplier] = useState("");
+  const [heldSupSort, setHeldSupSort] = useState<"dateDesc" | "amountDesc">("dateDesc");
+  const heldSupSupplierOptions = useMemo(() => {
+    const s = new Set<string>();
+    for (const p of heldSupplierPayments ?? []) if (p.supplierNames) s.add(p.supplierNames);
+    return [...s].sort((a, b) => a.localeCompare(b));
+  }, [heldSupplierPayments]);
+  const heldSupVisible = useMemo(() => {
+    let list = [...(heldSupplierPayments ?? [])];
+    if (expFilterHeldPersonnel)
+      list = list.filter((p) => String(p.personnelId) === expFilterHeldPersonnel);
+    if (heldSupSupplier) list = list.filter((p) => (p.supplierNames || "") === heldSupSupplier);
+    list.sort((a, b) =>
+      heldSupSort === "amountDesc"
+        ? b.amount - a.amount
+        : b.paymentDate.localeCompare(a.paymentDate),
+    );
+    return list;
+  }, [heldSupplierPayments, expFilterHeldPersonnel, heldSupSupplier, heldSupSort]);
+  const heldSupVisibleTotal = useMemo(
+    () => heldSupVisible.reduce((sum, p) => sum + (Number(p.amount) || 0), 0),
+    [heldSupVisible],
+  );
   const expenseListFilteredTotal = Number(expData?.filteredAmountTotal ?? 0);
   const expenseListPatronTotal = Number(expData?.patronExpenseTotal ?? 0);
   const expenseListSourceTotals = useMemo(() => {
@@ -304,7 +349,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
 
   const expQuickTodaySelected = expFrom === todayIso && expTo === todayIso;
   const expQuickAllTimeSelected =
-    expFrom === "" && expTo === "" && !hasExpMainFilter && !hasExpPayFilter;
+    expFrom === "" && expTo === "" && !hasExpCategoryFilter && !hasExpPayFilter;
   const expQuickSeasonSelected =
     !!expenseSeasonQuickRange &&
     expFrom === expenseSeasonQuickRange.from &&
@@ -326,6 +371,8 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
     setExpFrom(merged.from);
     setExpTo(merged.to);
     setExpFilterMain(merged.main);
+    // Ana kategori değiştirildiğinde alt kategori geçersizleşir; sıfırla.
+    if (next.main !== undefined) setExpFilterSub("");
     setExpFilterPay(merged.pay);
     setExpPage(1);
   };
@@ -604,9 +651,9 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                             {showExpDateTo ? formatLocaleDate(expTo, locale) : t("personnel.dash")}
                           </span>
                         ) : null}
-                        {hasExpMainFilter ? (
+                        {hasExpCategoryFilter ? (
                           <span className="rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700">
-                            {t("branch.txFilterMainCategory")}: {expMainLabel}
+                            {t("branch.txFilterCategory")}: {expCategoryLabel}
                           </span>
                         ) : null}
                         {hasExpPayFilter ? (
@@ -661,7 +708,7 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                         className="min-w-0"
                       />
                     </div>
-                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
                       <Select
                         name="expFilterKind"
                         label={t("branch.txFilterExpenseKind")}
@@ -669,15 +716,6 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                         value={expFilterKind}
                         menuZIndex={280}
                         onChange={(e) => setExpFilterKind(e.target.value)}
-                        onBlur={() => {}}
-                      />
-                      <Select
-                        name="expFilterMain"
-                        label={t("branch.txFilterMainCategory")}
-                        options={expMainFilterOpts}
-                        value={expFilterMain}
-                        menuZIndex={280}
-                        onChange={(e) => setExpFilterMain(e.target.value)}
                         onBlur={() => {}}
                       />
                       <Select
@@ -689,6 +727,26 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                         onChange={(e) => setExpFilterPay(e.target.value)}
                         onBlur={() => {}}
                       />
+                      <Select
+                        name="expFilterCategory"
+                        label={t("branch.txFilterCategory")}
+                        options={expCategoryOpts}
+                        value={expFilterCategory}
+                        menuZIndex={280}
+                        onChange={(e) => onExpCategoryChange(e.target.value)}
+                        onBlur={() => {}}
+                      />
+                      {showHeldRegisterInExpenseTab ? (
+                        <Select
+                          name="expFilterHeldPersonnel"
+                          label={t("branch.expenseHeldPersonnelFilterLabel")}
+                          options={expHeldPersonnelOpts}
+                          value={expFilterHeldPersonnel}
+                          menuZIndex={280}
+                          onChange={(e) => setExpFilterHeldPersonnel(e.target.value)}
+                          onBlur={() => {}}
+                        />
+                      ) : null}
                     </div>
                     <Button
                       type="button"
@@ -705,6 +763,84 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                 </RightDrawer>
               </div>
             {expErr && <p className="text-sm text-red-600">{toErrorMessage(expError)}</p>}
+            {showHeldRegisterInExpenseTab && (heldSupplierPayments?.length ?? 0) > 0 ? (
+              <section className="mb-3 rounded-2xl border border-sky-200/80 bg-sky-50/50 p-3 sm:p-4">
+                <div className="flex items-start gap-2">
+                  <span
+                    aria-hidden
+                    className="mt-0.5 inline-block h-2 w-2 shrink-0 rounded-full bg-sky-500"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-sky-900">
+                      {t("branch.expenseHeldSupplierPaymentsTitle")}
+                    </p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-sky-800/80">
+                      {t("branch.expenseHeldSupplierPaymentsHint")}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Blok içi filtre/sıralama */}
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {heldSupSupplierOptions.length > 1 ? (
+                    <select
+                      value={heldSupSupplier}
+                      onChange={(e) => setHeldSupSupplier(e.target.value)}
+                      className="min-h-9 rounded-lg border border-sky-200 bg-white px-2.5 text-xs text-zinc-800 outline-none focus:border-sky-500"
+                    >
+                      <option value="">{t("branch.expenseHeldSupplierAllSuppliers")}</option>
+                      {heldSupSupplierOptions.map((name) => (
+                        <option key={name} value={name}>{name}</option>
+                      ))}
+                    </select>
+                  ) : null}
+                  <select
+                    value={heldSupSort}
+                    onChange={(e) => setHeldSupSort(e.target.value as "dateDesc" | "amountDesc")}
+                    className="min-h-9 rounded-lg border border-sky-200 bg-white px-2.5 text-xs text-zinc-800 outline-none focus:border-sky-500"
+                  >
+                    <option value="dateDesc">{t("branch.expenseHeldSupplierSortDate")}</option>
+                    <option value="amountDesc">{t("branch.expenseHeldSupplierSortAmount")}</option>
+                  </select>
+                  <span className="ml-auto text-xs font-semibold tabular-nums text-sky-900">
+                    {t("branch.expenseHeldSupplierSubtotal")}: −
+                    {formatLocaleAmount(
+                      heldSupVisibleTotal,
+                      locale,
+                      heldSupVisible[0]?.currencyCode ?? "TRY",
+                    )}
+                  </span>
+                </div>
+
+                <ul className="mt-3 space-y-2">
+                  {heldSupVisible.map((pay) => (
+                    <li
+                      key={pay.id}
+                      className="rounded-xl border border-sky-200/70 bg-white px-3 py-2.5"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium text-zinc-900">
+                            {pay.supplierNames || t("branch.expenseHeldSupplierFallback")}
+                          </p>
+                          <p className="mt-0.5 text-xs text-zinc-500">
+                            {formatLocaleDate(pay.paymentDate, locale)}
+                            {pay.personnelName ? ` · ${pay.personnelName}` : ""}
+                            {pay.invoiceDocumentNumbers ? ` · ${pay.invoiceDocumentNumbers}` : ""}
+                          </p>
+                          {pay.description ? (
+                            <p className="mt-0.5 truncate text-xs text-zinc-500">{pay.description}</p>
+                          ) : null}
+                        </div>
+                        <span className="shrink-0 text-sm font-semibold tabular-nums text-rose-700">
+                          −{formatLocaleAmount(pay.amount, locale, pay.currencyCode)}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
             {expLoading ? (
               <p className="text-sm text-zinc-500">{t("common.loading")}</p>
             ) : !visibleExpenseItems.length ? (
@@ -777,7 +913,18 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                       </div>
                       <p className="mt-1 flex flex-wrap items-baseline gap-x-2 text-sm leading-snug text-zinc-800">
                         <span className="font-medium">
-                          {txCategoryLine(row.mainCategory, row.category, t) || t("personnel.dash")}
+                          {(() => {
+                            const cat = txCategoryMainSub(row.mainCategory, t);
+                            if (!cat.main && !cat.sub) return t("personnel.dash");
+                            return (
+                              <span className="flex flex-col leading-tight">
+                                <span className={cat.sub ? "text-xs font-medium text-zinc-500" : "text-zinc-900"}>
+                                  {cat.main}
+                                </span>
+                                {cat.sub ? <span className="text-zinc-900">{cat.sub}</span> : null}
+                              </span>
+                            );
+                          })()}
                         </span>
                         <span className="text-[11px] font-normal text-zinc-500">
                           {formatLocaleDate(row.transactionDate, locale)}
@@ -968,7 +1115,18 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                           </TableCell>
                           <TableCell className="max-sm:hidden sm:max-md:flex sm:max-md:w-full sm:max-md:min-w-0 sm:max-md:items-start sm:max-md:justify-between sm:max-md:gap-3 text-sm text-zinc-600 md:table-cell">
                             <div>
-                              {txCategoryLine(row.mainCategory, row.category, t) || t("personnel.dash")}
+                              {(() => {
+                            const cat = txCategoryMainSub(row.mainCategory, t);
+                            if (!cat.main && !cat.sub) return t("personnel.dash");
+                            return (
+                              <span className="flex flex-col leading-tight">
+                                <span className={cat.sub ? "text-xs font-medium text-zinc-500" : "text-zinc-900"}>
+                                  {cat.main}
+                                </span>
+                                {cat.sub ? <span className="text-zinc-900">{cat.sub}</span> : null}
+                              </span>
+                            );
+                          })()}
                             </div>
                             {row.isBundledWithDayClose ? (
                               <span

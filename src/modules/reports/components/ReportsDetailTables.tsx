@@ -4,6 +4,7 @@ import {
   financialBreakdownCategoryLabel,
   financialBreakdownMainLabel,
   financialBreakdownTypeLabel,
+  financialCostBehaviorLabel,
 } from "@/modules/reports/lib/financial-breakdown-labels";
 import { reportBranchLabel } from "@/modules/reports/lib/report-branch-label";
 import {
@@ -756,6 +757,7 @@ export function FinancialReportDetailTables({
           sortOptions={[
             { id: "type", label: t("reports.colType") },
             { id: "main", label: t("reports.colMainCat") },
+            { id: "behavior", label: t("reports.colCostBehavior") },
             { id: "category", label: t("reports.colCategory") },
             { id: "currency", label: t("reports.colCurrency") },
             { id: "amount", label: t("reports.colAmount") },
@@ -765,6 +767,7 @@ export function FinancialReportDetailTables({
             [
               financialBreakdownTypeLabel(r.type, r.typeLabelKey, t),
               financialBreakdownMainLabel(r.mainCategory, t),
+              financialCostBehaviorLabel(r.costBehavior, t),
               financialBreakdownCategoryLabel(r, t),
               r.currencyCode,
             ].join(" ")
@@ -779,6 +782,8 @@ export function FinancialReportDetailTables({
                 );
               case "main":
                 return financialBreakdownMainLabel(r.mainCategory, t);
+              case "behavior":
+                return financialCostBehaviorLabel(r.costBehavior, t);
               case "category":
                 return financialBreakdownCategoryLabel(r, t);
               case "currency":
@@ -820,6 +825,9 @@ export function FinancialReportDetailTables({
                         <MobileKv label={t("reports.colMainCat")}>
                           {financialBreakdownMainLabel(r.mainCategory, t)}
                         </MobileKv>
+                        <MobileKv label={t("reports.colCostBehavior")}>
+                          {financialCostBehaviorLabel(r.costBehavior, t)}
+                        </MobileKv>
                         <MobileKv label={t("reports.colCategory")}>
                           {financialBreakdownCategoryLabel(r, t)}
                         </MobileKv>
@@ -852,6 +860,7 @@ export function FinancialReportDetailTables({
                         <tr>
                           <th className={th}>{t("reports.colType")}</th>
                           <th className={th}>{t("reports.colMainCat")}</th>
+                          <th className={th}>{t("reports.colCostBehavior")}</th>
                           <th className={th}>{t("reports.colCategory")}</th>
                           <th className={th}>{t("reports.colCurrency")}</th>
                           <th className={th}>{t("reports.colAmount")}</th>
@@ -872,6 +881,9 @@ export function FinancialReportDetailTables({
                             </td>
                             <td className={td}>
                               {financialBreakdownMainLabel(r.mainCategory, t)}
+                            </td>
+                            <td className={td}>
+                              {financialCostBehaviorLabel(r.costBehavior, t)}
                             </td>
                             <td className={td}>
                               {financialBreakdownCategoryLabel(r, t)}

@@ -311,7 +311,13 @@ function DatePickerMonthCaption(props: MonthCaptionProps) {
         new Date(endMonth.getFullYear(), endMonth.getMonth(), 1).getTime());
 
   const arrowBtn =
-    "inline-flex h-11 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 shadow-sm transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40 sm:h-10 sm:w-8";
+    "inline-flex h-11 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 shadow-sm transition-colors hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40 sm:h-10 sm:w-7";
+
+  // Takvim başlığındaki ay/yıl select'leri: className doğrudan <input>'e uygulanır.
+  // Dar popover'da 4 haneli yıl kırpılmasın diye: küçük font + dar iç boşluk +
+  // chevron span'ini (input'un bitişik kardeşi) daraltarak metne yer açılır.
+  const captionSelectCls =
+    "!min-h-10 !h-10 !py-1.5 !pl-2.5 !pr-7 !text-xs sm:!text-sm [&+span]:w-7";
 
   return (
     <div
@@ -329,7 +335,7 @@ function DatePickerMonthCaption(props: MonthCaptionProps) {
         >
           <ChevronLeft className="h-4 w-4" aria-hidden />
         </button>
-        <div className="min-w-0 flex-[2] basis-0">
+        <div className="min-w-0 flex-[1.2] basis-0">
           <Select
             name={`${captionId}-mo-${displayIndex}`}
             options={monthOptions}
@@ -342,7 +348,7 @@ function DatePickerMonthCaption(props: MonthCaptionProps) {
               goToMonth(new Date(y, mi, 1));
             }}
             onBlur={() => {}}
-            className="min-h-11 sm:min-h-10 sm:[&_input]:text-sm"
+            className={captionSelectCls}
           />
         </div>
         <div className="min-w-0 flex-1 basis-0">
@@ -358,7 +364,7 @@ function DatePickerMonthCaption(props: MonthCaptionProps) {
               goToMonth(new Date(yy, mIdx, 1));
             }}
             onBlur={() => {}}
-            className="min-h-11 sm:min-h-10 sm:[&_input]:text-sm"
+            className={captionSelectCls}
           />
         </div>
         <button

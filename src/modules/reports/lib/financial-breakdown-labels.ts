@@ -24,6 +24,18 @@ export function financialBreakdownMainLabel(
   return txCodeLabel(m, t) || m;
 }
 
+/** Maliyet davranışı etiketi: FIXED / VARIABLE / CAPEX / NONE. Gelir/transfer satırları için '—'. */
+export function financialCostBehaviorLabel(
+  behavior: string | null | undefined,
+  t: (key: string) => string
+): string {
+  const b = (behavior ?? "").trim().toUpperCase();
+  if (b === "FIXED") return t("reports.costBehavior.fixed");
+  if (b === "VARIABLE") return t("reports.costBehavior.variable");
+  if (b === "CAPEX") return t("reports.costBehavior.capex");
+  return "—";
+}
+
 export function financialBreakdownTypeLabel(
   type: string,
   typeLabelKey: string | undefined,

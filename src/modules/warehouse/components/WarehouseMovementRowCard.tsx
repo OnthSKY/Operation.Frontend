@@ -68,12 +68,26 @@ export function WarehouseMovementRowCard({
   }, [m.id]);
 
   const typeIn = m.type === "IN";
-  const typeLabel = typeIn ? t("products.typeIn") : t("products.typeOut");
+  const isAdjustment = m.isAdjustment === true;
+  const typeLabel = isAdjustment
+    ? typeIn
+      ? t("warehouse.movementAdjustmentIncrease")
+      : t("warehouse.movementAdjustmentDecrease")
+    : typeIn
+      ? t("products.typeIn")
+      : t("products.typeOut");
   const batchCell = formatWarehouseShipmentDisplay(m.inBatchGroupId, m.id);
   const photoUrl = warehouseMovementInvoicePhotoUrl(m.id);
 
+  // Stok düzeltme hareketleri hesaplanmış farktır; "mal girişi" gibi düzenlenemez/kalem eklenemez.
+  // Yanlış sayım, doğru değer tekrar sayılarak düzeltilir (backend de bu hareketleri inbound
+  // mutasyon yollarından dışlar).
   const showInboundActions =
-    typeIn && warehouseId != null && warehouseId > 0 && (onEditInboundFull != null || onDeleteInbound != null);
+    typeIn &&
+    !isAdjustment &&
+    warehouseId != null &&
+    warehouseId > 0 &&
+    (onEditInboundFull != null || onDeleteInbound != null);
 
   const showOutboundShipmentActions =
     !typeIn &&
@@ -100,7 +114,11 @@ export function WarehouseMovementRowCard({
           <span
             className={cn(
               "shrink-0 rounded-full px-1.5 py-px text-[10px] font-semibold uppercase tracking-wide ring-1 ring-inset",
-              typeIn ? "bg-emerald-50 text-emerald-700 ring-emerald-100" : "bg-red-50 text-red-700 ring-red-100"
+              isAdjustment
+                ? "bg-amber-50 text-amber-700 ring-amber-100"
+                : typeIn
+                  ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+                  : "bg-red-50 text-red-700 ring-red-100"
             )}
           >
             {typeLabel}
@@ -206,12 +224,15 @@ export function WarehouseMovementRowCard({
         <span
           className={cn(
             "shrink-0 rounded-lg px-2.5 py-1 text-base font-bold tabular-nums ring-1 ring-inset",
-            typeIn
-              ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
-              : "bg-red-50 text-red-700 ring-red-100"
+            isAdjustment
+              ? "bg-amber-50 text-amber-700 ring-amber-100"
+              : typeIn
+                ? "bg-emerald-50 text-emerald-700 ring-emerald-100"
+                : "bg-red-50 text-red-700 ring-red-100"
           )}
           title={t("products.colQty")}
         >
+          {isAdjustment ? (typeIn ? "+" : "−") : null}
           {m.quantity}
           {m.unit ? <span className="ml-1 text-xs font-medium opacity-70">{m.unit}</span> : null}
         </span>

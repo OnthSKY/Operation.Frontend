@@ -11,6 +11,8 @@ import {
   fetchSupplierInvoiceLineBranchAllocations,
   fetchSupplierInvoices,
   fetchSupplierPayments,
+  fetchBranchHeldSupplierPayments,
+  fetchHeldCashPersonnelPool,
   fetchSupplierView,
   fetchSuppliers,
   postSupplierInvoiceLineBranchAllocations,
@@ -45,7 +47,36 @@ export const supplierKeys = {
   payments: (supplierId: number) => [...supplierKeys.all, "payments", supplierId] as const,
   lineAlloc: (lineId: number) => [...supplierKeys.all, "line-alloc", lineId] as const,
   view: (id: number) => [...supplierKeys.all, "view", id] as const,
+  branchHeldPayments: (branchId: number, from: string, to: string) =>
+    [...supplierKeys.all, "branch-held-payments", branchId, from, to] as const,
+  heldCashPersonnelPool: (currencyCode: string, asOf: string) =>
+    [...supplierKeys.all, "held-cash-personnel-pool", currencyCode, asOf] as const,
 };
+
+export function useHeldCashPersonnelPool(
+  currencyCode: string,
+  asOf: string,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: supplierKeys.heldCashPersonnelPool(currencyCode, asOf),
+    queryFn: () => fetchHeldCashPersonnelPool(currencyCode, asOf),
+    enabled: enabled && currencyCode.length >= 3 && asOf.length === 10,
+  });
+}
+
+export function useBranchHeldSupplierPayments(
+  branchId: number,
+  dateFrom: string,
+  dateTo: string,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: supplierKeys.branchHeldPayments(branchId, dateFrom, dateTo),
+    queryFn: () => fetchBranchHeldSupplierPayments(branchId, dateFrom, dateTo),
+    enabled: enabled && branchId > 0 && dateFrom.length === 10 && dateTo.length === 10,
+  });
+}
 
 export function useSuppliers(includeDeleted = false, enabled: boolean = true) {
   return useQuery({
