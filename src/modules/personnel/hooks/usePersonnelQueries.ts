@@ -42,6 +42,7 @@ import {
   fetchPersonnelList,
   fetchPersonnelCashAccountBranchBreakdown,
   fetchPersonnelCashAccountLedger,
+  fetchPersonnelCashAccountLedgerCounterparties,
   fetchPersonnelCashHandoverLinesPaged,
   fetchPersonnelCashHandoverOutflowsPaged,
   fetchPersonnelHeldCashMovements,
@@ -176,6 +177,7 @@ export const personnelKeys = {
     dateFrom: string,
     dateTo: string,
     counterpartyKind: string,
+    counterpartyPersonnelId: number,
     includeReversals: boolean,
   ) =>
     [
@@ -188,10 +190,13 @@ export const personnelKeys = {
       dateFrom,
       dateTo,
       counterpartyKind,
+      counterpartyPersonnelId,
       includeReversals,
     ] as const,
   cashAccountBranchBreakdown: (personnelId: number, currency: string) =>
     [...personnelKeys.all, "cash-account-branch-breakdown", personnelId, currency] as const,
+  cashAccountLedgerCounterparties: (personnelId: number, currency: string) =>
+    [...personnelKeys.all, "cash-account-ledger-counterparties", personnelId, currency] as const,
   /** @param effectiveYear calendar year — filters API by effectiveYear; omit for all years */
   advances: (personnelId: number, effectiveYear?: number) =>
     [...personnelKeys.all, "advances", personnelId, effectiveYear ?? "all"] as const,
@@ -487,6 +492,8 @@ export type PersonnelCashLedgerFilterState = {
   counterpartyKind: string;
   classificationCode: string;
   categoryGroup: string;
+  /** "Personel gider/avans" grubunda hangi personele daraltıldığı (0 = tümü). */
+  counterpartyPersonnelId: number;
   includeReversals: boolean;
 };
 
@@ -503,6 +510,10 @@ export function usePersonnelCashAccountLedger(
   const counterpartyKindKey = filters.counterpartyKind.trim().toUpperCase();
   const classificationCodeKey = filters.classificationCode.trim().toUpperCase();
   const categoryGroupKey = filters.categoryGroup.trim().toUpperCase();
+  const counterpartyPersonnelIdKey =
+    Number.isFinite(filters.counterpartyPersonnelId) && filters.counterpartyPersonnelId > 0
+      ? filters.counterpartyPersonnelId
+      : 0;
   const includeReversals = filters.includeReversals === true;
 
   return useQuery({
@@ -514,6 +525,7 @@ export function usePersonnelCashAccountLedger(
       dateFromKey,
       dateToKey,
       counterpartyKindKey || classificationCodeKey || categoryGroupKey,
+      counterpartyPersonnelIdKey,
       includeReversals,
     ),
     queryFn: () =>
@@ -526,8 +538,22 @@ export function usePersonnelCashAccountLedger(
         counterpartyKind: counterpartyKindKey || undefined,
         classificationCode: classificationCodeKey || undefined,
         categoryGroup: categoryGroupKey || undefined,
+        counterpartyPersonnelId: counterpartyPersonnelIdKey || undefined,
         includeReversals,
       }),
+    enabled: enabled && personnelId != null && personnelId > 0,
+  });
+}
+
+export function usePersonnelCashAccountLedgerCounterparties(
+  personnelId: number | null | undefined,
+  currencyCode: string,
+  enabled: boolean,
+) {
+  const ccy = (currencyCode ?? "TRY").trim().toUpperCase() || "TRY";
+  return useQuery({
+    queryKey: personnelKeys.cashAccountLedgerCounterparties(personnelId ?? 0, ccy),
+    queryFn: () => fetchPersonnelCashAccountLedgerCounterparties(personnelId!, ccy),
     enabled: enabled && personnelId != null && personnelId > 0,
   });
 }

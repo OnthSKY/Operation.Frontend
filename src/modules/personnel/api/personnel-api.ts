@@ -752,6 +752,7 @@ export type PersonnelCashLedgerApiQuery = {
   counterpartyKind?: string | null;
   classificationCode?: string | null;
   categoryGroup?: string | null;
+  counterpartyPersonnelId?: number | null;
   includeReversals?: boolean;
 };
 
@@ -816,6 +817,9 @@ export async function fetchPersonnelCashAccountLedger(
   if (q.categoryGroup != null && q.categoryGroup.trim() !== "") {
     sp.set("categoryGroup", q.categoryGroup.trim().toUpperCase());
   }
+  if (q.counterpartyPersonnelId != null && q.counterpartyPersonnelId > 0) {
+    sp.set("counterpartyPersonnelId", String(q.counterpartyPersonnelId));
+  }
   if (q.includeReversals === true) {
     sp.set("includeReversals", "true");
   }
@@ -865,4 +869,33 @@ export async function fetchPersonnelCashAccountBranchBreakdown(
       entryCount: Number(r.entryCount ?? 0) || 0,
     };
   });
+}
+
+export type PersonnelCashLedgerCounterparty = {
+  personnelId: number;
+  label: string;
+  entryCount: number;
+};
+
+/** "Personel gider/avans" alt filtresi: karşı taraf olarak geçen distinct personeller. */
+export async function fetchPersonnelCashAccountLedgerCounterparties(
+  personnelId: number,
+  currencyCode: string,
+): Promise<PersonnelCashLedgerCounterparty[]> {
+  const sp = new URLSearchParams();
+  sp.set("currencyCode", currencyCode.trim().toUpperCase());
+  const raw = await apiRequest<unknown>(
+    `/personnel/${personnelId}/cash-account/ledger-counterparties?${sp.toString()}`,
+  );
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((x) => {
+      const r = x as Record<string, unknown>;
+      return {
+        personnelId: Number(r.personnelId ?? 0) || 0,
+        label: String(r.label ?? "").trim(),
+        entryCount: Number(r.entryCount ?? 0) || 0,
+      };
+    })
+    .filter((r) => r.personnelId > 0);
 }
