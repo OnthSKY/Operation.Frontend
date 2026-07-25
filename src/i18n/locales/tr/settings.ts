@@ -8,6 +8,17 @@ export const settings = {
   authzCardDesc: "Sistem rollerine izin eşlemesi (personel, şoför, yönetici). Değişiklikler bir sonraki istekte geçerli olur.",
   authzCardLink: "İzin matrisini düzenle",
   backToSettings: "Sistem ayarları",
+  documentDefsPageTitle: "Belge türleri",
+  documentDefsPageDescription:
+    "Şube, personel, tedarikçi, şirket ve araç belgelerinde kullanılan belge türleri. Şimdilik salt-okunur; ekleme/düzenleme sonraki sürümde.",
+  documentDefsDomainBranch: "Şube belgeleri",
+  documentDefsDomainPersonnel: "Personel belgeleri",
+  documentDefsDomainSupplier: "Tedarikçi belgeleri",
+  documentDefsDomainCompany: "Şirket belgeleri",
+  documentDefsDomainVehicle: "Araç belgeleri",
+  documentDefsBadgeSystem: "Sistem",
+  documentDefsBadgeInactive: "Pasif",
+  documentDefsEmpty: "Tanımlı belge türü yok.",
   authzPageTitle: "Rol ve izin matrisi",
   authzPageDescription:
     "Her rol için izinleri işaretleyip satır bazında kaydedin. ADMIN rolünde system.admin her zaman kalır.",

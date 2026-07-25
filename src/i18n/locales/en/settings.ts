@@ -8,6 +8,17 @@ export const settings = {
   authzCardDesc: "Map permissions to system roles (staff, driver, admin). Changes apply on the next request.",
   authzCardLink: "Edit permission matrix",
   backToSettings: "System settings",
+  documentDefsPageTitle: "Document types",
+  documentDefsPageDescription:
+    "Document types used across branch, personnel, supplier, company and vehicle documents. Read-only for now; add/edit coming in a later release.",
+  documentDefsDomainBranch: "Branch documents",
+  documentDefsDomainPersonnel: "Personnel documents",
+  documentDefsDomainSupplier: "Supplier documents",
+  documentDefsDomainCompany: "Company documents",
+  documentDefsDomainVehicle: "Vehicle documents",
+  documentDefsBadgeSystem: "System",
+  documentDefsBadgeInactive: "Inactive",
+  documentDefsEmpty: "No document types defined.",
   authzPageTitle: "Role & permission matrix",
   authzPageDescription:
     "Check permissions per role and save each row. ADMIN always keeps system.admin.",

@@ -334,6 +334,7 @@ export function buildLegacyMenu(user: AuthUser | null): LegacyMenuItem[] {
         { id: "system-notifications", labelKey: "nav.adminNavNotifications", route: "/admin/settings/notifications", icon: "notifications" },
         { id: "system-branding", labelKey: "nav.adminNavBranding", route: "/admin/settings/branding", icon: "branding" },
         { id: "system-tourism-policy", labelKey: "nav.adminNavTourismSeasonPolicy", route: "/admin/settings/tourism-season-closed-policy", icon: "settings" },
+        { id: "system-document-definitions", labelKey: "nav.adminNavDocumentDefinitions", route: "/admin/settings/document-definitions", icon: "documents" },
       ],
     });
   }
