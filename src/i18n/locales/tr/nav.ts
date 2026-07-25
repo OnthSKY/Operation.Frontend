@@ -43,6 +43,7 @@ export const nav = {
   adminNavNotifications: "Bildirimler",
   adminNavBranding: "Kurum görünümü",
   adminNavTourismSeasonPolicy: "Turizm sezonu Gider Politikası",
+  adminNavDocumentDefinitions: "Belge türleri",
   branchSection: "Şube",
   inventorySection: "Depo ve ürünler",
   procurementSection: "Tedarik",

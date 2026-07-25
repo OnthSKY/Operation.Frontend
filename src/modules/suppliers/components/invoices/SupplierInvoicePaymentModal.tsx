@@ -6,10 +6,10 @@ import { DateField } from "@/shared/ui/DateField";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
 import { Select, type SelectOption } from "@/shared/ui/Select";
-import { formatLocaleAmount } from "@/shared/lib/locale-amount";
+import { formatAmountInputOnBlur, formatLocaleAmount } from "@/shared/lib/locale-amount";
 import type { SupplierInvoiceListItem } from "@/modules/suppliers/api/suppliers-api";
 
-export type PayFormErrors = Partial<{ date: string; amount: string; branch: string }>;
+export type PayFormErrors = Partial<{ date: string; amount: string; branch: string; personnel: string }>;
 
 /**
  * Tedarikçi faturasına ödeme kaydetme modal'ı. Saf sunum + draft state'i
@@ -25,6 +25,10 @@ type Props = {
   setPaySrc: (v: string) => void;
   payBranchId: string;
   setPayBranchId: (v: string) => void;
+  payPersonnelId: string;
+  setPayPersonnelId: (v: string) => void;
+  heldPersonnelOptions: SelectOption[];
+  heldPersonnelLoading: boolean;
   payDesc: string;
   setPayDesc: (v: string) => void;
 
@@ -79,8 +83,10 @@ export function SupplierInvoicePaymentModal(p: Props) {
           <Input
             label={t("suppliers.paymentAmount")}
             labelRequired
+            inputMode="decimal"
             value={p.payAmt}
             onChange={(e) => p.setPayAmt(e.target.value)}
+            onBlur={(e) => p.setPayAmt(formatAmountInputOnBlur(e.target.value, p.locale))}
             error={p.payFieldErrors.amount}
           />
           <Select
@@ -92,14 +98,49 @@ export function SupplierInvoicePaymentModal(p: Props) {
               const v = e.target.value;
               p.setPaySrc(v);
               if (v !== "CASH" && v !== "PERSONNEL_HELD_REGISTER_CASH") p.setPayBranchId("");
+              if (v !== "PERSONNEL_HELD_REGISTER_CASH") p.setPayPersonnelId("");
             }}
             onBlur={() => {}}
             className="min-h-11 sm:min-h-10 sm:text-sm"
           />
+          {/* Havuz modeli: önce personel (fon kaynağında şubeye bakılmaz), sonra atıf şubesi. */}
+          {p.paySrc === "PERSONNEL_HELD_REGISTER_CASH" ? (
+            <div>
+              <Select
+                name="payPersonnelId"
+                label={t("branch.expenseHeldRegisterPersonLabel")}
+                labelRequired
+                options={p.heldPersonnelOptions}
+                value={p.payPersonnelId}
+                onChange={(e) => p.setPayPersonnelId(e.target.value)}
+                onBlur={() => {}}
+                error={p.payFieldErrors.personnel}
+                disabled={p.heldPersonnelLoading}
+                className="min-h-11 sm:min-h-10 sm:text-sm"
+              />
+              {p.heldPersonnelLoading ? (
+                <p className="mt-1 text-xs text-zinc-500">
+                  {t("branch.expenseHeldRegisterPersonPickerLoading")}
+                </p>
+              ) : p.heldPersonnelOptions.length <= 1 ? (
+                <p className="mt-1 text-xs text-amber-900">
+                  {t("branch.expenseHeldRegisterPersonPickerEmpty")}
+                </p>
+              ) : (
+                <p className="mt-1 text-xs text-zinc-500">
+                  {t("suppliers.paymentHeldPoolHint")}
+                </p>
+              )}
+            </div>
+          ) : null}
           {p.paySrc === "CASH" || p.paySrc === "PERSONNEL_HELD_REGISTER_CASH" ? (
             <Select
               name="payBranchId"
-              label={t("suppliers.paymentBranch")}
+              label={
+                p.paySrc === "PERSONNEL_HELD_REGISTER_CASH"
+                  ? t("suppliers.paymentAttributionBranch")
+                  : t("suppliers.paymentBranch")
+              }
               labelRequired
               options={p.branchLineSelectOptions}
               value={p.payBranchId}

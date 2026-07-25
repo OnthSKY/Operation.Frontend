@@ -43,6 +43,49 @@ export type WarehouseInBatchMovementResponse = {
   items: WarehouseMovementResponse[];
 };
 
+export type WarehouseStockCountResultLine = {
+  productId: number;
+  /** Düzeltme öncesi net bakiye (temel birim). */
+  previousQuantity: number;
+  /** Sayılan miktar (temel birim). */
+  countedQuantity: number;
+  /** countedQuantity - previousQuantity. */
+  delta: number;
+  /** Oluşturulan düzeltme hareketi Id'si; fark 0 ise null. */
+  movementId: number | null;
+  /** "IN" (artış) / "OUT" (azalış) / null (değişiklik yok). */
+  type: WarehouseMovementType | null;
+};
+
+export type WarehouseStockCountResponse = {
+  lines: WarehouseStockCountResultLine[];
+};
+
+/**
+ * Toplu stok sayımı / düzeltme. Her satır için sayılan gerçek miktar gönderilir;
+ * backend mevcut net bakiye ile farkı kadar düzeltme hareketi oluşturur.
+ */
+export async function registerWarehouseStockCount(input: {
+  warehouseId: number;
+  countDate: string;
+  description: string;
+  checkedByPersonnelId: number;
+  approvedByPersonnelId: number;
+  lines: { productId: number; actualCount: number }[];
+}): Promise<WarehouseStockCountResponse> {
+  return apiRequest<WarehouseStockCountResponse>("/warehouse/stock-count", {
+    method: "POST",
+    body: JSON.stringify({
+      warehouseId: input.warehouseId,
+      countDate: input.countDate,
+      description: input.description.trim(),
+      checkedByPersonnelId: input.checkedByPersonnelId,
+      approvedByPersonnelId: input.approvedByPersonnelId,
+      lines: input.lines.map((l) => ({ productId: l.productId, actualCount: l.actualCount })),
+    }),
+  });
+}
+
 export function warehouseMovementInvoicePhotoUrl(movementId: number): string {
   return apiUrl(`/warehouse/movements/${movementId}/invoice-photo`);
 }

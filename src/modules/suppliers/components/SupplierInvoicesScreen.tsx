@@ -16,6 +16,7 @@ import {
   supplierKeys,
   useCreateSupplierInvoice,
   useCreateSupplierPayment,
+  useHeldCashPersonnelPool,
   useDeleteSupplierInvoicePhoto,
   useSupplierInvoice,
   useSupplierInvoiceAuditLogs,
@@ -50,6 +51,7 @@ import { toErrorMessage } from "@/shared/lib/error-message";
 import {
   formatAmountInputOnBlur,
   formatLocaleAmount,
+  formatLocaleAmountInput,
   parseLocaleAmount,
 } from "@/shared/lib/locale-amount";
 import { notify } from "@/shared/lib/notify";
@@ -90,7 +92,7 @@ type InvLineEditFormErrors = Partial<{
   quantity: string;
 }>;
 
-type PayFormErrors = Partial<{ date: string; amount: string; branch: string }>;
+type PayFormErrors = Partial<{ date: string; amount: string; branch: string; personnel: string }>;
 
 type EditInvFormErrors = Partial<{ documentDate: string }>;
 
@@ -1200,8 +1202,27 @@ export function SupplierInvoicesScreen() {
   const [payAmt, setPayAmt] = useState("");
   const [paySrc, setPaySrc] = useState("PATRON");
   const [payBranchId, setPayBranchId] = useState("");
+  const [payPersonnelId, setPayPersonnelId] = useState("");
   const [payDesc, setPayDesc] = useState("");
   const [payFieldErrors, setPayFieldErrors] = useState<PayFormErrors>({});
+
+  // Personel zimmetindeki kasa parası kaynağı: HAVUZ modeli — fon kaynağında şubeye bakılmaz.
+  // Tüm şubelerdeki net zimmeti > 0 olan personeller listelenir; şube yalnız atıf içindir.
+  const heldPoolQ = useHeldCashPersonnelPool(
+    (payTarget?.currencyCode ?? "TRY").toUpperCase(),
+    payDate,
+    payTarget != null && paySrc === "PERSONNEL_HELD_REGISTER_CASH",
+  );
+  const payHeldPersonnelOptions = useMemo(() => {
+    const rows = (heldPoolQ.data ?? []).filter((r) => (r.amount ?? 0) > 0);
+    return [
+      { value: "", label: t("branch.expenseHeldRegisterPersonLabel") },
+      ...rows.map((r) => ({
+        value: String(r.personnelId),
+        label: `${r.fullName} · ${formatLocaleAmount(r.amount, locale, r.currencyCode)}`,
+      })),
+    ];
+  }, [heldPoolQ.data, t, locale]);
 
   useEffect(() => {
     setPayFieldErrors({});
@@ -1210,9 +1231,10 @@ export function SupplierInvoicesScreen() {
   const openPay = (row: SupplierInvoiceListItem) => {
     setPayTarget(row);
     setPayDate(new Date().toISOString().slice(0, 10));
-    setPayAmt(String(row.openAmount));
+    setPayAmt(formatLocaleAmountInput(row.openAmount, locale));
     setPaySrc("PATRON");
     setPayBranchId("");
+    setPayPersonnelId("");
     setPayDesc("");
     setPayFieldErrors({});
   };
@@ -1244,6 +1266,11 @@ export function SupplierInvoicesScreen() {
     if (requiresBranch && branchForPay == null) {
       pe.branch = t("common.formFieldRequiredHint");
     }
+    const requiresPersonnel = paySrc === "PERSONNEL_HELD_REGISTER_CASH";
+    const personnelForPay = requiresPersonnel ? parseIntId(payPersonnelId) : null;
+    if (requiresPersonnel && personnelForPay == null) {
+      pe.personnel = t("common.formFieldRequiredHint");
+    }
     setPayFieldErrors(pe);
     if (Object.values(pe).some((v) => v != null && String(v).trim() !== "")) {
       notify.error(t("common.formFillRequiredSummary"));
@@ -1258,6 +1285,7 @@ export function SupplierInvoicesScreen() {
         currencyCode: payTarget.currencyCode,
         sourceType: paySrc,
         branchId: branchForPay,
+        personnelId: personnelForPay,
         description: payDesc.trim() || null,
         allocations: [{ invoiceId: payTarget.id, amount: amt }],
       });
@@ -1830,6 +1858,10 @@ export function SupplierInvoicesScreen() {
         setPaySrc={setPaySrc}
         payBranchId={payBranchId}
         setPayBranchId={setPayBranchId}
+        payPersonnelId={payPersonnelId}
+        setPayPersonnelId={setPayPersonnelId}
+        heldPersonnelOptions={payHeldPersonnelOptions}
+        heldPersonnelLoading={heldPoolQ.isPending}
         payDesc={payDesc}
         setPayDesc={setPayDesc}
         payFieldErrors={payFieldErrors}

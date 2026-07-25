@@ -33,7 +33,10 @@ import {
   type UpdateWarehouseInboundMovementBody,
   type UpdateWarehouseOutboundShipmentMovementBody,
 } from "@/modules/warehouse/api/warehouses-api";
-import { registerWarehouseMovement } from "@/modules/warehouse/api/warehouse-movements-api";
+import {
+  registerWarehouseMovement,
+  registerWarehouseStockCount,
+} from "@/modules/warehouse/api/warehouse-movements-api";
 import {
   previewWarehouseTransferToBranch,
   transferWarehouseToBranch,
@@ -445,6 +448,29 @@ export function useRegisterWarehouseMovement() {
     onSuccess: (_data, vars) => {
       void qc.invalidateQueries({
         queryKey: [...warehouseKeys.all, "stock", vars.warehouseId],
+        exact: false,
+      });
+      invalidateWarehouseQueries(qc);
+      void qc.invalidateQueries({ queryKey: productsRootKey });
+    },
+  });
+}
+
+export function useRegisterWarehouseStockCount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: registerWarehouseStockCount,
+    onSuccess: (_data, vars) => {
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "stock", vars.warehouseId],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "movementsPage", vars.warehouseId],
+        exact: false,
+      });
+      void qc.invalidateQueries({
+        queryKey: [...warehouseKeys.all, "auditPage", vars.warehouseId],
         exact: false,
       });
       invalidateWarehouseQueries(qc);

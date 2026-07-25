@@ -256,6 +256,7 @@ export async function createSupplierPayment(body: {
   currencyCode?: string;
   sourceType: string;
   branchId?: number | null;
+  personnelId?: number | null;
   description?: string | null;
   allocations: Array<{ invoiceId: number; amount: number }>;
 }): Promise<SupplierPayment> {
@@ -272,10 +273,57 @@ export async function createSupplierPayment(body: {
         body.sourceType === "PERSONNEL_HELD_REGISTER_CASH"
           ? body.branchId ?? null
           : null,
+      // Yalnız personel zimmetindeki kasa parası kaynağında anlamlı.
+      personnelId:
+        body.sourceType === "PERSONNEL_HELD_REGISTER_CASH"
+          ? body.personnelId ?? null
+          : null,
       description: body.description ?? null,
       allocations: body.allocations,
     }),
   });
+}
+
+/** Şube gider ekranında salt-okunur gösterilen, personel zimmetinden yapılan tedarikçi ödemesi. */
+export type BranchHeldSupplierPayment = {
+  id: number;
+  paymentDate: string;
+  amount: number;
+  currencyCode: string;
+  personnelId: number;
+  personnelName: string | null;
+  supplierNames: string | null;
+  invoiceDocumentNumbers: string | null;
+  description: string | null;
+};
+
+/** Havuz bazında (tüm şubeler) zimmetinde net kasa nakdi olan personel — ödeme modalı seçicisi. */
+export type HeldCashPersonnelPool = {
+  personnelId: number;
+  fullName: string;
+  amount: number;
+  currencyCode: string;
+};
+
+export async function fetchHeldCashPersonnelPool(
+  currencyCode: string,
+  asOf: string,
+): Promise<HeldCashPersonnelPool[]> {
+  const qs = new URLSearchParams({ currencyCode, asOf }).toString();
+  return apiRequest<HeldCashPersonnelPool[]>(`/suppliers/payments/held-cash-personnel-pool?${qs}`);
+}
+
+export async function fetchBranchHeldSupplierPayments(
+  branchId: number,
+  dateFrom: string,
+  dateTo: string,
+): Promise<BranchHeldSupplierPayment[]> {
+  const qs = new URLSearchParams({
+    branchId: String(branchId),
+    dateFrom,
+    dateTo,
+  }).toString();
+  return apiRequest<BranchHeldSupplierPayment[]>(`/suppliers/payments/branch-held?${qs}`);
 }
 
 export async function fetchSupplierPayments(supplierId: number): Promise<SupplierPayment[]> {

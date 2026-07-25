@@ -32,7 +32,8 @@ import { notify } from "@/shared/lib/notify";
 import { notifyWarehouseDeleteConfirm } from "@/shared/lib/notify-warehouse-delete";
 import { detailOpenIconButtonClass, EyeIcon, PlusIcon } from "@/shared/ui/EyeIcon";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
-import { BranchTransferListIcon, PlusProductIcon } from "@/shared/ui/WarehouseListIcons";
+import { BranchTransferListIcon, PlusProductIcon, StockCountListIcon } from "@/shared/ui/WarehouseListIcons";
+import { WarehouseStockCountModal } from "@/modules/warehouse/components/WarehouseStockCountModal";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import { cn } from "@/lib/cn";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
@@ -72,6 +73,9 @@ export function WarehouseScreen() {
   }>({ tab: null, movementId: null });
   const [quickDepoTarget, setQuickDepoTarget] = useState<{ id: number; name: string } | null>(null);
   const [quickTransferTarget, setQuickTransferTarget] = useState<{ id: number; name: string } | null>(
+    null
+  );
+  const [quickStockCountTarget, setQuickStockCountTarget] = useState<{ id: number; name: string } | null>(
     null
   );
   const [listSearch, setListSearch] = useState("");
@@ -386,6 +390,24 @@ export function WarehouseScreen() {
                               <BranchTransferListIcon className={actionIconClass} />
                             </Button>
                           </Tooltip>
+                          <Tooltip
+                            className="shrink-0"
+                            content={t("warehouse.listActionStockCount")}
+                            delayMs={200}
+                          >
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className={detailOpenIconButtonClass}
+                              aria-haspopup="dialog"
+                              aria-expanded={quickStockCountTarget?.id === w.id}
+                              aria-label={t("warehouse.listActionStockCount")}
+                              title={t("warehouse.listActionStockCount")}
+                              onClick={() => setQuickStockCountTarget({ id: w.id, name: w.name })}
+                            >
+                              <StockCountListIcon className={actionIconClass} />
+                            </Button>
+                          </Tooltip>
                           <Tooltip className="shrink-0" content={t("common.openDetailsDialog")} delayMs={200}>
                             <Button
                               type="button"
@@ -532,6 +554,24 @@ export function WarehouseScreen() {
                             <BranchTransferListIcon className={actionIconClass} />
                           </Button>
                         </Tooltip>
+                        <Tooltip
+                          className="shrink-0"
+                          content={t("warehouse.listActionStockCount")}
+                          delayMs={200}
+                        >
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className={detailOpenIconButtonClass}
+                            aria-haspopup="dialog"
+                            aria-expanded={quickStockCountTarget?.id === w.id}
+                            aria-label={t("warehouse.listActionStockCount")}
+                            title={t("warehouse.listActionStockCount")}
+                            onClick={() => setQuickStockCountTarget({ id: w.id, name: w.name })}
+                          >
+                            <StockCountListIcon className={actionIconClass} />
+                          </Button>
+                        </Tooltip>
                         <Tooltip className="shrink-0" content={t("common.openDetailsDialog")} delayMs={200}>
                           <Button
                             type="button"
@@ -573,6 +613,10 @@ export function WarehouseScreen() {
       <WarehouseListTransferModal
         target={quickTransferTarget}
         onClose={() => setQuickTransferTarget(null)}
+      />
+      <WarehouseStockCountModal
+        target={quickStockCountTarget}
+        onClose={() => setQuickStockCountTarget(null)}
       />
 
       <AddWarehouseModal open={whModal} onClose={() => setWhModal(false)} />

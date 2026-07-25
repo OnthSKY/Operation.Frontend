@@ -346,6 +346,12 @@
   colBranch: "Şube",
   colType: "Tip",
   colMainCat: "Ana kategori",
+  colCostBehavior: "Maliyet",
+  costBehavior: {
+    fixed: "Sabit",
+    variable: "Değişken",
+    capex: "Yatırım",
+  },
   colCategory: "Kategori",
   colAmount: "Tutar",
   colLines: "Satır",

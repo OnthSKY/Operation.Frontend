@@ -32,7 +32,8 @@ import { notifyBranchIncomeDeleteConfirm } from "@/shared/lib/notify-branch-inco
 import { useI18n } from "@/i18n/context";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { TX_MAIN_IN, TX_MAIN_OUT } from "@/modules/branch/lib/branch-transaction-options";
+import { TX_MAIN_IN, txSubOptions } from "@/modules/branch/lib/branch-transaction-options";
+import { classificationCodeFromLegacyBranchTxForm } from "@/modules/branch/lib/branch-tx-form-to-classification";
 import { AddTransactionModal } from "@/shared/components/transactions/AddTransactionModal";
 import { AssignPersonnelToBranchModal } from "./AssignPersonnelToBranchModal";
 import { BranchTransactionDetailDialog } from "./BranchTransactionDetailDialog";
@@ -62,6 +63,7 @@ import { BranchDetailDashboardTab } from "./BranchDetailDashboardTab";
 import { BranchDetailPersonnelTab } from "./BranchDetailPersonnelTab";
 import { BranchDetailIncomeTab } from "./BranchDetailIncomeTab";
 import { BranchDetailExpensesTab } from "./BranchDetailExpensesTab";
+import { useBranchHeldSupplierPayments } from "@/modules/suppliers/hooks/useSupplierQueries";
 import { BranchDetailStockTab } from "./BranchDetailStockTab";
 import { BranchDetailCurrentAccountTab } from "./BranchDetailCurrentAccountTab";
 import type { BranchPersonnelMoneySummaryItem } from "@/types/branch-personnel-money";
@@ -169,8 +171,11 @@ export function BranchDetailTabs({
   const [expTo, setExpTo] = useState("");
   const [expPage, setExpPage] = useState(1);
   const [expFilterMain, setExpFilterMain] = useState("");
+  const [expFilterSub, setExpFilterSub] = useState("");
   // Default: şube kasasından ödenenler gelir.
   const [expFilterPay, setExpFilterPay] = useState("REGISTER");
+  // "Personel zimmetinde" kaynağı seçiliyken: hangi personelin zimmetinden filtreler (expense_pocket_personnel_id).
+  const [expFilterHeldPersonnel, setExpFilterHeldPersonnel] = useState("");
   // Giriş kaynağı filtresi: boş = tümü, OPS | PERSONNEL | SUPPLIER | VEHICLE | CONTRACTOR.
   const [expFilterKind, setExpFilterKind] = useState("");
 
@@ -374,13 +379,30 @@ export function BranchDetailTabs({
     ],
     [t]
   );
-  const expMainFilterOpts = useMemo(
-    () => [
+  // Tek "Kategori" filtresi: şemsiye "İşletme Gideri" (OUT_OPS = tümü) + granüler alt kodlar.
+  // Ayrı ana/alt dropdown yerine tek liste (bu ekranda tek gider ana kategorisi var).
+  const expCategoryOpts = useMemo(() => {
+    const subs = txSubOptions("OUT_OPS", t).filter((o) => o.value);
+    return [
       { value: "", label: t("branch.txFilterAny") },
-      ...TX_MAIN_OUT.map((x) => ({ value: x.value, label: t(x.labelKey) })),
-    ],
-    [t]
-  );
+      { value: "OUT_OPS", label: t("branch.txMainOutOps") },
+      ...subs.map((o) => ({ value: o.value, label: `›  ${o.label}` })),
+    ];
+  }, [t]);
+  // Underlying main/sub state'i tek kontrolden karşılıklı-dışlamalı sürülür.
+  const expFilterCategory = expFilterSub.trim() || expFilterMain.trim();
+  const onExpCategoryChange = (v: string) => {
+    if (!v) {
+      setExpFilterMain("");
+      setExpFilterSub("");
+    } else if (v === "OUT_OPS") {
+      setExpFilterMain("OUT_OPS");
+      setExpFilterSub("");
+    } else {
+      setExpFilterMain("");
+      setExpFilterSub(v);
+    }
+  };
   // Giriş kaynağı filtresi: kullanıcı dostu, "hangi modalden girildi" ekseni.
   const expKindFilterOpts = useMemo(
     () => [
@@ -455,7 +477,21 @@ export function BranchDetailTabs({
       dateFrom: expFrom.length === 10 ? expFrom : undefined,
       dateTo: expTo.length === 10 ? expTo : undefined,
       mainCategory: expFilterMain.trim() || undefined,
+      // Alt kategori legacy form değeri (ör. OPS_RENT) → granüler classification_code (ör. OUT_OPS_RENT).
+      subCategory: expFilterSub.trim()
+        ? classificationCodeFromLegacyBranchTxForm(
+            "OUT",
+            expFilterMain.trim() || "OUT_OPS",
+            expFilterSub.trim(),
+          )
+        : undefined,
       expensePaymentSource: expFilterPay.trim() || undefined,
+      // Yalnız "personel zimmetinde" kaynağında anlamlı: seçili personelin zimmet giderleri.
+      expensePocketPersonnelId:
+        expFilterPay.trim().toUpperCase() === "PERSONNEL_HELD_REGISTER_CASH" &&
+        expFilterHeldPersonnel.trim()
+          ? Number(expFilterHeldPersonnel) || undefined
+          : undefined,
       expenseKind: (expFilterKind.trim() || undefined) as
         | "OPS"
         | "PERSONNEL"
@@ -465,7 +501,7 @@ export function BranchDetailTabs({
         | undefined,
       excludeDebtClosureOuts: true,
     }),
-    [expPage, expFrom, expTo, expFilterMain, expFilterPay, expFilterKind]
+    [expPage, expFrom, expTo, expFilterMain, expFilterSub, expFilterPay, expFilterKind]
   );
 
   const todayIso = localIsoDate();
@@ -633,6 +669,50 @@ export function BranchDetailTabs({
     error: expError,
     refetch: refetchExp,
   } = useBranchTransactionsPaged(branch.id, expParams, tab === "expenses");
+
+  // Personel zimmetindeki kasadan yapılan tedarikçi ödemeleri — gider tabında "personel zimmetinden"
+  // filtresi seçiliyken salt-okunur bilgi olarak gösterilir (KPI'lara girmez; tedarikçi tarafında sayılır).
+  const heldSupplierFilterActive =
+    tab === "expenses" &&
+    expFilterPay.trim().toUpperCase() === "PERSONNEL_HELD_REGISTER_CASH";
+  const { data: heldSupplierPayments = [] } = useBranchHeldSupplierPayments(
+    branch.id,
+    expFrom.length === 10 ? expFrom : "2000-01-01",
+    expTo.length === 10 ? expTo : localIsoDate(),
+    heldSupplierFilterActive,
+  );
+
+  // "Personel zimmetinde" filtresi için personel seçenekleri: şubede zimmetinde kasa nakdi olanlar
+  // + tedarikçi ödemesi yapmış personeller (net-0 olsa da listede kalsın).
+  const { data: expHeldCashHolders = [] } = useBranchHeldRegisterCashByPerson(
+    branch.id,
+    expTo.length === 10 ? expTo : localIsoDate(),
+    heldSupplierFilterActive,
+  );
+  const expHeldPersonnelOpts = useMemo(() => {
+    const opts: { value: string; label: string }[] = [
+      { value: "", label: t("branch.expenseHeldSupplierAllPersonnel") },
+    ];
+    const seen = new Set<string>();
+    for (const r of expHeldCashHolders) {
+      if (r.personnelId == null) continue;
+      const id = String(r.personnelId);
+      if (seen.has(id)) continue;
+      seen.add(id);
+      opts.push({ value: id, label: r.fullName || `#${id}` });
+    }
+    for (const p of heldSupplierPayments) {
+      const id = String(p.personnelId);
+      if (!p.personnelId || seen.has(id)) continue;
+      seen.add(id);
+      opts.push({ value: id, label: p.personnelName || `#${id}` });
+    }
+    return opts;
+  }, [expHeldCashHolders, heldSupplierPayments, t]);
+  // Kaynak "personel zimmetinde" değilse personel seçimini temizle.
+  useEffect(() => {
+    if (!heldSupplierFilterActive && expFilterHeldPersonnel) setExpFilterHeldPersonnel("");
+  }, [heldSupplierFilterActive, expFilterHeldPersonnel]);
 
   const expListSummaryPending =
     (expListSummaryUsesDayQuery && expListDayRegisterPending) ||
@@ -1036,6 +1116,7 @@ export function BranchDetailTabs({
             employeeSelfService={employeeSelfService}
             branchIdForTourismLink={branch.id}
             tabIsActive={tab === "expenses"}
+            heldSupplierPayments={heldSupplierPayments}
             focusTransactionId={focusTransactionId}
             expenseOverviewDetail={expenseOverviewDetail}
             setExpenseOverviewDetail={setExpenseOverviewDetail}
@@ -1065,13 +1146,20 @@ export function BranchDetailTabs({
             expenseFiltersOpen={expenseFiltersOpen}
             setExpenseFiltersOpen={setExpenseFiltersOpen}
             expFiltersActive={expFiltersActive}
-            expMainFilterOpts={expMainFilterOpts}
+            expCategoryOpts={expCategoryOpts}
+            expFilterCategory={expFilterCategory}
+            onExpCategoryChange={onExpCategoryChange}
             expPayFilterOpts={expPayFilterOpts}
             expKindFilterOpts={expKindFilterOpts}
             expFilterMain={expFilterMain}
             setExpFilterMain={setExpFilterMain}
+            expFilterSub={expFilterSub}
+            setExpFilterSub={setExpFilterSub}
             expFilterPay={expFilterPay}
             setExpFilterPay={setExpFilterPay}
+            expHeldPersonnelOpts={expHeldPersonnelOpts}
+            expFilterHeldPersonnel={expFilterHeldPersonnel}
+            setExpFilterHeldPersonnel={setExpFilterHeldPersonnel}
             expFilterKind={expFilterKind}
             setExpFilterKind={setExpFilterKind}
             refetchExp={refetchExp}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { RotateCcw } from "lucide-react";
 import { useI18n } from "@/i18n/context";
 import {
@@ -60,6 +60,53 @@ function directionBadgeClass(direction: BranchStockDirection): string {
     : "bg-emerald-50 text-emerald-800 ring-emerald-200";
 }
 
+/** Gün özetinde tek ürünün net hareketi (IN artı, OUT eksi); işaret + renk için net alanı taşır. */
+type DaySummaryItem = { label: string; net: number };
+
+type DayGroup = {
+  date: string;
+  rows: BranchStockConsumptionRow[];
+  /** O güne ait ürün+birim bazında net hareket: "−5 birim dondurma", "+3 kg un" gibi. */
+  summary: DaySummaryItem[];
+};
+
+/**
+ * Satırları consumptionDate'e göre gruplar; her gün için silinmemiş çıkış (OUT,
+ * snapshot hariç) kalemlerini ürün+birim bazında toplar. Backend zaten tarihe
+ * göre sıralı döndürdüğü için ardışık aynı-tarih satırları tek grup olur.
+ */
+function buildDayGroups(rows: BranchStockConsumptionRow[]): DayGroup[] {
+  const groups: DayGroup[] = [];
+  let current: DayGroup | null = null;
+  for (const r of rows) {
+    if (!current || current.date !== r.consumptionDate) {
+      current = { date: r.consumptionDate, rows: [], summary: [] };
+      groups.push(current);
+    }
+    current.rows.push(r);
+  }
+  for (const g of groups) {
+    const totals = new Map<string, { name: string; unit: string | null; net: number }>();
+    for (const r of g.rows) {
+      if (r.isDeleted || r.type === "SNAPSHOT") continue;
+      // Özet ana ürün bazında toplanır; alt ürün kırılımı detay satırlarında görünür.
+      const name = r.parentProductName ?? r.productName;
+      const key = `${name} ${r.productUnit ?? ""}`;
+      const delta = r.direction === "OUT" ? -r.quantity : r.quantity;
+      const prev = totals.get(key);
+      if (prev) prev.net += delta;
+      else totals.set(key, { name, unit: r.productUnit, net: delta });
+    }
+    g.summary = [...totals.values()]
+      .filter((e) => e.net !== 0)
+      .map((e) => ({
+        net: e.net,
+        label: `${e.net > 0 ? "+" : "−"}${Math.abs(e.net)}${e.unit ? ` ${e.unit}` : ""} ${e.name}`,
+      }));
+  }
+  return groups;
+}
+
 export function ConsumptionHistoryTable({
   branchId,
   rows,
@@ -80,6 +127,7 @@ export function ConsumptionHistoryTable({
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
 
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
+  const dayGroups = useMemo(() => buildDayGroups(rows), [rows]);
 
   const confirmDelete = async () => {
     if (pendingDeleteId == null) return;
@@ -129,7 +177,23 @@ export function ConsumptionHistoryTable({
   return (
     <div className="space-y-3">
       <ul className="flex flex-col gap-2 sm:hidden">
-        {rows.map((r) => {
+        {dayGroups.map((g) => (
+          <Fragment key={g.date}>
+            <li className="flex items-baseline justify-between gap-2 px-0.5 pb-0.5 pt-2 first:pt-0">
+              <span className="text-xs font-semibold text-zinc-600 tabular-nums">
+                {formatLocaleDate(g.date, locale, "—")}
+              </span>
+              {g.summary.length > 0 ? (
+                <span className="flex flex-wrap justify-end gap-x-2 gap-y-0.5 text-right text-[11px] font-medium tabular-nums">
+                  {g.summary.map((s, i) => (
+                    <span key={i} className={s.net > 0 ? "text-emerald-700" : "text-rose-700"}>
+                      {s.label}
+                    </span>
+                  ))}
+                </span>
+              ) : null}
+            </li>
+            {g.rows.map((r) => {
           const isDeleted = r.isDeleted;
           return (
             <li
@@ -223,7 +287,9 @@ export function ConsumptionHistoryTable({
               ) : null}
             </li>
           );
-        })}
+            })}
+          </Fragment>
+        ))}
       </ul>
 
       <div className="hidden sm:block">
@@ -240,7 +306,27 @@ export function ConsumptionHistoryTable({
           </TableRow>
         </TableHead>
         <TableBody>
-          {rows.map((r) => {
+          {dayGroups.map((g) => (
+            <Fragment key={g.date}>
+              <TableRow className="bg-zinc-50/60 hover:bg-zinc-50/60">
+                <TableCell colSpan={7} className="!py-1.5">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                    <span className="text-xs font-semibold tabular-nums text-zinc-700">
+                      {formatLocaleDate(g.date, locale, "—")}
+                    </span>
+                    {g.summary.length > 0 ? (
+                      <span className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs font-medium tabular-nums">
+                        {g.summary.map((s, i) => (
+                          <span key={i} className={s.net > 0 ? "text-emerald-700" : "text-rose-700"}>
+                            {s.label}
+                          </span>
+                        ))}
+                      </span>
+                    ) : null}
+                  </div>
+                </TableCell>
+              </TableRow>
+              {g.rows.map((r) => {
             const isDeleted = r.isDeleted;
             return (
               <TableRow
@@ -330,7 +416,9 @@ export function ConsumptionHistoryTable({
                 </TableCell>
               </TableRow>
             );
-          })}
+              })}
+            </Fragment>
+          ))}
         </TableBody>
       </Table>
       </div>

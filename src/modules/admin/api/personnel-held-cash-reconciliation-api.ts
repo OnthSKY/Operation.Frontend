@@ -13,6 +13,8 @@ export type PersonnelHeldCashReconciliationRow = {
   claimGiven: number;
   /** Yeni akış: handover settlement junction üzerinden patrona iade. NetBalance hesabına dahildir. */
   handoverSettled: number;
+  /** Zimmetteki kasadan yapılan tedarikçi ödemeleri (supplier_payments). NetBalance'ı düşürür. */
+  supplierPaid: number;
   netBalance: number;
   oldBalanceEstimate: number;
   difference: number;

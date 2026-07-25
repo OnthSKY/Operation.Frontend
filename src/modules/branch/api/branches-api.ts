@@ -921,6 +921,8 @@ export type BranchTxPageParams = {
   dateFrom?: string;
   dateTo?: string;
   mainCategory?: string;
+  /** Alt kategori (granüler classification_code, örn. OUT_OPS_RENT). Ana kategori ile birlikte kullanılabilir. */
+  subCategory?: string;
   cashSettlementParty?: string;
   expensePaymentSource?: string;
   expensePocketPersonnelId?: number;
@@ -942,6 +944,7 @@ export async function fetchBranchTransactionsPaged(
   if (params.dateFrom?.length === 10) q.set("dateFrom", params.dateFrom);
   if (params.dateTo?.length === 10) q.set("dateTo", params.dateTo);
   if (params.mainCategory?.trim()) q.set("mainCategory", params.mainCategory.trim());
+  if (params.subCategory?.trim()) q.set("subCategory", params.subCategory.trim());
   if (params.cashSettlementParty?.trim())
     q.set("cashSettlementParty", params.cashSettlementParty.trim());
   if (params.expensePaymentSource?.trim())

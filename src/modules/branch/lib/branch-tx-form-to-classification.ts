@@ -12,6 +12,7 @@ const LEGACY_FORM_MAIN = new Set([
   "OUT_PERSONNEL",
   "OUT_GOODS",
   "OUT_OPS",
+  "OUT_CAPEX",
   "OUT_TAX",
   "OUT_OTHER",
   "OUT_NON_PNL",
@@ -111,6 +112,15 @@ export function classificationCodeFromLegacyBranchTxForm(
         OPS_FRANCHISE_MARKETING: "OUT_OPS_FRANCHISE_MARKETING",
       };
       if (cat && o[cat]) return o[cat]!;
+    }
+    if (mc === "OUT_CAPEX") {
+      const cx: Record<string, string> = {
+        CAPEX_EQUIPMENT: "OUT_CAPEX_EQUIPMENT",
+        CAPEX_FURNITURE: "OUT_CAPEX_FURNITURE",
+        CAPEX_FITOUT: "OUT_CAPEX_FITOUT",
+        CAPEX_OTHER: "OUT_CAPEX_OTHER",
+      };
+      if (cat && cx[cat]) return cx[cat]!;
     }
     if (mc === "OUT_TAX") {
       const x: Record<string, string> = {

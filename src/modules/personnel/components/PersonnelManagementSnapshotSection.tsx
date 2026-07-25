@@ -11,6 +11,7 @@ import {
   defaultPersonnelListFilters,
   usePersonnelCashAccountBranchBreakdown,
   usePersonnelCashAccountLedger,
+  usePersonnelCashAccountLedgerCounterparties,
   usePersonnelCashHandoverLinesPaged,
   usePersonnelCashHandoverOutflowsPaged,
   usePersonnelList,
@@ -341,6 +342,8 @@ export function PersonnelManagementSnapshotSection({
   const [ledgerPage, setLedgerPage] = useState(1);
   const [ledgerPageSize] = useState(50);
   const [ledgerCategoryFilter, setLedgerCategoryFilter] = useState("");
+  // "Personel gider/avans" grubunda hangi personele daraltıldığı (0 = tümü).
+  const [ledgerCounterpartyPersonnelId, setLedgerCounterpartyPersonnelId] = useState(0);
   const [ledgerIncludeReversals, setLedgerIncludeReversals] = useState(false);
   /**
    * Üst seviye kategori grubu filtresi (UI dropdown). Backend uygun classification_code
@@ -350,8 +353,7 @@ export function PersonnelManagementSnapshotSection({
     () => [
       { value: "", title: t("personnel.detailMgmtCashAccountLedgerFilterAll") },
       { value: "INCOMING_CASH", title: t("personnel.detailMgmtCashAccountGroupIncomingCash") },
-      { value: "PERSONNEL_ADVANCE", title: t("personnel.detailMgmtCashAccountGroupPersonnelAdvance") },
-      { value: "PERSONNEL_EXPENSE", title: t("personnel.detailMgmtCashAccountGroupPersonnelExpense") },
+      { value: "PERSONNEL", title: t("personnel.detailMgmtCashAccountGroupPersonnel") },
       { value: "BRANCH_EXPENSE", title: t("personnel.detailMgmtCashAccountGroupBranchExpense") },
       { value: "SUPPLIER_INVOICE", title: t("personnel.detailMgmtCashAccountGroupSupplierInvoice") },
       { value: "GENERAL_EXPENSE", title: t("personnel.detailMgmtCashAccountGroupGeneralExpense") },
@@ -414,6 +416,26 @@ export function PersonnelManagementSnapshotSection({
         amount: r.netContribution,
       }))
       .sort((a, b) => b.amount - a.amount);
+  }, [branchBreakdownQuery.data]);
+
+  /**
+   * Görüntü listesi: şube başına GELEN (totalIn) + KALAN (netContribution).
+   * `cashAccountBranchBreakdown`'dan farkı: filtre `totalIn > 0` — yani parası
+   * tamamen harcanmış (kalan=0) şubeler de "geçmişte şu kadar gelmişti" bilgisiyle
+   * listede kalır. Devret seçimi/aksiyonu ise HÂLÂ `cashAccountBranchBreakdown`
+   * (netContribution>0) üzerinden ilerler; 0-bakiyeli şube devir için önerilmez.
+   */
+  const cashAccountBranchDisplayRows = useMemo(() => {
+    const rows = branchBreakdownQuery.data ?? [];
+    return rows
+      .filter((r) => r.totalIn > 0.009)
+      .map((r) => ({
+        branchId: r.branchId ?? 0,
+        branchName: r.branchLabel || (r.branchId ? `#${r.branchId}` : "—"),
+        totalIn: r.totalIn,
+        remaining: r.netContribution,
+      }))
+      .sort((a, b) => b.totalIn - a.totalIn);
   }, [branchBreakdownQuery.data]);
 
   /**
@@ -561,6 +583,8 @@ export function PersonnelManagementSnapshotSection({
 
   // Yeni ledger banka ekstresi — Faz 4.1 endpoint'inden besleniyor.
   const ledgerCurrency = (cashAccountSummary?.currencyCode ?? "TRY").trim().toUpperCase() || "TRY";
+  // Personel alt filtresi yalnızca "PERSONNEL" grubunda anlamlı.
+  const personnelSubFilterActive = ledgerCategoryFilter === "PERSONNEL";
   const ledgerQuery = usePersonnelCashAccountLedger(
     personnel.id,
     ledgerPage,
@@ -572,9 +596,28 @@ export function PersonnelManagementSnapshotSection({
       counterpartyKind: "",
       classificationCode: "",
       categoryGroup: ledgerCategoryFilter,
+      counterpartyPersonnelId: personnelSubFilterActive
+        ? ledgerCounterpartyPersonnelId
+        : 0,
       includeReversals: ledgerIncludeReversals,
     },
     handoverListEnabled && cashAccountSummary != null,
+  );
+  // Alt filtre dropdown seçenekleri — sadece PERSONNEL grubu seçiliyken çekilir.
+  const ledgerCounterpartiesQuery = usePersonnelCashAccountLedgerCounterparties(
+    personnel.id,
+    ledgerCurrency,
+    handoverListEnabled && cashAccountSummary != null && personnelSubFilterActive,
+  );
+  const ledgerCounterpartyOptions = useMemo<RichComboboxOption[]>(
+    () => [
+      { value: "0", title: t("personnel.detailMgmtCashAccountCounterpartyAll") },
+      ...(ledgerCounterpartiesQuery.data ?? []).map((c) => ({
+        value: String(c.personnelId),
+        title: c.label,
+      })),
+    ],
+    [ledgerCounterpartiesQuery.data, t],
   );
 
   const labelPersonnelFilters = useMemo(
@@ -1173,7 +1216,10 @@ export function PersonnelManagementSnapshotSection({
                 ) : null}
                 {cashAccountSummary ? (
                   <div className="space-y-3">
-                    {/* HERO: Mevcut bakiye + şube kırılımı + Patrona devret butonu */}
+                    {/* ÖZET (otorite): Mevcut bakiye vurgulu + toplam gelen/harcanan
+                        bir arada. Bu üç değer `cashAccountSummary`'nin (birincil para
+                        birimi) tekil özetidir; aşağıdaki şube listesinin toplamıyla
+                        birebir aynı olmayabilir (ayrı sorgu + cache). */}
                     <article className="rounded-2xl border border-sky-200/90 bg-gradient-to-br from-sky-50/80 to-white p-4 shadow-sm shadow-sky-900/5 sm:p-5">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0 flex-1">
@@ -1208,97 +1254,136 @@ export function PersonnelManagementSnapshotSection({
                           </Button>
                         ) : null}
                       </div>
-                      {cashAccountBranchBreakdown.length > 0 ? (
-                        <div className="mt-4 border-t border-sky-100 pt-3">
-                          <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-zinc-600">
-                            {t("personnel.detailMgmtCashAccountBranchBreakdownTitle")}
-                          </p>
-                          <ul className="mt-2 space-y-1">
-                            {cashAccountBranchBreakdown.map((b) => {
-                              // Şube başı devir: dialog'u o şubenin context'iyle aç.
-                              // Hero butonu birden çok şubede otomatik seçim yapıyor;
-                              // bu satır kullanıcıya "şu şubenin parasını devret" net
-                              // kontrolü verir → cepte kalan para sorunu çözülür.
-                              const canDevret =
-                                handoverActionsEnabled &&
-                                b.branchId > 0 &&
-                                b.amount > 0.009 &&
-                                typeof onHandoverOpenPatronRegisterRepay ===
-                                  "function";
-                              return (
-                                <li
-                                  key={b.branchId}
-                                  className="flex items-center justify-between gap-2 rounded-md border border-sky-100/80 bg-white/80 px-3 py-1.5 text-sm"
-                                >
-                                  <span className="min-w-0 flex-1 truncate text-zinc-800">
-                                    {b.branchName}
+                      {/* Toplam gelen / harcanan — bakiye ile aynı blokta, net ayrım */}
+                      <div className="mt-4 grid grid-cols-1 gap-2 border-t border-sky-100 pt-3 sm:grid-cols-2 sm:gap-3">
+                        <MetricTile
+                          label={t("personnel.detailMgmtCashAccountTotalIn")}
+                          value={formatMoneyDash(
+                            cashAccountSummary.totalIn,
+                            dash,
+                            locale,
+                            cashAccountSummary.currencyCode,
+                          )}
+                          hint={t("personnel.detailMgmtCashAccountTotalInHint")}
+                          emphasis="neutral"
+                        />
+                        <MetricTile
+                          label={t("personnel.detailMgmtCashAccountTotalOut")}
+                          value={formatMoneyDash(
+                            cashAccountSummary.totalOut,
+                            dash,
+                            locale,
+                            cashAccountSummary.currencyCode,
+                          )}
+                          hint={t("personnel.detailMgmtCashAccountTotalOutHint")}
+                          emphasis="negative"
+                        />
+                      </div>
+                    </article>
+
+                    {/* ŞUBE DAĞILIMI: şube başına GELEN + KALAN. Filtre totalIn>0
+                        (harcanmış şube de görünür); Devret yalnız kalan>0'da aktif ve
+                        devredilen tutar KALAN'dır (gelen değil). */}
+                    {cashAccountBranchDisplayRows.length > 0 ? (
+                      <div className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+                        <p className="text-[0.7rem] font-semibold uppercase tracking-wide text-zinc-600">
+                          {t("personnel.detailMgmtCashAccountBranchBreakdownTitle")}
+                        </p>
+                        <p className="mt-1 text-xs text-zinc-500">
+                          {t("personnel.detailMgmtCashAccountBranchBreakdownHint")}
+                        </p>
+                        <ul className="mt-3 space-y-1.5">
+                          {cashAccountBranchDisplayRows.map((b) => {
+                            // Devret yalnızca gerçek kalan bakiye (remaining) varsa.
+                            // Tutar = remaining; branchOptions devret-uygun listeden
+                            // (netContribution>0) beslenir — 0-bakiyeli şube seçilmez.
+                            const canDevret =
+                              handoverActionsEnabled &&
+                              b.branchId > 0 &&
+                              b.remaining > 0.009 &&
+                              typeof onHandoverOpenPatronRegisterRepay ===
+                                "function";
+                            return (
+                              <li
+                                key={b.branchId}
+                                className="flex flex-col gap-2 rounded-md border border-zinc-100 bg-zinc-50/60 px-3 py-2 text-sm sm:flex-row sm:items-center sm:gap-4"
+                              >
+                                {/* Mobilde şube adı kendi satırında tam görünür;
+                                    sm+ ekranda flex-1 + truncate ile tek satır. */}
+                                <span className="min-w-0 break-words font-medium text-zinc-800 sm:flex-1 sm:truncate">
+                                  {b.branchName}
+                                </span>
+                                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                                <span className="flex items-baseline gap-1.5">
+                                  <span className="text-[0.65rem] uppercase tracking-wide text-zinc-400">
+                                    {t("personnel.detailMgmtCashAccountBranchColIn")}
                                   </span>
-                                  <span className="shrink-0 font-mono font-semibold tabular-nums text-zinc-900">
+                                  <span className="shrink-0 font-mono tabular-nums text-zinc-600">
                                     {formatMoneyDash(
-                                      b.amount,
+                                      b.totalIn,
                                       dash,
                                       locale,
                                       cashAccountSummary.currencyCode,
                                     )}
                                   </span>
-                                  {canDevret ? (
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        onHandoverOpenPatronRegisterRepay?.({
-                                          branchId: b.branchId,
-                                          currencyCode:
-                                            cashAccountSummary.currencyCode,
-                                          suggestedAmount: b.amount,
-                                          branchOptions:
-                                            cashAccountBranchBreakdown.map(
-                                              (x) => ({
-                                                branchId: x.branchId,
-                                                branchName: x.branchName,
-                                                amount: x.amount,
-                                              }),
-                                            ),
-                                        })
-                                      }
-                                      className="shrink-0 rounded-md bg-sky-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm hover:bg-sky-700"
-                                      title={`${b.branchName} bakiyesini patrona devret`}
-                                    >
-                                      Devret
-                                    </button>
-                                  ) : null}
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        </div>
-                      ) : null}
-                    </article>
-
-                    {/* 2 kart: cebe gelen toplam + cebinden harcanan toplam */}
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
-                      <MetricTile
-                        label={t("personnel.detailMgmtCashAccountTotalIn")}
-                        value={formatMoneyDash(
-                          cashAccountSummary.totalIn,
-                          dash,
-                          locale,
-                          cashAccountSummary.currencyCode,
-                        )}
-                        hint={t("personnel.detailMgmtCashAccountTotalInHint")}
-                        emphasis="neutral"
-                      />
-                      <MetricTile
-                        label={t("personnel.detailMgmtCashAccountTotalOut")}
-                        value={formatMoneyDash(
-                          cashAccountSummary.totalOut,
-                          dash,
-                          locale,
-                          cashAccountSummary.currencyCode,
-                        )}
-                        hint={t("personnel.detailMgmtCashAccountTotalOutHint")}
-                        emphasis="negative"
-                      />
-                    </div>
+                                </span>
+                                <span className="flex items-baseline gap-1.5">
+                                  <span className="text-[0.65rem] uppercase tracking-wide text-zinc-400">
+                                    {t("personnel.detailMgmtCashAccountBranchColRemaining")}
+                                  </span>
+                                  <span className="shrink-0 font-mono font-semibold tabular-nums text-zinc-900">
+                                    {formatMoneyDash(
+                                      b.remaining,
+                                      dash,
+                                      locale,
+                                      cashAccountSummary.currencyCode,
+                                    )}
+                                  </span>
+                                </span>
+                                {canDevret ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      onHandoverOpenPatronRegisterRepay?.({
+                                        branchId: b.branchId,
+                                        currencyCode:
+                                          cashAccountSummary.currencyCode,
+                                        suggestedAmount: b.remaining,
+                                        branchOptions:
+                                          cashAccountBranchBreakdown.map(
+                                            (x) => ({
+                                              branchId: x.branchId,
+                                              branchName: x.branchName,
+                                              amount: x.amount,
+                                            }),
+                                          ),
+                                      })
+                                    }
+                                    className="shrink-0 rounded-md bg-sky-600 px-2.5 py-1 text-xs font-semibold text-white shadow-sm hover:bg-sky-700"
+                                    title={t(
+                                      "personnel.detailMgmtCashAccountBranchDevretTitle",
+                                    )
+                                      .replace("{branch}", b.branchName)
+                                      .replace(
+                                        "{amount}",
+                                        formatMoneyDash(
+                                          b.remaining,
+                                          dash,
+                                          locale,
+                                          cashAccountSummary.currencyCode,
+                                        ),
+                                      )}
+                                  >
+                                    {t("personnel.detailMgmtCashAccountBranchDevret")}
+                                  </button>
+                                ) : null}
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
 
@@ -1378,6 +1463,8 @@ export function PersonnelManagementSnapshotSection({
                               value={ledgerCategoryFilter}
                               onChange={(v) => {
                                 setLedgerCategoryFilter(v);
+                                // Grup değişince personel alt filtresini sıfırla.
+                                setLedgerCounterpartyPersonnelId(0);
                                 setLedgerPage(1);
                               }}
                               options={ledgerCategoryOptions}
@@ -1387,6 +1474,31 @@ export function PersonnelManagementSnapshotSection({
                             />
                           </div>
                         </div>
+                        {/* Alt filtre: "Personel gider/avans" seçiliyken hangi personel. */}
+                        {personnelSubFilterActive ? (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-zinc-600">
+                              {t("personnel.detailMgmtCashAccountCounterpartyLabel")}
+                            </span>
+                            <div className="min-w-[12rem]">
+                              <RichCombobox
+                                value={String(ledgerCounterpartyPersonnelId)}
+                                onChange={(v) => {
+                                  setLedgerCounterpartyPersonnelId(Number(v) || 0);
+                                  setLedgerPage(1);
+                                }}
+                                options={ledgerCounterpartyOptions}
+                                placeholder={t("personnel.detailMgmtCashAccountCounterpartyAll")}
+                                searchPlaceholder={t("personnel.detailMgmtCashAccountLedgerFilterSearch")}
+                                emptyText={
+                                  ledgerCounterpartiesQuery.isPending
+                                    ? t("common.loading")
+                                    : t("personnel.detailMgmtCashAccountCounterpartyEmpty")
+                                }
+                              />
+                            </div>
+                          </div>
+                        ) : null}
                         <label className="flex items-center gap-1.5 text-xs text-zinc-700">
                           <input
                             type="checkbox"

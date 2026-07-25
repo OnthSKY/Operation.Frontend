@@ -345,6 +345,12 @@
   colBranch: "Branch",
   colType: "Type",
   colMainCat: "Main",
+  colCostBehavior: "Cost",
+  costBehavior: {
+    fixed: "Fixed",
+    variable: "Variable",
+    capex: "Capex",
+  },
   colCategory: "Category",
   colAmount: "Amount",
   colLines: "Lines",

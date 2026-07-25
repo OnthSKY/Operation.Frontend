@@ -303,7 +303,7 @@ export function SuppliersScreen() {
                 {suppliers.map((s) => (
                   <TableRow key={s.id}>
                     <TableCell dataLabel={t("common.actions")} className="align-middle">
-                      <div className="inline-flex flex-wrap items-center gap-1">
+                      <div className="inline-flex flex-nowrap items-center gap-1 whitespace-nowrap">
                         {!s.isDeleted ? (
                           <Tooltip content={t("common.delete")} delayMs={200}>
                             <button

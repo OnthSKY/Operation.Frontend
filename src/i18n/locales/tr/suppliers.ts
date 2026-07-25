@@ -156,6 +156,8 @@ export const suppliers = {
   sourcePatron: "Patron",
   sourcePersonnelHeldRegisterCash: "Personel zimmetindeki kasa parası",
   paymentBranch: "Ödemenin çıktığı şube",
+  paymentAttributionBranch: "Atıf şubesi (bu ödeme hangi şube için)",
+  paymentHeldPoolHint: "Fon personelin zimmet havuzundan (tüm şubeler) düşülür; şube yalnız bu ödemenin ait olduğu yerdir.",
   allocationsHint: "Bu ödeme yalnızca seçili faturaya mahsup edilir.",
   noInvoices: "Filtreye uygun fatura yok.",
   noPayments: "Bu tedarikçi için ödeme kaydı yok.",

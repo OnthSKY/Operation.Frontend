@@ -45,6 +45,7 @@ export const nav = {
   adminNavNotifications: "Notifications",
   adminNavBranding: "Branding",
   adminNavTourismSeasonPolicy: "Tourism season expense policy",
+  adminNavDocumentDefinitions: "Document types",
   branchSection: "Branch",
   inventorySection: "Warehouse & products",
   procurementSection: "Procurement",
