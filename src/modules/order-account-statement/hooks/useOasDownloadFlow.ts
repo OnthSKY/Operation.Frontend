@@ -276,10 +276,12 @@ export function useOasDownloadFlow(p: Params) {
           },
           lines: payloadLines,
         };
+        // Bağ, satırların nasıl adlandırıldığına DEĞİL, faturanın bir sevkiyat grubundan
+        // oluşturulmuş olmasına bağlıdır. Kullanıcı kalemleri ana ürüne (manuel) çevirse bile
+        // grubun movement id'leri gönderilmeli ki sevkiyat↔fatura bağı (grup kilidi) kurulsun.
         const useShipmentEndpoint =
           shipment.creationMode === "shipmentBased" &&
-          shipment.selectedShipmentSource != null &&
-          payloadLines.some((x) => x.lineSource === "shipment");
+          shipment.selectedShipmentSource != null;
         createdInvoice = useShipmentEndpoint
           ? await createShipmentInvoice(shipment.selectedShipmentSource!.primaryMovementId, {
               ...invoicePayload,
