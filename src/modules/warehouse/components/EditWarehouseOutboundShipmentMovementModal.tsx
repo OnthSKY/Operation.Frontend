@@ -83,7 +83,8 @@ export function EditWarehouseOutboundShipmentMovementModal({
   const updateM = useUpdateWarehouseOutboundShipmentMovement();
   const uploadM = useUploadWarehouseOutboundShipmentMovementInvoicePhoto();
 
-  // Onaylı sevkiyat talebinden gelen veya faturası oluşmuş hareket düzenlenemez (backend de reddeder).
+  // Onaylı sevkiyat talebinden gelen ya da faturası oluşturulmuş hareket düzenlenemez (backend de reddeder).
+  // Fatura silinince kilit açılır ("Faturaya git" ile ilgili faturayı sil).
   const lockedFromRequest = q.data?.shipmentRequestId != null;
   const lockedInvoiced = q.data?.invoicedOutboundInvoiceId != null;
   const locked = lockedFromRequest || lockedInvoiced;
