@@ -5,4 +5,8 @@ export const apiErrors = {
     "Bu işlem tarihinde şubede açık turizm sezonu yok. Gider ve gelir dışı kasa akışları sezonsuz kaydedilemez; turizm sezonu ekleyin veya tarihi açık sezona alın. Gelir (IN) için yalnızca merkez politikasının izin vermesi gerekir.",
   tourismSeasonClosedForRegisterAdmin:
     "Bu işlem tarihinde şubede açık turizm sezonu yok. Gider vb. akışlar sezonsuz kapalıdır; turizm sezonunu tanımlayın. Gelir (IN) istisnası için Ayarlar → Turizm sezonu (kapalı kasa) politikasını kullanabilirsiniz.",
+  shipmentFromRequestNotEditable:
+    "Bu sevkiyat onaylı bir sevkiyat talebinden oluşturulmuştur ve elle düzenlenemez veya silinemez.",
+  shipmentInvoicedNotEditable:
+    "Bu sevkiyatın faturası oluşturulmuş. Düzenlemek veya silmek için önce ilgili faturayı silmelisiniz.",
 } as const;

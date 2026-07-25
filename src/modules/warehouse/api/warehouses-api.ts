@@ -170,6 +170,11 @@ export type WarehouseOutboundShipmentMovementEditResponse = {
   approvedByPersonnelId: number | null;
   hasInvoicePhoto: boolean;
   movementBatchId: string | null;
+  /** Dolu ise onaylı bir sevkiyat talebinden üretilmiştir; elle düzenlenemez. */
+  shipmentRequestId: number | null;
+  /** Dolu ise silinmemiş bir faturaya bağlıdır; düzenleme için önce fatura silinmeli. */
+  invoicedOutboundInvoiceId: number | null;
+  invoicedOutboundInvoiceNo: string | null;
   branchId: number;
   branchName: string;
   branchStockMovementId: number;

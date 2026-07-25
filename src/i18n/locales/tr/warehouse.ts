@@ -210,6 +210,11 @@ export const warehouse = {
   editInboundFullOpenRow: "Girişi düzenle",
   editOutboundShipmentTitle: "Sevkiyat satırını düzenle",
   editOutboundShipmentSaved: "Sevkiyat güncellendi.",
+  editOutboundBlockedFromRequest:
+    "Bu sevkiyat onaylı bir sevkiyat talebinden oluşturulmuştur ve düzenlenemez.",
+  editOutboundBlockedInvoiced:
+    "Bu sevkiyatın faturası oluşturulmuş (No: {no}). Düzenlemek için önce ilgili faturayı silmelisiniz.",
+  editOutboundGoToInvoice: "Faturaya git",
   shipmentPhotoOptional: "Sevkiyat görseli (isteğe bağlı)",
   shipmentPhotoRemove: "Görseli kaldır",
   shipmentPhotoWillBeRemoved: "Mevcut görsel kaydedince silinecek.",

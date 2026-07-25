@@ -33,6 +33,7 @@ import {
 import { useI18n } from "@/i18n/context";
 import { cn } from "@/lib/cn";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { resolveLocalizedApiError } from "@/shared/lib/resolve-localized-api-error";
 import { notify } from "@/shared/lib/notify";
 import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { Button } from "@/shared/ui/Button";
@@ -350,7 +351,7 @@ export function WarehouseDetailMovementHistoryTab({
             await softDeleteOutboundShipmentM.mutateAsync({ warehouseId, movementId: m.id });
             notify.success(t("warehouse.editOutboundShipmentDeleted"));
           } catch (e) {
-            notify.error(toErrorMessage(e));
+            notify.error(resolveLocalizedApiError(e, t));
           }
         },
       });
@@ -386,7 +387,7 @@ export function WarehouseDetailMovementHistoryTab({
             notify.success(t("warehouse.editOutboundShipmentDeleted"));
             setDetailsGroupKey(null);
           } catch (e) {
-            notify.error(toErrorMessage(e));
+            notify.error(resolveLocalizedApiError(e, t));
           }
         },
       });

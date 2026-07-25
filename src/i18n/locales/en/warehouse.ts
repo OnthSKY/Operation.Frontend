@@ -210,6 +210,11 @@ export const warehouse = {
   editInboundFullOpenRow: "Edit receipt",
   editOutboundShipmentTitle: "Edit depot shipment line",
   editOutboundShipmentSaved: "Shipment updated.",
+  editOutboundBlockedFromRequest:
+    "This shipment was created from an approved shipment request and cannot be edited.",
+  editOutboundBlockedInvoiced:
+    "This shipment has an invoice (No: {no}). To edit it, delete the related invoice first.",
+  editOutboundGoToInvoice: "Go to invoice",
   shipmentPhotoOptional: "Shipment photo (optional)",
   shipmentPhotoRemove: "Remove photo",
   shipmentPhotoWillBeRemoved: "The current photo will be removed when you save.",

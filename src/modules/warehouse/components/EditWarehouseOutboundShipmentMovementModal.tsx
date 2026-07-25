@@ -9,6 +9,8 @@ import {
 import { warehouseMovementInvoicePhotoUrl } from "@/modules/warehouse/api/warehouse-movements-api";
 import { useI18n } from "@/i18n/context";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { resolveLocalizedApiError } from "@/shared/lib/resolve-localized-api-error";
+import { useRouter } from "next/navigation";
 import { notify } from "@/shared/lib/notify";
 import { LocalImageFileThumb } from "@/shared/components/LocalImageFileThumb";
 import { IMAGE_FILE_INPUT_ACCEPT } from "@/shared/lib/image-upload-limits";
@@ -75,10 +77,16 @@ export function EditWarehouseOutboundShipmentMovementModal({
   onClose,
 }: Props) {
   const { t, locale } = useI18n();
+  const router = useRouter();
   const enabled = open && movementId != null && movementId > 0;
   const q = useWarehouseOutboundShipmentMovementForEdit(warehouseId, movementId, enabled);
   const updateM = useUpdateWarehouseOutboundShipmentMovement();
   const uploadM = useUploadWarehouseOutboundShipmentMovementInvoicePhoto();
+
+  // Onaylı sevkiyat talebinden gelen veya faturası oluşmuş hareket düzenlenemez (backend de reddeder).
+  const lockedFromRequest = q.data?.shipmentRequestId != null;
+  const lockedInvoiced = q.data?.invoicedOutboundInvoiceId != null;
+  const locked = lockedFromRequest || lockedInvoiced;
 
   const [productId, setProductId] = useState("");
   const [qty, setQty] = useState("");
@@ -125,6 +133,7 @@ export function EditWarehouseOutboundShipmentMovementModal({
   }, [open, q.data]);
 
   const onSubmit = async () => {
+    if (locked) return;
     const mid = movementId;
     const snap = snapshot;
     if (mid == null || mid <= 0 || snap == null) return;
@@ -174,7 +183,7 @@ export function EditWarehouseOutboundShipmentMovementModal({
       notify.success(t("warehouse.editOutboundShipmentSaved"));
       onClose();
     } catch (e) {
-      notify.error(toErrorMessage(e));
+      notify.error(resolveLocalizedApiError(e, t));
     }
   };
 
@@ -193,6 +202,31 @@ export function EditWarehouseOutboundShipmentMovementModal({
         <p className="mt-4 text-sm text-red-600">{toErrorMessage(q.error)}</p>
       ) : q.data && snapshot ? (
         <div className="mt-3 flex flex-col gap-3">
+          {lockedFromRequest ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+              {t("warehouse.editOutboundBlockedFromRequest")}
+            </div>
+          ) : lockedInvoiced ? (
+            <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900 sm:flex-row sm:items-center sm:justify-between">
+              <span className="min-w-0">
+                {t("warehouse.editOutboundBlockedInvoiced").replace(
+                  "{no}",
+                  q.data.invoicedOutboundInvoiceNo ?? "—"
+                )}
+              </span>
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-10 shrink-0 whitespace-nowrap px-3 text-sm"
+                onClick={() => {
+                  onClose();
+                  router.push("/reports/financial/current-accounts");
+                }}
+              >
+                {t("warehouse.editOutboundGoToInvoice")}
+              </Button>
+            </div>
+          ) : null}
           <div className="space-y-1">
             <p className="text-xs font-medium text-zinc-800">
               {t("warehouse.movementProduct")} <span className="text-red-600">*</span>
@@ -297,7 +331,7 @@ export function EditWarehouseOutboundShipmentMovementModal({
             <Button
               type="button"
               className="min-h-11 w-full sm:w-auto"
-              disabled={updateM.isPending || uploadM.isPending}
+              disabled={updateM.isPending || uploadM.isPending || locked}
               onClick={() => void onSubmit()}
             >
               {t("warehouse.editOutboundShipmentSave")}
