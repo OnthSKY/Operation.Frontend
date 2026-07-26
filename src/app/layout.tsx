@@ -15,8 +15,17 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Operations",
-  description: "Operations management",
+  title: "Tekin Usta Dondurma",
+  description: "Tekin Usta Dondurma yönetim uygulaması",
+  applicationName: "Tekin Usta Dondurma",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    // iOS ana ekran etiketi (kısa).
+    title: "Tekin Usta",
+    // Açık tema (#fafafa) ile uyum: koyu metinli açık durum çubuğu.
+    statusBarStyle: "default",
+  },
 };
 
 export const viewport: Viewport = {

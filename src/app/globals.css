@@ -251,6 +251,27 @@ body {
   }
 }
 
+/* PWA "ana ekrana eklenmiş" (standalone) modda native-app hissi.
+   Yalnızca standalone'da devreye girer; tarayıcı sekmesinde davranış aynı kalır. */
+@media (display-mode: standalone) {
+  /* Kenar bounce/overscroll zincirini kes — sayfa native app gibi sabit dursun. */
+  html,
+  body {
+    overscroll-behavior-y: none;
+  }
+  /* Kabuk öğelerinde (nav, buton, link, etiket) metin seçimi + uzun-bas menüsünü
+     kapat; asıl içerik (rapor rakamları, tablolar) kopyalanabilir kalır. */
+  nav,
+  button,
+  [role="button"],
+  a,
+  label {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
+
 /* Masaüstünde tıklanabilir alanlarda net pointer geri bildirimi. */
 @media (hover: hover) and (pointer: fine) {
   button:not(:disabled),

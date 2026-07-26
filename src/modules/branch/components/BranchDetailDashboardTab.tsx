@@ -760,20 +760,71 @@ export function BranchDetailDashboardTab(props: BranchDetailDashboardTabProps) {
           {dashLoading ? (
             <p className="mt-2 text-sm text-zinc-500">{t("common.loading")}</p>
           ) : dash && !dashErr ? (
-            <div className="mt-3 grid grid-cols-2 gap-2 sm:gap-3">
-              <DashCard
-                label={t("branch.dashMonthIncome")}
-                value={formatMoneyDash(dash.monthIncomeTotal, t("personnel.dash"), locale, "TRY")}
-                valueClass="text-emerald-800"
-                compact
-              />
-              <DashCard
-                label={t("branch.dashMonthExpense")}
-                value={formatMoneyDash(dash.monthExpenseTotal, t("personnel.dash"), locale, "TRY")}
-                valueClass="text-red-800"
-                compact
-              />
-            </div>
+            (() => {
+              const monthOther = Math.max(
+                0,
+                dash.monthExpenseTotal -
+                  dash.monthExpenseFixedTotal -
+                  dash.monthExpenseVariableTotal -
+                  dash.monthExpenseCapexTotal
+              );
+              return (
+                <>
+                  <div className="mt-3 grid grid-cols-2 gap-2 sm:gap-3">
+                    <DashCard
+                      label={t("branch.dashMonthIncome")}
+                      value={formatMoneyDash(dash.monthIncomeTotal, t("personnel.dash"), locale, "TRY")}
+                      valueClass="text-emerald-800"
+                      compact
+                    />
+                    <DashCard
+                      label={t("branch.dashMonthExpense")}
+                      value={formatMoneyDash(dash.monthExpenseTotal, t("personnel.dash"), locale, "TRY")}
+                      valueClass="text-red-800"
+                      compact
+                    />
+                  </div>
+                  <div className="mt-3">
+                    <p className="text-xs font-semibold text-zinc-700">
+                      {t("branch.dashMonthExpenseBreakdownTitle")}
+                    </p>
+                    <p className="mt-0.5 text-xs text-zinc-500">
+                      {t("branch.dashMonthExpenseBreakdownHint")}
+                    </p>
+                    <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+                      <DashCard
+                        badge={t("branch.dashMonthExpenseFamilyOps")}
+                        label={t("branch.dashMonthExpenseFixed")}
+                        value={formatMoneyDash(dash.monthExpenseFixedTotal, t("personnel.dash"), locale, "TRY")}
+                        valueClass="text-red-700"
+                        compact
+                      />
+                      <DashCard
+                        badge={t("branch.dashMonthExpenseFamilyOps")}
+                        label={t("branch.dashMonthExpenseVariable")}
+                        value={formatMoneyDash(dash.monthExpenseVariableTotal, t("personnel.dash"), locale, "TRY")}
+                        valueClass="text-orange-700"
+                        compact
+                      />
+                      <DashCard
+                        badge={t("branch.dashMonthExpenseFamilyCapex")}
+                        label={t("branch.dashMonthExpenseCapex")}
+                        value={formatMoneyDash(dash.monthExpenseCapexTotal, t("personnel.dash"), locale, "TRY")}
+                        valueClass="text-violet-800"
+                        compact
+                      />
+                      <DashCard
+                        label={t("branch.dashMonthExpenseOther")}
+                        value={formatMoneyDash(monthOther, t("personnel.dash"), locale, "TRY")}
+                        valueClass="text-zinc-600"
+                        hint={monthOther > 0.009 ? t("branch.dashMonthExpenseOtherHint") : undefined}
+                        compact
+                      />
+                    </div>
+                  </div>
+                </>
+              );
+            })()
           ) : null}
         </section>
       ) : null}

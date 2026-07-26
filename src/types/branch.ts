@@ -226,6 +226,9 @@ export type BranchDashboard = {
   month: string;
   monthIncomeTotal: number;
   monthExpenseTotal: number;
+  monthExpenseFixedTotal: number;
+  monthExpenseVariableTotal: number;
+  monthExpenseCapexTotal: number;
   allTimeIncomeTotal: number;
   allTimeExpenseTotal: number;
   cashRegisterBalance: number;
