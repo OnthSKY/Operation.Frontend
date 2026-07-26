@@ -15,8 +15,10 @@ import {
 } from "./navigation-utils";
 import type { NavigationItem } from "./navigation-mapper";
 
-const OPEN_GROUPS_STORAGE_KEY = "ops.nav.mobile.openGroups.v2";
-const DEFAULT_OPEN_GROUPS = ["overview-group"] as const;
+const OPEN_GROUPS_STORAGE_KEY = "ops.nav.mobile.openGroups.v3";
+// Varsayılan kapalı: hiçbir grup baştan açık gelmez; yalnızca aktif rotanın grubu
+// (aşağıdaki auto-expand effect'i ile) açılır. Liste böylece kısa başlar.
+const DEFAULT_OPEN_GROUPS: readonly string[] = [];
 
 export type MobileGroupedNavTreeProps = {
   sortedItems: NavigationItem[];
@@ -98,34 +100,63 @@ export function MobileGroupedNavTree({
   const renderChild = (child: NavigationItem, depth: number): ReactNode => {
     if (child.children?.length) {
       const isOpen = openGroups.includes(child.id);
+      // Alt-grubun içinde aktif rota var mı? Varsa başlığı vurgula.
+      const hasActiveDescendant = child.children.some(
+        (c) => c.route === activeRoute || c.children?.some((s) => s.route === activeRoute)
+      );
       return (
         <div key={child.id} className="pl-3">
-          <button
-            type="button"
-            onClick={() => toggleGroup(child.id)}
-            aria-expanded={isOpen}
-            className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-400 transition-colors duration-200 hover:bg-zinc-100/80"
+          {/* Açık alt-grup görünür bir kutuya alınır: "alt menü grubu" olduğu net belli olsun. */}
+          <div
+            className={`rounded-xl transition-colors duration-200 ${
+              isOpen
+                ? hasActiveDescendant
+                  ? "bg-indigo-50/50 ring-1 ring-inset ring-indigo-200/70"
+                  : "bg-zinc-50 ring-1 ring-inset ring-zinc-200/80"
+                : ""
+            }`}
           >
-            <span className="inline-flex min-w-0 items-center gap-2">
-              <NavIcon icon={child.icon} />
-              <span className="truncate">{child.label}</span>
-            </span>
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-hidden
-              className={`transition-transform duration-200 ease-in-out ${isOpen ? "rotate-180" : ""}`}
+            <button
+              type="button"
+              onClick={() => toggleGroup(child.id)}
+              aria-expanded={isOpen}
+              className={`flex min-h-11 w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider transition-colors duration-200 ${
+                hasActiveDescendant
+                  ? "text-indigo-700 hover:bg-indigo-100/50"
+                  : "text-zinc-600 hover:bg-zinc-100/80"
+              }`}
             >
-              <path d="m6 9 6 6 6-6" />
-            </svg>
-          </button>
-          <div className={`grid transition-all duration-200 ease-in-out ${isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
-            <div className="min-h-0 overflow-hidden">
-              {isOpen ? <div className="space-y-1 pt-1">{child.children.map((g) => renderChild(g, depth + 1))}</div> : null}
+              <span className="inline-flex min-w-0 items-center gap-2">
+                <NavIcon icon={child.icon} />
+                <span className="truncate">{child.label}</span>
+              </span>
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                aria-hidden
+                className={`shrink-0 transition-transform duration-200 ease-in-out ${isOpen ? "rotate-180" : ""} ${
+                  hasActiveDescendant ? "text-indigo-500" : "text-zinc-400"
+                }`}
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+            <div className={`grid transition-all duration-200 ease-in-out ${isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+              <div className="min-h-0 overflow-hidden">
+                {isOpen ? (
+                  <div
+                    className={`mx-2 mb-2 mt-0.5 space-y-1 border-l-2 pl-2.5 ${
+                      hasActiveDescendant ? "border-indigo-300" : "border-zinc-300/80"
+                    }`}
+                  >
+                    {child.children.map((g) => renderChild(g, depth + 1))}
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
@@ -134,7 +165,8 @@ export function MobileGroupedNavTree({
 
     const active = activeRoute === child.route;
     const badge = resolveBadge(child, badgeState);
-    const leftPad = depth >= 2 ? "pl-9" : "pl-6";
+    // depth>=2 = rail'li alt-grup öğesi; rail girinti verdiği için pad'i azalt.
+    const leftPad = depth >= 2 ? "pl-3" : "pl-6";
     return (
       <Link
         key={child.id}
@@ -213,12 +245,6 @@ export function MobileGroupedNavTree({
           </div>
         </div>
       ) : null}
-      <div className="mb-2 rounded-xl border border-zinc-200 bg-zinc-50/80 px-3 py-2">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-          {t("nav.mobileGroupHintTitle")}
-        </p>
-        <p className="mt-0.5 text-xs text-zinc-600">{t("nav.mobileGroupHintBody")}</p>
-      </div>
       {sortedItems.map((item) => {
         if (item.children?.length) {
           const isOpen = openGroups.includes(item.id);

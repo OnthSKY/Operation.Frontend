@@ -19,6 +19,26 @@ export const settings = {
   documentDefsBadgeSystem: "System",
   documentDefsBadgeInactive: "Inactive",
   documentDefsEmpty: "No document types defined.",
+  jobTitleDefsPageTitle: "Job titles",
+  jobTitleDefsPageDescription:
+    "Personnel job titles (General manager, Driver, Waiter, etc.). Read-only for now; add/edit in a later release.",
+  jobTitleDefsBadgeSystem: "System",
+  jobTitleDefsBadgeInactive: "Inactive",
+  jobTitleDefsEmpty: "No job titles defined.",
+  branchExpenseDefsPageTitle: "Branch expenses",
+  branchExpenseDefsPageDescription:
+    "Branch expense types grouped by cost behavior: Fixed, Variable and Capital (CAPEX). Each row is tagged operations/investment. Source: expense classification catalog. Read-only for now.",
+  personnelExpenseDefsPageTitle: "Personnel expense types",
+  personnelExpenseDefsPageDescription:
+    "Personnel expense types (salary, bonus, advance, meal allowance, etc.). Source: expense classification catalog. Read-only for now.",
+  expenseDefsEmpty: "No expense types defined.",
+  expenseDefsBadgeArchived: "Archived",
+  expenseDefsCostFixed: "Fixed",
+  expenseDefsCostVariable: "Variable",
+  expenseDefsCostCapex: "Capital (CAPEX)",
+  expenseDefsCostNone: "—",
+  expenseDefsFamilyOps: "Operations",
+  expenseDefsFamilyCapex: "Investment",
   authzPageTitle: "Role & permission matrix",
   authzPageDescription:
     "Check permissions per role and save each row. ADMIN always keeps system.admin.",

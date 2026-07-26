@@ -43,6 +43,7 @@ import {
   BranchSectionTitleWithInfo,
   BranchTxDeleteRow,
   EMPTY_EXPENSE_TAB_BREAKDOWN,
+  expenseCostBehaviorStrip,
   ExpenseOverviewDetailModal,
   branchTxIsPocketRepayMain,
   branchTxNonPnl,
@@ -97,6 +98,9 @@ export type BranchDetailExpensesTabProps = {
         registerExpenseTotal?: number;
         personnelPocketExpenseTotal?: number;
         personnelHeldRegisterCashExpenseTotal?: number;
+        expenseFixedTotal?: number;
+        expenseVariableTotal?: number;
+        expenseCapexTotal?: number;
       }
     | null
     | undefined;
@@ -598,6 +602,13 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
                           </p>
                         </div>
                       </div>
+                      {expenseCostBehaviorStrip({
+                        fixed: expData.expenseFixedTotal ?? 0,
+                        variable: expData.expenseVariableTotal ?? 0,
+                        capex: expData.expenseCapexTotal ?? 0,
+                        t,
+                        locale,
+                      })}
                     </>
                   ) : expListDatesRangeInvalid ? (
                     <p className="mt-3 text-xs text-amber-800">{t("branch.incomeListInvalidRange")}</p>

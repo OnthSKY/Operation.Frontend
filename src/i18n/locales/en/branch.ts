@@ -252,6 +252,15 @@ export const branch = {
   detailDesc:
     "Overview, personnel, register income/expense lines, and warehouse-to-branch stock — use tabs.",
   detailTabsAria: "Branch detail tabs",
+  dashSubTabsAria: "Summary sub-tabs",
+  dashSubTabDay: "Day",
+  dashSubTabCash: "Cash position",
+  dashSubTabOverview: "Overview",
+  dashSubTabMonth: "Month",
+  dashSubLeadDay: "The selected day's register activity and daily profit/expense breakdown.",
+  dashSubLeadCash: "As of today: cash in the drawer and who owes whom (patron / personnel pocket).",
+  dashSubLeadOverview: "Branch health at a glance: all-time and today's summary figures.",
+  dashSubLeadMonth: "Income/expense trend for the selected report month.",
   dashSectionDay: "Selected day",
   registerSummaryBlurb:
     "The date above updates both the summary cards and the daily list below.",
@@ -732,6 +741,19 @@ export const branch = {
   expensesTabOutPocket: "Paid from staff pocket",
   expensesTabOutPocketHint: "No cash left the drawer; amount reflects register debt to staff.",
   expensesTabPersonnelMain: "Direct staff-related expenses",
+  expensesCostBehaviorTitle: "Cost behavior",
+  expensesCostBehaviorLead: "Operating expense (fixed + variable) vs investment",
+  expensesCostBehaviorFixed: "Fixed cost",
+  expensesCostBehaviorFixedHint:
+    "Costs you pay roughly the same every period regardless of sales/volume and cannot avoid: rent, utilities, insurance, software, security, license, bank, franchise. They continue even if the branch is closed.",
+  expensesCostBehaviorVariable: "Variable cost",
+  expensesCostBehaviorVariableHint:
+    "Costs that rise and fall with activity/turnover: fuel, cargo, meals, cleaning, marketing, ad-hoc repairs, goods purchases. No activity, no spend.",
+  expensesCostBehaviorOpexTotal: "Operating expense (total)",
+  expensesCostBehaviorOpexTotalHint: "Fixed + variable; the total operating cost of running the branch.",
+  expensesCostBehaviorCapex: "Investment / fixtures",
+  expensesCostBehaviorCapexHint:
+    "Capital/fixture purchases (AC, camera, furniture, fit-out). NOT included in the operating expense total; shown separately.",
   expensesTabBranchOps: "Branch operating expenses",
   expensesTabBranchOpsHint:
     "Goods/stock, operations, tax, and other expense mains (OUT_GOODS, OUT_OPS, OUT_TAX, OUT_OTHER). Staff, advances, and general-overhead share are separate cards.",

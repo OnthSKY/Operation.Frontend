@@ -107,34 +107,64 @@ export function DesktopSidebar({ badgeState }: { badgeState: NavBadgeState }) {
       // Daraltılmış kenar çubuğunda alt-başlık göstermek yerine düz (ikonlu) liste.
       if (collapsed) return child.children.map((g) => renderChild(g, depth));
       const isOpen = openGroups.includes(child.id);
+      // Alt-grubun içinde aktif rota var mı? Varsa başlığı vurgula (kullanıcı hangi grupta olduğunu görsün).
+      const hasActiveDescendant = child.children.some(
+        (c) => c.route === activeRoute || c.children?.some((s) => s.route === activeRoute)
+      );
       return (
         <div key={child.id} className="pl-3">
-          <button
-            type="button"
-            onClick={() => toggleGroup(child.id)}
-            aria-expanded={isOpen}
-            className="flex w-full items-center justify-between rounded-lg px-3 py-1.5 text-left text-[10px] font-semibold uppercase tracking-wide text-zinc-400 transition-colors duration-200 hover:bg-zinc-100/80"
+          {/* Açık alt-grup görünür bir kutuya alınır: düz liste öğelerinden net ayrışsın,
+              "bu bir alt menü grubu" olduğu görsel olarak belli olsun. */}
+          <div
+            className={`rounded-xl transition-colors duration-200 ${
+              isOpen
+                ? hasActiveDescendant
+                  ? "bg-indigo-50/50 ring-1 ring-inset ring-indigo-200/70"
+                  : "bg-zinc-50 ring-1 ring-inset ring-zinc-200/80"
+                : ""
+            }`}
           >
-            <span className="inline-flex min-w-0 items-center gap-2">
-              <NavIcon icon={child.icon} />
-              <span className="truncate">{child.label}</span>
-            </span>
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              aria-hidden
-              className={`transition-transform duration-200 ease-in-out ${isOpen ? "rotate-180" : ""}`}
+            <button
+              type="button"
+              onClick={() => toggleGroup(child.id)}
+              aria-expanded={isOpen}
+              className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wider transition-colors duration-200 ${
+                hasActiveDescendant
+                  ? "text-indigo-700 hover:bg-indigo-100/50"
+                  : "text-zinc-600 hover:bg-zinc-100/80"
+              }`}
             >
-              <path d="m6 9 6 6 6-6" />
-            </svg>
-          </button>
-          <div className={`grid transition-all duration-200 ease-in-out ${isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
-            <div className="min-h-0 overflow-hidden">
-              {isOpen ? <div className="space-y-1 pt-1">{child.children.map((g) => renderChild(g, depth + 1))}</div> : null}
+              <span className="inline-flex min-w-0 items-center gap-2">
+                <NavIcon icon={child.icon} />
+                <span className="truncate">{child.label}</span>
+              </span>
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                aria-hidden
+                className={`shrink-0 transition-transform duration-200 ease-in-out ${isOpen ? "rotate-180" : ""} ${
+                  hasActiveDescendant ? "text-indigo-500" : "text-zinc-400"
+                }`}
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+            <div className={`grid transition-all duration-200 ease-in-out ${isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+              <div className="min-h-0 overflow-hidden">
+                {isOpen ? (
+                  <div
+                    className={`mx-2 mb-2 mt-0.5 space-y-1 border-l-2 pl-2.5 ${
+                      hasActiveDescendant ? "border-indigo-300" : "border-zinc-300/80"
+                    }`}
+                  >
+                    {child.children.map((g) => renderChild(g, depth + 1))}
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
@@ -143,7 +173,8 @@ export function DesktopSidebar({ badgeState }: { badgeState: NavBadgeState }) {
 
     const active = activeRoute === child.route;
     const badge = resolveBadge(child, badgeState);
-    const leftPad = collapsed ? "justify-center pl-3" : depth >= 2 ? "pl-9" : "pl-6";
+    // depth>=2 = alt-grup (rail'li) altındaki öğeler; rail zaten girinti verdiği için pad'i azalt.
+    const leftPad = collapsed ? "justify-center pl-3" : depth >= 2 ? "pl-3" : "pl-6";
     return (
       <Tooltip key={`tip-${child.id}`} content={child.label} side="right" disabled={!collapsed}>
         <Link

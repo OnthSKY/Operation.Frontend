@@ -258,6 +258,15 @@ export const branch = {
   detailDesc:
     "Özet, personel, kasa gelir/gider kayıtları ve depodan şubeye ürün — sekmelerden gezinin.",
   detailTabsAria: "Şube detay sekmeleri",
+  dashSubTabsAria: "Özet alt sekmeleri",
+  dashSubTabDay: "Gün",
+  dashSubTabCash: "Kasa Durumu",
+  dashSubTabOverview: "Genel Bakış",
+  dashSubTabMonth: "Ay",
+  dashSubLeadDay: "Seçili günün kasa hareketi ve günlük kâr/gider dağılımı.",
+  dashSubLeadCash: "Bugün itibarıyla kasadaki nakit ve kim kime borçlu (patron / personel cebi).",
+  dashSubLeadOverview: "Şubenin genel sağlığı: tüm zaman ve bugünün özet rakamları.",
+  dashSubLeadMonth: "Seçili rapor ayının gelir/gider trendi.",
   dashSectionDay: "Seçilen gün",
   registerSummaryBlurb:
     "Üstteki tarih hem özet kartlarını hem aşağıdaki günlük listeyi günceller.",
@@ -741,6 +750,19 @@ export const branch = {
   expensesTabOutPocket: "Personelin cebinden ödediği giderler",
   expensesTabOutPocketHint: "Kasadan nakit çıkmaz; tutar kasanın personele borcunu gösterir.",
   expensesTabPersonnelMain: "Doğrudan personel giderleri",
+  expensesCostBehaviorTitle: "Gider davranışı",
+  expensesCostBehaviorLead: "İşletme gideri (sabit + değişken) ve yatırım ayrımı",
+  expensesCostBehaviorFixed: "Sabit gider",
+  expensesCostBehaviorFixedHint:
+    "Ciro/iş hacmi ne olursa olsun her dönem yaklaşık aynı ödediğin, kaçınamadığın giderler: kira, elektrik/su, sigorta, yazılım, güvenlik, lisans, banka, franchise. Şube kapalı olsa bile devam eder.",
+  expensesCostBehaviorVariable: "Değişken gider",
+  expensesCostBehaviorVariableHint:
+    "İşin yoğunluğuna/ciroya göre artıp azalan giderler: yakıt, kargo, yemek, temizlik, pazarlama, arıza bakım-onarımı, mal alımı. İş yoksa harcamazsın.",
+  expensesCostBehaviorOpexTotal: "İşletme gideri (toplam)",
+  expensesCostBehaviorOpexTotalHint: "Sabit + değişken; şubeyi işletmenin toplam operasyon maliyeti.",
+  expensesCostBehaviorCapex: "Yatırım / demirbaş",
+  expensesCostBehaviorCapexHint:
+    "Demirbaş/yatırım alımı (klima, kamera, mobilya, açılış tadilatı). İşletme gideri toplamına dahil DEĞİLDİR; ayrı gösterilir.",
   expensesTabBranchOps: "Şube işletme giderleri",
   expensesTabBranchOpsHint:
     "Mal/stok, operasyon, vergi ve diğer gider ana türleri (OUT_GOODS, OUT_OPS, OUT_TAX, OUT_OTHER). Personel, avans ve genel gider payı ayrı kartlarda.",

@@ -273,6 +273,12 @@ export type BranchTransactionsPaged = {
   personnelPocketExpenseTotal?: number;
   /** OUT listesi + filtreler: ödeme kaynağı PERSONNEL_HELD_REGISTER_CASH gider toplamı */
   personnelHeldRegisterCashExpenseTotal?: number;
+  /** OUT listesi + filtreler: SABİT işletme gideri (cost_behavior=FIXED) toplamı */
+  expenseFixedTotal?: number;
+  /** OUT listesi + filtreler: DEĞİŞKEN işletme gideri (cost_behavior=VARIABLE) toplamı */
+  expenseVariableTotal?: number;
+  /** OUT listesi + filtreler: YATIRIM/DEMİRBAŞ (cost_behavior=CAPEX) toplamı; işletme gideri toplamına dahil değildir */
+  expenseCapexTotal?: number;
   /** IN listesi: kasa tahsilatında «Patron» seçilen gelirler */
   patronIncomeToPatron?: BranchPatronIncomeSummary | null;
 };

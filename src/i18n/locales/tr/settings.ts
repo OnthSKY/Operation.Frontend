@@ -19,6 +19,26 @@ export const settings = {
   documentDefsBadgeSystem: "Sistem",
   documentDefsBadgeInactive: "Pasif",
   documentDefsEmpty: "Tanımlı belge türü yok.",
+  jobTitleDefsPageTitle: "Ünvanlar",
+  jobTitleDefsPageDescription:
+    "Personel görev ünvanları (Genel müdür, Şoför, Garson vb.). Şimdilik salt-okunur; ekleme/düzenleme sonraki sürümde.",
+  jobTitleDefsBadgeSystem: "Sistem",
+  jobTitleDefsBadgeInactive: "Pasif",
+  jobTitleDefsEmpty: "Tanımlı ünvan yok.",
+  branchExpenseDefsPageTitle: "Şube gideri",
+  branchExpenseDefsPageDescription:
+    "Şube gider türleri; maliyet davranışına göre gruplanır: Sabit, Değişken ve Demirbaş/Yatırım (CAPEX). Ayrıca operasyon/yatırım ailesi etiketlenir. Kaynak: gider sınıflandırma kataloğu. Şimdilik salt-okunur.",
+  personnelExpenseDefsPageTitle: "Personel gider türleri",
+  personnelExpenseDefsPageDescription:
+    "Personel gideri türleri (maaş, prim, avans, yemek yardımı vb.). Kaynak: gider sınıflandırma kataloğu. Şimdilik salt-okunur.",
+  expenseDefsEmpty: "Tanımlı gider türü yok.",
+  expenseDefsBadgeArchived: "Arşiv",
+  expenseDefsCostFixed: "Sabit",
+  expenseDefsCostVariable: "Değişken",
+  expenseDefsCostCapex: "Demirbaş / Yatırım (CAPEX)",
+  expenseDefsCostNone: "—",
+  expenseDefsFamilyOps: "Operasyon",
+  expenseDefsFamilyCapex: "Yatırım",
   authzPageTitle: "Rol ve izin matrisi",
   authzPageDescription:
     "Her rol için izinleri işaretleyip satır bazında kaydedin. ADMIN rolünde system.admin her zaman kalır.",

@@ -971,6 +971,9 @@ export async function fetchBranchTransactionsPaged(
     registerExpenseTotal?: number;
     personnelPocketExpenseTotal?: number;
     personnelHeldRegisterCashExpenseTotal?: number;
+    expenseFixedTotal?: number;
+    expenseVariableTotal?: number;
+    expenseCapexTotal?: number;
     patronIncomeToPatron?: {
       total?: number;
       cash?: number;
@@ -1058,6 +1061,18 @@ export async function fetchBranchTransactionsPaged(
       typeof raw.personnelHeldRegisterCashExpenseTotal === "number" &&
       Number.isFinite(raw.personnelHeldRegisterCashExpenseTotal)
         ? raw.personnelHeldRegisterCashExpenseTotal
+        : 0,
+    expenseFixedTotal:
+      typeof raw.expenseFixedTotal === "number" && Number.isFinite(raw.expenseFixedTotal)
+        ? raw.expenseFixedTotal
+        : 0,
+    expenseVariableTotal:
+      typeof raw.expenseVariableTotal === "number" && Number.isFinite(raw.expenseVariableTotal)
+        ? raw.expenseVariableTotal
+        : 0,
+    expenseCapexTotal:
+      typeof raw.expenseCapexTotal === "number" && Number.isFinite(raw.expenseCapexTotal)
+        ? raw.expenseCapexTotal
         : 0,
     patronIncomeToPatron:
       pin != null

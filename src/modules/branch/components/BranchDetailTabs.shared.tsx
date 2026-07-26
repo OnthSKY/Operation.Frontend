@@ -1032,6 +1032,73 @@ export function ExpenseOverviewDetailModal(opts: {
 }
 
 /** Gider sekmesi: tıklanabilir kartlar + yönetim özetleri (API `ExpenseTabPeriodBreakdown`). */
+/**
+ * Gider davranışı şeridi: işletme giderini SABİT / DEĞİŞKEN (OPEX) diye ayırır ve
+ * YATIRIM / DEMİRBAŞ'ı (CAPEX) ayrı, toplam dışı olarak gösterir. Kaynak: cost_behavior.
+ * Salt-okunur bilgi kartları (tıklanabilir detay yok) — muhasebe kırılımını tek bakışta verir.
+ * Değerler seçili filtre/tarih aralığına göre gelir (expense list özeti ile aynı kapsam).
+ */
+export function expenseCostBehaviorStrip(opts: {
+  fixed: number;
+  variable: number;
+  capex: number;
+  t: (key: string) => string;
+  locale: Locale;
+}): ReactNode {
+  const { fixed, variable, capex, t, locale } = opts;
+  const opexTotal = fixed + variable;
+  // Hiç davranış-etiketli gider yoksa şeridi gizle (gürültü olmasın).
+  if (Math.abs(fixed) <= 0.005 && Math.abs(variable) <= 0.005 && Math.abs(capex) <= 0.005) {
+    return null;
+  }
+  const money = (v: number) => formatMoneyDash(v, t("personnel.dash"), locale, "TRY");
+  const cell = (label: string, value: number, valueClass: string, hint?: string) => (
+    <div className="rounded-lg border border-white bg-white p-2.5 text-left shadow-sm sm:p-3">
+      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">{label}</p>
+      <p className={`mt-0.5 text-sm font-semibold tabular-nums tracking-tight sm:text-base ${valueClass}`}>
+        {money(value)}
+      </p>
+      {hint ? <p className="mt-1 text-xs leading-snug text-zinc-500">{hint}</p> : null}
+    </div>
+  );
+  return (
+    <div className="mt-2 rounded-xl border border-zinc-200 bg-zinc-50/70 p-2.5 sm:p-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">
+          {t("branch.expensesCostBehaviorTitle")}
+        </p>
+        <p className="text-xs text-zinc-500">{t("branch.expensesCostBehaviorLead")}</p>
+      </div>
+      <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {cell(
+          t("branch.expensesCostBehaviorFixed"),
+          fixed,
+          "text-slate-800",
+          t("branch.expensesCostBehaviorFixedHint")
+        )}
+        {cell(
+          t("branch.expensesCostBehaviorVariable"),
+          variable,
+          "text-amber-800",
+          t("branch.expensesCostBehaviorVariableHint")
+        )}
+        {cell(
+          t("branch.expensesCostBehaviorOpexTotal"),
+          opexTotal,
+          "text-red-900/90",
+          t("branch.expensesCostBehaviorOpexTotalHint")
+        )}
+        {cell(
+          t("branch.expensesCostBehaviorCapex"),
+          capex,
+          "text-indigo-900",
+          t("branch.expensesCostBehaviorCapexHint")
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function expenseTabPeriodOverviewBlock(opts: {
   breakdown: ExpenseTabPeriodBreakdown;
   t: (key: string) => string;
