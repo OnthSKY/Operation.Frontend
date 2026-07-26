@@ -40,6 +40,8 @@ import { Button } from "@/shared/ui/Button";
 import { DateField } from "@/shared/ui/DateField";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
+import { apiUrl } from "@/shared/api/client";
+import { PdfBlobPreview } from "@/modules/documents/components/PdfBlobPreview";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import { TablePagination } from "@/shared/ui/TablePagination";
 import { Tooltip } from "@/shared/ui/Tooltip";
@@ -125,6 +127,10 @@ function compactPeopleList(values: Array<string | null | undefined>): string {
   if (uniq.length <= 2) return uniq.join(", ");
   return `${uniq.slice(0, 2).join(", ")} +${uniq.length - 2}`;
 }
+
+/** Satış formu 3-seçenekli menü öğe sınıfı. */
+const SALES_FORM_MENU_ITEM_CLASS =
+  "flex w-full items-center rounded-lg px-3 py-2 text-left text-sm text-zinc-800 transition hover:bg-zinc-100";
 
 function parseShipmentMetadataFromNotes(notes: string | null | undefined): Record<string, string> {
   const text = String(notes ?? "");
@@ -234,6 +240,7 @@ export function WarehouseDetailMovementHistoryTab({
   const [dateTo, setDateTo] = useState("");
   const [page, setPage] = useState(1);
   const [filtersDrawerOpen, setFiltersDrawerOpen] = useState(false);
+  const [salesFormPreview, setSalesFormPreview] = useState<{ url: string; title: string } | null>(null);
   const [editInboundOpen, setEditInboundOpen] = useState(false);
   const [editInboundTarget, setEditInboundTarget] = useState<{
     movementBatchId: string | null;
@@ -590,6 +597,9 @@ export function WarehouseDetailMovementHistoryTab({
     queryFn: () => loadAllPages(params),
     enabled: historyQueryEnabled && warehouseId > 0,
     placeholderData: (prev) => prev,
+    // Fatura başka sekmede silinince, bu sekmeye dönüldüğünde kilit/fatura durumu tazelensin.
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
   const balanceParams = useMemo(
@@ -675,6 +685,9 @@ export function WarehouseDetailMovementHistoryTab({
   const selectedDetailDestinationBranch = selectedDetailGroup
     ? shipmentBranchSummary(selectedDetailGroup.movements)
     : null;
+  // Seçili grup zaten faturalıysa yeni fatura oluşturma engellenir; bunun yerine "Faturaya git" gösterilir.
+  const selectedDetailGroupInvoice =
+    selectedDetailGroup?.movements.find((m) => (m.outboundInvoiceId ?? 0) > 0) ?? null;
   const selectedDetailSample = selectedDetailGroup?.movements[0] ?? null;
   const selectedDetailBatchCell = selectedDetailSample
     ? formatWarehouseShipmentDisplay(selectedDetailSample.inBatchGroupId, selectedDetailSample.id)
@@ -960,6 +973,32 @@ export function WarehouseDetailMovementHistoryTab({
   }, [
     shipmentPdfQueryEnabled,
     shipmentPdfDocsQ.data,
+    selectedOutboundShipmentRepresentativeMovementId,
+    selectedDetailGroup,
+  ]);
+  // Satış formu PDF belgesi {branchId, documentId} — doğrudan önizleme için.
+  const salesFormPdfDoc = useMemo(() => {
+    if (!shipmentPdfQueryEnabled || !shipmentPdfDocsQ.data || selectedOutboundBranchId == null) return null;
+    const representativeId = selectedOutboundShipmentRepresentativeMovementId!;
+    const groupMovementIds = new Set(selectedDetailGroup?.movements.map((m) => m.id) ?? []);
+    for (const doc of shipmentPdfDocsQ.data) {
+      const ct = (doc.contentType ?? "").toLocaleLowerCase();
+      if (!ct.includes("pdf")) continue;
+      const meta = parseShipmentMetadataFromNotes(doc.notes);
+      const primary = Number(meta.shipmentPrimaryMovementId ?? 0);
+      const linked = String(meta.shipmentMovementIds ?? "")
+        .split(",")
+        .map((x) => Number(x.trim()))
+        .filter((n) => Number.isFinite(n) && n > 0);
+      if ((primary > 0 && primary === representativeId) || linked.some((m) => groupMovementIds.has(m))) {
+        return { branchId: selectedOutboundBranchId, documentId: doc.id };
+      }
+    }
+    return null;
+  }, [
+    shipmentPdfQueryEnabled,
+    shipmentPdfDocsQ.data,
+    selectedOutboundBranchId,
     selectedOutboundShipmentRepresentativeMovementId,
     selectedDetailGroup,
   ]);
@@ -1254,6 +1293,8 @@ export function WarehouseDetailMovementHistoryTab({
                   </span>
                 </div>
               );
+              // Grup faturalı mı (grup-bazlı; movements'tan herhangi biri faturaya bağlıysa).
+              const groupInvoice = movements.find((m) => (m.outboundInvoiceId ?? 0) > 0) ?? null;
               return (
                 <div
                   key={key}
@@ -1343,6 +1384,15 @@ export function WarehouseDetailMovementHistoryTab({
                           <span className="shrink-0 tabular-nums text-xs text-zinc-500">
                             {movements.length}×
                           </span>
+                          {groupInvoice ? (
+                            <span
+                              className="shrink-0 rounded-full bg-sky-100 px-2 py-0.5 text-[0.65rem] font-bold tracking-tight text-sky-900 ring-1 ring-sky-200/90 sm:text-xs"
+                              title={groupInvoice.outboundInvoiceNo ?? undefined}
+                            >
+                              {t("warehouse.shipmentInvoicedBadge")}
+                              {groupInvoice.outboundInvoiceNo ? ` · ${groupInvoice.outboundInvoiceNo}` : ""}
+                            </span>
+                          ) : null}
                         </span>
                         <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-zinc-200 bg-white px-2 py-1 text-xs font-medium text-zinc-600 group-hover:border-zinc-300 group-hover:text-zinc-800">
                           <span className="hidden sm:inline">
@@ -1351,6 +1401,22 @@ export function WarehouseDetailMovementHistoryTab({
                           <EyeIcon className="h-4 w-4" />
                         </span>
                       </button>
+
+                      {groupInvoice ? (
+                        <button
+                          type="button"
+                          className="inline-flex min-h-10 w-fit items-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-800 transition-colors hover:bg-sky-100"
+                          onClick={() =>
+                            window.open(
+                              `/reports/financial/current-accounts?invoiceId=${groupInvoice.outboundInvoiceId}`,
+                              "_blank",
+                              "noopener,noreferrer"
+                            )
+                          }
+                        >
+                          {t("warehouse.editOutboundGoToInvoice")}
+                        </button>
+                      ) : null}
 
                       <div className="flex min-w-0 flex-col gap-2">
                         {balanceRowCount > 0 ? (
@@ -1535,13 +1601,26 @@ export function WarehouseDetailMovementHistoryTab({
         <div className="mt-3 min-h-0 flex-1 overflow-y-auto px-3 pb-3 pr-2 sm:mt-4 sm:px-4 sm:pb-4 sm:pr-3">
           {selectedDetailGroup ? (
             <div className="space-y-3">
+              {selectedDetailGroupInvoice ? (
+                <div className="flex flex-col gap-1 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+                  <span className="font-semibold">
+                    {t("warehouse.shipmentInvoicedDetailLockTitle")}
+                    {selectedDetailGroupInvoice?.outboundInvoiceNo
+                      ? ` · ${selectedDetailGroupInvoice.outboundInvoiceNo}`
+                      : ""}
+                  </span>
+                  <span className="text-xs leading-relaxed text-amber-800">
+                    {t("warehouse.shipmentInvoicedDetailLockHint")}
+                  </span>
+                </div>
+              ) : null}
               <div className="rounded-lg border border-zinc-200 bg-white p-3 shadow-sm">
                 <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                   <p className="min-w-0 text-xs font-semibold leading-snug text-zinc-800">
                     {t("warehouse.movementHeaderInfoTitle")}
                   </p>
                   <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
-                    {canEditHeaderInfo ? (
+                    {canEditHeaderInfo && !(selectedDetailGroupInvoice) ? (
                       <Tooltip content={t("common.edit")} delayMs={200} className="inline-flex shrink-0">
                         <Button
                           type="button"
@@ -1557,79 +1636,133 @@ export function WarehouseDetailMovementHistoryTab({
                     ) : null}
                     {canManageWholeOutboundShipment ? (
                       <>
-                        <Tooltip
-                          content={t("warehouse.movementHistoryCreateInvoiceFromShipment")}
-                          delayMs={200}
-                          className="inline-flex shrink-0"
-                        >
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className={cn(
-                              detailOpenIconButtonClass,
-                              "border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100"
-                            )}
-                            aria-label={t("warehouse.movementHistoryCreateInvoiceFromShipment")}
-                            onClick={() => {
-                              if (selectedOutboundShipmentRepresentativeMovementId == null) return;
-                              openInvoiceDraftFromShipment(
-                                selectedOutboundShipmentRepresentativeMovementId,
-                                selectedDetailGroup?.movements
-                                  .map((m) => m.id)
-                                  .filter((id) => Number.isFinite(id) && id > 0) ?? []
-                              );
-                            }}
+                        {selectedDetailGroupInvoice ? null : (
+                          <Tooltip
+                            content={t("warehouse.movementHistoryCreateInvoiceFromShipment")}
+                            delayMs={200}
+                            className="inline-flex shrink-0"
                           >
-                            <FilePlus2 className="h-5 w-5 shrink-0" aria-hidden />
-                            <span className="sr-only">{t("warehouse.movementHistoryCreateInvoiceFromShipment")}</span>
-                          </Button>
-                        </Tooltip>
-                        {hasShipmentPdfDoc ? (
-                          <Tooltip content={t("warehouse.movementHistoryOpenRelatedPdf")} delayMs={200} className="inline-flex shrink-0">
                             <Button
                               type="button"
                               variant="secondary"
-                              className={detailOpenIconButtonClass}
-                              aria-label={t("warehouse.movementHistoryOpenRelatedPdf")}
+                              className={cn(
+                                detailOpenIconButtonClass,
+                                "border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100"
+                              )}
+                              aria-label={t("warehouse.movementHistoryCreateInvoiceFromShipment")}
                               onClick={() => {
                                 if (selectedOutboundShipmentRepresentativeMovementId == null) return;
-                                openRelatedShipmentPdfDocs(
+                                openInvoiceDraftFromShipment(
+                                  selectedOutboundShipmentRepresentativeMovementId,
                                   selectedDetailGroup?.movements
                                     .map((m) => m.id)
                                     .filter((id) => Number.isFinite(id) && id > 0) ?? []
                                 );
                               }}
                             >
-                              <EyeIcon className="h-5 w-5" />
-                              <span className="sr-only">{t("warehouse.movementHistoryOpenRelatedPdf")}</span>
+                              <FilePlus2 className="h-5 w-5 shrink-0" aria-hidden />
+                              <span className="sr-only">{t("warehouse.movementHistoryCreateInvoiceFromShipment")}</span>
                             </Button>
                           </Tooltip>
+                        )}
+                        {hasShipmentPdfDoc ? (
+                          <details className="group/sf relative inline-flex shrink-0">
+                            <summary
+                              className="inline-flex h-11 w-11 shrink-0 cursor-pointer list-none items-center justify-center rounded-xl border border-zinc-200 bg-white text-zinc-700 shadow-sm transition hover:bg-zinc-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60 [&::-webkit-details-marker]:hidden"
+                              aria-label={t("warehouse.movementHistoryOpenRelatedPdf")}
+                              title={t("warehouse.movementHistoryOpenRelatedPdf")}
+                            >
+                              <EyeIcon className="h-5 w-5" />
+                              <span className="sr-only">{t("warehouse.movementHistoryOpenRelatedPdf")}</span>
+                            </summary>
+                            <div className="absolute right-0 top-full z-30 mt-1 w-56 overflow-hidden rounded-xl border border-zinc-200 bg-white p-1 shadow-lg">
+                              <button
+                                type="button"
+                                className={SALES_FORM_MENU_ITEM_CLASS}
+                                onClick={(e) => {
+                                  e.currentTarget.closest("details")?.removeAttribute("open");
+                                  if (selectedOutboundShipmentRepresentativeMovementId == null) return;
+                                  openRelatedShipmentPdfDocs(
+                                    selectedDetailGroup?.movements
+                                      .map((m) => m.id)
+                                      .filter((id) => Number.isFinite(id) && id > 0) ?? []
+                                  );
+                                }}
+                              >
+                                {t("warehouse.salesFormOpenDocuments")}
+                              </button>
+                              <button
+                                type="button"
+                                className={SALES_FORM_MENU_ITEM_CLASS}
+                                onClick={(e) => {
+                                  e.currentTarget.closest("details")?.removeAttribute("open");
+                                  if (salesFormPdfDoc) {
+                                    setSalesFormPreview({
+                                      url: apiUrl(
+                                        `/branches/${salesFormPdfDoc.branchId}/documents/${salesFormPdfDoc.documentId}/file`
+                                      ),
+                                      title: t("warehouse.shipmentPdfSalesForm"),
+                                    });
+                                  } else if (selectedOutboundShipmentRepresentativeMovementId != null) {
+                                    openRelatedShipmentPdfDocs(
+                                      selectedDetailGroup?.movements
+                                        .map((m) => m.id)
+                                        .filter((id) => Number.isFinite(id) && id > 0) ?? []
+                                    );
+                                  }
+                                }}
+                              >
+                                {t("warehouse.salesFormOpenPdf")}
+                              </button>
+                              <button
+                                type="button"
+                                className={SALES_FORM_MENU_ITEM_CLASS}
+                                onClick={(e) => {
+                                  e.currentTarget.closest("details")?.removeAttribute("open");
+                                  const invId = selectedDetailGroupInvoice?.outboundInvoiceId;
+                                  window.open(
+                                    invId
+                                      ? `/products/order-account-statement/summary?invoiceId=${invId}`
+                                      : "/products/order-account-statement/summary",
+                                    "_blank",
+                                    "noopener,noreferrer"
+                                  );
+                                }}
+                              >
+                                {t("warehouse.salesFormOpenSummary")}
+                              </button>
+                            </div>
+                          </details>
                         ) : null}
-                        <Tooltip content={t("warehouse.transferAddLine")} delayMs={200} className="inline-flex shrink-0">
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className={detailOpenIconButtonClass}
-                            aria-label={t("warehouse.transferAddLine")}
-                            onClick={() => setAppendLineOpen(true)}
-                          >
-                            <PlusIcon className="h-5 w-5" />
-                            <span className="sr-only">{t("warehouse.transferAddLine")}</span>
-                          </Button>
-                        </Tooltip>
-                        <Tooltip content={t("warehouse.editOutboundShipmentDeleteAction")} delayMs={200} className="inline-flex shrink-0">
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            className={trashIconActionButtonClass}
-                            disabled={softDeleteOutboundShipmentM.isPending}
-                            aria-label={t("warehouse.editOutboundShipmentDeleteAction")}
-                            onClick={() => confirmDeleteWholeOutboundShipment(selectedDetailGroup)}
-                          >
-                            <TrashIcon className="h-5 w-5" />
-                            <span className="sr-only">{t("warehouse.editOutboundShipmentDeleteAction")}</span>
-                          </Button>
-                        </Tooltip>
+                        {selectedDetailGroupInvoice ? null : (
+                          <>
+                            <Tooltip content={t("warehouse.transferAddLine")} delayMs={200} className="inline-flex shrink-0">
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                className={detailOpenIconButtonClass}
+                                aria-label={t("warehouse.transferAddLine")}
+                                onClick={() => setAppendLineOpen(true)}
+                              >
+                                <PlusIcon className="h-5 w-5" />
+                                <span className="sr-only">{t("warehouse.transferAddLine")}</span>
+                              </Button>
+                            </Tooltip>
+                            <Tooltip content={t("warehouse.editOutboundShipmentDeleteAction")} delayMs={200} className="inline-flex shrink-0">
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                className={trashIconActionButtonClass}
+                                disabled={softDeleteOutboundShipmentM.isPending}
+                                aria-label={t("warehouse.editOutboundShipmentDeleteAction")}
+                                onClick={() => confirmDeleteWholeOutboundShipment(selectedDetailGroup)}
+                              >
+                                <TrashIcon className="h-5 w-5" />
+                                <span className="sr-only">{t("warehouse.editOutboundShipmentDeleteAction")}</span>
+                              </Button>
+                            </Tooltip>
+                          </>
+                        )}
                       </>
                     ) : null}
                     {canManageWholeInboundShipment ? (
@@ -1920,12 +2053,20 @@ export function WarehouseDetailMovementHistoryTab({
                             if (row.type === "IN") setInboundFullMovementId(row.id);
                           }}
                           onDeleteInbound={confirmDeleteInboundFromRow}
-                          onEditOutboundShipment={(row) => {
-                            if (row.type === "OUT" && row.isDepotToBranchShipment) {
-                              setOutboundShipmentMovementId(row.id);
-                            }
-                          }}
-                          onDeleteOutboundShipment={confirmDeleteOutboundShipmentFromRow}
+                          onEditOutboundShipment={
+                            selectedDetailGroupInvoice
+                              ? undefined
+                              : (row) => {
+                                  if (row.type === "OUT" && row.isDepotToBranchShipment) {
+                                    setOutboundShipmentMovementId(row.id);
+                                  }
+                                }
+                          }
+                          onDeleteOutboundShipment={
+                            selectedDetailGroupInvoice
+                              ? undefined
+                              : confirmDeleteOutboundShipmentFromRow
+                          }
                           onPreviewInvoice={(row) => {
                             if (row.type !== "IN" || !row.hasInvoicePhoto) return;
                             setInvoicePreviewTarget({
@@ -2186,6 +2327,23 @@ export function WarehouseDetailMovementHistoryTab({
             </Button>
           </div>
         </div>
+      </Modal>
+      <Modal
+        open={salesFormPreview != null}
+        onClose={() => setSalesFormPreview(null)}
+        titleId="warehouse-detail-sales-form-preview-title"
+        title={salesFormPreview?.title ?? t("warehouse.shipmentPdfSalesForm")}
+        closeButtonLabel={t("common.close")}
+        wide
+        wideFixedHeight
+      >
+        {salesFormPreview ? (
+          <PdfBlobPreview
+            url={salesFormPreview.url}
+            title={salesFormPreview.title}
+            className="h-[70vh] w-full rounded-lg border border-zinc-200"
+          />
+        ) : null}
       </Modal>
     </div>
   );

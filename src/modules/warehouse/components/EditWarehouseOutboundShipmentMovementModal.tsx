@@ -3,18 +3,12 @@
 import { CatalogProductWarehouseStockCombobox } from "@/modules/products/components/CatalogProductWarehouseStockCombobox";
 import {
   useUpdateWarehouseOutboundShipmentMovement,
-  useUploadWarehouseOutboundShipmentMovementInvoicePhoto,
   useWarehouseOutboundShipmentMovementForEdit,
 } from "@/modules/warehouse/hooks/useWarehouseQueries";
-import { warehouseMovementInvoicePhotoUrl } from "@/modules/warehouse/api/warehouse-movements-api";
 import { useI18n } from "@/i18n/context";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { resolveLocalizedApiError } from "@/shared/lib/resolve-localized-api-error";
-import { useRouter } from "next/navigation";
 import { notify } from "@/shared/lib/notify";
-import { LocalImageFileThumb } from "@/shared/components/LocalImageFileThumb";
-import { IMAGE_FILE_INPUT_ACCEPT } from "@/shared/lib/image-upload-limits";
-import { validateImageFileForUpload } from "@/shared/lib/validate-image-upload";
 import { Button } from "@/shared/ui/Button";
 import { Input } from "@/shared/ui/Input";
 import { Modal } from "@/shared/ui/Modal";
@@ -77,11 +71,9 @@ export function EditWarehouseOutboundShipmentMovementModal({
   onClose,
 }: Props) {
   const { t, locale } = useI18n();
-  const router = useRouter();
   const enabled = open && movementId != null && movementId > 0;
   const q = useWarehouseOutboundShipmentMovementForEdit(warehouseId, movementId, enabled);
   const updateM = useUpdateWarehouseOutboundShipmentMovement();
-  const uploadM = useUploadWarehouseOutboundShipmentMovementInvoicePhoto();
 
   // Onaylı sevkiyat talebinden gelen ya da faturası oluşturulmuş hareket düzenlenemez (backend de reddeder).
   // Fatura silinince kilit açılır ("Faturaya git" ile ilgili faturayı sil).
@@ -91,8 +83,6 @@ export function EditWarehouseOutboundShipmentMovementModal({
 
   const [productId, setProductId] = useState("");
   const [qty, setQty] = useState("");
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [removePhoto, setRemovePhoto] = useState(false);
   const [snapshot, setSnapshot] = useState<{
     branchId: number;
     businessDate: string;
@@ -109,16 +99,12 @@ export function EditWarehouseOutboundShipmentMovementModal({
       setProductId("");
       setQty("");
       setSnapshot(null);
-      setPhotoFile(null);
-      setRemovePhoto(false);
       return;
     }
     const d = q.data;
     if (!d) return;
     setProductId(String(d.productId));
     setQty(String(d.quantity));
-    setPhotoFile(null);
-    setRemovePhoto(false);
     const parsedDescription = stripManualReceiverFromDescription(d.description);
     const manualMode = parsedDescription.manualReceiver.length > 0;
     setSnapshot({
@@ -174,13 +160,10 @@ export function EditWarehouseOutboundShipmentMovementModal({
           ),
           checkedByPersonnelId: s,
           approvedByPersonnelId: snap.receivedByManualMode ? s : r,
-          // Yeni görsel seçildiyse mevcut görseli silmeye gerek yok; yükleme onu değiştirir.
-          clearInvoicePhoto: removePhoto && photoFile == null,
+          // Görsel artık satır bazında yönetilmiyor (sadece sevkiyat grubunda); mevcut görsele dokunulmaz.
+          clearInvoicePhoto: false,
         },
       });
-      if (photoFile) {
-        await uploadM.mutateAsync({ warehouseId, movementId: mid, file: photoFile });
-      }
       notify.success(t("warehouse.editOutboundShipmentSaved"));
       onClose();
     } catch (e) {
@@ -220,8 +203,11 @@ export function EditWarehouseOutboundShipmentMovementModal({
                 variant="secondary"
                 className="min-h-10 shrink-0 whitespace-nowrap px-3 text-sm"
                 onClick={() => {
-                  onClose();
-                  router.push("/reports/financial/current-accounts");
+                  const invId = q.data?.invoicedOutboundInvoiceId;
+                  const url = invId
+                    ? `/reports/financial/current-accounts?invoiceId=${invId}`
+                    : "/reports/financial/current-accounts";
+                  window.open(url, "_blank", "noopener,noreferrer");
                 }}
               >
                 {t("warehouse.editOutboundGoToInvoice")}
@@ -254,77 +240,6 @@ export function EditWarehouseOutboundShipmentMovementModal({
             onChange={(e) => setQty(e.target.value)}
             disabled={updateM.isPending}
           />
-          <div className="rounded-lg border border-zinc-200 bg-zinc-50/70 p-3">
-            <p className="text-xs font-semibold text-zinc-700">{t("warehouse.shipmentPhotoOptional")}</p>
-            {q.data.hasInvoicePhoto && !removePhoto && photoFile == null && movementId != null && movementId > 0 ? (
-              <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-600">
-                <a
-                  href={warehouseMovementInvoicePhotoUrl(movementId)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium text-zinc-900 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-600"
-                >
-                  {t("warehouse.openInvoicePhoto")}
-                </a>
-                <button
-                  type="button"
-                  className="font-medium text-red-700 underline decoration-red-300 underline-offset-2 hover:decoration-red-600"
-                  disabled={updateM.isPending || uploadM.isPending}
-                  onClick={() => setRemovePhoto(true)}
-                >
-                  {t("warehouse.shipmentPhotoRemove")}
-                </button>
-              </p>
-            ) : null}
-            {removePhoto && photoFile == null ? (
-              <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-red-700">
-                {t("warehouse.shipmentPhotoWillBeRemoved")}
-                <button
-                  type="button"
-                  className="font-medium text-zinc-700 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-600"
-                  disabled={updateM.isPending || uploadM.isPending}
-                  onClick={() => setRemovePhoto(false)}
-                >
-                  {t("common.cancel")}
-                </button>
-              </p>
-            ) : null}
-            <input
-              id="wh-edit-outbound-photo"
-              name="wh-edit-outbound-photo"
-              type="file"
-              accept={IMAGE_FILE_INPUT_ACCEPT}
-              className="mt-2 block w-full max-w-full min-w-0 text-sm text-zinc-600 file:mr-3 file:max-w-full file:rounded-lg file:border-0 file:bg-zinc-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-zinc-800 hover:file:bg-zinc-200"
-              disabled={updateM.isPending || uploadM.isPending}
-              onChange={async (e) => {
-                const input = e.target;
-                const f = input.files?.[0] ?? null;
-                if (!f) {
-                  setPhotoFile(null);
-                  return;
-                }
-                const v = await validateImageFileForUpload(f);
-                if (!v.ok) {
-                  input.value = "";
-                  setPhotoFile(null);
-                  notify.error(
-                    v.reason === "size"
-                      ? t("common.imageUploadTooLarge")
-                      : t("common.imageUploadNotImage")
-                  );
-                  return;
-                }
-                setPhotoFile(f);
-                setRemovePhoto(false);
-              }}
-            />
-            <LocalImageFileThumb file={photoFile} />
-            <p className="mt-1 text-[0.65rem] leading-snug text-zinc-500">
-              {q.data.hasInvoicePhoto
-                ? t("warehouse.shipmentPhotoReplaceHint")
-                : t("warehouse.shipmentPhotoAddHint")}
-            </p>
-          </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="secondary" className="min-h-11 w-full sm:w-auto" onClick={onClose}>
               {t("common.cancel")}
@@ -332,7 +247,7 @@ export function EditWarehouseOutboundShipmentMovementModal({
             <Button
               type="button"
               className="min-h-11 w-full sm:w-auto"
-              disabled={updateM.isPending || uploadM.isPending || locked}
+              disabled={updateM.isPending || locked}
               onClick={() => void onSubmit()}
             >
               {t("warehouse.editOutboundShipmentSave")}

@@ -2,6 +2,7 @@ import { ApiError } from "@/lib/api/base-api";
 import {
   API_ERROR_CODE_GENERAL_OVERHEAD_REVERSE_REQUIRES_ACKNOWLEDGEMENT,
   API_ERROR_CODE_SHIPMENT_FROM_REQUEST_NOT_EDITABLE,
+  API_ERROR_CODE_SHIPMENT_GROUP_ALREADY_INVOICED,
   API_ERROR_CODE_SHIPMENT_INVOICED_NOT_EDITABLE,
   API_ERROR_CODE_TOURISM_SEASON_CLOSED_FOR_REGISTER,
 } from "@/shared/lib/api-error-codes";
@@ -42,6 +43,9 @@ export function resolveLocalizedApiError(
   }
   if (code === API_ERROR_CODE_SHIPMENT_INVOICED_NOT_EDITABLE) {
     return t("apiErrors.shipmentInvoicedNotEditable");
+  }
+  if (code === API_ERROR_CODE_SHIPMENT_GROUP_ALREADY_INVOICED) {
+    return t("apiErrors.shipmentGroupAlreadyInvoiced");
   }
   return error.message;
 }

@@ -2,6 +2,7 @@
 
 import { useBranchesList } from "@/modules/branch/hooks/useBranchQueries";
 import { fetchBranchDocuments } from "@/modules/branch/api/branch-documents-api";
+import { apiUrl } from "@/shared/api/client";
 import {
   fetchWarehouseGlobalMovements,
   type WarehouseGlobalMovementsFilters,
@@ -32,6 +33,7 @@ import { TablePagination } from "@/shared/ui/TablePagination";
 import { DateField } from "@/shared/ui/DateField";
 import { EyeIcon, detailOpenIconButtonClass } from "@/shared/ui/EyeIcon";
 import { Modal } from "@/shared/ui/Modal";
+import { PdfBlobPreview } from "@/modules/documents/components/PdfBlobPreview";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import { WarehouseMovementInvoicePreviewModal } from "@/modules/warehouse/components/WarehouseMovementInvoicePreviewModal";
 import { useQuery } from "@tanstack/react-query";
@@ -86,6 +88,10 @@ function ShipmentCalendarIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+
+/** Satış formu (var olan PDF) için 3 seçenekli menü öğesi ortak sınıfı. */
+const SALES_FORM_MENU_ITEM_CLASS =
+  "flex w-full items-center rounded-lg px-3 py-2 text-left text-sm text-zinc-800 transition hover:bg-zinc-100";
 
 /** İki sevkiyat PDF'i (satış formu / irsaliye) için var-yok + erişim chip'i. Modern, kompakt. */
 function ShipmentPdfChip({
@@ -427,6 +433,8 @@ export function WarehouseGlobalMovementsScreen() {
   const [branchId, setBranchId] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [draftScope, setDraftScope] = useState<WarehouseScopeFiltersValue>(() => ({ ...EMPTY_SCOPE }));
   const [draftWarehouseId, setDraftWarehouseId] = useState("");
   const [draftType, setDraftType] = useState("");
@@ -442,6 +450,7 @@ export function WarehouseGlobalMovementsScreen() {
     title: string;
     subtitle?: string;
   } | null>(null);
+  const [salesFormPreview, setSalesFormPreview] = useState<{ url: string; title: string } | null>(null);
 
   const openFiltersDrawer = useCallback(() => {
     setDraftScope({
@@ -511,6 +520,15 @@ export function WarehouseGlobalMovementsScreen() {
     return () => window.clearTimeout(id);
   }, [type]);
 
+  // Sevkiyat no / fatura no / ürün araması — debounce'lu (350ms), yazınca sayfayı 1'e al.
+  useEffect(() => {
+    const id = window.setTimeout(() => setDebouncedSearch(searchInput.trim()), 350);
+    return () => window.clearTimeout(id);
+  }, [searchInput]);
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch]);
+
   const filters = useMemo<WarehouseGlobalMovementsFilters>(
     () => ({
       scope,
@@ -521,8 +539,9 @@ export function WarehouseGlobalMovementsScreen() {
         type !== "IN" && branchId !== "" && Number(branchId) > 0 ? Math.trunc(Number(branchId)) : undefined,
       dateFrom: dateFrom.length === 10 ? dateFrom : undefined,
       dateTo: dateTo.length === 10 ? dateTo : undefined,
+      search: debouncedSearch || undefined,
     }),
-    [scope, warehouseId, type, branchId, dateFrom, dateTo]
+    [scope, warehouseId, type, branchId, dateFrom, dateTo, debouncedSearch]
   );
 
   const { data = [], isPending, isError, error, isFetching } = useQuery({
@@ -705,6 +724,7 @@ export function WarehouseGlobalMovementsScreen() {
       );
       return docsByBranch.flatMap((x) =>
         x.docs.map((doc) => ({
+          id: doc.id,
           branchId: x.branchId,
           kind: doc.kind,
           contentType: String(doc.contentType ?? "").toLocaleLowerCase(),
@@ -743,6 +763,48 @@ export function WarehouseGlobalMovementsScreen() {
     }
     return map;
   }, [shipmentGroups, shipmentPdfDocsQ.data]);
+  /** Grup → satış formu (SHIPMENT_STATEMENT) PDF belgesi {branchId, documentId} — doğrudan aç/indir için. */
+  const salesFormPdfByGroupKey = useMemo(() => {
+    const map = new Map<string, { branchId: number; documentId: number }>();
+    const docs = shipmentPdfDocsQ.data ?? [];
+    for (const group of shipmentGroups) {
+      const movementIds = new Set(group.rows.map((r) => r.id));
+      for (const doc of docs) {
+        if (!doc.contentType.includes("pdf")) continue;
+        const meta = parseShipmentMetadataFromNotes(doc.notes);
+        const primary = Number(meta.shipmentPrimaryMovementId ?? 0);
+        const linked = String(meta.shipmentMovementIds ?? "")
+          .split(",")
+          .map((x) => Number(x.trim()))
+          .filter((n) => Number.isFinite(n) && n > 0);
+        if ((primary > 0 && movementIds.has(primary)) || linked.some((n) => movementIds.has(n))) {
+          map.set(group.key, { branchId: doc.branchId, documentId: doc.id });
+          break;
+        }
+      }
+    }
+    return map;
+  }, [shipmentGroups, shipmentPdfDocsQ.data]);
+  const openSalesFormPdfDirect = (group: ShipmentGroupSummary) => {
+    const doc = salesFormPdfByGroupKey.get(group.key);
+    if (!doc) {
+      openShipmentPdfDocuments(group);
+      return;
+    }
+    // İndirme yerine önizleme modalı: PdfBlobPreview blob'u çekip iframe'de gösterir.
+    setSalesFormPreview({
+      url: apiUrl(`/branches/${doc.branchId}/documents/${doc.documentId}/file`),
+      title: t("warehouse.shipmentPdfSalesForm"),
+    });
+  };
+  const openOrderAccountSummary = (group: ShipmentGroupSummary) => {
+    // Grubun bağlı fatura id'siyle git ki cari özet ekranı ilgili faturayı vurgulasın.
+    const invoiceId = group.rows.find((r) => (r.outboundInvoiceId ?? 0) > 0)?.outboundInvoiceId ?? null;
+    const url = invoiceId
+      ? `/products/order-account-statement/summary?invoiceId=${invoiceId}`
+      : "/products/order-account-statement/summary";
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
   /** İrsaliye (SHIPMENT_DELIVERY_SLIP) PDF'i bulunan sevkiyat talebi id'leri. */
   const deliverySlipShipmentRequestIds = useMemo(() => {
     const set = new Set<number>();
@@ -779,6 +841,22 @@ export function WarehouseGlobalMovementsScreen() {
     return (
       <div className="mt-3 min-h-0 flex-1 overflow-y-auto px-3 pb-3 pr-2 sm:mt-4 sm:px-4 sm:pb-4 sm:pr-3">
         <div className="space-y-3">
+          <div className="flex justify-end">
+            <button
+              type="button"
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-800 transition hover:bg-violet-100"
+              onClick={() =>
+                window.open(
+                  `/warehouses?openWarehouse=${rep.warehouseId}&openWarehouseTab=history&openMovementId=${rep.id}`,
+                  "_blank",
+                  "noopener,noreferrer"
+                )
+              }
+            >
+              <EyeIcon className="h-4 w-4 shrink-0" />
+              {t("warehouse.openInWarehouseDetail")}
+            </button>
+          </div>
           <div className="rounded-lg border border-zinc-200 bg-white p-3 shadow-sm">
             <div className="rounded-md border border-zinc-200 bg-zinc-50/60">
               <div className="border-b border-zinc-200 px-3 py-2">
@@ -882,17 +960,57 @@ export function WarehouseGlobalMovementsScreen() {
                 {t("warehouse.shipmentPdfsLabel")}
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <ShipmentPdfChip
-                  label={t("warehouse.shipmentPdfSalesForm")}
-                  exists={hasSystemPdf}
-                  loading={pdfStatusLoading}
-                  actionHint={
-                    hasSystemPdf ? t("warehouse.shipmentPdfView") : t("warehouse.shipmentPdfCreate")
-                  }
-                  onClick={
-                    hasSystemPdf ? () => openShipmentPdfDocuments(g) : () => openOrderAccountStatement(g)
-                  }
-                />
+                {hasSystemPdf ? (
+                  <details className="group relative">
+                    <summary className="inline-flex min-h-[44px] cursor-pointer list-none items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm transition hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60">
+                      <ShipmentDocIcon className="h-4 w-4 shrink-0 text-emerald-600" />
+                      <span className="font-semibold text-zinc-900">{t("warehouse.shipmentPdfSalesForm")}</span>
+                      <span className="text-zinc-300">·</span>
+                      <span className="font-medium text-emerald-700">{t("warehouse.shipmentPdfView")}</span>
+                      <svg className="h-3.5 w-3.5 shrink-0 text-emerald-600 transition group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m6 9 6 6 6-6" /></svg>
+                    </summary>
+                    <div className="absolute left-0 z-30 mt-1 w-60 overflow-hidden rounded-xl border border-zinc-200 bg-white p-1 shadow-lg">
+                      <button
+                        type="button"
+                        className={SALES_FORM_MENU_ITEM_CLASS}
+                        onClick={(e) => {
+                          e.currentTarget.closest("details")?.removeAttribute("open");
+                          openShipmentPdfDocuments(g);
+                        }}
+                      >
+                        {t("warehouse.salesFormOpenDocuments")}
+                      </button>
+                      <button
+                        type="button"
+                        className={SALES_FORM_MENU_ITEM_CLASS}
+                        onClick={(e) => {
+                          e.currentTarget.closest("details")?.removeAttribute("open");
+                          openSalesFormPdfDirect(g);
+                        }}
+                      >
+                        {t("warehouse.salesFormOpenPdf")}
+                      </button>
+                      <button
+                        type="button"
+                        className={SALES_FORM_MENU_ITEM_CLASS}
+                        onClick={(e) => {
+                          e.currentTarget.closest("details")?.removeAttribute("open");
+                          openOrderAccountSummary(g);
+                        }}
+                      >
+                        {t("warehouse.salesFormOpenSummary")}
+                      </button>
+                    </div>
+                  </details>
+                ) : (
+                  <ShipmentPdfChip
+                    label={t("warehouse.shipmentPdfSalesForm")}
+                    exists={false}
+                    loading={pdfStatusLoading}
+                    actionHint={t("warehouse.shipmentPdfCreate")}
+                    onClick={() => openOrderAccountStatement(g)}
+                  />
+                )}
                 <ShipmentPdfChip
                   label={t("warehouse.shipmentPdfDeliverySlip")}
                   exists={hasDeliverySlip}
@@ -983,6 +1101,9 @@ export function WarehouseGlobalMovementsScreen() {
     locale,
     openOrderAccountStatement,
     openShipmentPdfDocuments,
+    openSalesFormPdfDirect,
+    openOrderAccountSummary,
+    salesFormPdfByGroupKey,
     router,
     shipmentPdfDocsQ.data,
     shipmentPdfDocsQ.isFetching,
@@ -996,6 +1117,30 @@ export function WarehouseGlobalMovementsScreen() {
           {t("warehouse.globalMovementsTitle")}
         </h1>
         <p className="text-sm text-zinc-500">{t("warehouse.globalMovementsSubtitle")}</p>
+      </div>
+      <div className="relative">
+        <input
+          type="search"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          placeholder={t("warehouse.globalMovementsSearchPlaceholder")}
+          className="h-11 w-full rounded-lg border border-zinc-200 bg-white pl-3 pr-16 text-sm text-zinc-900 shadow-sm placeholder:text-zinc-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/20"
+        />
+        {isFetching && debouncedSearch ? (
+          <span className="absolute right-9 top-1/2 -translate-y-1/2 text-xs text-zinc-400" aria-hidden>
+            …
+          </span>
+        ) : null}
+        {searchInput ? (
+          <button
+            type="button"
+            onClick={() => setSearchInput("")}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-sm text-zinc-400 hover:text-zinc-700"
+            aria-label={t("warehouse.globalMovementsSearchClear")}
+          >
+            ×
+          </button>
+        ) : null}
       </div>
       <div className="flex items-center justify-end">
         <div className="mr-2 inline-flex rounded-lg border border-zinc-200 bg-white p-1">
@@ -1558,21 +1703,57 @@ export function WarehouseGlobalMovementsScreen() {
                   <div className="mt-3 space-y-3 border-t border-zinc-100 pt-3">
                     {hasPdfActions ? (
                       <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
-                          <ShipmentPdfChip
-                            label={t("warehouse.shipmentPdfSalesForm")}
-                            exists={hasSystemPdf}
-                            loading={pdfStatusLoading}
-                            actionHint={
-                              hasSystemPdf
-                                ? t("warehouse.shipmentPdfView")
-                                : t("warehouse.shipmentPdfCreate")
-                            }
-                            onClick={
-                              hasSystemPdf
-                                ? () => openShipmentPdfDocuments(group)
-                                : () => openOrderAccountStatement(group)
-                            }
-                          />
+                          {hasSystemPdf ? (
+                            <details className="group/sf relative">
+                              <summary className="inline-flex min-h-11 cursor-pointer list-none items-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm transition hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/60">
+                                <ShipmentDocIcon className="h-4 w-4 shrink-0 text-emerald-600" />
+                                <span className="font-semibold text-zinc-900">{t("warehouse.shipmentPdfSalesForm")}</span>
+                                <span className="text-zinc-300">·</span>
+                                <span className="font-medium text-emerald-700">{t("warehouse.shipmentPdfView")}</span>
+                                <svg className="h-3.5 w-3.5 shrink-0 text-emerald-600 transition group-open/sf:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m6 9 6 6 6-6" /></svg>
+                              </summary>
+                              <div className="absolute left-0 z-30 mt-1 w-60 overflow-hidden rounded-xl border border-zinc-200 bg-white p-1 shadow-lg">
+                                <button
+                                  type="button"
+                                  className={SALES_FORM_MENU_ITEM_CLASS}
+                                  onClick={(e) => {
+                                    e.currentTarget.closest("details")?.removeAttribute("open");
+                                    openShipmentPdfDocuments(group);
+                                  }}
+                                >
+                                  {t("warehouse.salesFormOpenDocuments")}
+                                </button>
+                                <button
+                                  type="button"
+                                  className={SALES_FORM_MENU_ITEM_CLASS}
+                                  onClick={(e) => {
+                                    e.currentTarget.closest("details")?.removeAttribute("open");
+                                    openSalesFormPdfDirect(group);
+                                  }}
+                                >
+                                  {t("warehouse.salesFormOpenPdf")}
+                                </button>
+                                <button
+                                  type="button"
+                                  className={SALES_FORM_MENU_ITEM_CLASS}
+                                  onClick={(e) => {
+                                    e.currentTarget.closest("details")?.removeAttribute("open");
+                                    openOrderAccountSummary(group);
+                                  }}
+                                >
+                                  {t("warehouse.salesFormOpenSummary")}
+                                </button>
+                              </div>
+                            </details>
+                          ) : (
+                            <ShipmentPdfChip
+                              label={t("warehouse.shipmentPdfSalesForm")}
+                              exists={false}
+                              loading={pdfStatusLoading}
+                              actionHint={t("warehouse.shipmentPdfCreate")}
+                              onClick={() => openOrderAccountStatement(group)}
+                            />
+                          )}
                           <ShipmentPdfChip
                             label={t("warehouse.shipmentPdfDeliverySlip")}
                             exists={hasDeliverySlip}
@@ -1666,6 +1847,23 @@ export function WarehouseGlobalMovementsScreen() {
         t={t}
         onClose={() => setInvoicePreviewTarget(null)}
       />
+      <Modal
+        open={salesFormPreview != null}
+        onClose={() => setSalesFormPreview(null)}
+        titleId="warehouse-global-sales-form-preview-title"
+        title={salesFormPreview?.title ?? t("warehouse.shipmentPdfSalesForm")}
+        closeButtonLabel={t("common.close")}
+        wide
+        wideFixedHeight
+      >
+        {salesFormPreview ? (
+          <PdfBlobPreview
+            url={salesFormPreview.url}
+            title={salesFormPreview.title}
+            className="h-[70vh] w-full rounded-lg border border-zinc-200"
+          />
+        ) : null}
+      </Modal>
     </div>
   );
 }

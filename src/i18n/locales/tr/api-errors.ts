@@ -9,4 +9,6 @@ export const apiErrors = {
     "Bu sevkiyat onaylı bir sevkiyat talebinden oluşturulmuştur ve elle düzenlenemez veya silinemez.",
   shipmentInvoicedNotEditable:
     "Bu sevkiyatın faturası oluşturulmuş. Düzenlemek veya silmek için önce ilgili faturayı silmelisiniz.",
+  shipmentGroupAlreadyInvoiced:
+    "Bu sevkiyatın zaten bir faturası var. Yeni fatura eklemeden önce mevcut faturayı silmelisiniz.",
 } as const;

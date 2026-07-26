@@ -9,4 +9,6 @@ export const apiErrors = {
     "This shipment was created from an approved shipment request and cannot be edited or deleted manually.",
   shipmentInvoicedNotEditable:
     "This shipment has an invoice. To edit or delete it, delete the related invoice first.",
+  shipmentGroupAlreadyInvoiced:
+    "This shipment already has an invoice. Delete the existing invoice before adding a new one.",
 } as const;

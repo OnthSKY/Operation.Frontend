@@ -50,6 +50,7 @@ export async function fetchWarehouseMovementsPage(
   if (params.productId != null && params.productId > 0) q.set("productId", String(params.productId));
   if (params.dateFrom?.length === 10) q.set("dateFrom", params.dateFrom);
   if (params.dateTo?.length === 10) q.set("dateTo", params.dateTo);
+  if (params.search && params.search.trim()) q.set("search", params.search.trim());
   return apiRequest<WarehouseMovementsPaged>(`/warehouses/${warehouseId}/movements?${q.toString()}`);
 }
 

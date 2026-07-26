@@ -144,6 +144,16 @@ export function CounterpartySummaryReportScreen() {
     },
     [pathname, router, searchParams]
   );
+  // Deep-link: ?invoiceId=X → fatura satırı görünümüne geç, ilgili satıra kaydır + vurgula.
+  const highlightInvoiceId = Number(searchParams?.get("invoiceId")) || null;
+  useEffect(() => {
+    if (highlightInvoiceId) setShowInvoiceRows(true);
+  }, [highlightInvoiceId]);
+  useEffect(() => {
+    if (!highlightInvoiceId || invoiceRows.length === 0) return;
+    const el = document.querySelector(`[data-invoice-id="${highlightInvoiceId}"]`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [highlightInvoiceId, invoiceRows.length]);
   const [errorText, setErrorText] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectedBranchId, setSelectedBranchId] = useState("");
@@ -155,6 +165,15 @@ export function CounterpartySummaryReportScreen() {
     onlyWithOpenBalance: false,
     limit: 100,
   });
+  // Arama debounce'lu (350ms): input yerel state'e yazar, filtre gecikmeli uygulanır (global ekranla aynı).
+  const [searchDraft, setSearchDraft] = useState("");
+  useEffect(() => {
+    const id = window.setTimeout(
+      () => setFilters((p) => (p.search === searchDraft ? p : { ...p, search: searchDraft })),
+      350
+    );
+    return () => window.clearTimeout(id);
+  }, [searchDraft]);
 
   const counterpartyKey = useCallback(
     (counterpartyType: string, counterpartyId: number, currencyCode: string) =>
@@ -1098,7 +1117,10 @@ export function CounterpartySummaryReportScreen() {
           return (
             <div
               key={`${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}-${row.lastDocumentNumber ?? "summary"}`}
+              data-invoice-id={row.invoiceId ?? undefined}
               className={`min-w-0 rounded-xl border bg-white p-2.5 shadow-sm ${
+                highlightInvoiceId && row.invoiceId === highlightInvoiceId ? "ring-2 ring-violet-400 " : ""
+              }${
                 showInvoiceRows
                   ? "border-zinc-200"
                   : isOpen
@@ -1268,7 +1290,10 @@ export function CounterpartySummaryReportScreen() {
             {tableItems.map((row) => (
               <tr
                 key={`${row.counterpartyType}-${row.counterpartyId}-${row.currencyCode}-${row.lastDocumentNumber ?? "summary"}`}
+                data-invoice-id={row.invoiceId ?? undefined}
                 className={`border-t ${
+                  highlightInvoiceId && row.invoiceId === highlightInvoiceId ? "ring-2 ring-inset ring-violet-400 " : ""
+                }${
                   isOpenBalance(Number(row.openAmount))
                     ? "border-amber-100 bg-amber-50/20"
                     : "border-emerald-100 bg-emerald-50/20"
@@ -1522,9 +1547,10 @@ export function CounterpartySummaryReportScreen() {
           <label className="block">
             <span className="text-sm text-zinc-600">{t("reports.counterpartySummarySearch")}</span>
             <input
+              type="search"
               className="mt-1 h-10 min-h-[44px] w-full rounded-xl border border-zinc-200 px-3 text-sm outline-none focus:border-zinc-400 focus:ring-2 focus:ring-zinc-200 sm:h-11 sm:text-base"
-              value={filters.search ?? ""}
-              onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
+              value={searchDraft}
+              onChange={(e) => setSearchDraft(e.target.value)}
               placeholder={t("reports.counterpartySummarySearchPlaceholder")}
             />
           </label>

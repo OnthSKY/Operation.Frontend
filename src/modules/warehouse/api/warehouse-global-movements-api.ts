@@ -12,6 +12,8 @@ export type WarehouseGlobalMovementsFilters = {
   branchId?: number;
   dateFrom?: string;
   dateTo?: string;
+  /** Sevkiyat no, fatura no veya ürün adında arama (debounce'lu). */
+  search?: string;
   scope: WarehouseScopeFiltersValue;
 };
 
@@ -46,6 +48,7 @@ export async function fetchWarehouseGlobalMovements(
     branchId: filters.branchId,
     dateFrom: filters.dateFrom,
     dateTo: filters.dateTo,
+    search: filters.search,
   };
 
   const byWarehouse = await Promise.all(

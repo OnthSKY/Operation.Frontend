@@ -56,6 +56,9 @@ export type WarehouseMovementItem = {
   outDestinationBranchName?: string | null;
   /** OUT + depodan şubeye sevkiyat (tek şube stok satırı); tam düzenleme API’si. */
   isDepotToBranchShipment?: boolean;
+  /** Sevkiyat grubu silinmemiş bir faturaya bağlıysa o faturanın id'si/no'su (faturalı rozeti + "faturaya git"). */
+  outboundInvoiceId?: number | null;
+  outboundInvoiceNo?: string | null;
   /** Hareketi giren kullanıcı (recorded_by). */
   createdByUserName?: string | null;
   /** Kaydın oluşturulma zamanı (ISO). */
@@ -101,6 +104,8 @@ export type WarehouseMovementsPageParams = {
   dateTo?: string;
   /** OUT + şubeye transfer ile eşleşen hareketler */
   branchId?: number;
+  /** Sevkiyat no (grup), fatura no veya ürün adında arama. */
+  search?: string;
 };
 
 export type WarehouseAuditItem = {
