@@ -15,6 +15,22 @@ import {
   updateContractorWorkEntry,
 } from "@/modules/contractors/api/contractors-api";
 import { createOptimisticListDelete } from "@/shared/lib/optimistic-list-delete";
+import { branchKeys } from "@/modules/branch/hooks/useBranchQueries";
+import { personnelKeys } from "@/modules/personnel/hooks/usePersonnelQueries";
+import { reportsKeys } from "@/modules/reports/query-keys";
+import { dashboardSummaryKeys } from "@/modules/dashboard/query-keys";
+
+/**
+ * Taşeron ödemesi kasa/zimmet/rapor'u etkiler (BRANCH_REGISTER → şube kasası,
+ * PERSONNEL_POCKET → personel zimmet ledger). İlgili tüm modülleri tazele.
+ */
+function invalidateContractorPaymentSideEffects(qc: ReturnType<typeof useQueryClient>) {
+  void qc.invalidateQueries({ queryKey: contractorKeys.all });
+  void qc.invalidateQueries({ queryKey: branchKeys.all });
+  void qc.invalidateQueries({ queryKey: personnelKeys.all });
+  void qc.invalidateQueries({ queryKey: reportsKeys.all });
+  void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
+}
 
 export const contractorKeys = {
   all: ["contractors"] as const,
@@ -118,7 +134,7 @@ export function useCreateContractorPayment(contractorId: number) {
   return useMutation({
     mutationFn: (body: Parameters<typeof createContractorPayment>[1]) =>
       createContractorPayment(contractorId, body),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: contractorKeys.all }),
+    onSuccess: () => invalidateContractorPaymentSideEffects(qc),
   });
 }
 
@@ -126,6 +142,6 @@ export function useDeleteContractorPayment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: deleteContractorPayment,
-    onSuccess: () => void qc.invalidateQueries({ queryKey: contractorKeys.all }),
+    onSuccess: () => invalidateContractorPaymentSideEffects(qc),
   });
 }
