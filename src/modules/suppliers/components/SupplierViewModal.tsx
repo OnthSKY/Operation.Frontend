@@ -2,6 +2,7 @@
 
 import type { Supplier } from "@/modules/suppliers/api/suppliers-api";
 import {
+  useDeleteSupplierPayment,
   useSupplierPayments,
   useSupplierView,
 } from "@/modules/suppliers/hooks/useSupplierQueries";
@@ -9,6 +10,8 @@ import { cn } from "@/lib/cn";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { useI18n } from "@/i18n/context";
 import { toErrorMessage } from "@/shared/lib/error-message";
+import { notify } from "@/shared/lib/notify";
+import { notifyConfirmToast } from "@/shared/lib/notify-confirm-toast";
 import { formatLocaleAmount } from "@/shared/lib/locale-amount";
 import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
@@ -83,6 +86,29 @@ export function SupplierViewModal({
     supplierId,
     open && supplierId != null && supplierId > 0 && tab === "payments",
   );
+  const deletePayment = useDeleteSupplierPayment();
+
+  const onDeletePayment = (paymentId: number) => {
+    notifyConfirmToast({
+      toastId: `supplier-payment-delete-${paymentId}`,
+      title: tr ? "Ödemeyi sil?" : "Delete payment?",
+      message: (
+        <p className="text-sm text-zinc-600">
+          {tr
+            ? "Ödeme silinecek; zimmet kaynaklıysa personel zimmeti geri yüklenir."
+            : "The payment will be removed; if paid from held cash, the personnel balance is restored."}
+        </p>
+      ),
+      cancelLabel: t("common.cancel"),
+      confirmLabel: t("common.delete"),
+      onConfirm: () => {
+        deletePayment.mutate(paymentId, {
+          onSuccess: () => notify.success(tr ? "Ödeme silindi." : "Payment deleted."),
+          onError: (e) => notify.error(toErrorMessage(e)),
+        });
+      },
+    });
+  };
 
   useEffect(() => {
     if (open) setTab(initialTab ?? "general");
@@ -281,9 +307,20 @@ export function SupplierViewModal({
                               {pmt.description ? ` · ${pmt.description}` : ""}
                             </p>
                           </div>
-                          <p className="shrink-0 text-base font-bold tabular-nums text-zinc-900">
-                            {formatLocaleAmount(pmt.amount, locale, pmt.currencyCode)}
-                          </p>
+                          <div className="flex shrink-0 items-center gap-3">
+                            <p className="text-base font-bold tabular-nums text-zinc-900">
+                              {formatLocaleAmount(pmt.amount, locale, pmt.currencyCode)}
+                            </p>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              className="text-red-600"
+                              disabled={deletePayment.isPending}
+                              onClick={() => onDeletePayment(pmt.id)}
+                            >
+                              {t("common.delete")}
+                            </Button>
+                          </div>
                         </li>
                       ))}
                   </ul>

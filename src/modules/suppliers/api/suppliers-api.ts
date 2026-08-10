@@ -284,6 +284,12 @@ export async function createSupplierPayment(body: {
   });
 }
 
+export async function deleteSupplierPayment(paymentId: number): Promise<void> {
+  await apiRequest<null>(`/suppliers/payments/${paymentId}`, {
+    method: "DELETE",
+  });
+}
+
 /** Şube gider ekranında salt-okunur gösterilen, personel zimmetinden yapılan tedarikçi ödemesi. */
 export type BranchHeldSupplierPayment = {
   id: number;

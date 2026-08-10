@@ -6,6 +6,7 @@ import {
   createSupplierInvoice,
   createSupplierPayment,
   deleteSupplier,
+  deleteSupplierPayment,
   deleteSupplierInvoicePhoto,
   fetchSupplierInvoice,
   fetchSupplierInvoiceLineBranchAllocations,
@@ -25,6 +26,7 @@ import {
 import { fetchAuditLogs } from "@/lib/api/audit-logs-api";
 import { branchKeys } from "@/modules/branch/hooks/useBranchQueries";
 import { dashboardSummaryKeys } from "@/modules/dashboard/query-keys";
+import { personnelKeys } from "@/modules/personnel/hooks/usePersonnelQueries";
 import { reportsKeys } from "@/modules/reports/query-keys";
 import { createOptimisticListDelete } from "@/shared/lib/optimistic-list-delete";
 
@@ -223,6 +225,21 @@ export function useCreateSupplierPayment() {
       void qc.invalidateQueries({ queryKey: branchKeys.all });
       void qc.invalidateQueries({ queryKey: reportsKeys.all });
       void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
+    },
+  });
+}
+
+export function useDeleteSupplierPayment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (paymentId: number) => deleteSupplierPayment(paymentId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: supplierKeys.all });
+      void qc.invalidateQueries({ queryKey: branchKeys.all });
+      void qc.invalidateQueries({ queryKey: reportsKeys.all });
+      void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
+      // Zimmet bakiyesi/hareketleri değişir → personel ekranlarını da tazele.
+      void qc.invalidateQueries({ queryKey: personnelKeys.all });
     },
   });
 }
