@@ -1261,6 +1261,8 @@ export async function fetchBranchStockReceiptsSummary(
     productId: number;
     productName: string;
     quantity: number;
+    /** Birim -> o birimle gelen toplam miktar. Çoklu birimde baskın (en çok miktarlı) birim gösterilir. */
+    unitQuantities: Map<string, number>;
     children: Map<number, ChildAgg>;
   };
   const groups = new Map<number, GroupAgg>();
@@ -1286,11 +1288,16 @@ export async function fetchBranchStockReceiptsSummary(
           productId,
           productName: productName.length > 0 ? productName : `#${productId}`,
           quantity: 0,
+          unitQuantities: new Map(),
           children: new Map(),
         };
         groups.set(productId, current);
       }
       current.quantity += row.quantity;
+      const rowUnit = row.unit?.trim();
+      if (rowUnit) {
+        current.unitQuantities.set(rowUnit, (current.unitQuantities.get(rowUnit) ?? 0) + row.quantity);
+      }
       // Alt ürün kırılımı yalnızca ana ürünü olan satırlar için anlamlı.
       if (hasParent) {
         const childName = row.productName.trim();
@@ -1315,11 +1322,23 @@ export async function fetchBranchStockReceiptsSummary(
     if (b.quantity !== a.quantity) return b.quantity - a.quantity;
     return a.productName.localeCompare(b.productName, undefined, { sensitivity: "base" });
   };
+  const dominantUnit = (unitQuantities: Map<string, number>): string | null => {
+    let bestUnit: string | null = null;
+    let bestQty = -Infinity;
+    for (const [unit, qty] of unitQuantities) {
+      if (qty > bestQty) {
+        bestQty = qty;
+        bestUnit = unit;
+      }
+    }
+    return bestUnit;
+  };
   const parentBreakdown = Array.from(groups.values())
     .map((g) => ({
       productId: g.productId,
       productName: g.productName,
       quantity: g.quantity,
+      unit: dominantUnit(g.unitQuantities),
       children: Array.from(g.children.values()).sort(byQtyThenName),
     }))
     .sort(byQtyThenName);

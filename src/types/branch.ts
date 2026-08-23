@@ -332,6 +332,8 @@ export type BranchStockReceiptsParentBreakdownItem = {
   productId: number;
   productName: string;
   quantity: number;
+  /** Baskın birim: gruba katkı sağlayan satırlar içinde en yüksek miktara sahip birim (çoklu birimde de dolu gelir). */
+  unit?: string | null;
   /** Bu ana ürün altındaki alt ürün (leaf) kırılımı; ana ürünü olmayan satırlarda boş. */
   children: BranchStockReceiptsChildBreakdownItem[];
 };

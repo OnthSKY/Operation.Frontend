@@ -1110,7 +1110,10 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                                     />
                                   </svg>
                                 </span>
-                                <span className="min-w-0 truncate text-zinc-800">{g.productName}</span>
+                                <span className="min-w-0 truncate text-zinc-800">
+                                  {g.productName}
+                                  {g.unit ? <span className="text-zinc-400"> ({g.unit})</span> : null}
+                                </span>
                               </span>
                               <span className="shrink-0 font-semibold tabular-nums text-violet-950">
                                 {formatLocaleAmount(g.quantity, locale)}
@@ -1118,7 +1121,10 @@ export function BranchStockInboundPanel({ branchId }: Props) {
                             </button>
                           ) : (
                             <div className="flex items-baseline justify-between gap-3 py-0.5 pl-[1.25rem]">
-                              <span className="min-w-0 truncate text-zinc-800">{g.productName}</span>
+                              <span className="min-w-0 truncate text-zinc-800">
+                                {g.productName}
+                                {g.unit ? <span className="text-zinc-400"> ({g.unit})</span> : null}
+                              </span>
                               <span className="shrink-0 font-semibold tabular-nums text-violet-950">
                                 {formatLocaleAmount(g.quantity, locale)}
                               </span>
