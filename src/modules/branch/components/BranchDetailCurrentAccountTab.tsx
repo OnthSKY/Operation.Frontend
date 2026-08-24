@@ -30,6 +30,8 @@ import {
   useUploadBranchDocument,
 } from "@/modules/branch/hooks/useBranchQueries";
 import { BranchCurrentAccountReceiptsPanel } from "./BranchCurrentAccountReceiptsPanel";
+import { useBranchUninvoicedShipments } from "@/modules/branch/hooks/useBranchUninvoicedShipments";
+import { useRouter } from "next/navigation";
 import type { Locale } from "@/i18n/messages";
 import { cn } from "@/lib/cn";
 import { useI18n } from "@/i18n/context";
@@ -138,6 +140,67 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     enabled: active && branchId > 0,
   });
   const docsQuery = useBranchDocuments(branchId, active);
+  const { summary: uninvoicedSummary } = useBranchUninvoicedShipments(branchId, active);
+  const [uninvoicedOpen, setUninvoicedOpen] = useState(false);
+  const router = useRouter();
+
+  // Faturasız sevkiyat satırlarını gerçek sevkiyat (movement_batch_id) bazında grupla:
+  // her sevkiyat = bir fatura adayı. Batch yoksa hareket id'sine düşülür.
+  const uninvoicedShipments = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        key: string;
+        warehouseId: number | null;
+        warehouseName: string | null;
+        movementDate: string;
+        movementIds: number[];
+        lines: typeof uninvoicedSummary.lines;
+      }
+    >();
+    for (const l of uninvoicedSummary.lines) {
+      const key = l.movementBatchId ?? `wm-${l.warehouseMovementId}`;
+      const prev = map.get(key);
+      if (prev) {
+        prev.movementIds.push(l.warehouseMovementId);
+        prev.lines.push(l);
+        // En erken sevkiyat tarihini koru (aynı batch normalde tek tarih).
+        if (l.movementDate < prev.movementDate) prev.movementDate = l.movementDate;
+      } else {
+        map.set(key, {
+          key,
+          warehouseId: l.warehouseId ?? null,
+          warehouseName: l.warehouseName ?? null,
+          movementDate: l.movementDate,
+          movementIds: [l.warehouseMovementId],
+          lines: [l],
+        });
+      }
+    }
+    return Array.from(map.values());
+  }, [uninvoicedSummary.lines]);
+
+  // Mevcut "sevkiyattan faturala" akışını yeniden kullan: OAS sayfasına aynı query paramlarıyla
+  // yönlendir — sayfa sevkiyatı çekip ana ürünlere birleştirip fiyatlandırıyor.
+  const openInvoiceDraftForShipment = useCallback(
+    (shipment: (typeof uninvoicedShipments)[number]) => {
+      const warehouseId = shipment.warehouseId;
+      const primaryMovementId = shipment.movementIds[0];
+      if (!warehouseId || warehouseId <= 0 || !primaryMovementId) {
+        notify.error(t("branch.uninvoicedShipmentInvoiceMissingWarehouse"));
+        return;
+      }
+      const params = new URLSearchParams({
+        shipmentWarehouseId: String(warehouseId),
+        shipmentMovementId: String(primaryMovementId),
+        invoiceDraft: "1",
+      });
+      const ids = Array.from(new Set(shipment.movementIds.filter((n) => n > 0)));
+      if (ids.length > 1) params.set("shipmentMovementIds", ids.join(","));
+      router.push(`/products/order-account-statement?${params.toString()}`);
+    },
+    [router, t]
+  );
 
   const rows = useMemo(
     () =>
@@ -916,6 +979,99 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
           </Button>
         </div>
       </div>
+
+      {uninvoicedSummary.shipmentCount > 0 ? (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 sm:p-4">
+          <div className="flex items-start gap-2.5">
+            <svg
+              aria-hidden
+              className="mt-0.5 h-5 w-5 shrink-0 text-amber-600"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.9"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+              <path d="M12 9v4M12 17h.01" />
+            </svg>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-amber-900">
+                {t("branch.uninvoicedShipmentsBannerTitle")
+                  .replace("{{shipments}}", String(uninvoicedSummary.shipmentCount))
+                  .replace("{{lines}}", String(uninvoicedSummary.lineCount))}
+              </p>
+              <p className="mt-0.5 text-xs text-amber-800">
+                {t("branch.uninvoicedShipmentsBannerHint")}
+              </p>
+              <button
+                type="button"
+                className="mt-2 inline-flex min-h-[36px] items-center gap-1 rounded-lg border border-amber-300 bg-white px-2.5 py-1 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
+                aria-expanded={uninvoicedOpen}
+                onClick={() => setUninvoicedOpen((v) => !v)}
+              >
+                {uninvoicedOpen
+                  ? t("branch.uninvoicedShipmentsHideList")
+                  : t("branch.uninvoicedShipmentsShowList")}
+                <svg
+                  aria-hidden
+                  className={cn("h-3.5 w-3.5 transition-transform", uninvoicedOpen && "rotate-180")}
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+              {uninvoicedOpen ? (
+                <div className="mt-2 space-y-2 border-t border-amber-200 pt-2">
+                  {uninvoicedShipments.map((s) => (
+                    <div
+                      key={s.key}
+                      className="rounded-lg border border-amber-200 bg-white/70 p-2.5"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 text-xs text-amber-500">
+                          {formatLocaleDate(s.movementDate, locale)}
+                          {s.warehouseName ? <span> · {s.warehouseName}</span> : null}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="primary"
+                          className="min-h-[32px] shrink-0 px-2.5 py-1 text-xs"
+                          onClick={() => openInvoiceDraftForShipment(s)}
+                        >
+                          {t("branch.uninvoicedShipmentInvoiceCta")}
+                        </Button>
+                      </div>
+                      <ul className="mt-1.5 space-y-1 text-xs">
+                        {s.lines.map((l) => (
+                          <li
+                            key={l.warehouseMovementId}
+                            className="flex items-baseline justify-between gap-3"
+                          >
+                            <span className="min-w-0 truncate text-amber-900">{l.productName}</span>
+                            <span className="shrink-0 font-semibold tabular-nums text-amber-900">
+                              {formatLocaleAmount(l.remainingQuantity, locale)}
+                              {l.unit ? (
+                                <span className="font-normal text-amber-500"> {l.unit}</span>
+                              ) : null}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       <GeneralReceiptModal
         open={generalReceiptOpen}

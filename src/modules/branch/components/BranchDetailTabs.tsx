@@ -42,6 +42,7 @@ import { BranchTourismSeasonTab } from "./BranchTourismSeasonTab";
 import { BranchZReportAccountingTab } from "./BranchZReportAccountingTab";
 import { BranchNotesTab } from "./BranchNotesTab";
 import { BranchDetailDocumentsTab } from "./BranchDetailDocumentsTab";
+import { useBranchUninvoicedShipments } from "@/modules/branch/hooks/useBranchUninvoicedShipments";
 import {
   BRANCH_DAY_CLERK_HIDDEN_TABS,
   resolveBranchDetailTabOnBranchChange,
@@ -102,6 +103,10 @@ export function BranchDetailTabs({
 }: Props) {
   const { t, locale } = useI18n();
   const showStaffOnlyFeatures = !employeeSelfService && !branchDayClerkMode;
+  const { summary: uninvoicedSummary } = useBranchUninvoicedShipments(
+    branch.id,
+    !employeeSelfService
+  );
   const deleteTxMut = useDeleteBranchTransaction();
   const qcRoot = useQueryClient();
   const [advanceOpen, setAdvanceOpen] = useState(false);
@@ -981,6 +986,20 @@ export function BranchDetailTabs({
               onClick={() => setTab(x.id)}
             >
               {x.label}
+              {x.id === "currentAccount" && uninvoicedSummary.shipmentCount > 0 ? (
+                <span
+                  className={cn(
+                    "ml-1.5 inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[0.65rem] font-bold leading-none tabular-nums",
+                    tab === x.id ? "bg-white/20 text-white" : "bg-amber-500 text-white"
+                  )}
+                  title={t("branch.uninvoicedShipmentsBadgeTitle").replace(
+                    "{{count}}",
+                    String(uninvoicedSummary.shipmentCount)
+                  )}
+                >
+                  {uninvoicedSummary.shipmentCount}
+                </span>
+              ) : null}
             </button>
           ))}
         </div>

@@ -341,6 +341,16 @@ export const branch = {
   tabDocuments: "Documents",
   currentAccountHint:
     "Track invoices issued to this branch, collected amounts, and remaining open balance here. The PDF button is available only for invoices saved to system documents.",
+  uninvoicedShipmentsBadgeTitle: "{{count}} shipment(s) not invoiced",
+  uninvoicedShipmentsBannerTitle:
+    "{{shipments}} shipment(s) not yet invoiced ({{lines}} product line(s)).",
+  uninvoicedShipmentsBannerHint:
+    "Shipments sent to this branch have remaining quantity with no invoice. Create invoices to keep the current account accurate.",
+  uninvoicedShipmentsShowList: "Show uninvoiced shipments",
+  uninvoicedShipmentsHideList: "Hide list",
+  uninvoicedShipmentInvoiceCta: "Invoice",
+  uninvoicedShipmentInvoiceMissingWarehouse:
+    "This shipment's warehouse could not be found; cannot open the invoicing page.",
   currentAccountInvoicedTotal: "Total invoiced",
   currentAccountPaidTotal: "Total collected",
   currentAccountOpenTotal: "Open balance",

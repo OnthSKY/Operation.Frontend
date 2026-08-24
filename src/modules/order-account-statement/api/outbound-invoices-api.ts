@@ -109,6 +109,21 @@ export type ShipmentInvoiceabilityLine = {
   movementDate: string;
 };
 
+/** Bir şubeye gelen ve henüz tamamen faturalanmamış (kalan miktar > 0) sevkiyat satırı. */
+export type BranchUninvoicedShipmentLine = {
+  warehouseMovementId: number;
+  movementBatchId?: string | null;
+  productId: number;
+  productName: string;
+  unit?: string | null;
+  quantity: number;
+  alreadyInvoicedQuantity: number;
+  remainingQuantity: number;
+  movementDate: string;
+  warehouseId?: number | null;
+  warehouseName?: string | null;
+};
+
 export type CreateShipmentInvoiceRequest = Omit<CreateOutboundInvoiceRequest, "lines"> & {
   lines: OutboundInvoiceLineRequest[];
   shipmentLinks?: OutboundInvoiceShipmentLinkRequest[];
@@ -210,6 +225,14 @@ export async function fetchShipmentInvoiceability(
   warehouseMovementId: number
 ): Promise<ShipmentInvoiceabilityLine[]> {
   return apiRequest<ShipmentInvoiceabilityLine[]>(`/shipments/${warehouseMovementId}/invoiceability`);
+}
+
+export async function fetchBranchUninvoicedShipments(
+  branchId: number
+): Promise<BranchUninvoicedShipmentLine[]> {
+  return apiRequest<BranchUninvoicedShipmentLine[]>(
+    `/shipments/uninvoiced?branchId=${branchId}`
+  );
 }
 
 export async function fetchOutboundInvoices(): Promise<OutboundInvoiceResponse[]> {

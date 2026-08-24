@@ -347,6 +347,16 @@ export const branch = {
   tabDocuments: "Belgeler",
   currentAccountHint:
     "Şubeye kesilen faturalar, tahsil edilen tutarlar ve kalan açık bakiye burada izlenir. PDF butonu yalnızca sisteme kaydedilmiş faturalar için görünür.",
+  uninvoicedShipmentsBadgeTitle: "{{count}} sevkiyat faturalandırılmamış",
+  uninvoicedShipmentsBannerTitle:
+    "{{shipments}} sevkiyat henüz faturalandırılmamış ({{lines}} ürün satırı).",
+  uninvoicedShipmentsBannerHint:
+    "Bu şubeye giden sevkiyatların kalan miktarı için fatura kesilmemiş. Cari hesabın doğru olması için faturalandırın.",
+  uninvoicedShipmentsShowList: "Faturalanmamış sevkiyatları göster",
+  uninvoicedShipmentsHideList: "Listeyi gizle",
+  uninvoicedShipmentInvoiceCta: "Faturala",
+  uninvoicedShipmentInvoiceMissingWarehouse:
+    "Bu sevkiyatın deposu bulunamadı; faturalandırma sayfası açılamıyor.",
   currentAccountInvoicedTotal: "Toplam fatura",
   currentAccountPaidTotal: "Toplam tahsilat",
   currentAccountOpenTotal: "Açık bakiye",
