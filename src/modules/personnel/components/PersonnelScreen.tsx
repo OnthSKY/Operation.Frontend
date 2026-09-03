@@ -14,6 +14,7 @@ import {
   personnelKeys,
   usePersonnelList,
   useSoftDeletePersonnel,
+  useRestorePersonnel,
   type PersonnelListFilters,
 } from "@/modules/personnel/hooks/usePersonnelQueries";
 import { toErrorMessage } from "@/shared/lib/error-message";
@@ -46,6 +47,7 @@ import {
   Crown,
   UsersRound,
   FileText,
+  RotateCcw,
 } from "lucide-react";
 import { Tooltip } from "@/shared/ui/Tooltip";
 import {
@@ -485,6 +487,7 @@ function PersonnelRowActionsToolbar({
   onView,
   onEdit,
   onDeactivate,
+  onReactivate,
   onAdvance,
   onAddExpense,
   onPocketClaimToPatron,
@@ -497,6 +500,7 @@ function PersonnelRowActionsToolbar({
   viewLabel,
   editLabel,
   deactivateLabel,
+  reactivateLabel,
   framedDelete,
   t,
 }: {
@@ -509,6 +513,8 @@ function PersonnelRowActionsToolbar({
   onView?: () => void;
   onEdit: () => void;
   onDeactivate: () => void;
+  /** Pasif personeli yeniden aktifleştir (yalnızca sistem yöneticisi). */
+  onReactivate?: () => void;
   onAdvance: () => void;
   onAddExpense: () => void;
   onPocketClaimToPatron?: () => void;
@@ -521,6 +527,7 @@ function PersonnelRowActionsToolbar({
   viewLabel?: string;
   editLabel: string;
   deactivateLabel: string;
+  reactivateLabel: string;
   t: (key: string) => string;
 }) {
   const menuSections = buildPersonnelRowMenuSections({
@@ -560,6 +567,22 @@ function PersonnelRowActionsToolbar({
           >
             <TrashIcon />
           </button>
+        </Tooltip>
+      ) : onReactivate ? (
+        <Tooltip content={reactivateLabel} delayMs={200}>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={onReactivate}
+            aria-label={reactivateLabel}
+            title={reactivateLabel}
+            className={cn(
+              detailOpenIconButtonClass,
+              compact && "mr-2 min-h-11 min-w-11"
+            )}
+          >
+            <RotateCcw className="h-4 w-4" />
+          </Button>
         </Tooltip>
       ) : null}
       <div
@@ -622,6 +645,7 @@ export function PersonnelScreen() {
     if (personnelPortal) router.replace("/branches");
   }, [personnelPortal, router]);
   const softDeleteMut = useSoftDeletePersonnel();
+  const restoreMut = useRestorePersonnel();
   const { data: branches = [] } = useBranchesList();
   const branchNameById = useMemo(() => {
     const m = new Map<number, string>();
@@ -977,6 +1001,34 @@ export function PersonnelScreen() {
     [t, softDeleteMut]
   );
 
+  const openRestore = useCallback(
+    (p: Personnel) => {
+      const name = personnelDisplayName(p);
+      notifyConfirmToast({
+        toastId: "personnel-restore-confirm",
+        title: t("personnel.restoreTitle"),
+        message: (
+          <p>
+            <span className="font-medium text-zinc-900">{name}</span>
+            {" — "}
+            {t("personnel.restoreLead")}
+          </p>
+        ),
+        cancelLabel: t("common.cancel"),
+        confirmLabel: t("personnel.restoreConfirm"),
+        onConfirm: async () => {
+          try {
+            await restoreMut.mutateAsync(p.id);
+            notify.success(t("toast.personnelReactivated"));
+          } catch (e) {
+            notify.error(toErrorMessage(e));
+          }
+        },
+      });
+    },
+    [t, restoreMut]
+  );
+
   const openAdvance = (personnelId?: number) => {
     setAdvanceInitialPersonId(
       personnelId != null && personnelId > 0 ? personnelId : null
@@ -1324,6 +1376,9 @@ export function PersonnelScreen() {
                             viewLabel={t("personnel.viewPersonnelAria")}
                             onEdit={() => openEdit(p)}
                             onDeactivate={() => openSoftDelete(p)}
+                            onReactivate={
+                              isAdmin ? () => openRestore(p) : undefined
+                            }
                             onAdvance={() => openAdvance(p.id)}
                             onAddExpense={() => setExpensePersonnel(p)}
                             onPersonnelCashHandoverToPatron={() =>
@@ -1352,6 +1407,9 @@ export function PersonnelScreen() {
                             editLabel={t("personnel.editAriaLabel")}
                             deactivateLabel={t(
                               "personnel.softDeactivateAriaLabel"
+                            )}
+                            reactivateLabel={t(
+                              "personnel.reactivateAriaLabel"
                             )}
                             t={t}
                           />
@@ -1532,6 +1590,9 @@ export function PersonnelScreen() {
                             viewLabel={t("personnel.viewPersonnelAria")}
                             onEdit={() => openEdit(p)}
                             onDeactivate={() => openSoftDelete(p)}
+                            onReactivate={
+                              isAdmin ? () => openRestore(p) : undefined
+                            }
                             onAdvance={() => openAdvance(p.id)}
                             onAddExpense={() => setExpensePersonnel(p)}
                             onPersonnelCashHandoverToPatron={() =>
@@ -1558,6 +1619,9 @@ export function PersonnelScreen() {
                             editLabel={t("personnel.editAriaLabel")}
                             deactivateLabel={t(
                               "personnel.softDeactivateAriaLabel"
+                            )}
+                            reactivateLabel={t(
+                              "personnel.reactivateAriaLabel"
                             )}
                             t={t}
                           />

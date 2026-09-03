@@ -49,6 +49,7 @@ import {
   fetchPersonnelManagementSnapshot,
   fetchPersonnel,
   softDeletePersonnel,
+  restorePersonnel,
   updatePersonnel,
   uploadNationalIdPhotos,
   uploadProfilePhotos,
@@ -684,6 +685,17 @@ export function useSoftDeletePersonnel() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => softDeletePersonnel(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: personnelKeys.listRoot() });
+      invalidateWarehousePeopleOptions(qc);
+    },
+  });
+}
+
+export function useRestorePersonnel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => restorePersonnel(id),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: personnelKeys.listRoot() });
       invalidateWarehousePeopleOptions(qc);

@@ -5,6 +5,7 @@ export const toast = {
   personnelMovedToBranch: "Personel şubeye atandı",
   personnelMovedToBranchMany: "{count} personel şubeye atandı",
   personnelDeactivated: "Personel pasifleştirildi",
+  personnelReactivated: "Personel yeniden aktifleştirildi",
   advanceCreated: "Avans kaydedildi",
   advanceDeleted: "Avans silindi",
   branchCreated: "Şube kaydedildi",

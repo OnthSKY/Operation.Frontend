@@ -5,6 +5,7 @@ export const toast = {
   personnelMovedToBranch: "Personnel assigned to branch",
   personnelMovedToBranchMany: "{count} personnel assigned to branch",
   personnelDeactivated: "Personnel deactivated",
+  personnelReactivated: "Personnel reactivated",
   advanceCreated: "Advance recorded",
   advanceDeleted: "Advance deleted",
   branchCreated: "Branch saved",

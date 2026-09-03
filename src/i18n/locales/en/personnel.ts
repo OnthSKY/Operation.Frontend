@@ -841,6 +841,11 @@ export const personnel = {
   softDeleteDataNote:
     "Advances, salary payments, and other history stay intact — past data is not deleted.",
   softDeleteConfirm: "Yes, deactivate",
+  restoreTitle: "Reactivate personnel",
+  restoreLead:
+    "If you confirm, this person becomes active again, appears in the list, and can receive advances/salary again.",
+  restoreConfirm: "Yes, reactivate",
+  reactivateAriaLabel: "Reactivate personnel",
   badgePassive: "Inactive",
   editAriaLabel: "Edit personnel",
   softDeactivateAriaLabel: "Deactivate personnel",

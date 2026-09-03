@@ -852,6 +852,11 @@ export const personnel = {
   softDeleteDataNote:
     "Avans, maaş ödemesi ve diğer işlem geçmişi korunur — geçmiş veriler silinmez.",
   softDeleteConfirm: "Evet, pasifleştir",
+  restoreTitle: "Personeli yeniden aktifleştir",
+  restoreLead:
+    "Onaylarsanız personel yeniden aktif olur, listede görünür ve avans/maaş gibi işlemler yeniden yapılabilir.",
+  restoreConfirm: "Evet, aktifleştir",
+  reactivateAriaLabel: "Personeli yeniden aktifleştir",
   badgePassive: "Pasif",
   editAriaLabel: "Personeli düzenle",
   softDeactivateAriaLabel: "Personeli pasifleştir",

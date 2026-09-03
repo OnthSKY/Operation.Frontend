@@ -308,6 +308,11 @@ export async function softDeletePersonnel(id: number): Promise<void> {
   await apiRequest<null>(`/personnel/${id}`, { method: "DELETE" });
 }
 
+/** Pasif (soft-deleted) personeli yeniden aktif eder. Yalnızca sistem yöneticisi. */
+export async function restorePersonnel(id: number): Promise<void> {
+  await apiRequest<null>(`/personnel/${id}/restore`, { method: "POST" });
+}
+
 export type NationalIdPhotoSide = "front" | "back";
 
 export function personnelNationalIdPhotoUrl(
