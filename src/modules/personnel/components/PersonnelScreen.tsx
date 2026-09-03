@@ -715,6 +715,13 @@ export function PersonnelScreen() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [listPage, setListPage] = useState(1);
 
+  // Admin olmayan biri pasif/hepsi durumuna düşerse (ör. eski durum) aktif listeye geri çek.
+  useEffect(() => {
+    if (!isAdmin && filterStatus !== "active") {
+      setFilterStatus("active");
+    }
+  }, [isAdmin, filterStatus]);
+
   const debouncedFilterName = useDebouncedValue(
     filterName,
     PERSONNEL_FILTER_TEXT_DEBOUNCE_MS
@@ -826,13 +833,18 @@ export function PersonnelScreen() {
     [t]
   );
 
+  // Pasif personelleri yalnızca sistem yöneticisi görüntüleyebilir; admin olmayana
+  // "Hepsi" ve "Pasif" seçenekleri sunulmaz, yalnızca aktif liste kalır.
   const statusFilterOptions = useMemo(
-    () => [
-      { value: "all", label: t("personnel.filterStatusAll") },
-      { value: "active", label: t("personnel.filterStatusActive") },
-      { value: "passive", label: t("personnel.filterStatusPassive") },
-    ],
-    [t]
+    () =>
+      isAdmin
+        ? [
+            { value: "all", label: t("personnel.filterStatusAll") },
+            { value: "active", label: t("personnel.filterStatusActive") },
+            { value: "passive", label: t("personnel.filterStatusPassive") },
+          ]
+        : [{ value: "active", label: t("personnel.filterStatusActive") }],
+    [t, isAdmin]
   );
 
   const insuranceStatusFilterOptions = useMemo(
