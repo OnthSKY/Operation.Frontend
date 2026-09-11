@@ -18,6 +18,7 @@ export type PersonnelDetailRolesTabRoleKind = "manager" | "master" | "both";
  */
 export function PersonnelDetailRolesTab({
   personnel,
+  readOnly = false,
   branchNameById,
   orderedLinkedBranchIds,
   mgmtSnapLoading,
@@ -39,6 +40,8 @@ export function PersonnelDetailRolesTab({
   t,
 }: {
   personnel: Personnel;
+  /** Pasif (isDeleted) personelde depo rolü atama devre dışı. */
+  readOnly?: boolean;
   branchNameById: Map<number, string>;
   orderedLinkedBranchIds: number[];
   mgmtSnapLoading: boolean;
@@ -193,48 +196,56 @@ export function PersonnelDetailRolesTab({
           </div>
         ) : (
           <>
-            <div className="mt-3 rounded-xl border border-violet-200/80 bg-violet-50/50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-violet-900/85">
-                {t("personnel.detailRolesAssignWarehouseTitle")}
-              </p>
-              <p className="mt-2 text-xs leading-relaxed text-zinc-600">
-                {t("personnel.detailRolesAssignWarehouseIntro")}
-              </p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <Select
-                  name="assignWh"
-                  label={t("personnel.detailRolesAssignWarehouseSelect")}
-                  labelRequired
-                  options={warehouseAssignOptions}
-                  value={assignWarehouseId}
-                  onChange={(e) => onAssignWarehouseIdChange(e.target.value)}
-                  onBlur={() => {}}
-                  disabled={whLoading}
-                />
-                <Select
-                  name="assignRole"
-                  label={t("personnel.detailRolesAssignRoleLabel")}
-                  options={roleAssignOptions}
-                  value={assignRole}
-                  onChange={(e) =>
-                    onAssignRoleChange(
-                      e.target.value as PersonnelDetailRolesTabRoleKind,
-                    )
-                  }
-                  onBlur={() => {}}
-                  disabled={whLoading}
-                />
+            {readOnly ? (
+              <div className="mt-3 rounded-xl border border-zinc-200/90 bg-zinc-100/60 p-4">
+                <p className="text-sm leading-relaxed text-zinc-600">
+                  {t("personnel.detailRolesAssignPassiveNotice")}
+                </p>
               </div>
-              <Button
-                type="button"
-                variant="secondary"
-                className="mt-3 min-h-[44px] min-w-[44px]"
-                disabled={assignBusy || whLoading}
-                onClick={onApplyAssignment}
-              >
-                {t("personnel.detailRolesAssignApply")}
-              </Button>
-            </div>
+            ) : (
+              <div className="mt-3 rounded-xl border border-violet-200/80 bg-violet-50/50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-violet-900/85">
+                  {t("personnel.detailRolesAssignWarehouseTitle")}
+                </p>
+                <p className="mt-2 text-xs leading-relaxed text-zinc-600">
+                  {t("personnel.detailRolesAssignWarehouseIntro")}
+                </p>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <Select
+                    name="assignWh"
+                    label={t("personnel.detailRolesAssignWarehouseSelect")}
+                    labelRequired
+                    options={warehouseAssignOptions}
+                    value={assignWarehouseId}
+                    onChange={(e) => onAssignWarehouseIdChange(e.target.value)}
+                    onBlur={() => {}}
+                    disabled={whLoading}
+                  />
+                  <Select
+                    name="assignRole"
+                    label={t("personnel.detailRolesAssignRoleLabel")}
+                    options={roleAssignOptions}
+                    value={assignRole}
+                    onChange={(e) =>
+                      onAssignRoleChange(
+                        e.target.value as PersonnelDetailRolesTabRoleKind,
+                      )
+                    }
+                    onBlur={() => {}}
+                    disabled={whLoading}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="mt-3 min-h-[44px] min-w-[44px]"
+                  disabled={assignBusy || whLoading}
+                  onClick={onApplyAssignment}
+                >
+                  {t("personnel.detailRolesAssignApply")}
+                </Button>
+              </div>
+            )}
 
             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div className="min-w-0 sm:max-w-xs sm:flex-1 sm:ml-auto">

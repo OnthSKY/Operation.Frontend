@@ -2,6 +2,8 @@
 
 import type { Locale } from "@/i18n/messages";
 import { cn } from "@/lib/cn";
+import { Button } from "@/shared/ui/Button";
+import { PencilIcon } from "@/shared/ui/EyeIcon";
 import { StatusBadge } from "@/shared/components/StatusBadge";
 import { personnelDisplayName } from "@/modules/personnel/lib/display-name";
 import {
@@ -18,6 +20,16 @@ import { NationalIdPreviewImg } from "@/modules/personnel/components/NationalIdP
 import { PersonnelProfilePhotoAvatar } from "@/modules/personnel/components/PersonnelProfilePhotoAvatar";
 import type { Personnel } from "@/types/personnel";
 
+/** Şoför belgesi durumunu (var/yok/-) etikete çevirir. */
+function driverDocLabel(
+  value: boolean | null | undefined,
+  t: (k: string) => string,
+  dash: string,
+): string {
+  if (value == null) return dash;
+  return value ? t("personnel.driverDocYes") : t("personnel.driverDocNo");
+}
+
 /**
  * Profil sekmesi: özet kart (avatar + ad + statü + temel alanlar) + profil fotoğrafları
  * + kimlik fotoğrafları kartları. Salt-okunur sunum; tüm tıklanır eylemler header'da.
@@ -26,6 +38,7 @@ export function PersonnelDetailProfileTab({
   personnel,
   branchNameById,
   photoViewNonce,
+  onEdit,
   t,
   locale,
   dash,
@@ -34,6 +47,8 @@ export function PersonnelDetailProfileTab({
   branchNameById: Map<number, string>;
   /** Avatar URL'sini zorla yenilemek için nonce (cache-bust). */
   photoViewNonce: number;
+  /** Personel bilgilerini düzenle (form modalını açar). */
+  onEdit?: () => void;
   t: (k: string) => string;
   locale: Locale;
   dash: string;
@@ -78,6 +93,17 @@ export function PersonnelDetailProfileTab({
               ) : null}
             </div>
           </div>
+          {onEdit ? (
+            <Button
+              type="button"
+              variant="secondary"
+              className="min-h-[44px] shrink-0"
+              onClick={onEdit}
+            >
+              <PencilIcon className="mr-1.5 h-4 w-4" />
+              {t("personnel.edit")}
+            </Button>
+          ) : null}
         </div>
         <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
           <div className="flex justify-between gap-3 sm:block sm:space-y-1">
@@ -178,6 +204,26 @@ export function PersonnelDetailProfileTab({
               )}
             </dd>
           </div>
+          {personnel.jobTitle === "DRIVER" ? (
+            <>
+              <div className="flex justify-between gap-3 sm:block sm:space-y-1">
+                <dt className="text-zinc-500">
+                  {t("personnel.fieldDriverHasSrc")}
+                </dt>
+                <dd className="font-medium text-zinc-900 sm:text-left">
+                  {driverDocLabel(personnel.driverHasSrc, t, dash)}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3 sm:block sm:space-y-1">
+                <dt className="text-zinc-500">
+                  {t("personnel.fieldDriverHasPsychotechnical")}
+                </dt>
+                <dd className="font-medium text-zinc-900 sm:text-left">
+                  {driverDocLabel(personnel.driverHasPsychotechnical, t, dash)}
+                </dd>
+              </div>
+            </>
+          ) : null}
         </dl>
       </article>
 

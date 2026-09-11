@@ -349,6 +349,7 @@ export const branch = {
   uninvoicedShipmentsShowList: "Show uninvoiced shipments",
   uninvoicedShipmentsHideList: "Hide list",
   uninvoicedShipmentInvoiceCta: "Invoice",
+  uninvoicedShipmentCardLines: "{count} items",
   uninvoicedShipmentInvoiceMissingWarehouse:
     "This shipment's warehouse could not be found; cannot open the invoicing page.",
   currentAccountInvoicedTotal: "Total invoiced",

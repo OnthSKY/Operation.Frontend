@@ -1028,44 +1028,59 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                 </svg>
               </button>
               {uninvoicedOpen ? (
-                <div className="mt-2 space-y-2 border-t border-amber-200 pt-2">
-                  {uninvoicedShipments.map((s) => (
-                    <div
-                      key={s.key}
-                      className="rounded-lg border border-amber-200 bg-white/70 p-2.5"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 text-xs text-amber-500">
-                          {formatLocaleDate(s.movementDate, locale)}
-                          {s.warehouseName ? <span> · {s.warehouseName}</span> : null}
+                <div className="mt-2.5 border-t border-amber-200 pt-2.5">
+                  {/* Yatay kaydırılabilir kart şeridi: sevkiyat sayısı arttıkça sayfa uzamaz. */}
+                  <div className="-mx-1 flex snap-x snap-mandatory gap-2.5 overflow-x-auto px-1 pb-1.5">
+                    {uninvoicedShipments.map((s) => (
+                      <div
+                        key={s.key}
+                        className="flex w-[15rem] shrink-0 snap-start flex-col rounded-xl border border-amber-200 bg-white p-3 shadow-sm shadow-amber-900/5"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold tabular-nums text-amber-900">
+                            {formatLocaleDate(s.movementDate, locale)}
+                          </span>
+                          <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+                            {t("branch.uninvoicedShipmentCardLines").replace(
+                              "{count}",
+                              String(s.lines.length),
+                            )}
+                          </span>
                         </div>
+                        {s.warehouseName ? (
+                          <p className="mt-0.5 truncate text-[11px] text-amber-500">
+                            {s.warehouseName}
+                          </p>
+                        ) : null}
+                        <ul className="mt-2 max-h-32 flex-1 space-y-1 overflow-y-auto pr-0.5 text-xs">
+                          {s.lines.map((l) => (
+                            <li
+                              key={l.warehouseMovementId}
+                              className="flex items-baseline justify-between gap-2"
+                            >
+                              <span className="min-w-0 truncate text-amber-900">
+                                {l.productName}
+                              </span>
+                              <span className="shrink-0 font-semibold tabular-nums text-amber-900">
+                                {formatLocaleAmount(l.remainingQuantity, locale)}
+                                {l.unit ? (
+                                  <span className="font-normal text-amber-500"> {l.unit}</span>
+                                ) : null}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
                         <Button
                           type="button"
                           variant="primary"
-                          className="min-h-[32px] shrink-0 px-2.5 py-1 text-xs"
+                          className="mt-2.5 min-h-[36px] w-full px-2.5 py-1 text-xs"
                           onClick={() => openInvoiceDraftForShipment(s)}
                         >
                           {t("branch.uninvoicedShipmentInvoiceCta")}
                         </Button>
                       </div>
-                      <ul className="mt-1.5 space-y-1 text-xs">
-                        {s.lines.map((l) => (
-                          <li
-                            key={l.warehouseMovementId}
-                            className="flex items-baseline justify-between gap-3"
-                          >
-                            <span className="min-w-0 truncate text-amber-900">{l.productName}</span>
-                            <span className="shrink-0 font-semibold tabular-nums text-amber-900">
-                              {formatLocaleAmount(l.remainingQuantity, locale)}
-                              {l.unit ? (
-                                <span className="font-normal text-amber-500"> {l.unit}</span>
-                              ) : null}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               ) : null}
             </div>

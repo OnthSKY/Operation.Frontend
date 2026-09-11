@@ -149,6 +149,9 @@ export function PersonnelNotesTab({ personnelId, active, readOnly = false }: Pro
                   {row.updatedAt !== row.createdAt
                     ? ` · ${formatLocaleDateTime(row.updatedAt, locale)}`
                     : null}
+                  {row.createdByName
+                    ? ` · ${t("personnel.notesCreatedBy").replace("{name}", row.createdByName)}`
+                    : null}
                 </p>
               </div>
               {!readOnly ? (

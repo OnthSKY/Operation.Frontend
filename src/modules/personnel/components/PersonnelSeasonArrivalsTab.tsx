@@ -37,12 +37,16 @@ import { useEffect, useId, useMemo, useState } from "react";
 function buildUpdateBody(
   term: PersonnelEmploymentTerm,
   arrivalDate: string,
-  clearArrivalDate: boolean = false
+  clearArrivalDate: boolean = false,
+  departureDate: string | null = null,
+  clearDepartureDate: boolean = false
 ): UpdatePersonnelEmploymentTermBody {
   return {
     validFrom: term.validFrom.slice(0, 10),
     arrivalDate: arrivalDate.slice(0, 10),
     clearArrivalDate,
+    departureDate: departureDate ? departureDate.slice(0, 10) : null,
+    clearDepartureDate,
     branchId: term.branchId,
     salary: term.salary,
     currencyCode: term.currencyCode,
@@ -57,11 +61,13 @@ function buildUpdateBody(
 function buildCreateBody(
   open: PersonnelEmploymentTerm,
   validFrom: string,
-  arrivalDate: string
+  arrivalDate: string,
+  departureDate: string | null
 ): CreatePersonnelEmploymentTermBody {
   return {
     validFrom: validFrom.slice(0, 10),
     arrivalDate: arrivalDate.slice(0, 10),
+    departureDate: departureDate ? departureDate.slice(0, 10) : null,
     branchId: open.branchId,
     salary: open.salary,
     currencyCode: open.currencyCode,
@@ -111,8 +117,10 @@ export function PersonnelSeasonArrivalsTab({
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [newValidFrom, setNewValidFrom] = useState("");
   const [newArrivalDate, setNewArrivalDate] = useState(() => localIsoDate());
+  const [newDepartureDate, setNewDepartureDate] = useState("");
   const [editingTerm, setEditingTerm] = useState<PersonnelEmploymentTerm | null>(null);
   const [editingArrivalDraft, setEditingArrivalDraft] = useState("");
+  const [editingDepartureDraft, setEditingDepartureDraft] = useState("");
 
   const sortedTerms = useMemo(() => {
     return [...terms].sort((a, b) => {
@@ -140,15 +148,23 @@ export function PersonnelSeasonArrivalsTab({
     if (readOnly || !openTerm) return;
     const vf = newValidFrom.trim().slice(0, 10);
     const ad = newArrivalDate.trim().slice(0, 10);
+    const dep = newDepartureDate.trim().slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(vf) || !/^\d{4}-\d{2}-\d{2}$/.test(ad)) {
       notify.error(t("personnel.seasonArrivalsInvalidDate"));
       return;
     }
+    if (dep !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(dep)) {
+      notify.error(t("personnel.seasonArrivalsInvalidDate"));
+      return;
+    }
     try {
-      await createMut.mutateAsync(buildCreateBody(openTerm, vf, ad));
+      await createMut.mutateAsync(
+        buildCreateBody(openTerm, vf, ad, dep === "" ? null : dep)
+      );
       notify.success(t("personnel.seasonArrivalsAddSuccess"));
       setNewValidFrom("");
       setNewArrivalDate(localIsoDate());
+      setNewDepartureDate("");
       setAddModalOpen(false);
     } catch (e) {
       notify.error(toErrorMessage(e));
@@ -178,11 +194,13 @@ export function PersonnelSeasonArrivalsTab({
     if (readOnly) return;
     setEditingTerm(row);
     setEditingArrivalDraft(row.arrivalDate.slice(0, 10));
+    setEditingDepartureDraft(row.departureDate ? row.departureDate.slice(0, 10) : "");
   };
 
   const onCancelRowEdit = () => {
     setEditingTerm(null);
     setEditingArrivalDraft("");
+    setEditingDepartureDraft("");
   };
 
   const onSaveRowEdit = async () => {
@@ -193,10 +211,17 @@ export function PersonnelSeasonArrivalsTab({
       notify.error(t("personnel.seasonArrivalsInvalidDate"));
       return;
     }
+    const dep = editingDepartureDraft.trim().slice(0, 10);
+    if (dep !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(dep)) {
+      notify.error(t("personnel.seasonArrivalsInvalidDate"));
+      return;
+    }
+    // Boş bırakılırsa ayrılış tarihi temizlenir; doluysa yazılır.
+    const clearDeparture = dep === "";
     try {
       await updateMut.mutateAsync({
         termId: editingTerm.id,
-        body: buildUpdateBody(editingTerm, ad),
+        body: buildUpdateBody(editingTerm, ad, false, clearDeparture ? null : dep, clearDeparture),
       });
       notify.success(t("personnel.seasonArrivalsSaveSuccess"));
       onCancelRowEdit();
@@ -257,6 +282,7 @@ export function PersonnelSeasonArrivalsTab({
                   onClick={() => {
                     setNewValidFrom("");
                     setNewArrivalDate(localIsoDate());
+                    setNewDepartureDate("");
                     setAddModalOpen(true);
                   }}
                 >
@@ -271,9 +297,15 @@ export function PersonnelSeasonArrivalsTab({
                 return (
                   <li key={row.id} className="rounded-xl border border-zinc-200 bg-white p-3 shadow-sm">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-sm font-semibold text-zinc-900">
-                        {t("personnel.seasonArrivalsColArrival")}: {formatIso(row.arrivalDate, locale, dash)}
-                      </p>
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-900">
+                          {t("personnel.seasonArrivalsColArrival")}: {formatIso(row.arrivalDate, locale, dash)}
+                        </p>
+                        <p className="mt-0.5 text-sm font-semibold text-zinc-900">
+                          {t("personnel.seasonArrivalsColDeparture")}:{" "}
+                          {row.departureDate ? formatIso(row.departureDate, locale, dash) : dash}
+                        </p>
+                      </div>
                       <span
                         className={
                           isOpen
@@ -353,6 +385,7 @@ export function PersonnelSeasonArrivalsTab({
               <TableHead>
                 <TableRow>
                   <TableHeader>{t("personnel.seasonArrivalsColArrival")}</TableHeader>
+                  <TableHeader>{t("personnel.seasonArrivalsColDeparture")}</TableHeader>
                   <TableHeader>{t("personnel.seasonArrivalsColValidFrom")}</TableHeader>
                   <TableHeader>{t("personnel.seasonArrivalsColValidTo")}</TableHeader>
                   <TableHeader>{t("personnel.seasonArrivalsColStatus")}</TableHeader>
@@ -373,6 +406,14 @@ export function PersonnelSeasonArrivalsTab({
                         <span className="font-medium tabular-nums text-zinc-900">
                           {formatIso(row.arrivalDate, locale, dash)}
                         </span>
+                      </TableCell>
+                      <TableCell
+                        dataLabel={t("personnel.seasonArrivalsColDeparture")}
+                        className="align-middle tabular-nums text-zinc-800"
+                      >
+                        {row.departureDate
+                          ? formatIso(row.departureDate, locale, dash)
+                          : dash}
                       </TableCell>
                       <TableCell
                         dataLabel={t("personnel.seasonArrivalsColValidFrom")}
@@ -498,6 +539,16 @@ export function PersonnelSeasonArrivalsTab({
               onChange={(e) => setNewArrivalDate(e.target.value)}
               disabled={createMut.isPending}
             />
+            <DateField
+              mode="date"
+              label={t("personnel.seasonArrivalsNewDeparture")}
+              value={newDepartureDate}
+              onChange={(e) => setNewDepartureDate(e.target.value)}
+              disabled={createMut.isPending}
+            />
+            <p className="text-[0.7rem] text-zinc-500">
+              {t("personnel.seasonArrivalsDepartureOptionalHint")}
+            </p>
             <p className="text-[0.7rem] text-zinc-500">
               {openTerm.branchId != null && openTerm.branchId > 0
                 ? t("personnel.seasonArrivalsSalaryCarryNoteWithBranch").replace(
@@ -540,6 +591,16 @@ export function PersonnelSeasonArrivalsTab({
               onChange={(e) => setEditingArrivalDraft(e.target.value)}
               disabled={updateMut.isPending}
             />
+            <DateField
+              mode="date"
+              label={t("personnel.seasonArrivalsColDeparture")}
+              value={editingDepartureDraft}
+              onChange={(e) => setEditingDepartureDraft(e.target.value)}
+              disabled={updateMut.isPending}
+            />
+            <p className="text-[0.7rem] text-zinc-500">
+              {t("personnel.seasonArrivalsDepartureOptionalHint")}
+            </p>
             <p className="text-xs text-zinc-600">
               {t("personnel.seasonArrivalsColValidFrom")}: {formatIso(editingTerm.validFrom, locale, dash)}
             </p>
@@ -556,7 +617,12 @@ export function PersonnelSeasonArrivalsTab({
               <Button
                 type="button"
                 className="min-h-[44px] min-w-[44px]"
-                disabled={updateMut.isPending || editingArrivalDraft.slice(0, 10) === editingTerm.arrivalDate.slice(0, 10)}
+                disabled={
+                  updateMut.isPending ||
+                  (editingArrivalDraft.slice(0, 10) === editingTerm.arrivalDate.slice(0, 10) &&
+                    editingDepartureDraft.slice(0, 10) ===
+                      (editingTerm.departureDate ? editingTerm.departureDate.slice(0, 10) : ""))
+                }
                 onClick={() => void onSaveRowEdit()}
               >
                 {t("common.save")}

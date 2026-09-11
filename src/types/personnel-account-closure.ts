@@ -4,6 +4,8 @@ export type PersonnelEmploymentTerm = {
   validFrom: string;
   validTo: string | null;
   arrivalDate: string;
+  /** Sezon bitişi / ayrılış tarihi (opsiyonel, bilgi amaçlı). */
+  departureDate: string | null;
   branchId: number | null;
   salary: number | null;
   currencyCode: string;
@@ -19,6 +21,8 @@ export type PersonnelEmploymentTerm = {
 export type CreatePersonnelEmploymentTermBody = {
   validFrom: string;
   arrivalDate: string;
+  /** Sezon bitişi / ayrılış tarihi (opsiyonel). */
+  departureDate?: string | null;
   branchId?: number | null;
   salary?: number | null;
   currencyCode: string;
@@ -34,6 +38,10 @@ export type UpdatePersonnelEmploymentTermBody = {
   validFrom?: string | null;
   arrivalDate?: string | null;
   clearArrivalDate?: boolean;
+  /** Sezon bitişi / ayrılış tarihi (opsiyonel). */
+  departureDate?: string | null;
+  /** True olduğunda sezon bitişi / ayrılış tarihi temizlenir. */
+  clearDepartureDate?: boolean;
   branchId?: number | null;
   salary?: number | null;
   currencyCode: string;
@@ -42,6 +50,13 @@ export type UpdatePersonnelEmploymentTermBody = {
   isManualEmployerCostOverride: boolean;
   manualTotalEmployerCost?: number | null;
   manualOverrideNote?: string | null;
+};
+
+/** PATCH /api/personnel/{id}/salary-terms/{termId}/salary — geçmiş (kapalı) dönem maaş düzeltmesi */
+export type UpdatePersonnelEmploymentTermSalaryBody = {
+  salary: number | null;
+  currencyCode: string;
+  salaryType: string;
 };
 
 /** GET /api/personnel/{id}/account-closure-preview */

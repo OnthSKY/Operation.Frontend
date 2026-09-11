@@ -6,6 +6,7 @@ import {
   canConsumeBranchStock,
   canSeeBranchFinancials,
   canSeeUiModule,
+  canViewAllBranches,
   PERM,
 } from "@/lib/auth/permissions";
 import { isPersonnelPortalRole, postLoginHomePath } from "@/lib/auth/roles";
@@ -73,6 +74,9 @@ export function DashboardScreen() {
 
   const todayIso = localIsoDate();
   const showFinancials = canSeeBranchFinancials(user);
+  // Şube kapsamlı (tek/çoklu şube) kullanıcıya şube kolonu olmayan global varlıklar
+  // (depo/tedarikçi/ürün sayıları + depo stok özeti) gizlenir — backend de bunları 0/boş döner.
+  const crossBranch = canViewAllBranches(user);
   const canBranches = canSeeUiModule(user, PERM.uiBranches);
   const canPersonnel = canSeeUiModule(user, PERM.uiPersonnel);
   const canWarehouse = canSeeUiModule(user, PERM.uiWarehouse);
@@ -921,30 +925,36 @@ export function DashboardScreen() {
                     n: fmtNum(ov?.operations.activeBranchCount),
                   })}
                 </li>
-                <li>
-                  {fillDashboardTemplate(t("dashboard.ovWarehousesCount"), {
-                    n: fmtNum(ov?.operations.activeWarehouseCount),
-                  })}
-                </li>
-                <li>
-                  {fillDashboardTemplate(t("dashboard.ovSuppliersCount"), {
-                    n: fmtNum(ov?.operations.activeSupplierCount),
-                  })}
-                </li>
+                {crossBranch ? (
+                  <li>
+                    {fillDashboardTemplate(t("dashboard.ovWarehousesCount"), {
+                      n: fmtNum(ov?.operations.activeWarehouseCount),
+                    })}
+                  </li>
+                ) : null}
+                {crossBranch ? (
+                  <li>
+                    {fillDashboardTemplate(t("dashboard.ovSuppliersCount"), {
+                      n: fmtNum(ov?.operations.activeSupplierCount),
+                    })}
+                  </li>
+                ) : null}
                 <li>
                   {fillDashboardTemplate(t("dashboard.ovVehiclesCount"), {
                     n: fmtNum(ov?.operations.activeVehicleCount),
                   })}
                 </li>
-                <li>
-                  {fillDashboardTemplate(t("dashboard.ovProductsCount"), {
-                    n: fmtNum(ov?.operations.activeProductCount),
-                  })}
-                </li>
+                {crossBranch ? (
+                  <li>
+                    {fillDashboardTemplate(t("dashboard.ovProductsCount"), {
+                      n: fmtNum(ov?.operations.activeProductCount),
+                    })}
+                  </li>
+                ) : null}
               </ul>
             </DashCard>
 
-            {canWarehouse ? (
+            {canWarehouse && crossBranch ? (
               <DashCard
                 title={t("dashboard.ovCardWarehouseTitle")}
                 description={t("dashboard.ovCardWarehouseDesc")}

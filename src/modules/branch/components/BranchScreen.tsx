@@ -2,7 +2,7 @@
 
 import { useI18n } from "@/i18n/context";
 import { isPersonnelPortalRole } from "@/lib/auth/roles";
-import { canConsumeBranchStock } from "@/lib/auth/permissions";
+import { canConsumeBranchStock, hasEffectivePermission, PERM } from "@/lib/auth/permissions";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   useBranchesList,
@@ -49,6 +49,7 @@ import {
   ReceiptText,
   SlidersHorizontal,
   Trash2,
+  Undo2,
   UserPlus,
   Wallet,
 } from "lucide-react";
@@ -76,6 +77,7 @@ import {
   ConsumptionQuickEntryModal,
   type ConsumptionQuickEntryMode,
 } from "./ConsumptionQuickEntryModal";
+import { BranchBulkReturnToWarehouseModal } from "./BranchBulkReturnToWarehouseModal";
 
 function seasonLabel(status: BranchSeasonStatus, t: (key: string) => string): string {
   switch (status) {
@@ -478,6 +480,8 @@ export function BranchScreen() {
     setQuickTx({ branchId: id, preset: "dayClose", nonce: Date.now() });
   }, []);
   const mayConsume = canConsumeBranchStock(user);
+  const mayReturnToWarehouse = hasEffectivePermission(user, PERM.warehouseTransferWrite);
+  const [returnBranch, setReturnBranch] = useState<{ id: number; name: string } | null>(null);
   const openBranchQuickConsume = useCallback((id: number) => {
     setQuickStock({ branchId: id, mode: "consume" });
   }, []);
@@ -554,25 +558,35 @@ export function BranchScreen() {
           },
         ],
       };
-      const stock: QuickActionsMenuSection | null = mayConsume
-        ? {
-            storyTitle: t("branch.quickMenuStoryStock"),
-            items: [
-              {
-                id: "quickConsume",
-                label: t("branchStockConsumption.actionQuickConsume"),
-                icon: <PackageMinus />,
-                onSelect: () => openBranchQuickConsume(b.id),
-              },
-              {
-                id: "stockAdjust",
-                label: t("branchStockConsumption.actionAdjust"),
-                icon: <SlidersHorizontal />,
-                onSelect: () => openBranchQuickAdjust(b.id),
-              },
-            ],
+      const stockItems: QuickActionsMenuSection["items"] = [];
+      if (mayConsume) {
+        stockItems.push(
+          {
+            id: "quickConsume",
+            label: t("branchStockConsumption.actionQuickConsume"),
+            icon: <PackageMinus />,
+            onSelect: () => openBranchQuickConsume(b.id),
+          },
+          {
+            id: "stockAdjust",
+            label: t("branchStockConsumption.actionAdjust"),
+            icon: <SlidersHorizontal />,
+            onSelect: () => openBranchQuickAdjust(b.id),
           }
-        : null;
+        );
+      }
+      if (mayReturnToWarehouse) {
+        stockItems.push({
+          id: "returnToWarehouse",
+          label: "Depoya iade",
+          icon: <Undo2 />,
+          onSelect: () => setReturnBranch({ id: b.id, name: b.name }),
+        });
+      }
+      const stock: QuickActionsMenuSection | null =
+        stockItems.length > 0
+          ? { storyTitle: t("branch.quickMenuStoryStock"), items: stockItems }
+          : null;
       // Detayı aç satırda göz ikonu olarak zaten var; menüde düzenle + cari yeterli. Staff-only.
       const navigation: QuickActionsMenuSection | null = personnelPortal
         ? null
@@ -648,6 +662,7 @@ export function BranchScreen() {
       t,
       personnelPortal,
       mayConsume,
+      mayReturnToWarehouse,
       openBranchEdit,
       openBranchCurrentAccount,
       openBranchQuickIncome,
@@ -1176,6 +1191,15 @@ export function BranchScreen() {
           branchId={quickStock.branchId}
           mode={quickStock.mode}
           onClose={() => setQuickStock(null)}
+        />
+      ) : null}
+
+      {returnBranch != null ? (
+        <BranchBulkReturnToWarehouseModal
+          open
+          branchId={returnBranch.id}
+          branchName={returnBranch.name}
+          onClose={() => setReturnBranch(null)}
         />
       ) : null}
 

@@ -461,6 +461,7 @@ export const personnel = {
   seasonArrivalsIntro:
     "Each row is an employment period; “Season arrival” is when they joined the branch / started for that tourism season. You can edit the current period’s arrival or add a new period (salary and settings carry forward from the current period). Trash: removes the latest period; blocked if monthly salary snapshots exist.",
   seasonArrivalsColArrival: "Season arrival",
+  seasonArrivalsColDeparture: "Season end",
   seasonArrivalsColValidFrom: "Period start",
   seasonArrivalsColValidTo: "Period end",
   seasonArrivalsColStatus: "Status",
@@ -476,6 +477,9 @@ export const personnel = {
     "“Period start” must be after the current period start (now: {date}).",
   seasonArrivalsNewValidFrom: "New period start",
   seasonArrivalsNewArrival: "New arrival date",
+  seasonArrivalsNewDeparture: "Season end / departure date",
+  seasonArrivalsDepartureOptionalHint:
+    "Season end / departure date is optional; leaving it empty clears any saved date.",
   seasonArrivalsAddSubmit: "Add period",
   seasonArrivalsSalaryCarryNote:
     "Salary and payroll settings are copied from the current period for the new row.",
@@ -923,6 +927,22 @@ export const personnel = {
   salaryHistoryWorkedDays: "Worked days: {n}",
   salaryHistorySeasonTitle: "Salary earned by season",
   salaryHistorySeasonEmpty: "No closed-season salary record.",
+  salaryHistoryAddButton: "Add salary period",
+  salaryHistoryAddHint:
+    "A new salary period starts after the current one; the salary applies from this date.",
+  salaryHistoryValidFrom: "Valid from",
+  salaryHistoryAmount: "Salary amount",
+  salaryHistorySalaryType: "Salary type",
+  salaryHistoryEdit: "Edit salary",
+  salaryHistoryEditCurrent: "Edit current salary",
+  salaryHistoryDelete: "Delete period",
+  salaryHistoryInvalidAmount: "Enter a valid salary amount.",
+  salaryHistoryAddSuccess: "Salary period added.",
+  salaryHistorySaveSuccess: "Past salary updated.",
+  salaryHistoryDeleteSuccess: "Salary period deleted.",
+  salaryHistoryDeleteConfirmTitle: "Delete salary period",
+  salaryHistoryDeleteConfirmMessage:
+    "Remove this salary period? Blocked if monthly salary records reference it.",
   yearClosuresIntro:
     "Calendar-year account closures for this person. If a year was closed by mistake, you can reopen it.",
   yearClosuresStoryHint:
@@ -979,6 +999,7 @@ export const personnel = {
   notesAdd: "Add note",
   notesEmpty: "No notes for this person yet.",
   notesEdit: "Edit",
+  notesCreatedBy: "By: {name}",
   notesDelete: "Delete",
   notesDeleteAsk: "Delete this note?",
   notesDeleteConfirm: "Yes, delete",
@@ -1015,6 +1036,8 @@ export const personnel = {
     "Create a login user for this person from the personnel screen (system user / username).",
   detailRolesWarehouseNeedUserStep2:
     "From Warehouses, open the warehouse and set **that user** as responsible manager or master. After the account exists, you can also assign from this tab using the form below.",
+  detailRolesAssignPassiveNotice:
+    "Warehouse roles can't be assigned while the personnel is passive. Reactivate the personnel first.",
   detailRolesAssignWarehouseTitle: "Link to a warehouse from here",
   detailRolesAssignWarehouseIntro:
     "If this person has a linked login user, pick a warehouse and role. The other responsible slot on that warehouse is left unchanged.",

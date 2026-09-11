@@ -15,6 +15,7 @@ import {
 import { CalendarCheckIcon, detailOpenIconButtonClass, PencilIcon } from "@/shared/ui/EyeIcon";
 import { TrashIcon, trashIconActionButtonClass } from "@/shared/ui/TrashIcon";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
+import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatOptionalIso } from "@/modules/personnel/lib/personnel-formatters";
 import type { Personnel, PersonnelInsurancePeriod } from "@/types/personnel";
 
@@ -26,6 +27,9 @@ export function PersonnelDetailInsuranceTab({
   personnel,
   insurancePeriods,
   insurancePeriodsPending,
+  insurancePeriodsError = false,
+  insurancePeriodsErr,
+  onRetry,
   onAddPeriod,
   onEditPeriod,
   onDeletePeriod,
@@ -37,6 +41,9 @@ export function PersonnelDetailInsuranceTab({
   personnel: Personnel;
   insurancePeriods: PersonnelInsurancePeriod[];
   insurancePeriodsPending: boolean;
+  insurancePeriodsError?: boolean;
+  insurancePeriodsErr?: unknown;
+  onRetry?: () => void;
   onAddPeriod: () => void;
   onEditPeriod: (row: PersonnelInsurancePeriod) => void;
   onDeletePeriod: (row: PersonnelInsurancePeriod) => void;
@@ -163,6 +170,22 @@ export function PersonnelDetailInsuranceTab({
         </p>
         {insurancePeriodsPending ? (
           <p className="mt-3 text-sm text-zinc-500">{t("common.loading")}</p>
+        ) : insurancePeriodsError ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <p className="text-sm text-red-600">
+              {toErrorMessage(insurancePeriodsErr)}
+            </p>
+            {onRetry ? (
+              <Button
+                type="button"
+                variant="secondary"
+                className="min-h-[44px] min-w-[44px]"
+                onClick={onRetry}
+              >
+                {t("common.retry")}
+              </Button>
+            ) : null}
+          </div>
         ) : insurancePeriods.length === 0 ? (
           <p className="mt-3 text-sm text-zinc-500">
             {t("personnel.insurancePeriodsEmpty")}

@@ -33,6 +33,7 @@ import { PersonnelCostsPdfScopeModal } from "@/modules/personnel/components/Pers
 import { PersonnelDetailInsuranceTab } from "@/modules/personnel/components/PersonnelDetailInsuranceTab";
 import { PersonnelDetailYearClosuresTab } from "@/modules/personnel/components/PersonnelDetailYearClosuresTab";
 import { PersonnelDetailProfileTab } from "@/modules/personnel/components/PersonnelDetailProfileTab";
+import { PersonnelFormModal } from "@/modules/personnel/components/PersonnelFormModal";
 import { PersonnelDetailCostsTab } from "@/modules/personnel/components/PersonnelDetailCostsTab";
 import { PersonnelDetailRolesTab } from "@/modules/personnel/components/PersonnelDetailRolesTab";
 import {
@@ -232,16 +233,22 @@ export function PersonnelDetailModal({
     null | { kind: "patron" | "staff"; branchId: number; currency: string }
   >(null);
   const [detailAdvanceOpen, setDetailAdvanceOpen] = useState(false);
+  const [editPersonnelOpen, setEditPersonnelOpen] = useState(false);
   const [insuranceAddOpen, setInsuranceAddOpen] = useState(false);
   const [insuranceEditPeriod, setInsuranceEditPeriod] =
     useState<PersonnelInsurancePeriod | null>(null);
   const photoViewNonce = 0;
   const insurancePid = personnel?.id ?? 0;
-  const { data: insurancePeriods = [], isPending: insurancePeriodsPending } =
-    usePersonnelInsurancePeriods(
-      insurancePid,
-      open && insurancePid > 0 && tab === "insurance",
-    );
+  const {
+    data: insurancePeriods = [],
+    isPending: insurancePeriodsPending,
+    isError: insurancePeriodsError,
+    error: insurancePeriodsErr,
+    refetch: refetchInsurancePeriods,
+  } = usePersonnelInsurancePeriods(
+    insurancePid,
+    open && insurancePid > 0 && tab === "insurance",
+  );
   const insuranceMutations = usePersonnelInsuranceMutations({
     personnel,
     onAfterDelete: (row) => {
@@ -545,6 +552,7 @@ export function PersonnelDetailModal({
                     personnel={personnel}
                     branchNameById={branchNameById}
                     photoViewNonce={photoViewNonce}
+                    onEdit={() => setEditPersonnelOpen(true)}
                     t={t}
                     locale={locale}
                     dash={dash}
@@ -613,6 +621,9 @@ export function PersonnelDetailModal({
                     personnel={personnel}
                     insurancePeriods={insurancePeriods}
                     insurancePeriodsPending={insurancePeriodsPending}
+                    insurancePeriodsError={insurancePeriodsError}
+                    insurancePeriodsErr={insurancePeriodsErr}
+                    onRetry={() => void refetchInsurancePeriods()}
                     onAddPeriod={() => setInsuranceAddOpen(true)}
                     onEditPeriod={(row) => setInsuranceEditPeriod(row)}
                     onDeletePeriod={insuranceMutations.askDeletePeriod}
@@ -700,6 +711,8 @@ export function PersonnelDetailModal({
                   />
                 ) : tab === "salaryHistory" ? (
                   <PersonnelSalaryHistoryView
+                    personnelId={personnel.id}
+                    readOnly={personnel.isDeleted}
                     currentSalary={personnel.salary}
                     currencyCode={personnel.currencyCode}
                     terms={employmentTerms}
@@ -721,6 +734,7 @@ export function PersonnelDetailModal({
                 ) : (
                   <PersonnelDetailRolesTab
                     personnel={personnel}
+                    readOnly={personnel.isDeleted}
                     branchNameById={branchNameById}
                     orderedLinkedBranchIds={orderedLinkedBranchIds}
                     mgmtSnapLoading={mgmtSnapLoading}
@@ -852,6 +866,11 @@ export function PersonnelDetailModal({
           initialPersonnelId={personnel.id}
         />
       ) : null}
+      <PersonnelFormModal
+        open={editPersonnelOpen && personnel != null}
+        onClose={() => setEditPersonnelOpen(false)}
+        initial={personnel}
+      />
       <AddPersonnelInsurancePeriodModal
         open={insuranceAddOpen && insurancePid > 0}
         onClose={() => setInsuranceAddOpen(false)}

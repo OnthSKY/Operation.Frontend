@@ -467,6 +467,7 @@ export const personnel = {
   seasonArrivalsIntro:
     "Her satır bir istihdam dönemidir; «Sezon gelişi» turizm sezonunda şubeye geliş / çalışmaya başlama tarihidir. Güncel dönem için tarihi düzenleyebilir veya yeni dönem ekleyebilirsiniz (maaş ve tür bilgileri güncel dönemden devralınır). Çöp kutusu: son eklenen dönemi kaldırır; maaş ayı hesapları oluştuysa engellenir.",
   seasonArrivalsColArrival: "Sezon gelişi",
+  seasonArrivalsColDeparture: "Sezon bitişi",
   seasonArrivalsColValidFrom: "Dönem başı",
   seasonArrivalsColValidTo: "Dönem sonu",
   seasonArrivalsColStatus: "Durum",
@@ -483,6 +484,9 @@ export const personnel = {
     "«Dönem başı» güncel dönemin başlangıcından sonra olmalıdır (şu an: {date}).",
   seasonArrivalsNewValidFrom: "Yeni dönem başlangıcı",
   seasonArrivalsNewArrival: "Yeni geliş tarihi",
+  seasonArrivalsNewDeparture: "Sezon bitişi / ayrılış tarihi",
+  seasonArrivalsDepartureOptionalHint:
+    "Sezon bitişi / ayrılış tarihi isteğe bağlıdır; boş bırakırsanız kayıtlı tarih temizlenir.",
   seasonArrivalsAddSubmit: "Dönem ekle",
   seasonArrivalsSalaryCarryNote:
     "Yeni dönemde maaş ve SGK hesap türü güncel dönemle aynı devralınır.",
@@ -934,6 +938,22 @@ export const personnel = {
   salaryHistoryWorkedDays: "Çalışılan gün: {n}",
   salaryHistorySeasonTitle: "Sezon bazında hak edilen maaş",
   salaryHistorySeasonEmpty: "Kapanan sezon maaş kaydı yok.",
+  salaryHistoryAddButton: "Maaş dönemi ekle",
+  salaryHistoryAddHint:
+    "Yeni maaş dönemi, güncel dönemden sonra başlar; maaş bu tarihten itibaren geçerli olur.",
+  salaryHistoryValidFrom: "Geçerlilik başlangıcı",
+  salaryHistoryAmount: "Maaş tutarı",
+  salaryHistorySalaryType: "Maaş türü",
+  salaryHistoryEdit: "Maaşı düzenle",
+  salaryHistoryEditCurrent: "Güncel maaşı düzenle",
+  salaryHistoryDelete: "Dönemi sil",
+  salaryHistoryInvalidAmount: "Geçerli bir maaş tutarı girin.",
+  salaryHistoryAddSuccess: "Maaş dönemi eklendi.",
+  salaryHistorySaveSuccess: "Geçmiş maaş güncellendi.",
+  salaryHistoryDeleteSuccess: "Maaş dönemi silindi.",
+  salaryHistoryDeleteConfirmTitle: "Maaş dönemini sil",
+  salaryHistoryDeleteConfirmMessage:
+    "Bu maaş dönemi kaldırılsın mı? Döneme bağlı maaş ayı kaydı varsa işlem engellenir.",
   yearClosuresIntro:
     "Bu personel için takvim yılı bazında kapatılmış (kesilmiş) hesap kayıtları. Yanlış kapanışta ilgili yılı yeniden açabilirsiniz.",
   yearClosuresStoryHint:
@@ -991,6 +1011,7 @@ export const personnel = {
   notesAdd: "Not ekle",
   notesEmpty: "Bu personel için henüz not yok.",
   notesEdit: "Düzenle",
+  notesCreatedBy: "Yazan: {name}",
   notesDelete: "Sil",
   notesDeleteAsk: "Bu not silinsin mi?",
   notesDeleteConfirm: "Evet, sil",
@@ -1027,6 +1048,8 @@ export const personnel = {
     "Personel ekranından bu kişi için giriş hesabı oluşturun («sistem kullanıcısı» / kullanıcı adı).",
   detailRolesWarehouseNeedUserStep2:
     "Depolar bölümünden ilgili depoyu açıp düzenleyin; sorumlu müdür veya sorumlu usta olarak **bu kullanıcıyı** seçin (listeden kullanıcı seçilir). Hesap açtıktan sonra aynı atamayı bu sekmedeki formdan da yapabilirsiniz.",
+  detailRolesAssignPassiveNotice:
+    "Personel pasif olduğu için depo rolü atanamaz. Önce personeli yeniden aktifleştirin.",
   detailRolesAssignWarehouseTitle: "Personelden depoya bağla",
   detailRolesAssignWarehouseIntro:
     "Giriş hesabınız bu personelle eşleşiyorsa, aşağıdan depo ve rol seçerek atayın. Depodaki diğer sorumlu alanı (seçmediğiniz rol) olduğu gibi kalır.",

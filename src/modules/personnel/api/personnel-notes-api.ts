@@ -2,10 +2,14 @@ import { apiRequest } from "@/shared/api/client";
 import type { PersonnelNote, SavePersonnelNoteInput } from "@/types/personnel-note";
 
 function normalizeNote(r: PersonnelNote): PersonnelNote {
+  const uid = Number(r.createdByUserId);
+  const name = String(r.createdByName ?? "").trim();
   return {
     id: Number(r.id) || 0,
     personnelId: Number(r.personnelId) || 0,
     body: String(r.body ?? "").trim(),
+    createdByUserId: Number.isFinite(uid) && uid > 0 ? uid : null,
+    createdByName: name !== "" ? name : null,
     createdAt: String(r.createdAt ?? ""),
     updatedAt: String(r.updatedAt ?? ""),
   };

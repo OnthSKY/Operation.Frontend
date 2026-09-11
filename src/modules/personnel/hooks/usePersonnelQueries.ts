@@ -24,6 +24,7 @@ import {
   fetchPersonnelYearAccountPreview,
   reopenPersonnelYearAccount,
   updatePersonnelEmploymentTerm,
+  updatePersonnelEmploymentTermSalary,
   uploadPersonnelYearClosurePdf,
   type ClosePersonnelYearAccountBody,
 } from "@/modules/personnel/api/personnel-account-closure-api";
@@ -69,6 +70,7 @@ import type {
 import type {
   CreatePersonnelEmploymentTermBody,
   UpdatePersonnelEmploymentTermBody,
+  UpdatePersonnelEmploymentTermSalaryBody,
 } from "@/types/personnel-account-closure";
 
 export type PersonnelListFilters = {
@@ -786,6 +788,22 @@ export function useUpdatePersonnelEmploymentTerm(personnelId: number) {
       termId: number;
       body: UpdatePersonnelEmploymentTermBody;
     }) => updatePersonnelEmploymentTerm(personnelId, termId, body),
+    onSuccess: () => {
+      invalidatePersonnelAfterEmploymentTermChange(qc, personnelId);
+    },
+  });
+}
+
+export function useUpdatePersonnelEmploymentTermSalary(personnelId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      termId,
+      body,
+    }: {
+      termId: number;
+      body: UpdatePersonnelEmploymentTermSalaryBody;
+    }) => updatePersonnelEmploymentTermSalary(personnelId, termId, body),
     onSuccess: () => {
       invalidatePersonnelAfterEmploymentTermChange(qc, personnelId);
     },

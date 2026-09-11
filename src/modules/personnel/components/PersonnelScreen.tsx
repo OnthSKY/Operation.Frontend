@@ -453,17 +453,25 @@ function buildPersonnelRowMenuSections(params: {
         ],
       });
     }
-    sections.push({
-      storyTitle: t("personnel.quickMenuStoryInsurance"),
-      items: [
-        {
-          id: "insuranceIntake",
-          label: t("personnel.quickMenuInsuranceIntake"),
-          icon: <ShieldCheck />,
-          onSelect: onInsuranceIntake,
-        },
-      ],
-    });
+    // Sigortası olan (sigorta girişi yapılmış / dönemi olan) personelde
+    // "sigorta girişi yap" eylemi gösterilmez.
+    const hasInsurance =
+      p.insuranceStarted ||
+      Boolean(p.insuranceStartDate) ||
+      Boolean(p.insuranceEndDate);
+    if (!hasInsurance) {
+      sections.push({
+        storyTitle: t("personnel.quickMenuStoryInsurance"),
+        items: [
+          {
+            id: "insuranceIntake",
+            label: t("personnel.quickMenuInsuranceIntake"),
+            icon: <ShieldCheck />,
+            onSelect: onInsuranceIntake,
+          },
+        ],
+      });
+    }
   }
   sections.push({
     storyTitle: t("personnel.quickMenuStoryReports"),

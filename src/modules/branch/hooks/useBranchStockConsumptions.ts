@@ -1,6 +1,8 @@
 "use client";
 
+import { useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createIdempotencyKey } from "@/lib/api/base-api";
 import {
   fetchBranchConsumedTotals,
   fetchBranchProductBalances,
@@ -14,6 +16,10 @@ import {
   type ConsumeInput,
   type SnapshotInput,
 } from "@/modules/branch/api/branch-stock-consumptions-api";
+import {
+  returnBranchToWarehouse,
+  type ReturnBranchToWarehouseLineInput,
+} from "@/modules/branch/api/branch-stock-return-api";
 
 export const branchStockConsumptionKeys = {
   all: ["branch-stock-consumptions"] as const,
@@ -117,6 +123,57 @@ export function useRecordBranchStockConsumption(branchId: number) {
   return useMutation({
     mutationFn: (input: ConsumeInput) => recordBranchStockConsumption(branchId, input),
     onSuccess: () => invalidateBranchStockState(qc, branchId),
+  });
+}
+
+type ReturnBranchToWarehouseVariables = {
+  warehouseId: number;
+  lines: ReturnBranchToWarehouseLineInput[];
+  description?: string | null;
+};
+
+/** Mantıksal iade kimliği: material payload'ın stabil imzası (branch hook'a bağlı, sabit). */
+function returnOperationSignature(input: ReturnBranchToWarehouseVariables): string {
+  const lines = input.lines
+    .map((l) => `${l.productId}:${l.quantity}:${l.unitName ?? ""}`)
+    .join(",");
+  return `${input.warehouseId}|${lines}|${input.description ?? ""}`;
+}
+
+/**
+ * Doğrudan Şube → Depo iade. Bu hook, işlem çağıranından (modal) BAĞIMSIZ olarak mantıksal-işlem
+ * idempotency yaşam döngüsünün TEK sahibidir:
+ *   - Anahtar, mutation değişkenlerinin imzasından türetilir ve <c>keyRef</c>'te tutulur.
+ *   - Aynı imza (rerender, RQ/network retry, kullanıcı aynı işlemi tekrar) → AYNI anahtar.
+ *   - Material payload değişti (depo/ürün/miktar) → yeni imza → YENİ anahtar (aynı-key+farklı-body 409'unu önler).
+ *   - Başarı → anahtar sıfırlanır → sonraki GERÇEK iade (aynı değerlerde bile) yeni anahtar alır.
+ * Anahtar mutationFn içinde imzaya göre türetildiği için React Query retry'ı (aynı değişkenler → aynı imza)
+ * aynı anahtarı yeniden kullanır; retry ASLA yeni anahtar üretmez.
+ */
+export function useReturnBranchToWarehouse(branchId: number) {
+  const qc = useQueryClient();
+  const keyRef = useRef<{ sig: string; key: string } | null>(null);
+
+  return useMutation({
+    mutationFn: (input: ReturnBranchToWarehouseVariables) => {
+      const sig = returnOperationSignature(input);
+      if (!keyRef.current || keyRef.current.sig !== sig) {
+        keyRef.current = { sig, key: createIdempotencyKey() };
+      }
+      return returnBranchToWarehouse(
+        {
+          branchId,
+          warehouseId: input.warehouseId,
+          lines: input.lines,
+          description: input.description ?? null,
+        },
+        keyRef.current.key
+      );
+    },
+    onSuccess: () => {
+      keyRef.current = null; // rotate: sonraki gerçek iade yeni anahtar alsın
+      invalidateBranchStockState(qc, branchId);
+    },
   });
 }
 

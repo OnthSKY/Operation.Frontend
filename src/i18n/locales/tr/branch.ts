@@ -355,6 +355,7 @@ export const branch = {
   uninvoicedShipmentsShowList: "Faturalanmamış sevkiyatları göster",
   uninvoicedShipmentsHideList: "Listeyi gizle",
   uninvoicedShipmentInvoiceCta: "Faturala",
+  uninvoicedShipmentCardLines: "{count} kalem",
   uninvoicedShipmentInvoiceMissingWarehouse:
     "Bu sevkiyatın deposu bulunamadı; faturalandırma sayfası açılamıyor.",
   currentAccountInvoicedTotal: "Toplam fatura",

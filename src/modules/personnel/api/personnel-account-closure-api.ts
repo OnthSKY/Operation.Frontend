@@ -6,6 +6,7 @@ import type {
   PersonnelYearAccountClosureListItem,
   PersonnelYearAccountPreview,
   UpdatePersonnelEmploymentTermBody,
+  UpdatePersonnelEmploymentTermSalaryBody,
 } from "@/types/personnel-account-closure";
 
 function normalizeEmploymentTerm(r: Record<string, unknown>): PersonnelEmploymentTerm {
@@ -41,6 +42,10 @@ function normalizeEmploymentTerm(r: Record<string, unknown>): PersonnelEmploymen
         ? null
         : String(r.validTo).slice(0, 10),
     arrivalDate: String(r.arrivalDate ?? "").slice(0, 10),
+    departureDate:
+      r.departureDate == null || String(r.departureDate).trim() === ""
+        ? null
+        : String(r.departureDate).slice(0, 10),
     branchId,
     salary: salary != null && Number.isFinite(salary) ? salary : null,
     currencyCode:
@@ -93,6 +98,18 @@ export async function updatePersonnelEmploymentTerm(
   const row = await apiRequest<Record<string, unknown>>(
     `/personnel/${personnelId}/salary-terms/${termId}`,
     { method: "PUT", body: JSON.stringify(body) }
+  );
+  return normalizeEmploymentTerm(row);
+}
+
+export async function updatePersonnelEmploymentTermSalary(
+  personnelId: number,
+  termId: number,
+  body: UpdatePersonnelEmploymentTermSalaryBody
+): Promise<PersonnelEmploymentTerm> {
+  const row = await apiRequest<Record<string, unknown>>(
+    `/personnel/${personnelId}/salary-terms/${termId}/salary`,
+    { method: "PATCH", body: JSON.stringify(body) }
   );
   return normalizeEmploymentTerm(row);
 }

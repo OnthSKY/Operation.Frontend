@@ -6,7 +6,6 @@ import { useI18n } from "@/i18n/context";
 import { Modal } from "@/shared/ui/Modal";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import { formatLocaleDate, formatLocaleDateTime } from "@/shared/lib/locale-date";
-import { useAuth } from "@/lib/auth/AuthContext";
 import { cn } from "@/lib/cn";
 import type { Locale } from "@/i18n/messages";
 import {
@@ -326,9 +325,6 @@ function ProductHistoryModal({
   onClose: () => void;
 }) {
   const { t } = useI18n();
-  const { user } = useAuth();
-  const canManage = user != null;
-  void canManage;
   const PAGE_SIZE = 100;
   const [consPage, setConsPage] = useState(1);
   const [recPage, setRecPage] = useState(1);
