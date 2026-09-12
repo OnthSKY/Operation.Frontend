@@ -21,8 +21,17 @@ export type SettlementPrintTarget =
         arrivalDate?: string | null;
         departureDate?: string | null;
         workedDays?: number | null;
+        /** Aylık maaş (girdi); hak ediş = aylık × gün ÷ 30. */
+        monthlySalaryAmount?: number | null;
+        /** Hak ediş (toplam) = aylık × gün ÷ 30. */
         expectedSalaryAmount?: number | null;
         expectedSalaryCurrency?: string | null;
+        /** Bu para birimindeki toplamlar (özetle birebir). */
+        advancesTotal?: number | null;
+        expensesTotal?: number | null;
+        salaryPaidTotal?: number | null;
+        /** Kalan = hak ediş − avans − ödenen maaş − gider. */
+        netRemaining?: number | null;
         paidAtClosureAmount?: number | null;
         salaryBalanceSettled?: boolean;
         salaryPaymentSource?: string | null;

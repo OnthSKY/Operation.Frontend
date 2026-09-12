@@ -25,12 +25,18 @@ import { cn } from "@/lib/cn";
 import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
 import { Input } from "@/shared/ui/Input";
+import { DateField } from "@/shared/ui/DateField";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import type {
   PersonnelAccountClosureCurrencyLine,
   PersonnelEmploymentTerm,
 } from "@/types/personnel-account-closure";
-import { suggestClosureWorkedDaysFromSeasonStart } from "@/modules/personnel/lib/closure-worked-days-suggestion";
+import {
+  suggestClosureWorkedDaysFromSeasonStart,
+  computeWorkedDaysForClosure,
+  type ClosureWorkedDaysFromSeason,
+} from "@/modules/personnel/lib/closure-worked-days-suggestion";
+import { localIsoDate } from "@/shared/lib/local-iso-date";
 import {
   generatePersonnelSettlementPdfBlob,
   openPersonnelSettlementPrintWindow,
@@ -39,8 +45,6 @@ import { calendarYearNumericSelectOptions } from "@/modules/personnel/lib/settle
 import { useEffect, useId, useMemo, useState } from "react";
 
 type Scope = "year" | "term";
-
-type YearCloseMobileTab = "overview" | "salary";
 
 type Props = {
   open: boolean;
@@ -125,63 +129,106 @@ function lineRow(
   );
 }
 
-function YearCloseBalanceGuide({
+/**
+ * Sadeleştirilmiş özet: çalışılan gün (başlangıç → bugün, dahil) + para birimi başına
+ * "avans" ve "gider" ayrı satır ve toplamları. Ayrıntılı döküm için kullanıcı hesap
+ * özeti PDF'ine yönlendirilir (bkz. aşağıdaki PDF kartı).
+ */
+function ClosureSimpleSummary({
   lines,
+  workedDays,
+  lastWorkingDay,
+  onLastWorkingDayChange,
+  lastWorkingDayMin,
+  lastWorkingDayMax,
+  canPickLastWorkingDay,
   t,
   locale,
+  dash,
 }: {
   lines: PersonnelAccountClosureCurrencyLine[];
+  workedDays: ClosureWorkedDaysFromSeason | null;
+  lastWorkingDay: string;
+  onLastWorkingDayChange: (iso: string) => void;
+  lastWorkingDayMin: string;
+  lastWorkingDayMax: string;
+  canPickLastWorkingDay: boolean;
   t: (k: string) => string;
   locale: Locale;
+  dash: string;
 }) {
-  if (lines.length === 0) {
-    return (
-      <Card className="border-amber-200/85 bg-amber-50/40 shadow-none ring-1 ring-amber-900/10">
-        <p className="text-sm font-semibold text-zinc-900">
-          {t("personnel.accountClosure.closeYearGuideEmptyTitle")}
-        </p>
-        <p className="mt-2 text-xs leading-relaxed text-zinc-700">
-          {t("personnel.accountClosure.closeYearGuideEmptyBody")}
-        </p>
-      </Card>
-    );
-  }
   return (
-    <Card className="border-sky-200/80 bg-sky-50/30 shadow-none ring-1 ring-sky-900/10">
-      <p className="text-sm font-semibold text-zinc-900">
-        {t("personnel.accountClosure.closeYearGuideTitle")}
-      </p>
-      <p className="mt-1 text-xs leading-relaxed text-zinc-600">
-        {t("personnel.accountClosure.closeYearGuideLead")}
-      </p>
-      <div className="mt-3 space-y-3">
-        {lines.map((line) => {
-          const net = line.suggestedEmployerOffset;
-          const netZero = Math.abs(net) < 0.005;
-          const meaning =
-            net > 0.005
-              ? t("personnel.accountClosure.closeYearBalanceNetPositive")
-              : net < -0.005
-                ? t("personnel.accountClosure.closeYearBalanceNetNegative")
-                : t("personnel.accountClosure.closeYearBalanceNetZero");
+    <div className="grid gap-3 sm:grid-cols-2">
+      <Card className="border-zinc-200/90 bg-zinc-50/40 shadow-none ring-1 ring-zinc-950/[0.04]">
+        <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          {t("personnel.accountClosure.simpleWorkedDaysTitle")}
+        </p>
+        {workedDays ? (
+          <>
+            <p className="mt-1 text-2xl font-semibold tabular-nums text-zinc-900">
+              {t("personnel.accountClosure.simpleWorkedDaysValue").replace(
+                "{days}",
+                String(workedDays.days),
+              )}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-600">
+              {t("personnel.accountClosure.simpleWorkedDaysRange")
+                .replace(
+                  "{from}",
+                  formatLocaleDate(workedDays.periodStart, locale, dash),
+                )
+                .replace(
+                  "{to}",
+                  formatLocaleDate(workedDays.periodEnd, locale, dash),
+                )}
+            </p>
+          </>
+        ) : (
+          <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+            {t("personnel.accountClosure.workedDaysSeasonSuggestionMissing")}
+          </p>
+        )}
+        {canPickLastWorkingDay ? (
+          <div className="mt-3">
+            <DateField
+              name="lastWorkingDay"
+              mode="date"
+              label={t("personnel.accountClosure.lastWorkingDayLabel")}
+              value={lastWorkingDay}
+              min={lastWorkingDayMin}
+              max={lastWorkingDayMax}
+              onChange={(e) => onLastWorkingDayChange(e.target.value)}
+            />
+            <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">
+              {t("personnel.accountClosure.lastWorkingDayHint")}
+            </p>
+          </div>
+        ) : null}
+      </Card>
+
+      {lines.length === 0 ? (
+        <p className="text-sm text-zinc-500 sm:col-span-2">
+          {t("personnel.accountClosure.noLines")}
+        </p>
+      ) : (
+        lines.map((line) => {
+          const total =
+            line.advancesTotal +
+            line.personnelAttributedNonAdvanceExpenseTotal;
           return (
-            <div
+            <Card
               key={line.currencyCode}
-              className="rounded-xl border border-zinc-200/90 bg-white/80 px-3 py-3"
+              className="overflow-hidden p-0 shadow-none ring-1 ring-zinc-950/5"
             >
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                {line.currencyCode}
-              </p>
-              <ul className="mt-2 divide-y divide-zinc-100 text-xs">
+              <div className="border-b border-zinc-100 bg-zinc-50/80 px-4 py-2.5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  {line.currencyCode}
+                </p>
+              </div>
+              <ul className="divide-y divide-zinc-100 text-sm">
                 {lineRow(
                   t("personnel.accountClosure.rowAdvances"),
                   line.advancesTotal,
-                  locale,
-                  line.currencyCode,
-                )}
-                {lineRow(
-                  t("personnel.accountClosure.rowSalary"),
-                  line.salaryPaymentsTotal,
                   locale,
                   line.currencyCode,
                 )}
@@ -192,131 +239,87 @@ function YearCloseBalanceGuide({
                   line.currencyCode,
                 )}
               </ul>
-              <div className="mt-2 flex flex-col gap-1 border-t border-zinc-100 pt-2 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
-                <span className="text-xs font-semibold text-zinc-800">
-                  {t("personnel.accountClosure.rowOffset")}
+              <div className="flex flex-col gap-1 border-t border-zinc-200 bg-zinc-50/70 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                <span className="font-semibold text-zinc-800">
+                  {t("personnel.accountClosure.simpleTotalLabel")}
                 </span>
-                <span
-                  className={cn(
-                    "text-sm font-semibold tabular-nums sm:text-right",
-                    net > 0.005 && "text-amber-900",
-                    net < -0.005 && "text-sky-900",
-                    netZero && "text-zinc-800",
-                  )}
-                >
-                  {formatLocaleAmount(net, locale, line.currencyCode)}
+                <span className="text-base font-semibold tabular-nums text-zinc-900 sm:text-right">
+                  {formatLocaleAmount(total, locale, line.currencyCode)}
                 </span>
               </div>
-              <p className="mt-2 text-xs leading-relaxed text-zinc-600">{meaning}</p>
-            </div>
+            </Card>
           );
-        })}
-      </div>
-      <p className="mt-3 text-xs leading-relaxed text-zinc-500">
-        {t("personnel.accountClosure.closeYearGuideHandoverNote")}
-      </p>
-    </Card>
+        })
+      )}
+    </div>
   );
 }
 
-function ClosureLinesBlock({
-  lines,
+/** "Yılı kapatmadan önce" adım rehberi — özetin en üstünde gösterilir. */
+function CloseYearStoryCard({
+  story,
   t,
-  locale,
 }: {
-  lines: PersonnelAccountClosureCurrencyLine[];
+  story: { items: { key: string; label: string; done: boolean }[] };
   t: (k: string) => string;
-  locale: Locale;
 }) {
-  if (lines.length === 0) {
-    return (
-      <p className="text-sm text-zinc-500">{t("personnel.accountClosure.noLines")}</p>
-    );
-  }
+  const firstOpen = story.items.findIndex((x) => !x.done);
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      {lines.map((line) => (
-        <Card
-          key={line.currencyCode}
-          className="sm:col-span-2 overflow-hidden p-0 shadow-none ring-1 ring-zinc-950/5"
-        >
-          <div className="border-b border-zinc-100 bg-zinc-50/80 px-4 py-2.5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-              {line.currencyCode}
-            </p>
-          </div>
-          <div className="divide-y divide-zinc-100 text-sm">
-            <div>
-              <p className="bg-zinc-50/50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                {t("personnel.accountClosure.groupPaidOutLabel")}
-              </p>
-              <ul className="divide-y divide-zinc-100">
-                {lineRow(
-                  t("personnel.accountClosure.rowAdvances"),
-                  line.advancesTotal,
-                  locale,
-                  line.currencyCode
+    <Card className="border-amber-200/80 bg-amber-50/35 shadow-none ring-1 ring-amber-900/10">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+        <p className="text-sm font-semibold text-zinc-900">
+          {t("personnel.accountClosure.closeYearStoryTitle")}
+        </p>
+        <p className="text-xs leading-relaxed text-zinc-600">
+          {t("personnel.accountClosure.closeYearStoryLead")}
+        </p>
+      </div>
+      <ol className="mt-2.5 grid list-none grid-cols-3 gap-2 p-0">
+        {story.items.map((it, i) => {
+          const active = !it.done && i === firstOpen;
+          return (
+            <li
+              key={it.key}
+              aria-current={active ? "step" : undefined}
+              className={cn(
+                "flex min-w-0 items-center gap-2 rounded-lg border px-2.5 py-2",
+                it.done
+                  ? "border-emerald-200 bg-emerald-50/70"
+                  : active
+                    ? "border-zinc-900 bg-white shadow-sm"
+                    : "border-zinc-200 bg-white",
+              )}
+            >
+              <span
+                className={cn(
+                  "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums",
+                  it.done
+                    ? "bg-emerald-600 text-white"
+                    : active
+                      ? "bg-zinc-900 text-white"
+                      : "border border-zinc-300 bg-white text-zinc-500",
                 )}
-                {lineRow(
-                  t("personnel.accountClosure.rowSalary"),
-                  line.salaryPaymentsTotal,
-                  locale,
-                  line.currencyCode
+                aria-hidden
+              >
+                {it.done ? "✓" : i + 1}
+              </span>
+              <span
+                className={cn(
+                  "min-w-0 text-xs font-medium leading-tight",
+                  it.done
+                    ? "text-zinc-600"
+                    : active
+                      ? "text-zinc-900"
+                      : "text-zinc-700",
                 )}
-              </ul>
-            </div>
-            <div>
-              <p className="bg-zinc-50/50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                {t("personnel.accountClosure.groupExpensesLabel")}
-              </p>
-              <ul>
-                {lineRow(
-                  t("personnel.accountClosure.rowExpenses"),
-                  line.personnelAttributedNonAdvanceExpenseTotal,
-                  locale,
-                  line.currencyCode
-                )}
-              </ul>
-            </div>
-            <div>
-              <p className="bg-zinc-50/50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                {t("personnel.accountClosure.groupHandoverLabel")}
-              </p>
-              <ul>
-                {lineRow(
-                  t("personnel.accountClosure.rowHandover"),
-                  line.cashHandoverInTotal,
-                  locale,
-                  line.currencyCode
-                )}
-              </ul>
-            </div>
-            <ul>
-              <li className="flex flex-col gap-1 bg-amber-50/40 px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-                <div className="min-w-0 sm:pt-0.5">
-                  <span className="font-medium text-zinc-800">
-                    {t("personnel.accountClosure.rowOffset")}
-                  </span>
-                  <p className="mt-1 text-xs leading-relaxed text-zinc-600">
-                    {t("personnel.accountClosure.rowOffsetExplain")}
-                  </p>
-                </div>
-                <span
-                  className={cn(
-                    "font-semibold tabular-nums sm:shrink-0 sm:text-right",
-                    line.suggestedEmployerOffset > 0 && "text-amber-800",
-                    line.suggestedEmployerOffset < 0 && "text-sky-800",
-                    line.suggestedEmployerOffset === 0 && "text-zinc-900"
-                  )}
-                >
-                  {formatLocaleAmount(line.suggestedEmployerOffset, locale, line.currencyCode)}
-                </span>
-              </li>
-            </ul>
-          </div>
-        </Card>
-      ))}
-    </div>
+              >
+                {it.label}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </Card>
   );
 }
 
@@ -346,6 +349,9 @@ export function PersonnelAccountClosureSheet({
   );
   const [selectedTermId, setSelectedTermId] = useState<number | null>(null);
   const [closeNotes, setCloseNotes] = useState("");
+  const [showCloseNote, setShowCloseNote] = useState(false);
+  // Yıl kapatma + PDF üretim/yükleme tek akış — tüm süre boyunca «yükleniyor».
+  const [isClosing, setIsClosing] = useState(false);
   const [printSettlementBusy, setPrintSettlementBusy] = useState(false);
   const [closureWorkedDays, setClosureWorkedDays] = useState("");
   const [closureExpectedSalary, setClosureExpectedSalary] = useState("");
@@ -353,9 +359,9 @@ export function PersonnelAccountClosureSheet({
   const [salaryBalanceSettled, setSalaryBalanceSettled] = useState(false);
   const [salaryPaymentSourceType, setSalaryPaymentSourceType] = useState("");
   const [salarySettlementNote, setSalarySettlementNote] = useState("");
-  const [yearCloseTab, setYearCloseTab] = useState<YearCloseMobileTab>(
-    "overview",
-  );
+  // Son çalışma / çıkış günü (YYYY-MM-DD). Default: bugün (cari yıl) veya yıl sonu.
+  // Çalışılan gün bu güne göre hesaplanır; backend'e gitmez, yalnızca gün sayısını türetir.
+  const [lastWorkingDay, setLastWorkingDay] = useState("");
 
   const { data: terms = [], isLoading: termsLoading } =
     usePersonnelEmploymentTerms(personnelId, open && scope === "term");
@@ -363,6 +369,17 @@ export function PersonnelAccountClosureSheet({
   const workedDaysSeasonSuggestion = useMemo(
     () => suggestClosureWorkedDaysFromSeasonStart(selectedYear, personnelSeasonArrivalDate),
     [selectedYear, personnelSeasonArrivalDate],
+  );
+
+  // Seçilen "son çalışma günü"ne göre canlı çalışılan-gün hesabı (özet kartı + gün sayısı).
+  const workedDays = useMemo(
+    () =>
+      computeWorkedDaysForClosure(
+        selectedYear,
+        personnelSeasonArrivalDate,
+        lastWorkingDay,
+      ),
+    [selectedYear, personnelSeasonArrivalDate, lastWorkingDay],
   );
 
   const yearOptions: SelectOption[] = useMemo(
@@ -382,6 +399,8 @@ export function PersonnelAccountClosureSheet({
       setSalaryBalanceSettled(false);
       setSalaryPaymentSourceType("");
       setSalarySettlementNote("");
+      setLastWorkingDay("");
+      setShowCloseNote(false);
       return;
     }
     if (startWithYearSummary) {
@@ -428,15 +447,13 @@ export function PersonnelAccountClosureSheet({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- see above
   }, [open, startWithYearSummary, summaryYear]);
 
-  useEffect(() => {
-    setYearCloseTab("overview");
-  }, [step, scope, selectedYear, open]);
 
   useEffect(() => {
     if (!open || scope !== "year") return;
     const c =
       personnelSalaryCurrency?.trim().toUpperCase().slice(0, 3) || "TRY";
     setClosureSalaryCurrency(c.length === 3 ? c : "TRY");
+    setLastWorkingDay(workedDaysSeasonSuggestion?.periodEnd ?? localIsoDate());
     setClosureWorkedDays(
       workedDaysSeasonSuggestion
         ? String(workedDaysSeasonSuggestion.days)
@@ -522,50 +539,58 @@ export function PersonnelAccountClosureSheet({
   const lines =
     scope === "year" ? yearPreview?.lines ?? [] : termPreview?.lines ?? [];
 
-  const suggestedExpectedSalary = useMemo(() => {
-    const days = parseInt(closureWorkedDays, 10);
-    if (
-      personnelMonthlySalary == null ||
-      !Number.isFinite(personnelMonthlySalary) ||
-      !Number.isFinite(days) ||
-      days < 1
-    )
-      return null;
-    return roundMoney2((personnelMonthlySalary * days) / 30);
-  }, [personnelMonthlySalary, closureWorkedDays]);
-
   const parsedClosureDays = parseInt(closureWorkedDays, 10);
-  const parsedExpectedSalary = parseLocaleAmount(closureExpectedSalary, locale);
   const salaryDaysOk =
     Number.isFinite(parsedClosureDays) &&
     parsedClosureDays >= 1 &&
     parsedClosureDays <= 366;
+  // Girilen alan artık AYLIK maaş; hak ediş = aylık × (çalışılan gün ÷ 30).
+  const parsedMonthlySalary = parseLocaleAmount(closureExpectedSalary, locale);
   const salaryExpectedOk =
-    Number.isFinite(parsedExpectedSalary) && parsedExpectedSalary >= 0;
+    Number.isFinite(parsedMonthlySalary) && parsedMonthlySalary >= 0;
   const salarySourceOk =
     !salaryBalanceSettled ||
     (salaryPaymentSourceType.trim().length > 0 &&
-      ["CASH", "PATRON"].includes(salaryPaymentSourceType.trim().toUpperCase()));
+      ["PATRON"].includes(salaryPaymentSourceType.trim().toUpperCase()));
+
+  // Karttaki aylık maaş — «kullan» önerisi.
+  const suggestedMonthlySalary =
+    personnelMonthlySalary != null &&
+    Number.isFinite(personnelMonthlySalary) &&
+    personnelMonthlySalary > 0
+      ? roundMoney2(personnelMonthlySalary)
+      : null;
+
+  // Bu para birimindeki alınmış tutarlar (avans + ödenen maaş + personel gideri).
+  const closureCcyUpper = (closureSalaryCurrency || "TRY").trim().toUpperCase();
+  const closureCcyLine = (yearPreview?.lines ?? []).find(
+    (l) => l.currencyCode.trim().toUpperCase() === closureCcyUpper,
+  );
+  const closureAdvancesTotal = closureCcyLine?.advancesTotal ?? 0;
+  const closureSalaryPaidTotal = closureCcyLine?.salaryPaymentsTotal ?? 0;
+  const closureExpensesTotal =
+    closureCcyLine?.personnelAttributedNonAdvanceExpenseTotal ?? 0;
+
+  // Hak ediş (toplam alacak) = aylık maaş × çalışılan gün ÷ 30.
+  const earnedSalaryTotal =
+    salaryExpectedOk && salaryDaysOk
+      ? roundMoney2((parsedMonthlySalary * parsedClosureDays) / 30)
+      : null;
 
   const netSalaryPreview =
     scope === "year" &&
     yearPreview &&
     !yearPreview.isYearClosed &&
-    salaryExpectedOk
-      ? computeClosureSalaryNetRemaining(
-          yearPreview.lines,
-          parsedExpectedSalary,
-          closureSalaryCurrency,
-        )
+    earnedSalaryTotal != null
+      ? earnedSalaryTotal -
+        closureAdvancesTotal -
+        closureSalaryPaidTotal -
+        closureExpensesTotal
       : null;
 
   const salarySourceOptions: SelectOption[] = useMemo(
     () => [
       { value: "", label: t("personnel.accountClosure.salarySourcePick") },
-      {
-        value: "CASH",
-        label: t("personnel.accountClosure.salarySourceCash"),
-      },
       {
         value: "PATRON",
         label: t("personnel.accountClosure.salarySourcePatron"),
@@ -667,12 +692,13 @@ export function PersonnelAccountClosureSheet({
   };
   const requestClose = useDirtyGuard({
     isDirty:
-      step === 2 ||
-      scope !== "year" ||
-      closeNotes.trim() !== "" ||
-      salaryBalanceSettled ||
-      salaryPaymentSourceType.trim() !== "" ||
-      salarySettlementNote.trim() !== "",
+      !yearPreview?.isYearClosed &&
+      (step === 2 ||
+        scope !== "year" ||
+        closeNotes.trim() !== "" ||
+        salaryBalanceSettled ||
+        salaryPaymentSourceType.trim() !== "" ||
+        salarySettlementNote.trim() !== ""),
     isBlocked: closeYear.isPending || uploadClosurePdf.isPending || printSettlementBusy,
     confirmMessage: t("common.unsavedChangesConfirm"),
     onClose,
@@ -716,9 +742,9 @@ export function PersonnelAccountClosureSheet({
         <ol
           className={cn(
             "grid list-none grid-cols-2 gap-2 sm:flex sm:grid-cols-none sm:flex-row sm:items-stretch sm:gap-3",
-            // Step 2 (kapatma akışı): mobilde stepper'ı gizle — sabit üst alanı
-            // küçültüp kaydırılabilir içeriğe yer aç (sekme çubuğu + geri butonu yeter).
-            step === 2 && yearCloseTabs && "shrink-0 max-sm:hidden",
+            // Step 2 (kapatma akışı): üst stepper'ı tümüyle gizle — geri butonu +
+            // «Özet / Maaş» çubuğu yönlendirme için yeterli, üst alan sadeleşir.
+            step === 2 && yearCloseTabs && "hidden",
           )}
           aria-label={t("personnel.accountClosure.stepsAria")}
         >
@@ -897,41 +923,6 @@ export function PersonnelAccountClosureSheet({
               ← {t("personnel.accountClosure.back")}
             </Button>
 
-            {yearCloseTabs ? (
-              <div
-                className="shrink-0 rounded-xl border border-zinc-200/90 bg-zinc-50/60 px-1 py-2 sm:mx-auto sm:max-w-2xl sm:px-2"
-                role="group"
-                aria-label={t("personnel.accountClosure.closeYearTabsAria")}
-              >
-                <div className="flex gap-1">
-                  {(
-                    [
-                      ["overview", "closeYearMobileTabOverview"],
-                      ["salary", "closeYearMobileTabSalary"],
-                    ] as const
-                  ).map(([id, labelKey]) => (
-                    <div
-                      key={id}
-                      aria-current={yearCloseTab === id ? "step" : undefined}
-                      className={cn(
-                        "pointer-events-none min-h-11 min-w-0 flex-1 select-none rounded-lg px-2 py-2 text-center text-xs font-semibold leading-tight sm:text-sm",
-                        yearCloseTab === id
-                          ? "bg-zinc-900 text-white shadow-sm"
-                          : "bg-white text-zinc-600 ring-1 ring-zinc-200/80",
-                      )}
-                    >
-                      {t(`personnel.accountClosure.${labelKey}`)}
-                    </div>
-                  ))}
-                </div>
-                <p className="mt-2 hidden px-1 text-center text-xs leading-snug text-zinc-500 sm:block">
-                  {t(
-                    "personnel.accountClosure.closeYearMobileTabsFooterHint",
-                  )}
-                </p>
-              </div>
-            ) : null}
-
             {previewLoading ? (
               <Card className="border-zinc-200/80 bg-zinc-50/30 shadow-none">
                 <p className="text-sm text-zinc-500">{t("common.loading")}</p>
@@ -955,14 +946,10 @@ export function PersonnelAccountClosureSheet({
                     "flex min-h-0 flex-1 flex-col overflow-y-auto [-webkit-overflow-scrolling:touch]",
                 )}
               >
-                <section
-                  className={cn(
-                    "space-y-3",
-                    yearCloseTabs &&
-                      yearCloseTab !== "overview" &&
-                      "hidden",
-                  )}
-                >
+                <section className="space-y-3">
+                  {closeYearStory ? (
+                    <CloseYearStoryCard story={closeYearStory} t={t} />
+                  ) : null}
                   <div>
                     <h3 className="text-base font-semibold text-zinc-900 sm:text-sm">
                       {t("personnel.accountClosure.summaryTotalsTitle")}
@@ -995,13 +982,41 @@ export function PersonnelAccountClosureSheet({
                       </ul>
                     </Card>
                   ) : null}
-                  {scope === "year" && yearPreview ? (
-                    <YearCloseBalanceGuide lines={lines} t={t} locale={locale} />
-                  ) : null}
-                  <ClosureLinesBlock lines={lines} t={t} locale={locale} />
+                  <ClosureSimpleSummary
+                    lines={lines}
+                    workedDays={
+                      scope === "year"
+                        ? workedDays ?? workedDaysSeasonSuggestion
+                        : null
+                    }
+                    lastWorkingDay={lastWorkingDay}
+                    onLastWorkingDayChange={(iso) => {
+                      setLastWorkingDay(iso);
+                      const w = computeWorkedDaysForClosure(
+                        selectedYear,
+                        personnelSeasonArrivalDate,
+                        iso,
+                      );
+                      if (w) setClosureWorkedDays(String(w.days));
+                    }}
+                    lastWorkingDayMin={
+                      workedDaysSeasonSuggestion?.periodStart ??
+                      `${selectedYear}-01-01`
+                    }
+                    lastWorkingDayMax={`${selectedYear}-12-31`}
+                    canPickLastWorkingDay={
+                      scope === "year" && Boolean(personnelSeasonArrivalDate)
+                    }
+                    t={t}
+                    locale={locale}
+                    dash={dash}
+                  />
                   {yearCloseTabs ? (
                     <Card className="border-sky-200/80 bg-sky-50/25 shadow-none ring-1 ring-sky-900/10">
-                      <p className="text-xs leading-relaxed text-zinc-600">
+                      <p className="text-sm font-semibold text-zinc-900">
+                        {t("personnel.accountClosure.simpleDetailPdfHint")}
+                      </p>
+                      <p className="mt-1 text-xs leading-relaxed text-zinc-600">
                         {t("personnel.accountClosure.settlementPdfAutoSaveHint")
                           .replace("{name}", personnelDisplayName)
                           .replace("{year}", String(selectedYear))}
@@ -1023,13 +1038,7 @@ export function PersonnelAccountClosureSheet({
 
                 {scope === "year" && yearPreview ? (
                   <>
-                    <div
-                      className={cn(
-                        yearCloseTabs &&
-                          yearCloseTab !== "overview" &&
-                          "hidden",
-                      )}
-                    >
+                    {yearPreview.isYearClosed ? (
                     <Card
                       className={cn(
                         "shadow-none ring-1",
@@ -1131,78 +1140,13 @@ export function PersonnelAccountClosureSheet({
                         </p>
                       )}
                     </Card>
-                    </div>
+                    ) : null}
 
                     {scope === "year" &&
                     !yearPreview.isYearClosed &&
                     canCloseYear &&
                     selectedYear <= new Date().getFullYear() ? (
                       <>
-                        <div
-                          className={cn(
-                            yearCloseTabs &&
-                              yearCloseTab !== "overview" &&
-                              "hidden",
-                          )}
-                        >
-                        {closeYearStory ? (
-                          <Card className="border-amber-200/80 bg-amber-50/35 shadow-none ring-1 ring-amber-900/10">
-                            <p className="text-sm font-semibold text-zinc-900">
-                              {t("personnel.accountClosure.closeYearStoryTitle")}
-                            </p>
-                            <p className="mt-1 text-xs leading-relaxed text-zinc-600">
-                              {t("personnel.accountClosure.closeYearStoryLead")}
-                            </p>
-                            <ol className="mt-3 list-none space-y-2.5 p-0">
-                              {closeYearStory.items.map((it, i) => {
-                                const firstOpen = closeYearStory.items.findIndex(
-                                  (x) => !x.done,
-                                );
-                                const active = !it.done && i === firstOpen;
-                                return (
-                                  <li
-                                    key={it.key}
-                                    className="flex gap-3 text-sm leading-snug"
-                                  >
-                                    <span
-                                      className={cn(
-                                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums",
-                                        it.done
-                                          ? "bg-emerald-600 text-white"
-                                          : active
-                                            ? "bg-zinc-900 text-white"
-                                            : "border border-zinc-300 bg-white text-zinc-500",
-                                      )}
-                                      aria-hidden
-                                    >
-                                      {it.done ? "✓" : i + 1}
-                                    </span>
-                                    <span
-                                      className={cn(
-                                        "min-w-0 pt-0.5",
-                                        it.done
-                                          ? "text-zinc-600"
-                                          : active
-                                            ? "font-medium text-zinc-900"
-                                            : "text-zinc-700",
-                                      )}
-                                    >
-                                      {it.label}
-                                    </span>
-                                  </li>
-                                );
-                              })}
-                            </ol>
-                          </Card>
-                        ) : null}
-                        </div>
-                        <div
-                          className={cn(
-                            yearCloseTabs &&
-                              yearCloseTab !== "salary" &&
-                              "hidden",
-                          )}
-                        >
                         <Card className="border-violet-200/90 bg-violet-50/25 shadow-none ring-1 ring-violet-900/10">
                           <p className="text-sm font-semibold text-zinc-900">
                             {t("personnel.accountClosure.salarySectionTitle")}
@@ -1211,7 +1155,7 @@ export function PersonnelAccountClosureSheet({
                             {t("personnel.accountClosure.salarySectionHint")}
                           </p>
                           <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                            <div className="min-w-0">
+                            {personnelSeasonArrivalDate ? null : (
                               <Input
                                 name="closureWorkedDays"
                                 type="number"
@@ -1223,66 +1167,7 @@ export function PersonnelAccountClosureSheet({
                                 value={closureWorkedDays}
                                 onChange={(e) => setClosureWorkedDays(e.target.value)}
                               />
-                              {workedDaysSeasonSuggestion ? (
-                                <div className="mt-2 space-y-2">
-                                  <p className="text-xs leading-relaxed text-zinc-600">
-                                    {t("personnel.accountClosure.workedDaysSeasonSuggestion")
-                                      .replace(
-                                        "{arrival}",
-                                        formatLocaleDate(
-                                          workedDaysSeasonSuggestion.seasonArrivalIso,
-                                          locale,
-                                          dash,
-                                        ),
-                                      )
-                                      .replace("{year}", String(selectedYear))
-                                      .replace(
-                                        "{from}",
-                                        formatLocaleDate(
-                                          workedDaysSeasonSuggestion.periodStart,
-                                          locale,
-                                          dash,
-                                        ),
-                                      )
-                                      .replace(
-                                        "{to}",
-                                        formatLocaleDate(
-                                          workedDaysSeasonSuggestion.periodEnd,
-                                          locale,
-                                          dash,
-                                        ),
-                                      )
-                                      .replace(
-                                        "{days}",
-                                        String(workedDaysSeasonSuggestion.days),
-                                      )}
-                                  </p>
-                                  {closureWorkedDays !==
-                                  String(workedDaysSeasonSuggestion.days) ? (
-                                    <Button
-                                      type="button"
-                                      variant="secondary"
-                                      className="min-h-[44px] min-w-[44px] w-full sm:w-auto"
-                                      onClick={() =>
-                                        setClosureWorkedDays(
-                                          String(workedDaysSeasonSuggestion.days),
-                                        )
-                                      }
-                                    >
-                                      {t(
-                                        "personnel.accountClosure.workedDaysApplySuggestionButton",
-                                      )}
-                                    </Button>
-                                  ) : null}
-                                </div>
-                              ) : (
-                                <p className="mt-2 text-xs leading-relaxed text-zinc-500">
-                                  {t(
-                                    "personnel.accountClosure.workedDaysSeasonSuggestionMissing",
-                                  )}
-                                </p>
-                              )}
-                            </div>
+                            )}
                             <Input
                               name="closureSalaryCurrency"
                               maxLength={3}
@@ -1295,72 +1180,132 @@ export function PersonnelAccountClosureSheet({
                                 )
                               }
                             />
-                          </div>
-                          <div className="mt-4">
-                            <Input
-                              name="closureExpectedSalary"
-                              inputMode="decimal"
-                              label={t("personnel.accountClosure.expectedSalaryLabel")}
-                              labelRequired
-                              value={closureExpectedSalary}
-                              onChange={(e) =>
-                                setClosureExpectedSalary(e.target.value)
-                              }
-                              onBlur={() =>
-                                setClosureExpectedSalary((prev) =>
-                                  formatAmountInputOnBlur(prev, locale),
-                                )
-                              }
-                            />
-                            {suggestedExpectedSalary != null ? (
-                              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                                <p className="text-xs text-zinc-600">
-                                  {t(
-                                    "personnel.accountClosure.suggestedFromCard",
+                            <div className="min-w-0">
+                              <Input
+                                name="closureExpectedSalary"
+                                inputMode="decimal"
+                                label={t("personnel.accountClosure.monthlySalaryLabel")}
+                                labelRequired
+                                value={closureExpectedSalary}
+                                onChange={(e) =>
+                                  setClosureExpectedSalary(e.target.value)
+                                }
+                                onBlur={() =>
+                                  setClosureExpectedSalary((prev) =>
+                                    formatAmountInputOnBlur(prev, locale),
                                   )
-                                    .replace(
+                                }
+                              />
+                              {suggestedMonthlySalary != null ? (
+                                <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                  <p className="text-xs text-zinc-600">
+                                    {t(
+                                      "personnel.accountClosure.monthlySalaryFromCard",
+                                    ).replace(
                                       "{amount}",
                                       formatLocaleAmount(
-                                        suggestedExpectedSalary,
+                                        suggestedMonthlySalary,
                                         locale,
                                         closureSalaryCurrency || "TRY",
                                       ),
-                                    )
-                                    .replace("{days}", closureWorkedDays || "—")}
-                                </p>
-                                <Button
-                                  type="button"
-                                  variant="secondary"
-                                  className="min-h-[44px] min-w-[44px] w-full shrink-0 sm:w-auto"
-                                  onClick={() =>
-                                    setClosureExpectedSalary(
-                                      formatLocaleAmountInput(
-                                        suggestedExpectedSalary,
-                                        locale,
-                                      ),
-                                    )
-                                  }
-                                >
-                                  {t("personnel.accountClosure.useSuggestedButton")}
-                                </Button>
-                              </div>
-                            ) : null}
+                                    )}
+                                  </p>
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    className="min-h-[44px] min-w-[44px] w-full shrink-0 sm:w-auto"
+                                    onClick={() =>
+                                      setClosureExpectedSalary(
+                                        formatLocaleAmountInput(
+                                          suggestedMonthlySalary,
+                                          locale,
+                                        ),
+                                      )
+                                    }
+                                  >
+                                    {t("personnel.accountClosure.useSuggestedButton")}
+                                  </Button>
+                                </div>
+                              ) : null}
+                            </div>
                           </div>
-                          {netSalaryPreview != null && salaryExpectedOk ? (
-                            <div className="mt-4 rounded-lg border border-violet-200/80 bg-white/80 px-3 py-2.5">
-                              <p className="text-sm font-semibold text-zinc-900">
-                                {t("personnel.accountClosure.netRemainingLabel")}
-                              </p>
-                              <p className="mt-1 text-lg font-semibold tabular-nums text-violet-950">
-                                {formatLocaleAmount(
-                                  netSalaryPreview,
-                                  locale,
-                                  closureSalaryCurrency || "TRY",
-                                )}
-                              </p>
-                              <p className="mt-1 text-xs leading-relaxed text-zinc-600">
-                                {t("personnel.accountClosure.netRemainingHint")}
-                              </p>
+                          {earnedSalaryTotal != null && salaryDaysOk ? (
+                            <div className="mt-4 overflow-hidden rounded-lg border border-violet-200/80 bg-white/80">
+                              <ul className="divide-y divide-zinc-100 text-sm">
+                                <li className="flex items-start justify-between gap-3 px-4 py-2.5">
+                                  <span className="min-w-0 text-zinc-700">
+                                    {t(
+                                      "personnel.accountClosure.breakdownEarnedLabel",
+                                    ).replace("{days}", String(parsedClosureDays))}
+                                  </span>
+                                  <span className="shrink-0 font-medium tabular-nums text-zinc-900">
+                                    {formatLocaleAmount(
+                                      earnedSalaryTotal,
+                                      locale,
+                                      closureSalaryCurrency || "TRY",
+                                    )}
+                                  </span>
+                                </li>
+                                <li className="flex items-start justify-between gap-3 px-4 py-2.5">
+                                  <span className="min-w-0 text-zinc-600">
+                                    − {t("personnel.accountClosure.rowAdvances")}
+                                  </span>
+                                  <span className="shrink-0 tabular-nums text-zinc-700">
+                                    {formatLocaleAmount(
+                                      closureAdvancesTotal,
+                                      locale,
+                                      closureSalaryCurrency || "TRY",
+                                    )}
+                                  </span>
+                                </li>
+                                <li className="flex items-start justify-between gap-3 px-4 py-2.5">
+                                  <span className="min-w-0 text-zinc-600">
+                                    − {t("personnel.accountClosure.rowExpenses")}
+                                  </span>
+                                  <span className="shrink-0 tabular-nums text-zinc-700">
+                                    {formatLocaleAmount(
+                                      closureExpensesTotal,
+                                      locale,
+                                      closureSalaryCurrency || "TRY",
+                                    )}
+                                  </span>
+                                </li>
+                                {closureSalaryPaidTotal > 0.005 ? (
+                                  <li className="flex items-start justify-between gap-3 px-4 py-2.5">
+                                    <span className="min-w-0 text-zinc-600">
+                                      − {t("personnel.accountClosure.rowSalary")}
+                                    </span>
+                                    <span className="shrink-0 tabular-nums text-zinc-700">
+                                      {formatLocaleAmount(
+                                        closureSalaryPaidTotal,
+                                        locale,
+                                        closureSalaryCurrency || "TRY",
+                                      )}
+                                    </span>
+                                  </li>
+                                ) : null}
+                              </ul>
+                              <div className="flex items-center justify-between gap-3 border-t border-violet-200/70 bg-violet-50/40 px-4 py-3">
+                                <span className="text-sm font-semibold text-zinc-900">
+                                  {t(
+                                    "personnel.accountClosure.breakdownRemainingLabel",
+                                  )}
+                                </span>
+                                <span
+                                  className={cn(
+                                    "text-lg font-semibold tabular-nums",
+                                    (netSalaryPreview ?? 0) >= 0
+                                      ? "text-violet-950"
+                                      : "text-red-700",
+                                  )}
+                                >
+                                  {formatLocaleAmount(
+                                    netSalaryPreview ?? 0,
+                                    locale,
+                                    closureSalaryCurrency || "TRY",
+                                  )}
+                                </span>
+                              </div>
                             </div>
                           ) : null}
                           <label
@@ -1421,38 +1366,38 @@ export function PersonnelAccountClosureSheet({
                               />
                             </div>
                           ) : null}
-                          <label className="mb-1.5 mt-4 block text-xs font-medium uppercase tracking-wide text-zinc-500">
-                            {t("personnel.accountClosure.salarySettlementNoteLabel")}
-                          </label>
-                          <textarea
-                            name="salarySettlementNote"
-                            rows={2}
-                            maxLength={2000}
-                            value={salarySettlementNote}
-                            onChange={(e) =>
-                              setSalarySettlementNote(e.target.value)
-                            }
-                            className="w-full resize-y rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
-                            placeholder={t(
-                              "personnel.accountClosure.salarySettlementNotePlaceholder",
-                            )}
-                          />
                         </Card>
                         <Card className="border-zinc-200/90 shadow-none ring-1 ring-zinc-950/[0.06]">
-                          <label className="mb-1.5 block text-sm font-medium text-zinc-700">
-                            {t("personnel.accountClosure.closeNotesLabel")}
-                          </label>
-                          <textarea
-                            name="closeNotes"
-                            rows={3}
-                            maxLength={2000}
-                            value={closeNotes}
-                            onChange={(e) => setCloseNotes(e.target.value)}
-                            className="min-h-[5.5rem] w-full resize-y rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-base text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 sm:text-sm"
-                            placeholder={t(
-                              "personnel.accountClosure.closeNotesPlaceholder",
-                            )}
-                          />
+                          {showCloseNote || closeNotes ? (
+                            <>
+                              <label className="mb-1.5 block text-sm font-medium text-zinc-700">
+                                {t("personnel.accountClosure.closeNotesLabel")}
+                              </label>
+                              <textarea
+                                name="closeNotes"
+                                rows={3}
+                                maxLength={2000}
+                                autoFocus={showCloseNote && !closeNotes}
+                                value={closeNotes}
+                                onChange={(e) => setCloseNotes(e.target.value)}
+                                className="min-h-[5.5rem] w-full resize-y rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-base text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900/10 sm:text-sm"
+                                placeholder={t(
+                                  "personnel.accountClosure.closeNotesPlaceholder",
+                                )}
+                              />
+                            </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setShowCloseNote(true)}
+                              className="flex min-h-11 w-full items-center gap-2 text-left text-sm font-medium text-zinc-600 hover:text-zinc-900"
+                            >
+                              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-zinc-300 text-base leading-none text-zinc-500">
+                                +
+                              </span>
+                              {t("personnel.accountClosure.addNoteButton")}
+                            </button>
+                          )}
                         </Card>
                         <div className="sticky bottom-0 z-[1] -mx-3 mt-2 border-t border-zinc-200 bg-white/95 px-3 py-3 shadow-[0_-6px_20px_-8px_rgba(0,0,0,0.12)] backdrop-blur supports-[backdrop-filter]:bg-white/90 sm:static sm:z-0 sm:mx-0 sm:mt-3 sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none sm:backdrop-blur-none">
                           {closeYearStory ? (
@@ -1461,7 +1406,7 @@ export function PersonnelAccountClosureSheet({
                               role="status"
                               className="mb-2 text-xs leading-relaxed text-zinc-600 sm:max-w-xl"
                             >
-                              {closeYear.isPending
+                              {isClosing || closeYear.isPending
                                 ? t("common.loading")
                                 : closeYearStory.submitHint}
                             </p>
@@ -1472,13 +1417,17 @@ export function PersonnelAccountClosureSheet({
                             aria-describedby={
                               closeYearStory ? closeHintId : undefined
                             }
+                            busy={isClosing}
                             disabled={
+                              isClosing ||
                               closeYear.isPending ||
                               !salaryDaysOk ||
                               !salaryExpectedOk ||
                               !salarySourceOk
                             }
                             onClick={async () => {
+                              if (isClosing) return;
+                              setIsClosing(true);
                               try {
                                 const ccy =
                                   closureSalaryCurrency.trim().toUpperCase() ||
@@ -1488,7 +1437,7 @@ export function PersonnelAccountClosureSheet({
                                   notes: closeNotes.trim() || null,
                                   settlementPdfAcknowledged: true,
                                   closureWorkedDays: parsedClosureDays,
-                                  closureExpectedSalaryAmount: parsedExpectedSalary,
+                                  closureExpectedSalaryAmount: earnedSalaryTotal ?? 0,
                                   closureExpectedSalaryCurrency: ccy,
                                   salaryBalanceSettled,
                                   salaryPaymentSourceType: salaryBalanceSettled
@@ -1499,9 +1448,6 @@ export function PersonnelAccountClosureSheet({
                                   salarySettlementNote:
                                     salarySettlementNote.trim() || null,
                                 });
-                                notify.success(
-                                  t("personnel.accountClosure.closeSuccess"),
-                                );
                                 setCloseNotes("");
                                 setClosureWorkedDays(
                                   (() => {
@@ -1516,6 +1462,7 @@ export function PersonnelAccountClosureSheet({
                                 setSalaryBalanceSettled(false);
                                 setSalaryPaymentSourceType("");
                                 setSalarySettlementNote("");
+                                setShowCloseNote(false);
                                 // Yıl kapandıktan sonra mutabakat PDF'i otomatik
                                 // üretilip kişinin kapanış belgesine kaydedilir
                                 // («{kişi adı}-kapanis-{yıl}»). Ayrı adım; patlarsa
@@ -1528,7 +1475,7 @@ export function PersonnelAccountClosureSheet({
                                   const paidAtClosure = salaryBalanceSettled
                                     ? computeClosureSalaryNetRemaining(
                                         yearPreview?.lines ?? [],
-                                        parsedExpectedSalary,
+                                        earnedSalaryTotal ?? 0,
                                         pdfCcy,
                                       )
                                     : null;
@@ -1565,16 +1512,26 @@ export function PersonnelAccountClosureSheet({
                                         isYearClosure: true,
                                         closureSummary: {
                                           arrivalDate: arrivalIso || null,
-                                          departureDate: departureIso,
+                                          departureDate:
+                                            /^\d{4}-\d{2}-\d{2}$/.test(
+                                              lastWorkingDay,
+                                            )
+                                              ? lastWorkingDay
+                                              : departureIso,
                                           workedDays: Number.isFinite(
                                             parsedClosureDays,
                                           )
                                             ? parsedClosureDays
                                             : null,
-                                          expectedSalaryAmount: salaryExpectedOk
-                                            ? parsedExpectedSalary
+                                          monthlySalaryAmount: salaryExpectedOk
+                                            ? parsedMonthlySalary
                                             : null,
+                                          expectedSalaryAmount: earnedSalaryTotal,
                                           expectedSalaryCurrency: pdfCcy,
+                                          advancesTotal: closureAdvancesTotal,
+                                          expensesTotal: closureExpensesTotal,
+                                          salaryPaidTotal: closureSalaryPaidTotal,
+                                          netRemaining: netSalaryPreview,
                                           paidAtClosureAmount: paidAtClosure,
                                           salaryBalanceSettled,
                                           salaryPaymentSource: salaryBalanceSettled
@@ -1598,7 +1555,7 @@ export function PersonnelAccountClosureSheet({
                                     file,
                                   });
                                   notify.success(
-                                    t("personnel.yearClosuresUploadPdfSuccess"),
+                                    t("personnel.accountClosure.closeAndPdfSuccess"),
                                   );
                                 } catch {
                                   notify.error(
@@ -1607,14 +1564,20 @@ export function PersonnelAccountClosureSheet({
                                     ),
                                   );
                                 }
+                                // Yıl kapandı: sheet'i kapat → dialogtaki
+                                // «Kesilen hesaplar» sekmesine dön (onay sorma).
+                                onClose();
                               } catch (e) {
                                 notify.error(toErrorMessage(e));
+                              } finally {
+                                setIsClosing(false);
                               }
                             }}
                           >
-                            {t("personnel.accountClosure.closeYearButton")}
+                            {isClosing
+                              ? t("personnel.accountClosure.closingInProgress")
+                              : t("personnel.accountClosure.closeYearButton")}
                           </Button>
-                        </div>
                         </div>
                       </>
                     ) : null}
@@ -1663,26 +1626,6 @@ export function PersonnelAccountClosureSheet({
           </div>
         )}
           </div>
-        {yearCloseTabs && yearCloseTab !== "salary" ? (
-          <div
-            className={cn(
-              "shrink-0 border-t border-zinc-200 bg-white py-3",
-              "pl-[max(0.75rem,env(safe-area-inset-left,0px))] pr-[max(0.75rem,env(safe-area-inset-right,0px))] sm:pl-6 sm:pr-6",
-              "pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]",
-            )}
-          >
-            <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-end">
-              <Button
-                type="button"
-                variant="secondary"
-                className="min-h-12 w-full touch-manipulation sm:min-h-11 sm:w-auto sm:shrink-0"
-                onClick={() => setYearCloseTab("salary")}
-              >
-                {t("personnel.accountClosure.closeYearGoSalaryTab")}
-              </Button>
-            </div>
-          </div>
-        ) : null}
         </div>
       </div>
     </Modal>

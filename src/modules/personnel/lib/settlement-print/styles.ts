@@ -212,9 +212,9 @@ export const DOC_STYLES = `
     td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
     tr { break-inside: avoid; }
     /* Personel gider/avans tablosu — tür rozeti ve alt toplam çubuğu */
-    .otype { display: inline-block; padding: 1px 7px; border-radius: 999px; font-size: 9.5px; font-weight: 700; color: #fff; white-space: nowrap; }
-    .otype-adv { background: #7c3aed; } /* avans — violet */
-    .otype-exp { background: #be123c; } /* gider — rose */
+    .otype { display: inline-block; padding: 2px 9px; border-radius: 6px; font-size: 10px; font-weight: 700; line-height: 1.5; white-space: nowrap; letter-spacing: .02em; }
+    .otype-adv { background: #f3e8ff; color: #6b21a8; } /* avans — violet tint */
+    .otype-exp { background: #ffe4e6; color: #be123c; } /* gider — rose tint */
     .src-br { color: #64748b; font-weight: 600; } /* kaynak kasa ise şube adı */
     .outflow-foot { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: flex-end; margin: 4px 0 2px; font-size: 10px; }
     .outflow-foot .of-k { color: var(--doc-muted, #64748b); font-weight: 600; }

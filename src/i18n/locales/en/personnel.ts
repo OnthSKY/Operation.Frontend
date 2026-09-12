@@ -210,6 +210,12 @@ export const personnel = {
   settlementPrintClosureCardSalary: "Earned salary (this season)",
   settlementPrintClosureCardPaid: "Paid at closure",
   settlementPrintClosureCardPaidNone: "Not paid",
+  settlementPrintClosureDaysUnit: "days",
+  settlementPrintClosureBreakdownTitle: "Salary calculation",
+  settlementPrintClosureMonthly: "Monthly salary",
+  settlementPrintClosureEarned: "Earned ({days} days × monthly ÷ 30)",
+  settlementPrintClosureSalaryPaid: "Salary paid",
+  settlementPrintClosureRemaining: "Remaining (to pay the person)",
   settlementPrintDocTitleBranch: "Branch settlement summary",
   settlementPrintScopeLinePersonnel: "Scope: selected person (all their advances and expense lines).",
   settlementPrintScopeLineBranch: "Selected branch",
@@ -533,8 +539,11 @@ export const personnel = {
     yearNotClosedHint: "This year is not closed yet. Review totals, then confirm closure when reconciled.",
     closeNotesLabel: "Closure note (optional)",
     closeNotesPlaceholder: "e.g. settled in cash on …",
+    addNoteButton: "Add a note (optional)",
     closeYearButton: "Mark year as closed",
     closeSuccess: "Year marked as closed for this person.",
+    closeAndPdfSuccess: "Year closed and settlement PDF saved.",
+    closingInProgress: "Closing…",
     closeSuccessPdfFailed:
       "Year was closed, but the PDF could not be uploaded. You can re-upload it from the «Closed accounts» tab.",
     settlementPdfAutoSaveHint:
@@ -544,9 +553,18 @@ export const personnel = {
       "Before closing the season, this cash should be handed over to the owner/branch or returned. The amount below is still on this person:",
     yearClosedViewHint:
       "To see this again: «Closed accounts» tab, or «Advances & expenses» → Period account summary → the same calendar year → totals (close date in the green box).",
-    summaryTotalsTitle: "What was paid out vs. expenses booked",
+    summaryTotalsTitle: "Season summary",
     summaryTotalsHint:
-      "Advances and salary are payments from the company to the person. Expense lines are personnel-tagged expenses (advance lines are not in this block). Cash handover IN is branch hand-ins where this person was the responsible cashier. Net row formula: advances + expenses − salary (sanity check; not legal settlement).",
+      "Days worked this season, plus advances taken and expenses booked at a glance. Open the account summary PDF for the detailed breakdown.",
+    simpleWorkedDaysTitle: "Days worked",
+    simpleWorkedDaysValue: "{days} days",
+    simpleWorkedDaysRange: "{from} → {to} (today included)",
+    simpleTotalLabel: "Total (advances + expenses)",
+    lastWorkingDayLabel: "Last working day",
+    lastWorkingDayHint:
+      "Defaults to today. If the person leaves tomorrow, pick their exit day; days worked update accordingly.",
+    simpleDetailPdfHint:
+      "Need the detailed breakdown? Open the account summary PDF below.",
     groupPaidOutLabel: "From company to person (advances + salary)",
     groupExpensesLabel: "Personnel-tagged expenses",
     groupHandoverLabel: "Cash handover (IN)",
@@ -589,6 +607,10 @@ export const personnel = {
       "No season start date on file — enter days worked manually.",
     workedDaysApplySuggestionButton: "Apply day suggestion",
     expectedSalaryLabel: "Expected salary amount (this year, same currency)",
+    monthlySalaryLabel: "Monthly salary (net)",
+    monthlySalaryFromCard: "Monthly salary from card: {amount}",
+    breakdownEarnedLabel: "Earned ({days} days × monthly ÷ 30)",
+    breakdownRemainingLabel: "Remaining (to pay the person)",
     salaryCurrencyLabel: "Currency (3 letters)",
     suggestedFromCard:
       "Suggested from card monthly salary × {days} days ÷ 30: {amount}",
@@ -612,13 +634,11 @@ export const personnel = {
     closedSalarySettledNo: "Not marked settled",
     closedSalarySource: "Source",
     closeYearStoryTitle: "Before you mark the year closed",
-    closeYearStoryLead:
-      "The button stays disabled until each check below is satisfied — work through them in order.",
+    closeYearStoryLead: "The close button activates once all are done.",
     closeYearStepPdf: "Settlement PDF + acknowledgement checkbox",
-    closeYearStepDays: "Days worked (1–366)",
-    closeYearStepSalary: "Expected salary amount (≥ 0)",
-    closeYearStepSource:
-      "If balance was paid: payment source (branch register / patron branch register / patron)",
+    closeYearStepDays: "Days worked",
+    closeYearStepSalary: "Expected salary",
+    closeYearStepSource: "Payment source",
     closeYearHintPdf:
       "Open the PDF, align with the person, then tick the acknowledgement checkbox.",
     closeYearHintDays: "Enter a whole number of days worked between 1 and 366.",
@@ -631,8 +651,6 @@ export const personnel = {
     closeYearMobileTabOverview: "Summary",
     closeYearMobileTabPdf: "PDF",
     closeYearMobileTabSalary: "Salary",
-    closeYearMobileTabsFooterHint:
-      "Steps advance in order; use only the buttons at the bottom to move. The bar above shows where you are. The year-close button is on the final step.",
     closeYearSalaryTabRequiresPdfAck:
       "Tick the settlement acknowledgement before continuing to salary.",
     closeYearGuideTitle: "Recorded totals (how to read them)",
@@ -946,8 +964,8 @@ export const personnel = {
   yearClosuresIntro:
     "Calendar-year account closures for this person. If a year was closed by mistake, you can reopen it.",
   yearClosuresStoryHint:
-    "In «Close account / summary»: PDF acknowledgement → days & salary → payment source if needed; then «Mark year as closed» becomes enabled.",
-  yearClosuresCloseAccount: "Close account / summary",
+    "In «Close season account»: PDF acknowledgement → days & salary → payment source if needed; then «Mark year as closed» becomes enabled.",
+  yearClosuresCloseAccount: "Close season account",
   yearClosuresEmpty: "No closed year accounts for this person yet.",
   yearClosuresReadOnlyHint:
     "Inactive personnel: you can view closures but cannot reopen a year.",

@@ -2,6 +2,7 @@
 
 import type { Locale } from "@/i18n/messages";
 import { Button } from "@/shared/ui/Button";
+import { CalendarCheckIcon } from "@/shared/ui/EyeIcon";
 import { formatLocaleDateTime } from "@/shared/lib/locale-date";
 import { toErrorMessage } from "@/shared/lib/error-message";
 import {
@@ -59,6 +60,7 @@ export function PersonnelDetailYearClosuresTab({
           disabled={personnel.isDeleted}
           onClick={onOpenAccountClosure}
         >
+          <CalendarCheckIcon className="mr-1.5 h-4 w-4" />
           {t("personnel.yearClosuresCloseAccount")}
         </Button>
       </div>

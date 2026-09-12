@@ -51,3 +51,41 @@ export function suggestClosureWorkedDaysFromSeasonStart(
     seasonArrivalIso: raw,
   };
 }
+
+/**
+ * Kullanıcının seçtiği "son çalışma günü"ne göre çalışılan gün: max(sezon gelişi,
+ * yıl başı) → seçilen gün (yıl sonuna kırpılır), her iki uç dahil. Sezon gelişi
+ * yoksa null döner (aralık başlangıcı bilinemez → elle giriş).
+ */
+export function computeWorkedDaysForClosure(
+  calendarYear: number,
+  seasonArrivalIso: string | null | undefined,
+  lastWorkingDayIso: string | null | undefined
+): ClosureWorkedDaysFromSeason | null {
+  if (!Number.isFinite(calendarYear) || calendarYear < 1990 || calendarYear > 2100) {
+    return null;
+  }
+  const raw =
+    typeof seasonArrivalIso === "string" ? seasonArrivalIso.trim().slice(0, 10) : "";
+  if (!YMD.test(raw)) return null;
+  const end =
+    typeof lastWorkingDayIso === "string" ? lastWorkingDayIso.trim().slice(0, 10) : "";
+  if (!YMD.test(end)) return null;
+
+  const yearStart = `${calendarYear}-01-01`;
+  const yearEnd = `${calendarYear}-12-31`;
+  const periodStart = raw > yearStart ? raw : yearStart;
+  const periodEnd = end > yearEnd ? yearEnd : end < yearStart ? yearStart : end;
+
+  if (periodStart > periodEnd) return null;
+
+  const { dates, truncated } = enumerateLocalIsoDatesInclusive(periodStart, periodEnd, 400);
+  if (truncated || dates.length < 1) return null;
+
+  return {
+    days: dates.length,
+    periodStart,
+    periodEnd,
+    seasonArrivalIso: raw,
+  };
+}

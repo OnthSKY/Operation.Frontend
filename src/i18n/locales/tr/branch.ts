@@ -175,7 +175,7 @@ export const branch = {
   branchPdfSourceBreakdownNote: "(şube gideri + personel gideri + avans)",
   branchPdfSourceBranchExpense: "Şube gideri",
   branchPdfSourcePersonnelExpense: "Personel gideri + avans",
-  branchPdfOutflowTitle: "Personel giderleri — avans + gider",
+  branchPdfOutflowTitle: "Personel hesabı (avans + gider)",
   branchPdfOutflowPerPersonAdvance: "Kişi bazlı avans toplamı",
   branchPdfOutflowColType: "Tür",
   branchPdfOutflowColDetail: "Açıklama",

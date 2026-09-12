@@ -589,9 +589,8 @@ export async function buildPersonnelSettlementDocument(
       ? `<div class="outflow-foot">${footParts.join("")}</div>`
       : "";
 
-    const count = (showAdvSection ? advances.length : 0) + (showExpSection ? expenses.length : 0);
     const headPerson = byBranch ? `<th>${colPersonnel}</th>` : "";
-    const title = `<h2 class="sec-exp">${escapeHtml(t("branch.branchPdfOutflowTitle"))} (${count})</h2>`;
+    const title = `<h2 class="sec-exp">${escapeHtml(t("branch.branchPdfOutflowTitle"))}</h2>`;
     personnelOutflowHtml = outRows.length
       ? `${title}
   <table>
@@ -728,12 +727,6 @@ export async function buildPersonnelSettlementDocument(
           (closureSummary?.expectedSalaryCurrency?.trim().toUpperCase() ||
             ccyKeys[0] ||
             "TRY") || "TRY";
-        const advTaken = advTotals.get(cc) ?? 0;
-        const expTaken = expTotals.get(cc) ?? 0;
-        const taken = advTaken + expTaken;
-        const salary = closureSummary?.expectedSalaryAmount ?? null;
-        const settled = closureSummary?.salaryBalanceSettled === true;
-        const paid = closureSummary?.paidAtClosureAmount ?? null;
         const money = (n: number) => escapeHtml(formatMoneyDash(n, dash, locale, cc));
 
         const arrival =
@@ -746,17 +739,29 @@ export async function buildPersonnelSettlementDocument(
           /^\d{4}-\d{2}-\d{2}$/.test(closureSummary.departureDate)
             ? formatLocaleDate(closureSummary.departureDate, locale, dash)
             : dash;
-        const workedDays =
+        const workedDaysStr =
           closureSummary?.workedDays != null && closureSummary.workedDays > 0
             ? String(closureSummary.workedDays)
             : dash;
+
+        const advV = closureSummary?.advancesTotal ?? advTotals.get(cc) ?? 0;
+        const expV = closureSummary?.expensesTotal ?? expTotals.get(cc) ?? 0;
+        const salPaidV = closureSummary?.salaryPaidTotal ?? 0;
+        const taken = advV + expV;
+        const monthly = closureSummary?.monthlySalaryAmount ?? null;
+        const earned = closureSummary?.expectedSalaryAmount ?? null;
+        const remaining =
+          closureSummary?.netRemaining ??
+          (earned != null ? earned - advV - expV - salPaidV : null);
+        const settled = closureSummary?.salaryBalanceSettled === true;
+        const paid = closureSummary?.paidAtClosureAmount ?? null;
 
         const card = (
           label: string,
           big: string,
           sub: string,
           accent: string,
-        ) => `<div style="flex:1 1 200px;min-width:180px;border:1px solid #d4d4d8;border-top:3px solid ${accent};border-radius:10px;padding:12px 14px;background:#ffffff;">
+        ) => `<div style="flex:1 1 220px;min-width:200px;border:1px solid #d4d4d8;border-top:3px solid ${accent};border-radius:10px;padding:12px 14px;background:#ffffff;">
             <p style="margin:0;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#71717a;">${escapeHtml(label)}</p>
             <p style="margin:6px 0 0;font-size:18px;font-weight:800;color:#18181b;">${big}</p>
             ${sub ? `<p style="margin:4px 0 0;font-size:11px;line-height:1.5;color:#52525b;">${sub}</p>` : ""}
@@ -764,34 +769,71 @@ export async function buildPersonnelSettlementDocument(
 
         const workCard = card(
           t("personnel.settlementPrintClosureCardWorkPeriod"),
-          escapeHtml(arrival),
-          `${escapeHtml(t("personnel.settlementPrintClosureCardDeparture"))}: ${escapeHtml(departure)}<br/>${escapeHtml(t("personnel.settlementPrintClosureCardWorkedDays"))}: ${escapeHtml(workedDays)}`,
+          `${escapeHtml(workedDaysStr)} ${escapeHtml(t("personnel.settlementPrintClosureDaysUnit"))}`,
+          `${escapeHtml(arrival)} → ${escapeHtml(departure)}`,
           "#0ea5e9",
         );
         const takenCard = card(
           t("personnel.settlementPrintClosureCardTaken"),
           money(taken),
-          `${escapeHtml(t("personnel.settlementPrintClosureCardTakenAdv"))}: ${money(advTaken)} · ${escapeHtml(t("personnel.settlementPrintClosureCardTakenExp"))}: ${money(expTaken)}`,
+          `${escapeHtml(t("personnel.settlementPrintClosureCardTakenAdv"))}: ${money(advV)} · ${escapeHtml(t("personnel.settlementPrintClosureCardTakenExp"))}: ${money(expV)}`,
           "#d97706",
         );
-        const salaryCard = card(
-          t("personnel.settlementPrintClosureCardSalary"),
-          salary != null ? money(salary) : dash,
-          "",
-          "#7c3aed",
-        );
-        const paidCard = card(
-          t("personnel.settlementPrintClosureCardPaid"),
-          settled && paid != null && paid > 0
-            ? money(paid)
-            : escapeHtml(t("personnel.settlementPrintClosureCardPaidNone")),
-          settled && closureSummary?.salaryPaymentSource
-            ? escapeHtml(sourceAbbrev(t, closureSummary.salaryPaymentSource))
-            : "",
-          "#047857",
-        );
 
-        return `<div style="display:flex;flex-wrap:wrap;gap:10px;margin:14px 0;">${workCard}${takenCard}${salaryCard}${paidCard}</div>`;
+        // Maaş hesabı dökümü — özet sayfasındaki breakdown ile birebir.
+        const brRow = (
+          label: string,
+          val: string,
+          opts?: { minus?: boolean; strong?: boolean },
+        ) =>
+          `<div style="display:flex;justify-content:space-between;gap:12px;padding:7px 14px;border-top:1px solid #f4f4f5;">
+             <span style="font-size:12px;color:${opts?.strong ? "#18181b" : "#52525b"};font-weight:${opts?.strong ? "700" : "400"};">${opts?.minus ? "− " : ""}${escapeHtml(label)}</span>
+             <span style="font-size:${opts?.strong ? "13px" : "12px"};font-weight:${opts?.strong ? "800" : "600"};color:#18181b;white-space:nowrap;">${val}</span>
+           </div>`;
+
+        const earnedLabel = t(
+          "personnel.settlementPrintClosureEarned",
+        ).replace("{days}", workedDaysStr);
+        const breakdownRows =
+          (monthly != null
+            ? brRow(t("personnel.settlementPrintClosureMonthly"), money(monthly))
+            : "") +
+          (earned != null
+            ? brRow(earnedLabel, money(earned), { strong: true })
+            : "") +
+          brRow(t("personnel.settlementPrintClosureCardTakenAdv"), money(advV), {
+            minus: true,
+          }) +
+          brRow(t("personnel.settlementPrintClosureCardTakenExp"), money(expV), {
+            minus: true,
+          }) +
+          (salPaidV > 0.005
+            ? brRow(
+                t("personnel.settlementPrintClosureSalaryPaid"),
+                money(salPaidV),
+                { minus: true },
+              )
+            : "");
+        const remainingRow =
+          remaining != null
+            ? `<div style="display:flex;justify-content:space-between;gap:12px;padding:10px 14px;border-top:1px solid #ddd6fe;background:#f5f3ff;">
+                 <span style="font-size:13px;font-weight:800;color:#18181b;">${escapeHtml(t("personnel.settlementPrintClosureRemaining"))}</span>
+                 <span style="font-size:16px;font-weight:800;color:${remaining >= 0 ? "#4c1d95" : "#b91c1c"};white-space:nowrap;">${money(remaining)}</span>
+               </div>`
+            : "";
+        const paidLine =
+          settled && paid != null && paid > 0
+            ? `<div style="padding:8px 14px 12px;"><p style="margin:0;font-size:11px;color:#065f46;">${escapeHtml(t("personnel.settlementPrintClosureCardPaid"))}: <strong>${money(paid)}</strong>${closureSummary?.salaryPaymentSource ? ` · ${escapeHtml(sourceAbbrev(t, closureSummary.salaryPaymentSource))}` : ""}</p></div>`
+            : "";
+
+        const breakdownCard = `<div style="margin-top:10px;border:1px solid #d4d4d8;border-top:3px solid #7c3aed;border-radius:10px;background:#ffffff;overflow:hidden;">
+            <p style="margin:0;padding:12px 14px 4px;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#71717a;">${escapeHtml(t("personnel.settlementPrintClosureBreakdownTitle"))}</p>
+            ${breakdownRows}
+            ${remainingRow}
+            ${paidLine}
+          </div>`;
+
+        return `<div style="display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 0;">${workCard}${takenCard}</div>${breakdownCard}`;
       })()
     : "";
   const escToolbarAria = escapeHtml(t("personnel.settlementPrintToolbarAria"));
@@ -859,7 +901,7 @@ export async function buildPersonnelSettlementDocument(
   ${registerSectionHtml}
   ${currentAccountSectionHtml}
 
-  ${byBranch ? "" : summaryBlockHtml}
+  ${byBranch || isClosure ? "" : summaryBlockHtml}
   ${notesBlocksHtml}
   ${isClosure ? "" : `${overlapHintHtml}${capNote}${seasonScopeNoteHtml}`}
   <p class="footer-note">${escapeHtml(t("personnel.settlementPrintFooterHint"))}</p>

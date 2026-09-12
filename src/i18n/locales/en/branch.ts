@@ -168,7 +168,7 @@ export const branch = {
   branchPdfSourceBreakdownNote: "(branch + personnel expense + advances)",
   branchPdfSourceBranchExpense: "Branch expense",
   branchPdfSourcePersonnelExpense: "Personnel expense + advances",
-  branchPdfOutflowTitle: "Personnel costs — advances + expenses",
+  branchPdfOutflowTitle: "Personnel account (advances + expenses)",
   branchPdfOutflowPerPersonAdvance: "Advance total per person",
   branchPdfOutflowColType: "Type",
   branchPdfOutflowColDetail: "Detail",

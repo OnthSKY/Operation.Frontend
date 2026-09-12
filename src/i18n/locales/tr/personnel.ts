@@ -213,6 +213,12 @@ export const personnel = {
   settlementPrintClosureCardSalary: "Hak edilen maaş (bu sezon)",
   settlementPrintClosureCardPaid: "Kapanışta ödenen",
   settlementPrintClosureCardPaidNone: "Ödenmedi",
+  settlementPrintClosureDaysUnit: "gün",
+  settlementPrintClosureBreakdownTitle: "Maaş hesabı",
+  settlementPrintClosureMonthly: "Aylık maaş",
+  settlementPrintClosureEarned: "Hak ediş ({days} gün × aylık ÷ 30)",
+  settlementPrintClosureSalaryPaid: "Ödenen maaş",
+  settlementPrintClosureRemaining: "Kalan (personele ödenecek)",
   settlementPrintDocTitleBranch: "Şube hesap özeti",
   settlementPrintScopeLinePersonnel:
     "Kapsam: seçilen personel (tüm avansları ve gider satırları).",
@@ -542,8 +548,11 @@ export const personnel = {
       "Bu yıl henüz kapatılmadı. Toplamları kontrol edip mutabakat sonrası kapatmayı onaylayın.",
     closeNotesLabel: "Kapanış notu (isteğe bağlı)",
     closeNotesPlaceholder: "Örn. … tarihinde nakit kapandı",
+    addNoteButton: "Not ekle (isteğe bağlı)",
     closeYearButton: "Yılı kapatıldı olarak işaretle",
     closeSuccess: "Bu personel için yıl kapatıldı olarak kaydedildi.",
+    closeAndPdfSuccess: "Yıl kapatıldı ve mutabakat PDF'i kaydedildi.",
+    closingInProgress: "Kapatılıyor…",
     closeSuccessPdfFailed:
       "Yıl kapatıldı, ancak PDF yüklenemedi. PDF'i «Kesilen hesaplar» sekmesinden tekrar yükleyebilirsiniz.",
     settlementPdfAutoSaveHint:
@@ -553,9 +562,18 @@ export const personnel = {
       "Sezonu kapatmadan önce bu nakdin patrona/şubeye devredilmesi veya iade edilmesi önerilir. Aşağıdaki tutar hâlâ kişinin üzerinde görünüyor:",
     yearClosedViewHint:
       "Bu durumu tekrar görmek için: «Kesilen hesaplar» sekmesi veya «Avans ve giderler» → «Dönem hesap özeti» → aynı takvim yılı → toplamlar (kapanış tarihi yeşil kutuda).",
-    summaryTotalsTitle: "Ne ödendi, ne gider yazıldı?",
+    summaryTotalsTitle: "Sezon özeti",
     summaryTotalsHint:
-      "Avans ve maaş: şirketten personele yapılan ödemeler. Gider satırları: personele yazılan giderler (avans kayıtları bu blokta değil). Kasa teslimi: bu kişinin sorumlu olduğu şubelerden gelen teslim girişleri. Net satır formülü: avans + gider − maaş (basit kontrol; hukuki mutabakat değildir).",
+      "Bu sezonda çalışılan gün ile alınan avans ve yazılan giderlerin özeti. Ayrıntılı döküm için hesap özeti PDF'ini açın.",
+    simpleWorkedDaysTitle: "Çalışılan gün",
+    simpleWorkedDaysValue: "{days} gün",
+    simpleWorkedDaysRange: "{from} → {to} (bugün dahil)",
+    simpleTotalLabel: "Toplam (avans + gider)",
+    lastWorkingDayLabel: "Son çalışma günü",
+    lastWorkingDayHint:
+      "Bugün seçili gelir. Kişi yarın çıkacaksa çıkış gününü seçin; çalışılan gün buna göre hesaplanır.",
+    simpleDetailPdfHint:
+      "Ayrıntılı döküm mü lazım? Aşağıdan hesap özeti PDF'ini açın.",
     groupPaidOutLabel: "Şirketten personele (avans + maaş)",
     groupExpensesLabel: "Personele yazılan giderler",
     groupHandoverLabel: "Kasa teslimi (giriş)",
@@ -598,6 +616,10 @@ export const personnel = {
       "Kartta sezon başlangıç tarihi yok; çalışılan günü elle girebilirsiniz.",
     workedDaysApplySuggestionButton: "Gün önerisini yaz",
     expectedSalaryLabel: "Beklenen maaş tutarı (bu yıl, aynı para birimi)",
+    monthlySalaryLabel: "Aylık maaş (net)",
+    monthlySalaryFromCard: "Karttaki aylık maaş: {amount}",
+    breakdownEarnedLabel: "Hak ediş ({days} gün × aylık ÷ 30)",
+    breakdownRemainingLabel: "Kalan (personele ödenecek)",
     salaryCurrencyLabel: "Para birimi (3 harf)",
     suggestedFromCard:
       "Karttaki aylık maaş × {days} gün ÷ 30 önerisi: {amount}",
@@ -621,13 +643,11 @@ export const personnel = {
     closedSalarySettledNo: "İşaretlenmedi",
     closedSalarySource: "Kaynak",
     closeYearStoryTitle: "Yılı kapatmadan önce",
-    closeYearStoryLead:
-      "Düğme, aşağıdaki kontroller tamamlanana kadar kapalıdır; sırayla ilerleyin.",
+    closeYearStoryLead: "Tümü tamamlanınca kapatma düğmesi aktifleşir.",
     closeYearStepPdf: "Hesap özeti PDF ile mutabakat kutusu",
-    closeYearStepDays: "Çalışılan gün (1–366)",
-    closeYearStepSalary: "Beklenen maaş tutarı (≥ 0)",
-    closeYearStepSource:
-      "Kalan ödendiyse: ödeme kaynağı (şube kasası / patron şube kasası / patron)",
+    closeYearStepDays: "Çalışılan gün",
+    closeYearStepSalary: "Beklenen maaş",
+    closeYearStepSource: "Ödeme kaynağı",
     closeYearHintPdf:
       "Önce PDF’yi açın, personelle netleştirin; ardından mutabakat kutusunu işaretleyin.",
     closeYearHintDays:
@@ -642,8 +662,6 @@ export const personnel = {
     closeYearMobileTabOverview: "Özet",
     closeYearMobileTabPdf: "PDF",
     closeYearMobileTabSalary: "Maaş",
-    closeYearMobileTabsFooterHint:
-      "Adımlar sırayla ilerler; geçiş yalnızca alttaki düğmelerledir. Üstteki çubuk yalnızca hangi adımda olduğunuzu gösterir. Yılı kapatma düğmesi son adımdadır.",
     closeYearSalaryTabRequiresPdfAck:
       "Maaş adımına geçmek için önce mutabakat kutusunu işaretleyin.",
     closeYearGuideTitle: "Kayıtlara göre özet (okuma yardımı)",
@@ -957,8 +975,8 @@ export const personnel = {
   yearClosuresIntro:
     "Bu personel için takvim yılı bazında kapatılmış (kesilmiş) hesap kayıtları. Yanlış kapanışta ilgili yılı yeniden açabilirsiniz.",
   yearClosuresStoryHint:
-    "«Hesap kesimi / özet» ile açılan pencerede: PDF mutabakatı → çalışılan gün ve maaş → gerekiyorsa ödeme kaynağı; ardından «Yılı kapatıldı olarak işaretle» etkinleşir.",
-  yearClosuresCloseAccount: "Hesap kesimi / özet",
+    "«Sezon hesabını kapat» ile açılan pencerede: PDF mutabakatı → çalışılan gün ve maaş → gerekiyorsa ödeme kaynağı; ardından «Yılı kapatıldı olarak işaretle» etkinleşir.",
+  yearClosuresCloseAccount: "Sezon hesabını kapat",
   yearClosuresEmpty: "Bu personel için henüz kesilmiş yıl hesabı yok.",
   yearClosuresReadOnlyHint:
     "Pasif personelde yıl yeniden açılamaz; kayıtları yalnızca görüntüleyebilirsiniz.",
