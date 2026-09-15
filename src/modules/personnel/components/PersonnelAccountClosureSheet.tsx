@@ -359,6 +359,8 @@ export function PersonnelAccountClosureSheet({
   const [salaryBalanceSettled, setSalaryBalanceSettled] = useState(false);
   const [salaryPaymentSourceType, setSalaryPaymentSourceType] = useState("");
   const [salarySettlementNote, setSalarySettlementNote] = useState("");
+  // Hesap kesilince açık sigorta dönemini de bitir — varsayılan açık (istihdam dönemi zaten kapanır).
+  const [endInsurance, setEndInsurance] = useState(true);
   // Son çalışma / çıkış günü (YYYY-MM-DD). Default: bugün (cari yıl) veya yıl sonu.
   // Çalışılan gün bu güne göre hesaplanır; backend'e gitmez, yalnızca gün sayısını türetir.
   const [lastWorkingDay, setLastWorkingDay] = useState("");
@@ -1399,6 +1401,24 @@ export function PersonnelAccountClosureSheet({
                             </button>
                           )}
                         </Card>
+                        <Card>
+                          <label className="flex cursor-pointer items-start gap-3">
+                            <input
+                              type="checkbox"
+                              className="mt-0.5 h-5 w-5 shrink-0 rounded border-zinc-300 text-zinc-900 focus:ring-2 focus:ring-zinc-900/20"
+                              checked={endInsurance}
+                              onChange={(e) => setEndInsurance(e.target.checked)}
+                            />
+                            <span className="min-w-0">
+                              <span className="block text-sm font-medium text-zinc-900">
+                                {t("personnel.accountClosure.endInsuranceLabel")}
+                              </span>
+                              <span className="mt-0.5 block text-xs leading-relaxed text-zinc-500">
+                                {t("personnel.accountClosure.endInsuranceHint")}
+                              </span>
+                            </span>
+                          </label>
+                        </Card>
                         <div className="sticky bottom-0 z-[1] -mx-3 mt-2 border-t border-zinc-200 bg-white/95 px-3 py-3 shadow-[0_-6px_20px_-8px_rgba(0,0,0,0.12)] backdrop-blur supports-[backdrop-filter]:bg-white/90 sm:static sm:z-0 sm:mx-0 sm:mt-3 sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none sm:backdrop-blur-none">
                           {closeYearStory ? (
                             <p
@@ -1447,6 +1467,7 @@ export function PersonnelAccountClosureSheet({
                                     : null,
                                   salarySettlementNote:
                                     salarySettlementNote.trim() || null,
+                                  endInsurance,
                                 });
                                 setCloseNotes("");
                                 setClosureWorkedDays(

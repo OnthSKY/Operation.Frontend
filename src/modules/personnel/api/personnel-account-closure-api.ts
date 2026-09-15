@@ -163,6 +163,8 @@ export type ClosePersonnelYearAccountBody = {
   salaryBalanceSettled: boolean;
   salaryPaymentSourceType?: string | null;
   salarySettlementNote?: string | null;
+  /** Hesap kesilince açık sigorta dönemini de bitir (UI: default açık). İstihdam dönemi zaten kapanır. */
+  endInsurance: boolean;
 };
 
 export async function closePersonnelYearAccount(

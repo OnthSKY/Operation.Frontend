@@ -626,6 +626,9 @@ export const personnel = {
     salarySourcePatron: "Patron / owner",
     salarySettlementNoteLabel: "Salary settlement note (optional)",
     salarySettlementNotePlaceholder: "e.g. paid with January payroll batch",
+    endInsuranceLabel: "Insurance ended",
+    endInsuranceHint:
+      "Closing the account also ends the personnel's open insurance period (end = closure date). The tourism season (employment term) is closed regardless. To reopen, reopen the account closure first.",
     closedWorkedDays: "Days worked:",
     closedExpectedSalary: "Expected salary:",
     closedNetRemaining: "Net remaining (at close):",

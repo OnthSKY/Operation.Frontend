@@ -635,6 +635,9 @@ export const personnel = {
     salarySourcePatron: "Patron",
     salarySettlementNoteLabel: "Maaş kapanış notu (isteğe bağlı)",
     salarySettlementNotePlaceholder: "örn. Ocak bordrosu ile ödendi",
+    endInsuranceLabel: "Sigorta bitirildi",
+    endInsuranceHint:
+      "Hesap kesilince personelin açık sigorta dönemi de kapatılır (bitiş = kapanış tarihi). Turizm sezonu (istihdam dönemi) zaten kapanır. Geri açmak için hesap kesimini yeniden açman gerekir.",
     closedWorkedDays: "Çalışılan gün:",
     closedExpectedSalary: "Beklenen maaş:",
     closedNetRemaining: "Kapanıştaki net kalan:",
