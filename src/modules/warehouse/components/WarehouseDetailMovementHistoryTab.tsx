@@ -211,6 +211,9 @@ type Props = {
   /** Özetten geçiş: ALL boş tür; IN/OUT giriş/çıkış segmenti. */
   historyTypeIntent?: "" | "ALL" | "IN" | "OUT";
   onHistoryTypeIntentConsumed?: () => void;
+  /** Dış bağlamdan (ör. şube stok paneli) gelen hedef-şube filtresi ön-ayarı. */
+  branchIdIntent?: number | null;
+  onBranchIdIntentConsumed?: () => void;
   openMovementIdIntent?: number | null;
   onOpenMovementIdIntentConsumed?: () => void;
 };
@@ -222,6 +225,8 @@ export function WarehouseDetailMovementHistoryTab({
   enabled,
   historyTypeIntent = "",
   onHistoryTypeIntentConsumed,
+  branchIdIntent = null,
+  onBranchIdIntentConsumed,
   openMovementIdIntent = null,
   onOpenMovementIdIntentConsumed,
 }: Props) {
@@ -474,6 +479,13 @@ export function WarehouseDetailMovementHistoryTab({
     else if (intent === "IN" || intent === "OUT") setType(intent);
     onHistoryTypeIntentConsumed?.();
   }, [enabled, historyTypeIntent, onHistoryTypeIntentConsumed]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    if (branchIdIntent == null || !Number.isFinite(branchIdIntent) || branchIdIntent <= 0) return;
+    setBranchId(String(branchIdIntent));
+    onBranchIdIntentConsumed?.();
+  }, [enabled, branchIdIntent, onBranchIdIntentConsumed]);
 
   useEffect(() => {
     setPage(1);

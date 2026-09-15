@@ -472,9 +472,12 @@ export function BranchStockInboundPanel({ branchId }: Props) {
     warehouseDetailOverlay.openWarehouseDetail(warehouseId, {
       initialTab: "history",
       openMovementId: detailModalWarehouseMovementId,
+      // Bu şubeye gelen sevkiyatlar = depo çıkışı (OUT). Hareket geçmişini şube + depo çıkışıyla filtrele.
+      historyType: "OUT",
+      historyBranchId: branchId,
       nested: true,
     });
-  }, [detailModalWarehouseId, detailModalWarehouseMovementId, warehouseDetailOverlay]);
+  }, [branchId, detailModalWarehouseId, detailModalWarehouseMovementId, warehouseDetailOverlay]);
 
   /** Tek bir gelen-mal satırını kaynak depodaki hareket geçmişi detayında açar. */
   const openWarehouseDetailForMovement = useCallback(
@@ -483,10 +486,13 @@ export function BranchStockInboundPanel({ branchId }: Props) {
       warehouseDetailOverlay.openWarehouseDetail(warehouseId, {
         initialTab: "history",
         openMovementId: movementId != null && movementId > 0 ? movementId : null,
+        // Bu şubeye gelen sevkiyatlar = depo çıkışı (OUT). Hareket geçmişini şube + depo çıkışıyla filtrele.
+        historyType: "OUT",
+        historyBranchId: branchId,
         nested: true,
       });
     },
-    [warehouseDetailOverlay]
+    [branchId, warehouseDetailOverlay]
   );
 
   /** İzinli kullanıcı için satır sonunda "kaynak depoyu aç" ikon butonu (yoksa null). */

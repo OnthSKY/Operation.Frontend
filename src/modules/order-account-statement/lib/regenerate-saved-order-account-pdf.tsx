@@ -45,6 +45,12 @@ export async function regenerateSavedOrderAccountPdfBlob(input: {
   orderDocumentKey: string;
   systemDocumentId?: number | null;
   invoice: OutboundInvoiceResponse;
+  /** Gövde düşümleri için gerçek değerler. Promo/avans çoğu zaman tahsilat (customer_account_receipts)
+   *  olarak tutulduğundan invoice.{promo,advance}Amount 0 gelir; çağıran gerçek değeri geçebilir.
+   *  Verilmezse invoice alanlarına düşülür. */
+  giftAmountOverride?: number;
+  promoAmountOverride?: number;
+  advanceAmountOverride?: number;
   priorOpenBalance: number;
   /** false ise «önceki cari» bakiyesi belgeye eklenmez (yalnızca bu sevkiyat). Varsayılan: true. */
   includePriorBalance?: boolean;
@@ -62,9 +68,9 @@ export async function regenerateSavedOrderAccountPdfBlob(input: {
   const mapped = mapInvoiceToOrderAccountPdfModel({
     locale: input.locale,
     lines,
-    giftAmount: input.invoice.giftAmount ?? 0,
-    promoAmount: input.invoice.promoAmount ?? 0,
-    advanceAmount: input.invoice.advanceAmount ?? 0,
+    giftAmount: input.giftAmountOverride ?? input.invoice.giftAmount ?? 0,
+    promoAmount: input.promoAmountOverride ?? input.invoice.promoAmount ?? 0,
+    advanceAmount: input.advanceAmountOverride ?? input.invoice.advanceAmount ?? 0,
     promoFallbackLabel: input.labels.promoLineFallback,
     giftLineLabel: input.labels.giftTotal,
   });

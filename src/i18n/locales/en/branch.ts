@@ -397,6 +397,7 @@ export const branch = {
   currentAccountReceiptUnappliedRemainder:
     "Open debt total is lower than payment; {amount} could not be applied.",
   currentAccountExportPdf: "Download branch current-account PDF",
+  currentAccountNavShipmentMovements: "Shipment movements",
   currentAccountPdfDocumentTitle: "Branch current account summary",
   currentAccountPdfGeneratedAt: "Generated",
   currentAccountPdfScope: "Scope",
@@ -408,6 +409,7 @@ export const branch = {
   currentAccountPdfShowCompanyName: "Show company name",
   currentAccountPdfShowLogo: "Show logo",
   currentAccountPdfShowIban: "Include IBAN / payment details",
+  currentAccountPdfShowReceipts: "Show collections (by date)",
   currentAccountPdfRecordsTitle: "Current-account rows to include",
   currentAccountPdfSelectAll: "Select all",
   currentAccountPdfNoSelection: "Select at least one current-account row for the PDF.",
@@ -493,8 +495,9 @@ export const branch = {
   currentAccountPdfChoiceV1Hint:
     "Downloads the original shipment PDF saved during invoicing; it is never modified.",
   currentAccountPdfChoiceV2: "With collections (v2)",
+  currentAccountPdfChoiceComingSoon: "Coming soon",
   currentAccountPdfChoiceV2Hint:
-    "Adds the collections to the PDF and saves it separately as v2 on download. Subsequent downloads reuse the saved v2.",
+    "Discounts, advances, promotions and collections are each deducted from the amount and the remaining balance is shown; the document is regenerated live from current data on every open.",
   currentAccountPdfV2Saved: "Version with collections (v2) saved.",
   currentAccountPdfChoiceOriginal: "Original (plain)",
   currentAccountPdfChoiceOriginalHint:
@@ -509,6 +512,26 @@ export const branch = {
   currentAccountPdfChoicePriorExclude: "Exclude (shipment only)",
   currentAccountPdfChoicePriorExcludeHint:
     "Only this shipment's amounts are shown.",
+  currentAccountReconChecking: "Reconciling…",
+  currentAccountReconOk: "Account reconciled",
+  currentAccountReconIssues: "{n} discrepancy(ies) found",
+  currentAccountReconShow: "Show details",
+  currentAccountReconHide: "Hide",
+  currentAccountReconAccountOpen:
+    "Account open balance mismatch: recorded {stored}, expected {computed}.",
+  currentAccountReconAccountOverpaid: "Overpayment/credit on account: {amount}.",
+  currentAccountReconCashSum:
+    "Cash total does not match receipt records: {stored} ≠ {computed}.",
+  currentAccountReconPaidSum:
+    "Total collected does not match sum of receipts: {stored} ≠ {computed}.",
+  currentAccountReconInvoiceOpen:
+    "{doc}: open amount mismatch (recorded {stored}, expected {computed}).",
+  currentAccountReconInvoiceOverpaid:
+    "{doc}: overpaid ({amount} extra; remaining clamped to 0).",
+  currentAccountReconInvoiceDoublePromo:
+    "{doc}: promotion entered on both the invoice and a receipt (deducted twice).",
+  currentAccountReconInvoiceDoubleAdvance:
+    "{doc}: advance entered on both the invoice and a receipt (deducted twice).",
   tourismSeasonClosedOpenTab: "Go to tourism season tab",
   expensesSeasonMissingForToday:
     "There is no open tourism season covering today for this branch. Without an operating season, posting branch-register expenses is blocked on the server; add a season row or pick a transaction date inside an open season. Only register income lines may still be allowed when the central “Closed season allowances” policy permits it.",

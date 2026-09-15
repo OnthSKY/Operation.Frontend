@@ -60,6 +60,8 @@ export type OutboundInvoiceResponse = {
   counterpartyId: number;
   counterpartyName: string;
   issueDate: string;
+  /** Faturaya bağlı sevkiyatın tarihi (liste akışında dolar); bağlı sevkiyat yoksa null. */
+  shipmentDate?: string | null;
   currencyCode: string;
   status: string;
   ledgerPosted: boolean;

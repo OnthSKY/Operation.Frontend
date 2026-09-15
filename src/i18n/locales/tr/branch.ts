@@ -403,6 +403,7 @@ export const branch = {
   currentAccountReceiptUnappliedRemainder:
     "Açık borç toplamı aşıldı; {amount} tutar uygulanamadı.",
   currentAccountExportPdf: "Şube cari PDF indir",
+  currentAccountNavShipmentMovements: "Sevkiyat hareketleri",
   currentAccountPdfDocumentTitle: "Şube cari hesap özeti",
   currentAccountPdfGeneratedAt: "Üretilme",
   currentAccountPdfScope: "Kapsam",
@@ -414,6 +415,7 @@ export const branch = {
   currentAccountPdfShowCompanyName: "Kurum adını göster",
   currentAccountPdfShowLogo: "Logoyu göster",
   currentAccountPdfShowIban: "IBAN / ödeme bilgisi ekle",
+  currentAccountPdfShowReceipts: "Tahsilatları göster (tarih tarih)",
   currentAccountPdfRecordsTitle: "PDF'ye dahil edilecek cariler",
   currentAccountPdfSelectAll: "Tümünü seç",
   currentAccountPdfNoSelection: "PDF için en az bir cari kaydı seçin.",
@@ -500,8 +502,9 @@ export const branch = {
   currentAccountPdfChoiceV1Hint:
     "Faturalandırma sırasında kaydedilen orijinal sevkiyat PDF'i indirilir; değiştirilmez.",
   currentAccountPdfChoiceV2: "Tahsilatlı sürüm (v2)",
+  currentAccountPdfChoiceComingSoon: "Yakında",
   currentAccountPdfChoiceV2Hint:
-    "Yapılan tahsilatlar PDF'e eklenir ve indirilirken v2 olarak ayrıca kaydedilir. Sonraki indirmelerde kayıtlı v2 kullanılır.",
+    "İskonto, ön ödeme, promosyon ve tahsilatlar tutardan tek tek düşülür ve kalan gösterilir; belge her açılışta güncel verilerle yeniden üretilir.",
   currentAccountPdfV2Saved: "Tahsilatlı sürüm (v2) kaydedildi.",
   currentAccountPdfChoiceOriginal: "İlk hali (sade)",
   currentAccountPdfChoiceOriginalHint:
@@ -516,6 +519,26 @@ export const branch = {
   currentAccountPdfChoicePriorExclude: "Dahil etme (sadece sevkiyat)",
   currentAccountPdfChoicePriorExcludeHint:
     "Yalnızca bu sevkiyatın tutarları gösterilir.",
+  currentAccountReconChecking: "Mutabakat kontrol ediliyor…",
+  currentAccountReconOk: "Cari mutabık",
+  currentAccountReconIssues: "{n} uyuşmazlık bulundu",
+  currentAccountReconShow: "Detayları göster",
+  currentAccountReconHide: "Gizle",
+  currentAccountReconAccountOpen:
+    "Hesap açık bakiyesi tutmuyor: kayıtlı {stored}, beklenen {computed}.",
+  currentAccountReconAccountOverpaid: "Hesapta fazla ödeme/alacak: {amount}.",
+  currentAccountReconCashSum:
+    "Nakit toplamı tahsilat kayıtlarıyla uyuşmuyor: {stored} ≠ {computed}.",
+  currentAccountReconPaidSum:
+    "Toplam tahsilat, kayıtların toplamıyla uyuşmuyor: {stored} ≠ {computed}.",
+  currentAccountReconInvoiceOpen:
+    "{doc}: açık tutar uyuşmuyor (kayıtlı {stored}, beklenen {computed}).",
+  currentAccountReconInvoiceOverpaid:
+    "{doc}: fazla tahsilat ({amount} fazla; kalan 0'a kırpıldı).",
+  currentAccountReconInvoiceDoublePromo:
+    "{doc}: promosyon hem faturada hem tahsilatta girilmiş (çift düşülüyor).",
+  currentAccountReconInvoiceDoubleAdvance:
+    "{doc}: ön ödeme hem faturada hem tahsilatta girilmiş (çift düşülüyor).",
   tourismSeasonClosedOpenTab: "Turizm sezonu sekmesine git",
   expensesSeasonMissingForToday:
     "Bugün için bu şubede açık turizm sezonu tanımlı değil. Şube fiilen sezonda değilken şube kasasından gider yazmak tutarlı değildir; önce turizm sezonu kaydı ekleyin veya işlem tarihini sezon içine alın. Gider ve gelir dışı akışlar bu durumda sunucu tarafından engellenir; yalnızca gelir satırları merkez «Sezon kapalıyken izinler» politikasının açık olması halinde mümkün olabilir.",

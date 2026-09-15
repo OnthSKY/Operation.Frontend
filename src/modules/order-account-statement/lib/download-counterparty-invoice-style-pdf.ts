@@ -7,6 +7,8 @@ export type CounterpartyInvoiceStylePdfRow = {
   counterpartyTypeLabel: string;
   documentNumber: string;
   issueDate: string;
+  /** Sevkiyat tarihi — yalnızca meta.showShipmentDateColumn açıkken gösterilir. */
+  shipmentDate?: string;
   invoiceAmount: string;
   paidAmount: string;
   /** Ön ödeme (advance_payment) — fatura bazlı veya tahsilattan */
@@ -34,6 +36,14 @@ export type CounterpartyInvoiceStylePdfMeta = {
   fileName: string;
   showCompanyName?: boolean;
   showLogo?: boolean;
+  /** "Tahsil Edilen" kolonunu gizle (şube cari: tahsilat artık genel havuz, per-satır anlamsız). */
+  hidePaidColumn?: boolean;
+  /** "Ödeme Tarihi" kolonunu gizle. */
+  hidePaymentDateColumn?: boolean;
+  /** İlk tarih kolonunun başlığı (varsayılan "Sipariş Tarihi"; şube cari "Fatura Tarihi" verir). */
+  dateHeaderLabel?: string;
+  /** İlk tarih kolonundan sonra ayrı "Sevkiyat Tarihi" kolonu ekle (row.shipmentDate'ten). */
+  showShipmentDateColumn?: boolean;
   paymentInfo?: {
     iban?: string;
     accountHolder?: string;
@@ -55,6 +65,11 @@ export type CounterpartyInvoiceStylePdfMeta = {
     giftValue?: string;
     /** Promo + Hediye birleşik toplam (gösterimde başlık, alt satırda detay) */
     promoCombinedValue?: string;
+  };
+  /** Opsiyonel: tahsilatların tarih-tarih listesi (şube cari: genel havuz dahil tüm tahsilatlar). */
+  receiptsList?: {
+    title: string;
+    rows: Array<{ date: string; amount: string; kindLabel: string }>;
   };
 };
 
@@ -139,6 +154,11 @@ function createPaperNode(rows: CounterpartyInvoiceStylePdfRow[], meta: Counterpa
   table.style.borderCollapse = "collapse";
   table.style.fontSize = "12px";
 
+  const showPaid = meta.hidePaidColumn !== true;
+  const showPaymentDate = meta.hidePaymentDateColumn !== true;
+  const showShipmentDate = meta.showShipmentDateColumn === true;
+  const dateHeaderLabel = meta.dateHeaderLabel ?? "Sipariş Tarihi";
+
   // Soft palet — açık zemin + slate metin (kâğıt üstünde nazik).
   const thead = document.createElement("thead");
   thead.innerHTML = `
@@ -146,18 +166,19 @@ function createPaperNode(rows: CounterpartyInvoiceStylePdfRow[], meta: Counterpa
       <th style="padding:8px;border:1px solid #e2e8f0;text-align:left;font-weight:600;">Cari</th>
       <th style="padding:8px;border:1px solid #e2e8f0;text-align:left;font-weight:600;">Tip</th>
       <th style="padding:8px;border:1px solid #e2e8f0;text-align:left;font-weight:600;">Fatura No</th>
-      <th style="padding:8px;border:1px solid #e2e8f0;text-align:left;font-weight:600;">Sipariş Tarihi</th>
+      <th style="padding:8px;border:1px solid #e2e8f0;text-align:left;font-weight:600;">${escapeHtml(dateHeaderLabel)}</th>
+      ${showShipmentDate ? `<th style="padding:8px;border:1px solid #e2e8f0;text-align:left;font-weight:600;">Sevkiyat Tarihi</th>` : ""}
       <th style="padding:8px;border:1px solid #e2e8f0;text-align:right;font-weight:600;">Fatura Tutarı</th>
-      <th style="padding:8px;border:1px solid #e2e8f0;text-align:right;font-weight:600;">Tahsil Edilen</th>
+      ${showPaid ? `<th style="padding:8px;border:1px solid #e2e8f0;text-align:right;font-weight:600;">Tahsil Edilen</th>` : ""}
       <th style="padding:8px;border:1px solid #e2e8f0;text-align:right;font-weight:600;">Ön Ödeme</th>
       <th style="padding:8px;border:1px solid #e2e8f0;text-align:right;font-weight:600;">Promosyon<br/><span style="font-weight:400;font-size:10px;color:#64748b;">(Para + Ürün hediye)</span></th>
       <th style="padding:8px;border:1px solid #e2e8f0;text-align:right;font-weight:600;">Açık</th>
-      <th style="padding:8px;border:1px solid #e2e8f0;text-align:right;font-weight:600;">Ödeme Tarihi</th>
+      ${showPaymentDate ? `<th style="padding:8px;border:1px solid #e2e8f0;text-align:right;font-weight:600;">Ödeme Tarihi</th>` : ""}
     </tr>
   `;
   table.appendChild(thead);
 
-  const COL_COUNT = 10;
+  const COL_COUNT = 8 + (showPaid ? 1 : 0) + (showPaymentDate ? 1 : 0) + (showShipmentDate ? 1 : 0);
   const tbody = document.createElement("tbody");
   rows.forEach((row, index) => {
     const bg = index % 2 === 1 ? "#f8fafc" : "#ffffff";
@@ -168,15 +189,16 @@ function createPaperNode(rows: CounterpartyInvoiceStylePdfRow[], meta: Counterpa
       <td style="padding:7px 8px;border:1px solid #e2e8f0;color:#475569;">${escapeHtml(row.counterpartyTypeLabel)}</td>
       <td style="padding:7px 8px;border:1px solid #e2e8f0;color:#475569;">${escapeHtml(row.documentNumber)}</td>
       <td style="padding:7px 8px;border:1px solid #e2e8f0;color:#475569;">${escapeHtml(row.issueDate)}</td>
+      ${showShipmentDate ? `<td style="padding:7px 8px;border:1px solid #e2e8f0;color:#475569;">${escapeHtml(row.shipmentDate ?? "—")}</td>` : ""}
       <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#0f172a;">${escapeHtml(row.invoiceAmount)}</td>
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#15803d;">${escapeHtml(row.paidAmount)}</td>
+      ${showPaid ? `<td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#15803d;">${escapeHtml(row.paidAmount)}</td>` : ""}
       <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#0284c7;">${escapeHtml(row.advanceAmount ?? "—")}</td>
       <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#7c3aed;">
         ${escapeHtml(row.promoCombinedAmount ?? row.promoAmount ?? "—")}
         ${row.promoAmount || row.giftAmount ? `<div style="margin-top:2px;font-size:9px;font-weight:400;color:#94a3b8;line-height:1.2;">Para: ${escapeHtml(row.promoAmount ?? "—")} · Hediye: ${escapeHtml(row.giftAmount ?? "—")}</div>` : ""}
       </td>
       <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;font-weight:600;color:#b45309;">${escapeHtml(row.openAmount)}</td>
-      <td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#64748b;">${escapeHtml(row.paymentDate)}</td>
+      ${showPaymentDate ? `<td style="padding:7px 8px;border:1px solid #e2e8f0;text-align:right;color:#64748b;">${escapeHtml(row.paymentDate)}</td>` : ""}
     `;
     tbody.appendChild(tr);
 
@@ -256,6 +278,31 @@ function createPaperNode(rows: CounterpartyInvoiceStylePdfRow[], meta: Counterpa
     `;
     summaryWrap.appendChild(card);
     root.appendChild(summaryWrap);
+  }
+
+  // Opsiyonel tahsilat listesi — tarih tarih (genel havuz dahil). Payload isterse doldurur.
+  if (meta.receiptsList && meta.receiptsList.rows.length > 0) {
+    const rl = meta.receiptsList;
+    const box = document.createElement("div");
+    box.style.marginTop = "12px";
+    box.style.border = "1px solid #e2e8f0";
+    box.style.borderRadius = "10px";
+    box.style.overflow = "hidden";
+    const items = rl.rows
+      .map(
+        (r, i) =>
+          `<div style="display:flex;align-items:center;gap:12px;padding:6px 12px;background:${i % 2 === 1 ? "#f8fafc" : "#ffffff"};">
+            <span style="color:#64748b;min-width:90px;">${escapeHtml(r.date)}</span>
+            <span style="display:inline-block;font-size:10px;font-weight:500;padding:1px 8px;border-radius:999px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;">${escapeHtml(r.kindLabel)}</span>
+            <span style="margin-left:auto;color:#166534;font-weight:600;font-variant-numeric:tabular-nums;">${escapeHtml(r.amount)}</span>
+          </div>`
+      )
+      .join("");
+    box.innerHTML = `
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;color:#475569;background:#f1f5f9;padding:6px 12px;border-bottom:1px solid #e2e8f0;">${escapeHtml(rl.title)}</div>
+      ${items}
+    `;
+    root.appendChild(box);
   }
 
   // Alt toplam satırı artık table footer'da (tek satır, koyu zemin). Eski 5-hücreli kart kaldırıldı.

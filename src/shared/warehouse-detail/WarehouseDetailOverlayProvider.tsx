@@ -13,6 +13,9 @@ import {
 export type OpenWarehouseDetailOptions = {
   initialTab?: "history" | null;
   openMovementId?: number | null;
+  /** History sekmesi açılırken uygulanacak tür/şube filtresi ön-ayarı (ör. şube stok panelinden). */
+  historyType?: "IN" | "OUT" | "ALL" | null;
+  historyBranchId?: number | null;
   /** Başka bir modalın üstünde açılırken true (varsayılan: true). */
   nested?: boolean;
 };
@@ -21,6 +24,8 @@ type OverlayOpen = {
   warehouseId: number;
   initialTab: "history" | null;
   openMovementId: number | null;
+  historyType: "IN" | "OUT" | "ALL" | null;
+  historyBranchId: number | null;
   nested: boolean;
 };
 
@@ -67,6 +72,13 @@ export function WarehouseDetailOverlayProvider({ children }: { children: ReactNo
           options.openMovementId > 0
             ? options.openMovementId
             : null,
+        historyType: options?.historyType ?? null,
+        historyBranchId:
+          options?.historyBranchId != null &&
+          Number.isFinite(options.historyBranchId) &&
+          options.historyBranchId > 0
+            ? options.historyBranchId
+            : null,
         nested: options?.nested !== false,
       });
     },
@@ -92,6 +104,8 @@ export function WarehouseDetailOverlayProvider({ children }: { children: ReactNo
           warehouseId={overlayOpen.warehouseId}
           initialTabIntent={overlayOpen.initialTab}
           openMovementIdIntent={overlayOpen.openMovementId}
+          initialHistoryType={overlayOpen.historyType}
+          initialHistoryBranchId={overlayOpen.historyBranchId}
           onClose={closeWarehouseDetail}
         />
       ) : null}

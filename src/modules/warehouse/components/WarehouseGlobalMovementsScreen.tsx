@@ -37,7 +37,7 @@ import { PdfBlobPreview } from "@/modules/documents/components/PdfBlobPreview";
 import { Select, type SelectOption } from "@/shared/ui/Select";
 import { WarehouseMovementInvoicePreviewModal } from "@/modules/warehouse/components/WarehouseMovementInvoicePreviewModal";
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ResponsiveTableFrame } from "@/shared/tables/ResponsiveTableFrame";
 
@@ -415,6 +415,12 @@ function ShipmentGroupExpandedLineBlock({ group }: { group: ShipmentGroupSummary
 export function WarehouseGlobalMovementsScreen() {
   const { t, locale } = useI18n();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // Cari tab'ından şube bağlamıyla gelindiğinde (?branchId=…&type=OUT) hedef-şube + hareket tipi
+  // (depo çıkışı) filtreleri önden seçilir. type yalnız "IN"/"OUT" kabul edilir; başka değer "" (tümü).
+  const initialBranchId = searchParams.get("branchId") ?? "";
+  const rawInitialType = searchParams.get("type") ?? "";
+  const initialType = rawInitialType === "IN" || rawInitialType === "OUT" ? rawInitialType : "";
   /** Depo perspektifli tür etiketi: giriş / çıkış / şubeye sevk (çıkış = şube girişi). */
   const movementTypeLabel = useCallback(
     (m: Pick<WarehouseGlobalMovementRow, "type" | "isDepotToBranchShipment">) => {
@@ -429,16 +435,16 @@ export function WarehouseGlobalMovementsScreen() {
   const { data: branches = [] } = useBranchesList();
   const [scope, setScope] = useState<WarehouseScopeFiltersValue>(() => ({ ...EMPTY_SCOPE }));
   const [warehouseId, setWarehouseId] = useState("");
-  const [type, setType] = useState("");
-  const [branchId, setBranchId] = useState("");
+  const [type, setType] = useState(initialType);
+  const [branchId, setBranchId] = useState(initialBranchId);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [draftScope, setDraftScope] = useState<WarehouseScopeFiltersValue>(() => ({ ...EMPTY_SCOPE }));
   const [draftWarehouseId, setDraftWarehouseId] = useState("");
-  const [draftType, setDraftType] = useState("");
-  const [draftBranchId, setDraftBranchId] = useState("");
+  const [draftType, setDraftType] = useState(initialType);
+  const [draftBranchId, setDraftBranchId] = useState(initialBranchId);
   const [draftDateFrom, setDraftDateFrom] = useState("");
   const [draftDateTo, setDraftDateTo] = useState("");
   const [page, setPage] = useState(1);

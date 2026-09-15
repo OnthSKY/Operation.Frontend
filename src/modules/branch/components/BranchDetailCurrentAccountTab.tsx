@@ -12,6 +12,10 @@ import { fetchCustomerAccountBalance } from "@/modules/order-account-statement/a
 import { GeneralReceiptModal } from "@/modules/order-account-statement/components/GeneralReceiptModal";
 import { computePriorOpenBalanceForInvoice } from "@/modules/order-account-statement/lib/compute-prior-open-balance-for-invoice";
 import {
+  reconcileBranchCurrentAccount,
+  type ReconIssue,
+} from "@/modules/order-account-statement/lib/reconcile-current-account";
+import {
   isOrderAccountStatementPdfNote,
   parseOrderAccountDocumentMetadata,
 } from "@/modules/order-account-statement/lib/parse-order-account-document-metadata";
@@ -24,11 +28,7 @@ import {
   buildCounterpartyInvoiceStylePdfBlob,
   downloadCounterpartyInvoiceStylePdf,
 } from "@/modules/order-account-statement/lib/download-counterparty-invoice-style-pdf";
-import {
-  useBranchDocuments,
-  useDeleteBranchDocument,
-  useUploadBranchDocument,
-} from "@/modules/branch/hooks/useBranchQueries";
+import { useBranchDocuments } from "@/modules/branch/hooks/useBranchQueries";
 import { BranchCurrentAccountReceiptsPanel } from "./BranchCurrentAccountReceiptsPanel";
 import { useBranchUninvoicedShipments } from "@/modules/branch/hooks/useBranchUninvoicedShipments";
 import { useRouter } from "next/navigation";
@@ -58,6 +58,8 @@ type CurrentAccountPdfOptions = {
   showLogo: boolean;
   showCompanyName: boolean;
   showIban: boolean;
+  /** Tahsilatları tarih-tarih ayrı bir listede göster (genel havuz dahil). */
+  showReceipts: boolean;
   iban: string;
   accountHolder: string;
   bankName: string;
@@ -73,25 +75,10 @@ function parseInvoiceIdFromNote(note: string | null | undefined): number | null 
   return Number.isFinite(id) && id > 0 ? id : null;
 }
 
-/** Tahsilatlı (v2) olarak kaydedilmiş türetilmiş PDF belgesi mi? */
+/** Eski akışta kaydedilmiş türetilmiş (v2) PDF belgesi mi? Artık v2 kaydedilmiyor; bu kontrol
+ *  yalnızca eski kayıtlı v2'leri v1 (orijinal) listesinden dışlamak için tutuluyor. */
 function isOrderAccountPdfV2Note(note: string | null | undefined): boolean {
   return /(?:^|[;,\s·])version=v2(?:$|[;,\s·])/i.test(String(note ?? ""));
-}
-
-/** Tahsilat kümesinin imzası: «adet-toplamKuruş». Tahsilat değişince v2 tazelenir. */
-function receiptsSignature(lines: ReadonlyArray<{ amount: number }>): string {
-  const count = lines.length;
-  const totalCents = lines.reduce(
-    (sum, l) => sum + Math.round((Number(l.amount) || 0) * 100),
-    0
-  );
-  return `${count}-${totalCents}`;
-}
-
-/** Kayıtlı v2 belgesinin notundan tahsilat imzasını okur (yoksa null). */
-function parseReceiptSigFromNote(note: string | null | undefined): string | null {
-  const m = String(note ?? "").match(/(?:^|[;,\s·])receiptSig=(\d+-\d+)(?:$|[;,\s·])/i);
-  return m ? m[1] : null;
 }
 
 type CurrentAccountSubTabId = "invoices" | "receipts";
@@ -115,6 +102,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     showLogo: true,
     showCompanyName: true,
     showIban: false,
+    showReceipts: false,
     iban: "",
     accountHolder: "",
     bankName: "",
@@ -123,8 +111,6 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
   const [selectedPdfInvoiceIds, setSelectedPdfInvoiceIds] = useState<Set<number>>(new Set());
   const [receiptPromoByInvoiceId, setReceiptPromoByInvoiceId] = useState<Map<number, number>>(() => new Map());
   const [receiptAdvanceByInvoiceId, setReceiptAdvanceByInvoiceId] = useState<Map<number, number>>(() => new Map());
-  const uploadBranchDocumentMut = useUploadBranchDocument(branchId);
-  const deleteBranchDocumentMut = useDeleteBranchDocument(branchId);
 
   const invoicesQuery = useQuery({
     queryKey: ["branchCurrentAccountInvoices", branchId],
@@ -142,6 +128,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
   const docsQuery = useBranchDocuments(branchId, active);
   const { summary: uninvoicedSummary } = useBranchUninvoicedShipments(branchId, active);
   const [uninvoicedOpen, setUninvoicedOpen] = useState(false);
+  const [reconOpen, setReconOpen] = useState(false);
   const router = useRouter();
 
   // Faturasız sevkiyat satırlarını gerçek sevkiyat (movement_batch_id) bazında grupla:
@@ -216,24 +203,6 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     for (const doc of docsQuery.data ?? []) {
       if (doc.contentType !== "application/pdf") continue;
       if (isOrderAccountPdfV2Note(doc.notes)) continue;
-      const invoiceId = parseInvoiceIdFromNote(doc.notes);
-      if (invoiceId == null || map.has(invoiceId)) continue;
-      map.set(invoiceId, doc.id);
-    }
-    return map;
-  }, [docsQuery.data]);
-
-  // Tahsilatlı (v2) olarak daha önce kaydedilmiş türetilmiş PDF — en yenisi tutulur.
-  const pdfV2DocByInvoiceId = useMemo(() => {
-    const map = new Map<number, number>();
-    const sorted = [...(docsQuery.data ?? [])].sort((a, b) => {
-      const aTs = Date.parse(a.createdAt ?? "") || 0;
-      const bTs = Date.parse(b.createdAt ?? "") || 0;
-      return bTs - aTs;
-    });
-    for (const doc of sorted) {
-      if (doc.contentType !== "application/pdf") continue;
-      if (!isOrderAccountPdfV2Note(doc.notes)) continue;
       const invoiceId = parseInvoiceIdFromNote(doc.notes);
       if (invoiceId == null || map.has(invoiceId)) continue;
       map.set(invoiceId, doc.id);
@@ -339,6 +308,27 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
       open: Math.max(0, Number(b.openBalance) || 0),
     };
   }, [balanceQuery.data]);
+
+  // Anlık mutabakat: faturalar (invoicesQuery) ile hesap bakiyesi/tahsilatlar (balanceQuery)
+  // BAĞIMSIZ kaynaklar olarak çapraz kontrol edilir; indirim/promo/avans/tahsilat sonucu doğru mu?
+  const reconciliation = useMemo(
+    () => reconcileBranchCurrentAccount(rows, balanceQuery.data),
+    [rows, balanceQuery.data]
+  );
+  const reconCcy = balanceQuery.data?.currencyCode ?? "TRY";
+  const formatReconIssue = useCallback(
+    (issue: ReconIssue): string => {
+      const p = issue.params;
+      const money = (k: string) => formatLocaleAmount(Number(p[k] ?? 0), locale, reconCcy);
+      let s = t(`branch.currentAccountRecon${issue.code}`);
+      if (p.doc != null) s = s.replace("{doc}", String(p.doc));
+      if (p.stored != null) s = s.replace("{stored}", money("stored"));
+      if (p.computed != null) s = s.replace("{computed}", money("computed"));
+      if (p.amount != null) s = s.replace("{amount}", money("amount"));
+      return s;
+    },
+    [locale, reconCcy, t]
+  );
 
   useEffect(() => {
     let alive = true;
@@ -454,118 +444,93 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
     const viewWindow = mode === "view" ? window.open("", "_blank") : null;
     try {
       let blob: Blob | null = null;
-      let savedV2 = false;
 
-      // v2 (tahsilatlı): kayıtlı v2 güncel tahsilatlarla eşleşiyorsa onu kullan; tahsilatlar
-      // değişmiş ya da v2 yoksa, tahsilatları ekleyerek yeniden üret ve indirilirken kaydet
-      // (bayat v2 varsa tazesiyle değiştir).
-      if (variant === "v2") {
-        // Güncel tahsilatları al — hem imza karşılaştırması hem de (gerekirse) üretim için.
-        let receiptLines: { id: string; description: string; amount: number }[] = [];
+      // v2 (tahsilatlı): her açılışta CANLI üretilir — belge olarak kaydedilmez. Böylece bayatlama
+      // (receiptSig) ve çift-kaynak sınıfı ortadan kalkar; sayılar her zaman günceldir.
+      // Promo/avans genelde tahsilat olarak tutulduğundan invoice alanlarına GÜVENİLMEZ; gerçek
+      // değerler tablo satırıyla aynı biçimde hesaplanıp gövdede AÇIKÇA indirim olarak düşülür.
+      if (variant === "v2" && listInvoice && doc && isOrderAccountStatementPdfNote(doc.notes)) {
         try {
-          const receipts = await fetchOutboundInvoiceReceipts(invoiceId);
-          receiptLines = receipts
-            .filter((r) => (Number(r.amount) || 0) > 0.009)
-            .map((r) => ({
-              id: `receipt-${r.id}`,
-              description: `${formatLocaleDate(r.receiptDate, locale)} · ${receiptKindLabel(r.receiptKind)}`,
-              amount: Number(r.amount) || 0,
-            }));
-        } catch {
-          receiptLines = [];
-        }
-        const currentSig = receiptsSignature(receiptLines);
-        const existingV2Id = pdfV2DocByInvoiceId.get(invoiceId) ?? null;
-        const existingV2Doc =
-          existingV2Id != null ? (docsQuery.data ?? []).find((d) => d.id === existingV2Id) : undefined;
-        const existingV2Sig = existingV2Doc ? parseReceiptSigFromNote(existingV2Doc.notes) : null;
-
-        if (existingV2Id != null && existingV2Sig === currentSig) {
-          // Kayıtlı v2 güncel (tahsilatlar değişmemiş) — yeniden üretmeden indir/aç.
-          const stored = await fetchBranchDocumentBlob(branchId, existingV2Id);
-          blob = stored.blob;
-        } else if (listInvoice && doc && isOrderAccountStatementPdfNote(doc.notes)) {
-          try {
-            const detail = await fetchOutboundInvoice(invoiceId);
-            if ((detail.lines ?? []).length > 0) {
-              const meta = parseOrderAccountDocumentMetadata(doc.notes);
-              const priorOpen = computePriorOpenBalanceForInvoice(rows, listInvoice);
-              let emblemDataUrl: string | undefined;
-              try {
-                const branding = await fetchSystemBranding();
-                const logoRes = await apiFetch(companyBrandingLogoUrl(branding.updatedAtUtc));
-                if (logoRes.ok) {
-                  const logoBlob = await logoRes.blob();
-                  emblemDataUrl = await new Promise<string>((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onload = () => resolve(String(reader.result ?? ""));
-                    reader.onerror = () => reject(reader.error);
-                    reader.readAsDataURL(logoBlob);
+          const detail = await fetchOutboundInvoice(invoiceId);
+          if ((detail.lines ?? []).length > 0) {
+            // Tahsilatları türe göre ayır: promo/avans gövdede indirim satırı olur; yalnızca NAKİT
+            // tahsilatlar "Tahsilatlar" listesinde listelenir (promo/avans hem gövdede hem listede
+            // çıkarsa çift sayılırdı).
+            let cashReceiptLines: { id: string; description: string; amount: number }[] = [];
+            let promoFromReceipts = 0;
+            let advanceFromReceipts = 0;
+            try {
+              const receipts = await fetchOutboundInvoiceReceipts(invoiceId);
+              for (const r of receipts) {
+                const amount = Number(r.amount) || 0;
+                if (amount <= 0.009) continue;
+                if (isPromoOrDiscountReceipt(r)) {
+                  promoFromReceipts += amount;
+                } else if (isAdvanceReceipt(r)) {
+                  advanceFromReceipts += amount;
+                } else {
+                  cashReceiptLines.push({
+                    id: `receipt-${r.id}`,
+                    description: `${formatLocaleDate(r.receiptDate, locale)} · ${receiptKindLabel(r.receiptKind)}`,
+                    amount,
                   });
                 }
-              } catch {
-                /* optional emblem */
               }
-              blob = await regenerateSavedOrderAccountPdfBlob({
-                locale,
-                companyName: meta.company || detail.counterpartyName || "—",
-                branchName: meta.branch || detail.counterpartyName || "—",
-                documentTitle: meta.title || t("reports.orderAccountStatementDocTitle"),
-                emblemDataUrl,
-                orderDocumentKey: meta.orderKey || meta.pdfDocumentNo || `invoice-${invoiceId}`,
-                systemDocumentId: documentId,
-                invoice: detail,
-                priorOpenBalance: priorOpen,
-                includePriorBalance: true,
-                showReceipts: true,
-                receipts: receiptLines,
-                receiptsLabel: t("branch.currentAccountPdfReceiptsSection"),
-                remainingLabel: t("branch.currentAccountPdfRemaining"),
-                labels: orderAccountPdfLabels,
-              });
-              // İndirilirken güncel v2'yi (v1'den ayrı) kalıcı kaydet; bayat v2 varsa değiştir.
-              if (blob && mode === "download") {
-                try {
-                  const v2Name = buildPdfFileName(
-                    [
-                      listInvoice?.counterpartyName,
-                      t("branch.currentAccountPdfFileShipmentLabel"),
-                      listInvoice?.documentNumber,
-                      "v2",
-                      listInvoice?.issueDate,
-                    ],
-                    { fallback: t("branch.currentAccountPdfFileShipmentLabel") }
-                  );
-                  // v2 notu kısa ve kendine yeter: tanıma + fatura bağı + sürüm + tahsilat imzası.
-                  const v2Notes = [
-                    "Sipariş-hesap dökümü PDF",
-                    `invoiceId=${invoiceId}`,
-                    "version=v2",
-                    `parentDocumentId=${documentId}`,
-                    `receiptSig=${currentSig}`,
-                  ].join(" · ");
-                  // Önce bayat v2'yi sil (varsa); silinemese bile en yeni v2 listede kazanır.
-                  if (existingV2Id != null) {
-                    try {
-                      await deleteBranchDocumentMut.mutateAsync(existingV2Id);
-                    } catch {
-                      /* bayat v2 silinemedi; yine de yenisini yükle */
-                    }
-                  }
-                  await uploadBranchDocumentMut.mutateAsync({
-                    file: new File([blob], v2Name, { type: "application/pdf" }),
-                    kind: "OTHER",
-                    notes: v2Notes,
-                  });
-                  savedV2 = true;
-                } catch (e) {
-                  notify.error(toErrorMessage(e));
-                }
-              }
+            } catch {
+              cashReceiptLines = [];
             }
-          } catch {
-            blob = null;
+            // Tablo satırıyla birebir: fatura alanı VEYA receipt toplamı — hangisi büyükse.
+            const effectivePromo = Math.max(
+              promoDeductionByInvoiceId.get(invoiceId) ?? 0,
+              promoFromReceipts
+            );
+            const effectiveAdvance = Math.max(
+              advanceDeductionByInvoiceId.get(invoiceId) ?? 0,
+              advanceFromReceipts
+            );
+            const effectiveGift = giftByInvoiceId.get(invoiceId) ?? 0;
+
+            const meta = parseOrderAccountDocumentMetadata(doc.notes);
+            const priorOpen = computePriorOpenBalanceForInvoice(rows, listInvoice);
+            let emblemDataUrl: string | undefined;
+            try {
+              const branding = await fetchSystemBranding();
+              const logoRes = await apiFetch(companyBrandingLogoUrl(branding.updatedAtUtc));
+              if (logoRes.ok) {
+                const logoBlob = await logoRes.blob();
+                emblemDataUrl = await new Promise<string>((resolve, reject) => {
+                  const reader = new FileReader();
+                  reader.onload = () => resolve(String(reader.result ?? ""));
+                  reader.onerror = () => reject(reader.error);
+                  reader.readAsDataURL(logoBlob);
+                });
+              }
+            } catch {
+              /* optional emblem */
+            }
+            blob = await regenerateSavedOrderAccountPdfBlob({
+              locale,
+              companyName: meta.company || detail.counterpartyName || "—",
+              branchName: meta.branch || detail.counterpartyName || "—",
+              documentTitle: meta.title || t("reports.orderAccountStatementDocTitle"),
+              emblemDataUrl,
+              orderDocumentKey: meta.orderKey || meta.pdfDocumentNo || `invoice-${invoiceId}`,
+              systemDocumentId: documentId,
+              invoice: detail,
+              giftAmountOverride: effectiveGift,
+              promoAmountOverride: effectivePromo,
+              advanceAmountOverride: effectiveAdvance,
+              priorOpenBalance: priorOpen,
+              includePriorBalance: true,
+              showReceipts: true,
+              receipts: cashReceiptLines,
+              receiptsLabel: t("branch.currentAccountPdfReceiptsSection"),
+              remainingLabel: t("branch.currentAccountPdfRemaining"),
+              labels: orderAccountPdfLabels,
+            });
           }
+        } catch {
+          blob = null;
         }
       }
 
@@ -604,7 +569,6 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
         a.remove();
       }
       setTimeout(() => URL.revokeObjectURL(url), 1_500);
-      if (savedV2) notify.success(t("branch.currentAccountPdfV2Saved"));
     } catch (e) {
       if (viewWindow && !viewWindow.closed) viewWindow.close();
       notify.error(toErrorMessage(e));
@@ -679,6 +643,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
           counterpartyTypeLabel: t("reports.counterpartySummaryTypeBranch"),
           documentNumber: invoice.documentNumber,
           issueDate: formatLocaleDate(invoice.issueDate, locale),
+          shipmentDate: invoice.shipmentDate ? formatLocaleDate(invoice.shipmentDate, locale) : "—",
           invoiceAmount: formatLocaleAmount(invoice.linesTotal, locale, invoice.currencyCode),
           paidAmount: formatLocaleAmount(cashPaid, locale, invoice.currencyCode),
           advanceAmount:
@@ -777,6 +742,26 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
         ),
         showLogo: pdfOptions.showLogo,
         showCompanyName: pdfOptions.showCompanyName,
+        // Şube cari: tahsilat artık genel havuz → per-satır "Tahsil Edilen" ve "Ödeme Tarihi" kolonları gizli.
+        hidePaidColumn: true,
+        hidePaymentDateColumn: true,
+        // "Sipariş Tarihi" yanıltıcıydı (aslında fatura kesim tarihi) → "Fatura Tarihi" + ayrı "Sevkiyat Tarihi".
+        dateHeaderLabel: "Fatura Tarihi",
+        showShipmentDateColumn: true,
+        // İsteğe bağlı: tüm tahsilatları (genel havuz dahil) tarih-tarih listele.
+        receiptsList: pdfOptions.showReceipts
+          ? {
+              title: t("branch.currentAccountPdfReceiptsSection"),
+              rows: [...(balanceQuery.data?.receipts ?? [])]
+                .filter((r) => (Number(r.amount) || 0) > 0.009 && (!r.currencyCode || r.currencyCode === "TRY"))
+                .sort((a, b) => String(a.receiptDate).localeCompare(String(b.receiptDate)))
+                .map((r) => ({
+                  date: formatLocaleDate(r.receiptDate, locale),
+                  amount: formatLocaleAmount(Number(r.amount) || 0, locale, r.currencyCode || "TRY"),
+                  kindLabel: receiptKindLabel(r.receiptKind),
+                })),
+            }
+          : undefined,
         footerTotals,
         paymentInfo: pdfOptions.showIban
           ? {
@@ -977,6 +962,22 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
           >
             {exportingPdf ? t("common.loading") : t("branch.currentAccountExportPdf")}
           </Button>
+          {/* Sevkiyat sayfalarına şube bağlamıyla (branchId) yönlendirme. Hedef ekranlar bu paramla filtrelenir. */}
+          <Button
+            type="button"
+            variant="secondary"
+            className="inline-flex min-h-[44px] w-full items-center justify-center gap-1.5 sm:w-auto"
+            onClick={() => router.push(`/warehouses/movements?branchId=${branchId}&type=OUT`)}
+          >
+            <svg aria-hidden className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+              {/* Truck — sevkiyat */}
+              <path d="M10 17h4V5H2v12h3" />
+              <path d="M20 17h1a1 1 0 0 0 1-1v-3.34a1 1 0 0 0-.29-.7l-2.67-2.67a1 1 0 0 0-.71-.29H14v8h1" />
+              <circle cx="7.5" cy="17.5" r="1.5" />
+              <circle cx="17.5" cy="17.5" r="1.5" />
+            </svg>
+            <span>{t("branch.currentAccountNavShipmentMovements")}</span>
+          </Button>
         </div>
       </div>
 
@@ -1158,6 +1159,101 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
           </div>
         </div>
       </div>
+
+      {/* Anlık mutabakat rozeti: cari sonucu doğru mu? (indirim/promo/avans/tahsilat çapraz kontrol) */}
+      {balanceQuery.data ? (
+        reconciliation.ok ? (
+          <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800">
+            <svg aria-hidden className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6 9 17l-5-5" />
+            </svg>
+            <span className="font-semibold">{t("branch.currentAccountReconOk")}</span>
+          </div>
+        ) : (
+          <div
+            className={cn(
+              "rounded-xl border p-3 sm:p-4",
+              reconciliation.errorCount > 0 ? "border-red-300 bg-red-50" : "border-amber-300 bg-amber-50"
+            )}
+          >
+            <div className="flex items-start gap-2.5">
+              <svg
+                aria-hidden
+                className={cn(
+                  "mt-0.5 h-5 w-5 shrink-0",
+                  reconciliation.errorCount > 0 ? "text-red-600" : "text-amber-600"
+                )}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.9"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+                <path d="M12 9v4M12 17h.01" />
+              </svg>
+              <div className="min-w-0 flex-1">
+                <p
+                  className={cn(
+                    "text-sm font-semibold",
+                    reconciliation.errorCount > 0 ? "text-red-900" : "text-amber-900"
+                  )}
+                >
+                  {t("branch.currentAccountReconIssues").replace("{n}", String(reconciliation.issues.length))}
+                </p>
+                <button
+                  type="button"
+                  className={cn(
+                    "mt-2 inline-flex min-h-[36px] items-center gap-1 rounded-lg border bg-white px-2.5 py-1 text-xs font-semibold transition",
+                    reconciliation.errorCount > 0
+                      ? "border-red-300 text-red-800 hover:bg-red-100"
+                      : "border-amber-300 text-amber-800 hover:bg-amber-100"
+                  )}
+                  aria-expanded={reconOpen}
+                  onClick={() => setReconOpen((v) => !v)}
+                >
+                  {reconOpen ? t("branch.currentAccountReconHide") : t("branch.currentAccountReconShow")}
+                  <svg
+                    aria-hidden
+                    className={cn("h-3.5 w-3.5 transition-transform", reconOpen && "rotate-180")}
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+                {reconOpen ? (
+                  <ul
+                    className={cn(
+                      "mt-2.5 space-y-1.5 border-t pt-2.5 text-xs",
+                      reconciliation.errorCount > 0 ? "border-red-200" : "border-amber-200"
+                    )}
+                  >
+                    {reconciliation.issues.map((issue, i) => (
+                      <li key={`${issue.code}-${i}`} className="flex items-start gap-2">
+                        <span
+                          className={cn(
+                            "mt-1 h-1.5 w-1.5 shrink-0 rounded-full",
+                            issue.severity === "error" ? "bg-red-500" : "bg-amber-500"
+                          )}
+                        />
+                        <span className={issue.severity === "error" ? "text-red-900" : "text-amber-900"}>
+                          {formatReconIssue(issue)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        )
+      ) : null}
 
       {isError && errorText ? <p className="text-sm text-red-600">{errorText}</p> : null}
       {isLoading ? <p className="text-sm text-zinc-500">{t("common.loading")}</p> : null}
@@ -1476,17 +1572,21 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                 </span>
               </span>
             </label>
-            <label className="flex items-start gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm hover:bg-zinc-50">
+            <label className="flex cursor-not-allowed items-start gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5 text-sm opacity-60">
               <input
                 type="radio"
                 name="branch-ca-pdf-variant"
                 className="mt-0.5"
                 checked={pdfChoiceVariant === "v2"}
                 onChange={() => setPdfChoiceVariant("v2")}
+                disabled
               />
               <span>
                 <span className="block font-medium text-zinc-800">
                   {t("branch.currentAccountPdfChoiceV2")}
+                  <span className="ml-2 inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 align-middle text-[10px] font-semibold uppercase tracking-wide text-amber-700">
+                    {t("branch.currentAccountPdfChoiceComingSoon")}
+                  </span>
                 </span>
                 <span className="block text-xs text-zinc-500">
                   {t("branch.currentAccountPdfChoiceV2Hint")}
@@ -1579,7 +1679,7 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
               })}
             </div>
           </div>
-          <div className="grid gap-2 sm:grid-cols-3">
+          <div className="grid gap-2 sm:grid-cols-4">
             <label className="flex min-h-10 items-start gap-2 rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-xs">
               <Checkbox
                 checked={pdfOptions.showCompanyName}
@@ -1602,6 +1702,13 @@ export function BranchDetailCurrentAccountTab({ branchId, active }: Props) {
                 onCheckedChange={(checked) => setPdfOptions((x) => ({ ...x, showIban: checked }))}
               />
               <span className="font-medium text-zinc-700">{t("branch.currentAccountPdfShowIban")}</span>
+            </label>
+            <label className="flex min-h-10 items-start gap-2 rounded-lg border border-zinc-200 bg-white px-2.5 py-2 text-xs">
+              <Checkbox
+                checked={pdfOptions.showReceipts}
+                onCheckedChange={(checked) => setPdfOptions((x) => ({ ...x, showReceipts: checked }))}
+              />
+              <span className="font-medium text-zinc-700">{t("branch.currentAccountPdfShowReceipts")}</span>
             </label>
           </div>
           {pdfOptions.showIban ? (

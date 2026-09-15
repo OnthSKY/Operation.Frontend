@@ -73,6 +73,9 @@ type Props = {
   warehouseId: number;
   initialTabIntent?: "history" | null;
   openMovementIdIntent?: number | null;
+  /** History sekmesi açılırken uygulanacak tür/şube filtresi ön-ayarı (ör. şube stok panelinden). */
+  initialHistoryType?: "IN" | "OUT" | "ALL" | null;
+  initialHistoryBranchId?: number | null;
   /** Başka bir modalın üstünde (ör. şube sevkiyat detayı). */
   nested?: boolean;
   onClose: () => void;
@@ -83,6 +86,8 @@ export function WarehouseDetailModal({
   warehouseId,
   initialTabIntent = null,
   openMovementIdIntent = null,
+  initialHistoryType = null,
+  initialHistoryBranchId = null,
   nested = false,
   onClose,
 }: Props) {
@@ -90,6 +95,7 @@ export function WarehouseDetailModal({
   const [tab, setTab] = useState<Tab>("general");
   const [editOpen, setEditOpen] = useState(false);
   const [movementHistoryIntent, setMovementHistoryIntent] = useState<"" | "ALL" | "IN" | "OUT">("");
+  const [movementBranchIntent, setMovementBranchIntent] = useState<number | null>(null);
   const [movementOpenIdIntent, setMovementOpenIdIntent] = useState<number | null>(null);
   const delWh = useSoftDeleteWarehouse();
   const { data: detail, isPending: detailLoading, isError, error } = useWarehouseDetail(
@@ -105,18 +111,28 @@ export function WarehouseDetailModal({
     if (!open) return;
     if (initialTabIntent === "history") {
       setTab("history");
-      setMovementHistoryIntent("ALL");
+      setMovementHistoryIntent(initialHistoryType ?? "ALL");
+      setMovementBranchIntent(
+        initialHistoryBranchId != null &&
+          Number.isFinite(initialHistoryBranchId) &&
+          initialHistoryBranchId > 0
+          ? initialHistoryBranchId
+          : null
+      );
       return;
     }
     setTab("general");
-  }, [open, warehouseId, initialTabIntent]);
+  }, [open, warehouseId, initialTabIntent, initialHistoryType, initialHistoryBranchId]);
 
   useEffect(() => {
     if (!open) setEditOpen(false);
   }, [open]);
 
   useEffect(() => {
-    if (!open) setMovementHistoryIntent("");
+    if (!open) {
+      setMovementHistoryIntent("");
+      setMovementBranchIntent(null);
+    }
   }, [open, warehouseId]);
   useEffect(() => {
     if (!open) {
@@ -256,6 +272,8 @@ export function WarehouseDetailModal({
                     enabled={open && tab === "history"}
                     historyTypeIntent={movementHistoryIntent}
                     onHistoryTypeIntentConsumed={clearMovementHistoryIntent}
+                    branchIdIntent={movementBranchIntent}
+                    onBranchIdIntentConsumed={() => setMovementBranchIntent(null)}
                     openMovementIdIntent={movementOpenIdIntent}
                     onOpenMovementIdIntentConsumed={() => setMovementOpenIdIntent(null)}
                   />
