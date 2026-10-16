@@ -4,6 +4,7 @@
  */
 import {
   isNonPnlMemoClassificationMain,
+  isPatronCashIncomeMain,
   isPatronDebtRepayClassificationMain,
   isPersonnelPocketRepayClassificationMain,
   isPocketClaimTransferClassificationMain,
@@ -76,20 +77,6 @@ export function srcBucketLabel(b: SrcBucket, t: (k: string) => string): string {
   }
 }
 
-export function srcBucketColor(b: SrcBucket): string {
-  switch (b) {
-    case "REGISTER":
-      return PALETTE.income;
-    case "PATRON":
-      return PALETTE.goods;
-    case "PERSONNEL_POCKET":
-    case "PERSONNEL_HELD_REGISTER_CASH":
-      return PALETTE.personnel;
-    case "BANK":
-      return PALETTE.card;
-  }
-}
-
 /**
  * Bir OUT satırı gerçek işletme gideri DEĞİL mi — kasa transferi/uzlaşması mı?
  * Patrona devir/borç ödeme (patrona bırakma), personel cep/zimmet alacağı devirleri ve
@@ -104,6 +91,14 @@ export function isNonExpenseOutRow(r: BranchTransaction): boolean {
     isPersonnelPocketRepayClassificationMain(mc) ||
     isPocketClaimTransferClassificationMain(mc)
   );
+}
+
+/** IN satırı gerçek hasılat mı — patrondan kasaya nakit / kasa devri (iç nakit) değil. */
+export function isRevenueInRow(r: BranchTransaction): boolean {
+  if (String(r.type ?? "").toUpperCase() !== "IN") return false;
+  if (r.excludedFromProfitAndLoss === true) return false;
+  const mc = String(r.mainCategory ?? "").trim().toUpperCase();
+  return !isPatronCashIncomeMain(mc) && mc !== "IN_OTHER_REGISTER";
 }
 
 /** registerTx OUT satırı bir kişiye (avans/maaş/personel) bağlı mı — şube giderinden hariç tutmak için. */

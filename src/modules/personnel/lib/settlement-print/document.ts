@@ -43,11 +43,7 @@ import {
   buildBranchSourceBreakdownHtml,
   buildBranchTotalsCardsHtml,
 } from "@/modules/personnel/lib/settlement-print/sections/summary";
-import {
-  buildAdvancesSummarySectionHtml,
-  buildPersonnelExpensesSummarySectionHtml,
-  buildRegisterSummarySectionHtml,
-} from "@/modules/personnel/lib/settlement-print/sections/summaries";
+import { buildPersonnelPerPersonSectionHtml } from "@/modules/personnel/lib/settlement-print/sections/summaries";
 import { renderPersonnelSeasonTenureBlock } from "@/modules/personnel/lib/settlement-print/sections/season-tenure";
 import {
   loadPersonnelSettlementPersonRow,
@@ -423,27 +419,17 @@ export async function buildPersonnelSettlementDocument(
   const stockSectionHtml =
     byBranch && bp ? buildBranchStockSectionHtml(stockRows, bp, t, locale, dash) : "";
 
+  // Kasa "özet" modu: ayrı tablo yok — toplamlar üstteki şube özetinde (ciro, gider kaynağa göre).
   const registerSectionHtml =
-    byBranch && bp && bp.includeRegisterLedger
-      ? bp.registerLedgerDetailMode === "summary"
-        ? buildRegisterSummarySectionHtml(
-            registerTx,
-            regInTotals,
-            regOutTotals,
-            t,
-            locale,
-            dash
-          )
-        : buildBranchRegisterSectionHtml(registerTx, bp, t, locale, dash)
+    byBranch && bp && bp.includeRegisterLedger && bp.registerLedgerDetailMode !== "summary"
+      ? buildBranchRegisterSectionHtml(registerTx, bp, t, locale, dash)
       : "";
 
   const showAdvSection = !byBranch || bp!.includeAdvances;
   const showExpSection = !byBranch || bp!.includePersonnelNonAdvanceExpenses;
 
   const advTableHtml = showAdvSection
-    ? byBranch && bp!.advancesDetailMode === "summary"
-      ? buildAdvancesSummarySectionHtml(advances, advTotals, t, locale, dash)
-      : advRowsHtml
+    ? advRowsHtml
         ? `<h2 class="sec-adv">${secAdv} (${advances.length})</h2>
   <table>
     <thead>
@@ -464,9 +450,7 @@ export async function buildPersonnelSettlementDocument(
     : "";
 
   const expTableHtml = showExpSection
-    ? byBranch && bp!.personnelExpensesDetailMode === "summary"
-      ? buildPersonnelExpensesSummarySectionHtml(expenses, expTotals, t, locale, dash)
-      : expRowsHtml
+    ? expRowsHtml
         ? `<h2 class="sec-exp">${secExp} (${expenses.length})</h2>
   <table>
     <thead>
@@ -489,7 +473,7 @@ export async function buildPersonnelSettlementDocument(
 
   // Birleşik "Personel giderleri — avans + gider" tablosu (kompakt, tür rozetli, tek başlık).
   // İkisi de detay modundaysa tek tabloda birleşir; kaynak kasa ise hangi şube olduğu yazılır.
-  // Biri özet modundaysa eski ayrı tablolara düşülür (davranış korunur).
+  // Özet modunda: kişi bazlı tablo (her personel tek satır: avans · gider · toplam).
   const advSummaryMode = byBranch && bp!.advancesDetailMode === "summary";
   const expSummaryMode = byBranch && bp!.personnelExpensesDetailMode === "summary";
   const canMergeOutflow =
@@ -609,8 +593,9 @@ export async function buildPersonnelSettlementDocument(
   ${foot}`
       : `${title}${emptyNote(t)}`;
   } else {
-    personnelOutflowHtml = `${advTableHtml}
-  ${expTableHtml}`;
+    personnelOutflowHtml = `${buildPersonnelPerPersonSectionHtml(advances, expenses, showAdvSection, showExpSection, t, locale, dash)}
+  ${advSummaryMode ? "" : advTableHtml}
+  ${expSummaryMode ? "" : expTableHtml}`;
   }
 
   const totalsCardsHtml =
@@ -653,7 +638,7 @@ export async function buildPersonnelSettlementDocument(
 
   const sourceBreakdownHtml =
     byBranch && bp
-      ? buildBranchSourceBreakdownHtml(advances, expenses, registerTx, bp, t, locale, dash, heldCashByPerson)
+      ? buildBranchSourceBreakdownHtml(registerTx, bp, t, locale, dash, heldCashByPerson)
       : "";
 
   const currentAccountSectionHtml =

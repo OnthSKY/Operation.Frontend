@@ -379,7 +379,6 @@ export const DOC_STYLES = `
       print-color-adjust: exact;
     }
     .src-block .src-subhead { margin: 0 0 9px; padding-bottom: 8px; border-bottom: 1px solid var(--doc-rule); }
-    .src-block .src-total-bar { margin: 4px 0 5px; }
     .src-subhead {
       font-size: 11px;
       font-weight: 800;
@@ -389,61 +388,19 @@ export const DOC_STYLES = `
       margin: 12px 0 8px;
     }
     .src-subhead-note { font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--doc-muted); }
-    .src-grid { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 10px; }
-    .src-card {
-      flex: 1 1 200px;
-      min-width: 180px;
-      background: var(--doc-paper);
-      border: 1px solid var(--doc-border);
-      border-top: 3px solid var(--doc-border);
-      border-radius: 8px;
-      padding: 9px 11px 8px;
-      break-inside: avoid;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-    .src-card-head {
-      font-size: 10px;
+    .cat-table { margin: 0 0 6px; background: var(--doc-paper); }
+    .cat-table td.num, .cat-table th.num { white-space: nowrap; }
+    .cat-table td.cat-tot { font-weight: 700; }
+    .cat-table tr.cat-main td { font-weight: 700; }
+    .cat-table tr.cat-sub td { color: var(--doc-muted); font-weight: 500; }
+    .cat-table tr.cat-sub td:first-child { padding-left: 18px; }
+    .cat-table tr.cat-total td {
       font-weight: 800;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      margin-bottom: 6px;
-    }
-    .src-line {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      font-size: 10px;
-      padding: 4px 0;
-      border-bottom: 1px solid var(--doc-rule);
-    }
-    .src-line:last-child { border-bottom: 0; }
-    .src-k { color: var(--doc-muted); font-weight: 600; }
-    .src-v { font-weight: 700; color: var(--doc-ink); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
-    .src-line-total {
-      border-bottom: 0;
-      border-top: 1.5px solid var(--doc-border);
-      margin-top: 2px;
-      padding-top: 5px;
-    }
-    .src-line-total .src-k, .src-line-total .src-v { font-weight: 800; color: var(--doc-ink); }
-    .src-total-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      margin: 2px 0 10px;
-      padding: 8px 13px;
       background: #f1f5f9;
-      border: 1px solid var(--doc-rule);
-      border-left: 4px solid var(--doc-border);
-      border-radius: 8px;
-      break-inside: avoid;
+      border-top: 2px solid var(--doc-ink);
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
-    .src-total-k { font-size: 10px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--doc-muted); }
-    .src-total-v { font-size: 13px; font-weight: 800; color: var(--doc-ink); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
     .empty-note {
       display: inline-block;
       margin: 0 0 10px;

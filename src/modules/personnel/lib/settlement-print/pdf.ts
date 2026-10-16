@@ -158,7 +158,7 @@ async function htmlToPdfBlob(html: string): Promise<Blob> {
     const atoms: { top: number; bottom: number }[] = [];
     idoc
       .querySelectorAll(
-        "h2, h3, .report-header, .salary-cost-disclaimer, .season-tenure-callout, .src-card, .src-total-bar, .cash-where-card, .pnl-profit, .settlement-note-card, table tr"
+        "h2, h3, .report-header, .salary-cost-disclaimer, .season-tenure-callout, .cash-where-card, .pnl-profit, .settlement-note-card, table tr"
       )
       .forEach((node) => {
         const el = node as HTMLElement;
@@ -176,7 +176,7 @@ async function htmlToPdfBlob(html: string): Promise<Blob> {
           let nextTop = Infinity;
           idoc
             .querySelectorAll(
-              "h2, h3, .src-card, .src-total-bar, .cash-where-card, .pnl-profit, .settlement-note-card, table tr"
+              "h2, h3, .cash-where-card, .pnl-profit, .settlement-note-card, table tr"
             )
             .forEach((n2) => {
               const e2 = n2 as HTMLElement;
