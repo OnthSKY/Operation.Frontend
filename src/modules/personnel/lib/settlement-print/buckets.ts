@@ -77,6 +77,22 @@ export function srcBucketLabel(b: SrcBucket, t: (k: string) => string): string {
   }
 }
 
+/** Tablo sütun başlığı için kısa kaynak etiketi (Kasa / Patron / Zimmet …). */
+export function srcBucketShortLabel(b: SrcBucket, t: (k: string) => string): string {
+  switch (b) {
+    case "REGISTER":
+      return t("branch.branchPdfSrcShortRegister");
+    case "PATRON":
+      return t("branch.branchPdfSrcShortPatron");
+    case "PERSONNEL_POCKET":
+      return t("branch.branchPdfSrcShortPocket");
+    case "PERSONNEL_HELD_REGISTER_CASH":
+      return t("branch.branchPdfSrcShortHeld");
+    case "BANK":
+      return t("personnel.advanceSourceAbbrBank");
+  }
+}
+
 /**
  * Bir OUT satırı gerçek işletme gideri DEĞİL mi — kasa transferi/uzlaşması mı?
  * Patrona devir/borç ödeme (patrona bırakma), personel cep/zimmet alacağı devirleri ve

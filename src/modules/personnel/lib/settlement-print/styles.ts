@@ -387,13 +387,14 @@ export const DOC_STYLES = `
       color: var(--doc-muted);
       margin: 12px 0 8px;
     }
-    .src-subhead-note { font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--doc-muted); }
+    .src-subhead-note { display: block; margin-top: 2px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--doc-muted); }
     .cat-table { margin: 0 0 6px; background: var(--doc-paper); }
     .cat-table td.num, .cat-table th.num { white-space: nowrap; }
     .cat-table td.cat-tot { font-weight: 700; }
     .cat-table tr.cat-main td { font-weight: 700; }
     .cat-table tr.cat-sub td { color: var(--doc-muted); font-weight: 500; }
     .cat-table tr.cat-sub td:first-child { padding-left: 18px; }
+    .cat-table .cat-src { display: block; font-size: 9px; font-weight: 500; color: var(--doc-muted); }
     .cat-table tr.cat-total td {
       font-weight: 800;
       background: #f1f5f9;

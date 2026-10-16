@@ -17,8 +17,8 @@ import {
   isNonExpenseOutRow,
   isPersonnelLinkedTx,
   isRevenueInRow,
-  srcBucketLabel,
   srcBucketOfExpense,
+  srcBucketShortLabel,
 } from "../buckets";
 import type { BranchSettlementPdfOptions } from "../options";
 
@@ -218,7 +218,12 @@ export function buildBranchSourceBreakdownHtml(
       // Tek alt kategori: ayrı satır açma (aynı rakam iki kez görünmesin) — "Ana · Alt" tek satır.
       const label =
         subs.length === 1 && subs[0][0] !== mainKey ? `${mainKey} · ${subs[0][0]}` : mainKey;
-      rows.push(`<tr class="cat-main"><td>${esc(label)}</td>${cells(g)}</tr>`);
+      // Birden fazla alt kalem: ana kategori bölüm başlığı — yalnız ad + toplam (kaynak kırılımı alt satırlarda).
+      rows.push(
+        subs.length > 1
+          ? `<tr class="cat-main"><td>${esc(label)}</td><td colspan="${cols.length}"></td><td class="num cat-tot">${moneyJoin(g.total) || esc(dash)}</td></tr>`
+          : `<tr class="cat-main"><td>${esc(label)}</td>${cells(g)}</tr>`
+      );
       if (subs.length > 1)
         for (const [subKey, sg] of subs)
           rows.push(`<tr class="cat-sub"><td>${esc(subKey)}</td>${cells(sg)}</tr>`);
@@ -227,10 +232,10 @@ export function buildBranchSourceBreakdownHtml(
       `<tr class="cat-total"><td>${esc(t("branch.branchPdfSummaryColTotal"))}</td>${cells(grand)}</tr>`
     );
     catBlock = `<div class="src-block">
-      <p class="src-subhead">${esc(t("branch.branchPdfSourceBreakdownTitle"))} <span class="src-subhead-note">${esc(t("branch.branchPdfSourceBreakdownNote"))}</span></p>
+      <p class="src-subhead">${esc(t("branch.branchPdfSourceBreakdownTitle"))}<span class="src-subhead-note">${esc(t("branch.branchPdfSourceBreakdownNote"))}</span></p>
       <table class="cat-table">
         <thead><tr><th>${esc(t("personnel.nonAdvanceExpensesColCategory"))}</th>${cols
-          .map((b) => `<th class="num">${esc(srcBucketLabel(b, t))}</th>`)
+          .map((b) => `<th class="num">${esc(srcBucketShortLabel(b, t))}</th>`)
           .join("")}<th class="num">${esc(t("branch.branchPdfSummaryColTotal"))}</th></tr></thead>
         <tbody>${rows.join("")}</tbody>
       </table>
