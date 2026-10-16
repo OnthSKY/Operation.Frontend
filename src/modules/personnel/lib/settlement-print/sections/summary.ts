@@ -218,12 +218,7 @@ export function buildBranchSourceBreakdownHtml(
       // Tek alt kategori: ayrı satır açma (aynı rakam iki kez görünmesin) — "Ana · Alt" tek satır.
       const label =
         subs.length === 1 && subs[0][0] !== mainKey ? `${mainKey} · ${subs[0][0]}` : mainKey;
-      // Birden fazla alt kalem: ana kategori bölüm başlığı — yalnız ad + toplam (kaynak kırılımı alt satırlarda).
-      rows.push(
-        subs.length > 1
-          ? `<tr class="cat-main"><td>${esc(label)}</td><td colspan="${cols.length}"></td><td class="num cat-tot">${moneyJoin(g.total) || esc(dash)}</td></tr>`
-          : `<tr class="cat-main"><td>${esc(label)}</td>${cells(g)}</tr>`
-      );
+      rows.push(`<tr class="cat-main"><td>${esc(label)}</td>${cells(g)}</tr>`);
       if (subs.length > 1)
         for (const [subKey, sg] of subs)
           rows.push(`<tr class="cat-sub"><td>${esc(subKey)}</td>${cells(sg)}</tr>`);
