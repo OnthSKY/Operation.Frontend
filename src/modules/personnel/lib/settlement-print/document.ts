@@ -4,7 +4,19 @@ import {
   fetchAllBranchTransactionsPaged,
   fetchBranchHeldRegisterCashByPerson,
 } from "@/modules/branch/api/branches-api";
-import { fetchAllNonAdvancePersonnelAttributedExpenses } from "@/modules/branch/api/branch-transactions-api";
+import {
+  fetchAllNonAdvancePersonnelAttributedExpenses,
+  NON_ADVANCE_PERSONNEL_EXPENSE_LIST_LIMIT,
+} from "@/modules/branch/api/branch-transactions-api";
+import { fetchFinancialSummaryReport } from "@/modules/reports/api/reports-api";
+import {
+  computeBranchProfitability,
+  type ServerYearSummary,
+} from "@/modules/personnel/lib/settlement-print/profitability";
+import {
+  buildCostDetailHtml,
+  buildProfitabilityStatusHtml,
+} from "@/modules/personnel/lib/settlement-print/sections/profitability";
 import {
   expensePaymentSourceLabel,
   txCategoryLine,
@@ -40,7 +52,8 @@ import {
   type OutboundInvoiceResponse,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
 import {
-  buildBranchSourceBreakdownHtml,
+  buildBranchCashWhereHtml,
+  buildBranchExpenseTableHtml,
   buildBranchTotalsCardsHtml,
 } from "@/modules/personnel/lib/settlement-print/sections/summary";
 import { buildPersonnelPerPersonSectionHtml } from "@/modules/personnel/lib/settlement-print/sections/summaries";
@@ -105,6 +118,10 @@ export async function buildPersonnelSettlementDocument(
   let cariInvoices: OutboundInvoiceResponse[] = [];
   // Personel zimmetindeki kasa nakdi: kanonik net bakiye (uygulama raporuyla aynı).
   const heldCashByPerson = new Map<number, { amount: number; fullName: string }>();
+  // Veri bütünlüğü uyarıları (liste limiti, mutabakat farkı …) — özetin en üstünde kırmızı.
+  const dataWarnings: string[] = [];
+  let personnelListCapped = false;
+  let serverYear: ServerYearSummary | null = null;
 
   {
     if (target.scope === "personnel") {
@@ -130,9 +147,24 @@ export async function buildPersonnelSettlementDocument(
       const bid = target.branchId;
       const bpdf = bp!;
 
+      // Şube + yıl filtresi sunucuda, LİMİTTEN ÖNCE (org-geneli 3000 satırla kesilmesin).
       const expensePoolPromise = bpdf.includePersonnelNonAdvanceExpenses
-        ? fetchAllNonAdvancePersonnelAttributedExpenses(DEFAULT_NON_ADVANCE_EXPENSE_SORT)
+        ? fetchAllNonAdvancePersonnelAttributedExpenses(DEFAULT_NON_ADVANCE_EXPENSE_SORT, {
+            branchId: bid,
+            year: yf ?? undefined,
+          })
         : Promise.resolve([] as BranchTransaction[]);
+
+      // Kanonik yıl özeti (maaş / avans / tedarikçi ödemesi + hasılat mutabakatı). Aralık ≤ 400 gün
+      // olduğundan yalnız yıl seçiliyken; hata PDF'i durdurmaz (detayda «yıl seçin» notu).
+      const serverYearPromise =
+        yf != null && bpdf.includeRegisterLedger
+          ? fetchFinancialSummaryReport({
+              dateFrom: `${yf}-01-01`,
+              dateTo: `${yf}-12-31`,
+              branchId: bid,
+            }).catch(() => null)
+          : Promise.resolve(null);
 
       const advPromise = bpdf.includeAdvances
         ? fetchAllAdvances({
@@ -173,7 +205,7 @@ export async function buildPersonnelSettlementDocument(
             [] as { personnelId: number | null; fullName: string; amount: number }[]
           );
 
-      const [expensePool, advRaw, stockRowsRaw, registerTxRaw, notesRaw, heldCashRaw, cariRaw] =
+      const [expensePool, advRaw, stockRowsRaw, registerTxRaw, notesRaw, heldCashRaw, cariRaw, yearRaw] =
         await Promise.all([
           expensePoolPromise,
           advPromise,
@@ -182,10 +214,40 @@ export async function buildPersonnelSettlementDocument(
           notesPromise,
           heldCashPromise,
           cariPromise,
+          serverYearPromise,
         ]);
+      if (yearRaw) {
+        const buckets = yearRaw.byCurrency;
+        const by = (f: (b: (typeof buckets)[number]) => number | undefined) =>
+          new Map(
+            buckets.map((b) => [String(b.currencyCode).toUpperCase(), Number(f(b) ?? 0)] as [string, number])
+          );
+        serverYear = {
+          income: by((b) => b.totalIncome),
+          salaryPaid: by((b) => b.totalSalaryPaid),
+          advanceGiven: by((b) => b.totalAdvanceGiven),
+          supplierPayments: by((b) => b.totalSupplierPayments),
+        };
+      }
       for (const r of heldCashRaw)
         if (r.personnelId != null)
           heldCashByPerson.set(r.personnelId, { amount: r.amount, fullName: r.fullName ?? "" });
+
+      // Liste sınırı (şube+yıl filtresinden SONRA) dolduysa: kişi bazlı toplamlar eksik olabilir.
+      // Limitsiz /totals agregesi kullanılmaz: kasa satırı olmayan maaş ödemelerini de sayar
+      // (listeyle aynı kapsam değil) → karışık toplam üretirdi. Bunun yerine görünür uyarı.
+      if (
+        bpdf.includePersonnelNonAdvanceExpenses &&
+        expensePool.length >= NON_ADVANCE_PERSONNEL_EXPENSE_LIST_LIMIT
+      ) {
+        personnelListCapped = true;
+        dataWarnings.push(t("branch.branchPdfWarnExpenseListCapped"));
+      }
+      if (bpdf.includeAdvances && advRaw.length >= BRANCH_ADVANCES_PRINT_LIMIT) {
+        dataWarnings.push(
+          t("branch.branchPdfWarnAdvancesCapped").replace("{n}", String(BRANCH_ADVANCES_PRINT_LIMIT))
+        );
+      }
 
       advances = bpdf.includeAdvances ? sortAdvancesDesc(advRaw) : [];
       expenses = bpdf.includePersonnelNonAdvanceExpenses
@@ -406,7 +468,12 @@ export async function buildPersonnelSettlementDocument(
       : "";
 
   const overlapHintHtml =
-    byBranch && bp && bp.includePersonnelNonAdvanceExpenses && bp.includeRegisterLedger
+    // Çakışma yalnız iki SATIR listesi birlikte basılınca (kasa özet modunda liste yok).
+    byBranch &&
+    bp &&
+    bp.includePersonnelNonAdvanceExpenses &&
+    bp.includeRegisterLedger &&
+    bp.registerLedgerDetailMode === "detail"
       ? `<p class="meta meta-compact">${escapeHtml(t("branch.branchPdfOverlapHint"))}</p>`
       : "";
 
@@ -636,15 +703,70 @@ export async function buildPersonnelSettlementDocument(
             })
             .join("");
 
-  const sourceBreakdownHtml =
+  const expenseTableHtml =
+    byBranch && bp ? buildBranchExpenseTableHtml(registerTx, bp, t, locale, dash) : "";
+  const cashWhereHtml =
     byBranch && bp
-      ? buildBranchSourceBreakdownHtml(registerTx, bp, t, locale, dash, heldCashByPerson)
+      ? buildBranchCashWhereHtml(registerTx, bp, t, locale, dash, heldCashByPerson)
       : "";
 
   const currentAccountSectionHtml =
     byBranch && bp && bp.includeBranchCurrentAccount
-      ? buildBranchCurrentAccountSectionHtml(cariInvoices, t, locale, dash)
+      ? `${buildBranchCurrentAccountSectionHtml(cariInvoices, t, locale, dash)}${
+          yf != null
+            ? `<p class="meta meta-compact">${escapeHtml(t("branch.branchPdfCariPeriodNote"))}</p>`
+            : ""
+        }`
       : "";
+
+  // Kârlılık modeli (tek hesap katmanı) — durum tablosu her zaman, kırılım yalnız kasa «detay» modunda.
+  const pdx = { t, locale, dash };
+  const profit =
+    byBranch && bp?.includeRegisterLedger ? computeBranchProfitability(registerTx, serverYear) : null;
+  for (const [c, diff] of profit?.revenueMismatch ?? [])
+    dataWarnings.push(
+      t("branch.branchPdfWarnRevenueMismatch").replace("{diff}", formatMoneyDash(diff, dash, locale, c))
+    );
+  // Zimmet bakiyesi backend'de yalnız TRY ledger'dan gelir; TRY dışı gün-sonu zimmeti varsa raporlanmaz.
+  if (
+    byBranch &&
+    bp?.includeRegisterLedger &&
+    registerTx.some(
+      (r) =>
+        String(r.cashSettlementParty ?? "").toUpperCase() === "BRANCH_MANAGER" &&
+        (Number(r.cashAmount) || 0) > 0 &&
+        String(r.currencyCode ?? "TRY").toUpperCase() !== "TRY"
+    )
+  )
+    dataWarnings.push(t("branch.branchPdfWarnHeldCashNonTry"));
+  const profitStatusHtml = profit ? buildProfitabilityStatusHtml(profit, dataWarnings, pdx) : "";
+  const cariOpen =
+    bp?.includeBranchCurrentAccount === true
+      ? cariInvoices.reduce(
+          (m, i) => m.set(i.currencyCode || "TRY", (m.get(i.currencyCode || "TRY") ?? 0) + (Number(i.openAmount) || 0)),
+          new Map<string, number>()
+        )
+      : null;
+  const costDetailHtml =
+    profit && bp?.registerLedgerDetailMode === "detail"
+      ? buildCostDetailHtml(
+          profit,
+          {
+            server: serverYear,
+            advTotals,
+            stockValueEst: bp.includeStockInbound && bp.stockShowPricing ? stockValTotals : null,
+            cariOpen,
+            yearSelected: yf != null,
+            heldCashTotal: new Map([
+              ["TRY", [...heldCashByPerson.values()].reduce((s2, h) => s2 + h.amount, 0)],
+            ]),
+          },
+          pdx
+        )
+      : "";
+  const personnelCapWarnHtml = personnelListCapped
+    ? `<div class="pdf-warn" role="alert"><p>${escapeHtml(t("branch.branchPdfWarnPersonPartial"))}</p></div>`
+    : "";
 
   // Şube özeti (P&L + kaynak dağılımı + nakit nerede). Şubede: yönetici özeti olarak ÜSTTE.
   const summaryTitle = byBranch
@@ -652,8 +774,21 @@ export async function buildPersonnelSettlementDocument(
     : secTot;
   const summaryBlockHtml = `<h2 class="sec-tot">${summaryTitle}</h2>
   <div class="settlement-totals-wrap">${totalsCardsHtml}</div>
-  ${byBranch ? `<p class="meta meta-compact">${escapeHtml(t("branch.branchPdfPnlScopeNote"))}</p>` : ""}
-  ${sourceBreakdownHtml}`;
+  ${profitStatusHtml}
+  ${expenseTableHtml}
+  ${costDetailHtml}`;
+
+  // Nakit konumu ve bakiyeler — finansal sonuçtan ayrı başlık altında.
+  const cashBlockHtml =
+    cashWhereHtml || currentAccountSectionHtml
+      ? `${
+          cashWhereHtml
+            ? `<h2 class="sec-reg">${escapeHtml(t("branch.branchPdfCashSectionTitle"))}</h2>
+  <p class="meta meta-compact">${escapeHtml(t("branch.branchPdfCashSectionNote"))}</p>
+  ${cashWhereHtml}`
+            : ""
+        }${currentAccountSectionHtml}`
+      : "";
 
   const notesBlocksHtml =
     generalNotes.length === 0 || (byBranch && bp && !bp.includeNotes)
@@ -669,16 +804,6 @@ export async function buildPersonnelSettlementDocument(
       )
       .join("")}
   </div>`;
-
-  const capNote =
-    byBranch && bp && bp.includeAdvances
-      ? `<p class="meta meta-compact">${escapeHtml(
-          t("personnel.settlementPrintBranchAdvancesCapNote").replace(
-            "{n}",
-            String(BRANCH_ADVANCES_PRINT_LIMIT)
-          )
-        )}</p>`
-      : "";
 
   const downloadFileName = safeDownloadFilename(
     yf != null ? `${target.title}-${yf}` : target.title
@@ -878,17 +1003,24 @@ export async function buildPersonnelSettlementDocument(
   </header>
   ${closureBannerHtml}
   ${closureCardsHtml}
-  ${byBranch ? summaryBlockHtml : ""}
-  ${isClosure ? "" : seasonTenureSectionHtml}
+  ${
+    byBranch
+      ? `${summaryBlockHtml}
+  ${personnelCapWarnHtml}
+  ${personnelOutflowHtml}
   ${salaryCostSectionHtml}
   ${stockSectionHtml}
-  ${personnelOutflowHtml}
   ${registerSectionHtml}
-  ${currentAccountSectionHtml}
+  ${cashBlockHtml}`
+      : `${isClosure ? "" : seasonTenureSectionHtml}
+  ${salaryCostSectionHtml}
+  ${stockSectionHtml}
+  ${personnelOutflowHtml}`
+  }
 
   ${byBranch || isClosure ? "" : summaryBlockHtml}
   ${notesBlocksHtml}
-  ${isClosure ? "" : `${overlapHintHtml}${capNote}${seasonScopeNoteHtml}`}
+  ${isClosure ? "" : `${overlapHintHtml}${seasonScopeNoteHtml}`}
   <p class="footer-note">${escapeHtml(t("personnel.settlementPrintFooterHint"))}</p>
   </main>
 <script>

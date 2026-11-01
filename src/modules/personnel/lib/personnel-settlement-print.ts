@@ -14,9 +14,13 @@ export type {
 } from "./settlement-print/types";
 export type {
   BranchPdfDetailMode,
+  BranchPdfPreset,
   BranchSettlementPdfOptions,
 } from "./settlement-print/options";
-export { defaultBranchSettlementPdfOptions } from "./settlement-print/options";
+export {
+  branchPdfPresetOptions,
+  defaultBranchSettlementPdfOptions,
+} from "./settlement-print/options";
 export {
   generatePersonnelSettlementPdfBlob,
   openPersonnelSettlementPrintWindow,

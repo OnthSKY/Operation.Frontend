@@ -223,10 +223,16 @@ export async function fetchPersonnelAttributedExpenses(
 }
 
 /** Avans ödemeleri hariç, personele yazılan tüm gider satırları (API üst sınırı; sıralama sunucuda). */
+/** Backend liste üst sınırı (filtreden SONRA uygulanır); dolarsa liste eksik olabilir. */
+export const NON_ADVANCE_PERSONNEL_EXPENSE_LIST_LIMIT = 3000;
+
 export async function fetchAllNonAdvancePersonnelAttributedExpenses(
-  sort: NonAdvanceExpenseSort = DEFAULT_NON_ADVANCE_EXPENSE_SORT
+  sort: NonAdvanceExpenseSort = DEFAULT_NON_ADVANCE_EXPENSE_SORT,
+  filter: { branchId?: number; year?: number } = {}
 ): Promise<BranchTransaction[]> {
   const q = new URLSearchParams({ sort });
+  if (filter.branchId != null) q.set("branchId", String(filter.branchId));
+  if (filter.year != null) q.set("year", String(filter.year));
   const rows = await apiRequest<BranchTxApiRow[]>(
     `/personnel/attributed-expenses/excluding-advances?${q}`
   );
@@ -253,7 +259,13 @@ export type PersonnelAttributedExpenseTotalsResponse = {
 };
 
 /** Personele atfedilen giderlerin sayfa/limit'ten bağımsız ham SUM agregesi (KPI/bucket/kategori kartları için). */
-export async function fetchAllNonAdvancePersonnelAttributedExpenseTotals(): Promise<PersonnelAttributedExpenseTotalsResponse> {
+export async function fetchAllNonAdvancePersonnelAttributedExpenseTotals(
+  filter: { branchId?: number; effectiveYear?: number } = {}
+): Promise<PersonnelAttributedExpenseTotalsResponse> {
+  const q = new URLSearchParams();
+  if (filter.branchId != null) q.set("branchId", String(filter.branchId));
+  if (filter.effectiveYear != null) q.set("effectiveYear", String(filter.effectiveYear));
+  const qs = q.toString();
   const raw = await apiRequest<{
     totalsByCurrency?: Array<{ currencyCode?: string; amount?: number | string; count?: number | string }>;
     bySourceBucket?: Record<
@@ -266,7 +278,7 @@ export async function fetchAllNonAdvancePersonnelAttributedExpenseTotals(): Prom
       amount?: number | string;
       count?: number | string;
     }>;
-  }>("/personnel/attributed-expenses/excluding-advances/totals");
+  }>(`/personnel/attributed-expenses/excluding-advances/totals${qs ? `?${qs}` : ""}`);
   const normalizeAmounts = (
     items: Array<{ currencyCode?: string; amount?: number | string; count?: number | string }> | undefined
   ): PersonnelAttributedExpenseTotalsCurrencyAmount[] =>

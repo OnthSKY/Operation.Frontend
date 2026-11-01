@@ -16,11 +16,12 @@ import {
   type SrcBucket,
   isNonExpenseOutRow,
   isPersonnelLinkedTx,
-  isRevenueInRow,
-  srcBucketOfExpense,
+  isCapexOutRow,
+  srcBucketOfExpenseRow,
   srcBucketShortLabel,
 } from "../buckets";
 import type { BranchSettlementPdfOptions } from "../options";
+import { aggregateBranchRegister } from "../profitability";
 
 export function buildBranchTotalsCardsHtml(
   t: (k: string) => string,
@@ -39,34 +40,8 @@ export function buildBranchTotalsCardsHtml(
 ): string {
   const esc = escapeHtml;
 
-  // Kasa OUT'unu ödeme kaynağına göre para birimi bazında böl (kasadan / patrondan / zimmet / cep).
-  const regOutBySrc = new Map<SrcBucket, Map<string, number>>();
-  for (const r of packs.registerRaw) {
-    if (String(r.type ?? "").toUpperCase() === "IN") continue;
-    if (isNonExpenseOutRow(r)) continue; // patrona devir / transfer / P&L-dışı = gider değil
-    if (isPersonnelLinkedTx(r)) continue; // personel/avans kalemleri ŞUBE giderine girmez (alt dağılımda)
-    const b = srcBucketOfExpense(r.expensePaymentSource);
-    if (!b) continue;
-    const ccy = ccyKey(r.currencyCode);
-    const m = regOutBySrc.get(b) ?? new Map<string, number>();
-    m.set(ccy, (m.get(ccy) ?? 0) + moneyNum(r.amount));
-    regOutBySrc.set(b, m);
-  }
-  const regOutOf = (b: SrcBucket, ccy: string): number =>
-    regOutBySrc.get(b)?.get(ccy) ?? 0;
-
-  // Hasılat + nakit / kart kırılımı. Patrondan kasaya nakit ve kasa devri (IN_PATRON_CASH /
-  // IN_OTHER_REGISTER) hasılat değil — backend finans raporlarıyla aynı kural.
-  const regIn = new Map<string, number>();
-  const regInCash = new Map<string, number>();
-  const regInCard = new Map<string, number>();
-  for (const r of packs.registerRaw) {
-    if (!isRevenueInRow(r)) continue;
-    const ccy = ccyKey(r.currencyCode);
-    regIn.set(ccy, (regIn.get(ccy) ?? 0) + moneyNum(r.amount));
-    regInCash.set(ccy, (regInCash.get(ccy) ?? 0) + moneyNum(r.cashAmount));
-    regInCard.set(ccy, (regInCard.get(ccy) ?? 0) + moneyNum(r.cardAmount));
-  }
+  // Tek hesap katmanı: hasılat, işletme gideri (kaynağa göre), CAPEX ayrı — bkz. profitability.ts.
+  const agg = aggregateBranchRegister(packs.registerRaw);
 
   const ccys = [
     ...new Set([
@@ -83,23 +58,27 @@ export function buildBranchTotalsCardsHtml(
   for (const ccy of ccys) {
     const money = (v: number) => esc(formatMoneyDash(v, dash, locale, ccy));
     const line = (k: string, v: number, cls = "") =>
-      `<div class="pnl-line${cls}"><span class="pnl-k">${esc(k)}</span><span class="pnl-v num">${money(v)}</span></div>`;
+      `<div class="pnl-line${cls}"><span class="pnl-k">${esc(k)}</span><span class="pnl-v num${v < -1e-9 ? " neg" : ""}">${money(v)}</span></div>`;
     const groups: string[] = [];
 
     if (bp.includeRegisterLedger) {
-      const ri = regIn.get(ccy) ?? 0;
-      const outReg = regOutOf("REGISTER", ccy); // kasadan harcanan (çekmeceyi düşüren)
-      const outPatron = regOutOf("PATRON", ccy); // patron cebinden (kasa-nötr)
-      const outHeld = regOutOf("PERSONNEL_HELD_REGISTER_CASH", ccy); // personel zimmetinden
-      const outPocket = regOutOf("PERSONNEL_POCKET", ccy); // personel cebinden
-      const totalGider = outReg + outPatron + outHeld + outPocket;
-      const kar = ri - totalGider;
+      const a = agg.get(ccy);
+      const src = (b: SrcBucket) => a?.opexBySrc.get(b) ?? 0;
+      const ri = a?.revenue ?? 0;
+      const outReg = src("REGISTER"); // kasadan harcanan (çekmeceyi düşüren)
+      const outPatron = src("PATRON"); // patron cebinden (kasa-nötr)
+      const outCentral = src("CENTRAL"); // merkez tedarikçi faturası şube payı
+      const outHeld = src("PERSONNEL_HELD_REGISTER_CASH"); // personel zimmetinden
+      const outPocket = src("PERSONNEL_POCKET"); // personel cebinden
+      const opex = a?.opex ?? 0;
+      const capex = a?.capex ?? 0;
+      const interim = ri - opex;
 
-      // HASILAT: toplam → kazanılan nakit / ele geçen nakit / kart → net hasılat.
+      // HASILAT: toplam → kart / kazanılan nakit / ele geçen nakit.
       // Kazanılan nakit = toplam hasılat − kart (kazanılan + kart = toplam hasılat, tam tutar).
       // Ele geçen nakit  = gün sonu çekmecede kalan nakit (kasadan harcama düşülmüş) = regInCash.
-      const inCash = regInCash.get(ccy) ?? 0;
-      const inCard = regInCard.get(ccy) ?? 0;
+      const inCash = a?.cashIn ?? 0;
+      const inCard = a?.cardIn ?? 0;
       const cashEarned = ri - inCard;
       const cashCardSub =
         (inCard > 1e-9 ? line(t("branch.txCardShort"), inCard, " pnl-line-sub") : "") +
@@ -111,11 +90,12 @@ export function buildBranchTotalsCardsHtml(
         ${cashCardSub}
       </div>`);
 
-      // ŞUBE GİDERİ: kaynağa göre (kasa / patron cebi / zimmet / cep) + toplam. Yalnız şube;
-      // personel gideri ve avanslar aşağıdaki dağılımda. (kasa-drawer "kalan" → Nakit nerede kartı.)
+      // İŞLETME GİDERLERİ: ödeme kaynağına göre + toplam. Yalnız şube; personel gideri ve
+      // avanslar personel bölümünde; yatırım / demirbaş aşağıda ayrı.
       const exLines =
         (Math.abs(outReg) > 1e-9 ? line(t("branch.branchPdfTotalRegisterSpentShort"), outReg) : "") +
         (Math.abs(outPatron) > 1e-9 ? line(t("branch.branchPdfTotalPatronSpent"), outPatron) : "") +
+        (Math.abs(outCentral) > 1e-9 ? line(t("branch.branchPdfTotalCentralSpent"), outCentral) : "") +
         (Math.abs(outHeld) > 1e-9
           ? line(t("branch.branchPdfTotalPersonnelHeldSpent"), outHeld, " pnl-line-held")
           : "") +
@@ -125,14 +105,23 @@ export function buildBranchTotalsCardsHtml(
       groups.push(`<div class="pnl-group">
         <div class="pnl-head">${esc(t("branch.branchPdfPnlExpenses"))}</div>
         ${exLines || `<div class="pnl-line"><span class="pnl-k">${esc(dash)}</span><span class="pnl-v num">${money(0)}</span></div>`}
-        ${line(t("branch.branchPdfPnlTotalExpense"), totalGider, " pnl-line-total")}
+        ${line(t("branch.branchPdfPnlTotalExpense"), opex, " pnl-line-total")}
       </div>`);
 
-      // KÂR (hasılat − şube gideri) — vurgulu; negatifse kırmızı.
-      groups.push(`<div class="pnl-profit${kar < 0 ? " pnl-profit-neg" : ""}">
+      // ARA FAALİYET SONUCU (hasılat − işletme gideri) — net kâr DEĞİL; negatifse kırmızı.
+      groups.push(`<div class="pnl-profit${interim < 0 ? " pnl-profit-neg" : ""}">
         <span class="pnl-profit-k">${esc(t("branch.branchPdfPnlProfit"))}</span>
-        <span class="pnl-profit-v num">${money(kar)}</span>
+        <span class="pnl-profit-v num">${money(interim)}</span>
       </div>`);
+
+      // YATIRIM / DEMİRBAŞ — ayrı; ara sonuca dahil değil. Yatırım sonrası tutar bilgi amaçlı.
+      if (Math.abs(capex) > 1e-9) {
+        groups.push(`<div class="pnl-group pnl-capex">
+          <div class="pnl-head">${esc(t("branch.branchPdfPnlCapex"))}</div>
+          ${line(t("branch.branchPdfPnlCapexTotal"), capex)}
+          ${line(t("branch.branchPdfPnlAfterCapex"), interim - capex, " pnl-line-sub")}
+        </div>`);
+      }
     }
 
     if (groups.length === 0) continue;
@@ -149,18 +138,17 @@ export function buildBranchTotalsCardsHtml(
 }
 
 /**
- * Şube giderleri — kategori (ana / alt) × ödeme kaynağı tablosu + "şubenin nakiti nerede" kartı.
+ * Şube giderleri — gider türü (ana / alt) × ödeme kaynağı tablosu.
  * Yalnız şube gideri: avans ve kişiye bağlı personel kalemleri burada YOK (kişi bazlı tabloda);
- * böylece her kalem belgede tek yerde sayılır. Toplam satırı = üstteki P&L "Toplam gider".
+ * böylece her kalem belgede tek yerde sayılır. İşletme toplamı = üstteki «Toplam işletme gideri»;
+ * yatırım / demirbaş ayrı alt bölümde ve kendi toplamıyla.
  */
-export function buildBranchSourceBreakdownHtml(
+export function buildBranchExpenseTableHtml(
   registerTx: BranchTransaction[],
   bp: BranchSettlementPdfOptions,
   t: (k: string) => string,
   locale: Locale,
-  dash: string,
-  /** Kanonik personel zimmet net bakiyesi (personnelId → {tutar, ad}); personel satırları bundan sürülür. */
-  heldCashByPerson: Map<number, { amount: number; fullName: string }> = new Map()
+  dash: string
 ): string {
   if (!bp.includeRegisterLedger) return "";
   const esc = escapeHtml;
@@ -185,33 +173,35 @@ export function buildBranchSourceBreakdownHtml(
   };
 
   const unknown = t("branch.txCategoryUnknown");
-  const groups = new Map<string, Agg & { subs: Map<string, Agg> }>();
-  const grand = newAgg();
+  type Groups = Map<string, Agg & { subs: Map<string, Agg> }>;
+  const opex = { groups: new Map() as Groups, grand: newAgg() };
+  const capex = { groups: new Map() as Groups, grand: newAgg() };
   for (const r of registerTx) {
     if (String(r.type ?? "").toUpperCase() === "IN") continue;
     if (isNonExpenseOutRow(r)) continue; // patrona devir / transfer / P&L-dışı = gider değil
     if (isPersonnelLinkedTx(r)) continue; // avans/personel kalemleri kişi bazlı tabloda
-    const b = srcBucketOfExpense(r.expensePaymentSource);
-    if (!b) continue; // ödenmemiş fatura vb. — P&L kartıyla aynı kapsam
+    const b = srcBucketOfExpenseRow(r);
+    if (!b) continue; // ödenmemiş fatura vb. — özet kartıyla aynı kapsam
+    const target = isCapexOutRow(r) ? capex : opex;
     const { main, sub } = txCategoryMainSub(r.mainCategory, t);
     const mainKey = main || unknown;
-    const g = groups.get(mainKey) ?? { ...newAgg(), subs: new Map<string, Agg>() };
-    groups.set(mainKey, g);
+    const g = target.groups.get(mainKey) ?? { ...newAgg(), subs: new Map<string, Agg>() };
+    target.groups.set(mainKey, g);
     const ccy = ccyKey(r.currencyCode);
     const v = moneyNum(r.amount);
     addAgg(g, b, ccy, v);
     const sg = g.subs.get(sub ?? mainKey) ?? newAgg();
     g.subs.set(sub ?? mainKey, sg);
     addAgg(sg, b, ccy, v);
-    addAgg(grand, b, ccy, v);
+    addAgg(target.grand, b, ccy, v);
   }
+  if (opex.groups.size === 0 && capex.groups.size === 0) return "";
 
-  let catBlock = "";
-  if (groups.size > 0) {
-    const cols = SRC_ORDER.filter((b) => grand.bySrc.has(b));
-    const cells = (a: Agg) =>
-      cols.map((b) => `<td class="num">${moneyJoin(a.bySrc.get(b)) || esc(dash)}</td>`).join("") +
-      `<td class="num cat-tot">${moneyJoin(a.total) || esc(dash)}</td>`;
+  const cols = SRC_ORDER.filter((b) => opex.grand.bySrc.has(b) || capex.grand.bySrc.has(b));
+  const cells = (a: Agg) =>
+    cols.map((b) => `<td class="num">${moneyJoin(a.bySrc.get(b)) || esc(dash)}</td>`).join("") +
+    `<td class="num cat-tot">${moneyJoin(a.total) || esc(dash)}</td>`;
+  const groupRows = (groups: Groups): string[] => {
     const rows: string[] = [];
     for (const [mainKey, g] of [...groups].sort((x, y) => weight(y[1].total) - weight(x[1].total))) {
       const subs = [...g.subs].sort((x, y) => weight(y[1].total) - weight(x[1].total));
@@ -223,19 +213,58 @@ export function buildBranchSourceBreakdownHtml(
         for (const [subKey, sg] of subs)
           rows.push(`<tr class="cat-sub"><td>${esc(subKey)}</td>${cells(sg)}</tr>`);
     }
+    return rows;
+  };
+
+  const rows = groupRows(opex.groups);
+  rows.push(
+    `<tr class="cat-total"><td>${esc(t("branch.branchPdfOpexTableTotal"))}</td>${cells(opex.grand)}</tr>`
+  );
+  if (capex.groups.size > 0) {
     rows.push(
-      `<tr class="cat-total"><td>${esc(t("branch.branchPdfSummaryColTotal"))}</td>${cells(grand)}</tr>`
+      `<tr class="cat-section"><td colspan="${cols.length + 2}">${esc(t("branch.branchPdfCapexTableHead"))}</td></tr>`
     );
-    catBlock = `<div class="src-block">
+    rows.push(...groupRows(capex.groups));
+    rows.push(
+      `<tr class="cat-total"><td>${esc(t("branch.branchPdfCapexTableTotal"))}</td>${cells(capex.grand)}</tr>`
+    );
+  }
+
+  return `<div class="src-block">
       <p class="src-subhead">${esc(t("branch.branchPdfSourceBreakdownTitle"))}<span class="src-subhead-note">${esc(t("branch.branchPdfSourceBreakdownNote"))}</span></p>
       <table class="cat-table">
-        <thead><tr><th>${esc(t("personnel.nonAdvanceExpensesColCategory"))}</th>${cols
-          .map((b) => `<th class="num">${esc(srcBucketShortLabel(b, t))}</th>`)
-          .join("")}<th class="num">${esc(t("branch.branchPdfSummaryColTotal"))}</th></tr></thead>
+        <thead>
+          <tr><th rowspan="2">${esc(t("branch.branchPdfColExpenseType"))}</th><th class="src-group" colspan="${cols.length}">${esc(t("branch.branchPdfColPaymentSource"))}</th><th class="num" rowspan="2">${esc(t("branch.branchPdfSummaryColTotal"))}</th></tr>
+          <tr>${cols.map((b) => `<th class="num src-col">${esc(srcBucketShortLabel(b, t))}</th>`).join("")}</tr>
+        </thead>
         <tbody>${rows.join("")}</tbody>
       </table>
     </div>`;
-  }
+}
+
+/**
+ * Şubenin nakiti nerede (gün sonu): eline geçen nakit + kalan. Finansal sonuç değil, nakit
+ * konumudur — belgede «Nakit ve bakiyeler» altında ayrı gösterilir.
+ */
+export function buildBranchCashWhereHtml(
+  registerTx: BranchTransaction[],
+  bp: BranchSettlementPdfOptions,
+  t: (k: string) => string,
+  locale: Locale,
+  dash: string,
+  /** Kanonik personel zimmet net bakiyesi (personnelId → {tutar, ad}); personel satırları bundan sürülür. */
+  heldCashByPerson: Map<number, { amount: number; fullName: string }> = new Map()
+): string {
+  if (!bp.includeRegisterLedger) return "";
+  const esc = escapeHtml;
+  const addTo = (m: Map<string, number>, ccy: string, v: number) =>
+    m.set(ccy, (m.get(ccy) ?? 0) + v);
+  const money = (v: number, c: string) => esc(formatMoneyDash(v, dash, locale, c));
+  const moneyJoin = (m: Map<string, number> | undefined): string => {
+    if (!m) return "";
+    const ccys = [...m.keys()].filter((c) => Math.abs(m.get(c) ?? 0) > 1e-9).sort();
+    return ccys.map((c) => money(m.get(c) ?? 0, c)).join(" · ");
+  };
 
   // Şubenin nakiti nerede (gün sonu): eline geçen nakit + kalan.
   // PERSONEL satırları KANONIK ledger'dan (uygulama kasa raporuyla birebir); diğerleri gün-sonundan.
@@ -295,6 +324,8 @@ export function buildBranchSourceBreakdownHtml(
     const name = info.fullName?.trim() || persName.get(pid) || "";
     const label = name ? `${base}: ${name}` : base;
     const received = persReceived.get(pid) ?? new Map<string, number>();
+    // Backend zimmet bakiyesini yalnız TRY ledger'dan verir (BranchRegisterSummaryService) → TRY.
+    // TRY dışı gün-sonu zimmeti varsa belge üstünde ayrıca uyarılır.
     const rem = new Map<string, number>([["TRY", info.amount]]);
     pushRow(label, PALETTE.personnel, received, rem);
   }
@@ -312,6 +343,5 @@ export function buildBranchSourceBreakdownHtml(
     </div>`
       : "";
 
-  if (!catBlock && !cashCard) return "";
-  return `<div class="src-section">${catBlock}${cashCard}</div>`;
+  return cashCard;
 }

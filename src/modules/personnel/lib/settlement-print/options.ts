@@ -48,6 +48,49 @@ export function defaultBranchSettlementPdfOptions(): BranchSettlementPdfOptions 
   };
 }
 
+/** Şube PDF rapor tipi: hazır ayar (özet/detaylı) veya kullanıcının elle seçtiği (özel). */
+export type BranchPdfPreset = "summary" | "detailed" | "custom";
+
+/**
+ * Hazır ayar → mevcut seçenekler. Yeni seçenek yok; yalnızca mevcut anahtarları doldurur.
+ * Cari bölümü hazır ayardan bağımsız: açık borç varsa açık (modal belirler).
+ */
+export function branchPdfPresetOptions(
+  preset: "summary" | "detailed",
+  includeBranchCurrentAccount: boolean
+): BranchSettlementPdfOptions {
+  if (preset === "summary") {
+    return {
+      includeStockInbound: false,
+      stockShowPricing: false,
+      stockGroupByParent: true,
+      includeAdvances: true,
+      advancesDetailMode: "summary",
+      includePersonnelNonAdvanceExpenses: true,
+      personnelExpensesDetailMode: "summary",
+      includePersonnelSalaryCost: false,
+      includeRegisterLedger: true,
+      registerLedgerDetailMode: "summary",
+      includeBranchCurrentAccount,
+      includeNotes: false,
+    };
+  }
+  return {
+    includeStockInbound: true,
+    stockShowPricing: true,
+    stockGroupByParent: true,
+    includeAdvances: true,
+    advancesDetailMode: "detail",
+    includePersonnelNonAdvanceExpenses: true,
+    personnelExpensesDetailMode: "detail",
+    includePersonnelSalaryCost: true,
+    includeRegisterLedger: true,
+    registerLedgerDetailMode: "detail",
+    includeBranchCurrentAccount,
+    includeNotes: true,
+  };
+}
+
 /** Boş bölüm için kompakt, yer kaplamayan "kayıt yok" rozeti (büyük boş tablo yerine). */
 export function emptyNote(t: (k: string) => string): string {
   return `<p class="empty-note">${escapeHtml(t("branch.branchPdfNoRows"))}</p>`;

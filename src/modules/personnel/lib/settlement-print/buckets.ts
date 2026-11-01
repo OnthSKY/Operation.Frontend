@@ -8,6 +8,7 @@ import {
   isPatronDebtRepayClassificationMain,
   isPersonnelPocketRepayClassificationMain,
   isPocketClaimTransferClassificationMain,
+  umbrellaTxMainForSubOptions,
 } from "@/modules/branch/lib/branch-transaction-options";
 import type { BranchTransaction } from "@/types/branch-transaction";
 
@@ -27,6 +28,7 @@ export const PALETTE = {
 export type SrcBucket =
   | "REGISTER"
   | "PATRON"
+  | "CENTRAL"
   | "PERSONNEL_POCKET"
   | "PERSONNEL_HELD_REGISTER_CASH"
   | "BANK";
@@ -34,6 +36,7 @@ export type SrcBucket =
 export const SRC_ORDER: SrcBucket[] = [
   "REGISTER",
   "PATRON",
+  "CENTRAL",
   "PERSONNEL_POCKET",
   "PERSONNEL_HELD_REGISTER_CASH",
   "BANK",
@@ -52,6 +55,24 @@ export function srcBucketOfExpense(code: string | null | undefined): SrcBucket |
   return null;
 }
 
+/**
+ * Satır bazlı kova: merkez tedarikçi faturası şube payı (linkedSupplierInvoiceLineId) backend'de
+ * varsayılan olarak PATRON yazılır (ForBranchAllocation(null)) — patron cebinden ödeme değildir,
+ * «Merkez» kovasına alınır. Tutar/kapsam aynı; yalnızca sütun değişir. Diğer satırlar kod bazlı.
+ */
+export function srcBucketOfExpenseRow(
+  r: Pick<BranchTransaction, "expensePaymentSource" | "linkedSupplierInvoiceLineId">
+): SrcBucket | null {
+  const b = srcBucketOfExpense(r.expensePaymentSource);
+  if (b === "PATRON" && (r.linkedSupplierInvoiceLineId ?? 0) > 0) return "CENTRAL";
+  return b;
+}
+
+/** Yatırım / demirbaş (OUT_CAPEX*) satırı mı — işletme giderinden ayrı gösterilir. */
+export function isCapexOutRow(r: Pick<BranchTransaction, "mainCategory">): boolean {
+  return umbrellaTxMainForSubOptions(String(r.mainCategory ?? "")) === "OUT_CAPEX";
+}
+
 /** Avans sourceType → kova. */
 export function srcBucketOfAdvance(sourceType: string | null | undefined): SrcBucket {
   const u = String(sourceType ?? "").trim().toUpperCase();
@@ -68,6 +89,8 @@ export function srcBucketLabel(b: SrcBucket, t: (k: string) => string): string {
       return t("branch.expensePayRegister");
     case "PATRON":
       return t("branch.expensePayPatron");
+    case "CENTRAL":
+      return t("branch.branchPdfSrcCentral");
     case "PERSONNEL_POCKET":
       return t("branch.expensePayPersonnelPocket");
     case "PERSONNEL_HELD_REGISTER_CASH":
@@ -84,6 +107,8 @@ export function srcBucketShortLabel(b: SrcBucket, t: (k: string) => string): str
       return t("branch.branchPdfSrcShortRegister");
     case "PATRON":
       return t("branch.branchPdfSrcShortPatron");
+    case "CENTRAL":
+      return t("branch.branchPdfSrcShortCentral");
     case "PERSONNEL_POCKET":
       return t("branch.branchPdfSrcShortPocket");
     case "PERSONNEL_HELD_REGISTER_CASH":

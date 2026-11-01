@@ -127,6 +127,7 @@ export function BranchPdfSettlementOptionsFields({ value, onChange }: Props) {
         <OptRow
           id="bp-reg"
           label={t("branch.branchPdfOptRegister")}
+          hint={t("branch.branchPdfOptRegisterHint")}
           checked={value.includeRegisterLedger}
           onCheckedChange={(v) => patch({ includeRegisterLedger: v })}
         />

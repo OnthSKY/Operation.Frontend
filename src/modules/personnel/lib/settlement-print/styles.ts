@@ -599,6 +599,63 @@ export const DOC_STYLES = `
     .pnl-profit-neg .pnl-profit-k { color: #be123c; }
     .pnl-profit-v { font-size: clamp(15px, 4.4vw, 18px); font-weight: 800; color: #0f766e; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
     .pnl-profit-neg .pnl-profit-v { color: #be123c; }
+    .pnl-v.neg, .num.neg { color: #be123c; }
+    .pnl-capex { background: #fafafa; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    /* Eksik maliyet bilgileri — sonucun neden net kâr olmadığını anlatan kısa not. */
+    .pnl-missing {
+      margin: 8px 0 10px;
+      padding: 8px 12px;
+      border: 1px solid var(--doc-rule);
+      border-left: 3px solid #b45309;
+      border-radius: 6px;
+      background: #fffbeb;
+      font-size: 10px;
+      line-height: 1.45;
+      color: #57534e;
+      break-inside: avoid;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .pnl-missing-head { margin: 0 0 3px; font-weight: 800; color: #92400e; }
+    .pnl-missing ul { margin: 0; padding-left: 16px; }
+    .pdf-warn {
+      margin: 8px 0;
+      padding: 8px 12px;
+      border: 1px solid #fecdd3;
+      border-left: 3px solid #be123c;
+      border-radius: 6px;
+      background: #fff1f2;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #9f1239;
+      break-inside: avoid;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .pdf-warn p { margin: 0; }
+    .pdf-warn p + p { margin-top: 3px; }
+    .pf-table { width: 100%; margin: 4px 0 6px; border: 0; background: transparent; font-size: 10px; }
+    .pf-table td { border: 0; border-top: 1px solid #fde68a; padding: 4px 6px 4px 0; vertical-align: top; }
+    .pf-table td:first-child { font-weight: 700; color: var(--doc-ink); white-space: nowrap; }
+    .pf-table td.num { white-space: nowrap; font-weight: 700; }
+    .pf-st { display: inline-block; padding: 0 6px; border-radius: 999px; font-size: 9px; font-weight: 800; border: 1px solid; }
+    .pf-st-available { color: #0f766e; border-color: #99f6e4; }
+    .pf-st-incomplete { color: #b45309; border-color: #fcd34d; }
+    .pf-st-unavailable { color: #64748b; border-color: #cbd5e1; }
+    .pf-why { color: var(--doc-muted); font-weight: 500; }
+    .pf-kind { font-weight: 700; color: var(--doc-ink); }
+    .cat-table.pf-detail td:last-child { font-size: 9.5px; }
+    .cat-table th.src-group { text-align: center; border-bottom: 1px solid var(--doc-rule); }
+    .cat-table th.src-col { font-weight: 600; }
+    .cat-table tr.cat-section td {
+      padding-top: 9px;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--doc-muted);
+      background: var(--doc-paper);
+    }
     @media screen and (max-width: 540px) {
       .report-header-inner { flex-direction: column; align-items: stretch; }
       .report-header-photo-wrap { order: -1; align-self: center; margin-bottom: 4px; }

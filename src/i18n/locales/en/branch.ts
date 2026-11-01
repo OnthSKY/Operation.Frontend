@@ -163,9 +163,149 @@ export const branch = {
   branchPdfCashHolderBranch: "Branch register",
   branchPdfCashHolderPersonnel: "Personnel-held",
   branchPdfCashHolderUnassigned: "Unassigned / other",
-  branchPdfSummaryTitle: "Branch summary — net",
-  branchPdfSourceBreakdownTitle: "Branch expenses",
-  branchPdfSourceBreakdownNote: "Advances and personnel payments excluded",
+  branchPdfSummaryTitle: "Financial overview",
+  branchPdfPresetLabel: "Report type",
+  branchPdfPresetSummary: "Summary report",
+  branchPdfPresetDetailed: "Detailed report",
+  branchPdfPresetCustom: "Custom report",
+  branchPdfPresetSummaryHint:
+    "Management summary: revenue, operating expenses, interim result and per-person personnel totals. No row lists or stock.",
+  branchPdfPresetDetailedHint:
+    "All sections row by row: register movements, personnel advances/expenses, salary estimate, stock (with estimated values) and notes.",
+  branchPdfPresetCustomHint: "Pick the sections yourself in the advanced options below.",
+  branchPdfAdvancedOptions: "Advanced options",
+  branchPdfOptRegisterHint:
+    "Revenue, expenses and the interim result are calculated from these rows; turning it off leaves the financial overview empty.",
+  branchPdfSrcCentral: "Covered by headquarters",
+  branchPdfSrcShortCentral: "HQ",
+  branchPdfTotalCentralSpent: "Covered by headquarters (supplier invoice share)",
+  branchPdfPnlCapex: "Investment / fixtures (not part of operating expense)",
+  branchPdfPnlCapexTotal: "Investment / fixtures spend",
+  branchPdfPnlAfterCapex: "After investment",
+  branchPdfMissingPersonnelCash:
+    "Advances and personnel expenses are cash movements; they are not deducted from the result (shown under Personnel).",
+  branchPdfMissingDiscounts: "Discounts and refunds are not recorded separately; revenue is the gross register inflow.",
+  branchPdfWarnAdvancesCapped:
+    "Warning: the advance list hit the {n}-record limit. Advance list and totals may be incomplete.",
+  branchPdfOpexTableTotal: "Operating expenses total",
+  branchPdfCapexTableHead: "Investment / fixtures — not part of operating expense",
+  branchPdfCapexTableTotal: "Investment / fixtures total",
+  branchPdfColExpenseType: "Expense type",
+  branchPdfColPaymentSource: "Payment source",
+  branchPdfCashSectionTitle: "Cash and balances",
+  branchPdfCashSectionNote: "Not a financial result; shows who holds the branch's cash as of day close.",
+  branchPdfStatus_available:
+    "Recorded",
+  branchPdfStatus_incomplete:
+    "Incomplete",
+  branchPdfStatus_unavailable:
+    "Not calculable",
+  branchPdfProfitStatusTitle:
+    "Profitability status — net profit cannot be calculated",
+  branchPdfPfPersonnel:
+    "Personnel cost",
+  branchPdfPfPersonnelWhy:
+    "Amount covers recorded personnel expenses only (bonus, meals, transport, etc.). Salary accrual and employer social security are not recorded per period.",
+  branchPdfPfCogs:
+    "Cost of goods sold (COGS)",
+  branchPdfPfCogsWhy:
+    "Branch consumption and counts are not valued in money; stock values are estimates only.",
+  branchPdfPfGross:
+    "Gross profit",
+  branchPdfPfGrossWhy:
+    "Not calculable without COGS.",
+  branchPdfPfOperating:
+    "Operating / net profit",
+  branchPdfPfOperatingWhy:
+    "Not calculated because personnel cost and COGS are incomplete.",
+  branchPdfWarnExpenseListCapped:
+    "Warning: the personnel expense list for this branch and period hit the 3000-row limit. The personnel list and per-person totals may be incomplete.",
+  branchPdfWarnPersonPartial:
+    "The personnel list hit its limit: per-person totals below may be incomplete. Branch summary amounts come from register records and are not affected.",
+  branchPdfWarnRevenueMismatch:
+    "Warning: revenue does not match the server financial report (difference {diff}). Check the records.",
+  branchPdfWarnHeldCashNonTry:
+    "Warning: there is personnel-held cash in a non-TRY currency; held-cash balances are reported for TRY only.",
+  branchPdfCostDetailTitle:
+    "Cost, cash and balance breakdown",
+  branchPdfCostDetailNote:
+    "Each row is labelled as cost, cash movement or balance. Cash movements and balances are not added to the result.",
+  branchPdfDtColItem:
+    "Item",
+  branchPdfDtColKind:
+    "Type / note",
+  branchPdfKindCostInOpex:
+    "Cost (within operating expense)",
+  branchPdfKindCostPartial:
+    "Cost (partial)",
+  branchPdfKindCash:
+    "Cash movement",
+  branchPdfKindBalance:
+    "Balance",
+  branchPdfKindEstimate:
+    "Estimate",
+  branchPdfKindUnavailable:
+    "Not calculable",
+  branchPdfDtGroupPersonnel:
+    "Personnel",
+  branchPdfDtPersonnelRecorded:
+    "Recorded personnel expenses (excluding salary and advances)",
+  branchPdfDtSalaryPaid:
+    "Salary payments (all sources)",
+  branchPdfDtSalaryPaidNote:
+    "Payment amount, not accrual.",
+  branchPdfDtSalaryPaidRegister:
+    "Salary payments (register-recorded only)",
+  branchPdfDtServerUnavailable:
+    "Server financial summary unavailable (reports permission may be required).",
+  branchPdfDtNeedYear:
+    "Select a season year for all sources.",
+  branchPdfDtAdvances:
+    "Personnel advances",
+  branchPdfDtAdvancesNote:
+    "Offset against salary; not counted as an extra expense.",
+  branchPdfDtGroupSupplier:
+    "Suppliers and HQ allocations",
+  branchPdfDtCentralSupplier:
+    "HQ supplier invoice branch share",
+  branchPdfDtCentralOverhead:
+    "HQ general overhead share",
+  branchPdfDtDirectSupplier:
+    "Branch supplier invoices",
+  branchPdfDtGoods:
+    "Goods / material purchases",
+  branchPdfDtGoodsNote:
+    "Not cost of goods sold (stock change unknown).",
+  branchPdfDtSupplierPaid:
+    "Supplier payments (from this branch)",
+  branchPdfDtSupplierPaidNote:
+    "The invoice is already an expense; the payment is not counted again.",
+  branchPdfDtSupplierDebt:
+    "Outstanding supplier liability",
+  branchPdfDtSupplierDebtNote:
+    "Not tracked per branch; supplier accounts are held at HQ.",
+  branchPdfDtGroupStock:
+    "Stock",
+  branchPdfDtStockValue:
+    "Material received from warehouse (estimated value)",
+  branchPdfDtStockValueNote:
+    "Estimated from the latest supplier invoice unit price.",
+  branchPdfDtStockValueOff:
+    "Stock price columns are off.",
+  branchPdfDtGroupBalances:
+    "Outstanding balances",
+  branchPdfDtCariOpen:
+    "Branch current account open balance",
+  branchPdfDtCariOff:
+    "Current account section not selected.",
+  branchPdfDtHeldCash:
+    "Register cash held by personnel",
+  branchPdfDtHeldCashNote:
+    "TRY only.",
+  branchPdfCariPeriodNote:
+    "Current account amounts ignore the period filter (all invoices, current balance).",
+  branchPdfSourceBreakdownTitle: "Branch expenses — type and payment source",
+  branchPdfSourceBreakdownNote: "Advances and person-linked personnel payments excluded (see Personnel)",
   branchPdfSrcShortRegister: "Register",
   branchPdfSrcShortPatron: "Owner",
   branchPdfSrcShortHeld: "Custody",
@@ -202,9 +342,9 @@ export const branch = {
   branchPdfPnlCashEarned: "Earned cash",
   branchPdfPnlCashInHand: "Cash in hand",
   branchPdfPnlNetRevenue: "Net revenue (register)",
-  branchPdfPnlExpenses: "Branch expense (by source)",
-  branchPdfPnlTotalExpense: "Total branch expense",
-  branchPdfPnlProfit: "Profit (revenue − branch expense)",
+  branchPdfPnlExpenses: "Operating expenses (by payment source)",
+  branchPdfPnlTotalExpense: "Total operating expense",
+  branchPdfPnlProfit: "Interim operating result (revenue − operating expense)",
   branchPdfPnlScopeNote:
     "The summary above shows only the branch's expense and profit. Personnel expense and advances are below; remaining cash is in the “Where the branch cash is” card.",
   branchPdfPnlBranchSpend: "Spent for this branch",

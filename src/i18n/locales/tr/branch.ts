@@ -170,9 +170,151 @@ export const branch = {
   branchPdfCashHolderBranch: "Şube kasası",
   branchPdfCashHolderPersonnel: "Personel zimmeti",
   branchPdfCashHolderUnassigned: "Atanmamış / diğer",
-  branchPdfSummaryTitle: "Şube özeti — net",
-  branchPdfSourceBreakdownTitle: "Şube giderleri",
-  branchPdfSourceBreakdownNote: "Avans ve personel ödemeleri hariç",
+  branchPdfSummaryTitle: "Finansal görünüm",
+  branchPdfPresetLabel: "Rapor tipi",
+  branchPdfPresetSummary: "Özet Rapor",
+  branchPdfPresetDetailed: "Detaylı Rapor",
+  branchPdfPresetCustom: "Özel Rapor",
+  branchPdfPresetSummaryHint:
+    "Yönetici özeti: hasılat, işletme giderleri, ara sonuç ve kişi bazlı personel toplamları. Satır listeleri ve stok yok.",
+  branchPdfPresetDetailedHint:
+    "Tüm bölümler satır satır: kasa hareketleri, personel avans/gider, maaş tahmini, stok (tahmini tutarlı) ve notlar.",
+  branchPdfPresetCustomHint: "Bölümleri aşağıdaki gelişmiş seçeneklerden kendiniz seçin.",
+  branchPdfAdvancedOptions: "Gelişmiş seçenekler",
+  branchPdfOptRegisterHint:
+    "Hasılat, gider ve ara sonuç bu kayıtlardan hesaplanır; kapatılırsa finansal görünüm boş kalır.",
+  branchPdfSrcCentral: "Merkez tarafından karşılanan",
+  branchPdfSrcShortCentral: "Merkez",
+  branchPdfTotalCentralSpent: "Merkez tarafından karşılanan (tedarikçi faturası payı)",
+  branchPdfPnlCapex: "Yatırım / demirbaş (işletme giderine dahil değil)",
+  branchPdfPnlCapexTotal: "Yatırım / demirbaş harcaması",
+  branchPdfPnlAfterCapex: "Yatırım düşüldükten sonra",
+  branchPdfMissingPersonnelCash:
+    "Avanslar ve personele yazılan giderler nakit hareketidir; sonuçtan düşülmez (Personel bölümünde ayrı).",
+  branchPdfMissingDiscounts:
+    "İndirim ve iade ayrı kayıtlı değildir; hasılat kasaya giren brüt tutardır.",
+  branchPdfWarnAdvancesCapped:
+    "Uyarı: Avans listesi {n} kayıt sınırına ulaştı. Avans listesi ve toplamları eksik olabilir.",
+  branchPdfOpexTableTotal: "İşletme giderleri toplamı",
+  branchPdfCapexTableHead: "Yatırım / demirbaş — işletme giderine dahil değil",
+  branchPdfCapexTableTotal: "Yatırım / demirbaş toplamı",
+  branchPdfColExpenseType: "Gider türü",
+  branchPdfColPaymentSource: "Ödeme kaynağı",
+  branchPdfCashSectionTitle: "Nakit ve bakiyeler",
+  branchPdfCashSectionNote:
+    "Finansal sonuç değildir; şubenin nakdinin gün sonu itibarıyla kimde olduğunu gösterir.",
+  branchPdfStatus_available:
+    "Kayıtlı",
+  branchPdfStatus_incomplete:
+    "Eksik",
+  branchPdfStatus_unavailable:
+    "Hesaplanamaz",
+  branchPdfProfitStatusTitle:
+    "Kârlılık durumu — net kâr hesaplanamaz",
+  branchPdfPfPersonnel:
+    "Personel maliyeti",
+  branchPdfPfPersonnelWhy:
+    "Tutar yalnızca kayıtlı personel giderleridir (prim, yemek, yol vb.). Maaş tahakkuku ve SGK işveren payı dönemsel olarak kayıtlı değil.",
+  branchPdfPfCogs:
+    "Satılan malın maliyeti (SMM)",
+  branchPdfPfCogsWhy:
+    "Şube tüketimi ve sayımı parasal olarak değerlenmiyor; stok tutarları yalnızca tahmin.",
+  branchPdfPfGross:
+    "Brüt kâr",
+  branchPdfPfGrossWhy:
+    "SMM olmadan hesaplanamaz.",
+  branchPdfPfOperating:
+    "Faaliyet kârı / net kâr",
+  branchPdfPfOperatingWhy:
+    "Personel maliyeti ve SMM eksik olduğu için hesaplanmaz.",
+  branchPdfWarnExpenseListCapped:
+    "Uyarı: Bu şube ve dönem için personel gider listesi 3000 satır sınırına ulaştı. Personel listesi ve kişi bazlı toplamlar eksik olabilir.",
+  branchPdfWarnPersonPartial:
+    "Personel listesi sınıra ulaştı: aşağıdaki kişi bazlı toplamlar eksik olabilir. Şube özetindeki tutarlar kasa kayıtlarından alınır ve bundan etkilenmez.",
+  branchPdfWarnRevenueMismatch:
+    "Uyarı: Hasılat, sunucu finans raporuyla uyuşmuyor (fark {diff}). Kayıtları kontrol edin.",
+  branchPdfWarnHeldCashNonTry:
+    "Uyarı: TRY dışı para biriminde personel zimmeti var; zimmet bakiyesi yalnızca TRY için raporlanır.",
+  branchPdfCostDetailTitle:
+    "Maliyet, nakit ve bakiye kırılımı",
+  branchPdfCostDetailNote:
+    "Her satırın türü belirtilmiştir: maliyet, nakit hareketi veya bakiye. Nakit hareketleri ve bakiyeler sonuca eklenmez.",
+  branchPdfDtColItem:
+    "Kalem",
+  branchPdfDtColKind:
+    "Tür / açıklama",
+  branchPdfKindCostInOpex:
+    "Maliyet (işletme giderinin içinde)",
+  branchPdfKindCostPartial:
+    "Maliyet (kısmi)",
+  branchPdfKindCash:
+    "Nakit hareketi",
+  branchPdfKindBalance:
+    "Bakiye",
+  branchPdfKindEstimate:
+    "Tahmin",
+  branchPdfKindUnavailable:
+    "Hesaplanamaz",
+  branchPdfDtGroupPersonnel:
+    "Personel",
+  branchPdfDtPersonnelRecorded:
+    "Kayıtlı personel giderleri (maaş ve avans hariç)",
+  branchPdfDtSalaryPaid:
+    "Maaş ödemeleri (tüm kaynaklar)",
+  branchPdfDtSalaryPaidNote:
+    "Ödeme tutarıdır, tahakkuk değildir.",
+  branchPdfDtSalaryPaidRegister:
+    "Maaş ödemeleri (yalnızca kasa kayıtlı)",
+  branchPdfDtServerUnavailable:
+    "Sunucu finans özeti alınamadı (rapor yetkisi gerekebilir).",
+  branchPdfDtNeedYear:
+    "Tüm kaynaklar için sezon yılı seçin.",
+  branchPdfDtAdvances:
+    "Personel avansları",
+  branchPdfDtAdvancesNote:
+    "Maaştan mahsup edilir; ayrıca gider sayılmaz.",
+  branchPdfDtGroupSupplier:
+    "Tedarikçi ve merkez payları",
+  branchPdfDtCentralSupplier:
+    "Merkez tedarikçi faturası şube payı",
+  branchPdfDtCentralOverhead:
+    "Merkez genel gider payı",
+  branchPdfDtDirectSupplier:
+    "Şubenin tedarikçi faturaları",
+  branchPdfDtGoods:
+    "Mal / malzeme alımı",
+  branchPdfDtGoodsNote:
+    "Satılan malın maliyeti değildir (stok değişimi bilinmiyor).",
+  branchPdfDtSupplierPaid:
+    "Tedarikçi ödemeleri (bu şubeden)",
+  branchPdfDtSupplierPaidNote:
+    "Fatura zaten gider olarak sayıldı; ödeme ayrıca gider sayılmaz.",
+  branchPdfDtSupplierDebt:
+    "Açık tedarikçi borcu",
+  branchPdfDtSupplierDebtNote:
+    "Şube bazında tutulmuyor; tedarikçi carisi merkezde.",
+  branchPdfDtGroupStock:
+    "Stok",
+  branchPdfDtStockValue:
+    "Depodan gelen malzeme (tahmini değer)",
+  branchPdfDtStockValueNote:
+    "Son tedarikçi faturası birim fiyatına göre tahmin.",
+  branchPdfDtStockValueOff:
+    "Stok fiyat sütunları kapalı.",
+  branchPdfDtGroupBalances:
+    "Açık bakiyeler",
+  branchPdfDtCariOpen:
+    "Şube cari açık bakiyesi",
+  branchPdfDtCariOff:
+    "Cari bölümü seçili değil.",
+  branchPdfDtHeldCash:
+    "Personel zimmetindeki kasa nakdi",
+  branchPdfDtHeldCashNote:
+    "Yalnızca TRY.",
+  branchPdfCariPeriodNote:
+    "Cari tutarlar dönem filtresinden bağımsızdır (tüm faturalar, güncel bakiye).",
+  branchPdfSourceBreakdownTitle: "Şube giderleri — gider türü ve ödeme kaynağı",
+  branchPdfSourceBreakdownNote: "Avans ve kişiye bağlı personel ödemeleri hariç (Personel bölümünde)",
   branchPdfSrcShortRegister: "Kasa",
   branchPdfSrcShortPatron: "Patron",
   branchPdfSrcShortHeld: "Zimmet",
@@ -201,7 +343,7 @@ export const branch = {
   branchPdfTotalRegisterSpent: "Kasadan harcanan",
   branchPdfTotalRegisterSpentShort: "Kasadan",
   branchPdfTotalRegisterNetCash: "Kasa net (gelir − kasadan)",
-  branchPdfTotalPatronSpent: "Patron cebinden",
+  branchPdfTotalPatronSpent: "Patronun cebinden",
   branchPdfTotalPersonnelHeldSpent: "Personel zimmetinden",
   branchPdfTotalPersonnelPocketSpent: "Personel cebinden",
   branchPdfPnlRevenue: "Hasılat",
@@ -209,9 +351,9 @@ export const branch = {
   branchPdfPnlCashEarned: "Kazanılan nakit",
   branchPdfPnlCashInHand: "Ele geçen nakit",
   branchPdfPnlNetRevenue: "Net hasılat (kasa)",
-  branchPdfPnlExpenses: "Şube gideri (kaynağa göre)",
-  branchPdfPnlTotalExpense: "Toplam şube gideri",
-  branchPdfPnlProfit: "Kâr (hasılat − şube gideri)",
+  branchPdfPnlExpenses: "İşletme giderleri (ödeme kaynağına göre)",
+  branchPdfPnlTotalExpense: "Toplam işletme gideri",
+  branchPdfPnlProfit: "Ara faaliyet sonucu (hasılat − işletme gideri)",
   branchPdfPnlScopeNote:
     "Üstteki özet yalnız şube giderini ve kârını gösterir. Personel gideri ve avanslar aşağıda; kalan nakit «Şubenin nakiti nerede» kartında.",
   branchPdfPnlBranchSpend: "Bu şube için harcananlar",

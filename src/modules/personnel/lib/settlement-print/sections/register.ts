@@ -9,7 +9,7 @@ import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import type { BranchTransaction } from "@/types/branch-transaction";
 import { escapeHtml, moneyNum } from "../format";
-import { PALETTE, isNonExpenseOutRow, srcBucketOfExpense } from "../buckets";
+import { PALETTE, isNonExpenseOutRow, srcBucketOfExpenseRow } from "../buckets";
 import { emptyNote, type BranchSettlementPdfOptions } from "../options";
 
 export function buildBranchRegisterSectionHtml(
@@ -92,6 +92,7 @@ export function buildBranchRegisterSectionHtml(
         ? `${esc(cat)} <span class="reg-cp">· ${esc(cp)}</span>`
         : esc(cat);
       const pay =
+        (srcBucketOfExpenseRow(row) === "CENTRAL" ? t("branch.branchPdfSrcCentral") : "") ||
         expensePaymentSourceLabelShort(row.expensePaymentSource, t)?.trim() ||
         expensePaymentSourceLabel(row.expensePaymentSource, t)?.trim() ||
         dash;
@@ -126,7 +127,7 @@ export function buildBranchRegisterSectionHtml(
     outByGroup.set(key, m);
   };
   for (const row of outflowRows) {
-    const b = srcBucketOfExpense(row.expensePaymentSource);
+    const b = srcBucketOfExpenseRow(row);
     if (b == null) continue;
     const key =
       b === "PERSONNEL_POCKET" || b === "PERSONNEL_HELD_REGISTER_CASH" ? "PERSONNEL" : b;
@@ -151,6 +152,7 @@ export function buildBranchRegisterSectionHtml(
       ? `<div class="reg-cards">
     ${groupCard(t("branch.expensePayRegister"), PALETTE.income, "REGISTER")}
     ${groupCard(t("branch.expensePayPatron"), PALETTE.goods, "PATRON")}
+    ${outByGroup.has("CENTRAL") ? groupCard(t("branch.branchPdfSrcCentral"), PALETTE.neutral, "CENTRAL") : ""}
     ${groupCard(t("branch.branchPdfExpenseGroupPersonnel"), PALETTE.personnel, "PERSONNEL")}
   </div>`
       : "";
