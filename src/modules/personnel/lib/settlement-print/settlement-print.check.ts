@@ -93,7 +93,15 @@ assert.equal(after(card, "branch.branchPdfPnlOpex"), "365");
 assert.ok(!card.includes("branch.branchPdfTotalPatronSpent") && !card.includes("branch.branchPdfTotalRegisterSpentShort"));
 // Kategori kırılımı: satırlar toplamı = işletme gideri; tedarikçi satırı ek gider değil (sonuç değişmez)
 assert.equal([...tr.opexByCode.values()].reduce((s, v) => s + v, 0), tr.opex);
-assert.ok(card.includes("branch.branchPdfPnlSupplierCost") && card.includes("branch.branchPdfPnlProfitNote"));
+assert.ok(card.includes("branch.branchPdfPnlProfitNote"));
+// Genel bakış yalnız hasılat + işletme gideri + kalan + yatırım: personel/tedarikçi durum satırı yok
+assert.ok(!card.includes("pf-st") && !/branchPdfPf|branchPdfPnlSupplier|branchPdfStatus_/.test(card));
+{
+  const { buildProfitabilityStatusHtml } = await import("./sections/profitability");
+  const info = buildProfitabilityStatusHtml([], { t, locale: "tr", dash: "—" });
+  assert.ok(info.includes("branch.branchPdfProfitInfoTitle") && info.includes("branch.branchPdfProfitInfoMissingCogs"));
+  assert.ok(!/TL|\d/.test(info.replace(/branch\.[A-Za-z_]+/g, "")), "kârlılık bilgisinde tutar olmamalı");
+}
 assert.equal(after(card, "branch.branchPdfPnlProfit"), "635");
 assert.equal(after(card, "branch.branchPdfPnlAfterCapex"), "335");
 assert.ok(!/net kâr/i.test(card));

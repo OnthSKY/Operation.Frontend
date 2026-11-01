@@ -181,9 +181,6 @@ export const branch = {
   branchPdfPnlCapex: "Investment / fixtures (not part of operating expense)",
   branchPdfPnlCapexTotal: "Investment / fixtures spend",
   branchPdfPnlAfterCapex: "After investment",
-  branchPdfMissingPersonnelCash:
-    "Advances and personnel expenses are cash movements; they are not deducted from the result (shown under Personnel).",
-  branchPdfMissingDiscounts: "Discounts and refunds are not recorded separately; revenue is the gross register inflow.",
   branchPdfWarnAdvancesCapped:
     "Warning: the advance list hit the {n}-record limit. Advance list and totals may be incomplete.",
   branchPdfOpexTableTotal: "Operating expenses total",
@@ -193,30 +190,10 @@ export const branch = {
   branchPdfColPaymentSource: "Payment source",
   branchPdfCashSectionTitle: "Cash and balances",
   branchPdfCashSectionNote: "Not a financial result; shows who holds the branch's cash as of day close.",
-  branchPdfStatus_available:
-    "Recorded",
-  branchPdfStatus_incomplete:
-    "Incomplete",
-  branchPdfStatus_unavailable:
-    "Not calculable",
-  branchPdfProfitStatusTitle:
-    "Profitability status — net profit cannot be calculated",
-  branchPdfPfPersonnel:
-    "Personnel cost",
-  branchPdfPfPersonnelWhy:
-    "Amount covers recorded personnel expenses only (bonus, meals, transport, etc.). Salary accrual and employer social security are not recorded per period.",
   branchPdfPfCogs:
     "Cost of goods sold (COGS)",
   branchPdfPfCogsWhy:
     "Branch consumption and counts are not valued in money; stock values are estimates only.",
-  branchPdfPfGross:
-    "Gross profit",
-  branchPdfPfGrossWhy:
-    "Not calculable without COGS.",
-  branchPdfPfOperating:
-    "Operating / net profit",
-  branchPdfPfOperatingWhy:
-    "Not calculated because personnel cost and COGS are incomplete.",
   branchPdfWarnExpenseListCapped:
     "Warning: the personnel expense list for this branch and period hit the 3000-row limit. The personnel list and per-person totals may be incomplete.",
   branchPdfWarnPersonPartial:
@@ -311,16 +288,18 @@ export const branch = {
     "Branch operating expenses",
   branchPdfPnlOpexOther:
     "Other operating expenses",
-  branchPdfPnlPersonnelNote:
-    "Recorded part (bonus, meals, transport, etc.); salary and social security missing. Not included in the result.",
-  branchPdfPnlSupplierCost:
-    "Supplier / product costs",
-  branchPdfPnlCogsUnavailable:
-    "Not calculable",
-  branchPdfPnlSupplierNote:
-    "Amount is already within operating expenses (not deducted again). Cost of goods sold cannot be calculated.",
   branchPdfPnlProfitNote:
     "This amount is not net profit. Personnel and product costs cannot be fully calculated.",
+  branchPdfProfitInfoTitle:
+    "Profitability information",
+  branchPdfProfitInfoBody:
+    "This report shows the branch's recorded revenue and expenses. Actual net profit cannot be calculated because cost data is incomplete.",
+  branchPdfProfitInfoMissingPayroll:
+    "Salary accruals and employer social security are not recorded.",
+  branchPdfProfitInfoMissingCogs:
+    "Cost of goods sold (COGS) cannot be calculated.",
+  branchPdfProfitInfoMissingDiscounts:
+    "Discount and refund effects are not recorded separately.",
   branchPdfSourceBreakdownTitle: "Branch expenses — type and payment source",
   branchPdfSourceBreakdownNote: "Advances and person-linked personnel payments excluded (see Personnel)",
   branchPdfSrcShortRegister: "Register",

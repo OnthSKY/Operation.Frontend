@@ -188,10 +188,6 @@ export const branch = {
   branchPdfPnlCapex: "Yatırım / demirbaş (işletme giderine dahil değil)",
   branchPdfPnlCapexTotal: "Yatırım / demirbaş harcaması",
   branchPdfPnlAfterCapex: "Yatırım düşüldükten sonra",
-  branchPdfMissingPersonnelCash:
-    "Avanslar ve personele yazılan giderler nakit hareketidir; sonuçtan düşülmez (Personel bölümünde ayrı).",
-  branchPdfMissingDiscounts:
-    "İndirim ve iade ayrı kayıtlı değildir; hasılat kasaya giren brüt tutardır.",
   branchPdfWarnAdvancesCapped:
     "Uyarı: Avans listesi {n} kayıt sınırına ulaştı. Avans listesi ve toplamları eksik olabilir.",
   branchPdfOpexTableTotal: "İşletme giderleri toplamı",
@@ -202,30 +198,10 @@ export const branch = {
   branchPdfCashSectionTitle: "Nakit ve bakiyeler",
   branchPdfCashSectionNote:
     "Finansal sonuç değildir; şubenin nakdinin gün sonu itibarıyla kimde olduğunu gösterir.",
-  branchPdfStatus_available:
-    "Kayıtlı",
-  branchPdfStatus_incomplete:
-    "Eksik",
-  branchPdfStatus_unavailable:
-    "Hesaplanamaz",
-  branchPdfProfitStatusTitle:
-    "Kârlılık durumu — net kâr hesaplanamaz",
-  branchPdfPfPersonnel:
-    "Personel maliyeti",
-  branchPdfPfPersonnelWhy:
-    "Tutar yalnızca kayıtlı personel giderleridir (prim, yemek, yol vb.). Maaş tahakkuku ve SGK işveren payı dönemsel olarak kayıtlı değil.",
   branchPdfPfCogs:
     "Satılan malın maliyeti (SMM)",
   branchPdfPfCogsWhy:
     "Şube tüketimi ve sayımı parasal olarak değerlenmiyor; stok tutarları yalnızca tahmin.",
-  branchPdfPfGross:
-    "Brüt kâr",
-  branchPdfPfGrossWhy:
-    "SMM olmadan hesaplanamaz.",
-  branchPdfPfOperating:
-    "Faaliyet kârı / net kâr",
-  branchPdfPfOperatingWhy:
-    "Personel maliyeti ve SMM eksik olduğu için hesaplanmaz.",
   branchPdfWarnExpenseListCapped:
     "Uyarı: Bu şube ve dönem için personel gider listesi 3000 satır sınırına ulaştı. Personel listesi ve kişi bazlı toplamlar eksik olabilir.",
   branchPdfWarnPersonPartial:
@@ -320,16 +296,18 @@ export const branch = {
     "Şube işletme giderleri",
   branchPdfPnlOpexOther:
     "Diğer işletme giderleri",
-  branchPdfPnlPersonnelNote:
-    "Kayıtlı kısım (prim, yemek, yol vb.); maaş ve SGK eksik. Sonuca dahil değil.",
-  branchPdfPnlSupplierCost:
-    "Tedarikçi / ürün maliyetleri",
-  branchPdfPnlCogsUnavailable:
-    "Hesaplanamıyor",
-  branchPdfPnlSupplierNote:
-    "Tutar işletme giderlerinin içindedir (ayrıca düşülmez). Satılan malın maliyeti hesaplanamıyor.",
   branchPdfPnlProfitNote:
     "Bu tutar net kâr değildir. Personel ve ürün maliyetleri tam olarak hesaplanamamaktadır.",
+  branchPdfProfitInfoTitle:
+    "Kârlılık bilgisi",
+  branchPdfProfitInfoBody:
+    "Bu rapor şubenin kayıtlı gelir ve giderlerini gösterir. Gerçek net kâr, eksik maliyet verileri nedeniyle hesaplanamamaktadır.",
+  branchPdfProfitInfoMissingPayroll:
+    "Maaş tahakkuku ve SGK işveren payı kayıtlı değildir.",
+  branchPdfProfitInfoMissingCogs:
+    "Satılan malın maliyeti (SMM) hesaplanamamaktadır.",
+  branchPdfProfitInfoMissingDiscounts:
+    "İndirim ve iade etkileri ayrı kayıtlı değildir.",
   branchPdfSourceBreakdownTitle: "Şube giderleri — gider türü ve ödeme kaynağı",
   branchPdfSourceBreakdownNote: "Avans ve kişiye bağlı personel ödemeleri hariç (Personel bölümünde)",
   branchPdfSrcShortRegister: "Kasa",

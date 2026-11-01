@@ -1,5 +1,5 @@
 /**
- * Kârlılık durumu (özet) ve maliyet / nakit / bakiye kırılımı (detay). Sayılar yalnız
+ * Kârlılık bilgisi (özet) ve maliyet / nakit / bakiye kırılımı (detay). Sayılar yalnız
  * `profitability.ts` modelinden; burada hesap yok, yalnız gösterim.
  */
 import type { Locale } from "@/i18n/messages";
@@ -8,7 +8,6 @@ import { escapeHtml } from "../format";
 import type {
   BranchProfitability,
   CurrencyRegisterAgg,
-  MetricStatus,
   Money,
   ServerYearSummary,
 } from "../profitability";
@@ -23,37 +22,25 @@ const joinMoney = (m: Money, { locale, dash }: Ctx): string => {
 const pick = (model: BranchProfitability, f: (a: CurrencyRegisterAgg) => number): Money =>
   new Map([...model.byCurrency].map(([c, a]) => [c, f(a)] as [string, number]));
 
-const statusChip = (s: MetricStatus, t: Ctx["t"]) =>
-  `<span class="pf-st pf-st-${s}">${escapeHtml(t(`branch.branchPdfStatus_${s}`))}</span>`;
-
-/** Özet: personel / SMM / brüt / faaliyet kârı için durum tablosu + kısa dipnotlar + uyarılar. */
-export function buildProfitabilityStatusHtml(
-  model: BranchProfitability,
-  warnings: string[],
-  ctx: Ctx
-): string {
-  const { t, dash } = ctx;
+/**
+ * Özet: «Kârlılık bilgisi» — net kârın neden hesaplanamadığını kısa anlatır. Tutar göstermez
+ * (kısmi personel tutarı gerçek personel maliyeti sanılıyordu). Veri uyarıları üstte kalır.
+ */
+export function buildProfitabilityStatusHtml(warnings: string[], ctx: Ctx): string {
+  const { t } = ctx;
   const esc = escapeHtml;
   const warn = warnings.length
     ? `<div class="pdf-warn" role="alert">${warnings.map((w) => `<p>${esc(w)}</p>`).join("")}</div>`
     : "";
-  const recorded = joinMoney(pick(model, (a) => a.personnelRecorded), ctx);
-  const row = (label: string, amount: string, s: MetricStatus, why: string) =>
-    `<tr><td>${esc(label)}</td><td class="num">${amount || esc(dash)}</td><td>${statusChip(s, t)} <span class="pf-why">${esc(why)}</span></td></tr>`;
+  const items = [
+    "branch.branchPdfProfitInfoMissingPayroll",
+    "branch.branchPdfProfitInfoMissingCogs",
+    "branch.branchPdfProfitInfoMissingDiscounts",
+  ];
   return `${warn}<div class="pnl-missing">
-    <p class="pnl-missing-head">${esc(t("branch.branchPdfProfitStatusTitle"))}</p>
-    <table class="pf-table">
-      <tbody>
-        ${row(t("branch.branchPdfPfPersonnel"), recorded, model.personnelCost, t("branch.branchPdfPfPersonnelWhy"))}
-        ${row(t("branch.branchPdfPfCogs"), "", model.cogs, t("branch.branchPdfPfCogsWhy"))}
-        ${row(t("branch.branchPdfPfGross"), "", model.grossProfit, t("branch.branchPdfPfGrossWhy"))}
-        ${row(t("branch.branchPdfPfOperating"), "", model.operatingProfit, t("branch.branchPdfPfOperatingWhy"))}
-      </tbody>
-    </table>
-    <ul>
-      <li>${esc(t("branch.branchPdfMissingPersonnelCash"))}</li>
-      <li>${esc(t("branch.branchPdfMissingDiscounts"))}</li>
-    </ul>
+    <p class="pnl-missing-head">${esc(t("branch.branchPdfProfitInfoTitle"))}</p>
+    <p class="pnl-missing-body">${esc(t("branch.branchPdfProfitInfoBody"))}</p>
+    <ul>${items.map((k) => `<li>${esc(t(k))}</li>`).join("")}</ul>
   </div>`;
 }
 

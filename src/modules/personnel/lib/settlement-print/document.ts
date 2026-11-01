@@ -739,7 +739,7 @@ export async function buildPersonnelSettlementDocument(
     )
   )
     dataWarnings.push(t("branch.branchPdfWarnHeldCashNonTry"));
-  const profitStatusHtml = profit ? buildProfitabilityStatusHtml(profit, dataWarnings, pdx) : "";
+  const profitStatusHtml = profit ? buildProfitabilityStatusHtml(dataWarnings, pdx) : "";
   const cariOpen =
     bp?.includeBranchCurrentAccount === true
       ? cariInvoices.reduce(

@@ -64,12 +64,6 @@ export function buildBranchTotalsCardsHtml(
       const opex = a?.opex ?? 0;
       const capex = a?.capex ?? 0;
       const interim = ri - opex;
-      const chip = (k: string, s: "incomplete" | "unavailable") =>
-        `<span class="pf-st pf-st-${s}">${esc(t(k))}</span>`;
-      // Tutarlı satır + durum rozeti + kısa açıklama (sonuca dahil mi değil mi).
-      const statusLine = (k: string, v: number | null, chipHtml: string, note: string) =>
-        `<div class="pnl-line pnl-line-status"><span class="pnl-k">${esc(k)} ${chipHtml}<span class="pnl-note">${esc(note)}</span></span><span class="pnl-v num">${v == null ? esc(dash) : money(v)}</span></div>`;
-
       // 1. HASILAT: toplam → kart satışları / nakit satışlar → ele geçen nakit.
       // Nakit satışlar = toplam hasılat − kart (kart + nakit = toplam hasılat, tam tutar).
       // Ele geçen nakit = gün sonu çekmecede kalan nakit (kasadan harcama düşülmüş).
@@ -86,7 +80,8 @@ export function buildBranchTotalsCardsHtml(
         ${cashCardSub}
       </div>`);
 
-      // 2. GİDERLER — TÜRLERİNE GÖRE. Ödeme kaynağı burada yok (gider tablosunda).
+      // 2. ŞUBE İŞLETME GİDERLERİ — türe göre. Ödeme kaynağı burada yok (gider tablosunda); personel
+      // nakit hareketleri (avans/ödeme) gider değildir → yalnız personel tablosunda.
       // İşletme gideri: en büyük 4 sınıf + «Diğer» (toplam = opex, değişmez).
       const codes = [...(a?.opexByCode ?? new Map<string, number>())].sort((x, y) => y[1] - x[1]);
       const TOP = 4;
@@ -99,24 +94,10 @@ export function buildBranchTotalsCardsHtml(
       const catLines =
         shown.map(([code, v]) => line(catLabel(code), v, " pnl-line-sub")).join("") +
         (Math.abs(rest) > 1e-9 ? line(t("branch.branchPdfPnlOpexOther"), rest, " pnl-line-sub") : "");
-      // Tedarikçi / ürün: işletme giderinin İÇİNDE (ek gider değil); SMM yok.
-      const supplier = (a?.centralSupplier ?? 0) + (a?.directSupplierInvoice ?? 0) + (a?.goodsPurchase ?? 0);
       groups.push(`<div class="pnl-group">
         <div class="pnl-head">${esc(t("branch.branchPdfPnlExpensesByType"))}</div>
         ${line(t("branch.branchPdfPnlOpex"), opex, " pnl-line-strong-top")}
         ${catLines}
-        ${statusLine(
-          t("branch.branchPdfPfPersonnel"),
-          a?.personnelRecorded ?? 0,
-          chip("branch.branchPdfStatus_incomplete", "incomplete"),
-          t("branch.branchPdfPnlPersonnelNote")
-        )}
-        ${statusLine(
-          t("branch.branchPdfPnlSupplierCost"),
-          Math.abs(supplier) > 1e-9 ? supplier : null,
-          chip("branch.branchPdfPnlCogsUnavailable", "unavailable"),
-          t("branch.branchPdfPnlSupplierNote")
-        )}
       </div>`);
 
       // 3. FİNANSAL SONUÇ (hasılat − işletme gideri) — net kâr DEĞİL; negatifse kırmızı.
