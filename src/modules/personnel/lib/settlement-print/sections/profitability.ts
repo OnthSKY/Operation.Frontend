@@ -95,7 +95,6 @@ export function buildCostDetailHtml(
 
   const rows = [
     head("branch.branchPdfDtGroupPersonnel"),
-    row("branch.branchPdfDtPersonnelRecorded", m(pick(model, (a) => a.personnelRecorded)), "branch.branchPdfKindCostPartial"),
     salary,
     row("branch.branchPdfDtAdvances", m(inp.advTotals), "branch.branchPdfKindCash", "branch.branchPdfDtAdvancesNote"),
     head("branch.branchPdfDtGroupSupplier"),

@@ -220,8 +220,6 @@ export const branch = {
     "Tür / açıklama",
   branchPdfKindCostInOpex:
     "Maliyet (işletme giderinin içinde)",
-  branchPdfKindCostPartial:
-    "Maliyet (kısmi)",
   branchPdfKindCash:
     "Nakit hareketi",
   branchPdfKindBalance:
@@ -232,8 +230,6 @@ export const branch = {
     "Hesaplanamaz",
   branchPdfDtGroupPersonnel:
     "Personel",
-  branchPdfDtPersonnelRecorded:
-    "Kayıtlı personel giderleri (maaş ve avans hariç)",
   branchPdfDtSalaryPaid:
     "Maaş ödemeleri (tüm kaynaklar)",
   branchPdfDtSalaryPaidNote:

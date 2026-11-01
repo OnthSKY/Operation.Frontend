@@ -101,6 +101,11 @@ assert.ok(!card.includes("pf-st") && !/branchPdfPf|branchPdfPnlSupplier|branchPd
   const info = buildProfitabilityStatusHtml([], { t, locale: "tr", dash: "—" });
   assert.ok(info.includes("branch.branchPdfProfitInfoTitle") && info.includes("branch.branchPdfProfitInfoMissingCogs"));
   assert.ok(!/TL|\d/.test(info.replace(/branch\.[A-Za-z_]+/g, "")), "kârlılık bilgisinde tutar olmamalı");
+  const { buildCostDetailHtml } = await import("./sections/profitability");
+  const detail = buildCostDetailHtml(computeBranchProfitability(rows, null), {
+    server: null, advTotals: new Map(), stockValueEst: null, cariOpen: null, heldCashTotal: new Map(), yearSelected: false,
+  }, { t, locale: "tr", dash: "—" });
+  assert.ok(detail.includes("branch.branchPdfDtAdvances") && !/PersonnelRecorded|CostPartial/.test(detail), "personel maliyeti satırı olmamalı");
 }
 assert.equal(after(card, "branch.branchPdfPnlProfit"), "635");
 assert.equal(after(card, "branch.branchPdfPnlAfterCapex"), "335");

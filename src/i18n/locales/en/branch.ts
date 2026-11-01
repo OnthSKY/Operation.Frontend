@@ -212,8 +212,6 @@ export const branch = {
     "Type / note",
   branchPdfKindCostInOpex:
     "Cost (within operating expense)",
-  branchPdfKindCostPartial:
-    "Cost (partial)",
   branchPdfKindCash:
     "Cash movement",
   branchPdfKindBalance:
@@ -224,8 +222,6 @@ export const branch = {
     "Not calculable",
   branchPdfDtGroupPersonnel:
     "Personnel",
-  branchPdfDtPersonnelRecorded:
-    "Recorded personnel expenses (excluding salary and advances)",
   branchPdfDtSalaryPaid:
     "Salary payments (all sources)",
   branchPdfDtSalaryPaidNote:
