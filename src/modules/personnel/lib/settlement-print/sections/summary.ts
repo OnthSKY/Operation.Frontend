@@ -3,15 +3,10 @@
  * "şubenin nakiti nerede" (eline geçen / kalan) kartı.
  */
 import type { Locale } from "@/i18n/messages";
-import {
-  isRegisterDayCloseIncomeRow,
-  txCodeLabel,
-  txCodeLabelKey,
-  umbrellaTxMainForSubOptions,
-} from "@/modules/branch/lib/branch-transaction-options";
+import { isRegisterDayCloseIncomeRow } from "@/modules/branch/lib/branch-transaction-options";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import type { BranchTransaction } from "@/types/branch-transaction";
-import { ccyKey, escapeHtml, moneyNum } from "../format";
+import { ccyKey, escapeHtml, moneyNum, pdfCategoryMainSub } from "../format";
 import {
   PALETTE,
   SRC_ORDER,
@@ -24,32 +19,6 @@ import {
 } from "../buckets";
 import type { BranchSettlementPdfOptions } from "../options";
 import { aggregateBranchRegister } from "../profitability";
-
-/**
- * PDF kategori etiketi: kayıtlı çeviri anahtarı → `ledgerClass.<kod>` çevirisi → mevcut etiket.
- * Yalnız gösterim; kod, gruplama ve tutarlar değişmez (ham "Ops invoice" sızıntısını kapatır).
- */
-function pdfCodeLabel(code: string, t: (k: string) => string): string {
-  const key = txCodeLabelKey(code);
-  if (key) return t(key);
-  const lc = `ledgerClass.${code}`;
-  const v = t(lc);
-  return v && v !== lc ? v : txCodeLabel(code, t);
-}
-
-/** `txCategoryMainSub` ile aynı şemsiye/alt ayrımı, PDF etiketleriyle. */
-function pdfCategoryMainSub(
-  code: string | null | undefined,
-  t: (k: string) => string
-): { main: string; sub: string | null } {
-  const c = String(code ?? "").trim();
-  if (!c) return { main: "", sub: null };
-  const umbrella = umbrellaTxMainForSubOptions(c);
-  return {
-    main: pdfCodeLabel(umbrella, t),
-    sub: c !== umbrella ? pdfCodeLabel(c, t) : null,
-  };
-}
 
 export function buildBranchTotalsCardsHtml(
   t: (k: string) => string,

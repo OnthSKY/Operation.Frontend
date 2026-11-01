@@ -19,10 +19,10 @@ import {
 } from "@/modules/personnel/lib/settlement-print/sections/profitability";
 import {
   expensePaymentSourceLabel,
-  txCategoryLine,
 } from "@/modules/branch/lib/branch-transaction-options";
 import {
   escapeHtml,
+  pdfTxCategoryLine,
   safeDownloadFilename,
 } from "@/modules/personnel/lib/settlement-print/format";
 import {
@@ -377,7 +377,7 @@ export async function buildPersonnelSettlementDocument(
           ? branchNameById.get(bid)?.trim() || `#${bid}`
           : orgBranch;
       const cat =
-        txCategoryLine(row.mainCategory, row.category, t)?.trim() || dash;
+        pdfTxCategoryLine(row.mainCategory, row.category, t)?.trim() || dash;
       const pay =
         expensePaymentSourceLabel(row.expensePaymentSource, t)?.trim() || dash;
       const note = row.description?.trim()
@@ -595,7 +595,7 @@ export async function buildPersonnelSettlementDocument(
       for (const row of expenses) {
         const { employeeName } = resolveNonAdvanceRow(row, dash);
         const person = byBranch ? `<td>${escapeHtml(employeeName)}</td>` : "";
-        const cat = txCategoryLine(row.mainCategory, row.category, t)?.trim() || dash;
+        const cat = pdfTxCategoryLine(row.mainCategory, row.category, t)?.trim() || dash;
         const isReg =
           (srcBucketOfExpense(row.expensePaymentSource) ?? "REGISTER") === "REGISTER";
         const kaynak = srcWithBranch(

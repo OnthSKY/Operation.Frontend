@@ -3,12 +3,11 @@ import type { Locale } from "@/i18n/messages";
 import {
   expensePaymentSourceLabel,
   expensePaymentSourceLabelShort,
-  txCategoryLine,
 } from "@/modules/branch/lib/branch-transaction-options";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import { formatLocaleDate } from "@/shared/lib/locale-date";
 import type { BranchTransaction } from "@/types/branch-transaction";
-import { escapeHtml, moneyNum } from "../format";
+import { escapeHtml, moneyNum, pdfTxCategoryLine } from "../format";
 import { PALETTE, isNonExpenseOutRow, srcBucketOfExpenseRow } from "../buckets";
 import { emptyNote, type BranchSettlementPdfOptions } from "../options";
 
@@ -58,7 +57,7 @@ export function buildBranchRegisterSectionHtml(
 
   const incomeBody = incomeRows
     .map((row) => {
-      const cat = txCategoryLine(row.mainCategory, row.category, t)?.trim() || dash;
+      const cat = pdfTxCategoryLine(row.mainCategory, row.category, t)?.trim() || dash;
       const cashV = moneyNum(row.cashAmount);
       const cardV = moneyNum(row.cardAmount);
       return `<tr>
@@ -86,7 +85,7 @@ export function buildBranchRegisterSectionHtml(
   };
   const outflowBody = outflowRows
     .map((row) => {
-      const cat = txCategoryLine(row.mainCategory, row.category, t)?.trim() || dash;
+      const cat = pdfTxCategoryLine(row.mainCategory, row.category, t)?.trim() || dash;
       const cp = counterpartyName(row);
       const catCell = cp
         ? `${esc(cat)} <span class="reg-cp">· ${esc(cp)}</span>`

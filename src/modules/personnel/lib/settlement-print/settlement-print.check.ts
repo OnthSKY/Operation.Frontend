@@ -141,6 +141,9 @@ assert.ok(/cat-tot">[^<]*365/.test(opexRow), "tablo işletme toplamı = kart");
     stockValTotals: new Map(), stockQtySum: 0, registerRaw: rows,
   });
   assert.ok(!/Ops invoice/.test(card2) && card2.includes("Faturalı tedarikçi gideri"));
+  const { buildBranchRegisterSectionHtml } = await import("./sections/register");
+  const reg = buildBranchRegisterSectionHtml([...rows, ...extra], branchPdfPresetOptions("detailed", false), tl, "tr", "—");
+  assert.ok(!/Ops invoice|Ops pos bank fee/.test(reg) && reg.includes("POS / banka komisyonu"));
 }
 
 // Hazır ayarlar: alan seti tam, cari bayrağı korunur
