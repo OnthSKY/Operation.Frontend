@@ -477,6 +477,18 @@ export async function deleteBranchTransaction(transactionId: number): Promise<vo
   });
 }
 
+/** Şube işletme / yatırım giderinin kategorisini düzeltir (tutar, tarih, ödeme kaynağı değişmez). */
+export async function reclassifyBranchExpense(
+  transactionId: number,
+  classificationCode: string
+): Promise<BranchTransaction> {
+  const r = await apiRequest<BranchTxApiRow>(`/branch-transactions/${transactionId}/classification`, {
+    method: "PATCH",
+    body: JSON.stringify({ classificationCode: classificationCode.trim().toUpperCase() }),
+  });
+  return normalizeBranchTxRow(r);
+}
+
 export async function settleBranchInvoiceExpense(
   transactionId: number,
   body: { expensePaymentSource: string; expensePocketPersonnelId?: number | null }

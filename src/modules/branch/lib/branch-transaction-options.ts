@@ -250,6 +250,54 @@ export function umbrellaTxMainForSubOptions(mainCategory: string): string {
   return m;
 }
 
+/** Kategorisi düzenlenebilen kod mu: OUT_OPS_* (fatura hariç) veya OUT_CAPEX_* (backend kuralıyla aynı). */
+export function isReclassifiableExpenseCode(code: string | null | undefined): boolean {
+  const c = String(code ?? "").trim().toUpperCase();
+  if (c === "OUT_OPS_INVOICE") return false;
+  return c.startsWith("OUT_OPS_") || c.startsWith("OUT_CAPEX_");
+}
+
+/**
+ * Detayda kategori düzeltilebilir mi: bağımsız şube işletme / yatırım gideri. Başka modülün ürettiği
+ * satırlar (tedarikçi, genel gider, personel, araç, dış çalışan, kasa devri) kendi modülünden düzenlenir.
+ */
+export function canReclassifyExpenseRow(
+  row: Pick<
+    BranchTransaction,
+    | "type"
+    | "mainCategory"
+    | "linkedAdvanceId"
+    | "linkedSalaryPaymentId"
+    | "linkedPersonnelId"
+    | "linkedSupplierInvoiceLineId"
+    | "generalOverheadPoolId"
+    | "linkedVehicleExpenseId"
+    | "linkedContractorPaymentId"
+    | "settlesCashHandoverTransactionId"
+  >
+): boolean {
+  if (String(row.type ?? "").trim().toUpperCase() !== "OUT") return false;
+  if (!isReclassifiableExpenseCode(row.mainCategory)) return false;
+  return ![
+    row.linkedAdvanceId,
+    row.linkedSalaryPaymentId,
+    row.linkedPersonnelId,
+    row.linkedSupplierInvoiceLineId,
+    row.generalOverheadPoolId,
+    row.linkedVehicleExpenseId,
+    row.linkedContractorPaymentId,
+    row.settlesCashHandoverTransactionId,
+  ].some((v) => (v ?? 0) > 0);
+}
+
+/** Kategori düzeltme seçenekleri: işletme alt kategorileri (fatura hariç) + yatırım / demirbaş. */
+export function reclassifyExpenseOptionSources(): { group: "OUT_OPS" | "OUT_CAPEX"; value: string; labelKey: string }[] {
+  return [
+    ...SUB.OUT_OPS.filter((x) => x.value !== "OPS_INVOICE").map((x) => ({ group: "OUT_OPS" as const, ...x })),
+    ...SUB.OUT_CAPEX.map((x) => ({ group: "OUT_CAPEX" as const, ...x })),
+  ];
+}
+
 export function txSubOptions(
   mainCategory: string,
   t: (key: string) => string

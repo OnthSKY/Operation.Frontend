@@ -296,6 +296,9 @@ export const branch = {
     "Cost of goods sold (COGS) cannot be calculated.",
   branchPdfProfitInfoMissingDiscounts:
     "Discount and refund effects are not recorded separately.",
+  txCategoryEdit: "Edit",
+  txCategoryUpdated: "Category updated.",
+  txCategoryEditHint: "Only the category changes; amount, date and payment source stay the same.",
   branchPdfSourceBreakdownTitle: "Branch expenses — type and payment source",
   branchPdfSourceBreakdownNote: "Advances and person-linked personnel payments excluded (see Personnel)",
   branchPdfSrcShortRegister: "Register",

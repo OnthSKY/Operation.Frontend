@@ -2,7 +2,17 @@
 
 import type { Locale } from "@/i18n/messages";
 import { useI18n } from "@/i18n/context";
-import { branchTransactionReceiptPhotoUrl } from "@/modules/branch/api/branch-transactions-api";
+import {
+  branchTransactionReceiptPhotoUrl,
+  reclassifyBranchExpense,
+} from "@/modules/branch/api/branch-transactions-api";
+import { classificationCodeFromLegacyBranchTxForm } from "@/modules/branch/lib/branch-tx-form-to-classification";
+import { branchKeys } from "@/modules/branch/hooks/useBranchQueries";
+import { dashboardSummaryKeys } from "@/modules/dashboard/query-keys";
+import { Select } from "@/shared/ui/Select";
+import { notify } from "@/shared/lib/notify";
+import { toErrorMessage } from "@/shared/lib/error-message";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   branchTxGeneralOverheadLine,
   branchTxLinkedExpenseLine,
@@ -10,6 +20,8 @@ import {
   branchTxLinkedContractorLine,
   branchTxLinkedVehicleLine,
   branchTxUnpaidInvoice,
+  canReclassifyExpenseRow,
+  reclassifyExpenseOptionSources,
   expensePaymentSourceLabelShort,
   txCategoryLine,
 } from "@/modules/branch/lib/branch-transaction-options";
@@ -28,8 +40,8 @@ import { Button } from "@/shared/ui/Button";
 import { Modal } from "@/shared/ui/Modal";
 import { CreatedByMeta } from "@/shared/components/CreatedByMeta";
 import { BranchExpenseKindBadge } from "@/modules/branch/components/BranchExpenseKindBadge";
-import { useId, type ReactNode } from "react";
-import { ExternalLink, Trash2 } from "lucide-react";
+import { useId, useMemo, useState, type ReactNode } from "react";
+import { ExternalLink, Pencil, Trash2 } from "lucide-react";
 
 type Props = {
   open: boolean;
@@ -40,6 +52,10 @@ type Props = {
   /** Silme butonuna tıklandığında çağrılır. Modalı dışarıdan kapatmak çağıranın işi. */
   onDelete?: (id: number) => void;
   deletePending?: boolean;
+  /** Kategori düzeltme yetkisi (bağımsız işletme / yatırım giderlerinde görünür). */
+  canEditCategory?: boolean;
+  /** Kategori kaydedildikten sonra güncel satır (detay penceresi tazelensin). */
+  onRowUpdated?: (row: BranchTransaction) => void;
 };
 
 export function BranchTransactionDetailDialog({
@@ -49,6 +65,8 @@ export function BranchTransactionDetailDialog({
   canDelete,
   onDelete,
   deletePending = false,
+  canEditCategory = false,
+  onRowUpdated,
 }: Props) {
   const { t, locale } = useI18n();
   const titleId = useId();
@@ -116,7 +134,11 @@ export function BranchTransactionDetailDialog({
               {formatLocaleDate(row.transactionDate, locale as Locale)}
             </span>
           </DetailField>
-          <DetailField label={t("branch.txColMainCategory")}>{category}</DetailField>
+          {canEditCategory && !isIncome && canReclassifyExpenseRow(row) ? (
+            <ExpenseCategoryEditor key={row.id} row={row} category={category} onSaved={onRowUpdated} />
+          ) : (
+            <DetailField label={t("branch.txColMainCategory")}>{category}</DetailField>
+          )}
           {nonPnl ? (
             <span className="inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-800 ring-1 ring-inset ring-sky-200">
               {t("branch.txNonPnlBadge")}
@@ -258,6 +280,111 @@ export function BranchTransactionDetailDialog({
         </div>
       ) : null}
     </Modal>
+  );
+}
+
+/**
+ * Kategori satırı + düzenleme. Yalnız kategori değişir; tutar, tarih ve ödeme kaynağı (kasa / patron /
+ * zimmet) aynı kalır — kasa ve zimmet bakiyeleri etkilenmez.
+ */
+function ExpenseCategoryEditor({
+  row,
+  category,
+  onSaved,
+}: {
+  row: BranchTransaction;
+  category: string;
+  onSaved?: (row: BranchTransaction) => void;
+}) {
+  const { t } = useI18n();
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const current = String(row.mainCategory ?? "").trim().toUpperCase();
+  const [code, setCode] = useState(current);
+
+  const options = useMemo(() => {
+    const groupLabel = (g: "OUT_OPS" | "OUT_CAPEX") =>
+      t(g === "OUT_OPS" ? "branch.txMainOutOps" : "branch.txMainOutCapex");
+    const seen = new Set<string>();
+    const out: { value: string; label: string }[] = [];
+    for (const o of reclassifyExpenseOptionSources()) {
+      const value = classificationCodeFromLegacyBranchTxForm("OUT", o.group, o.value).toUpperCase();
+      if (!value || seen.has(value)) continue;
+      seen.add(value);
+      out.push({ value, label: `${groupLabel(o.group)} · ${t(o.labelKey)}` });
+    }
+    // Mevcut kod listede yoksa (eski alt kod) seçili kalabilsin diye ekle.
+    if (current && !seen.has(current)) out.unshift({ value: current, label: category });
+    return out;
+  }, [t, current, category]);
+
+  const mut = useMutation({
+    mutationFn: (next: string) => reclassifyBranchExpense(row.id, next),
+    onSuccess: (updated) => {
+      notify.success(t("branch.txCategoryUpdated"));
+      setEditing(false);
+      onSaved?.(updated);
+      void qc.invalidateQueries({ queryKey: branchKeys.all });
+      void qc.invalidateQueries({ queryKey: dashboardSummaryKeys.all });
+      void qc.invalidateQueries({ queryKey: ["personnel", "management-snapshot"], exact: false });
+    },
+    onError: (e) => notify.error(toErrorMessage(e)),
+  });
+
+  if (!editing) {
+    return (
+      <DetailField label={t("branch.txColMainCategory")}>
+        <span className="inline-flex items-center gap-2">
+          {category}
+          <button
+            type="button"
+            className="inline-flex min-h-9 items-center gap-1 rounded-md px-2 text-xs font-medium text-violet-700 hover:bg-violet-50"
+            onClick={() => {
+              setCode(current);
+              setEditing(true);
+            }}
+          >
+            <Pencil className="h-3.5 w-3.5" aria-hidden />
+            {t("branch.txCategoryEdit")}
+          </button>
+        </span>
+      </DetailField>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Select
+        name={`tx-${row.id}-category`}
+        label={t("branch.txColMainCategory")}
+        options={options}
+        value={code}
+        onChange={(e) => setCode(e.target.value)}
+        onBlur={() => {}}
+        disabled={mut.isPending}
+        menuZIndex={300}
+      />
+      <p className="text-xs text-zinc-500">{t("branch.txCategoryEditHint")}</p>
+      <div className="flex gap-2 sm:justify-end">
+        <Button
+          type="button"
+          variant="secondary"
+          className="min-h-[44px] flex-1 sm:flex-none"
+          disabled={mut.isPending}
+          onClick={() => setEditing(false)}
+        >
+          {t("common.cancel")}
+        </Button>
+        <Button
+          type="button"
+          className="min-h-[44px] flex-1 sm:flex-none"
+          disabled={mut.isPending || !code || code === current}
+          onClick={() => mut.mutate(code)}
+        >
+          {t("common.save")}
+        </Button>
+      </div>
+    </div>
   );
 }
 

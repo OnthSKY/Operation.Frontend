@@ -304,6 +304,9 @@ export const branch = {
     "Satılan malın maliyeti (SMM) hesaplanamamaktadır.",
   branchPdfProfitInfoMissingDiscounts:
     "İndirim ve iade etkileri ayrı kayıtlı değildir.",
+  txCategoryEdit: "Düzenle",
+  txCategoryUpdated: "Kategori güncellendi.",
+  txCategoryEditHint: "Yalnız kategori değişir; tutar, tarih ve ödeme kaynağı aynı kalır.",
   branchPdfSourceBreakdownTitle: "Şube giderleri — gider türü ve ödeme kaynağı",
   branchPdfSourceBreakdownNote: "Avans ve kişiye bağlı personel ödemeleri hariç (Personel bölümünde)",
   branchPdfSrcShortRegister: "Kasa",

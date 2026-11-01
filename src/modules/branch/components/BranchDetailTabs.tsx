@@ -1258,6 +1258,8 @@ export function BranchDetailTabs({
         canDelete={canDeleteBranchTx}
         onDelete={handleDetailDelete}
         deletePending={deleteTxMut.isPending}
+        canEditCategory={canDeleteBranchTx}
+        onRowUpdated={setDetailRow}
       />
 
       {!employeeSelfService ? (
