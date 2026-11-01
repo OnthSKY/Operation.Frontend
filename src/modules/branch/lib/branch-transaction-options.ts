@@ -783,6 +783,12 @@ const LEGACY_CATEGORY_KEYS: Record<string, string> = {
   SALARY: "branch.txLegacySalary",
 };
 
+/** Kodun kayıtlı çeviri anahtarı (şemsiye OUT_* dahil); yoksa undefined — insanlaştırma yapmaz. */
+export function txCodeLabelKey(code: string | null | undefined): string | undefined {
+  if (code == null || code === "") return undefined;
+  return ALL_LABEL_KEYS[code] ?? LEGACY_CATEGORY_KEYS[code] ?? TX_MAIN_OUT_LABEL_KEYS[code];
+}
+
 export function txCodeLabel(
   code: string | null | undefined,
   t: (key: string) => string

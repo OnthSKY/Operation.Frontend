@@ -120,6 +120,29 @@ assert.ok(/cat-tot">[^<]*365/.test(opexRow), "tablo işletme toplamı = kart");
   assert.ok(html.includes("person-matrix") && /cat-total[\s\S]*200/.test(html));
 }
 
+// Kategori etiketleri: ham kod sızıntısı yok (yalnız gösterim; gruplama/tutar aynı)
+{
+  const tl = (k: string) =>
+    (({
+      "ledgerClass.OUT_OPS_INVOICE": "Faturalı tedarikçi gideri",
+      "ledgerClass.OUT_OPS_POS_BANK_FEE": "POS / banka komisyonu",
+      "branch.txMainOutOps": "İşletme gideri",
+      "branch.txMainOutGoods": "Ürün / stok",
+    }) as Record<string, string>)[k] ?? k;
+  const extra = [
+    tx({ type: "OUT", mainCategory: "OUT_OPS_POS_BANK_FEE", amount: 7, expensePaymentSource: "REGISTER" }),
+  ];
+  const html = buildBranchExpenseTableHtml([...rows, ...extra], bp, tl, "tr", "—");
+  assert.ok(!/Ops invoice|Ops pos bank fee|>Goods/.test(html), "ham etiket kalmamalı");
+  assert.ok(html.includes("Faturalı tedarikçi gideri") && html.includes("POS / banka komisyonu"));
+  assert.ok(html.includes("Ürün / stok"));
+  const card2 = buildBranchTotalsCardsHtml(tl, "tr", "—", bp, {
+    advTotals: new Map(), expTotals: new Map(), regInTotals: new Map([["TRY", 1]]), regOutTotals: new Map(),
+    stockValTotals: new Map(), stockQtySum: 0, registerRaw: rows,
+  });
+  assert.ok(!/Ops invoice/.test(card2) && card2.includes("Faturalı tedarikçi gideri"));
+}
+
 // Hazır ayarlar: alan seti tam, cari bayrağı korunur
 const keys = Object.keys(defaultBranchSettlementPdfOptions()).sort();
 for (const pr of ["summary", "detailed"] as const) {

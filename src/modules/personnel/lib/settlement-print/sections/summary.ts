@@ -5,7 +5,9 @@
 import type { Locale } from "@/i18n/messages";
 import {
   isRegisterDayCloseIncomeRow,
-  txCategoryMainSub,
+  txCodeLabel,
+  txCodeLabelKey,
+  umbrellaTxMainForSubOptions,
 } from "@/modules/branch/lib/branch-transaction-options";
 import { formatMoneyDash } from "@/shared/lib/locale-amount";
 import type { BranchTransaction } from "@/types/branch-transaction";
@@ -22,6 +24,32 @@ import {
 } from "../buckets";
 import type { BranchSettlementPdfOptions } from "../options";
 import { aggregateBranchRegister } from "../profitability";
+
+/**
+ * PDF kategori etiketi: kayıtlı çeviri anahtarı → `ledgerClass.<kod>` çevirisi → mevcut etiket.
+ * Yalnız gösterim; kod, gruplama ve tutarlar değişmez (ham "Ops invoice" sızıntısını kapatır).
+ */
+function pdfCodeLabel(code: string, t: (k: string) => string): string {
+  const key = txCodeLabelKey(code);
+  if (key) return t(key);
+  const lc = `ledgerClass.${code}`;
+  const v = t(lc);
+  return v && v !== lc ? v : txCodeLabel(code, t);
+}
+
+/** `txCategoryMainSub` ile aynı şemsiye/alt ayrımı, PDF etiketleriyle. */
+function pdfCategoryMainSub(
+  code: string | null | undefined,
+  t: (k: string) => string
+): { main: string; sub: string | null } {
+  const c = String(code ?? "").trim();
+  if (!c) return { main: "", sub: null };
+  const umbrella = umbrellaTxMainForSubOptions(c);
+  return {
+    main: pdfCodeLabel(umbrella, t),
+    sub: c !== umbrella ? pdfCodeLabel(c, t) : null,
+  };
+}
 
 export function buildBranchTotalsCardsHtml(
   t: (k: string) => string,
@@ -96,10 +124,7 @@ export function buildBranchTotalsCardsHtml(
       const shown = codes.length > TOP + 1 ? codes.slice(0, TOP) : codes;
       const rest = codes.slice(shown.length).reduce((s2, [, v]) => s2 + v, 0);
       const catLabel = (code: string) => {
-        // Okunaklı sınıflandırma adı (ledgerClass) varsa onu kullan; yoksa mevcut kategori etiketi.
-        const lc = t(`ledgerClass.${code}`);
-        if (lc && lc !== `ledgerClass.${code}`) return lc;
-        const { main, sub } = txCategoryMainSub(code, t);
+        const { main, sub } = pdfCategoryMainSub(code, t);
         return sub || main || t("branch.txCategoryUnknown");
       };
       const catLines =
@@ -201,7 +226,7 @@ export function buildBranchExpenseTableHtml(
     const b = srcBucketOfExpenseRow(r);
     if (!b) continue; // ödenmemiş fatura vb. — özet kartıyla aynı kapsam
     const target = isCapexOutRow(r) ? capex : opex;
-    const { main, sub } = txCategoryMainSub(r.mainCategory, t);
+    const { main, sub } = pdfCategoryMainSub(r.mainCategory, t);
     const mainKey = main || unknown;
     const g = target.groups.get(mainKey) ?? { ...newAgg(), subs: new Map<string, Agg>() };
     target.groups.set(mainKey, g);
