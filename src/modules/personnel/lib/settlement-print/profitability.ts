@@ -34,6 +34,8 @@ export type CurrencyRegisterAgg = {
   /** P&L-dışı işaretli IN satırları (backend finans raporu bunları hasılata sayar → mutabakat için). */
   excludedRevenueIn: number;
   opexBySrc: Map<SrcBucket, number>;
+  /** İşletme gideri sınıflandırma koduna göre (ör. OUT_OPS_RENT) — toplamı = opex. */
+  opexByCode: Map<string, number>;
   opex: number;
   capex: number;
   /** Kişiye bağlı, maaş/avans OLMAYAN personel giderleri (prim, yemek, yol, SGK satırı …). */
@@ -53,6 +55,7 @@ const newAgg = (): CurrencyRegisterAgg => ({
   cardIn: 0,
   excludedRevenueIn: 0,
   opexBySrc: new Map(),
+  opexByCode: new Map(),
   opex: 0,
   capex: 0,
   personnelRecorded: 0,
@@ -112,6 +115,7 @@ export function aggregateBranchRegister(rows: BranchTransaction[]): Map<string, 
     a.opex += v;
     a.opexBySrc.set(b, (a.opexBySrc.get(b) ?? 0) + v);
     const mc = String(r.mainCategory ?? "").trim().toUpperCase();
+    a.opexByCode.set(mc, (a.opexByCode.get(mc) ?? 0) + v);
     if ((r.linkedSupplierInvoiceLineId ?? 0) > 0) a.centralSupplier += v;
     else if ((r.generalOverheadPoolId ?? 0) > 0) a.centralOverhead += v;
     else if (mc === "OUT_OPS_INVOICE") a.directSupplierInvoice += v;

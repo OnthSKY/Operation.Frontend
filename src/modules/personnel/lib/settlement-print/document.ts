@@ -1021,7 +1021,7 @@ export async function buildPersonnelSettlementDocument(
   ${byBranch || isClosure ? "" : summaryBlockHtml}
   ${notesBlocksHtml}
   ${isClosure ? "" : `${overlapHintHtml}${seasonScopeNoteHtml}`}
-  <p class="footer-note">${escapeHtml(t("personnel.settlementPrintFooterHint"))}</p>
+  <p class="footer-note no-print">${escapeHtml(t("personnel.settlementPrintFooterHint"))}</p>
   </main>
 <script>
 window.__sfn=${JSON.stringify(downloadFileName)};

@@ -158,7 +158,7 @@ async function htmlToPdfBlob(html: string): Promise<Blob> {
     const atoms: { top: number; bottom: number }[] = [];
     idoc
       .querySelectorAll(
-        "h2, h3, .report-header, .salary-cost-disclaimer, .season-tenure-callout, .cash-where-card, .pnl-profit, .pnl-group, .pnl-missing, .pdf-warn, .settlement-note-card, table tr"
+        "h2, h3, .report-header, .salary-cost-disclaimer, .season-tenure-callout, .cash-where-card, .pnl-profit, .pnl-profit-note, .pnl-group, .pnl-missing, .pdf-warn, .settlement-note-card, table tr"
       )
       .forEach((node) => {
         const el = node as HTMLElement;

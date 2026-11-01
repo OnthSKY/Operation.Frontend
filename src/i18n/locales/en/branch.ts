@@ -178,7 +178,6 @@ export const branch = {
     "Revenue, expenses and the interim result are calculated from these rows; turning it off leaves the financial overview empty.",
   branchPdfSrcCentral: "Covered by headquarters",
   branchPdfSrcShortCentral: "HQ",
-  branchPdfTotalCentralSpent: "Covered by headquarters (supplier invoice share)",
   branchPdfPnlCapex: "Investment / fixtures (not part of operating expense)",
   branchPdfPnlCapexTotal: "Investment / fixtures spend",
   branchPdfPnlAfterCapex: "After investment",
@@ -304,13 +303,31 @@ export const branch = {
     "TRY only.",
   branchPdfCariPeriodNote:
     "Current account amounts ignore the period filter (all invoices, current balance).",
+  branchPdfPnlCardSales:
+    "Card sales",
+  branchPdfPnlExpensesByType:
+    "Expenses — by type",
+  branchPdfPnlOpex:
+    "Branch operating expenses",
+  branchPdfPnlOpexOther:
+    "Other operating expenses",
+  branchPdfPnlPersonnelNote:
+    "Recorded part (bonus, meals, transport, etc.); salary and social security missing. Not included in the result.",
+  branchPdfPnlSupplierCost:
+    "Supplier / product costs",
+  branchPdfPnlCogsUnavailable:
+    "Not calculable",
+  branchPdfPnlSupplierNote:
+    "Amount is already within operating expenses (not deducted again). Cost of goods sold cannot be calculated.",
+  branchPdfPnlProfitNote:
+    "This amount is not net profit. Personnel and product costs cannot be fully calculated.",
   branchPdfSourceBreakdownTitle: "Branch expenses — type and payment source",
   branchPdfSourceBreakdownNote: "Advances and person-linked personnel payments excluded (see Personnel)",
   branchPdfSrcShortRegister: "Register",
   branchPdfSrcShortPatron: "Owner",
   branchPdfSrcShortHeld: "Custody",
   branchPdfSrcShortPocket: "Pocket",
-  branchPdfOutflowTitle: "Personnel account",
+  branchPdfOutflowTitle: "Personnel advances and payment movements",
   branchPdfOutflowPerPersonAdvance: "Advance total per person",
   branchPdfOutflowColType: "Type",
   branchPdfOutflowColDetail: "Detail",
@@ -339,12 +356,12 @@ export const branch = {
   branchPdfTotalPersonnelPocketSpent: "From personnel pocket",
   branchPdfPnlRevenue: "Revenue",
   branchPdfPnlGrossRevenue: "Gross revenue",
-  branchPdfPnlCashEarned: "Earned cash",
+  branchPdfPnlCashEarned: "Cash sales",
   branchPdfPnlCashInHand: "Cash in hand",
   branchPdfPnlNetRevenue: "Net revenue (register)",
   branchPdfPnlExpenses: "Operating expenses (by payment source)",
   branchPdfPnlTotalExpense: "Total operating expense",
-  branchPdfPnlProfit: "Interim operating result (revenue − operating expense)",
+  branchPdfPnlProfit: "Remaining after known expenses",
   branchPdfPnlScopeNote:
     "The summary above shows only the branch's expense and profit. Personnel expense and advances are below; remaining cash is in the “Where the branch cash is” card.",
   branchPdfPnlBranchSpend: "Spent for this branch",

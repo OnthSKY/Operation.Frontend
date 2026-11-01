@@ -634,6 +634,18 @@ export const DOC_STYLES = `
     }
     .pdf-warn p { margin: 0; }
     .pdf-warn p + p { margin-top: 3px; }
+    /* Finansal görünüm — tür bazlı gider satırları + durum rozetleri. */
+    .pnl-line-strong-top .pnl-k, .pnl-line-strong-top .pnl-v { font-weight: 800; color: var(--doc-ink); }
+    .pnl-line-status { align-items: baseline; }
+    .pnl-line-status .pnl-k { color: var(--doc-ink); font-weight: 600; }
+    .pnl-note { display: block; margin-top: 1px; font-size: 9px; font-weight: 500; color: var(--doc-muted); }
+    .pnl-profit-note { margin: 0; padding: 4px 12px 7px; font-size: 9.5px; font-weight: 600; color: #92400e; background: #fffbeb; border-bottom: 1px solid var(--doc-rule); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    /* Personel matrisi — kompakt A4. */
+    .person-matrix { font-size: 10px; }
+    .person-matrix th, .person-matrix td { padding: 4px 6px; }
+    .person-matrix td.num, .person-matrix th.num { white-space: nowrap; }
+    thead { display: table-header-group; }
+    .pnl-capex, .pnl-profit, .pnl-profit-note { break-inside: avoid; }
     .pf-table { width: 100%; margin: 4px 0 6px; border: 0; background: transparent; font-size: 10px; }
     .pf-table td { border: 0; border-top: 1px solid #fde68a; padding: 4px 6px 4px 0; vertical-align: top; }
     .pf-table td:first-child { font-weight: 700; color: var(--doc-ink); white-space: nowrap; }

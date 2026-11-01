@@ -1,4 +1,4 @@
-/** Personel hesabı — kişi bazlı özet: her personel tek tutar (avans + gider), altında ödeme kaynağı. */
+/** Personel avans ve ödeme hareketleri — kişi bazlı matris: her personel tek satır, ödeme kaynağı sütun. */
 import type { Locale } from "@/i18n/messages";
 import {
   expenseAttributionPersonnelId,
@@ -11,9 +11,9 @@ import {
   SRC_ORDER,
   type SrcBucket,
   isPersonnelLinkedTx,
-  srcBucketLabel,
   srcBucketOfAdvance,
   srcBucketOfExpense,
+  srcBucketShortLabel,
 } from "../buckets";
 import { ccyKey, escapeHtml, moneyNum } from "../format";
 import { emptyNote } from "../options";
@@ -79,19 +79,6 @@ export function buildPersonnelPerPersonSectionHtml(
     const ks = [...m.keys()].filter((c) => Math.abs(m.get(c) ?? 0) > 1e-9).sort();
     return ks.map((c) => esc(formatMoneyDash(m.get(c) ?? 0, dash, locale, c))).join(" · ") || esc(dash);
   };
-  // Tek kaynak: tutar tekrar etmesin — kaynak adı ismin altında. Birden fazla: kaynak başına alt satır.
-  const render = (label: string, r: Omit<PersonRow, "name">, cls: string): string => {
-    const srcs = SRC_ORDER.filter((b) => r.bySrc.has(b));
-    const only = srcs.length === 1 ? `<span class="cat-src">${esc(srcBucketLabel(srcs[0], t))}</span>` : "";
-    const main = `<tr class="${cls}"><td>${esc(label)}${only}</td><td class="num cat-tot">${join(r.total)}</td></tr>`;
-    if (srcs.length < 2) return main;
-    return (
-      main +
-      srcs
-        .map((b) => `<tr class="cat-sub"><td>${esc(srcBucketLabel(b, t))}</td><td class="num">${join(r.bySrc.get(b))}</td></tr>`)
-        .join("")
-    );
-  };
 
   const grand: Omit<PersonRow, "name"> = { total: new Map(), bySrc: new Map() };
   for (const r of rows) {
@@ -102,16 +89,21 @@ export function buildPersonnelPerPersonSectionHtml(
       grand.bySrc.set(b, g);
     }
   }
+  // Matris: kişi başı tek satır, ödeme kaynakları sütun (yalnız kullanılanlar). Satır toplamı =
+  // kaynakların toplamı; alt satır = sütun toplamları (aynı agregasyon, yalnız sunum).
+  const cols = SRC_ORDER.filter((b) => grand.bySrc.has(b));
+  const cells = (r: Omit<PersonRow, "name">) =>
+    cols.map((b) => `<td class="num">${join(r.bySrc.get(b))}</td>`).join("") +
+    `<td class="num cat-tot">${join(r.total)}</td>`;
   return `${title}
-  <table class="cat-table">
+  <table class="cat-table person-matrix">
     <thead><tr>
       <th>${esc(t("personnel.settlementPrintColPersonnel"))}</th>
+      ${cols.map((b) => `<th class="num">${esc(srcBucketShortLabel(b, t))}</th>`).join("")}
       <th class="num">${esc(t("branch.branchPdfOutflowSubtotalTotal"))}</th>
     </tr></thead>
-    <tbody>${rows.map((r) => render(r.name, r, "cat-main")).join("")}${render(
-      t("branch.branchPdfOutflowSubtotalTotal"),
-      grand,
-      "cat-total"
-    )}</tbody>
+    <tbody>${rows.map((r) => `<tr class="cat-main"><td>${esc(r.name)}</td>${cells(r)}</tr>`).join("")}
+      <tr class="cat-total"><td>${esc(t("branch.branchPdfOutflowSubtotalTotal"))}</td>${cells(grand)}</tr>
+    </tbody>
   </table>`;
 }

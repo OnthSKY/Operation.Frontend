@@ -88,7 +88,12 @@ const after = (html: string, key: string) => {
   return html.slice(i).match(/num[^>]*>([^<]+)</)![1].replace(/[^\d,-]/g, "");
 };
 assert.equal(after(card, "branch.branchPdfPnlGrossRevenue"), "1000");
-assert.equal(after(card, "branch.branchPdfPnlTotalExpense"), "365");
+assert.equal(after(card, "branch.branchPdfPnlOpex"), "365");
+// Finansal görünümde ödeme kaynağı yok (kaynak kırılımı yalnız gider tablosunda)
+assert.ok(!card.includes("branch.branchPdfTotalPatronSpent") && !card.includes("branch.branchPdfTotalRegisterSpentShort"));
+// Kategori kırılımı: satırlar toplamı = işletme gideri; tedarikçi satırı ek gider değil (sonuç değişmez)
+assert.equal([...tr.opexByCode.values()].reduce((s, v) => s + v, 0), tr.opex);
+assert.ok(card.includes("branch.branchPdfPnlSupplierCost") && card.includes("branch.branchPdfPnlProfitNote"));
 assert.equal(after(card, "branch.branchPdfPnlProfit"), "635");
 assert.equal(after(card, "branch.branchPdfPnlAfterCapex"), "335");
 assert.ok(!/net kâr/i.test(card));
@@ -96,6 +101,24 @@ const table = buildBranchExpenseTableHtml(rows, bp, t, "tr", "—");
 assert.ok(table.includes("branch.branchPdfCapexTableTotal"));
 const opexRow = table.slice(table.indexOf("branch.branchPdfOpexTableTotal"));
 assert.ok(/cat-tot">[^<]*365/.test(opexRow), "tablo işletme toplamı = kart");
+
+// Personel matrisi: kişi başı tek satır, kaynak sütunları, satır/sütun toplamları tutarlı
+{
+  const { aggregatePersonnelByPerson, buildPersonnelPerPersonSectionHtml } = await import("./sections/summaries");
+  const adv = [
+    { personnelId: 1, personnelFullName: "A", amount: 100, currencyCode: "TRY", sourceType: "REGISTER" },
+    { personnelId: 1, personnelFullName: "A", amount: 50, currencyCode: "TRY", sourceType: "PATRON" },
+    { personnelId: 2, personnelFullName: "B", amount: 30, currencyCode: "TRY", sourceType: "PERSONNEL_HELD_REGISTER_CASH" },
+  ] as never[];
+  const exp = [rows[12]]; // 20 TL yemek, kasa, personel 7
+  const people = aggregatePersonnelByPerson(adv, exp, "—");
+  const sum = (m: Map<string, number>) => [...m.values()].reduce((s, v) => s + v, 0);
+  assert.equal(people.reduce((s, p) => s + sum(p.total), 0), 200);
+  for (const p of people) assert.equal(sum(p.total), [...p.bySrc.values()].reduce((s, m) => s + sum(m), 0));
+  const html = buildPersonnelPerPersonSectionHtml(adv, exp, true, true, t, "tr", "—");
+  assert.equal((html.match(/<tr class="cat-main">/g) ?? []).length, 3); // A, B, personel 7
+  assert.ok(html.includes("person-matrix") && /cat-total[\s\S]*200/.test(html));
+}
 
 // Hazır ayarlar: alan seti tam, cari bayrağı korunur
 const keys = Object.keys(defaultBranchSettlementPdfOptions()).sort();

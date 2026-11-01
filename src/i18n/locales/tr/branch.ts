@@ -185,7 +185,6 @@ export const branch = {
     "Hasılat, gider ve ara sonuç bu kayıtlardan hesaplanır; kapatılırsa finansal görünüm boş kalır.",
   branchPdfSrcCentral: "Merkez tarafından karşılanan",
   branchPdfSrcShortCentral: "Merkez",
-  branchPdfTotalCentralSpent: "Merkez tarafından karşılanan (tedarikçi faturası payı)",
   branchPdfPnlCapex: "Yatırım / demirbaş (işletme giderine dahil değil)",
   branchPdfPnlCapexTotal: "Yatırım / demirbaş harcaması",
   branchPdfPnlAfterCapex: "Yatırım düşüldükten sonra",
@@ -313,13 +312,31 @@ export const branch = {
     "Yalnızca TRY.",
   branchPdfCariPeriodNote:
     "Cari tutarlar dönem filtresinden bağımsızdır (tüm faturalar, güncel bakiye).",
+  branchPdfPnlCardSales:
+    "Kart satışları",
+  branchPdfPnlExpensesByType:
+    "Giderler — türlerine göre",
+  branchPdfPnlOpex:
+    "Şube işletme giderleri",
+  branchPdfPnlOpexOther:
+    "Diğer işletme giderleri",
+  branchPdfPnlPersonnelNote:
+    "Kayıtlı kısım (prim, yemek, yol vb.); maaş ve SGK eksik. Sonuca dahil değil.",
+  branchPdfPnlSupplierCost:
+    "Tedarikçi / ürün maliyetleri",
+  branchPdfPnlCogsUnavailable:
+    "Hesaplanamıyor",
+  branchPdfPnlSupplierNote:
+    "Tutar işletme giderlerinin içindedir (ayrıca düşülmez). Satılan malın maliyeti hesaplanamıyor.",
+  branchPdfPnlProfitNote:
+    "Bu tutar net kâr değildir. Personel ve ürün maliyetleri tam olarak hesaplanamamaktadır.",
   branchPdfSourceBreakdownTitle: "Şube giderleri — gider türü ve ödeme kaynağı",
   branchPdfSourceBreakdownNote: "Avans ve kişiye bağlı personel ödemeleri hariç (Personel bölümünde)",
   branchPdfSrcShortRegister: "Kasa",
   branchPdfSrcShortPatron: "Patron",
   branchPdfSrcShortHeld: "Zimmet",
   branchPdfSrcShortPocket: "Cep",
-  branchPdfOutflowTitle: "Personel hesabı",
+  branchPdfOutflowTitle: "Personel avans ve ödeme hareketleri",
   branchPdfOutflowPerPersonAdvance: "Kişi bazlı avans toplamı",
   branchPdfOutflowColType: "Tür",
   branchPdfOutflowColDetail: "Açıklama",
@@ -348,12 +365,12 @@ export const branch = {
   branchPdfTotalPersonnelPocketSpent: "Personel cebinden",
   branchPdfPnlRevenue: "Hasılat",
   branchPdfPnlGrossRevenue: "Toplam hasılat",
-  branchPdfPnlCashEarned: "Kazanılan nakit",
+  branchPdfPnlCashEarned: "Nakit satışlar",
   branchPdfPnlCashInHand: "Ele geçen nakit",
   branchPdfPnlNetRevenue: "Net hasılat (kasa)",
   branchPdfPnlExpenses: "İşletme giderleri (ödeme kaynağına göre)",
   branchPdfPnlTotalExpense: "Toplam işletme gideri",
-  branchPdfPnlProfit: "Ara faaliyet sonucu (hasılat − işletme gideri)",
+  branchPdfPnlProfit: "Bilinen giderler sonrası kalan tutar",
   branchPdfPnlScopeNote:
     "Üstteki özet yalnız şube giderini ve kârını gösterir. Personel gideri ve avanslar aşağıda; kalan nakit «Şubenin nakiti nerede» kartında.",
   branchPdfPnlBranchSpend: "Bu şube için harcananlar",
