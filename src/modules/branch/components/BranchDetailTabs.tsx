@@ -506,7 +506,7 @@ export function BranchDetailTabs({
         | undefined,
       excludeDebtClosureOuts: true,
     }),
-    [expPage, expFrom, expTo, expFilterMain, expFilterSub, expFilterPay, expFilterKind]
+    [expPage, expFrom, expTo, expFilterMain, expFilterSub, expFilterPay, expFilterHeldPersonnel, expFilterKind]
   );
 
   const todayIso = localIsoDate();

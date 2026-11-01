@@ -263,14 +263,9 @@ export function BranchDetailExpensesTab(props: BranchDetailExpensesTabProps) {
     (hasExpPayFilter ? 1 : 0);
   const showHeldRegisterInExpenseTab =
     expFilterPay.trim().toUpperCase() === "PERSONNEL_HELD_REGISTER_CASH";
-  const visibleExpenseItems = useMemo(() => {
-    const items = expData?.items ?? [];
-    if (showHeldRegisterInExpenseTab) return items;
-    return items.filter((row) => {
-      const src = String(row.expensePaymentSource ?? "").trim().toUpperCase();
-      return src !== "PERSONNEL_HELD_REGISTER_CASH";
-    });
-  }, [expData?.items, showHeldRegisterInExpenseTab]);
+  // Ödeme kaynağı filtresi yoksa tüm kaynaklar (kasa, patron, personel zimmeti …) listelenir;
+  // zimmetten ödenen kira vb. gerçek şube gideridir. Filtre sunucuda uygulanır.
+  const visibleExpenseItems = expData?.items ?? [];
 
   // Tedarikçi ödemeleri bloğu — tedarikçiye göre filtre + sıralama. Personel filtresi ana
   // filtredeki (expFilterHeldPersonnel) seçime bağlıdır (tek personel filtresi).
