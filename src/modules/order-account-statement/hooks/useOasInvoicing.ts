@@ -14,6 +14,8 @@ export function useOasInvoicing() {
   const [saveAsInvoice, setSaveAsInvoice] = useState(false);
   const [invoiceAutoPost, setInvoiceAutoPost] = useState(true);
   const [invoicePaymentDetailsOpen, setInvoicePaymentDetailsOpen] = useState(false);
+  /** Şube ürün özeti (bilgi amaçlı PDF): fatura/sistem kaydı/yönlendirme download akışında zorla kapalı. */
+  const [informationalOnly, setInformationalOnly] = useState(false);
 
   const [customerAccountIdText, setCustomerAccountIdText] = useState("");
   const [paymentIban, setPaymentIban] = useState("");
@@ -35,6 +37,8 @@ export function useOasInvoicing() {
     setInvoiceAutoPost,
     invoicePaymentDetailsOpen,
     setInvoicePaymentDetailsOpen,
+    informationalOnly,
+    setInformationalOnly,
 
     customerAccountIdText,
     setCustomerAccountIdText,

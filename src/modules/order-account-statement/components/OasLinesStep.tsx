@@ -22,6 +22,7 @@ import {
 import { LineCalcBlock } from "@/modules/order-account-statement/components/oas-line-calc-block";
 import { OrderAccountLineProductPicker } from "@/modules/order-account-statement/components/OrderAccountLineProductPicker";
 import { OasLineUnitInput } from "@/modules/order-account-statement/components/OasLineUnitInput";
+import { OasBranchProductsBar } from "@/modules/order-account-statement/components/OasBranchProductsBar";
 import type { LineDraft } from "@/modules/order-account-statement/components/oas-types";
 import type { ProductListItem } from "@/types/product";
 import type { ProductCostHistoryRow } from "@/types/product-cost";
@@ -74,6 +75,12 @@ type Props = {
   openProductPricingPanel: (line: LineDraft) => void;
   collapseLinesToParentProduct: () => void;
   applyAllSalesSuggestions: () => void;
+
+  // şube ürün özeti (bilgi amaçlı)
+  branchSelected: boolean;
+  informationalOnly: boolean;
+  unpricedLineCount: number;
+  loadBranchProductTotalsIntoForm: React.ComponentProps<typeof OasBranchProductsBar>["onLoad"];
 };
 
 export function OasLinesStep(props: Props) {
@@ -104,6 +111,10 @@ export function OasLinesStep(props: Props) {
     openProductPricingPanel,
     collapseLinesToParentProduct,
     applyAllSalesSuggestions,
+    branchSelected,
+    informationalOnly,
+    unpricedLineCount,
+    loadBranchProductTotalsIntoForm,
   } = props;
   const { t } = useI18n();
   // Masaüstü: ürün seçici satır-bazında ihtiyaç halinde açılır (kompakt). Aynı anda tek satır.
@@ -145,6 +156,24 @@ export function OasLinesStep(props: Props) {
       collapseLabelCollapse={t("reports.orderAccountStatementLinesSectionCollapse")}
     >
       <p className="mb-2 text-[11px] text-zinc-500 lg:hidden">{t("reports.orderAccountStatementTableScrollHint")}</p>
+      {canPickProducts ? (
+        <OasBranchProductsBar
+          locale={locale}
+          branchSelected={branchSelected}
+          hasContent={lines.some((l) => l.description.trim() || l.selectedProductId || l.amount > 0)}
+          onLoad={loadBranchProductTotalsIntoForm}
+        />
+      ) : null}
+      {informationalOnly ? (
+        <p className="mb-2 rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-[11px] font-medium text-sky-900">
+          {t("reports.orderAccountStatementInformationalBadge")}
+        </p>
+      ) : null}
+      {informationalOnly && unpricedLineCount > 0 ? (
+        <p className="mb-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-900">
+          {t("reports.orderAccountStatementBranchProductsPricingIncomplete").replace("{count}", String(unpricedLineCount))}
+        </p>
+      ) : null}
       <div className="mb-2 flex flex-wrap items-center gap-1.5">
         <Button
           type="button"

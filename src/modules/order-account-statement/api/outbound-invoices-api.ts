@@ -334,6 +334,9 @@ export function salesPriceKey(productId: number, unit: string | null | undefined
   return `${productId}::${(unit ?? "").trim().toLowerCase()}`;
 }
 
+/** OutboundInvoicesService.GetSalesPriceSuggestionsBatchAsync `.Take(500)` ile aynı. */
+const SALES_PRICE_BATCH_MAX = 500;
+
 export async function fetchSalesPriceSuggestionsBatch(params: {
   productIds: number[];
   counterpartyType: "branch" | "customer";
@@ -343,22 +346,25 @@ export async function fetchSalesPriceSuggestionsBatch(params: {
 }): Promise<Record<string, SalesPriceSuggestion>> {
   const ids = Array.from(new Set(params.productIds.filter((x) => Number.isFinite(x) && x > 0)));
   if (ids.length === 0) return {};
-  const body = {
-    productIds: ids,
-    counterpartyType: params.counterpartyType,
-    counterpartyId: params.counterpartyId,
-    currencyCode: (params.currencyCode ?? "TRY").trim().toUpperCase(),
-    lookbackDays: Math.max(1, params.lookbackDays ?? 90),
-  };
-  const res = await apiRequest<{ items: SalesPriceSuggestionBatchItem[] }>(
-    "/outbound-invoices/price-suggestions/batch",
-    { method: "POST", body: JSON.stringify(body) }
-  );
-  // (ürün, birim) bazlı: her satır kendi biriminin önerisini bulur.
+  // Backend tek istekte ilk 500 ürünü işler (fazlasını sessizce keser) → 500'lük parçalarla gönder.
   const map: Record<string, SalesPriceSuggestion> = {};
-  for (const it of res.items ?? []) {
-    const { productId, unit, ...rest } = it;
-    map[salesPriceKey(productId, unit)] = rest;
+  for (let i = 0; i < ids.length; i += SALES_PRICE_BATCH_MAX) {
+    const body = {
+      productIds: ids.slice(i, i + SALES_PRICE_BATCH_MAX),
+      counterpartyType: params.counterpartyType,
+      counterpartyId: params.counterpartyId,
+      currencyCode: (params.currencyCode ?? "TRY").trim().toUpperCase(),
+      lookbackDays: Math.max(1, params.lookbackDays ?? 90),
+    };
+    const res = await apiRequest<{ items: SalesPriceSuggestionBatchItem[] }>(
+      "/outbound-invoices/price-suggestions/batch",
+      { method: "POST", body: JSON.stringify(body) }
+    );
+    // (ürün, birim) bazlı: her satır kendi biriminin önerisini bulur.
+    for (const it of res.items ?? []) {
+      const { productId, unit, ...rest } = it;
+      map[salesPriceKey(productId, unit)] = rest;
+    }
   }
   return map;
 }

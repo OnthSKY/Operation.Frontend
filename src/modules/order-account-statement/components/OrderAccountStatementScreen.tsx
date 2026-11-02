@@ -42,6 +42,8 @@ export type { OrderAccountContentPreset } from "@/modules/order-account-statemen
 import { type RichComboboxOption } from "@/shared/ui/RichCombobox";
 import { useBranchDetailOverlay } from "@/shared/branch-detail";
 import { useRouter, useSearchParams } from "next/navigation";
+import { computeOrderAccountTotals } from "@/modules/order-account-statement/lib/compute-order-account-totals";
+import type { StatementLayoutVariant } from "@/modules/order-account-statement/components/OrderAccountStatementPaper";
 import { useMemo, useRef, useState } from "react";
 
 export function OrderAccountStatementScreen() {
@@ -96,6 +98,7 @@ export function OrderAccountStatementScreen() {
     showPaymentOnPdf,
     setShowPaymentOnPdf,
     lastSavedDocumentId,
+    informationalOnly,
   } = invoicing;
   const suggestionsState = useOasSuggestions();
   const {
@@ -215,6 +218,7 @@ export function OrderAccountStatementScreen() {
   const {
     loadShipmentIntoForm,
     loadShipmentGroupIntoForm,
+    loadBranchProductTotalsIntoForm,
     onLoadManualShipment,
   } = useOasShipmentLoader({
     t,
@@ -378,6 +382,33 @@ export function OrderAccountStatementScreen() {
     shipmentPrefillActive: shipmentPrefillParams != null,
   });
 
+  // Bilgi amaçlı ürün özeti: PDF'te bakiye/ön ödeme/promosyon/tahsilat ve ödeme bilgisi yok,
+  // fatura benzeri yerleşim yok, "ödenecek" yerine "toplam ürün değeri". Normal modda değerler aynen geçer.
+  const INFO_LAYOUTS: StatementLayoutVariant[] = ["corporate", "compact", "minimal"];
+  const unpricedLineCount = lines.filter(
+    (l) => !l.isGift && (l.selectedProductId ?? 0) > 0 && !(l.amount > 0)
+  ).length;
+  const paperLayoutVariant =
+    informationalOnly && !INFO_LAYOUTS.includes(layoutVariant) ? "corporate" : layoutVariant;
+  const paperLayoutOptions = informationalOnly
+    ? layoutSelectOptions.filter((o) => INFO_LAYOUTS.includes(o.value as StatementLayoutVariant))
+    : layoutSelectOptions;
+  const informationalTotals = useMemo(
+    () => computeOrderAccountTotals(parsedLines, [], 0, [], 0),
+    [parsedLines]
+  );
+  const paperLabels = informationalOnly
+    ? {
+        ...labels,
+        net: t("reports.orderAccountStatementInformationalNet"),
+        documentTagline:
+          t("reports.orderAccountStatementInformationalTagline") +
+          (unpricedLineCount > 0
+            ? ` · ${t("reports.orderAccountStatementInformationalPricingIncompleteTagline").replace("{count}", String(unpricedLineCount))}`
+            : ""),
+      }
+    : labels;
+
   const { busy, hasMultipleActions, onDownloadPdfClick, onRedirectNow, cancelPendingRedirect } = useOasDownloadFlow({
     t,
     locale,
@@ -473,6 +504,10 @@ export function OrderAccountStatementScreen() {
             openProductPricingPanel={openProductPricingPanel}
             collapseLinesToParentProduct={collapseLinesToParentProduct}
             applyAllSalesSuggestions={applyAllSalesSuggestions}
+            branchSelected={Number.parseInt(linkedBranchId, 10) > 0}
+            informationalOnly={informationalOnly}
+            unpricedLineCount={unpricedLineCount}
+            loadBranchProductTotalsIntoForm={loadBranchProductTotalsIntoForm}
           />
           </div>
 
@@ -516,11 +551,11 @@ export function OrderAccountStatementScreen() {
         hasMultipleActions={hasMultipleActions}
         onDownloadClick={onDownloadPdfClick}
         template={{
-          layoutVariant,
+          layoutVariant: paperLayoutVariant,
           setLayoutVariant,
           contentPreset,
           applyContentPreset,
-          layoutOptions: layoutSelectOptions,
+          layoutOptions: paperLayoutOptions,
           contentOptions: contentSelectOptions,
         }}
         settings={{
@@ -546,30 +581,31 @@ export function OrderAccountStatementScreen() {
           setPaymentNote,
           showPaymentOnPdf,
           setShowPaymentOnPdf,
+          informationalOnly,
         }}
         paper={{
           ref: previewRef,
-          layoutVariant,
+          layoutVariant: paperLayoutVariant,
           locale,
           companyName,
           branchName,
           emblemDataUrl,
           documentTitle,
-          showDocumentTagline,
+          showDocumentTagline: informationalOnly || showDocumentTagline,
           issuedDate: issuedDateLabel,
           lines: previewLines,
           showQuantityColumn,
-          promoLines: previewPromo,
-          totals,
-          advanceDeduction,
-          previousBalance,
-          paidOnBehalf: previewPaid,
+          promoLines: informationalOnly ? [] : previewPromo,
+          totals: informationalOnly ? informationalTotals : totals,
+          advanceDeduction: informationalOnly ? 0 : advanceDeduction,
+          previousBalance: informationalOnly ? 0 : previousBalance,
+          paidOnBehalf: informationalOnly ? [] : previewPaid,
           paymentInfo: {
             iban: paymentIban,
             accountHolder: paymentAccountHolder,
             bankName: paymentBankName,
             paymentNote: paymentNote,
-            showOnPdf: showPaymentOnPdf,
+            showOnPdf: !informationalOnly && showPaymentOnPdf,
           },
           paymentLabels: {
             section: "Ödeme bilgileri",
@@ -580,10 +616,10 @@ export function OrderAccountStatementScreen() {
           },
           documentMeta: {
             referenceId: orderDocumentKey,
-            systemDocumentId: lastSavedDocumentId,
+            systemDocumentId: informationalOnly ? null : lastSavedDocumentId,
             generationLabel: "PDF oluşturma",
           },
-          labels,
+          labels: paperLabels,
           emptyHint: t("reports.orderAccountStatementPreviewEmpty"),
           previewFit: true,
         }}

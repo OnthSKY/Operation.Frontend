@@ -1249,6 +1249,40 @@ export async function fetchBranchStockReceiptsPaged(
   };
 }
 
+export type BranchStockReceiptProductTotal = {
+  productId: number;
+  productName: string;
+  unit: string | null;
+  parentProductId: number | null;
+  parentProductName: string | null;
+  productDeleted: boolean;
+  quantity: number;
+  movementCount: number;
+};
+
+/** Şubeye gelen tüm ürünlerin ürün bazında toplamı (sunucuda toplanır; sayfalama yok). Boş tarih = tüm zamanlar. */
+export async function fetchBranchStockReceiptTotalsByProduct(
+  branchId: number,
+  params: { dateFrom?: string; dateTo?: string }
+): Promise<BranchStockReceiptProductTotal[]> {
+  const q = new URLSearchParams();
+  if (params.dateFrom?.length === 10) q.set("dateFrom", params.dateFrom);
+  if (params.dateTo?.length === 10) q.set("dateTo", params.dateTo);
+  const rows = await apiRequest<Record<string, unknown>[]>(
+    `/branches/${branchId}/stock-receipts/by-product?${q.toString()}`
+  );
+  return (Array.isArray(rows) ? rows : []).map((r) => ({
+    productId: Number(r.productId) || 0,
+    productName: String(r.productName ?? ""),
+    unit: r.unit == null ? null : String(r.unit),
+    parentProductId: r.parentProductId == null ? null : Number(r.parentProductId),
+    parentProductName: r.parentProductName == null ? null : String(r.parentProductName),
+    productDeleted: Boolean(r.productDeleted),
+    quantity: Number(r.quantity) || 0,
+    movementCount: Number(r.movementCount) || 0,
+  }));
+}
+
 export async function fetchBranchStockReceiptsSummary(
   branchId: number,
   params: BranchStockSummaryParams

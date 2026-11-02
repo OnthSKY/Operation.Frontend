@@ -182,6 +182,7 @@ export function useOasSamplePresets(params: Params) {
     identity.setCompanyName(identity.defaultCompanyName);
     identity.setBranchName("");
     identity.setLinkedBranchId("");
+    invoicing.setInformationalOnly(false);
     invoicing.setSaveToSystem(true);
     invoicing.setSaveAsInvoice(false);
     invoicing.setInvoiceAutoPost(true);

@@ -26,6 +26,8 @@ type Props = {
   setPaymentNote: Dispatch<SetStateAction<string>>;
   showPaymentOnPdf: boolean;
   setShowPaymentOnPdf: Dispatch<SetStateAction<boolean>>;
+  /** Şube ürün özeti: fatura/sistem kaydı seçenekleri gizlenir (download akışı da zorla kapatır). */
+  informationalOnly?: boolean;
 };
 
 export function OrderAccountStatementPreviewSettings(props: Props) {
@@ -52,7 +54,16 @@ export function OrderAccountStatementPreviewSettings(props: Props) {
     setPaymentNote,
     showPaymentOnPdf,
     setShowPaymentOnPdf,
+    informationalOnly = false,
   } = props;
+
+  if (informationalOnly) {
+    return (
+      <div className="mt-3 rounded-lg border border-sky-200 bg-sky-50 p-2.5 text-xs text-sky-900">
+        {t("reports.orderAccountStatementInformationalSettingsNote")}
+      </div>
+    );
+  }
 
   return (
     <div className="mt-3 rounded-lg border border-zinc-200 bg-zinc-50/70 p-2.5">

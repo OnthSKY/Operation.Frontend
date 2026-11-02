@@ -24,6 +24,7 @@ import {
   type OutboundInvoiceResponse,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
 import { uploadBranchDocument } from "@/modules/branch/api/branch-documents-api";
+import { resolveOasPersistActions } from "@/modules/order-account-statement/lib/resolve-persist-actions";
 import type {
   LineDraft,
 } from "@/modules/order-account-statement/components/oas-types";
@@ -94,7 +95,9 @@ export function useOasDownloadFlow(p: Params) {
   } = p;
 
   const [busy, setBusy] = useState(false);
-  const hasMultipleActions = invoicing.saveAsInvoice || invoicing.saveToSystem;
+  // Hard guard: bilgi amaçlı modda checkbox'lardan bağımsız olarak fatura/sistem kaydı/yönlendirme yok.
+  const persist = resolveOasPersistActions(invoicing);
+  const hasMultipleActions = persist.createInvoice || persist.saveToSystem;
   // Akış sonu geri sayım/yönlendirme için. Modal'daki "Şimdi git" butonu bu ref'i tetikler.
   const pendingRedirectRef = useRef<{
     timeoutId: ReturnType<typeof setTimeout>;
@@ -132,12 +135,12 @@ export function useOasDownloadFlow(p: Params) {
         {
           id: "invoice",
           label: t("reports.orderAccountStatementActionCreateInvoice"),
-          state: invoicing.saveAsInvoice ? "pending" : "skipped",
+          state: persist.createInvoice ? "pending" : "skipped",
         },
         {
           id: "system",
           label: t("reports.orderAccountStatementActionSaveSystem"),
-          state: invoicing.saveToSystem ? "pending" : "skipped",
+          state: persist.saveToSystem ? "pending" : "skipped",
         },
       ]);
     }
@@ -173,7 +176,7 @@ export function useOasDownloadFlow(p: Params) {
       const counterpartyId = useBranchCounterparty ? parsedBranchId : parsedCustomerId;
       let createdInvoice: OutboundInvoiceResponse | null = null;
 
-      if (invoicing.saveAsInvoice) {
+      if (persist.createInvoice) {
         setStepState("invoice", "running");
         if (!useBranchCounterparty && (!Number.isFinite(parsedCustomerId) || parsedCustomerId <= 0)) {
           notify.error(t("reports.orderAccountStatementInvoiceCounterpartyRequired"));
@@ -328,7 +331,7 @@ export function useOasDownloadFlow(p: Params) {
         setStepState("invoice", "done");
       }
 
-      if (invoicing.saveToSystem) {
+      if (persist.saveToSystem) {
         setStepState("system", "running");
         const branchId = parsedBranchId;
         if (!Number.isFinite(branchId) || branchId <= 0) {
@@ -375,12 +378,12 @@ export function useOasDownloadFlow(p: Params) {
       if (showMultiActionProgress) {
         const navigateToTarget = () => {
           if (
-            invoicing.saveToSystem &&
+            persist.saveToSystem &&
             Number.isFinite(parsedBranchId) &&
             parsedBranchId > 0
           ) {
             openBranchDetail(parsedBranchId, { initialTab: "currentAccount" });
-          } else if (invoicing.saveAsInvoice) {
+          } else if (persist.createInvoice) {
             router.push("/reports/financial/current-accounts");
           }
         };
@@ -403,12 +406,12 @@ export function useOasDownloadFlow(p: Params) {
       } else {
         // Modal kullanılmadıysa eski davranış: direkt yönlendir.
         if (
-          invoicing.saveToSystem &&
+          persist.saveToSystem &&
           Number.isFinite(parsedBranchId) &&
           parsedBranchId > 0
         ) {
           openBranchDetail(parsedBranchId, { initialTab: "currentAccount" });
-        } else if (invoicing.saveAsInvoice) {
+        } else if (persist.createInvoice) {
           router.push("/reports/financial/current-accounts");
         }
       }
@@ -432,6 +435,7 @@ export function useOasDownloadFlow(p: Params) {
     parsedLines,
     parsedPaid,
     parsedPromo,
+    persist,
     previewRef,
     previousBalance,
     receivedAdvancePostToLedger,

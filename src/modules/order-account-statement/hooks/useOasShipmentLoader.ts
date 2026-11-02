@@ -13,6 +13,7 @@ import {
   fetchShipmentInvoiceability,
 } from "@/modules/order-account-statement/api/outbound-invoices-api";
 import { fetchWarehouseOutboundShipmentMovementForEdit } from "@/modules/warehouse/api/warehouses-api";
+import { fetchBranchStockReceiptTotalsByProduct } from "@/modules/branch/api/branches-api";
 import type { ShipmentOption } from "@/modules/order-account-statement/hooks/useOasShipmentSelection";
 import type { ProductListItem } from "@/types/product";
 import type { useOasIdentity } from "@/modules/order-account-statement/hooks/useOasIdentity";
@@ -83,6 +84,7 @@ export function useOasShipmentLoader(params: Params) {
         }
       }
       preview.setShowQuantityColumn(true);
+      invoicing.setInformationalOnly(false);
       invoicing.setSaveAsInvoice(true);
       invoicing.setSaveToSystem(true);
       if (source === "auto") invoicing.setInvoiceAutoPost(!shipmentPrefillDraftMode);
@@ -146,6 +148,7 @@ export function useOasShipmentLoader(params: Params) {
         }
       }
       preview.setShowQuantityColumn(true);
+      invoicing.setInformationalOnly(false);
       invoicing.setSaveAsInvoice(true);
       invoicing.setSaveToSystem(true);
       if (source === "auto") invoicing.setInvoiceAutoPost(!shipmentPrefillDraftMode);
@@ -191,6 +194,62 @@ export function useOasShipmentLoader(params: Params) {
     [catalog, identity, invoicing, linesState, locale, preview, shipment, shipmentPrefillDraftMode, t]
   );
 
+  /**
+   * Şubeye gelen tüm ürünleri (tarih aralığında, faturalı sevkiyatlar dahil) ürün bazında toplayıp
+   * Kalemler'e yükler ve bilgi amaçlı moda geçer: fatura/sistem kaydı download akışında zorla kapalı.
+   * Boş tarih = tüm zamanlar. Dönen değer: yüklenen satır sayısı (0 = form değişmedi).
+   */
+  const loadBranchProductTotalsIntoForm = useCallback(
+    async (range: { dateFrom: string; dateTo: string; label: string }, mode: "replace" | "append") => {
+      const branchId = Number.parseInt(identity.linkedBranchId, 10);
+      if (!Number.isFinite(branchId) || branchId <= 0) {
+        notify.error(t("reports.orderAccountStatementBranchProductsBranchRequired"));
+        return 0;
+      }
+      const rows = await fetchBranchStockReceiptTotalsByProduct(branchId, {
+        dateFrom: range.dateFrom,
+        dateTo: range.dateTo,
+      });
+      if (rows.length === 0) {
+        notify.info(t("reports.orderAccountStatementBranchProductsEmpty"));
+        return 0;
+      }
+      const loaded = rows.map((r) => ({
+        ...emptyLine(),
+        description: r.productName,
+        quantityText: formatLocaleAmountInput(Math.max(0, r.quantity), locale),
+        unitText: r.unit?.trim() || "",
+        selectedProductId: r.productId,
+        parentProductId: r.parentProductId,
+        parentProductName: r.parentProductName,
+        lineSource: "manual" as const,
+        manualReasonCode: "OPS_BRANCH_SUMMARY",
+      }));
+      invoicing.setInformationalOnly(true);
+      invoicing.setSaveAsInvoice(false);
+      invoicing.setSaveToSystem(false);
+      shipment.setCreationMode("manual");
+      shipment.setSelectedShipmentSource(null);
+      linesState.setPromoLines([]);
+      linesState.setPaidLines([]);
+      linesState.setAdvanceText("");
+      linesState.setPreviousBalanceText("");
+      linesState.setLines((prev) =>
+        mode === "append"
+          ? [...prev.filter((l) => l.description.trim() || l.selectedProductId || l.amount > 0), ...loaded]
+          : loaded
+      );
+      preview.setShowQuantityColumn(true);
+      identity.setDocumentTitle(
+        t("reports.orderAccountStatementBranchProductsTitle")
+          .replace("{branch}", identity.branchName.trim() || "—")
+          .replace("{range}", range.label)
+      );
+      return loaded.length;
+    },
+    [identity, invoicing, linesState, locale, preview, shipment, t]
+  );
+
   const onLoadManualShipment = useCallback(async () => {
     const selectedGroup = shipment.shipmentOptions.find(
       (x) => x.key === shipment.selectedShipmentOptionKey
@@ -227,6 +286,7 @@ export function useOasShipmentLoader(params: Params) {
   return {
     loadShipmentIntoForm,
     loadShipmentGroupIntoForm,
+    loadBranchProductTotalsIntoForm,
     onLoadManualShipment,
   };
 }
